@@ -16,13 +16,20 @@ for Unreal is `docs/ue5-instrumentation-spec.md`, generated from the metric regi
 
 ## Read first
 
-| Document                | What it settles                                                      |
-| ----------------------- | -------------------------------------------------------------------- |
-| `docs/01-foundation.md` | Two-sided product, tenancy, CRM boundary, identity, privacy          |
-| `docs/02-views.md`      | Page pattern, semantic metric layer, the views, AI layer, sequencing |
-| `docs/03-event-map.md`  | Showroom UX flow mapped to events; UE5 API surface                   |
-| `docs/adr/`             | Architecture decisions, numbered                                     |
-| `docs/references.md`    | External references (Figma, legacy system)                           |
+| Document                       | What it settles                                                            |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| `docs/01-foundation.md`        | Two-sided product, tenancy, CRM boundary, identity, privacy                |
+| `docs/02-views.md`             | Page pattern, semantic metric layer, the views, AI layer, sequencing       |
+| `docs/03-event-map.md`         | Showroom UX flow mapped to observable facts; the Unreal API surface        |
+| `docs/04-journey.md`           | The unified WEBIRIS → showroom → CRM journey, evidence tiers, attribution  |
+| `docs/05-identity.md`          | Identity architecture, and the awkward cases: duplicates, couples, erasure |
+| `docs/06-ownership.md`         | Which system owns which fact, and the read-model rule                      |
+| `docs/07-pre-meeting-brief.md` | The brief contract and what may never be inferred                          |
+| `docs/08-scenarios.md`         | Deterministic synthetic scenarios, Viktória first                          |
+| `docs/traceability.md`         | Requirement → where satisfied. Hand-maintained.                            |
+| `docs/measurement-matrix.md`   | **Generated.** Metric → facts → sources. Never edit by hand.               |
+| `docs/adr/`                    | Architecture decisions, numbered                                           |
+| `docs/references.md`           | External references (Figma, legacy system)                                 |
 
 ## Commands
 
@@ -32,9 +39,12 @@ pnpm dev          # Next.js dev server
 pnpm typecheck    # tsc --noEmit in every package
 pnpm lint         # eslint, whole repo
 pnpm test         # vitest
+pnpm matrix       # regenerate the measurement dependency matrix
 pnpm build        # production build of @observer/web
-pnpm verify       # typecheck, lint, test, build
+pnpm verify       # format, typecheck, lint, test, build
 ```
+
+Run `pnpm matrix` after any registry change. A test fails if the committed matrix has drifted.
 
 ## Non-negotiables
 

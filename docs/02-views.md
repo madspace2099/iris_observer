@@ -7,6 +7,14 @@
 > makes true conversion computable), and new measures arrive for share, POI coverage, presentation
 > coverage and the Compare-Mode competition graph. See §9 there.
 
+> **Amended by M1 (2026-08-24).** The confirmed product areas supersede the four-lens naming used
+> below: Executive Overview, Project Intelligence, Unit Intelligence, Sales Agent Workspace, Sales
+> Flow, Meeting Intelligence, Behaviour Intelligence, Period Comparison, Reports and MADSPACE
+> Administration. The page pattern, the metric discipline and the sequencing argument here all
+> still hold. The unified journey adds **no** primary navigation item: the pre-meeting brief lives
+> in the agent Overview and the Meeting drill-down, and the full journey in the Contact drill-down
+> under People. See `docs/04-journey.md` §5.
+
 Visual design system and component specs: `04-ui-ux.md` (not yet written).
 
 ---

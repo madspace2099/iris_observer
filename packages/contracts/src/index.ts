@@ -1,6 +1,18 @@
-export {
-  SCHEMA_VERSION,
-  SUPPORTED_SCHEMA_VERSIONS,
-  isSupportedSchemaVersion,
-  type SchemaVersion,
-} from "./version.js";
+/**
+ * `@observer/contracts` — the shared vocabulary.
+ *
+ * Everything here is a contract, not an implementation: identifiers, domain
+ * entities, the observable-fact taxonomy, evidence discipline and the
+ * pre-meeting brief. No database access, no HTTP, no React.
+ *
+ * Concrete wire event names are deliberately absent. See ADR-0013.
+ */
+
+export * from "./version.js";
+export * from "./ids.js";
+export * from "./sources.js";
+export * from "./identity.js";
+export * from "./engagement.js";
+export * from "./observables.js";
+export * from "./evidence.js";
+export * from "./brief.js";

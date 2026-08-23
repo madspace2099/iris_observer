@@ -1,0 +1,542 @@
+{
+  "generatedFrom": "packages/metrics/src/registry",
+  "metrics": [
+    {
+      "id": "webiris.anonymous_visitors",
+      "displayName": "Anonymous WEBIRIS visitors",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "online.session.observed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "webiris.identified_leads",
+      "displayName": "Identified WEBIRIS leads",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "lead.submitted"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "webiris.visitor_to_lead",
+      "displayName": "Visitor-to-lead conversion",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "online.session.observed",
+        "lead.submitted"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 50,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "journey.lead_to_booking",
+      "displayName": "Lead-to-booking conversion",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "lead.submitted",
+        "meeting.booked"
+      ],
+      "requiredCrmFields": [
+        "appointment.scheduled_for"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.meeting_attendance_rate",
+      "displayName": "Meeting attendance rate",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.booked",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [
+        "appointment.scheduled_for"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "journey.webiris_to_showroom",
+      "displayName": "WEBIRIS-to-showroom conversion",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "lead.submitted",
+        "meeting.attended",
+        "identity.linked"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.lead_to_attendance_days",
+      "displayName": "Time from lead to showroom attendance",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "lead.submitted",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.online_to_offer",
+      "displayName": "Online-to-offer conversion",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "lead.submitted",
+        "deal.stage.changed",
+        "identity.linked"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.online_to_reservation",
+      "displayName": "Online-to-reservation conversion",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "lead.submitted",
+        "deal.stage.changed",
+        "identity.linked"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 25,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.online_to_purchase",
+      "displayName": "Online-to-purchase conversion",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "lead.submitted",
+        "deal.stage.changed",
+        "identity.linked"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 30,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.conversion_by_online_segment",
+      "displayName": "Conversion by online interest segment",
+      "kind": "distribution",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "lead.submitted",
+        "catalogue.filtered",
+        "unit.viewed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [
+        "rooms",
+        "orientation",
+        "price",
+        "floor"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.preference_agreement",
+      "displayName": "Online and showroom preference agreement",
+      "kind": "ratio",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "unit.viewed",
+        "catalogue.filtered",
+        "unit.favourited"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms",
+        "orientation",
+        "price",
+        "floor",
+        "area"
+      ],
+      "minimumSampleSize": 25,
+      "comparison": "none",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.common_path",
+      "displayName": "Most common online-to-showroom journey",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "online.session.observed",
+        "lead.submitted",
+        "meeting.booked",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 30,
+      "comparison": "none",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "journey.cross_channel_completeness",
+      "displayName": "Cross-channel data completeness",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 5,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "journey.unmatched_contacts",
+      "displayName": "Unmatched contacts",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "lead.submitted"
+      ],
+      "requiredCrmFields": [
+        "contact.id"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "journey.unmatched_meetings",
+      "displayName": "Unmatched meetings",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    }
+  ],
+  "facts": [
+    {
+      "id": "catalogue.filtered",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "criteria",
+        "result_count",
+        "occurred_at",
+        "channel"
+      ],
+      "requiredBy": [
+        "journey.conversion_by_online_segment",
+        "journey.preference_agreement"
+      ]
+    },
+    {
+      "id": "deal.stage.changed",
+      "owner": "crm",
+      "producibleBy": [
+        "crm",
+        "observer"
+      ],
+      "required": [
+        "deal_ref",
+        "contact_ref",
+        "project_ref",
+        "stage",
+        "changed_at"
+      ],
+      "requiredBy": [
+        "journey.online_to_offer",
+        "journey.online_to_reservation",
+        "journey.online_to_purchase",
+        "journey.conversion_by_online_segment"
+      ]
+    },
+    {
+      "id": "identity.linked",
+      "owner": "observer",
+      "producibleBy": [
+        "observer"
+      ],
+      "required": [
+        "contact_ref",
+        "basis",
+        "deterministic",
+        "linked_at"
+      ],
+      "requiredBy": [
+        "journey.webiris_to_showroom",
+        "journey.online_to_offer",
+        "journey.online_to_reservation",
+        "journey.online_to_purchase"
+      ]
+    },
+    {
+      "id": "lead.submitted",
+      "owner": "webiris",
+      "producibleBy": [
+        "webiris",
+        "crm"
+      ],
+      "required": [
+        "contact_ref",
+        "project_ref",
+        "submitted_at",
+        "consent_state"
+      ],
+      "requiredBy": [
+        "webiris.identified_leads",
+        "webiris.visitor_to_lead",
+        "journey.lead_to_booking",
+        "journey.webiris_to_showroom",
+        "journey.lead_to_attendance_days",
+        "journey.online_to_offer",
+        "journey.online_to_reservation",
+        "journey.online_to_purchase",
+        "journey.conversion_by_online_segment",
+        "journey.common_path",
+        "journey.unmatched_contacts"
+      ]
+    },
+    {
+      "id": "meeting.attended",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "meeting_ref",
+        "project_ref",
+        "started_at"
+      ],
+      "requiredBy": [
+        "journey.meeting_attendance_rate",
+        "journey.webiris_to_showroom",
+        "journey.lead_to_attendance_days",
+        "journey.common_path",
+        "journey.cross_channel_completeness",
+        "journey.unmatched_meetings"
+      ]
+    },
+    {
+      "id": "meeting.booked",
+      "owner": "crm",
+      "producibleBy": [
+        "crm",
+        "webiris"
+      ],
+      "required": [
+        "meeting_ref",
+        "contact_ref",
+        "project_ref",
+        "booked_at",
+        "scheduled_for"
+      ],
+      "requiredBy": [
+        "journey.lead_to_booking",
+        "journey.meeting_attendance_rate",
+        "journey.common_path"
+      ]
+    },
+    {
+      "id": "meeting.outcome.recorded",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom",
+        "crm"
+      ],
+      "required": [
+        "meeting_ref",
+        "outcome",
+        "recorded_at"
+      ],
+      "requiredBy": [
+        "journey.cross_channel_completeness"
+      ]
+    },
+    {
+      "id": "online.session.observed",
+      "owner": "webiris",
+      "producibleBy": [
+        "webiris"
+      ],
+      "required": [
+        "visitor_ref",
+        "project_ref",
+        "started_at"
+      ],
+      "requiredBy": [
+        "webiris.anonymous_visitors",
+        "webiris.visitor_to_lead",
+        "journey.common_path"
+      ]
+    },
+    {
+      "id": "unit.favourited",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "occurred_at",
+        "channel",
+        "active"
+      ],
+      "requiredBy": [
+        "journey.preference_agreement"
+      ]
+    },
+    {
+      "id": "unit.viewed",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "occurred_at",
+        "duration_ms",
+        "channel"
+      ],
+      "requiredBy": [
+        "journey.conversion_by_online_segment",
+        "journey.preference_agreement"
+      ]
+    }
+  ]
+}
