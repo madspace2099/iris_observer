@@ -1,0 +1,23 @@
+node_modules/
+.next/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+
+# Secrets. Only .env.example is committed.
+.env
+.env.local
+.env*.local
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
+# Test artefacts
+playwright-report/
+test-results/
+.pglite/
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,8 @@
+# One line ending everywhere. .editorconfig says LF; this makes git agree,
+# so a Windows checkout does not produce a whole-repo diff for collaborators.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.pdf binary
+*.woff2 binary

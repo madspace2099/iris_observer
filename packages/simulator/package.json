@@ -1,0 +1,24 @@
+{
+  "name": "@observer/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Integration simulator: replays event batches through the real ingest API before UE5 is connected.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "observer-sim": "./src/cli.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "sim": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@observer/contracts": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

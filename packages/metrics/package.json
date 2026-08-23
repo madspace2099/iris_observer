@@ -1,0 +1,18 @@
+{
+  "name": "@observer/metrics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Machine-readable metric registry and the typed query layer every screen and the MCP server read from.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observer/contracts": "workspace:*",
+    "@observer/db": "workspace:*",
+    "zod": "^4.0.0"
+  }
+}
