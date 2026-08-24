@@ -6,7 +6,7 @@
  * calculates. See ADR-0006.
  */
 
-export * from "./definition.js";
-export * from "./policy.js";
-export * from "./requirements.js";
-export * from "./registry/index.js";
+export * from "./definition";
+export * from "./policy";
+export * from "./requirements";
+export * from "./registry/index";

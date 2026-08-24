@@ -1,4 +1,4 @@
-import { defineMetric } from "../definition.js";
+import { defineMetric } from "../definition";
 import {
   AGENT_MIN_SAMPLE,
   NOT_ENOUGH,
@@ -6,7 +6,7 @@ import {
   NO_MEETINGS,
   NO_SHOWROOM,
   insufficient,
-} from "./shared.js";
+} from "./shared";
 
 /**
  * People and agency intelligence.

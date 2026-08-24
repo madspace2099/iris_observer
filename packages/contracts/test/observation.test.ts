@@ -5,7 +5,7 @@ import {
   IngestOutcomeSchema,
   SourceObservationSchema,
   isClientSubmittableFact,
-} from "../src/observation.js";
+} from "../src/observation";
 
 const TENANT = "tnt_aabbccdd11";
 const PROJECT = "prj_istertower1";

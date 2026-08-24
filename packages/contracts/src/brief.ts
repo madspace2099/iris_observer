@@ -7,9 +7,9 @@ import {
   ProjectIdSchema,
   TenantIdSchema,
   UnitIdSchema,
-} from "./ids.js";
-import { ConfidenceSchema, StatementSchema } from "./evidence.js";
-import { SourceSystemSchema } from "./sources.js";
+} from "./ids";
+import { ConfidenceSchema, StatementSchema } from "./evidence";
+import { SourceSystemSchema } from "./sources";
 
 /**
  * The pre-meeting brief.

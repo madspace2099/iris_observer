@@ -5,8 +5,8 @@ import {
   uncoveredRequirements,
   type RequirementSource,
   type SourceRequirement,
-} from "../requirements.js";
-import { getMetric } from "../registry/index.js";
+} from "../requirements";
+import { getMetric } from "../registry/index";
 
 /**
  * Generates the source-requirement coverage report.

@@ -8,8 +8,8 @@ import {
   ProjectIdSchema,
   TenantIdSchema,
   UnitIdSchema,
-} from "./ids.js";
-import { SourceSystemSchema } from "./sources.js";
+} from "./ids";
+import { SourceSystemSchema } from "./sources";
 
 /**
  * The ingestion boundary.

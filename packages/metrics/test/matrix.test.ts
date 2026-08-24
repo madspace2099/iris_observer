@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { renderMatrixJson, renderMatrixMarkdown } from "../src/generate/matrix.js";
+import { renderMatrixJson, renderMatrixMarkdown } from "../src/generate/matrix";
 
 const root = resolve(import.meta.dirname, "../../..");
 

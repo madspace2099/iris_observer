@@ -6,8 +6,8 @@ import {
   MeetingIdSchema,
   ProjectIdSchema,
   UnitIdSchema,
-} from "./ids.js";
-import { SourceSystemSchema } from "./sources.js";
+} from "./ids";
+import { SourceSystemSchema } from "./sources";
 
 /**
  * Evidence discipline.

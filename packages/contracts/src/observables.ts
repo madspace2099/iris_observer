@@ -1,4 +1,4 @@
-import type { SourceSystem } from "./sources.js";
+import type { SourceSystem } from "./sources";
 
 /**
  * The observable-fact taxonomy.

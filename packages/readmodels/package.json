@@ -1,0 +1,17 @@
+{
+  "name": "@observer/readmodels",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-model shapes and the repository port every Observer screen reads through.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observer/contracts": "workspace:*",
+    "@observer/metrics": "workspace:*"
+  }
+}

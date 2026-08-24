@@ -10,8 +10,8 @@ import {
   ProjectIdSchema,
   TenantIdSchema,
   UnitIdSchema,
-} from "./ids.js";
-import { SourceReferenceSchema, SourceSystemSchema } from "./sources.js";
+} from "./ids";
+import { SourceReferenceSchema, SourceSystemSchema } from "./sources";
 
 /**
  * The journey a buyer travels, and the records that carry it.

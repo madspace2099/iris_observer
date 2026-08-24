@@ -1,6 +1,6 @@
 import type { FactId } from "@observer/contracts";
-import { defineMetric } from "../definition.js";
-import { NOT_ENOUGH, NO_CATALOGUE, NO_CRM, UNIT_MIN_SAMPLE, insufficient } from "./shared.js";
+import { defineMetric } from "../definition";
+import { NOT_ENOUGH, NO_CATALOGUE, NO_CRM, UNIT_MIN_SAMPLE, insufficient } from "./shared";
 
 /**
  * Project and unit intelligence.

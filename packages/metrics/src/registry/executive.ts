@@ -1,5 +1,5 @@
-import { defineMetric } from "../definition.js";
-import { NOT_ENOUGH, NO_CATALOGUE, NO_CRM, NO_MEETINGS, insufficient } from "./shared.js";
+import { defineMetric } from "../definition";
+import { NOT_ENOUGH, NO_CATALOGUE, NO_CRM, NO_MEETINGS, insufficient } from "./shared";
 
 /**
  * Executive intelligence — the first screen.

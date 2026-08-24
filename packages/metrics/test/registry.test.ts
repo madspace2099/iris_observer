@@ -8,7 +8,7 @@ import {
   metricsRequiringFact,
   requiredFacts,
   validateRegistry,
-} from "../src/index.js";
+} from "../src/index";
 
 describe("metric registry", () => {
   it("is structurally valid and free of duplicate ids", () => {

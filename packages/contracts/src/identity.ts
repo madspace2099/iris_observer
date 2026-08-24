@@ -9,8 +9,8 @@ import {
   ProjectContactIdSchema,
   ProjectIdSchema,
   TenantIdSchema,
-} from "./ids.js";
-import { SourceReferenceSchema, SourceSystemSchema } from "./sources.js";
+} from "./ids";
+import { SourceReferenceSchema, SourceSystemSchema } from "./sources";
 
 /**
  * Identity architecture for the unified customer journey.

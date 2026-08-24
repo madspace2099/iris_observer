@@ -1,0 +1,855 @@
+/*
+ * IRIS Observer components.
+ *
+ * Plain CSS over the token layer rather than a utility framework. Two reasons:
+ * the brief rules out a stock component appearance, and a design system whose
+ * component styles live in class strings scattered through markup cannot be
+ * reviewed as a system. Every rule here reads from `tokens.css`; no literal
+ * colour or size appears below.
+ */
+
+/* --- reset and base ------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--iris-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Screen-reader-only, used for headings that structure the page for assistive
+   technology where a visible heading would be noise. */
+.obs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.obs-skip {
+  position: absolute;
+  left: var(--space-4);
+  top: calc(var(--space-2) * -12);
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--iris-accent);
+  color: var(--text-inverse);
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-semibold);
+  transition: top var(--duration-fast) var(--ease);
+}
+
+.obs-skip:focus {
+  top: var(--space-2);
+}
+
+/* --- shell ---------------------------------------------------------------- */
+
+.obs-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  /* The atmospheric wash from the showroom, kept at the edges of the frame
+     and never behind content. A gradient under a chart is a lie about the
+     chart. */
+  background:
+    radial-gradient(120% 80% at 12% -10%, rgb(0 163 255 / 10%), transparent 60%),
+    radial-gradient(90% 70% at 95% 0%, rgb(180 140 255 / 7%), transparent 55%), var(--surface-base);
+  background-attachment: fixed;
+}
+
+.obs-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--shell-header);
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--line-subtle);
+  background: rgb(7 9 12 / 72%);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-wrap: wrap;
+}
+
+.obs-brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.obs-brand-mark {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--iris-accent);
+}
+
+.obs-context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.obs-header-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.obs-who {
+  text-align: right;
+  line-height: 1.2;
+}
+
+.obs-who strong {
+  display: block;
+  font-weight: var(--weight-semibold);
+}
+
+.obs-who span {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+}
+
+/* --- primary navigation --------------------------------------------------- */
+
+.obs-nav {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--line-subtle);
+  background: rgb(7 9 12 / 60%);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: var(--shell-header);
+  z-index: 19;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.obs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.obs-nav-item {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--shell-nav);
+  padding: 0 var(--space-3);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.obs-nav-item:hover {
+  color: var(--text-primary);
+}
+
+.obs-nav-item[aria-current="page"] {
+  color: var(--text-primary);
+  border-bottom-color: var(--iris-accent);
+}
+
+.obs-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* --- surfaces -------------------------------------------------------------- */
+
+.obs-card {
+  background: var(--surface-panel);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+
+.obs-card-pad {
+  padding: var(--space-5);
+}
+
+.obs-kicker {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-3);
+}
+
+.obs-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.obs-section-head h2 {
+  margin: 0;
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.obs-muted {
+  color: var(--text-secondary);
+}
+
+.obs-dim {
+  color: var(--text-tertiary);
+}
+
+/* --- verdict strip ---------------------------------------------------------- */
+
+.obs-verdict {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+  position: relative;
+  overflow: hidden;
+}
+
+/* A 3px rail rather than a tinted panel: the verdict must be legible at a
+   glance without staining the text behind it. */
+.obs-verdict::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--verdict-unknown);
+}
+
+.obs-verdict[data-state="good"]::before {
+  background: var(--verdict-good);
+}
+.obs-verdict[data-state="watch"]::before {
+  background: var(--verdict-watch);
+}
+.obs-verdict[data-state="weak"]::before {
+  background: var(--verdict-weak);
+}
+
+.obs-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.obs-verdict-headline {
+  margin: 0;
+  font-size: var(--text-h5);
+  line-height: var(--text-h5-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  max-width: 62ch;
+}
+
+.obs-verdict-support {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+  line-height: var(--text-lg-lh);
+  max-width: 74ch;
+}
+
+.obs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  background: var(--verdict-unknown-wash);
+  color: var(--verdict-unknown);
+}
+
+.obs-badge[data-state="good"] {
+  background: var(--verdict-good-wash);
+  color: var(--verdict-good);
+}
+.obs-badge[data-state="watch"] {
+  background: var(--verdict-watch-wash);
+  color: var(--verdict-watch);
+}
+.obs-badge[data-state="weak"] {
+  background: var(--verdict-weak-wash);
+  color: var(--verdict-weak);
+}
+.obs-badge[data-tone="accent"] {
+  background: var(--iris-accent-wash);
+  color: var(--iris-accent-strong);
+}
+
+/* --- metric cards ----------------------------------------------------------- */
+
+.obs-metric-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.obs-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  min-height: 9.5rem;
+}
+
+.obs-metric-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.obs-metric-figure {
+  font-size: var(--text-figure);
+  line-height: var(--text-figure-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.obs-metric[data-state="insufficient"] .obs-metric-figure {
+  color: var(--text-secondary);
+}
+
+.obs-metric-qualifier {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+}
+
+.obs-metric-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.obs-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.obs-delta[data-sentiment="good"] {
+  color: var(--verdict-good);
+}
+.obs-delta[data-sentiment="bad"] {
+  color: var(--verdict-weak);
+}
+.obs-delta[data-sentiment="neutral"] {
+  color: var(--text-secondary);
+}
+
+.obs-baseline {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+}
+
+/* --- state messages --------------------------------------------------------- */
+
+.obs-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: 1px dashed var(--line-strong);
+  color: var(--text-secondary);
+}
+
+.obs-state strong {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.obs-metric-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: 1.35;
+}
+
+/* --- evidence ---------------------------------------------------------------- */
+
+.obs-evidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.125rem var(--space-2);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  white-space: nowrap;
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.obs-evidence:hover {
+  color: var(--text-primary);
+  border-color: var(--line-strong);
+}
+
+.obs-evidence-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--viz-1);
+  flex: none;
+}
+
+/* An association is styled differently from an observation, so the reader can
+   see the difference in claim strength without reading the tier. */
+.obs-evidence[data-tier="statistical_association"] .obs-evidence-dot {
+  background: var(--viz-3);
+}
+.obs-evidence[data-tier="attributed_conversion"] .obs-evidence-dot {
+  background: var(--viz-4);
+}
+
+/* --- AI summary --------------------------------------------------------------- */
+
+.obs-briefing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-subtle);
+  background:
+    linear-gradient(180deg, var(--iris-accent-wash), transparent 45%), var(--surface-panel);
+}
+
+.obs-briefing ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.obs-briefing li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--line-strong);
+}
+
+.obs-briefing li[data-tier="statistical_association"] {
+  border-left-color: var(--viz-3);
+}
+
+.obs-briefing p {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  max-width: 78ch;
+}
+
+.obs-briefing-foot {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+}
+
+/* --- alerts and changes ---------------------------------------------------------- */
+
+.obs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.obs-alert {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+}
+
+.obs-alert-rail {
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--verdict-unknown);
+}
+
+.obs-alert[data-severity="critical"] .obs-alert-rail {
+  background: var(--verdict-weak);
+}
+.obs-alert[data-severity="warning"] .obs-alert-rail {
+  background: var(--verdict-watch);
+}
+.obs-alert[data-severity="info"] .obs-alert-rail {
+  background: var(--iris-accent);
+}
+
+.obs-alert-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.obs-alert-title {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+}
+
+.obs-alert-detail {
+  margin: 0;
+  color: var(--text-secondary);
+  max-width: 82ch;
+}
+
+.obs-change {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.obs-change:last-child {
+  border-bottom: none;
+}
+
+/* --- buttons and links ------------------------------------------------------------ */
+
+.obs-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-semibold);
+  border: 1px solid var(--line-strong);
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  transition: background var(--duration-fast) var(--ease);
+  min-height: 2.25rem;
+}
+
+.obs-action:hover {
+  background: var(--surface-active);
+}
+
+.obs-action[data-emphasis="primary"] {
+  background: var(--iris-accent);
+  border-color: var(--iris-accent);
+  color: var(--text-inverse);
+}
+
+.obs-action[data-emphasis="primary"]:hover {
+  background: var(--iris-accent-strong);
+}
+
+.obs-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* --- charts -------------------------------------------------------------------- */
+
+.obs-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.obs-funnel-step {
+  display: grid;
+  grid-template-columns: minmax(9rem, 14rem) 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.obs-funnel-track {
+  position: relative;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--viz-track);
+  overflow: hidden;
+}
+
+.obs-funnel-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--iris-accent-dim), var(--iris-accent));
+  border-radius: var(--radius-sm);
+}
+
+.obs-funnel-step[data-state="insufficient"] .obs-funnel-fill {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--verdict-unknown-wash),
+    var(--verdict-unknown-wash) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  border: 1px solid var(--line-strong);
+}
+
+.obs-funnel-step[data-state="unavailable"] .obs-funnel-track {
+  border: 1px dashed var(--line-strong);
+  background: transparent;
+}
+
+.obs-funnel-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  min-width: 8rem;
+  text-align: right;
+}
+
+/* --- brief ---------------------------------------------------------------------- */
+
+.obs-brief-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  align-items: start;
+}
+
+.obs-brief-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.obs-unit-row {
+  display: grid;
+  grid-template-columns: 5rem 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+}
+
+/* An unavailable unit is marked, not faded. Opacity drags the text down with
+   the row and cost this rule a WCAG contrast failure; the dashed border and
+   the status badge say the same thing without making the words harder to
+   read — and the words are the part that matters here. */
+.obs-unit-row[data-available="false"] {
+  border-style: dashed;
+  background: var(--surface-base);
+}
+
+.obs-unit-code {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.obs-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.obs-dl dt {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.obs-dl dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.obs-question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+}
+
+.obs-question-text {
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-medium);
+}
+
+/* --- data health ------------------------------------------------------------------ */
+
+.obs-health {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+  flex-wrap: wrap;
+}
+
+.obs-health-bar {
+  flex: 1;
+  min-width: 8rem;
+  height: 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--viz-track);
+  overflow: hidden;
+}
+
+.obs-health-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--verdict-good);
+}
+
+.obs-health[data-low="true"] .obs-health-fill {
+  background: var(--verdict-watch);
+}
+
+/* --- skeletons --------------------------------------------------------------------- */
+
+.obs-skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-raised),
+    var(--surface-overlay),
+    var(--surface-raised)
+  );
+  background-size: 200% 100%;
+  animation: obs-shimmer 1.4s linear infinite;
+}
+
+@keyframes obs-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-skeleton {
+    animation: none;
+  }
+}
+
+/* --- responsive ---------------------------------------------------------------------- */
+
+@media (max-width: 60rem) {
+  .obs-brief-grid {
+    grid-template-columns: 1fr;
+  }
+  .obs-funnel-step {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+  .obs-funnel-value {
+    text-align: left;
+  }
+}
+
+@media (max-width: 40rem) {
+  .obs-main {
+    padding: var(--space-4) var(--space-3) var(--space-7);
+    gap: var(--space-5);
+  }
+  .obs-header,
+  .obs-nav {
+    padding-inline: var(--space-3);
+  }
+  .obs-verdict-headline {
+    font-size: var(--text-h6);
+    line-height: var(--text-h6-lh);
+  }
+  .obs-change {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+  .obs-unit-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}

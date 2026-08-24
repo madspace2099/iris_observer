@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { FACTS, FACT_IDS, factsProducibleBy, getFact, isFactId } from "../src/observables.js";
-import { SOURCE_SYSTEMS } from "../src/sources.js";
+import { FACTS, FACT_IDS, factsProducibleBy, getFact, isFactId } from "../src/observables";
+import { SOURCE_SYSTEMS } from "../src/sources";
 
 describe("observable fact taxonomy", () => {
   it("keys and ids agree", () => {

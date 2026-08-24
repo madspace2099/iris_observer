@@ -8,11 +8,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@observer/contracts": "workspace:*",
-    "@observer/db": "workspace:*",
     "@observer/metrics": "workspace:*",
     "@observer/ui": "workspace:*",
     "@supabase/ssr": "^0.7.0",
@@ -20,12 +19,12 @@
     "next": "^16.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "@observer/synthetic": "workspace:*",
+    "@observer/readmodels": "workspace:*"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.0.0",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "tailwindcss": "^4.0.0"
+    "@types/react-dom": "^19.0.0"
   }
 }

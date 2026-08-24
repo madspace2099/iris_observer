@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "observer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@observer/web", "dev", "--port", "3210"],
+      "port": 3210
+    }
+  ]
+}

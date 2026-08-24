@@ -6,18 +6,16 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./components.css": "./src/components.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "d3-scale": "^4.0.2",
-    "d3-shape": "^3.2.0"
+    "@observer/readmodels": "workspace:*"
   },
   "devDependencies": {
-    "@types/d3-scale": "^4.0.8",
-    "@types/d3-shape": "^3.1.6",
     "@types/react": "^19.0.0"
   },
   "peerDependencies": {

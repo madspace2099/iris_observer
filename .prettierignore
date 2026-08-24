@@ -10,3 +10,5 @@ docs/measurement-matrix.md
 docs/measurement-matrix.json
 docs/coverage-report.md
 docs/coverage-report.json
+e2e/
+playwright.config.ts

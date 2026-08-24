@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { renderCoverageJson, renderCoverageMarkdown } from "../src/generate/coverage.js";
+import { renderCoverageJson, renderCoverageMarkdown } from "../src/generate/coverage";
 import {
   REQUIREMENTS,
   requirementsBySource,
   uncoveredRequirements,
   unresolvedRequirements,
-} from "../src/requirements.js";
-import { getMetric } from "../src/registry/index.js";
+} from "../src/requirements";
+import { getMetric } from "../src/registry/index";
 
 const root = resolve(import.meta.dirname, "../../..");
 

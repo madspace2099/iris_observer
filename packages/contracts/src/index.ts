@@ -8,12 +8,12 @@
  * Concrete wire event names are deliberately absent. See ADR-0013.
  */
 
-export * from "./version.js";
-export * from "./ids.js";
-export * from "./sources.js";
-export * from "./identity.js";
-export * from "./engagement.js";
-export * from "./observables.js";
-export * from "./evidence.js";
-export * from "./brief.js";
-export * from "./observation.js";
+export * from "./version";
+export * from "./ids";
+export * from "./sources";
+export * from "./identity";
+export * from "./engagement";
+export * from "./observables";
+export * from "./evidence";
+export * from "./brief";
+export * from "./observation";

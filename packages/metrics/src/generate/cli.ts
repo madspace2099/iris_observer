@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { renderMatrixJson, renderMatrixMarkdown } from "./matrix.js";
-import { renderCoverageJson, renderCoverageMarkdown } from "./coverage.js";
+import { renderMatrixJson, renderMatrixMarkdown } from "./matrix";
+import { renderCoverageJson, renderCoverageMarkdown } from "./coverage";
 
 /**
  * Writes the generated measurement matrix and the source-requirement coverage

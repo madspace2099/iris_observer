@@ -1,5 +1,5 @@
-import { defineMetric } from "../definition.js";
-import { DEFAULT_ATTRIBUTION_POLICY, type AttributionPolicy } from "../policy.js";
+import { defineMetric } from "../definition";
+import { DEFAULT_ATTRIBUTION_POLICY, type AttributionPolicy } from "../policy";
 
 /**
  * Journey metrics: WEBIRIS → showroom → CRM outcome.

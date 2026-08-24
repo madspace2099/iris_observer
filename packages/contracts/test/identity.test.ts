@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ContactIdSchema, MeetingIdSchema, TenantIdSchema } from "../src/ids.js";
-import { ContactSchema, LeadSchema } from "../src/identity.js";
-import { MeetingParticipantSchema, STAGE_OWNER, JOURNEY_STAGES } from "../src/engagement.js";
+import { ContactIdSchema, MeetingIdSchema, TenantIdSchema } from "../src/ids";
+import { ContactSchema, LeadSchema } from "../src/identity";
+import { MeetingParticipantSchema, STAGE_OWNER, JOURNEY_STAGES } from "../src/engagement";
 
 const CONTACT = "cnt_9a2b4c6d8e";
 const MEETING = "mtg_1122334455";

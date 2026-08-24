@@ -1,6 +1,6 @@
 import { FACTS, type FactId } from "@observer/contracts";
-import { ALL_METRICS, requiredFacts } from "../registry/index.js";
-import type { MetricDefinition } from "../definition.js";
+import { ALL_METRICS, requiredFacts } from "../registry/index";
+import type { MetricDefinition } from "../definition";
 
 /**
  * Generates the measurement dependency matrix from the registry.

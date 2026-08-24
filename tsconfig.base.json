@@ -5,7 +5,6 @@
     "lib": ["ES2023"],
     "module": "preserve",
     "moduleResolution": "bundler",
-    "moduleDetection": "force",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "resolveJsonModule": true,

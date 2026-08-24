@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  SCHEMA_VERSION,
-  SUPPORTED_SCHEMA_VERSIONS,
-  isSupportedSchemaVersion,
-} from "../src/index.js";
+import { SCHEMA_VERSION, SUPPORTED_SCHEMA_VERSIONS, isSupportedSchemaVersion } from "../src/index";
 
 describe("schema version", () => {
   it("declares the current version as supported", () => {

@@ -5,7 +5,7 @@ import {
   PRODUCIBLE_EVIDENCE_TIERS,
   StatementSchema,
   isProducibleTier,
-} from "../src/evidence.js";
+} from "../src/evidence";
 
 const evidenceId = "evd_7f3a1c02b9";
 

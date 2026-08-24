@@ -7,7 +7,7 @@ import {
   isMeaningfulDwell,
   meaningfulDwellThresholdMs,
   policiesComparable,
-} from "../src/policy.js";
+} from "../src/policy";
 
 describe("attribution policy", () => {
   it("defaults to a 90-day window on deterministic links only", () => {

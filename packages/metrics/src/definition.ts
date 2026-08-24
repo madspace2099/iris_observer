@@ -1,4 +1,4 @@
-import type { AttributionPolicy } from "./policy.js";
+import type { AttributionPolicy } from "./policy";
 import type { FactId } from "@observer/contracts";
 import type { EvidenceTier } from "@observer/contracts";
 
@@ -94,7 +94,7 @@ export type MetricKind = (typeof METRIC_KINDS)[number];
  * silently make this quarter incomparable with the last one — see
  * `policy.ts`.
  */
-export type { AttributionPolicy } from "./policy.js";
+export type { AttributionPolicy } from "./policy";
 
 /** What the screen shows when there is nothing, or not enough, or no source. */
 export interface MetricStates {

@@ -21,3 +21,6 @@ test-results/
 
 .DS_Store
 Thumbs.db
+
+# Playwright visual output
+screenshots/

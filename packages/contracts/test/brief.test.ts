@@ -3,7 +3,7 @@ import {
   PROHIBITED_INFERENCE_CATEGORIES,
   PreMeetingBriefSchema,
   ObservedPriceRangeSchema,
-} from "../src/brief.js";
+} from "../src/brief";
 
 const EVIDENCE = "evd_7f3a1c02b9";
 const CONTACT = "cnt_9a2b4c6d8e";

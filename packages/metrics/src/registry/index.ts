@@ -1,11 +1,11 @@
 import type { FactId } from "@observer/contracts";
-import type { MetricDefinition, Role } from "../definition.js";
-import { validateMetric } from "../definition.js";
-import { EXECUTIVE_METRICS } from "./executive.js";
-import { FLOW_METRICS } from "./flow.js";
-import { JOURNEY_METRICS } from "./journey.js";
-import { PEOPLE_METRICS } from "./people.js";
-import { UNIT_METRICS } from "./units.js";
+import type { MetricDefinition, Role } from "../definition";
+import { validateMetric } from "../definition";
+import { EXECUTIVE_METRICS } from "./executive";
+import { FLOW_METRICS } from "./flow";
+import { JOURNEY_METRICS } from "./journey";
+import { PEOPLE_METRICS } from "./people";
+import { UNIT_METRICS } from "./units";
 
 /**
  * The registry. Every metric the product can display is reachable from here,
@@ -54,8 +54,8 @@ export function validateRegistry(): readonly string[] {
   return problems;
 }
 
-export { EXECUTIVE_METRICS } from "./executive.js";
-export { FLOW_METRICS } from "./flow.js";
-export { UNIT_METRICS } from "./units.js";
-export { PEOPLE_METRICS } from "./people.js";
-export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey.js";
+export { EXECUTIVE_METRICS } from "./executive";
+export { FLOW_METRICS } from "./flow";
+export { UNIT_METRICS } from "./units";
+export { PEOPLE_METRICS } from "./people";
+export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey";

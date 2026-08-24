@@ -1,0 +1,156 @@
+/*
+ * IRIS Observer design tokens.
+ *
+ * Derived from the MADSPACE brand identity (docs/references.md), not copied
+ * from it. The showroom is a cinematic 1920×1080 presentation surface with an
+ * atmospheric render behind glass; Observer is a dense analytical interface
+ * somebody reads for twenty minutes. Same family, different job:
+ *
+ *  - the near-black base and the #00a3ff accent carry over unchanged;
+ *  - Manrope carries over, with tabular figures added — a column of numbers
+ *    that does not align is unreadable, and the showroom never needed them;
+ *  - the atmospheric blur does not carry over as a content backdrop. It stays
+ *    at the edges of the shell. Data needs a stable contrast ratio underneath
+ *    it, and a gradient behind a chart is a lie about the chart.
+ *
+ * Semantic status colour is new. The showroom never has to say "this is bad",
+ * and Observer's whole page pattern turns on a verdict.
+ */
+
+:root {
+  /* --- brand ---------------------------------------------------------- */
+  --iris-accent: #00a3ff;
+  --iris-accent-strong: #2bb4ff;
+  --iris-accent-dim: #0b6fae;
+  --iris-accent-wash: rgb(0 163 255 / 12%);
+
+  /* --- surfaces -------------------------------------------------------- */
+  --surface-base: #07090c;
+  --surface-raised: #0d1117;
+  --surface-panel: #12181f;
+  --surface-overlay: #171f28;
+  --surface-hover: rgb(255 255 255 / 4%);
+  --surface-active: rgb(255 255 255 / 7%);
+
+  /* Hairlines. Two weights only: one to separate, one to enclose. */
+  --line-subtle: rgb(255 255 255 / 7%);
+  --line-strong: rgb(255 255 255 / 14%);
+
+  /* --- text ------------------------------------------------------------ */
+  --text-primary: #eef2f6;
+  --text-secondary: #9aa7b4;
+  /* Lightened from #64717e, which measured 3.5:1 on the panel surface and
+     failed WCAG AA. Tertiary text carries kickers, baselines and sample-size
+     notes — the small print that qualifies every figure — so it is exactly the
+     text that must not be hard to read. Now 5.2:1 on the panel. */
+  --text-tertiary: #7f8c9a;
+  --text-inverse: #07090c;
+
+  /* --- verdict --------------------------------------------------------- */
+  /* Three states, deliberately. A four-state scale invites a middle nobody
+     can define, and the page pattern asks one question: act, watch, or not. */
+  --verdict-good: #3ecf8e;
+  --verdict-good-wash: rgb(62 207 142 / 12%);
+  --verdict-watch: #e8b339;
+  --verdict-watch-wash: rgb(232 179 57 / 12%);
+  --verdict-weak: #f0616d;
+  --verdict-weak-wash: rgb(240 97 109 / 12%);
+  /* Its own value rather than an alias of --text-tertiary. The neutral badge
+     sits on the 6% wash, which lifts the background to #20262c and left the
+     alias at 4.45:1 — a fifteen-hundredth short of AA, and invisible to
+     anything but a measurement. */
+  --verdict-unknown: #93a0ae;
+  --verdict-unknown-wash: rgb(255 255 255 / 6%);
+
+  /* --- data visualisation ---------------------------------------------- */
+  /* Ordered for sequential use: a chart takes them in order and stays
+     distinguishable at three, at five and at eight series. */
+  --viz-1: #00a3ff;
+  --viz-2: #3ecf8e;
+  --viz-3: #b48cff;
+  --viz-4: #e8b339;
+  --viz-5: #f0616d;
+  --viz-6: #4dd6d0;
+  --viz-7: #8fa4b8;
+  --viz-8: #ff9f6e;
+  --viz-track: rgb(255 255 255 / 8%);
+
+  /* --- typography ------------------------------------------------------ */
+  /* Manrope is the brand typeface. It is not loaded from a third-party host:
+     a first paint that waits on fonts.googleapis.com is a first paint that
+     depends on somebody else's uptime, and the fallback stack below is close
+     enough in metrics that the swap does not reflow the layout. Self-hosting
+     the woff2 is a follow-up. */
+  --font-sans:
+    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    sans-serif;
+  /* Numerals must be tabular everywhere a figure appears in a column. */
+  --font-numeric: var(--font-sans);
+
+  /* Scale taken from the Figma type styles, extended at both ends. */
+  --text-kicker: 0.75rem; /* 12 / 16, tracked out — Subheading X Small */
+  --text-kicker-lh: 1rem;
+  --text-kicker-ls: 0.25em;
+
+  --text-sm: 0.875rem; /* 14 / 20 — Label Small, Body M */
+  --text-sm-lh: 1.25rem;
+  --text-md: 1rem; /* 16 / 24 — Label Medium */
+  --text-md-lh: 1.5rem;
+  --text-lg: 1.125rem; /* 18 / 24 — Label Large, Paragraph Large */
+  --text-lg-lh: 1.5rem;
+  --text-h6: 1.25rem; /* 20 / 28 */
+  --text-h6-lh: 1.75rem;
+  --text-h5: 1.5rem; /* 24 / 32 */
+  --text-h5-lh: 2rem;
+  --text-figure: 2.25rem; /* headline numbers */
+  --text-figure-lh: 2.5rem;
+
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* --- space ------------------------------------------------------------ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* --- shape ------------------------------------------------------------ */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-pill: 999px;
+
+  /* --- depth ------------------------------------------------------------ */
+  /* Used sparingly. On a dark surface, elevation reads through contrast far
+     better than through shadow. */
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-overlay: 0 16px 40px rgb(0 0 0 / 55%);
+
+  /* --- motion ------------------------------------------------------------ */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  /* --- layout ------------------------------------------------------------ */
+  --shell-header: 3.5rem;
+  --shell-nav: 3rem;
+  --content-max: 96rem;
+}
+
+/*
+ * A light theme is not defined yet, on purpose. The brand is dark, every
+ * reference screen is dark, and a half-considered light palette would ship a
+ * second set of contrast bugs. When it arrives it redefines the tokens above
+ * and nothing else changes — which is the point of having them.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}
