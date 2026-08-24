@@ -1,21 +1,28 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { renderMatrixJson, renderMatrixMarkdown } from "./matrix.js";
+import { renderCoverageJson, renderCoverageMarkdown } from "./coverage.js";
 
 /**
- * Writes the generated measurement dependency matrix.
+ * Writes the generated measurement matrix and the source-requirement coverage
+ * report.
  *
- * Run from the repository root with `pnpm matrix`. The committed output is
- * verified by test, so a registry change that is not regenerated fails CI
- * rather than quietly leaving the documentation wrong.
+ * Run from the repository root with `pnpm matrix`. Both outputs are verified
+ * by test, so a registry or requirement change that is not regenerated fails
+ * CI rather than quietly leaving the documentation wrong.
  */
 const root = resolve(process.cwd());
-const markdownPath = resolve(root, "docs/measurement-matrix.md");
-const jsonPath = resolve(root, "docs/measurement-matrix.json");
 
-mkdirSync(dirname(markdownPath), { recursive: true });
-writeFileSync(markdownPath, renderMatrixMarkdown(), "utf8");
-writeFileSync(jsonPath, `${JSON.stringify(renderMatrixJson(), null, 2)}\n`, "utf8");
+const outputs: readonly [string, string][] = [
+  ["docs/measurement-matrix.md", renderMatrixMarkdown()],
+  ["docs/measurement-matrix.json", `${JSON.stringify(renderMatrixJson(), null, 2)}\n`],
+  ["docs/coverage-report.md", renderCoverageMarkdown()],
+  ["docs/coverage-report.json", `${JSON.stringify(renderCoverageJson(), null, 2)}\n`],
+];
 
-console.log(`wrote ${markdownPath}`);
-console.log(`wrote ${jsonPath}`);
+for (const [relativePath, contents] of outputs) {
+  const path = resolve(root, relativePath);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, contents, "utf8");
+  console.log(`wrote ${relativePath}`);
+}

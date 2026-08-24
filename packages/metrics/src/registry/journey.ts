@@ -1,4 +1,5 @@
-import { defineMetric, type AttributionRule } from "../definition.js";
+import { defineMetric } from "../definition.js";
+import { DEFAULT_ATTRIBUTION_POLICY, type AttributionPolicy } from "../policy.js";
 
 /**
  * Journey metrics: WEBIRIS → showroom → CRM outcome.
@@ -11,23 +12,7 @@ import { defineMetric, type AttributionRule } from "../definition.js";
  * different windows, comparing them would be meaningless, and somebody
  * eventually would.
  */
-export const JOURNEY_ATTRIBUTION: AttributionRule = {
-  /**
-   * Ninety days. Chosen against the observed sales cycle rather than as a web
-   * analytics convention: buying a home takes months, and a thirty-day window
-   * would drop most genuine online-originated sales.
-   */
-  windowDays: 90,
-  /**
-   * Deterministic links only. A probabilistic match is fine for suggesting a
-   * pre-meeting brief to a human who can dismiss it; it is not fine for a
-   * number a developer uses to decide a marketing budget.
-   */
-  qualifyingLink: "deterministic_only",
-  touchModel: "both_reported",
-  directBookingTreatment: "separate_bucket",
-  missingSourceTreatment: "report_as_unknown",
-};
+export const JOURNEY_ATTRIBUTION: AttributionPolicy = DEFAULT_ATTRIBUTION_POLICY;
 
 const INSUFFICIENT = "Not enough data yet to read this as a trend.";
 const NO_WEBIRIS = "WEBIRIS data is not connected for this project.";

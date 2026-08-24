@@ -26,6 +26,10 @@ for Unreal is `docs/ue5-instrumentation-spec.md`, generated from the metric regi
 | `docs/06-ownership.md`         | Which system owns which fact, and the read-model rule                      |
 | `docs/07-pre-meeting-brief.md` | The brief contract and what may never be inferred                          |
 | `docs/08-scenarios.md`         | Deterministic synthetic scenarios, Viktória first                          |
+| `docs/09-ingestion.md`         | Source observation → adapter → canonical fact. The trust boundary.         |
+| `docs/10-policies.md`          | Attribution, dwell, visitor identity, meeting identity, brief visibility   |
+| `docs/roadmap.md`              | Milestones, and what is deliberately not built yet                         |
+| `docs/coverage-report.md`      | **Generated.** Every source requirement and what covers it.                |
 | `docs/traceability.md`         | Requirement → where satisfied. Hand-maintained.                            |
 | `docs/measurement-matrix.md`   | **Generated.** Metric → facts → sources. Never edit by hand.               |
 | `docs/adr/`                    | Architecture decisions, numbered                                           |

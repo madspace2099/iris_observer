@@ -8,3 +8,5 @@ packages/db/drizzle/
 # Generated from the metric registry by "pnpm matrix".
 docs/measurement-matrix.md
 docs/measurement-matrix.json
+docs/coverage-report.md
+docs/coverage-report.json

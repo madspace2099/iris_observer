@@ -2,6 +2,1028 @@
   "generatedFrom": "packages/metrics/src/registry",
   "metrics": [
     {
+      "id": "exec.performance_status",
+      "displayName": "Overall performance status",
+      "kind": "status",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [
+        "price",
+        "status"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "exec.unrealised_potential",
+      "displayName": "Unrealised potential",
+      "kind": "currency",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.availability.changed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [
+        "price",
+        "status"
+      ],
+      "minimumSampleSize": 5,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "exec.notable_changes",
+      "displayName": "Important changes",
+      "kind": "list",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "unit.viewed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "exec.data_completeness",
+      "displayName": "Data completeness",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 5,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "exec.units_sold",
+      "displayName": "Units Sold",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "exec.revenue",
+      "displayName": "Revenue",
+      "kind": "currency",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.contract_price"
+      ],
+      "requiredUnitAttributes": [
+        "price"
+      ],
+      "minimumSampleSize": 1,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "exec.avg_days_to_close",
+      "displayName": "Average Days to Close",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "exec.active_buyers",
+      "displayName": "Active Buyers",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "flow.stage_counts",
+      "displayName": "Pipeline by stage",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "flow.hot_leads",
+      "displayName": "Hot leads",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.outcome.recorded",
+        "unit.favourited",
+        "unit.shared"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "flow.stage_conversion",
+      "displayName": "Conversion between stages",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.viewing_to_offer",
+      "displayName": "Viewing to Offer",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.offer_to_reservation",
+      "displayName": "Offer to Reservation",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.reservation_to_sale",
+      "displayName": "Reservation to Sale",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.time_between_meetings",
+      "displayName": "Time between meetings",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "flow.time_in_stage",
+      "displayName": "Time in stage",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.sales_cycle_duration",
+      "displayName": "Total sales-cycle duration",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "online.session.observed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "flow.stalled_opportunities",
+      "displayName": "Stalled opportunities",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_period",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.unique_interested_contacts",
+      "displayName": "Unique interested contacts",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.raw_views",
+      "displayName": "Raw views",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.meaningful_views",
+      "displayName": "Meaningful views",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.active_dwell",
+      "displayName": "Active dwell time",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 3,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.favourites",
+      "displayName": "Favourites",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.favourited"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.shares",
+      "displayName": "Shares",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.shared"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.pdf_opens",
+      "displayName": "Material opens",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.material.opened"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.recent_interest",
+      "displayName": "Recent interest",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.compare_inclusion",
+      "displayName": "Compare-set inclusion",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.compared"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.compare_win_rate",
+      "displayName": "Compare-set win rate",
+      "kind": "ratio",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "unit.compared"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "price",
+        "rooms",
+        "floor",
+        "orientation",
+        "area"
+      ],
+      "minimumSampleSize": 5,
+      "comparison": "none",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "unit.demand_trend",
+      "displayName": "Demand trend",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "unit.sharp_demand_decline",
+      "displayName": "Sharp demand decline",
+      "kind": "list",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.availability.changed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "unit.available_demand",
+      "displayName": "Demand for available units",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.availability.changed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "unit.availability_price_context",
+      "displayName": "Availability and price context",
+      "kind": "list",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.attributes.published",
+        "unit.availability.changed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "price",
+        "status"
+      ],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "project.segment_interest",
+      "displayName": "Interest by segment",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms",
+        "floor",
+        "orientation",
+        "price",
+        "area",
+        "building"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.attention_index",
+      "displayName": "Attention index",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms",
+        "floor",
+        "orientation",
+        "price",
+        "area"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.sold_by_segment",
+      "displayName": "Sales performance by segment",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [
+        "rooms",
+        "floor",
+        "orientation",
+        "price",
+        "area",
+        "building"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.poi_interest",
+      "displayName": "Surroundings and POI interest",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "surroundings.poi.presented",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.amenity_interest",
+      "displayName": "Amenity interest",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "amenity.presented",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.environment_interest",
+      "displayName": "Environment and camera-preset interest",
+      "kind": "distribution",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "scene.environment.set",
+        "visual.captured",
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "unit.deep_dive_rate",
+      "displayName": "Deep-dive rate",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.examined.balcony",
+        "unit.examined.floor_cut",
+        "unit.material.opened",
+        "unit.interior.opened"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 5,
+      "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "people.meetings_by_agent",
+      "displayName": "Meetings by agent",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "people.presentation_coverage",
+      "displayName": "Presentation coverage",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "project.section.viewed",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "people.follow_up_delay",
+      "displayName": "Follow-up delay",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "unit.shared",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "activity.occurred_at"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "people.share_to_offer",
+      "displayName": "Share-to-offer conversion",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.shared",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "people.agent_conversion",
+      "displayName": "Agent conversion",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "people.agency_conversion",
+      "displayName": "Agency conversion",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "people.skipped_outcomes",
+      "displayName": "Skipped outcomes",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "people.coaching_signals",
+      "displayName": "Coaching signals",
+      "kind": "list",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "project.section.viewed",
+        "unit.viewed",
+        "meeting.outcome.recorded",
+        "scene.environment.set"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 40,
+      "comparison": "none",
+      "drillTo": "meetings",
+      "roles": [
+        "agency_manager",
+        "sales_agent",
+        "developer"
+      ]
+    },
+    {
+      "id": "people.team_comparison",
+      "displayName": "Comparison with team and previous period",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed",
+        "unit.shared"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "agency_manager",
+        "sales_agent",
+        "developer"
+      ]
+    },
+    {
       "id": "webiris.anonymous_visitors",
       "displayName": "Anonymous WEBIRIS visitors",
       "kind": "count",
@@ -346,6 +1368,21 @@
   ],
   "facts": [
     {
+      "id": "amenity.presented",
+      "owner": "showroom",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "amenity_ref",
+        "occurred_at"
+      ],
+      "requiredBy": [
+        "project.amenity_interest"
+      ]
+    },
+    {
       "id": "catalogue.filtered",
       "owner": "observer",
       "producibleBy": [
@@ -378,6 +1415,26 @@
         "changed_at"
       ],
       "requiredBy": [
+        "exec.performance_status",
+        "exec.unrealised_potential",
+        "exec.notable_changes",
+        "exec.units_sold",
+        "exec.revenue",
+        "exec.avg_days_to_close",
+        "exec.active_buyers",
+        "flow.stage_counts",
+        "flow.stage_conversion",
+        "flow.viewing_to_offer",
+        "flow.offer_to_reservation",
+        "flow.reservation_to_sale",
+        "flow.time_in_stage",
+        "flow.sales_cycle_duration",
+        "flow.stalled_opportunities",
+        "project.sold_by_segment",
+        "people.follow_up_delay",
+        "people.share_to_offer",
+        "people.agent_conversion",
+        "people.agency_conversion",
         "journey.online_to_offer",
         "journey.online_to_reservation",
         "journey.online_to_purchase",
@@ -442,6 +1499,25 @@
         "started_at"
       ],
       "requiredBy": [
+        "exec.performance_status",
+        "exec.notable_changes",
+        "exec.data_completeness",
+        "exec.avg_days_to_close",
+        "exec.active_buyers",
+        "flow.stage_counts",
+        "flow.stage_conversion",
+        "flow.viewing_to_offer",
+        "flow.offer_to_reservation",
+        "flow.reservation_to_sale",
+        "flow.time_between_meetings",
+        "flow.sales_cycle_duration",
+        "people.meetings_by_agent",
+        "people.presentation_coverage",
+        "people.follow_up_delay",
+        "people.agent_conversion",
+        "people.agency_conversion",
+        "people.skipped_outcomes",
+        "people.team_comparison",
         "journey.meeting_attendance_rate",
         "journey.webiris_to_showroom",
         "journey.lead_to_attendance_days",
@@ -483,6 +1559,13 @@
         "recorded_at"
       ],
       "requiredBy": [
+        "exec.performance_status",
+        "exec.data_completeness",
+        "flow.hot_leads",
+        "people.agent_conversion",
+        "people.agency_conversion",
+        "people.skipped_outcomes",
+        "people.coaching_signals",
         "journey.cross_channel_completeness"
       ]
     },
@@ -498,9 +1581,147 @@
         "started_at"
       ],
       "requiredBy": [
+        "flow.sales_cycle_duration",
         "webiris.anonymous_visitors",
         "webiris.visitor_to_lead",
         "journey.common_path"
+      ]
+    },
+    {
+      "id": "project.section.viewed",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "section_path",
+        "occurred_at",
+        "duration_ms",
+        "channel"
+      ],
+      "requiredBy": [
+        "project.poi_interest",
+        "project.amenity_interest",
+        "people.presentation_coverage",
+        "people.coaching_signals",
+        "people.team_comparison"
+      ]
+    },
+    {
+      "id": "scene.environment.set",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "occurred_at"
+      ],
+      "requiredBy": [
+        "project.environment_interest",
+        "people.coaching_signals"
+      ]
+    },
+    {
+      "id": "surroundings.poi.presented",
+      "owner": "showroom",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "poi_ref",
+        "category",
+        "occurred_at"
+      ],
+      "requiredBy": [
+        "project.poi_interest"
+      ]
+    },
+    {
+      "id": "unit.attributes.published",
+      "owner": "catalogue",
+      "producibleBy": [
+        "catalogue",
+        "crm"
+      ],
+      "required": [
+        "unit_ref",
+        "project_ref",
+        "observed_at"
+      ],
+      "requiredBy": [
+        "exec.revenue",
+        "unit.availability_price_context",
+        "project.segment_interest",
+        "project.attention_index",
+        "project.sold_by_segment"
+      ]
+    },
+    {
+      "id": "unit.availability.changed",
+      "owner": "catalogue",
+      "producibleBy": [
+        "catalogue",
+        "crm"
+      ],
+      "required": [
+        "unit_ref",
+        "status",
+        "changed_at"
+      ],
+      "requiredBy": [
+        "exec.unrealised_potential",
+        "unit.sharp_demand_decline",
+        "unit.available_demand",
+        "unit.availability_price_context"
+      ]
+    },
+    {
+      "id": "unit.compared",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "unit_refs",
+        "occurred_at",
+        "channel"
+      ],
+      "requiredBy": [
+        "unit.compare_inclusion",
+        "unit.compare_win_rate"
+      ]
+    },
+    {
+      "id": "unit.examined.balcony",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "occurred_at",
+        "duration_ms"
+      ],
+      "requiredBy": [
+        "unit.deep_dive_rate"
+      ]
+    },
+    {
+      "id": "unit.examined.floor_cut",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "occurred_at",
+        "duration_ms"
+      ],
+      "requiredBy": [
+        "unit.deep_dive_rate"
       ]
     },
     {
@@ -517,7 +1738,62 @@
         "active"
       ],
       "requiredBy": [
+        "flow.hot_leads",
+        "unit.favourites",
         "journey.preference_agreement"
+      ]
+    },
+    {
+      "id": "unit.interior.opened",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "occurred_at",
+        "mode"
+      ],
+      "requiredBy": [
+        "unit.deep_dive_rate"
+      ]
+    },
+    {
+      "id": "unit.material.opened",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "unit_ref",
+        "material_kind",
+        "occurred_at",
+        "channel"
+      ],
+      "requiredBy": [
+        "unit.pdf_opens",
+        "unit.deep_dive_rate"
+      ]
+    },
+    {
+      "id": "unit.shared",
+      "owner": "observer",
+      "producibleBy": [
+        "webiris",
+        "showroom"
+      ],
+      "required": [
+        "unit_refs",
+        "occurred_at",
+        "channel"
+      ],
+      "requiredBy": [
+        "flow.hot_leads",
+        "unit.shares",
+        "people.follow_up_delay",
+        "people.share_to_offer",
+        "people.team_comparison"
       ]
     },
     {
@@ -534,8 +1810,37 @@
         "channel"
       ],
       "requiredBy": [
+        "exec.unrealised_potential",
+        "exec.notable_changes",
+        "unit.unique_interested_contacts",
+        "unit.raw_views",
+        "unit.meaningful_views",
+        "unit.active_dwell",
+        "unit.recent_interest",
+        "unit.demand_trend",
+        "unit.sharp_demand_decline",
+        "unit.available_demand",
+        "project.segment_interest",
+        "project.attention_index",
+        "project.environment_interest",
+        "unit.deep_dive_rate",
+        "people.coaching_signals",
         "journey.conversion_by_online_segment",
         "journey.preference_agreement"
+      ]
+    },
+    {
+      "id": "visual.captured",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "capture_ref",
+        "occurred_at"
+      ],
+      "requiredBy": [
+        "project.environment_interest"
       ]
     }
   ]

@@ -10,6 +10,33 @@ milestone that owns it.
 
 ---
 
+## M1 closure amendment (2026-08-24)
+
+Generated coverage now lives in [`coverage-report.md`](coverage-report.md), which groups all 44 source
+requirements by origin and fails validation on any that are uncovered. This table records only what the
+closure amendment itself changed.
+
+| Requirement                                                                         | Where                                                             | Status |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------ |
+| Figma pages 3:16, 4:21, 4:25 recorded; Figma is not the requirements authority      | `docs/references.md`                                              | ✅     |
+| Metric coverage audited against every source, not only the WEBIRIS addendum         | `packages/metrics/src/requirements.ts`; `docs/coverage-report.md` | ✅     |
+| Executive, Sales Flow, Project/Unit and People families added                       | registry files under `packages/metrics/src/registry/`             | ✅     |
+| Hashing prevents matching, not row access; RLS and app authorisation stay mandatory | `docs/05-identity.md` §2.2                                        | ✅     |
+| Salt server-side, versioned, rotatable                                              | `docs/05-identity.md` §2.2b                                       | ✅     |
+| PII separation enables anonymisation but does not create it                         | `docs/05-identity.md` §2.3                                        | ✅     |
+| Deletion removes identity links and applies the retention policy                    | `docs/05-identity.md` §4                                          | ✅     |
+| Pseudonymous identifiers stay protected while linkable                              | `docs/05-identity.md` §2.3; `docs/10-policies.md` §3              | ✅     |
+| No legal-compliance claims; items marked for review                                 | `docs/10-policies.md` §7                                          | ✅     |
+| Attribution versioned, tenant-scoped, admin-only, comparison-guarded                | `policy.ts`; ADR-0014                                             | ✅     |
+| WEBIRIS visitor identity defaults                                                   | `docs/10-policies.md` §3                                          | 📄     |
+| Observer owns the canonical meeting identifier                                      | ADR-0017; `docs/10-policies.md` §4                                | ✅     |
+| Meaningful dwell derived and versioned, never applied at ingestion                  | `policy.ts`; ADR-0016                                             | ✅     |
+| Brief prohibited on buyer-visible surfaces; separate sanitised report               | ADR-0018; `docs/10-policies.md` §5                                | ✅     |
+| Source observation → adapter → canonical fact pipeline                              | `observation.ts`; `docs/09-ingestion.md`; ADR-0015                | ✅     |
+| M2 redefined as UI Foundation and First Intelligence Slice                          | `docs/roadmap.md`                                                 | ✅     |
+
+---
+
 ## M1 — Product Intelligence Contract
 
 ### Unified journey

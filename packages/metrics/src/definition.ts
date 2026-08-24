@@ -1,3 +1,4 @@
+import type { AttributionPolicy } from "./policy.js";
 import type { FactId } from "@observer/contracts";
 import type { EvidenceTier } from "@observer/contracts";
 
@@ -74,36 +75,26 @@ export const METRIC_KINDS = [
   "currency",
   "distribution",
   "list",
+  /**
+   * A composed verdict rather than a single figure: a state, the components
+   * that produced it, and the reason. Used where the honest answer to "how are
+   * we doing" is a sentence, not a number.
+   */
+  "status",
 ] as const;
 export type MetricKind = (typeof METRIC_KINDS)[number];
 
 /**
- * Attribution rules, mandatory for any metric that assigns an outcome to a
- * channel.
+ * Attribution is governed by a versioned policy, not by a value written into
+ * the metric.
  *
- * Without these written down, "WEBIRIS-to-showroom conversion" means whatever
- * the reader assumes it means, and two people will read the same number
- * differently. Making the rule part of the definition also makes it
- * displayable next to the figure, which is the point.
+ * Without the rule written down, "WEBIRIS-to-showroom conversion" means
+ * whatever the reader assumes, and two people read the same number
+ * differently. Versioning it additionally means a changed window cannot
+ * silently make this quarter incomparable with the last one — see
+ * `policy.ts`.
  */
-export interface AttributionRule {
-  /** Maximum time between the online touch and the outcome, in days. */
-  readonly windowDays: number;
-  /**
-   * The identity link strong enough to count. Anything weaker is excluded
-   * rather than counted at a discount — a discounted guess is still a guess.
-   */
-  readonly qualifyingLink: "deterministic_only" | "deterministic_or_verified";
-  /** Which touch receives the credit. */
-  readonly touchModel: "first_touch" | "last_touch" | "both_reported";
-  /**
-   * How a booking that arrived with no online history is handled. Never
-   * silently folded into the attributed group.
-   */
-  readonly directBookingTreatment: "separate_bucket" | "excluded";
-  /** What to do when the source system was disconnected for part of the period. */
-  readonly missingSourceTreatment: "report_as_unknown" | "exclude_period";
-}
+export type { AttributionPolicy } from "./policy.js";
 
 /** What the screen shows when there is nothing, or not enough, or no source. */
 export interface MetricStates {
@@ -142,7 +133,7 @@ export interface MetricDefinition {
   /** The strongest claim this metric supports. */
   readonly evidenceTier: EvidenceTier;
   /** Present exactly when the metric attributes an outcome to a channel. */
-  readonly attribution?: AttributionRule;
+  readonly attribution?: AttributionPolicy;
 
   readonly states: MetricStates;
   /** Where clicking the number goes. Every metric drills somewhere. */
@@ -162,8 +153,9 @@ export function defineMetric<const T extends MetricDefinition>(definition: T): T
 export function validateMetric(m: MetricDefinition): readonly string[] {
   const problems: string[] = [];
 
-  if (m.kind !== "count" && m.kind !== "list" && m.denominator === null) {
-    problems.push(`${m.id}: only counts and lists may omit a denominator`);
+  const denominatorOptional = m.kind === "count" || m.kind === "list" || m.kind === "status";
+  if (!denominatorOptional && m.denominator === null) {
+    problems.push(`${m.id}: only counts, lists and statuses may omit a denominator`);
   }
   if (m.evidenceTier === "causal_claim") {
     problems.push(`${m.id}: Observer does not produce causal claims`);

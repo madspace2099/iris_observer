@@ -1,7 +1,11 @@
 import type { FactId } from "@observer/contracts";
 import type { MetricDefinition, Role } from "../definition.js";
 import { validateMetric } from "../definition.js";
+import { EXECUTIVE_METRICS } from "./executive.js";
+import { FLOW_METRICS } from "./flow.js";
 import { JOURNEY_METRICS } from "./journey.js";
+import { PEOPLE_METRICS } from "./people.js";
+import { UNIT_METRICS } from "./units.js";
 
 /**
  * The registry. Every metric the product can display is reachable from here,
@@ -11,7 +15,13 @@ import { JOURNEY_METRICS } from "./journey.js";
  * below are what the query layer, the dependency-matrix generator and the
  * instrumentation-specification generator all read.
  */
-export const ALL_METRICS: readonly MetricDefinition[] = [...JOURNEY_METRICS];
+export const ALL_METRICS: readonly MetricDefinition[] = [
+  ...EXECUTIVE_METRICS,
+  ...FLOW_METRICS,
+  ...UNIT_METRICS,
+  ...PEOPLE_METRICS,
+  ...JOURNEY_METRICS,
+];
 
 const BY_ID = new Map<string, MetricDefinition>(ALL_METRICS.map((m) => [m.id, m]));
 
@@ -44,4 +54,8 @@ export function validateRegistry(): readonly string[] {
   return problems;
 }
 
+export { EXECUTIVE_METRICS } from "./executive.js";
+export { FLOW_METRICS } from "./flow.js";
+export { UNIT_METRICS } from "./units.js";
+export { PEOPLE_METRICS } from "./people.js";
 export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey.js";

@@ -296,7 +296,7 @@ stage, next action.
 **Act — the whole point of the view:** export; push a list or a task to the CRM; hand the segment to the
 agency with the reason attached. Saved segments become standing lists that refill themselves.
 
-**A caution worth designing around:** a behavioural segment used for marketing is a lawful-basis question
+**A caution worth designing around:** the legal basis for marketing to a behavioural segment is a question for formal review
 (foundation §5). The export path must check consent status per contact and exclude those without it —
 silently producing a marketing list that includes non-consenting people is the one failure mode that could
 genuinely damage the client.

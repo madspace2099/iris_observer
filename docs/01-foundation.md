@@ -144,7 +144,10 @@ impossible in the MVP:
   the identifiers compatible so it stays cheap.
 
 **It also creates a real obligation.** Observer stores identified behavioural profiles of consumers, and the
-developer and agency are effectively joint controllers. Four things must be designed in, not bolted on:
+the developer and the agency each play a role in deciding how it is used. **Whether that makes them
+joint controllers, and what follows from it, is a legal question marked for formal review — this
+document describes what the system does, and asserts no compliance position.** Four things must be
+designed in rather than bolted on:
 
 1. **Consent captured at meeting start**, as an event, with its text version — the agent already collects the
    contact details, so this is one extra field, not a new workflow.

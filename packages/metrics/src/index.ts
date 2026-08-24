@@ -7,4 +7,6 @@
  */
 
 export * from "./definition.js";
+export * from "./policy.js";
+export * from "./requirements.js";
 export * from "./registry/index.js";

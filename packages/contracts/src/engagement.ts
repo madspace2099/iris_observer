@@ -26,8 +26,20 @@ export const JOURNEY_STAGES = [
   "identified_lead",
   "meeting_booked",
   "showroom_attended",
+  /**
+   * Qualified: the buyer showed real intent — a deep dive, a shortlist, a
+   * share — but no offer exists yet. This is the rung where deals stall, and
+   * without it "attended" and "offered" sit next to each other hiding the
+   * largest gap in the funnel.
+   */
+  "hot_lead",
   "follow_up",
   "offer",
+  /**
+   * An offer under active discussion. Distinct from `offer` because time spent
+   * here is the negotiating time a developer can actually try to shorten.
+   */
+  "negotiation",
   "reservation",
   "purchase",
 ] as const;
@@ -45,8 +57,16 @@ export const STAGE_OWNER: Readonly<Record<JourneyStage, SourceSystem>> = {
   identified_lead: "webiris",
   meeting_booked: "crm",
   showroom_attended: "showroom",
+  /**
+   * Observer's own, and the only rung it owns. Qualification is derived from
+   * in-meeting behaviour — a deep dive, a shortlist, a share — which no other
+   * system can see. Where a CRM has its own qualification field it wins, and
+   * the derived value is reported as a second opinion rather than overwritten.
+   */
+  hot_lead: "observer",
   follow_up: "crm",
   offer: "crm",
+  negotiation: "crm",
   reservation: "crm",
   purchase: "crm",
 } as const;
