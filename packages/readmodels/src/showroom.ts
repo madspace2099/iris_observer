@@ -327,6 +327,20 @@ export interface StorytellingIntelligence {
   readonly evidence: EvidenceRef;
 }
 
+/**
+ * A presenter, as the product knows them.
+ *
+ * Exposed through the port so surfaces never reach into the fixture package for
+ * a name (ADR-0007). When the database replaces the synthetic implementation
+ * this is the shape it has to return, and no screen changes.
+ */
+export interface AgentSummary {
+  readonly agentId: string;
+  readonly name: string;
+  readonly organisationName: string;
+  readonly meetingCount: number;
+}
+
 /* --- cohorts --------------------------------------------------------------- */
 
 export interface CohortDefinition {

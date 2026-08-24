@@ -3,6 +3,7 @@ import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskSession, ProjectPulse } from "./pulse";
 import type {
+  AgentSummary,
   MeetingReplay,
   MeetingSummary,
   PresentationIntelligence,
@@ -107,6 +108,14 @@ export interface ObserverRepository {
   getMeetingReplay(query: BriefQuery): Promise<MeetingReplay>;
 
   listMeetings(query: OverviewQuery): Promise<readonly MeetingSummary[]>;
+
+  /**
+   * The people presenting on this project, in this period.
+   *
+   * On the port rather than imported from the data package, so a surface that
+   * needs to offer an agent picker does not have to know where agents come from.
+   */
+  listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]>;
 
   /** Buyer attention on the building, unit by unit. */
   getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView>;

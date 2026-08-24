@@ -989,6 +989,7 @@
 /* The segmented control from HORIZONTAL MENU.fig: a track with an inset pill. */
 .iris-segmented {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 0.125rem;
   padding: 0.1875rem;
   border-radius: 999px;
@@ -996,7 +997,8 @@
   border: 1px solid var(--rule);
 }
 
-.iris-segmented button {
+.iris-segmented button,
+.iris-segmented a {
   border: 0;
   background: none;
   color: var(--ink-2);
@@ -1008,7 +1010,8 @@
   cursor: pointer;
 }
 
-.iris-segmented button[aria-selected="true"] {
+.iris-segmented button[aria-selected="true"],
+.iris-segmented a[aria-selected="true"] {
   background: rgb(255 255 255 / 12%);
   color: var(--ink);
 }

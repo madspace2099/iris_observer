@@ -39,8 +39,25 @@ interface SessionRecord {
  * it does not survive a restart and does not span instances. Both are
  * deliberate, because a durable store here would be the beginning of an
  * authentication system nobody reviewed.
+ *
+ * Hung off `globalThis` rather than held in a module-level binding, because
+ * Next bundles route handlers separately from pages and server actions. With a
+ * plain module constant the sign-in action and `/api/ask` each get their own
+ * empty Map, and every authenticated request from a route handler is rejected
+ * as unsigned — which is exactly the failure Ask Observer hit. One process, one
+ * table.
  */
-const sessions = new Map<string, SessionRecord>();
+const SESSION_STORE = Symbol.for("observer.sessions");
+
+type SessionGlobal = typeof globalThis & {
+  [SESSION_STORE]?: Map<string, SessionRecord>;
+};
+
+const sessions: Map<string, SessionRecord> = ((): Map<string, SessionRecord> => {
+  const g = globalThis as SessionGlobal;
+  g[SESSION_STORE] ??= new Map<string, SessionRecord>();
+  return g[SESSION_STORE];
+})();
 
 function purgeExpired(now: number): void {
   for (const [id, record] of sessions) {

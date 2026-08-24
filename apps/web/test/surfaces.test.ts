@@ -38,7 +38,15 @@ describe("surface audience", () => {
   });
 
   it("keeps MADSPACE administration out of the customer navigation", () => {
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["overview", "flow", "project", "people"]);
+    // The four primary sections are all showroom-rooted since ADR-0023. The
+    // CRM-led overview and the conversion funnel remain reachable but are no
+    // longer what the product opens on.
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual([
+      "showroom",
+      "presentation",
+      "units",
+      "storytelling",
+    ]);
     const admin = SURFACES.find((s) => s.route === "/madspace");
     expect(admin?.requiresRole).toEqual(["madspace_admin"]);
   });
@@ -75,6 +83,8 @@ describe("no component reads fixtures directly", () => {
       .filter((file) => readFileSync(file, "utf8").includes("@observer/synthetic"))
       .map((file) => file.slice(resolve(import.meta.dirname, "..").length).replace(/\\/g, "/"));
 
+    // Only the composition root and the session adapter. A surface that needs
+    // agents, units or meetings asks the repository port for them.
     expect(offenders.sort()).toEqual(["/src/lib/repository.ts", "/src/lib/session.ts"]);
   });
 

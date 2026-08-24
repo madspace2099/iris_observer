@@ -18,6 +18,7 @@ import type {
 } from "@observer/readmodels";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import type {
+  AgentSummary,
   MeetingReplay,
   MeetingSummary,
   PresentationIntelligence,
@@ -30,7 +31,7 @@ import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse } from "./pulse";
-import { sessionById, sessionsInPeriod } from "./showroom/sessions";
+import { SYNTHETIC_AGENTS, sessionById, sessionsInPeriod } from "./showroom/sessions";
 import {
   buildMeetingList,
   buildMeetingReplay,
@@ -235,6 +236,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
   async listMeetings(query: OverviewQuery): Promise<readonly MeetingSummary[]> {
     const { context, current } = await this.slices(query);
     return buildMeetingList(context, current);
+  }
+
+  async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {
+    const { current } = await this.slices(query);
+    return SYNTHETIC_AGENTS.map((agent) => ({
+      agentId: agent.id,
+      name: agent.name,
+      organisationName: agent.organisationName,
+      meetingCount: current.filter((s) => s.agentId === agent.id).length,
+    })).filter((a) => a.meetingCount > 0);
   }
 
   async getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView> {

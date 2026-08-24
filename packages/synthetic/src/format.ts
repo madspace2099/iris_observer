@@ -39,12 +39,19 @@ export function count(value: number, locale: string): string {
   return new Intl.NumberFormat(locale).format(value);
 }
 
-/** A signed delta with a true minus sign rather than a hyphen. */
+/**
+ * A signed delta with a true minus sign rather than a hyphen.
+ *
+ * A value that rounds away to nothing is reported as no change. "−0%" is
+ * arithmetically defensible and reads as a mistake, and a reader who sees it
+ * beside a real figure starts distrusting both.
+ */
 export function signedPercent(value: number, locale: string): string {
   const formatted = new Intl.NumberFormat(locale, {
     style: "percent",
     maximumFractionDigits: 0,
   }).format(Math.abs(value));
+  if (formatted.replace(/[^0-9]/g, "") === "0") return "no change";
   if (value > 0) return `+${formatted}`;
   if (value < 0) return `−${formatted}`;
   return "no change";

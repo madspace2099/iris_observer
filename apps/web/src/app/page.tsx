@@ -19,5 +19,5 @@ export default async function Home() {
   const project = projects[0];
   if (project === undefined) redirect("/sign-in");
 
-  redirect(`/${tenant.slug}/${project.slug}/overview`);
+  redirect(`/${tenant.slug}/${project.slug}/showroom`);
 }

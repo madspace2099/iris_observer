@@ -1,0 +1,815 @@
+/*
+ * Showroom Intelligence surfaces.
+ *
+ * Extends `iris.css` — planes, rails, instruments — with the four shapes the
+ * refocused product needs and did not have before:
+ *
+ *   .iris-dna       a presentation as a sequence of sections
+ *   .iris-replay    one meeting as a chronological rail
+ *   .iris-matrix    units as rows of an instrument, not cells of a table
+ *   .iris-bars      section usage, drawn as line work
+ *
+ * None of them is a card, and none of them is a chart library's default.
+ */
+
+/* --- provenance, made visible ---------------------------------------------- */
+
+/*
+ * The source chip.
+ *
+ * ADR-0023 lives or dies on the reader being able to see which class a finding
+ * belongs to. Observed and derived carry the accent; CRM context is deliberately
+ * neutral, so a screen full of grey chips looks wrong at a glance.
+ */
+.iris-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.iris-src::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.iris-src[data-src="IRIS_SHOWROOM_OBSERVED"] {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 32%, transparent);
+}
+
+.iris-src[data-src="IRIS_SHOWROOM_DERIVED"] {
+  color: color-mix(in oklab, var(--accent) 70%, var(--ink-2));
+  border-color: color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+.iris-src[data-src="CRM_OUTCOME_CONTEXT"] {
+  color: var(--ink-3);
+}
+
+.iris-src[data-src="WEBIRIS_CONTEXT"] {
+  color: var(--ink-2);
+}
+
+.iris-src[data-src="AI_INTERPRETATION"] {
+  color: var(--watch);
+  border-color: color-mix(in oklab, var(--watch) 30%, transparent);
+}
+
+.iris-srcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+/* The synthetic-data banner. Never subtle: the reader must not mistake it. */
+.iris-synthetic {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  border: 1px dashed color-mix(in oklab, var(--watch) 45%, transparent);
+  color: var(--watch);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+}
+
+/* --- findings --------------------------------------------------------------- */
+
+/*
+ * A finding answers five questions, so it has five slots.
+ *
+ * The legacy dashboard's "Insights" panel reported an argmax and an argmin in
+ * four identical boxes. This is the shape that replaces it.
+ */
+.iris-finding {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 0 1.125rem 1rem;
+  border-left: 2px solid var(--rule-firm);
+}
+
+.iris-finding[data-lead="true"] {
+  border-left-color: var(--accent);
+}
+
+.iris-finding + .iris-finding {
+  border-top: 1px solid var(--rule);
+}
+
+.iris-finding-statement {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4rem;
+  font-weight: 500;
+}
+
+.iris-finding-so-what {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.iris-finding-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+}
+
+.iris-finding-caveat {
+  margin: 0;
+  color: var(--watch);
+  font-size: 0.8125rem;
+  line-height: 1.15rem;
+}
+
+/* --- Presentation DNA ------------------------------------------------------- */
+
+.iris-dna {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.iris-dna-lane {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  align-items: center;
+  gap: 1rem;
+}
+
+.iris-dna-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.iris-dna-name b {
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iris-dna-name span {
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-2);
+}
+
+.iris-dna-track {
+  display: flex;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/*
+ * One section in the sequence.
+ *
+ * Width is reach rate — how often this lane's meetings got here at all. Fill is
+ * meaningful dwell. A dashed edge means the source cannot report timing, which
+ * is a different statement from "no time was spent".
+ */
+.iris-dna-step {
+  position: relative;
+  flex: var(--reach) 1 0;
+  min-width: 0;
+  height: 2.25rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--accent) calc(var(--fill) * 46%), #080b0f);
+  display: grid;
+  place-items: center;
+  padding: 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.iris-dna-step[data-timing="unknown"] {
+  border-style: dashed;
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 5%),
+    rgb(255 255 255 / 5%) 2px,
+    transparent 2px,
+    transparent 6px
+  );
+}
+
+/* A return is marked on the step that was come back to, not as a new step. */
+.iris-dna-step[data-return="true"]::after {
+  content: "↺";
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 0.5625rem;
+  color: var(--watch);
+}
+
+.iris-dna-step[data-highlight="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.iris-dna-gap {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+}
+
+/* --- the difference table --------------------------------------------------- */
+
+.iris-diff {
+  display: grid;
+  gap: 0;
+}
+
+.iris-diff-row {
+  display: grid;
+  grid-template-columns: 1fr 5rem 6rem 5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6875rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.iris-diff-row:first-child {
+  border-top: 0;
+}
+
+.iris-diff-behaviour {
+  font-size: 0.875rem;
+}
+
+.iris-diff-value {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* The gap between the two sides, drawn rather than described. */
+.iris-diff-bar {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 7%);
+  overflow: hidden;
+}
+
+.iris-diff-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--magnitude) * 100%);
+  background: var(--accent);
+}
+
+.iris-diff-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+}
+
+/* --- Meeting Replay --------------------------------------------------------- */
+
+.iris-replay {
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+
+/* The spine. One line, so the meeting reads as one continuous thing. */
+.iris-replay::before {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 1px;
+  background: var(--rule-firm);
+}
+
+.iris-replay-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.75rem 1fr auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4375rem 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.iris-replay-step:hover .iris-replay-label,
+.iris-replay-step[aria-expanded="true"] .iris-replay-label {
+  color: var(--ink);
+}
+
+.iris-replay-mark {
+  position: relative;
+  justify-self: start;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: var(--void);
+  display: grid;
+  place-items: center;
+  font-size: 0.5625rem;
+  color: var(--ink-2);
+}
+
+.iris-replay-step[data-kind="section"] .iris-replay-mark {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  color: var(--accent);
+}
+
+.iris-replay-step[data-kind="outcome"] .iris-replay-mark {
+  border-style: dashed;
+}
+
+.iris-replay-step[data-kind="favourite"] .iris-replay-mark,
+.iris-replay-step[data-kind="pdf"] .iris-replay-mark,
+.iris-replay-step[data-kind="screenshot"] .iris-replay-mark,
+.iris-replay-step[data-kind="share"] .iris-replay-mark {
+  border-color: color-mix(in oklab, var(--gain) 50%, transparent);
+  color: var(--gain);
+}
+
+.iris-replay-label {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.iris-replay-step[data-kind="section"] .iris-replay-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.iris-replay-label em {
+  font-style: normal;
+  color: var(--ink-3);
+}
+
+.iris-replay-time {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.iris-replay-time[data-unknown="true"] {
+  color: var(--ink-3);
+}
+
+.iris-replay-detail {
+  grid-column: 2 / -1;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.625rem 0.75rem;
+  border-left: 2px solid var(--accent);
+  background: var(--plane-2);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  display: grid;
+  gap: 0.375rem;
+}
+
+/* --- unit matrix ------------------------------------------------------------ */
+
+.iris-matrix {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.iris-matrix-head,
+.iris-matrix-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr repeat(5, 3.25rem) 4.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  border-top: 1px solid var(--rule);
+  font-variant-numeric: tabular-nums;
+}
+
+.iris-matrix-head {
+  border-top: 0;
+  border-bottom: 1px solid var(--rule-firm);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.iris-matrix-row {
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+
+.iris-matrix-row:hover {
+  background: var(--plane-2);
+}
+
+.iris-matrix-row[aria-pressed="true"] {
+  background: var(--plane-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.iris-matrix-code {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.iris-matrix-row[data-status="sold"] .iris-matrix-code,
+.iris-matrix-row[data-status="reserved"] .iris-matrix-code {
+  color: var(--ink-2);
+}
+
+/* Attention as a line, not a number in a box. */
+.iris-matrix-attention {
+  position: relative;
+  height: 8px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 6%);
+  overflow: hidden;
+}
+
+.iris-matrix-attention i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--a) * 100%);
+  background: color-mix(in oklab, var(--accent) 62%, #080b0f);
+}
+
+.iris-matrix-num {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--ink-2);
+}
+
+.iris-matrix-num[data-zero="true"] {
+  color: var(--ink-3);
+}
+
+.iris-matrix-num[data-null="true"] {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+/* --- section usage bars ----------------------------------------------------- */
+
+.iris-bars {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.iris-bar {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr 4.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.iris-bar-label {
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iris-bar-track {
+  position: relative;
+  height: 1.25rem;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 5%);
+  overflow: hidden;
+}
+
+.iris-bar-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--v) * 100%);
+  background: color-mix(in oklab, var(--accent) 52%, #080b0f);
+}
+
+/*
+ * The glance overlay.
+ *
+ * A section can be reached often and still never presented. Hatching the share
+ * of visits that ended inside the meaningful-dwell threshold puts both facts on
+ * one bar instead of in two panels that contradict each other.
+ */
+.iris-bar-track b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--glance) * 100%);
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 14%),
+    rgb(255 255 255 / 14%) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+.iris-bar-value {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--ink-2);
+}
+
+/* --- position strip --------------------------------------------------------- */
+
+/*
+ * Where in the presentation a section tends to land.
+ *
+ * A tick at the mean position along a 0–1 axis. This is the instrument that
+ * answers "does Surroundings come early or late" without a chart.
+ */
+.iris-position {
+  position: relative;
+  height: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.iris-position i {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 0.625rem;
+  background: var(--accent);
+  transform: translateX(-0.5px);
+}
+
+.iris-position span {
+  position: absolute;
+  bottom: 0.75rem;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* --- honest gaps ------------------------------------------------------------ */
+
+/*
+ * Stated once, in outline, never repeated beside every affected figure.
+ * `docs/14-design-system.md` §10.
+ */
+.iris-gap {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.875rem 1rem;
+  border: 1px dashed var(--rule-firm);
+  border-radius: 6px;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.2rem;
+}
+
+.iris-gap b {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.iris-gap ul {
+  margin: 0;
+  padding-left: 1.125rem;
+  display: grid;
+  gap: 0.3125rem;
+}
+
+/* --- outcome context strip --------------------------------------------------- */
+
+/*
+ * Outcomes are demoted, and the layout says so: a thin strip in secondary ink,
+ * never a row of figure cards. ADR-0023.
+ */
+.iris-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+}
+
+.iris-outcomes b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+@media (max-width: 75rem) {
+  .iris-dna-lane {
+    grid-template-columns: 1fr;
+    gap: 0.375rem;
+  }
+
+  .iris-matrix-head,
+  .iris-matrix-row {
+    grid-template-columns: 4.5rem 1fr repeat(3, 3rem);
+  }
+
+  .iris-matrix-head > :nth-child(n + 7),
+  .iris-matrix-row > :nth-child(n + 7) {
+    display: none;
+  }
+
+  .iris-diff-row {
+    grid-template-columns: 1fr 4rem 4rem;
+  }
+
+  .iris-diff-row > .iris-diff-bar {
+    display: none;
+  }
+}
+
+/* --- pieces the promoted sheet did not carry -------------------------------- */
+
+/*
+ * A labelled detail list.
+ *
+ * Used by the Ask Observer sheet and the unit panel. A definition list rather
+ * than a grid of boxes, because these are facts about one thing rather than
+ * separate measurements.
+ */
+.iris-detail {
+  display: grid;
+  gap: 0;
+  margin: 0.5rem 0 0;
+}
+
+.iris-detail > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 12rem) 1fr;
+  gap: 0.75rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.iris-detail > div:first-child {
+  border-top: 0;
+}
+
+.iris-detail dt {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  align-self: baseline;
+}
+
+.iris-detail dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* A follow-up question. A line of text that happens to be pressable. */
+.iris-followup {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.iris-followup:hover {
+  color: var(--ink);
+}
+
+/* The action variant used across the showroom surfaces. */
+.iris-action[data-emphasis="primary"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #05070a;
+}
+
+.iris-action[data-emphasis="primary"]:hover {
+  background: #2bb4ff;
+}
+
+/* The rail marks itself while a question is in flight. */
+.iris-rail[data-busy="true"] .iris-ask {
+  border-color: var(--accent);
+}
+
+/*
+ * The two-field composition.
+ *
+ * A dominant subject field and a narrower evidence field, asymmetric. Not a
+ * twelve-column grid of equal cells; `docs/14-design-system.md` §4.
+ */
+.iris-two {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(22rem, 0.85fr);
+  min-height: 100%;
+}
+
+.iris-one {
+  display: block;
+  min-height: 100%;
+}
+
+/*
+ * The command rail is chrome at the foot of every surface, so every surface
+ * has to leave room for it. Without this the last finding on a page sits under
+ * a floating pill and looks broken.
+ */
+.iris-stage > .iris-two > .iris-plane,
+.iris-stage > .iris-one > .iris-plane {
+  padding-bottom: 6rem;
+}
+
+/* The nav sits inside the top bar rather than on a row of its own. */
+.iris-top .iris-nav {
+  padding: 0;
+  border-bottom: 0;
+  justify-self: center;
+}
+
+@media (max-width: 78rem) {
+  .iris-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .iris-plane--raised {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+}
+
+/*
+ * A transition label is two section names and an arrow, so it needs more room
+ * than a single section name. Truncating "amenities → residences" to
+ * "amenities → residenc…" loses the half that carries the meaning.
+ */
+.iris-bars[data-wide-labels="true"] .iris-bar {
+  grid-template-columns: 13rem 1fr 4rem;
+}
+
+/* The agent chip carries its own sample size, so a picker is also a summary. */
+.iris-chip b {
+  margin-left: 0.375rem;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-weight: 400;
+  color: var(--ink-2);
+}

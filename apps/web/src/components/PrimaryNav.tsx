@@ -19,13 +19,13 @@ export function PrimaryNav({ root, allowed }: { root: string; allowed: readonly 
   const pathname = usePathname();
 
   return (
-    <nav className="obs-nav" aria-label="Sections">
+    <nav className="iris-nav" aria-label="Sections">
       {PRIMARY_NAV.filter((item) => allowed.includes(item.key)).map((item) => {
         const href = `${root}/${item.key}`;
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
-            className="obs-nav-item"
+            className="iris-nav-item"
             key={item.key}
             href={dynamicRoute(href)}
             aria-current={active ? "page" : undefined}

@@ -271,8 +271,27 @@ function buildSteps(
   order.forEach((sectionId, index) => {
     const base = BASE_DWELL[sectionId] ?? 60;
     const bias = sectionId === "home" ? agent.homeDwell : 1;
-    // A wide but plausible spread: 0.45× to 1.75× the base.
-    const dwell = Math.max(6, Math.round(base * bias * (0.45 + r() * 1.3)));
+
+    /*
+     * Some visits are not presentations.
+     *
+     * A section gets opened on the way to another one, or tapped by accident,
+     * and abandoned within a few seconds. Without these the dataset has no
+     * visit below the meaningful-dwell threshold at all, and the one metric
+     * that exists to separate "presented" from "clicked" can never fire — which
+     * is precisely the flattery the legacy dashboard's "Engagement: High" on a
+     * single click was built out of.
+     *
+     * Pass-throughs are commoner on the sections that sit between others.
+     */
+    const passThroughRate = sectionId === "maps" || sectionId === "gallery" ? 0.24 : 0.09;
+    const dwell =
+      r() < passThroughRate
+        ? 3 + Math.floor(r() * 11)
+        : // A long tail rather than a hard ceiling. With a narrow multiplier
+          // the fastest agent's rate on "over a minute on Home" came out at
+          // exactly 0%, which no real measurement looks like.
+          Math.max(16, Math.round(base * bias * (0.4 + r() * 1.9)));
 
     let itemId: string | null = null;
     let itemLabel: string | null = null;

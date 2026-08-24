@@ -315,12 +315,26 @@ export function buildShowroomOverview(
   const previousCompareRate = share(previous.filter(usedCompare).length, previous.length);
 
   const surroundingsEarly = share(sessions.filter((s) => reachedEarly(s, "surroundings")).length, n);
-  const skipped = coverage.routinelySkipped[0] ?? null;
+
+  /*
+   * The verdict leads with a gap in the *core* story if there is one.
+   *
+   * A core section that goes unshown is a hole in the argument the project paid
+   * to build. An optional section going unshown is a choice, and joining the two
+   * with "and" — "reached 89% of the core story and Compare was skipped 71% of
+   * the time" — reads as one sentence making two unrelated claims.
+   */
+  const coreSkipped = coverage.routinelySkipped.filter((s) =>
+    (CORE_SECTION_IDS as readonly SectionId[]).includes(s.sectionId),
+  );
+  const skipped = coreSkipped[0] ?? coverage.routinelySkipped[0] ?? null;
 
   const verdict =
-    skipped === null
-      ? `${count(n, locale)} presentations this period, reaching ${percent(coverage.coreReached, locale)} of the core story.`
-      : `${count(n, locale)} presentations this period reached ${percent(coverage.coreReached, locale)} of the core story — and ${skipped.label} was never opened in ${percent(skipped.skipRate, locale)} of them.`;
+    coreSkipped[0] !== undefined
+      ? `${count(n, locale)} presentations this period, and ${percent(coreSkipped[0].skipRate, locale)} of them never opened ${coreSkipped[0].label} — a core part of the story.`
+      : skipped === null
+        ? `${count(n, locale)} presentations this period, reaching ${percent(coverage.coreReached, locale)} of the core story.`
+        : `${count(n, locale)} presentations this period reached ${percent(coverage.coreReached, locale)} of the core story. Beyond it, ${skipped.label} went unopened in ${percent(skipped.skipRate, locale)}.`;
 
   const figures = [
     ok({
@@ -390,7 +404,62 @@ export function buildShowroomOverview(
     });
   }
 
-  // 2. Attention that is real versus attention that is a glance.
+  /*
+   * 2. The widest behavioural spread between the people presenting.
+   *
+   * Always computable, and the question the product exists to answer: two
+   * agents sell the same building from the same software and their meetings do
+   * not look alike. This states the largest gap and sends the reader to the
+   * comparison rather than drawing a conclusion from it.
+   */
+  const perAgent = SYNTHETIC_AGENTS.map((agent) => ({
+    agent,
+    sessions: sessions.filter((s) => s.agentId === agent.id),
+  })).filter((a) => a.sessions.length >= 8);
+
+  if (perAgent.length >= 2) {
+    const spreads = BEHAVIOURS.map((behaviour) => {
+      const rates = perAgent.map((a) => ({
+        name: a.agent.name,
+        id: a.agent.id,
+        rate: share(a.sessions.filter(behaviour.test).length, a.sessions.length),
+        n: a.sessions.length,
+      })).sort((x, y) => y.rate - x.rate);
+      const top = rates[0];
+      const bottom = rates[rates.length - 1];
+      return top === undefined || bottom === undefined
+        ? null
+        : { behaviour, top, bottom, spread: top.rate - bottom.rate };
+    })
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .sort((a, b) => b.spread - a.spread);
+
+    const widest = spreads[0];
+    if (widest !== undefined && widest.spread > 0.15) {
+      findings.push({
+        id: "agent_spread",
+        statement: `${widest.behaviour.behaviour} — ${widest.top.name} in ${percent(widest.top.rate, locale)} of their meetings, ${widest.bottom.name} in ${percent(widest.bottom.rate, locale)}.`,
+        baseline: `${count(widest.top.n, locale)} and ${count(widest.bottom.n, locale)} meetings`,
+        soWhat:
+          "The same building, the same software, two different presentations. Worth a look side by side before deciding whether either is wrong.",
+        nextStep: {
+          label: `Compare ${widest.top.name.split(" ")[0]} and ${widest.bottom.name.split(" ")[0]}`,
+          href: `${base}/presentation?mode=agents&left=${widest.top.id}&right=${widest.bottom.id}`,
+        },
+        evidence: evidenceRef(
+          `agent-spread-${widest.behaviour.id}`,
+          "observed_sequence",
+          `${base}/presentation`,
+          widest.top.n + widest.bottom.n,
+        ),
+        sampleSize: widest.top.n + widest.bottom.n,
+        sources: DERIVED,
+        caveat: widest.behaviour.note ?? null,
+      });
+    }
+  }
+
+  // 3. Attention that is real versus attention that is a glance.
   if (glances.length > 0) {
     const glanceRate = share(glances.length, glances.length + meaningfulSections.length);
     findings.push({
@@ -409,7 +478,7 @@ export function buildShowroomOverview(
     });
   }
 
-  // 3. The behaviour-and-outcome association, stated as an association.
+  // 4. The behaviour-and-outcome association, stated as an association.
   const both = sessions.filter((s) => reachedEarly(s, "surroundings") && usedCompare(s));
   const rest = sessions.filter((s) => !(reachedEarly(s, "surroundings") && usedCompare(s)));
   const scored = (xs: readonly ShowroomSession[]) =>
@@ -473,7 +542,10 @@ export function buildShowroomOverview(
           : coverage.medianDepth < previousCoverage.medianDepth
             ? "down"
             : "flat",
-      deltaDisplay: `${coverage.medianDepth - previousCoverage.medianDepth >= 0 ? "+" : "−"}${Math.abs(coverage.medianDepth - previousCoverage.medianDepth)} steps`,
+      deltaDisplay:
+        coverage.medianDepth === previousCoverage.medianDepth
+          ? "no change"
+          : `${coverage.medianDepth > previousCoverage.medianDepth ? "+" : "−"}${Math.abs(coverage.medianDepth - previousCoverage.medianDepth)} steps`,
       sources: DERIVED,
       sampleSize: n,
       href: `${base}/storytelling`,

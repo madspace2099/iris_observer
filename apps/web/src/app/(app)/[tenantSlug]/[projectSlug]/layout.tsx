@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import { PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
+import { AskRail } from "@/showroom/AskRail";
+import { SyntheticBadge } from "@/showroom/parts";
 import { PRIMARY_NAV, SURFACES } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
@@ -14,6 +16,9 @@ import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
  * which period, which role — and nothing else. Project and period live in the
  * URL rather than in client state, so any screen can be linked to exactly as
  * it was read.
+ *
+ * The chrome is thin by design: a top rail and a bottom command rail, with the
+ * whole middle given to the subject. `docs/14-design-system.md` §3.
  */
 
 const PERIOD_LABELS = [
@@ -42,17 +47,15 @@ export default async function ProjectLayout({
       // Forbidden and missing are rendered identically on purpose: telling an
       // unauthorised viewer that a project exists is itself a disclosure.
       return (
-        <main className="obs-shell" id="main">
-          <div className="obs-main" style={{ maxWidth: "40rem" }}>
-            <p className="obs-kicker">Not available</p>
-            <h1 style={{ margin: 0, fontSize: "var(--text-h5)" }}>
-              This project is not available to your account.
-            </h1>
-            <p className="obs-muted">
+        <main className="iris" id="main" style={{ padding: "4rem 2.5rem" }}>
+          <div style={{ maxWidth: "40rem" }}>
+            <p className="iris-kicker">Not available</p>
+            <h1 className="iris-section">This project is not available to your account.</h1>
+            <p className="iris-meta">
               If you expected access, ask the developer who owns the project to grant it.
             </p>
-            <div className="obs-actions">
-              <a className="obs-action" data-emphasis="primary" href="/">
+            <div className="iris-actions" style={{ marginTop: "1.5rem" }}>
+              <a className="iris-action" data-emphasis="primary" href="/">
                 Back to your projects
               </a>
             </div>
@@ -83,59 +86,63 @@ export default async function ProjectLayout({
   }
 
   return (
-    <div className="obs-shell">
-      <header className="obs-header">
-        <div className="obs-brand">
-          <span className="obs-brand-mark">IRIS</span>
+    <div className="iris">
+      <header className="iris-top">
+        <div className="iris-brand">
+          <b>IRIS</b>
           <span>Observer</span>
+          <SyntheticBadge />
         </div>
 
-        <ContextSwitcher
-          label="Project"
-          value={project.slug}
-          options={projects.map((p) => ({
-            value: p.slug,
-            label: p.name,
-            href: `/${tenant.slug}/${p.slug}/overview`,
-          }))}
-        />
+        <PrimaryNav root={root} allowed={allowedSections} />
 
-        <ContextSwitcher
-          label="Period"
-          value="quarter_to_date"
-          options={PERIOD_LABELS.map(([value, label]) => ({
-            value,
-            label,
-            href: `${root}/overview?period=${value}`,
-          }))}
-        />
-
-        <div className="obs-header-end">
+        <div className="iris-ambient">
+          <ContextSwitcher
+            label="Project"
+            value={project.slug}
+            options={projects.map((p) => ({
+              value: p.slug,
+              label: p.name,
+              href: `/${tenant.slug}/${p.slug}/showroom`,
+            }))}
+          />
+          <ContextSwitcher
+            label="Period"
+            value="quarter_to_date"
+            options={PERIOD_LABELS.map(([value, label]) => ({
+              value,
+              label,
+              href: `${root}/showroom?period=${value}`,
+            }))}
+          />
           {viewer.role === "madspace_admin" ? (
-            <a className="obs-action" href="/madspace">
+            <a className="iris-action" href="/madspace">
               Administration
             </a>
           ) : null}
-          <div className="obs-who">
-            <strong>{viewer.displayName}</strong>
-            <span>
-              {viewer.organisationName} · {viewer.role.replace(/_/g, " ")}
-              {tenants.length > 1 ? ` · ${tenants.length} developers` : ""}
-            </span>
-          </div>
+          <span className="iris-code" title={`${viewer.organisationName} · ${viewer.role.replace(/_/g, " ")}`}>
+            {viewer.displayName}
+            {tenants.length > 1 ? ` · ${tenants.length} developers` : ""}
+          </span>
           <form action={signOut}>
-            <button className="obs-action" type="submit">
+            <button className="iris-action" type="submit">
               Sign out
             </button>
           </form>
         </div>
       </header>
 
-      <PrimaryNav root={root} allowed={allowedSections} />
-
-      <main className="obs-main" id="main">
+      <main className="iris-stage" id="main" style={{ display: "block", overflowY: "auto" }}>
         {children}
       </main>
+
+      {/*
+        * Ask Observer is chrome, not a page.
+        *
+        * It sits on every surface and carries the current context, because an
+        * assistant you have to navigate to is one nobody asks.
+        */}
+      <AskRail projectLabel={project.name} root={root} />
     </div>
   );
 }

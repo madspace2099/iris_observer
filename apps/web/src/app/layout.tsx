@@ -5,6 +5,11 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "@observer/ui/tokens.css";
 import "@observer/ui/components.css";
+// IRIS Spatial Intelligence. Loaded after the M2.1 component sheet so the
+// showroom surfaces win where the two overlap; the surfaces that have not been
+// rebuilt yet keep the older layer until they are.
+import "@observer/ui/iris.css";
+import "@observer/ui/showroom.css";
 
 export const metadata: Metadata = {
   title: {
