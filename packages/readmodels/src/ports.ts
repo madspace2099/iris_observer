@@ -2,6 +2,15 @@ import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contrac
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskSession, ProjectPulse } from "./pulse";
+import type {
+  MeetingReplay,
+  MeetingSummary,
+  PresentationIntelligence,
+  ShowroomOverview,
+  ShowroomSessionSlice,
+  StorytellingIntelligence,
+  UnitAttentionView,
+} from "./showroom";
 
 /**
  * The port every screen reads through.
@@ -77,6 +86,41 @@ export interface ObserverRepository {
    * never the figures.
    */
   getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession>;
+
+  /* --- Showroom Intelligence (ADR-0023) ----------------------------------- */
+
+  /**
+   * The opening view. What happened inside IRIS during the period.
+   *
+   * Replaces the executive overview as the product's front door: presentation
+   * behaviour leads, and CRM outcomes appear only as cohort context.
+   */
+  getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview>;
+
+  /** Presentation DNA: sequences, transitions, and side-by-side comparison. */
+  getPresentationIntelligence(
+    query: OverviewQuery,
+    comparison: { mode: "agents" | "cohorts" | "periods"; left: string | null; right: string | null },
+  ): Promise<PresentationIntelligence>;
+
+  /** One meeting, reconstructed as a story rather than an event table. */
+  getMeetingReplay(query: BriefQuery): Promise<MeetingReplay>;
+
+  listMeetings(query: OverviewQuery): Promise<readonly MeetingSummary[]>;
+
+  /** Buyer attention on the building, unit by unit. */
+  getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView>;
+
+  /** How the IRIS story itself is being used. */
+  getStorytelling(query: OverviewQuery): Promise<StorytellingIntelligence>;
+
+  /**
+   * The raw session slice.
+   *
+   * Exposed for the AI tool layer, which must compute from the same facts every
+   * surface reads rather than from a summary written for it.
+   */
+  getSessionSlice(query: OverviewQuery): Promise<ShowroomSessionSlice>;
 
   /** Resolves an evidence reference for the drill-down panel. */
   getEvidence(viewer: Viewer, evidenceId: string): Promise<Evidence>;

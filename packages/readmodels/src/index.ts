@@ -11,4 +11,5 @@ export * from "./context";
 export * from "./metric-value";
 export * from "./views";
 export * from "./pulse";
+export * from "./showroom";
 export * from "./ports";

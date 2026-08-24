@@ -11,3 +11,6 @@ export * from "./world";
 export * from "./repository";
 export { buildProjectPulse, buildAskSession } from "./pulse";
 export { VIKTORIA_MEETING_ID, COUPLE_MEETING_ID } from "./agent";
+
+export * from "./showroom/sessions";
+export * from "./showroom/project";

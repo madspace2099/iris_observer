@@ -17,10 +17,28 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import type {
+  MeetingReplay,
+  MeetingSummary,
+  PresentationIntelligence,
+  ShowroomOverview,
+  ShowroomSessionSlice,
+  StorytellingIntelligence,
+  UnitAttentionView,
+} from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse } from "./pulse";
+import { sessionById, sessionsInPeriod } from "./showroom/sessions";
+import {
+  buildMeetingList,
+  buildMeetingReplay,
+  buildPresentationIntelligence,
+  buildShowroomOverview,
+  buildStorytelling,
+  buildUnitAttention,
+} from "./showroom/project";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -167,6 +185,71 @@ export class SyntheticObserverRepository implements ObserverRepository {
   ): Promise<AskSession> {
     const context = await this.context(query);
     return buildAskSession(context, buildProjectPulse(context), selectionLabel);
+  }
+
+  /* --- Showroom Intelligence ---------------------------------------------- */
+
+  /**
+   * The two session slices every showroom surface needs.
+   *
+   * Both are read from the same fact stream, so the period and its baseline
+   * cannot disagree about which meetings exist — which is exactly the class of
+   * bug the legacy dashboard has between its two feature-time accumulators.
+   */
+  private async slices(query: OverviewQuery) {
+    const context = await this.context(query);
+    return {
+      context,
+      current: sessionsInPeriod(context.period.from, context.period.to),
+      previous: sessionsInPeriod(context.period.baselineFrom, context.period.baselineTo),
+    };
+  }
+
+  async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {
+    const { context, current, previous } = await this.slices(query);
+    return buildShowroomOverview(context, current, previous);
+  }
+
+  async getPresentationIntelligence(
+    query: OverviewQuery,
+    comparison: { mode: "agents" | "cohorts" | "periods"; left: string | null; right: string | null },
+  ): Promise<PresentationIntelligence> {
+    const { context, current, previous } = await this.slices(query);
+    return buildPresentationIntelligence(
+      context,
+      current,
+      previous,
+      comparison.mode,
+      comparison.left,
+      comparison.right,
+    );
+  }
+
+  async getMeetingReplay(query: BriefQuery): Promise<MeetingReplay> {
+    const context = await this.context(query);
+    const session = sessionById(query.meetingId);
+    if (session === undefined) throw new NotFoundError(`Meeting "${query.meetingId}"`);
+    return buildMeetingReplay(context, session);
+  }
+
+  async listMeetings(query: OverviewQuery): Promise<readonly MeetingSummary[]> {
+    const { context, current } = await this.slices(query);
+    return buildMeetingList(context, current);
+  }
+
+  async getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView> {
+    const { context, current, previous } = await this.slices(query);
+    return buildUnitAttention(context, current, previous, unitCode);
+  }
+
+  async getStorytelling(query: OverviewQuery): Promise<StorytellingIntelligence> {
+    const { context, current } = await this.slices(query);
+    return buildStorytelling(context, current);
+  }
+
+  async getSessionSlice(query: OverviewQuery): Promise<ShowroomSessionSlice> {
+    const { context, current } = await this.slices(query);
+    return { sessions: current, periodLabel: context.period.label };
   }
 
   async getEvidence(viewer: Viewer, evidenceId: string): Promise<Evidence> {

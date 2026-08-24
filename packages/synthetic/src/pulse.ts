@@ -63,7 +63,7 @@ function unitCode(block: string, floor: number, index: number): string {
   return `${block}-${floor}${String(index).padStart(2, "0")}`;
 }
 
-interface RawUnit {
+export interface RawUnit {
   code: string;
   block: string;
   floor: number;
@@ -143,6 +143,15 @@ const CHANGE_FOR: Record<string, UnitChange> = {
   "A-402": "new_interest",
   "B-604": "price_cut",
 };
+
+/**
+ * The catalogue itself, exposed once.
+ *
+ * The Pulse and the showroom session generator must draw units from the same
+ * building, or the stacking plan and the meeting records will quietly disagree
+ * about which flat exists.
+ */
+export const RAW_CATALOGUE: readonly RawUnit[] = buildCatalogue();
 
 export function buildProjectPulse(context: ViewContext): ProjectPulse {
   const raw = buildCatalogue();
