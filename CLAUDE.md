@@ -4,6 +4,21 @@
 `iris-observer` and the GitHub repository is `iris_observer`; both are incidental spellings and
 neither should appear in prose.
 
+## Start every session here
+
+1. **Load two skills, always, before any design or frontend work:**
+   - `iris-observer-product` — this project's doctrine. Lives in
+     `.claude/skills/iris-observer-product/SKILL.md`.
+   - `frontend-design` — generic craft guidance.
+
+   Where they disagree, **`iris-observer-product` wins**. The generic skill will suggest an unusual
+   display font and an extreme aesthetic direction; IRIS has a locked identity.
+
+2. **Read `docs/PROJECT-STATE.md`** — where the project is, what was decided, what is blocked, and
+   the exact next action. Update it at the end of every meaningful session.
+
+Never ask the user to restate context that exists in this repository.
+
 ## What this is
 
 A multi-tenant sales-intelligence platform for MADSPACE IRIS showroom installations. A sales agent
@@ -69,6 +84,10 @@ Run `pnpm matrix` after any registry change. A test fails if the committed matri
    and never compute stage conversion through it. See ADR-0021.
 9. **The sign-in is a scenario selector, not authentication.** Do not describe it as authentication,
    and do not let the browser decide a role. See ADR-0022.
+10. **Nothing is a card.** Content sits on planes separated by hairlines; controls sit on floating
+    rails. The M2.1 card stack is the rejected system — see `docs/12-visual-autopsy.md`.
+11. **A screen is not approved because the build is green.** Every finished surface needs a real
+    screenshot that somebody looked at. A mostly-empty frame is an automatic failure.
 
 ## Environment notes for this machine
 
@@ -88,5 +107,8 @@ packages/db/         Drizzle schema, migrations, RLS, projections, seeds
 packages/metrics/    metric registry and the typed query layer
 packages/ui/         design tokens, primitives, hand-built SVG charts
 packages/simulator/  integration simulator CLI
+packages/readmodels/ read-model shapes and the repository port
+packages/synthetic/  deterministic implementation of that port
 docs/                concept documents, ADRs, generated specifications
+.claude/skills/      the iris-observer-product project skill
 ```

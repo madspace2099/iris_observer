@@ -1,6 +1,6 @@
 # Roadmap
 
-**Status:** current · **Last corrected:** 2026-08-24 (M2.1 visual acceptance)
+**Status:** current · **Last corrected:** 2026-08-24 (project takeover and visual reboot)
 
 The development order is deliberately reversed. Observer defines what must be measured; the physical
 database and the Unreal Engine module implement that specification afterwards, once the dashboard
@@ -21,10 +21,20 @@ requirements have stabilised.
 
 ## Next
 
+### M2.2 — Visual reboot
+
+The M2.1 visual layer was rejected (`docs/12-visual-autopsy.md`). The contracts, metrics, evidence
+rules and security decisions underneath it stand.
+
+- Audit, direction and the design system: done — `docs/13-figma-adoption-matrix.md`, `docs/14-design-system.md`.
+- Two isolated Executive Overview concepts on laboratory routes: narrative-first and spatial-first.
+- **User selects one.** Nothing is promoted to production until then.
+- Then: promote to `@observer/ui`, rebuild the two production slices, re-review every surface.
+
 ### M3 — Remaining intelligence surfaces
 
-**Blocked on review.** M2.1's screenshots have to be looked at and approved before M3 starts. A
-second surface built on an unapproved first one doubles whatever is wrong with it.
+**Blocked on M2.2.** A second surface built on a rejected visual system multiplies whatever is wrong
+with it.
 
 - Sales Flow: the stage ladder, conversion between rungs, time in stage, stalled opportunities.
 - Project: segment interest, the attention index, the attention-versus-conversion matrix, the unit
