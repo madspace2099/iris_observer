@@ -1,6 +1,6 @@
 # Deployment runbook
 
-**Status:** infrastructure checkpoint · **Not deployed to Production.** · **Last updated:** 2026-08-24
+**Status:** deployed and verified · **Last updated:** 2026-08-24
 
 Everything a future session needs to maintain this deployment without asking for an identifier
 twice. **No secret value appears in this file, and none may be added to it.**
@@ -25,34 +25,22 @@ deliberately: pointing a finished interface at an empty database is not a migrat
 
 ### GitHub
 
-|              |                                                 |
-| ------------ | ----------------------------------------------- |
-| Repository   | `https://github.com/madspace2099/iris_observer` |
-| Visibility   | public (HTTP 200 unauthenticated)               |
-| State        | **empty — no branches pushed yet**              |
-| Local branch | `main`                                          |
+|            |                                                 |
+| ---------- | ----------------------------------------------- |
+| Repository | `https://github.com/madspace2099/iris_observer` |
+| Visibility | public                                          |
+| Branch     | `main` (production branch)                      |
+| State      | pushed — 15 commits                             |
 
-**Blocked.** The credential this machine holds is for GitHub user `asbothmate95`, which has no write
-access:
-
-```
-remote: Permission to madspace2099/iris_observer.git denied to asbothmate95.
-fatal: ... The requested URL returned error: 403
-```
-
-Resolve by **one** of:
-
-1. adding `asbothmate95` as a collaborator with write access to `madspace2099/iris_observer`; or
-2. signing this machine's Git Credential Manager in as an account that already has write access.
-
-No token is needed from anyone in chat, and none should be pasted there. Once access exists:
+**Access resolved.** `asbothmate95` was added as a collaborator on 2026-08-24; the first push had been
+refused with `403 Permission denied`. Pushing works:
 
 ```bash
-git push -u origin main
+git push origin main
 ```
 
-Never force-push. Never rewrite remote history. If the remote has diverged by then, push to
-`release/m2-spatial-lab` and open a pull request instead of merging automatically.
+Never force-push. Never rewrite remote history. If the remote has diverged, push to
+`release/m2-spatial-lab` and open a pull request rather than merging automatically.
 
 ### Supabase
 
@@ -74,28 +62,29 @@ rows to unauthenticated callers. It is left alone: not deleted, not modified, no
 
 ### Vercel
 
-|         |                                                         |
-| ------- | ------------------------------------------------------- |
-| Team    | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`) |
-| Plan    | **hobby**                                               |
-| Project | **not created yet** — see below                         |
+|                   |                                                                |
+| ----------------- | -------------------------------------------------------------- |
+| Team              | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`)        |
+| Plan              | **hobby**                                                      |
+| Project           | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`)           |
+| Linked repository | `madspace2099/iris_observer`, production branch `main`         |
+| Root directory    | `apps/web`                                                     |
+| Region            | `fra1`                                                         |
+| Live URL          | `https://iris-observer.vercel.app`                             |
+| Branch alias      | `https://iris-observer-git-main-madspaces-projects.vercel.app` |
 
-**Deliberately not created yet.** A Vercel project must be created _linked to the repository_, and
-the repository is empty. Creating a bare project now would be worse than waiting: Vercel's
-`create_git_project` "does not reconnect an existing unlinked project with the same name", so a bare
-`iris-observer` created today could not later be linked to the repo, and the runbook forbids deleting
-a cloud project to recover from a mistake.
+**It deployed to Production, not to Preview.** `create_git_project` deploys from the linked
+repository's production branch, and `main` is that branch, so the deployment took the `target:
+production` path and the production alias. That was not the intent — the checkpoint asked for a
+Preview — and it is recorded here rather than quietly accepted.
 
-When the GitHub push succeeds, one call finishes it:
+It is not harmful in this state: the data is entirely synthetic, every screen carries the synthetic
+badge, the response carries `X-Robots-Tag: noindex, nofollow, noarchive`, and `/sign-in` states that
+it is not production authentication. Nothing was deleted to "fix" it, per §9.
 
-```
-create_git_project
-  repo:          madspace2099/iris_observer
-  teamId:        team_DcZjnqXKYp579zibvXU3UiNE
-  projectName:   iris-observer
-  rootDirectory: apps/web
-  deploy:        true
-```
+To get a genuine Preview for review, push a branch other than `main`; Vercel builds every branch as a
+Preview automatically. To make Production point somewhere else later, promote the chosen deployment
+(§8) rather than deleting this one.
 
 ---
 
