@@ -17,6 +17,19 @@
  * and Observer's whole page pattern turns on a verdict.
  */
 
+/*
+ * A metric-matched stand-in for Manrope while the woff2 arrives. Overriding
+ * the vertical metrics and width keeps the swap from shifting anything.
+ */
+@font-face {
+  font-family: "Manrope Fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial");
+  ascent-override: 100%;
+  descent-override: 25%;
+  line-gap-override: 0%;
+  size-adjust: 100.5%;
+}
+
 :root {
   /* --- brand ---------------------------------------------------------- */
   --iris-accent: #00a3ff;
@@ -81,9 +94,17 @@
      depends on somebody else's uptime, and the fallback stack below is close
      enough in metrics that the swap does not reflow the layout. Self-hosting
      the woff2 is a follow-up. */
+  /* Manrope, self-hosted from @fontsource-variable/manrope. Never from a
+     third-party host: a first paint that waits on somebody else's CDN is a
+     first paint that depends on their uptime.
+
+     "Manrope Fallback" is a metric-adjusted alias of the local system face, so
+     the swap changes the letterforms without moving the layout. Metric cards
+     also carry a min-height, so a grid of figures cannot reflow while the font
+     is arriving. */
   --font-sans:
-    "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    sans-serif;
+    "Manrope Variable", "Manrope", "Manrope Fallback", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   /* Numerals must be tabular everywhere a figure appears in a column. */
   --font-numeric: var(--font-sans);
 

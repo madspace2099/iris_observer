@@ -853,3 +853,200 @@ a {
     gap: var(--space-2);
   }
 }
+
+/* --- verdict rules ------------------------------------------------------------------ */
+
+/*
+ * The rules behind the verdict, collapsed by default.
+ *
+ * Present on the first screen rather than buried in a drill-down, because a
+ * verdict a reader cannot interrogate is a verdict they will either accept
+ * uncritically or ignore. Collapsed, because most readings do not need it.
+ */
+.obs-rules {
+  border-top: 1px solid var(--line-subtle);
+  padding-top: var(--space-3);
+}
+
+.obs-rules > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-kicker);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  list-style: none;
+}
+
+.obs-rules > summary::-webkit-details-marker {
+  display: none;
+}
+
+.obs-rules > summary::before {
+  content: "▸ ";
+  color: var(--text-tertiary);
+}
+
+.obs-rules[open] > summary::before {
+  content: "▾ ";
+}
+
+.obs-rule-list {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.obs-rule-list li {
+  display: grid;
+  grid-template-columns: 0.5rem minmax(8rem, 12rem) minmax(4rem, auto) 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.obs-rule-list li:last-child {
+  border-bottom: none;
+}
+
+.obs-rule-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--verdict-unknown);
+}
+
+.obs-rule-list li[data-outcome="pass"] .obs-rule-dot {
+  background: var(--verdict-good);
+}
+.obs-rule-list li[data-outcome="watch"] .obs-rule-dot {
+  background: var(--verdict-watch);
+}
+.obs-rule-list li[data-outcome="fail"] .obs-rule-dot {
+  background: var(--verdict-weak);
+}
+
+.obs-rule-label {
+  font-weight: var(--weight-semibold);
+}
+
+.obs-rule-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+.obs-rule-rule {
+  color: var(--text-secondary);
+}
+
+/* --- the headline change, above the fold --------------------------------------------- */
+
+/*
+ * One change, not a list. The full list lives further down; this is the single
+ * movement a reader would want to know about if they read nothing else.
+ */
+.obs-headline-change {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-subtle);
+  background: var(--surface-raised);
+  flex-wrap: wrap;
+}
+
+.obs-headline-change .obs-delta {
+  font-size: var(--text-lg);
+}
+
+@media (max-width: 60rem) {
+  .obs-rule-list li {
+    grid-template-columns: 0.5rem 1fr auto;
+    row-gap: var(--space-1);
+  }
+  .obs-rule-rule {
+    grid-column: 2 / -1;
+  }
+}
+
+/* --- M2.1 visual corrections ---------------------------------------------------------- */
+
+/*
+ * An evidence pill hugs its text.
+ *
+ * Inside a column flex container it was stretching to the full row width,
+ * which read as a disabled input rather than a link to the records.
+ */
+.obs-evidence {
+  align-self: flex-start;
+  width: fit-content;
+}
+
+/*
+ * The context selects must look selectable.
+ *
+ * `appearance: none` removed the native arrow and left two controls that read
+ * as buttons — a reader could not tell the project was changeable at all.
+ */
+.obs-context select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+  background-position:
+    right 1rem center,
+    right 0.7rem center;
+  background-size:
+    0.3rem 0.3rem,
+    0.3rem 0.3rem;
+  background-repeat: no-repeat;
+  padding-right: var(--space-6);
+  max-width: 16rem;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 48rem) {
+  /*
+   * On a phone the header was eating a fifth of the viewport before any
+   * content appeared: four controls, each wrapping onto its own line. The
+   * period stays in the URL and is repeated in the page kicker, and the
+   * organisation is repeated on sign-in, so both come out of the header here.
+   */
+  .obs-header {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    overflow: hidden;
+  }
+
+  .obs-header .obs-context:nth-of-type(2) {
+    display: none;
+  }
+
+  .obs-who span {
+    display: none;
+  }
+
+  .obs-who strong {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .obs-context select {
+    max-width: 9rem;
+  }
+
+  .obs-brand span:not(.obs-brand-mark) {
+    display: none;
+  }
+}
+
+/* A button label that wraps mid-phrase reads as two controls. */
+.obs-action {
+  white-space: nowrap;
+}

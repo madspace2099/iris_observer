@@ -65,6 +65,10 @@ Run `pnpm matrix` after any registry change. A test fails if the committed matri
    currency or seat count. Projects are configuration.
 7. **No metric without a denominator, no verdict without a sample size, no screen without an
    action.** The three page rules from `docs/02-views.md`.
+8. **A deal stage is authoritative; intent is a signal.** Never put lead temperature in the ladder,
+   and never compute stage conversion through it. See ADR-0021.
+9. **The sign-in is a scenario selector, not authentication.** Do not describe it as authentication,
+   and do not let the browser decide a role. See ADR-0022.
 
 ## Environment notes for this machine
 

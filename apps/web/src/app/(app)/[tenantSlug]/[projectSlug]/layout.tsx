@@ -5,7 +5,7 @@ import { PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
 import { PRIMARY_NAV, SURFACES } from "@/lib/routes";
 import { repository } from "@/lib/repository";
-import { SESSION_COOKIE, requireViewer } from "@/lib/session";
+import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
 
 /**
  * The application shell.
@@ -75,6 +75,9 @@ export default async function ProjectLayout({
   async function signOut() {
     "use server";
     const store = await cookies();
+    // Clearing the cookie is not enough: the server record has to go too, or a
+    // copied cookie keeps working after sign-out.
+    destroySession(store.get(SESSION_COOKIE)?.value);
     store.delete(SESSION_COOKIE);
     redirect("/sign-in");
   }

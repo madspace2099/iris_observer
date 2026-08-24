@@ -1,32 +1,17 @@
 {
-  "total": 44,
+  "total": 47,
   "uncovered": [],
-  "unresolved": [
-    {
-      "id": "stano.custom_home_screen",
-      "question": "Configurable home screen versus role-fixed layouts. A configurable one risks each reader assembling a flattering view; a fixed one risks nobody's needs being met. Not decided."
-    },
-    {
-      "id": "flow.filters",
-      "question": "No aggregate filter-demand metric exists yet. Filter criteria feed the brief and segmentation, but project-level demand is currently derived from views rather than from stated criteria."
-    },
-    {
-      "id": "flow.unit_selection_method",
-      "question": "Captured as a fact attribute but no metric consumes it. Kept because it is nearly free to record and cannot be recovered retroactively."
-    },
-    {
-      "id": "flow.photo_and_render",
-      "question": "Render Studio usage is recorded as a fact but has no metric. Whether it is an engagement signal, a cost signal or both is not settled."
-    },
+  "unresolved": [],
+  "gated": [
     {
       "id": "madspace.legal_review",
-      "question": "Legal basis, consent wording and retention periods await formal privacy and legal review."
+      "gate": "Pre-production legal and privacy review: privacy notice, lawful basis and consent, retention, deletion and anonymisation, CRM data sharing, sales-agency access, AI processing, forbidden inference categories."
     }
   ],
   "bySource": {
     "stano": 15,
     "sales_agent_flow": 13,
-    "madspace": 11,
+    "madspace": 14,
     "webiris_addendum": 5
   }
 }

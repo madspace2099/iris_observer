@@ -27,7 +27,7 @@ test.describe("executive overview", () => {
     const verdict = page.getByRole("heading", { level: 1 });
     await expect(verdict).toBeVisible();
     await expect(verdict).toContainText("7 units");
-    await expect(page.getByText("Watch", { exact: true })).toBeVisible();
+    await expect(page.getByText("Attention needed", { exact: true })).toBeVisible();
   });
 
   test("shows the four approved headline figures", async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe("executive overview", () => {
   test("says a source is missing rather than showing a zero", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/riverside/overview");
-    await expect(page.getByText("No verdict", { exact: true })).toBeVisible();
+    await expect(page.getByText("Not enough data", { exact: true })).toBeVisible();
     await expect(page.getByText(/The CRM is not connected/).first()).toBeVisible();
     await expect(page.getByText("0", { exact: true })).toHaveCount(0);
   });

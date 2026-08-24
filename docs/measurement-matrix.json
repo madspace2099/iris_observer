@@ -205,27 +205,6 @@
       ]
     },
     {
-      "id": "flow.hot_leads",
-      "displayName": "Hot leads",
-      "kind": "count",
-      "evidenceTier": "observed_sequence",
-      "requiredFacts": [
-        "meeting.outcome.recorded",
-        "unit.favourited",
-        "unit.shared"
-      ],
-      "requiredCrmFields": [],
-      "requiredUnitAttributes": [],
-      "minimumSampleSize": 1,
-      "comparison": "previous_period",
-      "drillTo": "contacts",
-      "roles": [
-        "developer",
-        "agency_manager",
-        "sales_agent"
-      ]
-    },
-    {
       "id": "flow.stage_conversion",
       "displayName": "Conversion between stages",
       "kind": "distribution",
@@ -1364,6 +1343,412 @@
         "sales_agent",
         "madspace_admin"
       ]
+    },
+    {
+      "id": "intent.distribution",
+      "displayName": "Intent signal distribution",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.favourited",
+        "meeting.attended",
+        "online.session.observed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "intent.signal_freshness",
+      "displayName": "Intent signal freshness",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "intent.high_to_offer",
+      "displayName": "High intent to offer",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "unit.favourited",
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "intent.high_to_reservation",
+      "displayName": "High intent to reservation",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "unit.favourited",
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 15,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "intent.high_to_purchase",
+      "displayName": "High intent to purchase",
+      "kind": "ratio",
+      "evidenceTier": "attributed_conversion",
+      "requiredFacts": [
+        "unit.favourited",
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "intent.lift_over_baseline",
+      "displayName": "Intent signal lift",
+      "kind": "ratio",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "unit.favourited",
+        "meeting.attended",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "contacts",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "demand.filter_value_reach",
+      "displayName": "Reach by filter value",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.by_rooms",
+      "displayName": "Demand by room count",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.by_orientation",
+      "displayName": "Demand by orientation",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "orientation"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.by_floor_band",
+      "displayName": "Demand by floor range",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "floor"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.by_price_band",
+      "displayName": "Demand by price range",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "price"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.by_area_band",
+      "displayName": "Demand by area range",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "area"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.filter_combinations",
+      "displayName": "Common filter combinations",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms",
+        "orientation",
+        "price",
+        "floor",
+        "area"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.zero_result_searches",
+      "displayName": "Searches returning nothing",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms",
+        "orientation",
+        "price",
+        "floor",
+        "area",
+        "status"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "demand.matching_available_units",
+      "displayName": "Average matching available units",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "catalogue.filtered",
+        "unit.availability.changed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_quarter",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "product.unit_selection_method",
+      "displayName": "How units get chosen",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 30,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "render.engagement",
+      "displayName": "Render Studio engagement",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "visual.captured",
+        "visual.enhanced",
+        "unit.shared",
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_quarter",
+      "drillTo": "meetings",
+      "roles": [
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "render.operational_cost",
+      "displayName": "Render Studio operating cost",
+      "kind": "currency",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "visual.enhanced"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 1,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "madspace_admin",
+        "developer"
+      ]
+    },
+    {
+      "id": "render.failure_rate",
+      "displayName": "Render failure rate",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "visual.enhanced"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "previous_period",
+      "drillTo": "meetings",
+      "roles": [
+        "madspace_admin"
+      ]
     }
   ],
   "facts": [
@@ -1397,7 +1782,16 @@
       ],
       "requiredBy": [
         "journey.conversion_by_online_segment",
-        "journey.preference_agreement"
+        "journey.preference_agreement",
+        "demand.filter_value_reach",
+        "demand.by_rooms",
+        "demand.by_orientation",
+        "demand.by_floor_band",
+        "demand.by_price_band",
+        "demand.by_area_band",
+        "demand.filter_combinations",
+        "demand.zero_result_searches",
+        "demand.matching_available_units"
       ]
     },
     {
@@ -1438,7 +1832,11 @@
         "journey.online_to_offer",
         "journey.online_to_reservation",
         "journey.online_to_purchase",
-        "journey.conversion_by_online_segment"
+        "journey.conversion_by_online_segment",
+        "intent.high_to_offer",
+        "intent.high_to_reservation",
+        "intent.high_to_purchase",
+        "intent.lift_over_baseline"
       ]
     },
     {
@@ -1523,7 +1921,14 @@
         "journey.lead_to_attendance_days",
         "journey.common_path",
         "journey.cross_channel_completeness",
-        "journey.unmatched_meetings"
+        "journey.unmatched_meetings",
+        "intent.distribution",
+        "intent.signal_freshness",
+        "intent.high_to_offer",
+        "intent.high_to_reservation",
+        "intent.high_to_purchase",
+        "intent.lift_over_baseline",
+        "render.engagement"
       ]
     },
     {
@@ -1561,7 +1966,6 @@
       "requiredBy": [
         "exec.performance_status",
         "exec.data_completeness",
-        "flow.hot_leads",
         "people.agent_conversion",
         "people.agency_conversion",
         "people.skipped_outcomes",
@@ -1584,7 +1988,8 @@
         "flow.sales_cycle_duration",
         "webiris.anonymous_visitors",
         "webiris.visitor_to_lead",
-        "journey.common_path"
+        "journey.common_path",
+        "intent.distribution"
       ]
     },
     {
@@ -1655,7 +2060,12 @@
         "unit.availability_price_context",
         "project.segment_interest",
         "project.attention_index",
-        "project.sold_by_segment"
+        "project.sold_by_segment",
+        "demand.by_rooms",
+        "demand.by_orientation",
+        "demand.by_floor_band",
+        "demand.by_price_band",
+        "demand.by_area_band"
       ]
     },
     {
@@ -1674,7 +2084,8 @@
         "exec.unrealised_potential",
         "unit.sharp_demand_decline",
         "unit.available_demand",
-        "unit.availability_price_context"
+        "unit.availability_price_context",
+        "demand.matching_available_units"
       ]
     },
     {
@@ -1738,9 +2149,13 @@
         "active"
       ],
       "requiredBy": [
-        "flow.hot_leads",
         "unit.favourites",
-        "journey.preference_agreement"
+        "journey.preference_agreement",
+        "intent.distribution",
+        "intent.high_to_offer",
+        "intent.high_to_reservation",
+        "intent.high_to_purchase",
+        "intent.lift_over_baseline"
       ]
     },
     {
@@ -1789,11 +2204,11 @@
         "channel"
       ],
       "requiredBy": [
-        "flow.hot_leads",
         "unit.shares",
         "people.follow_up_delay",
         "people.share_to_offer",
-        "people.team_comparison"
+        "people.team_comparison",
+        "render.engagement"
       ]
     },
     {
@@ -1826,7 +2241,16 @@
         "unit.deep_dive_rate",
         "people.coaching_signals",
         "journey.conversion_by_online_segment",
-        "journey.preference_agreement"
+        "journey.preference_agreement",
+        "intent.distribution",
+        "intent.signal_freshness",
+        "demand.filter_value_reach",
+        "demand.by_rooms",
+        "demand.by_orientation",
+        "demand.by_floor_band",
+        "demand.by_price_band",
+        "demand.by_area_band",
+        "product.unit_selection_method"
       ]
     },
     {
@@ -1840,7 +2264,25 @@
         "occurred_at"
       ],
       "requiredBy": [
-        "project.environment_interest"
+        "project.environment_interest",
+        "render.engagement"
+      ]
+    },
+    {
+      "id": "visual.enhanced",
+      "owner": "showroom",
+      "producibleBy": [
+        "showroom"
+      ],
+      "required": [
+        "capture_ref",
+        "occurred_at",
+        "succeeded"
+      ],
+      "requiredBy": [
+        "render.engagement",
+        "render.operational_cost",
+        "render.failure_rate"
       ]
     }
   ]

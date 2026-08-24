@@ -415,10 +415,34 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
   return {
     context,
     verdict: {
-      state: "watch",
+      state: "attention_needed",
       headline: "Two meetings this week, and one buyer has been waiting 16 days for a reply.",
       supporting: "Your briefs are ready for Thursday. Daniel and Eva are the overdue one.",
       evidence: ev("agent.verdict", "observed_sequence", `${root}/people`, 2),
+      rulesetVersion: "verdict-1.0.0",
+      components: [
+        {
+          metricId: "people.follow_up_delay",
+          label: "Longest wait",
+          display: "16 days",
+          rule: "No buyer waiting longer than 7 days after a meeting",
+          outcome: "fail",
+        },
+        {
+          metricId: "unit.shares",
+          label: "Summaries sent",
+          display: "9 of 14",
+          rule: "A summary sent after at least half of meetings",
+          outcome: "pass",
+        },
+        {
+          metricId: "exec.data_completeness",
+          label: "Your outcomes recorded",
+          display: "13 of 14",
+          rule: "Every meeting has a recorded outcome",
+          outcome: "watch",
+        },
+      ],
     },
     upcoming,
     followUps,

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ContactIdSchema, MeetingIdSchema, TenantIdSchema } from "../src/ids";
 import { ContactSchema, LeadSchema } from "../src/identity";
-import { MeetingParticipantSchema, STAGE_OWNER, JOURNEY_STAGES } from "../src/engagement";
+import {
+  DEAL_STAGES,
+  JOURNEY_STAGES,
+  MeetingParticipantSchema,
+  STAGE_OWNER,
+  isTerminalDealStage,
+} from "../src/engagement";
 
 const CONTACT = "cnt_9a2b4c6d8e";
 const MEETING = "mtg_1122334455";
@@ -139,5 +145,31 @@ describe("journey ownership", () => {
     expect(STAGE_OWNER.anonymous_visitor).toBe("webiris");
     expect(STAGE_OWNER.showroom_attended).toBe("showroom");
     expect(STAGE_OWNER.purchase).toBe("crm");
+  });
+
+  it("keeps lead temperature out of both ladders", () => {
+    // A stage is an authoritative business state; intent is a derived signal
+    // that rises and falls. Mixing them makes conversion arithmetic
+    // meaningless, so neither ladder may contain a temperature.
+    expect(JOURNEY_STAGES as readonly string[]).not.toContain("hot_lead");
+    expect(DEAL_STAGES as readonly string[]).not.toContain("hot_lead");
+    for (const level of ["low", "medium", "high"]) {
+      expect(DEAL_STAGES as readonly string[]).not.toContain(level);
+    }
+  });
+
+  it("owns the deal ladder entirely outside Observer", () => {
+    expect([...DEAL_STAGES]).toEqual([
+      "lead",
+      "meeting",
+      "negotiation",
+      "offer",
+      "reservation",
+      "purchase",
+      "lost",
+    ]);
+    expect(isTerminalDealStage("purchase")).toBe(true);
+    expect(isTerminalDealStage("lost")).toBe(true);
+    expect(isTerminalDealStage("offer")).toBe(false);
   });
 });

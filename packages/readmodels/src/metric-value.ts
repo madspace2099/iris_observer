@@ -78,7 +78,40 @@ export interface MetricValue {
 
 /* --- composed shapes ----------------------------------------------------- */
 
-export type VerdictState = "good" | "watch" | "weak" | "unknown";
+/**
+ * The four answers the first screen can give.
+ *
+ * `insufficient_data` is a first-class outcome, not a failure to compute. A
+ * project three weeks old has no verdict, and saying so is more useful than a
+ * green light drawn from seven meetings.
+ */
+export const VERDICT_STATES = [
+  "positive",
+  "attention_needed",
+  "critical",
+  "insufficient_data",
+] as const;
+export type VerdictState = (typeof VERDICT_STATES)[number];
+
+/** How a single component came out. */
+export type VerdictOutcome = "pass" | "watch" | "fail" | "unknown";
+
+/**
+ * One rule's contribution to the verdict.
+ *
+ * Present so the verdict is explainable without re-deriving it. A reader who
+ * disagrees can see which figure and which threshold produced the answer, and
+ * argue with the threshold rather than with the product.
+ */
+export interface VerdictComponent {
+  readonly metricId: string;
+  readonly label: string;
+  /** The observed value, already formatted. */
+  readonly display: string;
+  /** The rule applied, in words. "Velocity within 15% of the trailing quarter." */
+  readonly rule: string;
+  readonly outcome: VerdictOutcome;
+}
 
 /**
  * The ten-second answer.
@@ -86,12 +119,20 @@ export type VerdictState = "good" | "watch" | "weak" | "unknown";
  * `headline` carries the number inside the sentence, because a verdict without
  * its figure is an opinion. `supporting` says what to do about it or what
  * caused it — never both, and never more than one sentence.
+ *
+ * It is **deterministic and explainable**: the same inputs produce the same
+ * state, and `components` shows every rule that was applied. It is not a model
+ * output, and nothing about it is a judgement the reader cannot audit.
  */
 export interface Verdict {
   readonly state: VerdictState;
   readonly headline: string;
   readonly supporting: string;
   readonly evidence: EvidenceRef | null;
+  /** Every rule that contributed, with its value and outcome. Never empty. */
+  readonly components: readonly VerdictComponent[];
+  /** Version of the rules, so a disputed verdict can be reproduced. */
+  readonly rulesetVersion: string;
 }
 
 export interface FunnelStep {

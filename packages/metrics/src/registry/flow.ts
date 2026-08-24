@@ -16,7 +16,7 @@ export const stageCounts = defineMetric({
   businessDefinition: "How many buyers stand on each rung of the ladder right now.",
   kind: "distribution",
   calculation:
-    "Distinct contacts at each stage at the end of the period: meeting, hot lead, offer, negotiation, reservation, purchase. Terminal exits are shown alongside, not hidden.",
+    "Distinct contacts at each authoritative deal stage at the end of the period: lead, meeting, negotiation, offer, reservation, purchase. Lost is shown alongside, not hidden. Intent level is never a rung here — see the intent family.",
   numerator: "contacts at a stage",
   denominator: "contacts in the pipeline",
   exclusions: ["erased contacts", "deals closed before the period began"],
@@ -34,34 +34,6 @@ export const stageCounts = defineMetric({
     unavailable: NO_CRM,
   },
   drillTo: "deals",
-  roles: ["developer", "agency_manager", "sales_agent"],
-});
-
-export const hotLeads = defineMetric({
-  id: "flow.hot_leads",
-  displayName: "Hot leads",
-  businessDefinition:
-    "Buyers who showed real intent in a meeting but have no offer against them yet.",
-  kind: "count",
-  calculation:
-    "Contacts whose meeting produced a deep dive, a shortlist or a share, and whose deal has not reached the offer stage. Where the CRM carries its own qualification field, that value wins and this is reported beside it as a second opinion.",
-  numerator: "qualified contacts without an offer",
-  denominator: null,
-  exclusions: ["contacts with a terminal outcome", "meetings with no recorded outcome"],
-  dimensions: ["project", "period", "agent", "agency"],
-  timeWindow: "period",
-  requiredFacts: ["meeting.outcome.recorded", "unit.favourited", "unit.shared"],
-  requiredCrmFields: [],
-  requiredUnitAttributes: [],
-  minimumSampleSize: 1,
-  comparison: "previous_period",
-  evidenceTier: "observed_sequence",
-  states: {
-    empty: "No qualified buyers are waiting without an offer.",
-    insufficient: NOT_ENOUGH,
-    unavailable: "No showroom data has arrived for this project yet.",
-  },
-  drillTo: "contacts",
   roles: ["developer", "agency_manager", "sales_agent"],
 });
 
@@ -257,7 +229,6 @@ export const stalledOpportunities = defineMetric({
 
 export const FLOW_METRICS = [
   stageCounts,
-  hotLeads,
   stageConversion,
   viewingToOffer,
   offerToReservation,

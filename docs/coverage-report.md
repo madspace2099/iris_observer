@@ -14,9 +14,10 @@ Coverage is not always a metric. Some requirements are answered by a read model,
 or a decision, and some are still open — those are listed in full at the end rather than counted as
 done.
 
-- Requirements tracked: **44**
+- Requirements tracked: **47**
 - Uncovered: **0**
-- Open decisions: **5**
+- Open decisions: **0**
+- Decided, waiting on a review gate: **1**
 
 ---
 
@@ -39,7 +40,7 @@ done.
 | When I click a unit I want the floor plan beside it, so I can see what it is. | project unit | `unit.availability_price_context`<br>_Unit detail_ | ✅ metric |
 | Ask for the Monday steering summary on one A4 and have it produced, instead of building general dashboards nobody agrees on. | platform | Statement<br>Evidence<br>⏭ the reporting and AI milestone | ✅ contract |
 | A voice interface over the same data. | platform | ⏭ after the text ask-bar is trusted | ⏭ deferred |
-| Everyone wants different metrics on the opening screen — HR, a sales manager, a marketer. | executive | — | ❓ open |
+| Everyone wants different metrics on the opening screen — HR, a sales manager, a marketer. | executive | _role-aware default home screens_<br>ADR-0019 | ✅ contract |
 | On my phone, one screen that tells me how it is going. | platform | ⏭ M6 agent workspace and the executive mobile layout | ⏭ deferred |
 
 ---
@@ -54,12 +55,12 @@ done.
 | The welcome screen may sit open for minutes; timing must start at Start Presentation. | people agency | Meeting.startedAt distinct from scheduledFor | ✅ contract |
 | Surroundings and points of interest are presented and should be measurable. | project unit | `project.poi_interest` | ✅ metric |
 | Amenities are presented, sometimes auto-played. | project unit | `project.amenity_interest` | ✅ metric |
-| Filter criteria capture what the buyer is actually looking for. | project unit | _Pre-meeting brief observed filters_<br>ObservedFilter | ❓ open |
-| Whether a unit was picked on the 3D model or from a list. | project unit | CanonicalFact.attributes.selection_method | ❓ open |
+| Filter criteria capture what the buyer is actually looking for. | project unit | `demand.filter_value_reach`<br>`demand.by_rooms`<br>`demand.by_orientation`<br>`demand.by_floor_band`<br>`demand.by_price_band`<br>`demand.by_area_band`<br>`demand.filter_combinations`<br>`demand.zero_result_searches`<br>`demand.matching_available_units`<br>_Pre-meeting brief observed filters_<br>ObservedFilter | ✅ metric |
+| Whether a unit was picked on the 3D model or from a list. | project unit | `product.unit_selection_method`<br>CanonicalFact.attributes.selection_method | ✅ metric |
 | Balcony view, floor cut, materials and the interior walkthrough. | project unit | `unit.deep_dive_rate`<br>`unit.pdf_opens` | ✅ metric |
 | Compare mode, and which unit survived the comparison. | project unit | `unit.compare_inclusion`<br>`unit.compare_win_rate` | ✅ metric |
 | Time of day and weather are scene control, not photo mode. | project unit | `project.environment_interest` | ✅ metric |
-| Photo mode captures and the AI Render Studio. | project unit | `project.environment_interest` | ❓ open |
+| Photo mode captures and the AI Render Studio. | project unit | `project.environment_interest`<br>`render.engagement`<br>`render.operational_cost`<br>`render.failure_rate` | ✅ metric |
 | The agent shares selected units and images with the buyer by email. | people agency | `unit.shares`<br>`people.share_to_offer` | ✅ metric |
 | The meeting outcome is recorded, and a skipped outcome must never become presentation-only. | people agency | `people.skipped_outcomes`<br>MeetingOutcome including skipped | ✅ metric |
 | A returning buyer's history must be available before the next meeting. | cross channel | _PreMeetingBrief_<br>_Contact timeline_ | ✅ contract |
@@ -68,7 +69,7 @@ done.
 
 ## MADSPACE decisions
 
-11 requirements.
+14 requirements.
 
 | Requirement | Family | Covered by | Status |
 | --- | --- | --- | --- |
@@ -82,7 +83,10 @@ done.
 | No mock data layer; synthetic scenarios travel the real path. | platform | ADR-0007 | ✅ contract |
 | Row-level security and application authorisation both remain mandatory; hashing is not an access control. | platform | ADR-0005<br>ADR-0011<br>⏭ the physical database milestone | ✅ contract |
 | WEBIRIS will implement a first-party pseudonymous UUID with a 180-day rolling lifetime, no fingerprinting, and consent state stored separately. | cross channel | docs/10-policies.md<br>⏭ WEBIRIS implementation | ✅ contract |
-| Legal basis, consent wording and retention periods are marked for formal review, not asserted in technical documentation. | platform | docs/05-identity.md review markers | ❓ open |
+| Legal basis, consent wording and retention periods are marked for formal review, not asserted in technical documentation. | platform | docs/05-identity.md review markers<br>docs/11-preproduction-gates.md<br>🔒 review gate | 🔒 gated |
+| Lead temperature is an Observer signal, not a CRM stage. Stage conversion must never be computed through it. | sales flow | `intent.distribution`<br>`intent.high_to_offer`<br>`intent.high_to_reservation`<br>`intent.high_to_purchase`<br>`intent.lift_over_baseline`<br>`intent.signal_freshness`<br>DEAL_STAGES<br>IntentSignal<br>ADR-0021 | ✅ metric |
+| Manrope is self-hosted from a reproducible package, with no runtime dependency on a third-party font host. | platform | @fontsource-variable/manrope<br>apps/web/src/app/layout.tsx | ✅ contract |
+| The scenario session adapter must not let a browser grant itself a tenant or role, and must not be described as production authentication. | platform | opaque server-validated session id<br>ADR-0022 | ✅ contract |
 
 ---
 
@@ -105,22 +109,15 @@ done.
 These are not gaps in the build. They are questions the product has not answered yet, recorded so
 that nobody mistakes silence for agreement.
 
-### Everyone wants different metrics on the opening screen — HR, a sales manager, a marketer.
+_None._
 
-Configurable home screen versus role-fixed layouts. A configurable one risks each reader assembling a flattering view; a fixed one risks nobody's needs being met. Not decided.
+---
 
-### Filter criteria capture what the buyer is actually looking for.
+## Review gates
 
-No aggregate filter-demand metric exists yet. Filter criteria feed the brief and segmentation, but project-level demand is currently derived from views rather than from stated criteria.
-
-### Whether a unit was picked on the 3D model or from a list.
-
-Captured as a fact attribute but no metric consumes it. Kept because it is nearly free to record and cannot be recovered retroactively.
-
-### Photo mode captures and the AI Render Studio.
-
-Render Studio usage is recorded as a fact but has no metric. Whether it is an engagement signal, a cost signal or both is not settled.
+Decided in the product, and blocked behind a review before production. A gate is not a gap: the work
+is done and the answer is known, but somebody outside engineering has to sign it off.
 
 ### Legal basis, consent wording and retention periods are marked for formal review, not asserted in technical documentation.
 
-Legal basis, consent wording and retention periods await formal privacy and legal review.
+Pre-production legal and privacy review: privacy notice, lawful basis and consent, retention, deletion and anonymisation, CRM data sharing, sales-agency access, AI processing, forbidden inference categories.

@@ -1,4 +1,5 @@
 import type {
+  ActionItem,
   AiBriefing,
   AlertItem,
   ChangeItem,
@@ -54,29 +55,97 @@ export function EvidenceLink({ evidence }: { evidence: EvidenceRef | null }) {
       href={evidence.href}
     >
       <span className="obs-evidence-dot" aria-hidden="true" />
-      {label} · {evidence.observationCount.toLocaleString()} records
+      {label} · {evidence.observationCount.toLocaleString()}{" "}
+      {evidence.observationCount === 1 ? "record" : "records"}
     </a>
   );
 }
 
 const VERDICT_LABEL: Record<Verdict["state"], string> = {
-  good: "Healthy",
-  watch: "Watch",
-  weak: "Weak",
-  unknown: "No verdict",
+  positive: "Positive",
+  attention_needed: "Attention needed",
+  critical: "Critical",
+  insufficient_data: "Not enough data",
 };
 
-export function VerdictStrip({ verdict }: { verdict: Verdict }) {
+/** Verdict states map onto the three visual tones plus neutral. */
+const VERDICT_TONE: Record<Verdict["state"], "good" | "watch" | "weak" | "unknown"> = {
+  positive: "good",
+  attention_needed: "watch",
+  critical: "weak",
+  insufficient_data: "unknown",
+};
+
+const OUTCOME_TONE = {
+  pass: "good",
+  watch: "watch",
+  fail: "weak",
+  unknown: "unknown",
+} as const;
+
+/**
+ * The first thing on the screen, and the only thing some readers will read.
+ *
+ * Actions sit inside it rather than at the foot of the page: a verdict a
+ * reader has to scroll past three sections to act on is a verdict they will
+ * not act on.
+ *
+ * `components` renders the rules that produced the state. That is what stops
+ * this being an opaque judgement — the reader can see the thresholds and
+ * disagree with them.
+ */
+export function VerdictStrip({
+  verdict,
+  actions,
+}: {
+  verdict: Verdict;
+  actions?: readonly ActionItem[];
+}) {
   return (
     <section className="obs-verdict" data-state={verdict.state} aria-labelledby="verdict-heading">
       <div className="obs-verdict-head">
-        <Badge state={verdict.state}>{VERDICT_LABEL[verdict.state]}</Badge>
+        <Badge state={VERDICT_TONE[verdict.state]}>{VERDICT_LABEL[verdict.state]}</Badge>
         <EvidenceLink evidence={verdict.evidence} />
       </div>
       <h1 className="obs-verdict-headline" id="verdict-heading">
         {verdict.headline}
       </h1>
       <p className="obs-verdict-support">{verdict.supporting}</p>
+
+      {verdict.components.length === 0 ? null : (
+        <details className="obs-rules">
+          <summary>
+            How this verdict was reached · {verdict.components.length} rules ·{" "}
+            {verdict.rulesetVersion}
+          </summary>
+          <ul className="obs-rule-list">
+            {verdict.components.map((component) => (
+              <li key={component.metricId} data-outcome={component.outcome}>
+                <span className="obs-rule-dot" aria-hidden="true" />
+                <span className="obs-rule-label">{component.label}</span>
+                <span className="obs-rule-value">{component.display}</span>
+                <span className="obs-rule-rule">{component.rule}</span>
+                <Badge state={OUTCOME_TONE[component.outcome]}>{component.outcome}</Badge>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {actions === undefined || actions.length === 0 ? null : (
+        <div className="obs-actions">
+          {actions.map((action) => (
+            <a
+              className="obs-action"
+              data-emphasis={action.emphasis}
+              key={action.id}
+              href={action.href}
+            >
+              {action.label}
+            </a>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -149,9 +218,11 @@ export function FunnelChart({ steps }: { steps: readonly FunnelStep[] }) {
             <div>
               <div style={{ fontWeight: 600 }}>{step.label}</div>
               <div className="obs-baseline">
-                {step.fromCount === null
+                {/* An absent count is never rendered as a zero. "38 → 0" says
+                    nobody converted; the truth is that nobody can see. */}
+                {step.fromCount === null || step.toCount === null
                   ? "counts unavailable"
-                  : `${step.fromCount.toLocaleString()} → ${(step.toCount ?? 0).toLocaleString()}`}
+                  : `${step.fromCount.toLocaleString()} → ${step.toCount.toLocaleString()}`}
               </div>
             </div>
             <div

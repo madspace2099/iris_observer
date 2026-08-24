@@ -3,6 +3,12 @@
 **Status:** contract, v0.1 · **Date:** 2026-08-24 · **Milestone:** M1
 **Implements:** `packages/contracts/src/engagement.ts`, `packages/metrics/src/registry/journey.ts`
 
+> **Amended by M2.1 (2026-08-24).** An earlier draft added a `hot_lead` rung to this ladder. It has
+> been removed: a stage is an authoritative business state that moves forward, and lead temperature is
+> a derived signal that rises and falls. The authoritative ladder is now `DEAL_STAGES` — lead,
+> meeting, negotiation, offer, reservation, purchase, lost — and temperature lives in `IntentSignal`.
+> Stage conversion is never computed through it. See ADR-0021.
+
 IRIS Observer unifies buyer behaviour from four places: **WEBIRIS**, the **CRM**, the **IRIS Showroom**
 and later **sales outcomes**. This is a core capability, not an optional integration — it is the thing
 neither a web analytics tool nor a CRM can do, and it is the reason the product is defensible.

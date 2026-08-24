@@ -16,4 +16,5 @@ export * from "./engagement";
 export * from "./observables";
 export * from "./evidence";
 export * from "./brief";
+export * from "./intent";
 export * from "./observation";

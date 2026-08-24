@@ -1,10 +1,13 @@
 import type { FactId } from "@observer/contracts";
 import type { MetricDefinition, Role } from "../definition";
 import { validateMetric } from "../definition";
+import { DEMAND_METRICS } from "./demand";
 import { EXECUTIVE_METRICS } from "./executive";
 import { FLOW_METRICS } from "./flow";
 import { JOURNEY_METRICS } from "./journey";
+import { INTENT_METRICS } from "./intent";
 import { PEOPLE_METRICS } from "./people";
+import { PRODUCT_METRICS } from "./product";
 import { UNIT_METRICS } from "./units";
 
 /**
@@ -21,6 +24,9 @@ export const ALL_METRICS: readonly MetricDefinition[] = [
   ...UNIT_METRICS,
   ...PEOPLE_METRICS,
   ...JOURNEY_METRICS,
+  ...INTENT_METRICS,
+  ...DEMAND_METRICS,
+  ...PRODUCT_METRICS,
 ];
 
 const BY_ID = new Map<string, MetricDefinition>(ALL_METRICS.map((m) => [m.id, m]));
@@ -59,3 +65,6 @@ export { FLOW_METRICS } from "./flow";
 export { UNIT_METRICS } from "./units";
 export { PEOPLE_METRICS } from "./people";
 export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey";
+export { INTENT_METRICS } from "./intent";
+export { DEMAND_METRICS } from "./demand";
+export { PRODUCT_METRICS } from "./product";

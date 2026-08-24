@@ -1,6 +1,7 @@
 import {
   REQUIREMENTS,
   REQUIREMENT_SOURCES,
+  gatedRequirements,
   unresolvedRequirements,
   uncoveredRequirements,
   type RequirementSource,
@@ -38,11 +39,13 @@ function coverageCell(r: SourceRequirement): string {
   for (const model of r.readModels ?? []) parts.push(`_${model}_`);
   for (const contract of r.contracts ?? []) parts.push(contract);
   if (r.deferredTo !== undefined) parts.push(`⏭ ${r.deferredTo}`);
+  if (r.gate !== undefined) parts.push("🔒 review gate");
   return parts.length === 0 ? "—" : parts.join("<br>");
 }
 
 function statusCell(r: SourceRequirement): string {
   if (r.unresolved !== undefined) return "❓ open";
+  if (r.gate !== undefined) return "🔒 gated";
   if ((r.metrics?.length ?? 0) > 0) return "✅ metric";
   if ((r.readModels?.length ?? 0) > 0 || (r.contracts?.length ?? 0) > 0) return "✅ contract";
   if (r.deferredTo !== undefined) return "⏭ deferred";
@@ -66,6 +69,12 @@ export function renderCoverageMarkdown(): string {
     return `## ${SOURCE_TITLES[source]}\n\n${rows.length} requirements.\n\n${table}`;
   }).join("\n\n---\n\n");
 
+  const gates = gatedRequirements();
+  const gateList =
+    gates.length === 0
+      ? "_None._"
+      : gates.map((r) => `### ${r.requirement}\n\n${r.gate ?? ""}`).join("\n\n");
+
   const openList =
     unresolved.length === 0
       ? "_None._"
@@ -86,6 +95,7 @@ done.
 - Requirements tracked: **${REQUIREMENTS.length}**
 - Uncovered: **${uncovered.length}**
 - Open decisions: **${unresolved.length}**
+- Decided, waiting on a review gate: **${gatedRequirements().length}**
 
 ---
 
@@ -99,6 +109,15 @@ These are not gaps in the build. They are questions the product has not answered
 that nobody mistakes silence for agreement.
 
 ${openList}
+
+---
+
+## Review gates
+
+Decided in the product, and blocked behind a review before production. A gate is not a gap: the work
+is done and the answer is known, but somebody outside engineering has to sign it off.
+
+${gateList}
 `;
 }
 
@@ -106,6 +125,7 @@ export interface CoverageJson {
   readonly total: number;
   readonly uncovered: readonly string[];
   readonly unresolved: readonly { readonly id: string; readonly question: string }[];
+  readonly gated: readonly { readonly id: string; readonly gate: string }[];
   readonly bySource: Readonly<Record<string, number>>;
 }
 
@@ -118,6 +138,7 @@ export function renderCoverageJson(): CoverageJson {
     total: REQUIREMENTS.length,
     uncovered: uncoveredRequirements().map((r) => r.id),
     unresolved: unresolvedRequirements().map((r) => ({ id: r.id, question: r.unresolved ?? "" })),
+    gated: gatedRequirements().map((r) => ({ id: r.id, gate: r.gate ?? "" })),
     bySource,
   };
 }

@@ -50,6 +50,8 @@ export interface SourceRequirement {
   readonly deferredTo?: string;
   /** An open product decision. Counts as coverage only by being explicit. */
   readonly unresolved?: string;
+  /** A decision that is made, but blocked behind a review before production. */
+  readonly gate?: string;
 }
 
 export const REQUIREMENTS: readonly SourceRequirement[] = [
@@ -174,8 +176,8 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "executive",
     requirement:
       "Everyone wants different metrics on the opening screen — HR, a sales manager, a marketer.",
-    unresolved:
-      "Configurable home screen versus role-fixed layouts. A configurable one risks each reader assembling a flattering view; a fixed one risks nobody's needs being met. Not decided.",
+    readModels: ["role-aware default home screens"],
+    contracts: ["ADR-0019"],
   },
   {
     id: "stano.mobile_one_screen",
@@ -223,8 +225,17 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     requirement: "Filter criteria capture what the buyer is actually looking for.",
     readModels: ["Pre-meeting brief observed filters"],
     contracts: ["ObservedFilter"],
-    unresolved:
-      "No aggregate filter-demand metric exists yet. Filter criteria feed the brief and segmentation, but project-level demand is currently derived from views rather than from stated criteria.",
+    metrics: [
+      "demand.filter_value_reach",
+      "demand.by_rooms",
+      "demand.by_orientation",
+      "demand.by_floor_band",
+      "demand.by_price_band",
+      "demand.by_area_band",
+      "demand.filter_combinations",
+      "demand.zero_result_searches",
+      "demand.matching_available_units",
+    ],
   },
   {
     id: "flow.unit_selection_method",
@@ -232,8 +243,7 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "project_unit",
     requirement: "Whether a unit was picked on the 3D model or from a list.",
     contracts: ["CanonicalFact.attributes.selection_method"],
-    unresolved:
-      "Captured as a fact attribute but no metric consumes it. Kept because it is nearly free to record and cannot be recovered retroactively.",
+    metrics: ["product.unit_selection_method"],
   },
   {
     id: "flow.deep_dive",
@@ -261,9 +271,12 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     source: "sales_agent_flow",
     family: "project_unit",
     requirement: "Photo mode captures and the AI Render Studio.",
-    metrics: ["project.environment_interest"],
-    unresolved:
-      "Render Studio usage is recorded as a fact but has no metric. Whether it is an engagement signal, a cost signal or both is not settled.",
+    metrics: [
+      "project.environment_interest",
+      "render.engagement",
+      "render.operational_cost",
+      "render.failure_rate",
+    ],
   },
   {
     id: "flow.share",
@@ -377,12 +390,43 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "platform",
     requirement:
       "Legal basis, consent wording and retention periods are marked for formal review, not asserted in technical documentation.",
-    contracts: ["docs/05-identity.md review markers"],
-    unresolved:
-      "Legal basis, consent wording and retention periods await formal privacy and legal review.",
+    contracts: ["docs/05-identity.md review markers", "docs/11-preproduction-gates.md"],
+    gate: "Pre-production legal and privacy review: privacy notice, lawful basis and consent, retention, deletion and anonymisation, CRM data sharing, sales-agency access, AI processing, forbidden inference categories.",
   },
 
   /* --- WEBIRIS addendum ---------------------------------------------------- */
+  {
+    id: "madspace.intent_not_a_stage",
+    source: "madspace",
+    family: "sales_flow",
+    requirement:
+      "Lead temperature is an Observer signal, not a CRM stage. Stage conversion must never be computed through it.",
+    contracts: ["DEAL_STAGES", "IntentSignal", "ADR-0021"],
+    metrics: [
+      "intent.distribution",
+      "intent.high_to_offer",
+      "intent.high_to_reservation",
+      "intent.high_to_purchase",
+      "intent.lift_over_baseline",
+      "intent.signal_freshness",
+    ],
+  },
+  {
+    id: "madspace.self_hosted_typography",
+    source: "madspace",
+    family: "platform",
+    requirement:
+      "Manrope is self-hosted from a reproducible package, with no runtime dependency on a third-party font host.",
+    contracts: ["@fontsource-variable/manrope", "apps/web/src/app/layout.tsx"],
+  },
+  {
+    id: "madspace.synthetic_session_boundary",
+    source: "madspace",
+    family: "platform",
+    requirement:
+      "The scenario session adapter must not let a browser grant itself a tenant or role, and must not be described as production authentication.",
+    contracts: ["opaque server-validated session id", "ADR-0022"],
+  },
   {
     id: "webiris.funnel",
     source: "webiris_addendum",
@@ -450,8 +494,14 @@ export function uncoveredRequirements(): readonly SourceRequirement[] {
       (r.readModels?.length ?? 0) === 0 &&
       (r.contracts?.length ?? 0) === 0 &&
       r.deferredTo === undefined &&
-      r.unresolved === undefined,
+      r.unresolved === undefined &&
+      r.gate === undefined,
   );
+}
+
+/** Decisions that are made but wait on a review before production. */
+export function gatedRequirements(): readonly SourceRequirement[] {
+  return REQUIREMENTS.filter((r) => r.gate !== undefined);
 }
 
 /** Requirements whose answer is an open product decision. */

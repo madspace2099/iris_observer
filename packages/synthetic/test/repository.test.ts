@@ -307,6 +307,62 @@ describe("the brief itself", () => {
   });
 });
 
+describe("the verdict is explainable, not an opinion", () => {
+  it("shows every rule that produced it", async () => {
+    const overview = await repo.getExecutiveOverview({
+      viewer: VIEWERS.developer,
+      ...NORTHGATE,
+      period: "quarter_to_date",
+    });
+    expect(overview.verdict.state).toBe("attention_needed");
+    expect(overview.verdict.components.length).toBeGreaterThan(2);
+    for (const component of overview.verdict.components) {
+      // A component without a rule or a value is decoration; the point of
+      // showing the workings is that a reader can disagree with a threshold.
+      expect(component.rule.length, component.metricId).toBeGreaterThan(10);
+      expect(component.display.length, component.metricId).toBeGreaterThan(0);
+    }
+  });
+
+  it("is versioned, so a disputed verdict can be reproduced", async () => {
+    const overview = await repo.getExecutiveOverview({
+      viewer: VIEWERS.developer,
+      ...NORTHGATE,
+      period: "quarter_to_date",
+    });
+    expect(overview.verdict.rulesetVersion).toMatch(/^verdict-[0-9]+[.][0-9]+[.][0-9]+$/);
+  });
+
+  it("is deterministic", async () => {
+    const query = { viewer: VIEWERS.developer, ...NORTHGATE, period: "quarter_to_date" } as const;
+    const a = await repo.getExecutiveOverview(query);
+    const b = await repo.getExecutiveOverview(query);
+    expect(a.verdict).toEqual(b.verdict);
+  });
+
+  it("reports insufficient_data rather than a green light on thin evidence", async () => {
+    const overview = await repo.getExecutiveOverview({
+      viewer: VIEWERS.agencyManager,
+      ...KINGSFORD,
+      period: "quarter_to_date",
+    });
+    expect(overview.verdict.state).toBe("insufficient_data");
+    expect(overview.verdict.components.some((c) => c.outcome === "pass")).toBe(false);
+  });
+
+  it("keeps the first viewport to four figures and at most three actions", async () => {
+    const overview = await repo.getExecutiveOverview({
+      viewer: VIEWERS.developer,
+      ...NORTHGATE,
+      period: "quarter_to_date",
+    });
+    // The registry holds eighty-two metrics. The first screen holds four.
+    expect(overview.headline.length).toBeLessThanOrEqual(6);
+    expect(overview.headline.length).toBeGreaterThanOrEqual(4);
+    expect(overview.actions.length).toBeLessThanOrEqual(3);
+  });
+});
+
 describe("missing and partial data", () => {
   it("renders unavailable, not zero, when the CRM is disconnected", async () => {
     const overview = await repo.getExecutiveOverview({
@@ -321,7 +377,7 @@ describe("missing and partial data", () => {
       expect(metric.raw).toBeNull();
       expect(metric.message).toContain("CRM");
     }
-    expect(overview.verdict.state).toBe("unknown");
+    expect(overview.verdict.state).toBe("insufficient_data");
     expect(overview.dataHealth.sourcesMissing).toContain("CRM");
   });
 
@@ -331,7 +387,7 @@ describe("missing and partial data", () => {
       ...KINGSFORD,
       period: "quarter_to_date",
     });
-    expect(overview.verdict.state).toBe("unknown");
+    expect(overview.verdict.state).toBe("insufficient_data");
     for (const step of overview.funnel) {
       expect(["insufficient", "unavailable"]).toContain(step.metric.state);
     }

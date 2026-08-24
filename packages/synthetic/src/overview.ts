@@ -42,6 +42,15 @@ import {
 
 const POLICY = DEFAULT_ATTRIBUTION_POLICY.version;
 
+/**
+ * The rules that produce a verdict, versioned like any other policy.
+ *
+ * A changed threshold changes what "positive" means, and a reader comparing
+ * two quarters has to be able to tell whether the project moved or the rule
+ * did.
+ */
+const VERDICT_RULESET = "verdict-1.0.0";
+
 function base(context: ViewContext) {
   const { project, tenant } = context;
   const root = `/${tenant.slug}/${project.slug}`;
@@ -166,13 +175,51 @@ function northgate(context: ViewContext): ExecutiveOverview {
     },
   ];
 
+  /**
+   * Deterministic, and shown with its workings.
+   *
+   * Four rules, each a metric against a stated threshold. Two fail, so the
+   * state is attention_needed rather than critical — critical is reserved for
+   * a project that has stopped selling, not one selling more slowly.
+   */
   const verdict: Verdict = {
-    state: "watch",
+    state: "attention_needed",
     headline:
       "Northgate sold 7 units this quarter against 9 in the last — 22% slower, and the loss is entirely between viewing and offer.",
     supporting:
       "Two-room units draw 2.1× their share of attention and convert at half the project average. The interest is real; the price probably is not.",
     evidence: evidenceRef("northgate.verdict", "observed_sequence", `${root}/flow`, 46),
+    rulesetVersion: VERDICT_RULESET,
+    components: [
+      {
+        metricId: "exec.units_sold",
+        label: "Sales velocity",
+        display: "7 units",
+        rule: "At least 90% of the previous quarter (9)",
+        outcome: "fail",
+      },
+      {
+        metricId: "flow.viewing_to_offer",
+        label: "Viewing to offer",
+        display: percent(12 / 46, locale),
+        rule: "Within 10% of the project baseline (35%)",
+        outcome: "fail",
+      },
+      {
+        metricId: "exec.avg_days_to_close",
+        label: "Days to close",
+        display: days(68),
+        rule: "At or below the project's 80th percentile (104)",
+        outcome: "pass",
+      },
+      {
+        metricId: "exec.data_completeness",
+        label: "Data completeness",
+        display: percent(0.86, locale),
+        rule: "At least 80% of expected inputs present",
+        outcome: "pass",
+      },
+    ],
   };
 
   const changes: ChangeItem[] = [
@@ -325,12 +372,36 @@ function riverside(context: ViewContext): ExecutiveOverview {
   return {
     context,
     verdict: {
-      state: "unknown",
+      state: "insufficient_data",
       headline:
         "No verdict is possible for Riverside Walk: without the CRM, Observer can see the meetings but not what came of them.",
       supporting:
         "38 meetings and 214 online visitors are recorded this period. Connect the CRM to see offers, reservations and sales.",
       evidence: evidenceRef("riverside.verdict", "observed_sequence", `${root}/people`, 38),
+      rulesetVersion: VERDICT_RULESET,
+      components: [
+        {
+          metricId: "exec.units_sold",
+          label: "Sales velocity",
+          display: "unknown",
+          rule: "Requires the CRM",
+          outcome: "unknown",
+        },
+        {
+          metricId: "flow.viewing_to_offer",
+          label: "Viewing to offer",
+          display: "unknown",
+          rule: "Requires the CRM",
+          outcome: "unknown",
+        },
+        {
+          metricId: "exec.data_completeness",
+          label: "Data completeness",
+          display: percent(0.52, locale),
+          rule: "At least 80% of expected inputs present",
+          outcome: "fail",
+        },
+      ],
     },
     headline: [
       unavailable("exec.units_sold", "Units Sold", 1, NO_CRM),
@@ -430,11 +501,28 @@ function kingsford(context: ViewContext): ExecutiveOverview {
   return {
     context,
     verdict: {
-      state: "unknown",
+      state: "insufficient_data",
       headline: "Kingsford Yard has been live for three weeks and has held 7 meetings.",
       supporting:
         "That is too few to read as a trend. Figures are shown as raw counts until 20 meetings are on record.",
       evidence: evidenceRef("kingsford.verdict", "observed_sequence", `${root}/people`, 7),
+      rulesetVersion: VERDICT_RULESET,
+      components: [
+        {
+          metricId: "exec.performance_status",
+          label: "Meetings on record",
+          display: "7",
+          rule: "At least 20 meetings before a verdict is formed",
+          outcome: "unknown",
+        },
+        {
+          metricId: "exec.data_completeness",
+          label: "Data completeness",
+          display: percent(0.71, locale),
+          rule: "At least 80% of expected inputs present",
+          outcome: "watch",
+        },
+      ],
     },
     headline: [
       insufficient(

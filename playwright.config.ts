@@ -27,9 +27,16 @@ export default defineConfig({
     colorScheme: "dark",
   },
   projects: [
+    // 1920×1080 is the showroom-adjacent desktop the developer reviews on;
+    // 1440×900 is the commonest laptop; Pixel 7 is the agent walking to a
+    // meeting. Three real contexts, no arbitrary in-between breakpoints.
+    {
+      name: "wide",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1920, height: 1080 } },
+    },
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 960 } },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],

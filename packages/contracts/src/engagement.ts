@@ -26,20 +26,8 @@ export const JOURNEY_STAGES = [
   "identified_lead",
   "meeting_booked",
   "showroom_attended",
-  /**
-   * Qualified: the buyer showed real intent — a deep dive, a shortlist, a
-   * share — but no offer exists yet. This is the rung where deals stall, and
-   * without it "attended" and "offered" sit next to each other hiding the
-   * largest gap in the funnel.
-   */
-  "hot_lead",
   "follow_up",
   "offer",
-  /**
-   * An offer under active discussion. Distinct from `offer` because time spent
-   * here is the negotiating time a developer can actually try to shorten.
-   */
-  "negotiation",
   "reservation",
   "purchase",
 ] as const;
@@ -57,16 +45,8 @@ export const STAGE_OWNER: Readonly<Record<JourneyStage, SourceSystem>> = {
   identified_lead: "webiris",
   meeting_booked: "crm",
   showroom_attended: "showroom",
-  /**
-   * Observer's own, and the only rung it owns. Qualification is derived from
-   * in-meeting behaviour — a deep dive, a shortlist, a share — which no other
-   * system can see. Where a CRM has its own qualification field it wins, and
-   * the derived value is reported as a second opinion rather than overwritten.
-   */
-  hot_lead: "observer",
   follow_up: "crm",
   offer: "crm",
-  negotiation: "crm",
   reservation: "crm",
   purchase: "crm",
 } as const;
@@ -170,6 +150,46 @@ export const MeetingParticipantSchema = z
   });
 export type MeetingParticipant = z.infer<typeof MeetingParticipantSchema>;
 
+/* --- the authoritative deal ladder --------------------------------------- */
+
+/**
+ * The commercial state of a deal, as the business records it.
+ *
+ * Authoritative and generally forward-moving: it comes from the CRM, or from
+ * an explicitly authorised manual outcome where no CRM is connected. It is not
+ * where Observer puts its own opinions.
+ *
+ * **Lead temperature is deliberately absent.** An earlier draft had a
+ * `hot_lead` rung here, which was a modelling error: a stage is an
+ * authoritative business state that a deal progresses through, while intent is
+ * a derived, time-sensitive signal that rises and falls. Putting the second
+ * inside the first makes conversion arithmetic meaningless — a deal can become
+ * less hot without moving backwards commercially. See `IntentSignal`.
+ */
+export const DEAL_STAGES = [
+  "lead",
+  "meeting",
+  "negotiation",
+  "offer",
+  "reservation",
+  "purchase",
+  "lost",
+] as const;
+export const DealStageSchema = z.enum(DEAL_STAGES);
+export type DealStage = z.infer<typeof DealStageSchema>;
+
+/** Where a stage value came from. Only these two are authoritative. */
+export const DEAL_STAGE_SOURCES = ["crm", "authorised_manual"] as const;
+export const DealStageSourceSchema = z.enum(DEAL_STAGE_SOURCES);
+export type DealStageSource = z.infer<typeof DealStageSourceSchema>;
+
+/** Terminal stages. A deal that reaches one stops progressing. */
+export const TERMINAL_DEAL_STAGES = ["purchase", "lost"] as const;
+
+export function isTerminalDealStage(stage: DealStage): boolean {
+  return (TERMINAL_DEAL_STAGES as readonly DealStage[]).includes(stage);
+}
+
 /* --- commerce ----------------------------------------------------------- */
 
 /**
@@ -184,13 +204,14 @@ export const DealSchema = z.strictObject({
   tenantId: TenantIdSchema,
   projectId: ProjectIdSchema,
   contactId: ContactIdSchema,
-  stage: JourneyStageSchema,
+  /** Authoritative. Never carries an Observer-derived value. */
+  stage: DealStageSchema,
   exit: JourneyExitSchema.nullable().default(null),
   unitIds: z.array(UnitIdSchema).default([]),
   openedAt: InstantSchema,
   lastStageChangeAt: InstantSchema,
-  /** Which system the stage came from, so a stale CRM can be called stale. */
-  stageSource: SourceSystemSchema,
+  /** Which authority set the stage, so a stale CRM can be called stale. */
+  stageSource: DealStageSourceSchema,
   references: z.array(SourceReferenceSchema).default([]),
 });
 export type Deal = z.infer<typeof DealSchema>;

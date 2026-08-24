@@ -2,7 +2,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Badge, Card } from "@observer/ui";
-import { SESSION_COOKIE, SIGN_IN_OPTIONS } from "@/lib/session";
+import {
+  SESSION_COOKIE,
+  SESSION_COOKIE_OPTIONS,
+  SIGN_IN_OPTIONS,
+  createSession,
+  isKnownViewerKey,
+} from "@/lib/session";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -19,17 +25,12 @@ export default function SignIn() {
   async function signIn(formData: FormData) {
     "use server";
     const key = String(formData.get("viewer") ?? "");
-    if (!SIGN_IN_OPTIONS.some((option) => option.key === key)) {
-      redirect("/sign-in?error=unknown");
-    }
+    if (!isKnownViewerKey(key)) redirect("/sign-in?error=unknown");
+
+    // The browser receives an opaque identifier, never the role. Editing the
+    // cookie can only invalidate the session, not upgrade it.
     const store = await cookies();
-    store.set(SESSION_COOKIE, key, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 8,
-    });
+    store.set(SESSION_COOKIE, createSession(key), SESSION_COOKIE_OPTIONS);
     redirect("/");
   }
 
@@ -45,8 +46,8 @@ export default function SignIn() {
             Sign in
           </h1>
           <p className="obs-muted" style={{ maxWidth: "56ch" }}>
-            Authentication is not connected in this build. Choose the role you want to review the
-            product as — each one sees a different Observer, which is the point.
+            This is a scenario selector, not production authentication. Choose the role you want to
+            review the product as — each one sees a different Observer, which is the point.
           </p>
         </div>
 

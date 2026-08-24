@@ -83,36 +83,53 @@ async function ExecutiveView({
 }) {
   const overview = await repository.getExecutiveOverview(query);
   const { context } = overview;
+  const [headlineChange, ...remainingChanges] = overview.changes;
 
   return (
     <>
+      {/*
+        Everything down to the data-health strip is meant to fit the first
+        viewport at 1080: one verdict with its rules and actions, four figures,
+        one change, and how much of the picture is visible. That answers is it
+        good, what moved, why it matters, and what to do next.
+
+        The eighty-two-metric registry lives in the drill-downs. A dashboard
+        that renders the registry is a registry, not a dashboard.
+      */}
       <div>
         <p className="obs-kicker">
-          {context.project.name} · {context.period.label}
+          {context.tenant.name} · {context.project.name} · {context.period.label}
         </p>
-        <VerdictStrip verdict={overview.verdict} />
+        <VerdictStrip verdict={overview.verdict} actions={overview.actions} />
       </div>
 
       <section aria-labelledby="headline-heading">
-        <SectionHead
-          title="Key figures"
-          aside={
-            context.period.baselineClipped
-              ? `Compared with ${context.period.baselineLabel}`
-              : `Compared with ${context.period.baselineLabel}`
-          }
-        />
         <h2 className="obs-sr" id="headline-heading">
           Key figures
         </h2>
         <MetricGrid metrics={overview.headline} />
       </section>
 
+      {headlineChange === undefined ? null : (
+        <div className="obs-headline-change">
+          <span
+            className="obs-delta"
+            data-sentiment={headlineChange.direction === headlineChange.better ? "good" : "bad"}
+          >
+            {headlineChange.deltaDisplay}
+          </span>
+          <strong>{headlineChange.label}</strong>
+          <span className="obs-muted">{headlineChange.detail}</span>
+          <EvidenceLink evidence={headlineChange.evidence} />
+        </div>
+      )}
+
+      <DataHealthBar health={overview.dataHealth} />
+
+      {/* ---- below the fold: the evidence behind the verdict ---- */}
+
       <Card as="section">
-        <SectionHead
-          title="Conversion"
-          aside={<EvidenceLink evidence={overview.verdict.evidence} />}
-        />
+        <SectionHead title="Conversion" aside={context.period.baselineLabel} />
         <FunnelChart steps={overview.funnel} />
       </Card>
 
@@ -126,8 +143,8 @@ async function ExecutiveView({
         }}
       >
         <Card as="section">
-          <SectionHead title="Important changes" />
-          <ChangeList changes={overview.changes} />
+          <SectionHead title="Other changes" />
+          <ChangeList changes={remainingChanges} />
         </Card>
 
         <Card as="section">
@@ -135,18 +152,6 @@ async function ExecutiveView({
           <AlertList alerts={overview.alerts} />
         </Card>
       </div>
-
-      {overview.actions.length === 0 ? null : (
-        <section aria-label="Suggested actions" className="obs-actions">
-          {overview.actions.map((action) => (
-            <ActionLink key={action.id} href={action.href} emphasis={action.emphasis}>
-              {action.label}
-            </ActionLink>
-          ))}
-        </section>
-      )}
-
-      <DataHealthBar health={overview.dataHealth} />
     </>
   );
 }
