@@ -24,7 +24,13 @@ export type UnitStatus = (typeof UNIT_STATUSES)[number];
  * A second channel that only fires on news. Most cells carry `null`, which is
  * what makes the ones that do not stand out.
  */
-export const UNIT_CHANGES = ["sold", "reserved", "price_cut", "demand_drop", "new_interest"] as const;
+export const UNIT_CHANGES = [
+  "sold",
+  "reserved",
+  "price_cut",
+  "demand_drop",
+  "new_interest",
+] as const;
 export type UnitChange = (typeof UNIT_CHANGES)[number];
 
 export type DemandTrend = "rising" | "flat" | "falling";

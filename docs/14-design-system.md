@@ -159,8 +159,8 @@ counterpart and must read as the same component.
 - Every answer is: a sentence, the figures it rests on, an evidence row, and a follow-up affordance.
 - Suggested questions are derived from the current selection, not a static list.
 
-**The assistant already has a name.** Node `6872:3494` in the Figma file reads *"Welcome, Bob. I am
-AI-RIS."* — the showroom assistant introduces itself by name and greets the agent who signed in. So
+**The assistant already has a name.** Node `6872:3494` in the Figma file reads _"Welcome, Bob. I am
+AI-RIS."_ — the showroom assistant introduces itself by name and greets the agent who signed in. So
 "Ask Observer" is a description of the surface, not a brand: the assistant is AI-RIS in both
 products, and Observer's greeting should address the profile that was chosen at the picker. That
 consistency is the whole reason the picker is being reused.
@@ -177,7 +177,7 @@ IRIS. Observer opens the same way, on the same component, because an agent who u
 one day should not meet two different front doors.
 
 - The ground is the splash atmosphere from `6620:1840` — a soft gradient, the wordmark, `IRIS BY
-  MADSPACE` at the foot. It is the one place a gradient is allowed, because there is no data on it.
+MADSPACE` at the foot. It is the one place a gradient is allowed, because there is no data on it.
 - Profiles are **collection cards** (§3), grouped by a segmented control — the same control as the
   showroom's `Running Projects | In preparations | Closed projects`.
 - Each card carries the type chip, the name, a stat pair and the circular arrow, in the anatomy of
@@ -185,7 +185,7 @@ one day should not meet two different front doors.
 - Where an IRIS card carries a commissioned render, an Observer profile carries a **monogram field**,
   deterministic from the name. Generating photographs of people who do not exist is the fabrication
   the doctrine forbids, and stock avatars would be the same lie with a licence.
-- The blurb says what that profile will *see*. A picker that says only "Sales agent" makes the reader
+- The blurb says what that profile will _see_. A picker that says only "Sales agent" makes the reader
   guess at the difference between five entries.
 
 In the laboratory this is a scenario selector and is labelled as one. It is not authentication and
@@ -227,7 +227,7 @@ glassmorphism · stock illustrations · blue-purple gradients · excessive round
 floating panels · charts without interaction · controls that do not work · mobile layouts made by
 stacking desktop modules.
 
-Note what is *not* on that list: an image-led card in a collection you are choosing from (§3, §9).
+Note what is _not_ on that list: an image-led card in a collection you are choosing from (§3, §9).
 The prohibition is on the card as a substitute for layout, not on the shape.
 
 **The test:** hide the logo. If the screen does not read as real-estate spatial sales intelligence, it

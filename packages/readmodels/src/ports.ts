@@ -101,7 +101,11 @@ export interface ObserverRepository {
   /** Presentation DNA: sequences, transitions, and side-by-side comparison. */
   getPresentationIntelligence(
     query: OverviewQuery,
-    comparison: { mode: "agents" | "cohorts" | "periods"; left: string | null; right: string | null },
+    comparison: {
+      mode: "agents" | "cohorts" | "periods";
+      left: string | null;
+      right: string | null;
+    },
   ): Promise<PresentationIntelligence>;
 
   /** One meeting, reconstructed as a story rather than an event table. */

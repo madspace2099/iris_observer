@@ -180,10 +180,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return buildProjectPulse(context);
   }
 
-  async getAskSession(
-    query: OverviewQuery,
-    selectionLabel: string | null,
-  ): Promise<AskSession> {
+  async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
     const context = await this.context(query);
     return buildAskSession(context, buildProjectPulse(context), selectionLabel);
   }
@@ -213,7 +210,11 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getPresentationIntelligence(
     query: OverviewQuery,
-    comparison: { mode: "agents" | "cohorts" | "periods"; left: string | null; right: string | null },
+    comparison: {
+      mode: "agents" | "cohorts" | "periods";
+      left: string | null;
+      right: string | null;
+    },
   ): Promise<PresentationIntelligence> {
     const { context, current, previous } = await this.slices(query);
     return buildPresentationIntelligence(
@@ -248,7 +249,10 @@ export class SyntheticObserverRepository implements ObserverRepository {
     })).filter((a) => a.meetingCount > 0);
   }
 
-  async getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView> {
+  async getUnitAttention(
+    query: OverviewQuery,
+    unitCode: string | null,
+  ): Promise<UnitAttentionView> {
     const { context, current, previous } = await this.slices(query);
     return buildUnitAttention(context, current, previous, unitCode);
   }

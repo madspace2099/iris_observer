@@ -120,7 +120,10 @@ export default async function ProjectLayout({
               Administration
             </a>
           ) : null}
-          <span className="iris-code" title={`${viewer.organisationName} · ${viewer.role.replace(/_/g, " ")}`}>
+          <span
+            className="iris-code"
+            title={`${viewer.organisationName} · ${viewer.role.replace(/_/g, " ")}`}
+          >
             {viewer.displayName}
             {tenants.length > 1 ? ` · ${tenants.length} developers` : ""}
           </span>
@@ -137,11 +140,11 @@ export default async function ProjectLayout({
       </main>
 
       {/*
-        * Ask Observer is chrome, not a page.
-        *
-        * It sits on every surface and carries the current context, because an
-        * assistant you have to navigate to is one nobody asks.
-        */}
+       * Ask Observer is chrome, not a page.
+       *
+       * It sits on every surface and carries the current context, because an
+       * assistant you have to navigate to is one nobody asks.
+       */}
       <AskRail projectLabel={project.name} root={root} />
     </div>
   );

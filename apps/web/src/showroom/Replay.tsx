@@ -69,11 +69,14 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
                   {step.detail === null ? null : <em> · {step.detail}</em>}
                 </span>
                 {/*
-                  * Unavailability is stated once, in the gaps block, not beside
-                  * every affected row. Eleven repetitions of "time not recorded"
-                  * is noise that trains the reader to stop reading it.
-                  */}
-                <span className="iris-replay-time" data-unknown={step.atDisplay === null ? "true" : undefined}>
+                 * Unavailability is stated once, in the gaps block, not beside
+                 * every affected row. Eleven repetitions of "time not recorded"
+                 * is noise that trains the reader to stop reading it.
+                 */}
+                <span
+                  className="iris-replay-time"
+                  data-unknown={step.atDisplay === null ? "true" : undefined}
+                >
                   {step.atDisplay === null
                     ? (step.dwellDisplay ?? "")
                     : `${step.atDisplay}${step.dwellDisplay === null ? "" : ` · ${step.dwellDisplay}`}`}
@@ -139,9 +142,9 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
           </div>
           <div>
             {/*
-              * "Sections" and "recorded events" are different counts and were
-              * both labelled "steps", so the panel contradicted the headline.
-              */}
+             * "Sections" and "recorded events" are different counts and were
+             * both labelled "steps", so the panel contradicted the headline.
+             */}
             <dt>sections</dt>
             <dd>{replay.steps.filter((s) => s.kind === "section").length}</dd>
           </div>

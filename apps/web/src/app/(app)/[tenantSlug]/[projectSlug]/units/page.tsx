@@ -28,7 +28,12 @@ export default async function UnitsPage({
   const { tenantSlug, projectSlug } = await params;
   const search = await searchParams;
 
-  const query = { viewer, tenantSlug, projectSlug, period: presetFrom(search.period) as PeriodPreset };
+  const query = {
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period: presetFrom(search.period) as PeriodPreset,
+  };
   const view = await repository.getUnitAttention(query, search.unit ?? null);
 
   const root = `/${tenantSlug}/${projectSlug}/units`;
@@ -49,9 +54,9 @@ export default async function UnitsPage({
           {touched.length} of {view.rows.length} units were opened in front of a buyer.
         </h1>
         <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Ordered by how much of the project&rsquo;s looking time each one took. Every column says what
-          it measures — open the <b>i</b> beside a heading to see the rule behind the number and what
-          it does not tell you.
+          Ordered by how much of the project&rsquo;s looking time each one took. Every column says
+          what it measures — open the <b>i</b> beside a heading to see the rule behind the number
+          and what it does not tell you.
         </p>
 
         <UnitMatrix
@@ -105,7 +110,8 @@ export default async function UnitsPage({
               <div>
                 <dt>examined</dt>
                 <dd>
-                  median {detail.row.medianDwellSeconds}s · {Math.round(detail.row.totalDwellSeconds / 60)}m total
+                  median {detail.row.medianDwellSeconds}s ·{" "}
+                  {Math.round(detail.row.totalDwellSeconds / 60)}m total
                 </dd>
               </div>
               <div>
@@ -127,8 +133,9 @@ export default async function UnitsPage({
                   <Measure id="unit.examined" />
                 </dt>
                 <dd>
-                  {detail.row.balconyViews} balcony {detail.row.balconyViews === 1 ? "view" : "views"} ·{" "}
-                  {detail.row.floorCutViews} floor {detail.row.floorCutViews === 1 ? "cut" : "cuts"}
+                  {detail.row.balconyViews} balcony{" "}
+                  {detail.row.balconyViews === 1 ? "view" : "views"} · {detail.row.floorCutViews}{" "}
+                  floor {detail.row.floorCutViews === 1 ? "cut" : "cuts"}
                 </dd>
               </div>
               <div>
@@ -169,12 +176,12 @@ export default async function UnitsPage({
                   Weighed against
                 </p>
                 {/*
-                  * A list, not bars.
-                  *
-                  * Compare sets are small, so most competitors appear once and
-                  * a bar chart of identical full-width bars says nothing. Bars
-                  * appear only when there is actually a spread to see.
-                  */}
+                 * A list, not bars.
+                 *
+                 * Compare sets are small, so most competitors appear once and
+                 * a bar chart of identical full-width bars says nothing. Bars
+                 * appear only when there is actually a spread to see.
+                 */}
                 {(detail.competitors[0]?.together ?? 0) > 1 ? (
                   <div className="iris-bars">
                     {detail.competitors.map((c) => (
@@ -184,9 +191,9 @@ export default async function UnitsPage({
                           className="iris-bar-track"
                           style={
                             {
-                              "--v": (
-                                c.together / (detail.competitors[0]?.together ?? 1)
-                              ).toFixed(3),
+                              "--v": (c.together / (detail.competitors[0]?.together ?? 1)).toFixed(
+                                3,
+                              ),
                             } as React.CSSProperties
                           }
                         >
@@ -221,7 +228,9 @@ export default async function UnitsPage({
                     ]
                   : []),
                 ...(detail.row.comparisonWins === null
-                  ? ["This unit was never placed in Compare mode, so there is no comparison record."]
+                  ? [
+                      "This unit was never placed in Compare mode, so there is no comparison record.",
+                    ]
                   : []),
               ]}
             />

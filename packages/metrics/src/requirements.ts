@@ -75,7 +75,13 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "showroom",
     requirement:
       "IRIS Observer must explain what happened inside the IRIS presentation, not restate what the CRM already concluded.",
-    readModels: ["ShowroomOverview", "PresentationIntelligence", "MeetingReplay", "UnitAttentionView", "StorytellingIntelligence"],
+    readModels: [
+      "ShowroomOverview",
+      "PresentationIntelligence",
+      "MeetingReplay",
+      "UnitAttentionView",
+      "StorytellingIntelligence",
+    ],
     contracts: ["ADR-0023", "InsightSource"],
   },
   {
@@ -137,7 +143,12 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "showroom",
     requirement:
       "Apartment activity must become explainable buyer attention, not a sortable table of counts.",
-    metrics: ["unit.active_dwell", "unit.recent_interest", "unit.demand_trend", "unit.compare_win_rate"],
+    metrics: [
+      "unit.active_dwell",
+      "unit.recent_interest",
+      "unit.demand_trend",
+      "unit.compare_win_rate",
+    ],
     readModels: ["UnitAttentionView", "UnitAttentionDetail"],
   },
   {

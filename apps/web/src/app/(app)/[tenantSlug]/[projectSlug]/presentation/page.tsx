@@ -38,7 +38,12 @@ export default async function PresentationPage({
   const search = await searchParams;
 
   const mode: Mode = MODES.some((m) => m.id === search.mode) ? (search.mode as Mode) : "agents";
-  const query = { viewer, tenantSlug, projectSlug, period: presetFrom(search.period) as PeriodPreset };
+  const query = {
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period: presetFrom(search.period) as PeriodPreset,
+  };
 
   const agents = await repository.listAgents(query);
   const view = await repository.getPresentationIntelligence(query, {
@@ -60,14 +65,12 @@ export default async function PresentationPage({
     <div className="iris-two">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Presentation DNA · {view.context.period.label}</p>
-        <h1 className="iris-section">
-          How the story is told, in the order it was told.
-        </h1>
+        <h1 className="iris-section">How the story is told, in the order it was told.</h1>
         <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Each lane is one presenter&rsquo;s sequence. Width is how often their meetings reached that
-          section at all; fill is how long they stayed. A hatched, dashed block means the source
-          records that the section was reached but not for how long — which is a different statement
-          from no time at all.
+          Each lane is one presenter&rsquo;s sequence. Width is how often their meetings reached
+          that section at all; fill is how long they stayed. A hatched, dashed block means the
+          source records that the section was reached but not for how long — which is a different
+          statement from no time at all.
         </p>
 
         <div className="iris-dna" style={{ marginTop: "1rem" }}>
@@ -86,25 +89,28 @@ export default async function PresentationPage({
           </p>
           <div className="iris-bars" data-wide-labels="true">
             {/*
-              * Sorted by share, not by raw count.
-              *
-              * The read model orders by volume because that is what the AI
-              * tools want; a reader looking at bars expects the longest one
-              * first, and a list whose order contradicts its own bars reads as
-              * a rendering bug.
-              */}
+             * Sorted by share, not by raw count.
+             *
+             * The read model orders by volume because that is what the AI
+             * tools want; a reader looking at bars expects the longest one
+             * first, and a list whose order contradicts its own bars reads as
+             * a rendering bug.
+             */}
             {[...view.transitions]
               .sort((a, b) => b.share - a.share)
               .slice(0, 6)
               .map((t) => (
-              <div className="iris-bar" key={`${t.from}-${t.to}`}>
-                <span className="iris-bar-label">
-                  {t.from} → {t.to}
-                </span>
-                <span className="iris-bar-track" style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}>
-                  <i />
-                </span>
-                <span className="iris-bar-value">{Math.round(t.share * 100)}%</span>
+                <div className="iris-bar" key={`${t.from}-${t.to}`}>
+                  <span className="iris-bar-label">
+                    {t.from} → {t.to}
+                  </span>
+                  <span
+                    className="iris-bar-track"
+                    style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}
+                  >
+                    <i />
+                  </span>
+                  <span className="iris-bar-value">{Math.round(t.share * 100)}%</span>
                 </div>
               ))}
           </div>
@@ -225,7 +231,9 @@ export default async function PresentationPage({
                   "Some sessions in this period came from the legacy analytics, which records the order of sections but not when each was entered. Their sequence is real; their pacing is unknown.",
                   "Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence.",
                 ]
-              : ["Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence."]
+              : [
+                  "Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence.",
+                ]
           }
         />
       </aside>

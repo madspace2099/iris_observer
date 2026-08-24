@@ -110,16 +110,18 @@ function falProvider(model: string): LlmProvider {
       });
 
       if (!response.ok) {
-        throw new LlmUnavailableError(
-          `fal returned ${response.status} ${response.statusText}.`,
-        );
+        throw new LlmUnavailableError(`fal returned ${response.status} ${response.statusText}.`);
       }
 
       const parsed = FalResponseSchema.safeParse(await response.json());
       if (!parsed.success) {
         throw new LlmUnavailableError("fal returned a response in an unexpected shape.");
       }
-      if (parsed.data.error !== null && parsed.data.error !== undefined && parsed.data.error !== "") {
+      if (
+        parsed.data.error !== null &&
+        parsed.data.error !== undefined &&
+        parsed.data.error !== ""
+      ) {
         throw new LlmUnavailableError(parsed.data.error);
       }
 

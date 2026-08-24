@@ -56,13 +56,7 @@ export function MeasureIcon({ name }: { name: MeasurementIcon }) {
   );
 }
 
-export function Measure({
-  id,
-  align = "left",
-}: {
-  id: string;
-  align?: "left" | "right";
-}) {
+export function Measure({ id, align = "left" }: { id: string; align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const definition = defineMeasurement(id);
 

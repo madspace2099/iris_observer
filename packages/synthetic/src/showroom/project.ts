@@ -131,7 +131,8 @@ export function coverageOf(sessions: readonly ShowroomSession[]): PresentationCo
     .sort((a, b) => b.skipRate - a.skipRate);
 
   return {
-    coreReached: coreCounts.length === 0 ? 0 : coreCounts.reduce((a, b) => a + b, 0) / coreCounts.length,
+    coreReached:
+      coreCounts.length === 0 ? 0 : coreCounts.reduce((a, b) => a + b, 0) / coreCounts.length,
     coreTotal: CORE_SECTION_IDS.length,
     sectionsReached: Math.round(median(allCounts)),
     sectionsTotal: SECTION_IDS.length,
@@ -165,7 +166,8 @@ export function buildLane(
     return {
       sectionId,
       label: sectionLabel(sectionId),
-      position: positions.length === 0 ? 0 : positions.reduce((a, b) => a + b, 0) / positions.length,
+      position:
+        positions.length === 0 ? 0 : positions.reduce((a, b) => a + b, 0) / positions.length,
       reachRate: share(withSection.length, sessions.length),
       returnRate: share(returns, Math.max(1, withSection.length)),
       // Null, not zero, when no session in this lane could report timing.
@@ -187,7 +189,8 @@ export function buildLane(
     meetingCount: sessions.length,
     steps,
     coverage: coverageOf(sessions).coreReached,
-    medianDurationSeconds: timed.length === 0 ? null : Math.round(median(timed.map((s) => s.durationSeconds))),
+    medianDurationSeconds:
+      timed.length === 0 ? null : Math.round(median(timed.map((s) => s.durationSeconds))),
     outcomeMix: [...outcomeCounts.entries()].map(([outcome, n]) => ({ outcome, count: n })),
   };
 }
@@ -241,7 +244,11 @@ const BEHAVIOURS: readonly {
     behaviour: "Returns to a section before closing",
     test: returnedBeforeEnd,
   },
-  { id: "amenities_skipped", behaviour: "Skips Amenities entirely", test: (s) => !reached(s, "amenities") },
+  {
+    id: "amenities_skipped",
+    behaviour: "Skips Amenities entirely",
+    test: (s) => !reached(s, "amenities"),
+  },
   { id: "shortlist_used", behaviour: "Opens the Shortlist", test: (s) => reached(s, "shortlist") },
   {
     id: "environment_used",
@@ -251,8 +258,7 @@ const BEHAVIOURS: readonly {
   {
     id: "long_opening",
     behaviour: "Spends over a minute on Home",
-    test: (s) =>
-      s.steps.some((step) => step.sectionId === "home" && (step.dwellSeconds ?? 0) > 60),
+    test: (s) => s.steps.some((step) => step.sectionId === "home" && (step.dwellSeconds ?? 0) > 60),
     note: "Timing-blind sessions cannot answer this and are excluded from both sides.",
   },
   {
@@ -307,14 +313,19 @@ export function buildShowroomOverview(
     s.steps.filter((step) => (step.dwellSeconds ?? 0) >= MEANINGFUL_DWELL_SECONDS),
   );
   const glances = sessions.flatMap((s) =>
-    s.steps.filter((step) => step.dwellSeconds !== null && step.dwellSeconds < MEANINGFUL_DWELL_SECONDS),
+    s.steps.filter(
+      (step) => step.dwellSeconds !== null && step.dwellSeconds < MEANINGFUL_DWELL_SECONDS,
+    ),
   );
 
   const unitOpens = sessions.reduce((sum, s) => sum + s.units.length, 0);
   const compareRate = share(sessions.filter(usedCompare).length, n);
   const previousCompareRate = share(previous.filter(usedCompare).length, previous.length);
 
-  const surroundingsEarly = share(sessions.filter((s) => reachedEarly(s, "surroundings")).length, n);
+  const surroundingsEarly = share(
+    sessions.filter((s) => reachedEarly(s, "surroundings")).length,
+    n,
+  );
 
   /*
    * The verdict leads with a gap in the *core* story if there is one.
@@ -397,7 +408,12 @@ export function buildShowroomOverview(
       baseline: `${percent(share(previous.filter((s) => !reached(s, skipped.sectionId)).length, Math.max(1, previous.length)), locale)} in the previous period`,
       soWhat: `It is one of ${SECTION_IDS.length} sections the project paid to build, and a buyer who never sees it cannot weigh it.`,
       nextStep: { label: "Open Presentation Intelligence", href: `${base}/presentation` },
-      evidence: evidenceRef(`coverage-${skipped.sectionId}`, "observed_sequence", `${base}/presentation`, n),
+      evidence: evidenceRef(
+        `coverage-${skipped.sectionId}`,
+        "observed_sequence",
+        `${base}/presentation`,
+        n,
+      ),
       sampleSize: n,
       sources: DERIVED,
       caveat: null,
@@ -419,12 +435,14 @@ export function buildShowroomOverview(
 
   if (perAgent.length >= 2) {
     const spreads = BEHAVIOURS.map((behaviour) => {
-      const rates = perAgent.map((a) => ({
-        name: a.agent.name,
-        id: a.agent.id,
-        rate: share(a.sessions.filter(behaviour.test).length, a.sessions.length),
-        n: a.sessions.length,
-      })).sort((x, y) => y.rate - x.rate);
+      const rates = perAgent
+        .map((a) => ({
+          name: a.agent.name,
+          id: a.agent.id,
+          rate: share(a.sessions.filter(behaviour.test).length, a.sessions.length),
+          n: a.sessions.length,
+        }))
+        .sort((x, y) => y.rate - x.rate);
       const top = rates[0];
       const bottom = rates[rates.length - 1];
       return top === undefined || bottom === undefined
@@ -466,15 +484,20 @@ export function buildShowroomOverview(
       id: "glance_rate",
       statement: `${percent(glanceRate, locale)} of section visits lasted under ${MEANINGFUL_DWELL_SECONDS} seconds.`,
       baseline: `${MEANINGFUL_DWELL_SECONDS}s is the meaningful-dwell threshold for the showroom (ADR-0016)`,
-      soWhat: "A section opened and left is a click, not a presentation, and counting it as engagement flatters the numbers.",
+      soWhat:
+        "A section opened and left is a click, not a presentation, and counting it as engagement flatters the numbers.",
       nextStep: { label: "See section usage", href: `${base}/storytelling` },
-      evidence: evidenceRef("glance-rate", "observed_sequence", `${base}/storytelling`, glances.length),
+      evidence: evidenceRef(
+        "glance-rate",
+        "observed_sequence",
+        `${base}/storytelling`,
+        glances.length,
+      ),
       sampleSize: n,
       sources: DERIVED,
-      caveat:
-        sessions.some((s) => s.timingUnavailable)
-          ? `${count(sessions.filter((s) => s.timingUnavailable).length, locale)} sessions carry no per-step timing and are excluded.`
-          : null,
+      caveat: sessions.some((s) => s.timingUnavailable)
+        ? `${count(sessions.filter((s) => s.timingUnavailable).length, locale)} sessions carry no per-step timing and are excluded.`
+        : null,
     });
   }
 
@@ -482,7 +505,10 @@ export function buildShowroomOverview(
   const both = sessions.filter((s) => reachedEarly(s, "surroundings") && usedCompare(s));
   const rest = sessions.filter((s) => !(reachedEarly(s, "surroundings") && usedCompare(s)));
   const scored = (xs: readonly ShowroomSession[]) =>
-    share(xs.filter((s) => hasProgressed(s.outcome)).length, xs.filter((s) => !outcomeIsUnknown(s.outcome)).length);
+    share(
+      xs.filter((s) => hasProgressed(s.outcome)).length,
+      xs.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+    );
   if (both.length >= 10 && rest.length >= 10) {
     const lift = scored(rest) === 0 ? null : scored(both) / scored(rest);
     findings.push({
@@ -495,7 +521,12 @@ export function buildShowroomOverview(
       soWhat:
         "Worth looking at in Presentation Intelligence, where the two groups can be put side by side and the exceptions inspected.",
       nextStep: { label: "Compare the cohorts", href: `${base}/presentation?compare=cohorts` },
-      evidence: evidenceRef("behaviour-outcome", "statistical_association", `${base}/presentation`, n),
+      evidence: evidenceRef(
+        "behaviour-outcome",
+        "statistical_association",
+        `${base}/presentation`,
+        n,
+      ),
       sampleSize: n,
       sources: WITH_OUTCOME,
       caveat:
@@ -508,7 +539,12 @@ export function buildShowroomOverview(
       id: "compare_use",
       label: "Compare mode",
       detail: `Used in ${percent(compareRate, locale)} of presentations`,
-      direction: compareRate > previousCompareRate ? "up" : compareRate < previousCompareRate ? "down" : "flat",
+      direction:
+        compareRate > previousCompareRate
+          ? "up"
+          : compareRate < previousCompareRate
+            ? "down"
+            : "flat",
       deltaDisplay: signedPercent(compareRate - previousCompareRate, locale),
       sources: OBSERVED,
       sampleSize: n,
@@ -520,12 +556,18 @@ export function buildShowroomOverview(
       detail: `Opened in the first third of ${percent(surroundingsEarly, locale)} of presentations`,
       direction:
         surroundingsEarly >
-        share(previous.filter((s) => reachedEarly(s, "surroundings")).length, Math.max(1, previous.length))
+        share(
+          previous.filter((s) => reachedEarly(s, "surroundings")).length,
+          Math.max(1, previous.length),
+        )
           ? "up"
           : "down",
       deltaDisplay: signedPercent(
         surroundingsEarly -
-          share(previous.filter((s) => reachedEarly(s, "surroundings")).length, Math.max(1, previous.length)),
+          share(
+            previous.filter((s) => reachedEarly(s, "surroundings")).length,
+            Math.max(1, previous.length),
+          ),
         locale,
       ),
       sources: DERIVED,
@@ -588,7 +630,11 @@ export function buildPresentationIntelligence(
   const locale = context.project.locale;
 
   const lanes = SYNTHETIC_AGENTS.map((agent) =>
-    buildLane(agent.id, agent.name, sessions.filter((s) => s.agentId === agent.id)),
+    buildLane(
+      agent.id,
+      agent.name,
+      sessions.filter((s) => s.agentId === agent.id),
+    ),
   ).filter((lane) => lane.meetingCount > 0);
 
   const teamBenchmark = buildLane("team", "Team benchmark", sessions);
@@ -597,7 +643,9 @@ export function buildPresentationIntelligence(
 
   if (mode === "cohorts") {
     const progressed = sessions.filter((s) => hasProgressed(s.outcome));
-    const didNot = sessions.filter((s) => !hasProgressed(s.outcome) && !outcomeIsUnknown(s.outcome));
+    const didNot = sessions.filter(
+      (s) => !hasProgressed(s.outcome) && !outcomeIsUnknown(s.outcome),
+    );
     comparison = {
       context,
       mode: "cohorts",
@@ -606,7 +654,12 @@ export function buildPresentationIntelligence(
       transitionsLeft: buildTransitions(progressed),
       transitionsRight: buildTransitions(didNot),
       differences: buildDifferences(progressed, didNot),
-      evidence: evidenceRef("cohort-comparison", "statistical_association", `${base}/presentation`, sessions.length),
+      evidence: evidenceRef(
+        "cohort-comparison",
+        "statistical_association",
+        `${base}/presentation`,
+        sessions.length,
+      ),
       disclaimer: DISCLAIMER,
     };
   } else if (mode === "periods") {
@@ -618,7 +671,12 @@ export function buildPresentationIntelligence(
       transitionsLeft: buildTransitions(sessions),
       transitionsRight: buildTransitions(previous),
       differences: buildDifferences(sessions, previous),
-      evidence: evidenceRef("period-comparison", "observed_sequence", `${base}/presentation`, sessions.length),
+      evidence: evidenceRef(
+        "period-comparison",
+        "observed_sequence",
+        `${base}/presentation`,
+        sessions.length,
+      ),
       disclaimer: DISCLAIMER,
     };
   } else {
@@ -670,7 +728,12 @@ export function buildPresentationIntelligence(
     teamBenchmark,
     comparison,
     findings,
-    evidence: evidenceRef("presentation-intelligence", "observed_sequence", `${base}/presentation`, sessions.length),
+    evidence: evidenceRef(
+      "presentation-intelligence",
+      "observed_sequence",
+      `${base}/presentation`,
+      sessions.length,
+    ),
   };
 }
 
@@ -817,7 +880,9 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
   );
   if (session.filters.length === 0) {
-    gaps.push("Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.");
+    gaps.push(
+      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+    );
   }
   if (!session.units.some((u) => u.comparedWith.length > 0)) {
     gaps.push("No comparison was recorded. Compare mode is only measured when the agent opens it.");
@@ -836,7 +901,12 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     coverage: coverageOf([session]),
     gaps,
     timingAvailable: !session.timingUnavailable,
-    evidence: evidenceRef(session.meetingId, "observed_sequence", `${base}/meetings/${session.meetingId}`, steps.length),
+    evidence: evidenceRef(
+      session.meetingId,
+      "observed_sequence",
+      `${base}/meetings/${session.meetingId}`,
+      steps.length,
+    ),
   };
 }
 
@@ -876,7 +946,9 @@ export function buildUnitAttention(
 
   const rows: UnitAttentionRow[] = RAW_CATALOGUE.map((unit) => {
     const touches = sessions.flatMap((s) => s.units.filter((u) => u.unitCode === unit.code));
-    const previousTouches = previous.flatMap((s) => s.units.filter((u) => u.unitCode === unit.code));
+    const previousTouches = previous.flatMap((s) =>
+      s.units.filter((u) => u.unitCode === unit.code),
+    );
     const meetings = sessions.filter((s) => s.units.some((u) => u.unitCode === unit.code)).length;
     const dwells = touches.map((t) => t.dwellSeconds);
     const comparisons = touches.filter((t) => t.comparedWith.length > 0);
@@ -931,7 +1003,8 @@ export function buildUnitAttention(
   const peak = Math.max(1, ...rows.map((r) => r.totalDwellSeconds));
   const scaled = rows.map((r) => ({ ...r, attention: r.totalDwellSeconds / peak }));
 
-  const selected = selectedCode === null ? null : (scaled.find((r) => r.unitCode === selectedCode) ?? null);
+  const selected =
+    selectedCode === null ? null : (scaled.find((r) => r.unitCode === selectedCode) ?? null);
 
   let detail: UnitAttentionDetail | null = null;
   if (selected !== null) {
@@ -959,7 +1032,12 @@ export function buildUnitAttention(
             ? "Long enough to be an examination rather than a glance."
             : "Short enough that it was shown rather than studied.",
         nextStep: { label: "See the meetings", href: `${base}/meetings` },
-        evidence: evidenceRef(`unit-${selected.unitCode}`, "observed_sequence", `${base}/units?unit=${selected.unitCode}`, selected.views),
+        evidence: evidenceRef(
+          `unit-${selected.unitCode}`,
+          "observed_sequence",
+          `${base}/units?unit=${selected.unitCode}`,
+          selected.views,
+        ),
         sampleSize: selected.meetings,
         sources: OBSERVED,
         caveat: null,
@@ -970,9 +1048,15 @@ export function buildUnitAttention(
         id: `unit-${selected.unitCode}-intent`,
         statement: `Shortlisted ${count(selected.favourites, locale)} time${selected.favourites === 1 ? "" : "s"}, floor plan opened ${count(selected.pdfOpens, locale)} time${selected.pdfOpens === 1 ? "" : "s"}.`,
         baseline: null,
-        soWhat: "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",
+        soWhat:
+          "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",
         nextStep: null,
-        evidence: evidenceRef(`unit-${selected.unitCode}-intent`, "observed_sequence", `${base}/units?unit=${selected.unitCode}`, selected.favourites + selected.pdfOpens),
+        evidence: evidenceRef(
+          `unit-${selected.unitCode}-intent`,
+          "observed_sequence",
+          `${base}/units?unit=${selected.unitCode}`,
+          selected.favourites + selected.pdfOpens,
+        ),
         sampleSize: selected.meetings,
         sources: OBSERVED,
         caveat: null,
@@ -989,7 +1073,12 @@ export function buildUnitAttention(
       // Filters are not emitted by the current build; an empty list is the
       // honest answer and the surface says so rather than showing nothing.
       relatedFilters: [],
-      evidence: evidenceRef(`unit-detail-${selected.unitCode}`, "observed_sequence", `${base}/units?unit=${selected.unitCode}`, selected.views),
+      evidence: evidenceRef(
+        `unit-detail-${selected.unitCode}`,
+        "observed_sequence",
+        `${base}/units?unit=${selected.unitCode}`,
+        selected.views,
+      ),
     };
   }
 
@@ -1007,9 +1096,15 @@ export function buildUnitAttention(
       id: "unit-segment-attention",
       statement: `Two-room units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`,
       baseline: `an index of ${(attentionShare / Math.max(0.01, stockShare)).toFixed(2)}× their share`,
-      soWhat: "A segment drawing more attention than its size is either priced right or priced wrong; the unit list tells which.",
+      soWhat:
+        "A segment drawing more attention than its size is either priced right or priced wrong; the unit list tells which.",
       nextStep: { label: "Open the busiest unit", href: `${base}/units?unit=${busiest.unitCode}` },
-      evidence: evidenceRef("unit-segment", "statistical_association", `${base}/units`, sessions.length),
+      evidence: evidenceRef(
+        "unit-segment",
+        "statistical_association",
+        `${base}/units`,
+        sessions.length,
+      ),
       sampleSize: sessions.length,
       sources: DERIVED,
       caveat: null,
@@ -1054,11 +1149,14 @@ export function buildStorytelling(
       medianDwellSeconds: dwells.length === 0 ? null : Math.round(median(dwells)),
       glanceRate: share(glances, Math.max(1, dwells.length)),
       returnRate: share(
-        withSection.filter((s) => s.steps.some((x) => x.sectionId === section.id && x.isReturn)).length,
+        withSection.filter((s) => s.steps.some((x) => x.sectionId === section.id && x.isReturn))
+          .length,
         Math.max(1, withSection.length),
       ),
-      meanPosition: positions.length === 0 ? 0 : positions.reduce((a, b) => a + b, 0) / positions.length,
-      availability: dwells.length === 0 ? ("requires_ue5_v2_event" as const) : ("legacy_available" as const),
+      meanPosition:
+        positions.length === 0 ? 0 : positions.reduce((a, b) => a + b, 0) / positions.length,
+      availability:
+        dwells.length === 0 ? ("requires_ue5_v2_event" as const) : ("legacy_available" as const),
     };
   }).sort((a, b) => b.reachRate - a.reachRate);
 
@@ -1080,8 +1178,10 @@ export function buildStorytelling(
   const duringCounts = new Map<SectionId, number>();
   for (const session of sessions) {
     for (const env of session.environment) {
-      if (env.timeOfDay !== null) timeCounts.set(env.timeOfDay, (timeCounts.get(env.timeOfDay) ?? 0) + 1);
-      if (env.weather !== null) weatherCounts.set(env.weather, (weatherCounts.get(env.weather) ?? 0) + 1);
+      if (env.timeOfDay !== null)
+        timeCounts.set(env.timeOfDay, (timeCounts.get(env.timeOfDay) ?? 0) + 1);
+      if (env.weather !== null)
+        weatherCounts.set(env.weather, (weatherCounts.get(env.weather) ?? 0) + 1);
       if (env.duringSectionId !== null)
         duringCounts.set(env.duringSectionId, (duringCounts.get(env.duringSectionId) ?? 0) + 1);
     }
@@ -1092,21 +1192,32 @@ export function buildStorytelling(
   const beforeShortlist = SECTION_IDS.map((id) => ({
     sectionId: id,
     label: sectionLabel(id),
-    rate: share(withShortlist.filter((s) => reached(s, id)).length, Math.max(1, withShortlist.length)),
+    rate: share(
+      withShortlist.filter((s) => reached(s, id)).length,
+      Math.max(1, withShortlist.length),
+    ),
   }))
     .filter((x) => x.rate > 0.1)
     .sort((a, b) => b.rate - a.rate);
 
   const findings: ShowroomFinding[] = [];
-  const glanced = [...sections].filter((s) => s.glanceRate > 0.25).sort((a, b) => b.glanceRate - a.glanceRate)[0];
+  const glanced = [...sections]
+    .filter((s) => s.glanceRate > 0.25)
+    .sort((a, b) => b.glanceRate - a.glanceRate)[0];
   if (glanced !== undefined) {
     findings.push({
       id: "glanced_section",
       statement: `${glanced.label} is opened in ${percent(glanced.reachRate, locale)} of meetings but left within ${MEANINGFUL_DWELL_SECONDS} seconds ${percent(glanced.glanceRate, locale)} of the time.`,
       baseline: `median dwell ${glanced.medianDwellSeconds === null ? "unknown" : formatDuration(glanced.medianDwellSeconds)}`,
-      soWhat: "Either the section is not carrying an argument, or it is being opened by accident on the way somewhere else.",
+      soWhat:
+        "Either the section is not carrying an argument, or it is being opened by accident on the way somewhere else.",
       nextStep: { label: "See the transitions", href: `${base}/presentation` },
-      evidence: evidenceRef(`glance-${glanced.sectionId}`, "observed_sequence", `${base}/storytelling`, glanced.meetings),
+      evidence: evidenceRef(
+        `glance-${glanced.sectionId}`,
+        "observed_sequence",
+        `${base}/storytelling`,
+        glanced.meetings,
+      ),
       sampleSize: n,
       sources: DERIVED,
       caveat: null,
@@ -1119,9 +1230,15 @@ export function buildStorytelling(
       id: "pairing",
       statement: `${sectionLabel(topPair.a)} and ${sectionLabel(topPair.b)} appear together in ${count(topPair.together, locale)} meetings — ${topPair.lift.toFixed(2)}× what independent use would produce.`,
       baseline: "1.00× is chance",
-      soWhat: "Two sections that travel together are one argument in the agent's head, and can be presented as one.",
+      soWhat:
+        "Two sections that travel together are one argument in the agent's head, and can be presented as one.",
       nextStep: null,
-      evidence: evidenceRef(`pair-${topPair.a}-${topPair.b}`, "statistical_association", `${base}/storytelling`, topPair.together),
+      evidence: evidenceRef(
+        `pair-${topPair.a}-${topPair.b}`,
+        "statistical_association",
+        `${base}/storytelling`,
+        topPair.together,
+      ),
       sampleSize: n,
       sources: DERIVED,
       caveat: "Co-occurrence within a meeting, not a sequence claim.",
@@ -1141,7 +1258,8 @@ export function buildStorytelling(
       evidence: evidenceRef("environment", "observed_sequence", `${base}/storytelling`, totalTime),
       sampleSize: n,
       sources: OBSERVED,
-      caveat: "Which unit was on screen at the moment of the change is not recorded by the current build.",
+      caveat:
+        "Which unit was on screen at the moment of the change is not recorded by the current build.",
     });
   }
 

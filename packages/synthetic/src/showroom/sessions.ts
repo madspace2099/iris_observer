@@ -308,7 +308,9 @@ function buildSteps(
       sectionId,
       itemId,
       itemLabel,
-      enteredAt: timingUnavailable ? null : new Date(startedAt.getTime() + clock * 1000).toISOString(),
+      enteredAt: timingUnavailable
+        ? null
+        : new Date(startedAt.getTime() + clock * 1000).toISOString(),
       dwellSeconds: timingUnavailable ? null : dwell,
       isReturn: seen.has(sectionId),
       availability: timingUnavailable ? "partially_derivable" : "legacy_available",
@@ -360,8 +362,10 @@ function buildUnits(
   if (chosen.length === 0) chosen.push(catalogue[0] as RawUnit);
 
   // The comparison set, when the agent used Compare at all.
-  const compareSet = usedCompare && chosen.length >= 2 ? chosen.slice(0, Math.min(3, chosen.length)) : [];
-  const keeper = compareSet.length > 0 ? (compareSet[Math.floor(r() * compareSet.length)] as RawUnit) : null;
+  const compareSet =
+    usedCompare && chosen.length >= 2 ? chosen.slice(0, Math.min(3, chosen.length)) : [];
+  const keeper =
+    compareSet.length > 0 ? (compareSet[Math.floor(r() * compareSet.length)] as RawUnit) : null;
 
   return chosen.map((unit) => {
     const views = 1 + (r() > 0.68 ? 1 : 0) + (r() > 0.91 ? 1 : 0);
@@ -382,7 +386,9 @@ function buildUnits(
       balconyViews: r() < engaged * 0.8 ? 1 + (r() > 0.8 ? 1 : 0) : 0,
       floorCutViews: r() < engaged * 0.55 ? 1 : 0,
       screenshots: r() < engaged * 0.45 ? 1 + (r() > 0.85 ? 1 : 0) : 0,
-      comparedWith: inCompare ? compareSet.filter((c) => c.code !== unit.code).map((c) => c.code) : [],
+      comparedWith: inCompare
+        ? compareSet.filter((c) => c.code !== unit.code).map((c) => c.code)
+        : [],
       keptFromComparison: inCompare ? keeper?.code === unit.code : null,
       shared: r() < engaged * 0.3,
     } satisfies ShowroomUnitInteraction;

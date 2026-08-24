@@ -47,7 +47,12 @@ interface AskOutcome {
   readonly answer: AskAnswer | null;
   readonly refusal: string | null;
   readonly toolsUsed: readonly string[];
-  readonly status: { readonly provider: string; readonly model: string; readonly live: boolean; readonly reason: string | null };
+  readonly status: {
+    readonly provider: string;
+    readonly model: string;
+    readonly live: boolean;
+    readonly reason: string | null;
+  };
 }
 
 const SUGGESTIONS = [
@@ -60,7 +65,17 @@ const SUGGESTIONS = [
 
 function Spark() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
       <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.8 2.8M14.9 14.9l2.8 2.8M17.7 6.3l-2.8 2.8M9.1 14.9l-2.8 2.8" />
     </svg>
   );
@@ -92,7 +107,10 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
-      if ((event.key === "k" && (event.metaKey || event.ctrlKey)) || (event.key === "/" && !typing)) {
+      if (
+        (event.key === "k" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "/" && !typing)
+      ) {
         event.preventDefault();
         input.current?.focus();
       }
@@ -132,13 +150,13 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
   return (
     <>
       {/*
-        * The rail steps aside for its own sheet.
-        *
-        * In the laboratory the shell carried a data-sheet attribute and the CSS
-        * read it from there. Production renders the rail from this component and
-        * the shell knows nothing about it, so the sheet landed on top of the
-        * control that opened it. The rail flags its own state instead.
-        */}
+       * The rail steps aside for its own sheet.
+       *
+       * In the laboratory the shell carried a data-sheet attribute and the CSS
+       * read it from there. Production renders the rail from this component and
+       * the shell knows nothing about it, so the sheet landed on top of the
+       * control that opened it. The rail flags its own state instead.
+       */}
       <div
         className="iris-rail"
         data-busy={busy ? "true" : undefined}
@@ -198,7 +216,12 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
         <aside className="iris-sheet" role="dialog" aria-label="Ask Observer">
           <div className="iris-sheet-head">
             <p className="iris-kicker">Ask Observer</p>
-            <button className="iris-sheet-close" type="button" onClick={() => setOutcome(null)} aria-label="Close">
+            <button
+              className="iris-sheet-close"
+              type="button"
+              onClick={() => setOutcome(null)}
+              aria-label="Close"
+            >
               ×
             </button>
           </div>
@@ -220,7 +243,9 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
                       <dt>{fact.label}</dt>
                       <dd>
                         {fact.value}
-                        {fact.note === null ? null : <span className="iris-code"> · {fact.note}</span>}
+                        {fact.note === null ? null : (
+                          <span className="iris-code"> · {fact.note}</span>
+                        )}
                       </dd>
                     </div>
                   ))}
@@ -235,7 +260,11 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
 
               {/* 3. Recommended action. */}
               {outcome.answer.action === null ? null : (
-                <a className="iris-action" data-emphasis="primary" href={outcome.answer.action.href}>
+                <a
+                  className="iris-action"
+                  data-emphasis="primary"
+                  href={outcome.answer.action.href}
+                >
                   {outcome.answer.action.label}
                 </a>
               )}
@@ -285,19 +314,21 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
 
           <div className="iris-stack" style={{ marginTop: "1.5rem" }}>
             <p className="iris-kicker">Try next</p>
-            {SUGGESTIONS.filter((s) => s !== outcome.question).slice(0, 4).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="iris-followup"
-                onClick={() => {
-                  setValue(s);
-                  void submit(s);
-                }}
-              >
-                {s}
-              </button>
-            ))}
+            {SUGGESTIONS.filter((s) => s !== outcome.question)
+              .slice(0, 4)
+              .map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="iris-followup"
+                  onClick={() => {
+                    setValue(s);
+                    void submit(s);
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
           </div>
         </aside>
       )}

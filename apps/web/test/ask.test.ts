@@ -33,37 +33,47 @@ const CAUSAL =
   /\b(because|caused|causes|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i;
 
 /** The ten questions from the brief, with the tool each must reach. */
-const QUESTIONS: readonly { question: string; tool: string; context?: Partial<typeof CONTEXT> }[] = [
-  { question: "Compare Monika and Akhilesh's presentation flows.", tool: "compare_agent_flows" },
-  { question: "What do the more successful showroom meetings have in common?", tool: "compare_meeting_cohorts" },
-  { question: "Which IRIS sections are being skipped most frequently?", tool: "analyze_feature_usage" },
-  {
-    question: "Show me how this meeting developed step by step.",
-    tool: "explain_meeting_journey",
-    context: { meetingId: "mtg_0100" },
-  },
-  { question: "Why is interest in apartment A-402 changing?", tool: "analyze_unit_attention" },
-  {
-    question: "Which IRIS functions appear before visitors shortlist an apartment?",
-    tool: "analyze_feature_usage",
-  },
-  {
-    question: "How are weather and time-of-day presets used during presentations?",
-    tool: "analyze_environment_usage",
-  },
-  { question: "What should this sales agent change in the next meeting?", tool: "compare_agent_flows" },
-  {
-    question: "Summarize the most important showroom behavior changes this month.",
-    tool: "detect_showroom_behavior_changes",
-  },
-  {
-    question: "Prepare me for the meeting with Viktória using WEBIRIS context.",
-    tool: "prepare_meeting",
-    // Asked by the agent running the meeting: a brief is not a developer's to
-    // read (ADR-0018), and the router correctly refuses it for one.
-    context: { meetingId: "mtg_viktoria0827", viewer: VIEWERS.salesAgent },
-  },
-];
+const QUESTIONS: readonly { question: string; tool: string; context?: Partial<typeof CONTEXT> }[] =
+  [
+    { question: "Compare Monika and Akhilesh's presentation flows.", tool: "compare_agent_flows" },
+    {
+      question: "What do the more successful showroom meetings have in common?",
+      tool: "compare_meeting_cohorts",
+    },
+    {
+      question: "Which IRIS sections are being skipped most frequently?",
+      tool: "analyze_feature_usage",
+    },
+    {
+      question: "Show me how this meeting developed step by step.",
+      tool: "explain_meeting_journey",
+      context: { meetingId: "mtg_0100" },
+    },
+    { question: "Why is interest in apartment A-402 changing?", tool: "analyze_unit_attention" },
+    {
+      question: "Which IRIS functions appear before visitors shortlist an apartment?",
+      tool: "analyze_feature_usage",
+    },
+    {
+      question: "How are weather and time-of-day presets used during presentations?",
+      tool: "analyze_environment_usage",
+    },
+    {
+      question: "What should this sales agent change in the next meeting?",
+      tool: "compare_agent_flows",
+    },
+    {
+      question: "Summarize the most important showroom behavior changes this month.",
+      tool: "detect_showroom_behavior_changes",
+    },
+    {
+      question: "Prepare me for the meeting with Viktória using WEBIRIS context.",
+      tool: "prepare_meeting",
+      // Asked by the agent running the meeting: a brief is not a developer's to
+      // read (ADR-0018), and the router correctly refuses it for one.
+      context: { meetingId: "mtg_viktoria0827", viewer: VIEWERS.salesAgent },
+    },
+  ];
 
 describe("the ten questions", () => {
   for (const { question, tool, context } of QUESTIONS) {
@@ -83,9 +93,7 @@ describe("the ten questions", () => {
       expect(answer.interpretation.length).toBeGreaterThan(20);
       // Rooted in the showroom, per ADR-0023.
       expect(
-        answer.sources.some(
-          (s) => s === "IRIS_SHOWROOM_OBSERVED" || s === "IRIS_SHOWROOM_DERIVED",
-        ),
+        answer.sources.some((s) => s === "IRIS_SHOWROOM_OBSERVED" || s === "IRIS_SHOWROOM_DERIVED"),
       ).toBe(true);
       // And never a causal claim.
       expect(CAUSAL.test(answer.interpretation), answer.interpretation).toBe(false);
@@ -102,7 +110,6 @@ describe("the boundary holds", () => {
     expect(outcome.answer).toBeNull();
     expect(outcome.refusal).toMatch(/not permitted/i);
   });
-
 
   it("refuses a question it has no registered analysis for", async () => {
     const outcome = await ask("What is the weather in Bratislava tomorrow?", CONTEXT);
@@ -126,7 +133,10 @@ describe("the boundary holds", () => {
   });
 
   it("always states confidence, completeness and evidence", async () => {
-    const outcome = await ask("Summarize the most important showroom behavior changes this month.", CONTEXT);
+    const outcome = await ask(
+      "Summarize the most important showroom behavior changes this month.",
+      CONTEXT,
+    );
     expect(outcome.answer?.confidence).toMatch(/high|moderate|low/);
     expect(outcome.answer?.dataCompleteness).toMatch(/meeting/);
     expect(outcome.answer?.evidence.length).toBeGreaterThan(0);

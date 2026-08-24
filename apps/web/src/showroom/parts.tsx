@@ -96,7 +96,16 @@ export function Figures({ figures }: { figures: readonly MetricValue[] }) {
             {m.comparison === null ? (
               <span className="iris-code">{m.qualifier ?? m.message ?? ""}</span>
             ) : (
-              <span className="iris-delta" data-tone={m.comparison.better === "up" ? (m.comparison.direction === "up" ? "good" : "bad") : "flat"}>
+              <span
+                className="iris-delta"
+                data-tone={
+                  m.comparison.better === "up"
+                    ? m.comparison.direction === "up"
+                      ? "good"
+                      : "bad"
+                    : "flat"
+                }
+              >
                 {m.comparison.deltaDisplay}
                 <span className="iris-code">{m.qualifier}</span>
               </span>
@@ -189,7 +198,10 @@ export function Coverage({
       <div className="iris-bars">
         <div className="iris-bar">
           <span className="iris-bar-label">Core story</span>
-          <span className="iris-bar-track" style={{ "--v": coverage.coreReached.toFixed(3) } as React.CSSProperties}>
+          <span
+            className="iris-bar-track"
+            style={{ "--v": coverage.coreReached.toFixed(3) } as React.CSSProperties}
+          >
             <i />
           </span>
           <span className="iris-bar-value">{Math.round(coverage.coreReached * 100)}%</span>
@@ -198,7 +210,13 @@ export function Coverage({
           <span className="iris-bar-label">Median depth</span>
           <span
             className="iris-bar-track"
-            style={{ "--v": (coverage.medianDepth / Math.max(1, coverage.sectionsTotal * 1.5)).toFixed(3) } as React.CSSProperties}
+            style={
+              {
+                "--v": (coverage.medianDepth / Math.max(1, coverage.sectionsTotal * 1.5)).toFixed(
+                  3,
+                ),
+              } as React.CSSProperties
+            }
           >
             <i />
           </span>
@@ -230,13 +248,26 @@ export function Changes({ changes }: { changes: readonly BehaviourChange[] }) {
       <p className="iris-kicker">What changed</p>
       {changes.map((change) => (
         <div key={change.id} style={{ display: "grid", gap: ".25rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "baseline" }}>
-            <Link className="iris-body" href={dynamicRoute(change.href)} style={{ fontWeight: 600 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "1rem",
+              alignItems: "baseline",
+            }}
+          >
+            <Link
+              className="iris-body"
+              href={dynamicRoute(change.href)}
+              style={{ fontWeight: 600 }}
+            >
               {change.label}
             </Link>
             <span
               className="iris-delta"
-              data-tone={change.direction === "flat" ? "flat" : change.direction === "up" ? "good" : "bad"}
+              data-tone={
+                change.direction === "flat" ? "flat" : change.direction === "up" ? "good" : "bad"
+              }
               style={{ flexDirection: "row", gap: ".375rem", marginTop: 0 }}
             >
               {change.deltaDisplay}
@@ -259,7 +290,13 @@ export function Changes({ changes }: { changes: readonly BehaviourChange[] }) {
  * Stated once, in outline, rather than repeated as a footnote beside every
  * affected figure. `docs/14-design-system.md` §10.
  */
-export function Gaps({ gaps, title = "What this source cannot say" }: { gaps: readonly string[]; title?: string }) {
+export function Gaps({
+  gaps,
+  title = "What this source cannot say",
+}: {
+  gaps: readonly string[];
+  title?: string;
+}) {
   if (gaps.length === 0) return null;
   return (
     <div className="iris-gap">

@@ -30,7 +30,7 @@ Concretely:
    fact.
 2. CRM data is admissible in exactly three roles: an **outcome label**, a **later-stage validation
    signal**, and a **cohort boundary** for comparing showroom behaviour against results.
-3. A finding whose sources are only `CRM_OUTCOME_CONTEXT` may still be *displayed*, but never in a
+3. A finding whose sources are only `CRM_OUTCOME_CONTEXT` may still be _displayed_, but never in a
    primary position, and never as the subject of an Ask Observer answer.
 4. `AI_INTERPRETATION` may never stand alone. The model explains evidence; it does not produce it.
 5. Cohort comparison must analyse the **preceding IRIS behaviour**. Recreating a CRM funnel with

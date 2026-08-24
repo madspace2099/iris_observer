@@ -160,7 +160,9 @@ describe("the synthetic dataset", () => {
     const all = showroomSessions();
     expect(all.length).toBeGreaterThanOrEqual(120);
     expect(new Set(all.map((s) => s.agentId)).size).toBeGreaterThanOrEqual(4);
-    expect(new Set(all.flatMap((s) => s.units.map((u) => u.unitCode))).size).toBeGreaterThanOrEqual(40);
+    expect(new Set(all.flatMap((s) => s.units.map((u) => u.unitCode))).size).toBeGreaterThanOrEqual(
+      40,
+    );
   });
 
   it("holds two comparable periods", () => {
@@ -216,8 +218,12 @@ describe("the synthetic dataset", () => {
     expect(lift, "the association is too strong to be honest").toBeLessThan(2.2);
 
     // Exceptions in both directions. A dataset without them is a rule.
-    expect(rest.filter((s) => s.outcome === "purchase" || s.outcome === "reservation").length).toBeGreaterThan(0);
-    expect(all.filter((s) => !hasProgressed(s.outcome) && early(s) && compared(s)).length).toBeGreaterThan(0);
+    expect(
+      rest.filter((s) => s.outcome === "purchase" || s.outcome === "reservation").length,
+    ).toBeGreaterThan(0);
+    expect(
+      all.filter((s) => !hasProgressed(s.outcome) && early(s) && compared(s)).length,
+    ).toBeGreaterThan(0);
   });
 
   it("gives every agent exceptions to their own tendencies", () => {
@@ -385,7 +391,9 @@ describe("projections", () => {
     expect(() => buildShowroomOverview(context, [], [])).not.toThrow();
     expect(() => buildStorytelling(context, [])).not.toThrow();
     expect(() => buildUnitAttention(context, [], [], null)).not.toThrow();
-    expect(() => buildPresentationIntelligence(context, [], [], "agents", null, null)).not.toThrow();
+    expect(() =>
+      buildPresentationIntelligence(context, [], [], "agents", null, null),
+    ).not.toThrow();
     const session = showroomSessions()[0];
     expect(session).toBeDefined();
     if (session !== undefined) expect(() => buildMeetingReplay(context, session)).not.toThrow();

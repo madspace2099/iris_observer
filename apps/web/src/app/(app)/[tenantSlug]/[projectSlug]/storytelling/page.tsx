@@ -30,7 +30,12 @@ export default async function StorytellingPage({
   const { tenantSlug, projectSlug } = await params;
   const search = await searchParams;
 
-  const query = { viewer, tenantSlug, projectSlug, period: presetFrom(search.period) as PeriodPreset };
+  const query = {
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period: presetFrom(search.period) as PeriodPreset,
+  };
   const view = await repository.getStorytelling(query);
 
   const totalTime = view.environment.timeOfDay.reduce((a, b) => a + b.count, 0);
@@ -43,8 +48,8 @@ export default async function StorytellingPage({
         <p className="iris-kicker">Storytelling · {view.context.period.label}</p>
         <h1 className="iris-section">Which parts of IRIS carry the argument.</h1>
         <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          The solid bar is how often a section was reached. The hatched overlay is the share of those
-          visits that ended within fifteen seconds — opened and left rather than presented.
+          The solid bar is how often a section was reached. The hatched overlay is the share of
+          those visits that ended within fifteen seconds — opened and left rather than presented.
         </p>
         <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
           <Measure id="section.reach" />
@@ -54,7 +59,10 @@ export default async function StorytellingPage({
         <div className="iris-bars" data-value-wide="true" style={{ marginTop: "1rem" }}>
           {view.sections.map((s) => (
             <div className="iris-bar" key={s.sectionId}>
-              <span className="iris-bar-label" title={`${s.kind} · mean position ${Math.round(s.meanPosition * 100)}%`}>
+              <span
+                className="iris-bar-label"
+                title={`${s.kind} · mean position ${Math.round(s.meanPosition * 100)}%`}
+              >
                 {s.label}
               </span>
               <span
@@ -89,14 +97,14 @@ export default async function StorytellingPage({
             Where each section lands in the presentation
           </p>
           {/*
-            * A list, not an axis.
-            *
-            * Six of the nine sections have a mean position between 0.44 and
-            * 0.54, so labelling a 0–1 axis put six names inside a tenth of its
-            * width and none of them could be read. The band is the useful
-            * reading anyway: what opens, what closes, and what floats in the
-            * middle.
-            */}
+           * A list, not an axis.
+           *
+           * Six of the nine sections have a mean position between 0.44 and
+           * 0.54, so labelling a 0–1 axis put six names inside a tenth of its
+           * width and none of them could be read. The band is the useful
+           * reading anyway: what opens, what closes, and what floats in the
+           * middle.
+           */}
           <div className="iris-bars">
             {view.sections
               .filter((s) => s.meetings > 0)
@@ -156,7 +164,11 @@ export default async function StorytellingPage({
                 </span>
                 <span
                   className="iris-bar-track"
-                  style={{ "--v": Math.min(1, p.lift / Math.max(1, peakPair)).toFixed(3) } as React.CSSProperties}
+                  style={
+                    {
+                      "--v": Math.min(1, p.lift / Math.max(1, peakPair)).toFixed(3),
+                    } as React.CSSProperties
+                  }
                 >
                   <i />
                 </span>
@@ -192,7 +204,11 @@ export default async function StorytellingPage({
                   <span className="iris-bar-label">{t.label}</span>
                   <span
                     className="iris-bar-track"
-                    style={{ "--v": (t.count / Math.max(1, totalTime)).toFixed(3) } as React.CSSProperties}
+                    style={
+                      {
+                        "--v": (t.count / Math.max(1, totalTime)).toFixed(3),
+                      } as React.CSSProperties
+                    }
                   >
                     <i />
                   </span>
@@ -208,7 +224,11 @@ export default async function StorytellingPage({
                   <span className="iris-bar-label">{w.label}</span>
                   <span
                     className="iris-bar-track"
-                    style={{ "--v": (w.count / Math.max(1, totalWeather)).toFixed(3) } as React.CSSProperties}
+                    style={
+                      {
+                        "--v": (w.count / Math.max(1, totalWeather)).toFixed(3),
+                      } as React.CSSProperties
+                    }
                   >
                     <i />
                   </span>
@@ -228,7 +248,10 @@ export default async function StorytellingPage({
             {view.beforeShortlist.slice(0, 6).map((b) => (
               <div className="iris-bar" key={b.sectionId}>
                 <span className="iris-bar-label">{b.label}</span>
-                <span className="iris-bar-track" style={{ "--v": b.rate.toFixed(3) } as React.CSSProperties}>
+                <span
+                  className="iris-bar-track"
+                  style={{ "--v": b.rate.toFixed(3) } as React.CSSProperties}
+                >
                   <i />
                 </span>
                 <span className="iris-bar-value">{Math.round(b.rate * 100)}%</span>

@@ -16,7 +16,7 @@
   --void: #060709;
 
   /* The answer sheet's width. The shell reserves exactly this much. */
-  --sheet-w: min(34rem, 38vw);   /* roughly the width of the evidence field */
+  --sheet-w: min(34rem, 38vw); /* roughly the width of the evidence field */
 
   --plane: #0b0d11;
   --plane-2: #101318;

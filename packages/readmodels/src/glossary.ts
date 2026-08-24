@@ -102,7 +102,8 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     label: "Floor plan opened",
     icon: "plan",
     whatItMeasures: "How many meetings opened this unit's floor plan.",
-    howItIsComputed: "One per meeting. Opening a plan is usually the moment a buyer wants to keep something.",
+    howItIsComputed:
+      "One per meeting. Opening a plan is usually the moment a buyer wants to keep something.",
     sources: OBSERVED,
     limitation: "Opening is recorded; whether the plan was downloaded or sent is not.",
     unit: "count",
@@ -161,14 +162,16 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     whatItMeasures: "How many meetings sent this unit to someone.",
     howItIsComputed: "One per meeting in which a share was recorded.",
     sources: OBSERVED,
-    limitation: "The recipient is deliberately not recorded. It signals a second decision-maker, not who.",
+    limitation:
+      "The recipient is deliberately not recorded. It signals a second decision-maker, not who.",
     unit: "count",
   },
   {
     id: "unit.examined",
     label: "Examined closely",
     icon: "balcony",
-    whatItMeasures: "Whether the buyer looked past the listing — the balcony view and the floor cut.",
+    whatItMeasures:
+      "Whether the buyer looked past the listing — the balcony view and the floor cut.",
     howItIsComputed: "Balcony views and floor cuts, counted separately and shown together.",
     sources: OBSERVED,
     limitation: "Both are optional controls. Not using them may mean the agent never offered them.",
@@ -182,7 +185,8 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     label: "Presentations",
     icon: "meetings",
     whatItMeasures: "How many showroom meetings ran in the period.",
-    howItIsComputed: "One per recorded session, whether or not an outcome was written down afterwards.",
+    howItIsComputed:
+      "One per recorded session, whether or not an outcome was written down afterwards.",
     sources: OBSERVED,
     limitation: "A session that was started and abandoned still counts as a presentation.",
     unit: "count",
@@ -196,7 +200,8 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     howItIsComputed:
       "The share of core sections — Home, Residences, Amenities, Surroundings — opened, averaged across meetings.",
     sources: DERIVED,
-    limitation: "Reaching a section is not the same as presenting it. Read it beside the glance rate.",
+    limitation:
+      "Reaching a section is not the same as presenting it. Read it beside the glance rate.",
     unit: "percent",
   },
   {

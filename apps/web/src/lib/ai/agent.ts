@@ -7,7 +7,15 @@ import {
 } from "@observer/contracts";
 import { NotPermittedError, type EvidenceRef } from "@observer/readmodels";
 import { resolveProvider, type ProviderStatus } from "./provider";
-import { TOOL_NAMES, TOOLS, toolByName, toolCatalogue, type ToolContext, type ToolFact, type ToolResult } from "./tools";
+import {
+  TOOL_NAMES,
+  TOOLS,
+  toolByName,
+  toolCatalogue,
+  type ToolContext,
+  type ToolFact,
+  type ToolResult,
+} from "./tools";
 
 /**
  * Ask Observer.
@@ -120,7 +128,10 @@ function fallbackPlan(question: string, context: AskContextInput): z.infer<typeo
   if (/should .* change|coach|improve|advice|do differently|next meeting/.test(q)) {
     return {
       calls: [
-        { tool: "compare_agent_flows", args: { leftAgentId: named[0] ?? first, rightAgentId: named[1] ?? second } },
+        {
+          tool: "compare_agent_flows",
+          args: { leftAgentId: named[0] ?? first, rightAgentId: named[1] ?? second },
+        },
         { tool: "compare_meeting_cohorts", args: {} },
       ],
     };
@@ -133,7 +144,10 @@ function fallbackPlan(question: string, context: AskContextInput): z.infer<typeo
       ? { calls: [{ tool: "summarize_showroom_period", args: {} }] }
       : { calls: [{ tool: "prepare_meeting", args: { meetingId: context.meetingId } }] };
   }
-  if (/compare|versus| vs |difference|differ/.test(q) && /agent|monika|akhilesh|ján|jan|lucia|present/.test(q)) {
+  if (
+    /compare|versus| vs |difference|differ/.test(q) &&
+    /agent|monika|akhilesh|ján|jan|lucia|present/.test(q)
+  ) {
     return {
       calls: [
         {
@@ -194,11 +208,16 @@ function writerPrompt(question: string, results: readonly ToolResult[]): string 
     .map(
       (r) =>
         `Tool ${r.tool} (n = ${r.sampleSize}):\n` +
-        r.facts.map((f) => `  ${f.label}: ${f.value}${f.note === null ? "" : ` (${f.note})`}`).join("\n"),
+        r.facts
+          .map((f) => `  ${f.label}: ${f.value}${f.note === null ? "" : ` (${f.note})`}`)
+          .join("\n"),
     )
     .join("\n\n");
 
-  const draft = results.map((r) => r.draft).filter((d) => d.length > 0).join(" ");
+  const draft = results
+    .map((r) => r.draft)
+    .filter((d) => d.length > 0)
+    .join(" ");
 
   return `Question: ${question}
 
@@ -206,7 +225,12 @@ Evidence:
 ${evidence}
 
 Limitations that must not be contradicted:
-${results.flatMap((r) => r.caveats).map((c) => `- ${c}`).join("\n") || "- none"}
+${
+  results
+    .flatMap((r) => r.caveats)
+    .map((c) => `- ${c}`)
+    .join("\n") || "- none"
+}
 
 <draft>${draft}</draft>
 
@@ -220,7 +244,13 @@ export async function ask(question: string, context: AskContextInput): Promise<A
   const { provider, status } = resolveProvider();
 
   if (trimmed.length === 0) {
-    return { question, answer: null, refusal: "Ask a question about what happened inside IRIS.", toolsUsed: [], status };
+    return {
+      question,
+      answer: null,
+      refusal: "Ask a question about what happened inside IRIS.",
+      toolsUsed: [],
+      status,
+    };
   }
 
   /* 1. plan */
@@ -301,7 +331,10 @@ export async function ask(question: string, context: AskContextInput): Promise<A
   }
 
   /* 4. compose */
-  const drafted = results.map((r) => r.draft).filter((d) => d.length > 0).join(" ");
+  const drafted = results
+    .map((r) => r.draft)
+    .filter((d) => d.length > 0)
+    .join(" ");
   let interpretation = drafted;
 
   if (status.live) {

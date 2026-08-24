@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AskAnswer, AskSession, ProjectPulse, PulseSegment, PulseUnit } from "@observer/readmodels";
+import type {
+  AskAnswer,
+  AskSession,
+  ProjectPulse,
+  PulseSegment,
+  PulseUnit,
+} from "@observer/readmodels";
 import type { ExecutiveOverview } from "@observer/readmodels";
 
 /**
@@ -218,7 +224,10 @@ function AskRail({
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const typing = document.activeElement?.tagName === "INPUT";
-      if ((event.key === "k" && (event.metaKey || event.ctrlKey)) || (event.key === "/" && !typing)) {
+      if (
+        (event.key === "k" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "/" && !typing)
+      ) {
         event.preventDefault();
         input.current?.focus();
       }
@@ -330,8 +339,7 @@ function AnswerSheet({
         {answer.evidence === null ? null : (
           <a className="iris-evidence" href={answer.evidence.href}>
             <i />
-            {answer.evidence.observationCount} records ·{" "}
-            {answer.evidence.tier.replace(/_/g, " ")}
+            {answer.evidence.observationCount} records · {answer.evidence.tier.replace(/_/g, " ")}
           </a>
         )}
 
@@ -353,10 +361,15 @@ function AnswerSheet({
         <p className="iris-kicker">Follow up</p>
         <div className="iris-suggestions">
           {answer.followUps.map((q) => (
-            <button key={q} className="iris-suggestion" type="button" onClick={() => {
-              const hit = ask.answers.find((a) => a.question === q);
-              if (hit !== undefined) onAnswer(hit);
-            }}>
+            <button
+              key={q}
+              className="iris-suggestion"
+              type="button"
+              onClick={() => {
+                const hit = ask.answers.find((a) => a.question === q);
+                if (hit !== undefined) onAnswer(hit);
+              }}
+            >
               {q}
             </button>
           ))}
@@ -387,10 +400,7 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
   const [period, setPeriod] = useState<string>("quarter_to_date");
   const [answer, setAnswer] = useState<AskAnswer | null>(null);
 
-  const matched = useMemo(
-    () => (segment === null ? null : new Set(segment.unitIds)),
-    [segment],
-  );
+  const matched = useMemo(() => (segment === null ? null : new Set(segment.unitIds)), [segment]);
 
   const selectionLabel = unit?.code ?? segment?.label ?? null;
 
@@ -530,7 +540,12 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
   const claims = (
     <div className="iris-stack">
       {overview.briefing.statements.map((s, index) => (
-        <div className="iris-claim" key={s.text} data-tier={s.tier} data-weight={index === 0 ? "lead" : undefined}>
+        <div
+          className="iris-claim"
+          key={s.text}
+          data-tier={s.tier}
+          data-weight={index === 0 ? "lead" : undefined}
+        >
           <div>
             <p className="iris-body">{s.text}</p>
             {s.evidence === null ? null : (
@@ -672,7 +687,10 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
               {scrubber}
               <hr className="iris-rule" />
               <div>
-                <p className="iris-kicker" style={{ display: "flex", gap: ".5rem", alignItems: "center" }}>
+                <p
+                  className="iris-kicker"
+                  style={{ display: "flex", gap: ".5rem", alignItems: "center" }}
+                >
                   <Icon name="building" /> {pulse.buildingLabel}
                 </p>
                 <div style={{ marginTop: ".75rem" }}>
@@ -747,7 +765,11 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
               <hr className="iris-rule" />
               {readout}
               <hr className="iris-rule" />
-              <div className="iris-claim" data-tier={overview.briefing.statements[0]?.tier} data-weight="lead">
+              <div
+                className="iris-claim"
+                data-tier={overview.briefing.statements[0]?.tier}
+                data-weight="lead"
+              >
                 <div>
                   <p className="iris-body">{overview.briefing.statements[0]?.text}</p>
                   {overview.briefing.statements[0]?.evidence == null ? null : (

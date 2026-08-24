@@ -198,15 +198,15 @@ export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
         <h1 className="iris-verdict">Each profile sees a different Observer.</h1>
 
         {/*
-          * One row, not the showroom's three category rows.
-          *
-          * IRIS browses dozens of projects, so category rows fill its frame.
-          * Observer has five profiles, and three rows of two cards leaves
-          * two-thirds of a 1920 frame empty — which is precisely the defect
-          * that got the previous visual layer rejected. The role chip on each
-          * card already says which group it belongs to, so the row headers were
-          * labelling something the cards state themselves.
-          */}
+         * One row, not the showroom's three category rows.
+         *
+         * IRIS browses dozens of projects, so category rows fill its frame.
+         * Observer has five profiles, and three rows of two cards leaves
+         * two-thirds of a 1920 frame empty — which is precisely the defect
+         * that got the previous visual layer rejected. The role chip on each
+         * card already says which group it belongs to, so the row headers were
+         * labelling something the cards state themselves.
+         */}
         <div className="iris-collection">
           {shown.map((profile) => (
             <ProfileCard key={profile.key} profile={profile} />

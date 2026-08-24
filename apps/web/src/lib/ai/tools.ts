@@ -127,7 +127,11 @@ const summarizeShowroomPeriod: ToolDefinition<z.ZodObject<Record<string, never>>
       tool: "summarize_showroom_period",
       facts: [
         { label: "Presentations", value: String(overview.meetingCount), note: null },
-        { label: "Core coverage", value: pct(overview.coverage.coreReached), note: `${overview.coverage.coreTotal} core sections` },
+        {
+          label: "Core coverage",
+          value: pct(overview.coverage.coreReached),
+          note: `${overview.coverage.coreTotal} core sections`,
+        },
         { label: "Median depth", value: `${overview.coverage.medianDepth} steps`, note: null },
         ...overview.coverage.routinelySkipped.slice(0, 2).map((s) => ({
           label: `${s.label} skipped`,
@@ -181,8 +185,16 @@ const compareAgentFlows: ToolDefinition<
     return {
       tool: "compare_agent_flows",
       facts: [
-        { label: `${c.left.label} · meetings`, value: String(c.left.meetingCount), note: `${pct(c.left.coverage)} core coverage` },
-        { label: `${c.right.label} · meetings`, value: String(c.right.meetingCount), note: `${pct(c.right.coverage)} core coverage` },
+        {
+          label: `${c.left.label} · meetings`,
+          value: String(c.left.meetingCount),
+          note: `${pct(c.left.coverage)} core coverage`,
+        },
+        {
+          label: `${c.right.label} · meetings`,
+          value: String(c.right.meetingCount),
+          note: `${pct(c.right.coverage)} core coverage`,
+        },
         ...top.map((d) => ({
           label: d.behaviour,
           value: `${d.leftDisplay} vs ${d.rightDisplay}`,
@@ -193,7 +205,10 @@ const compareAgentFlows: ToolDefinition<
       evidence: c.evidence,
       sampleSize: c.left.meetingCount + c.right.meetingCount,
       caveats: [NO_CAUSATION, ...top.flatMap((d) => (d.note === null ? [] : [d.note]))],
-      action: { label: "Open the comparison", href: `${root(context)}/presentation?mode=agents&left=${args.leftAgentId}&right=${args.rightAgentId}` },
+      action: {
+        label: "Open the comparison",
+        href: `${root(context)}/presentation?mode=agents&left=${args.leftAgentId}&right=${args.rightAgentId}`,
+      },
       /*
        * Written as prose, not as a joined list.
        *
@@ -244,9 +259,21 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
     return {
       tool: "compare_meeting_cohorts",
       facts: [
-        { label: "Progressed further", value: String(c.left.meetingCount), note: "purchase, reservation, interested or follow-up" },
-        { label: "Did not progress", value: String(c.right.meetingCount), note: "presentation only or not interested" },
-        ...top.map((d) => ({ label: d.behaviour, value: `${d.leftDisplay} vs ${d.rightDisplay}`, note: d.note })),
+        {
+          label: "Progressed further",
+          value: String(c.left.meetingCount),
+          note: "purchase, reservation, interested or follow-up",
+        },
+        {
+          label: "Did not progress",
+          value: String(c.right.meetingCount),
+          note: "presentation only or not interested",
+        },
+        ...top.map((d) => ({
+          label: d.behaviour,
+          value: `${d.leftDisplay} vs ${d.rightDisplay}`,
+          note: d.note,
+        })),
       ],
       sources: WITH_OUTCOME,
       evidence: c.evidence,
@@ -255,12 +282,17 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
         NO_CAUSATION,
         "Meetings with no recorded outcome are excluded from both cohorts rather than assigned to one.",
       ],
-      action: { label: "Open the cohort comparison", href: `${root(context)}/presentation?mode=cohorts` },
+      action: {
+        label: "Open the cohort comparison",
+        href: `${root(context)}/presentation?mode=cohorts`,
+      },
       draft:
         top.length === 0
           ? "The two cohorts show no behavioural difference above the reporting threshold."
           : `Meetings that progressed differ most on: ${top
-              .map((d) => `${d.behaviour.toLowerCase()} (${d.leftDisplay} against ${d.rightDisplay})`)
+              .map(
+                (d) => `${d.behaviour.toLowerCase()} (${d.leftDisplay} against ${d.rightDisplay})`,
+              )
               .join("; ")}. ${c.left.meetingCount} progressed, ${c.right.meetingCount} did not.`,
     };
   },
@@ -270,7 +302,8 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
 
 const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = {
   name: "explain_meeting_journey",
-  description: "Reconstruct one showroom meeting step by step: sections entered, units opened, interactions and gaps.",
+  description:
+    "Reconstruct one showroom meeting step by step: sections entered, units opened, interactions and gaps.",
   input: z.object({ meetingId: z.string().min(1).describe("Meeting id, e.g. mtg_0042") }),
   async run(context, args) {
     const replay = await repository.getMeetingReplay({
@@ -285,8 +318,16 @@ const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString
       facts: [
         { label: "Agent", value: replay.agentName, note: replay.startedDisplay },
         { label: "Duration", value: replay.durationDisplay, note: `${sections.length} sections` },
-        { label: "Sections, in order", value: sections.map((s) => s.label).join(" → "), note: null },
-        { label: "Units opened", value: String(replay.steps.filter((s) => s.kind === "unit").length), note: null },
+        {
+          label: "Sections, in order",
+          value: sections.map((s) => s.label).join(" → "),
+          note: null,
+        },
+        {
+          label: "Units opened",
+          value: String(replay.steps.filter((s) => s.kind === "unit").length),
+          note: null,
+        },
         { label: "Outcome", value: replay.outcomeLabel, note: "recorded by the agent" },
       ],
       sources: OBSERVED,
@@ -301,100 +342,128 @@ const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString
 
 /* --- 5. analyze_feature_usage ---------------------------------------------- */
 
-const analyzeFeatureUsage: ToolDefinition<z.ZodObject<{ sectionId: z.ZodOptional<z.ZodString> }>> = {
-  name: "analyze_feature_usage",
-  description:
-    "How IRIS sections are used: reach, dwell, glance rate, returns and which sections are most often skipped.",
-  input: z.object({ sectionId: z.string().optional().describe("Optional section to focus on, e.g. amenities") }),
-  async run(context, args) {
-    const view = await repository.getStorytelling(query(context));
-    const focus = args.sectionId === undefined ? null : view.sections.find((s) => s.sectionId === args.sectionId);
-    const rows = focus === undefined || focus === null ? view.sections.slice(0, 5) : [focus];
+const analyzeFeatureUsage: ToolDefinition<z.ZodObject<{ sectionId: z.ZodOptional<z.ZodString> }>> =
+  {
+    name: "analyze_feature_usage",
+    description:
+      "How IRIS sections are used: reach, dwell, glance rate, returns and which sections are most often skipped.",
+    input: z.object({
+      sectionId: z.string().optional().describe("Optional section to focus on, e.g. amenities"),
+    }),
+    async run(context, args) {
+      const view = await repository.getStorytelling(query(context));
+      const focus =
+        args.sectionId === undefined
+          ? null
+          : view.sections.find((s) => s.sectionId === args.sectionId);
+      const rows = focus === undefined || focus === null ? view.sections.slice(0, 5) : [focus];
 
-    return {
-      tool: "analyze_feature_usage",
-      facts: rows.map((s) => ({
-        label: s.label,
-        value: `reached in ${pct(s.reachRate)}`,
-        note:
-          s.medianDwellSeconds === null
-            ? "timing not recorded by this source"
-            : `median ${s.medianDwellSeconds}s · ${pct(s.glanceRate)} under the meaningful threshold`,
-      })),
-      sources: DERIVED,
-      evidence: view.evidence,
-      sampleSize: view.environment.meetingsTotal,
-      caveats: view.sections.some((s) => s.availability === "requires_ue5_v2_event")
-        ? ["Some sections have no timing at all in this period; their dwell is unknown, not zero."]
-        : [],
-      action: { label: "Open Storytelling", href: `${root(context)}/storytelling` },
-      draft: rows
-        .map(
-          (s) =>
-            `${s.label} is opened in ${pct(s.reachRate)} of meetings${
-              s.medianDwellSeconds === null ? "" : `, median ${s.medianDwellSeconds}s`
-            }`,
-        )
-        .join("; ") + ".",
-    };
-  },
-};
+      return {
+        tool: "analyze_feature_usage",
+        facts: rows.map((s) => ({
+          label: s.label,
+          value: `reached in ${pct(s.reachRate)}`,
+          note:
+            s.medianDwellSeconds === null
+              ? "timing not recorded by this source"
+              : `median ${s.medianDwellSeconds}s · ${pct(s.glanceRate)} under the meaningful threshold`,
+        })),
+        sources: DERIVED,
+        evidence: view.evidence,
+        sampleSize: view.environment.meetingsTotal,
+        caveats: view.sections.some((s) => s.availability === "requires_ue5_v2_event")
+          ? [
+              "Some sections have no timing at all in this period; their dwell is unknown, not zero.",
+            ]
+          : [],
+        action: { label: "Open Storytelling", href: `${root(context)}/storytelling` },
+        draft:
+          rows
+            .map(
+              (s) =>
+                `${s.label} is opened in ${pct(s.reachRate)} of meetings${
+                  s.medianDwellSeconds === null ? "" : `, median ${s.medianDwellSeconds}s`
+                }`,
+            )
+            .join("; ") + ".",
+      };
+    },
+  };
 
 /* --- 6. analyze_unit_attention --------------------------------------------- */
 
-const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional<z.ZodString> }>> = {
-  name: "analyze_unit_attention",
-  description:
-    "Buyer attention on units: meetings, dwell, repeat views, shortlisting, plans, comparisons and the recent trend.",
-  input: z.object({ unitCode: z.string().optional().describe("Optional unit code, e.g. A-402") }),
-  async run(context, args) {
-    const view = await repository.getUnitAttention(query(context), args.unitCode ?? null);
+const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional<z.ZodString> }>> =
+  {
+    name: "analyze_unit_attention",
+    description:
+      "Buyer attention on units: meetings, dwell, repeat views, shortlisting, plans, comparisons and the recent trend.",
+    input: z.object({ unitCode: z.string().optional().describe("Optional unit code, e.g. A-402") }),
+    async run(context, args) {
+      const view = await repository.getUnitAttention(query(context), args.unitCode ?? null);
 
-    if (view.selected !== null) {
-      const r = view.selected.row;
+      if (view.selected !== null) {
+        const r = view.selected.row;
+        return {
+          tool: "analyze_unit_attention",
+          facts: [
+            {
+              label: r.unitCode,
+              value: `${r.rooms} rooms · ${r.areaSqm} m² · ${r.priceDisplay}`,
+              note: r.status,
+            },
+            { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
+            {
+              label: "Median look",
+              value: `${r.medianDwellSeconds}s`,
+              note: `${r.repeatViews} repeat views`,
+            },
+            {
+              label: "Shortlisted",
+              value: String(r.favourites),
+              note: `${r.pdfOpens} plans opened`,
+            },
+            {
+              label: "Comparisons",
+              value:
+                r.comparisonWins === null
+                  ? "never compared"
+                  : `kept ${r.comparisonWins} of ${r.comparisonAppearances}`,
+              note: null,
+            },
+            { label: "Trend", value: r.trendDisplay, note: `against the previous period` },
+          ],
+          sources: OBSERVED,
+          evidence: view.selected.evidence,
+          sampleSize: r.meetings,
+          caveats:
+            r.comparisonWins === null
+              ? ["This unit was never placed in Compare mode, so no comparison record exists."]
+              : [],
+          action: {
+            label: `Open ${r.unitCode}`,
+            href: `${root(context)}/units?unit=${r.unitCode}`,
+          },
+          draft: `${r.unitCode} was opened in ${r.meetings} meetings with a median look of ${r.medianDwellSeconds} seconds, shortlisted ${r.favourites} times, and its attention is ${r.trend} against the previous period.`,
+        };
+      }
+
+      const top = view.rows.filter((r) => r.meetings > 0).slice(0, 5);
       return {
         tool: "analyze_unit_attention",
-        facts: [
-          { label: r.unitCode, value: `${r.rooms} rooms · ${r.areaSqm} m² · ${r.priceDisplay}`, note: r.status },
-          { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
-          { label: "Median look", value: `${r.medianDwellSeconds}s`, note: `${r.repeatViews} repeat views` },
-          { label: "Shortlisted", value: String(r.favourites), note: `${r.pdfOpens} plans opened` },
-          {
-            label: "Comparisons",
-            value: r.comparisonWins === null ? "never compared" : `kept ${r.comparisonWins} of ${r.comparisonAppearances}`,
-            note: null,
-          },
-          { label: "Trend", value: r.trendDisplay, note: `against the previous period` },
-        ],
+        facts: top.map((r) => ({
+          label: r.unitCode,
+          value: `${r.meetings} meetings`,
+          note: `${r.rooms} rooms · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
+        })),
         sources: OBSERVED,
-        evidence: view.selected.evidence,
-        sampleSize: r.meetings,
-        caveats:
-          r.comparisonWins === null
-            ? ["This unit was never placed in Compare mode, so no comparison record exists."]
-            : [],
-        action: { label: `Open ${r.unitCode}`, href: `${root(context)}/units?unit=${r.unitCode}` },
-        draft: `${r.unitCode} was opened in ${r.meetings} meetings with a median look of ${r.medianDwellSeconds} seconds, shortlisted ${r.favourites} times, and its attention is ${r.trend} against the previous period.`,
+        evidence: view.evidence,
+        sampleSize: top.length,
+        caveats: [],
+        action: { label: "Open Unit attention", href: `${root(context)}/units` },
+        draft: `The units drawing most attention are ${top.map((r) => `${r.unitCode} (${r.meetings} meetings)`).join(", ")}.`,
       };
-    }
-
-    const top = view.rows.filter((r) => r.meetings > 0).slice(0, 5);
-    return {
-      tool: "analyze_unit_attention",
-      facts: top.map((r) => ({
-        label: r.unitCode,
-        value: `${r.meetings} meetings`,
-        note: `${r.rooms} rooms · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
-      })),
-      sources: OBSERVED,
-      evidence: view.evidence,
-      sampleSize: top.length,
-      caveats: [],
-      action: { label: "Open Unit attention", href: `${root(context)}/units` },
-      draft: `The units drawing most attention are ${top.map((r) => `${r.unitCode} (${r.meetings} meetings)`).join(", ")}.`,
-    };
-  },
-};
+    },
+  };
 
 /* --- 7. detect_showroom_behavior_changes ----------------------------------- */
 
@@ -406,13 +475,23 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
     const overview = await repository.getShowroomOverview(query(context));
     return {
       tool: "detect_showroom_behavior_changes",
-      facts: overview.changes.map((c) => ({ label: c.label, value: c.deltaDisplay, note: c.detail })),
+      facts: overview.changes.map((c) => ({
+        label: c.label,
+        value: c.deltaDisplay,
+        note: c.detail,
+      })),
       sources: DERIVED,
       evidence: overview.evidence,
       sampleSize: overview.meetingCount,
       caveats: ["Period comparison only. A change is not a trend until it repeats."],
-      action: { label: "Open Presentation Intelligence", href: `${root(context)}/presentation?mode=periods` },
-      draft: overview.changes.map((c) => `${c.label}: ${c.deltaDisplay} (${c.detail.toLowerCase()})`).join("; ") + ".",
+      action: {
+        label: "Open Presentation Intelligence",
+        href: `${root(context)}/presentation?mode=periods`,
+      },
+      draft:
+        overview.changes
+          .map((c) => `${c.label}: ${c.deltaDisplay} (${c.detail.toLowerCase()})`)
+          .join("; ") + ".",
     };
   },
 };
@@ -421,7 +500,8 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
 
 const analyzeEnvironmentUsage: ToolDefinition<z.ZodObject<Record<string, never>>> = {
   name: "analyze_environment_usage",
-  description: "How time-of-day and weather presets are used during presentations, and during which sections.",
+  description:
+    "How time-of-day and weather presets are used during presentations, and during which sections.",
   input: z.object({}),
   async run(context) {
     const view = await repository.getStorytelling(query(context));
@@ -440,11 +520,19 @@ const analyzeEnvironmentUsage: ToolDefinition<z.ZodObject<Record<string, never>>
         ...[...env.timeOfDay]
           .sort((a, b) => b.count - a.count)
           .slice(0, 3)
-          .map((t) => ({ label: t.label, value: String(t.count), note: `${pct(t.count / Math.max(1, totalTime))} of time-of-day changes` })),
+          .map((t) => ({
+            label: t.label,
+            value: String(t.count),
+            note: `${pct(t.count / Math.max(1, totalTime))} of time-of-day changes`,
+          })),
         ...[...env.weather]
           .sort((a, b) => b.count - a.count)
           .slice(0, 2)
-          .map((w) => ({ label: w.label, value: String(w.count), note: `${pct(w.count / Math.max(1, totalWeather))} of weather changes` })),
+          .map((w) => ({
+            label: w.label,
+            value: String(w.count),
+            note: `${pct(w.count / Math.max(1, totalWeather))} of weather changes`,
+          })),
       ],
       sources: OBSERVED,
       evidence: view.evidence,
@@ -524,7 +612,8 @@ const prepareMeeting: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = 
 
 const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> = {
   name: "get_metric_evidence",
-  description: "Resolve what stands behind one figure: its records, its evidence tier and where to inspect it.",
+  description:
+    "Resolve what stands behind one figure: its records, its evidence tier and where to inspect it.",
   input: z.object({ metricId: z.string().min(1) }),
   async run(context, args) {
     const overview = await repository.getShowroomOverview(query(context));
@@ -557,8 +646,14 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
       sources: DERIVED,
       evidence: metric.evidence ?? overview.evidence,
       sampleSize: metric.sampleSize ?? overview.meetingCount,
-      caveats: metric.state === "ok" ? [] : [metric.message ?? "This figure is not in a reportable state."],
-      action: metric.drillHref === null ? null : { label: `Inspect ${metric.label}`, href: metric.drillHref },
+      caveats:
+        metric.state === "ok"
+          ? []
+          : [metric.message ?? "This figure is not in a reportable state."],
+      action:
+        metric.drillHref === null
+          ? null
+          : { label: `Inspect ${metric.label}`, href: metric.drillHref },
       draft: `${metric.label} is ${metric.display ?? "not available"}${metric.qualifier === null ? "" : ` (${metric.qualifier})`}.`,
     };
   },

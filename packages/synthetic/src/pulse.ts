@@ -87,14 +87,16 @@ function buildCatalogue(): RawUnit[] {
         // Two- and three-room units alternate by position; the top two floors
         // carry the larger plans, as a real stacking plan does.
         const rooms = pinned?.rooms ?? (floor >= 7 ? 3 : index === 2 && block !== "B" ? 3 : 2);
-        const areaSqm = pinned?.areaSqm ?? (rooms === 2 ? 58 + Math.round(r * 9) : 84 + Math.round(r * 12));
+        const areaSqm =
+          pinned?.areaSqm ?? (rooms === 2 ? 58 + Math.round(r * 9) : 84 + Math.round(r * 12));
         const orientation = pinned?.orientation ?? BLOCK_ORIENTATION[block] ?? "S";
 
         // Price: area, a floor premium, and a south-facing premium.
         const base = areaSqm * 2_950;
         const floorPremium = (floor - 1) * 4_200;
         const aspectPremium = orientation === "S" ? 9_000 : orientation === "SW" ? 4_000 : 0;
-        const price = pinned?.price ?? Math.round((base + floorPremium + aspectPremium) / 1000) * 1000;
+        const price =
+          pinned?.price ?? Math.round((base + floorPremium + aspectPremium) / 1000) * 1000;
 
         // Availability: the lower floors have moved, the middle is live, and a
         // handful of upper units are reserved. 48 units, 11 sold, 5 reserved.
@@ -155,7 +157,10 @@ export const RAW_CATALOGUE: readonly RawUnit[] = buildCatalogue();
 
 export function buildProjectPulse(context: ViewContext): ProjectPulse {
   const raw = buildCatalogue();
-  const { locale, currency } = { locale: context.project.locale, currency: context.project.currency };
+  const { locale, currency } = {
+    locale: context.project.locale,
+    currency: context.project.currency,
+  };
 
   const withAttention = raw.map((unit) => {
     const attention = attentionFor(unit);
@@ -166,7 +171,11 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       attention,
       meaningfulViews,
       uniqueContacts: Math.max(0, Math.round(meaningfulViews * (0.45 + r * 0.2))),
-      trend: (attention > 0.62 ? "rising" : attention < 0.25 ? "falling" : "flat") as PulseUnit["trend"],
+      trend: (attention > 0.62
+        ? "rising"
+        : attention < 0.25
+          ? "falling"
+          : "flat") as PulseUnit["trend"],
     };
   });
 
@@ -230,7 +239,8 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     conversionRatio: number | null,
   ): PulseSegment {
     const members = units.filter(predicate);
-    const share = members.reduce((sum, u) => sum + u.attention, 0) / Math.max(0.0001, totalAttention);
+    const share =
+      members.reduce((sum, u) => sum + u.attention, 0) / Math.max(0.0001, totalAttention);
     const inventoryShare = members.length / Math.max(1, units.length);
     return {
       id,
@@ -299,7 +309,11 @@ export function buildAskSession(
       figures: [
         { label: "Viewings", value: "46", note: "unchanged" },
         { label: "Offers", value: "12", note: "was 17" },
-        { label: "Two-room attention index", value: String(twoRoom?.attentionIndex ?? "—"), note: "above 1 means over-indexed" },
+        {
+          label: "Two-room attention index",
+          value: String(twoRoom?.attentionIndex ?? "—"),
+          note: "above 1 means over-indexed",
+        },
       ],
       evidence: evidenceRef("ask.demand", "observed_sequence", `${root}/flow`, 46),
       actionLabel: "Open two-room pricing",
@@ -319,13 +333,21 @@ export function buildAskSession(
       } available two-room units currently hold a high intent signal, all on floors 4 to 6 and all south or south-west facing.`,
       figures: [
         { label: "Available two-room", value: String(twoRoom?.available ?? 0), note: null },
-        { label: "Peak interest", value: `${pulse.peakViews} meaningful views`, note: "busiest unit" },
+        {
+          label: "Peak interest",
+          value: `${pulse.peakViews} meaningful views`,
+          note: "busiest unit",
+        },
       ],
       evidence: evidenceRef("ask.strongest", "observed_sequence", `${root}/project`, 46),
       actionLabel: "Filter the Pulse to these",
       actionHref: `${root}/project`,
-      followUps: ["Who are the interested buyers?", "How do these compare on price per square metre?"],
-      caveat: "Intent signals expire after 21 days; two of these were calculated more than a fortnight ago.",
+      followUps: [
+        "Who are the interested buyers?",
+        "How do these compare on price per square metre?",
+      ],
+      caveat:
+        "Intent signals expire after 21 days; two of these were calculated more than a fortnight ago.",
     },
     {
       question: "Which prospects should the sales team contact this week?",
@@ -353,8 +375,12 @@ export function buildAskSession(
       evidence: evidenceRef("ask.viktoria", "observed_sequence", `${root}/people`, 3),
       actionLabel: "Open the full brief",
       actionHref: `${root}/meetings/mtg_viktoria0827`,
-      followUps: ["What should I offer instead of A-505?", "What has changed since her last visit?"],
-      caveat: "No CRM record is linked to this contact, so earlier contact by a colleague would not appear.",
+      followUps: [
+        "What should I offer instead of A-505?",
+        "What has changed since her last visit?",
+      ],
+      caveat:
+        "No CRM record is linked to this contact, so earlier contact by a colleague would not appear.",
     },
     {
       question: "Which apartment attributes are gaining demand?",

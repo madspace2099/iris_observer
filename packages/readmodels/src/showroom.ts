@@ -93,7 +93,11 @@ export interface PresentationCoverage {
   readonly sectionsReached: number;
   readonly sectionsTotal: number;
   /** Sections the project has that meetings routinely never open. */
-  readonly routinelySkipped: readonly { readonly sectionId: SectionId; readonly label: string; readonly skipRate: number }[];
+  readonly routinelySkipped: readonly {
+    readonly sectionId: SectionId;
+    readonly label: string;
+    readonly skipRate: number;
+  }[];
   readonly medianDepth: number;
 }
 
@@ -308,10 +312,22 @@ export interface FeaturePairing {
 }
 
 export interface EnvironmentUsage {
-  readonly timeOfDay: readonly { readonly preset: TimeOfDayPreset; readonly count: number; readonly label: string }[];
-  readonly weather: readonly { readonly preset: WeatherPreset; readonly count: number; readonly label: string }[];
+  readonly timeOfDay: readonly {
+    readonly preset: TimeOfDayPreset;
+    readonly count: number;
+    readonly label: string;
+  }[];
+  readonly weather: readonly {
+    readonly preset: WeatherPreset;
+    readonly count: number;
+    readonly label: string;
+  }[];
   /** Which section the preset was changed during, where known. */
-  readonly duringSections: readonly { readonly sectionId: SectionId; readonly label: string; readonly count: number }[];
+  readonly duringSections: readonly {
+    readonly sectionId: SectionId;
+    readonly label: string;
+    readonly count: number;
+  }[];
   readonly meetingsUsingEnvironment: number;
   readonly meetingsTotal: number;
 }
@@ -322,7 +338,11 @@ export interface StorytellingIntelligence {
   readonly pairings: readonly FeaturePairing[];
   readonly environment: EnvironmentUsage;
   /** What tends to happen before a unit is shortlisted. */
-  readonly beforeShortlist: readonly { readonly sectionId: SectionId; readonly label: string; readonly rate: number }[];
+  readonly beforeShortlist: readonly {
+    readonly sectionId: SectionId;
+    readonly label: string;
+    readonly rate: number;
+  }[];
   readonly findings: readonly ShowroomFinding[];
   readonly evidence: EvidenceRef;
 }

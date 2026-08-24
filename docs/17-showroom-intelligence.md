@@ -13,17 +13,17 @@ and what the current sources cannot do.
 
 ### Before and after
 
-| Before                              | After                                | Why                                                                    |
-| ----------------------------------- | ------------------------------------ | ---------------------------------------------------------------------- |
-| `/overview` — units sold, revenue, days to close, funnel | `/showroom` — presentation volume, coverage, depth, findings | The CRM already answers the first set. ADR-0023. |
-| `/flow` — conversion funnel (primary nav) | reachable, not primary               | A funnel is the CRM's own report with better typography.               |
-| `/project` — segment interest       | folded into `/units` and `/storytelling` | Segment interest is a reading of unit attention, not a separate place. |
-| `/people` — agent comparison        | `/presentation`                      | Comparing agents is comparing *presentations*, not scoring people.     |
-| —                                   | `/presentation` — Presentation DNA   | New. The signature surface.                                            |
-| —                                   | `/units` — Unit Attention            | New. Replaces a counter table with explained attention.                |
-| —                                   | `/storytelling` — Feature Intelligence | New. How the IRIS story itself is used.                              |
-| `/meetings/[id]` — pre-meeting brief | `/meetings/[id]` — replay **or** brief | Same URL. A meeting that has run shows its replay; one that has not shows its brief. |
-| —                                   | `/meetings` — the list               | New.                                                                   |
+| Before                                                   | After                                                        | Why                                                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `/overview` — units sold, revenue, days to close, funnel | `/showroom` — presentation volume, coverage, depth, findings | The CRM already answers the first set. ADR-0023.                                     |
+| `/flow` — conversion funnel (primary nav)                | reachable, not primary                                       | A funnel is the CRM's own report with better typography.                             |
+| `/project` — segment interest                            | folded into `/units` and `/storytelling`                     | Segment interest is a reading of unit attention, not a separate place.               |
+| `/people` — agent comparison                             | `/presentation`                                              | Comparing agents is comparing _presentations_, not scoring people.                   |
+| —                                                        | `/presentation` — Presentation DNA                           | New. The signature surface.                                                          |
+| —                                                        | `/units` — Unit Attention                                    | New. Replaces a counter table with explained attention.                              |
+| —                                                        | `/storytelling` — Feature Intelligence                       | New. How the IRIS story itself is used.                                              |
+| `/meetings/[id]` — pre-meeting brief                     | `/meetings/[id]` — replay **or** brief                       | Same URL. A meeting that has run shows its replay; one that has not shows its brief. |
+| —                                                        | `/meetings` — the list                                       | New.                                                                                 |
 
 ### The four primary sections
 
@@ -40,13 +40,13 @@ different about how they do it?
 **The construction.** A lane is one presenter's sequence, built from ordinals alone so
 it works on legacy data. Each section in the lane carries:
 
-| Channel        | Meaning                                                          |
-| -------------- | ---------------------------------------------------------------- |
-| horizontal order | mean position across the lane's meetings — left is earlier      |
-| width          | reach rate — how often the lane's meetings got there at all      |
-| fill luminance | median dwell, scaled against the lane's own busiest section      |
+| Channel          | Meaning                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| horizontal order | mean position across the lane's meetings — left is earlier                |
+| width            | reach rate — how often the lane's meetings got there at all               |
+| fill luminance   | median dwell, scaled against the lane's own busiest section               |
 | dashed + hatched | the source cannot report timing; the sequence is real, the pacing unknown |
-| `↺` mark       | the section was returned to after leaving, in >25% of meetings   |
+| `↺` mark         | the section was returned to after leaving, in >25% of meetings            |
 
 **What it deliberately does not encode.** Duration as width. A section that takes a
 long time is not more important than one that is always reached, and conflating the
@@ -105,13 +105,13 @@ with a sentence at the top saying so.
 Five classes, in the contract rather than in a label
 (`packages/contracts/src/provenance.ts`):
 
-| Class                    | What it is                                                  | May lead a screen? |
-| ------------------------ | ----------------------------------------------------------- | ------------------ |
-| `IRIS_SHOWROOM_OBSERVED` | IRIS recorded it directly                                   | yes                |
-| `IRIS_SHOWROOM_DERIVED`  | Observer computed it from observed facts, reproducibly      | yes                |
-| `CRM_OUTCOME_CONTEXT`    | what the commercial process concluded                       | **no**             |
-| `WEBIRIS_CONTEXT`        | online behaviour before the meeting                         | **no**             |
-| `AI_INTERPRETATION`      | a model's prose about evidence it was given                 | never alone        |
+| Class                    | What it is                                             | May lead a screen? |
+| ------------------------ | ------------------------------------------------------ | ------------------ |
+| `IRIS_SHOWROOM_OBSERVED` | IRIS recorded it directly                              | yes                |
+| `IRIS_SHOWROOM_DERIVED`  | Observer computed it from observed facts, reproducibly | yes                |
+| `CRM_OUTCOME_CONTEXT`    | what the commercial process concluded                  | **no**             |
+| `WEBIRIS_CONTEXT`        | online behaviour before the meeting                    | **no**             |
+| `AI_INTERPRETATION`      | a model's prose about evidence it was given            | never alone        |
 
 Two predicates make the rule checkable: `isShowroomRooted` and
 `isUngroundedInterpretation`. Both are asserted in `apps/web/test/showroom.test.ts`
@@ -182,8 +182,8 @@ Rules it obeys:
 
 1. **Nothing is asserted that the product could not observe.** Every field maps to a
    measurement in the audit; the ones UE5 cannot yet emit are marked, not filled in.
-2. **No perfect correlations.** The dominant term in the outcome model is *buyer
-   readiness* — a driver Observer cannot see. Behaviour contributes detectable
+2. **No perfect correlations.** The dominant term in the outcome model is _buyer
+   readiness_ — a driver Observer cannot see. Behaviour contributes detectable
    differences (Compare used in 64% of one agent's meetings against 26% of another's)
    and only a ~1.5× association with progression, with exceptions in both directions.
    A test fails if the lift leaves the 1.05–2.2 band or if the exceptions disappear.
