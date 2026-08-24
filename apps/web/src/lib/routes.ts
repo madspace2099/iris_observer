@@ -37,6 +37,19 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["sales_agent", "agency_manager", "madspace_admin"],
   },
   { route: "/madspace", audience: "internal", requiresRole: ["madspace_admin"] },
+
+  /*
+   * The design laboratory.
+   *
+   * Isolated visual concepts, reachable only by typing the URL and carrying no
+   * customer data — but they are still surfaces, and a surface with no declared
+   * audience is how a buyer-facing page appears by accident. MADSPACE only,
+   * because these are working drawings rather than product.
+   */
+  { route: "/lab", audience: "internal", requiresRole: ["madspace_admin"] },
+  { route: "/lab/sign-in", audience: "internal", requiresRole: ["madspace_admin"] },
+  { route: "/lab/overview-a", audience: "internal", requiresRole: ["madspace_admin"] },
+  { route: "/lab/overview-b", audience: "internal", requiresRole: ["madspace_admin"] },
 ];
 
 /** The four customer-facing sections. Administration is deliberately absent. */

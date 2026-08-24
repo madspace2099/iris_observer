@@ -57,8 +57,19 @@ are rails. Rails are the only rounded containers in the product.
 **Instruments** are precise, technical readouts of state: the period scrubber's tick marks, the
 orientation rose, the completeness meter. They are drawn as line work, not as widgets.
 
+**Collection cards** are the fourth kind, and they were missing from the first draft of this
+document. Reading further into the Figma file — the project browser `6964:245` — showed that IRIS
+does use cards, in exactly one situation: browsing a collection of real things you choose between,
+each led by an image. A card there is image-first, with a bottom scrim carrying a type chip, the
+name, a stat pair and a circular arrow. That is a legitimate card, and Observer reuses it verbatim
+for the profile picker and the project chooser.
+
+What produced the M2.1 rejection was not the card shape. It was using a card for **analytical
+content** — wrapping a number in a bordered box and calling the layout done.
+
 > **The rule:** if it holds information, it is a plane. If it holds a control, it is a rail. If it
-> reads a state, it is an instrument. Nothing is a card.
+> reads a state, it is an instrument. If it is one of several real things you are choosing between,
+> and it leads with an image, it is a card — and that is the only card in the product.
 
 ---
 
@@ -148,12 +159,41 @@ counterpart and must read as the same component.
 - Every answer is: a sentence, the figures it rests on, an evidence row, and a follow-up affordance.
 - Suggested questions are derived from the current selection, not a static list.
 
+**The assistant already has a name.** Node `6872:3494` in the Figma file reads *"Welcome, Bob. I am
+AI-RIS."* — the showroom assistant introduces itself by name and greets the agent who signed in. So
+"Ask Observer" is a description of the surface, not a brand: the assistant is AI-RIS in both
+products, and Observer's greeting should address the profile that was chosen at the picker. That
+consistency is the whole reason the picker is being reused.
+
 In the synthetic phase every answer is deterministic, produced behind the tool interface a model will
 later call. **No LLM before its milestone.**
 
 ---
 
-## 9. States
+## 9. The way in — the profile picker
+
+The showroom opens on a Netflix-style profile chooser: an agent picks themselves, then steps into
+IRIS. Observer opens the same way, on the same component, because an agent who uses both products in
+one day should not meet two different front doors.
+
+- The ground is the splash atmosphere from `6620:1840` — a soft gradient, the wordmark, `IRIS BY
+  MADSPACE` at the foot. It is the one place a gradient is allowed, because there is no data on it.
+- Profiles are **collection cards** (§3), grouped by a segmented control — the same control as the
+  showroom's `Running Projects | In preparations | Closed projects`.
+- Each card carries the type chip, the name, a stat pair and the circular arrow, in the anatomy of
+  the project cards at `6964:245`.
+- Where an IRIS card carries a commissioned render, an Observer profile carries a **monogram field**,
+  deterministic from the name. Generating photographs of people who do not exist is the fabrication
+  the doctrine forbids, and stock avatars would be the same lie with a licence.
+- The blurb says what that profile will *see*. A picker that says only "Sales agent" makes the reader
+  guess at the difference between five entries.
+
+In the laboratory this is a scenario selector and is labelled as one. It is not authentication and
+must never be described as such; the session adapter behind it is unchanged (ADR-0022).
+
+---
+
+## 10. States
 
 Four different situations, four different treatments. None of them is a zero.
 
@@ -166,7 +206,7 @@ Four different situations, four different treatments. None of them is a zero.
 
 ---
 
-## 10. Accessibility, non-negotiable
+## 11. Accessibility, non-negotiable
 
 - Contrast is checked against the plane the text actually sits on, including translucent rails.
 - Hierarchy is never created by dropping below 4.5:1. Use size, weight, spacing and grouping.
@@ -178,7 +218,7 @@ Four different situations, four different treatments. None of them is a zero.
 
 ---
 
-## 11. The prohibition list
+## 12. The prohibition list
 
 Sidebar plus top bar plus four KPI cards plus chart plus table · identical bento cards · giant
 greeting copy · an isolated AI card with a sparkle icon · excessive pills · an icon beside every
@@ -186,6 +226,9 @@ label · decorative doughnuts · radial gauges that mean nothing · default char
 glassmorphism · stock illustrations · blue-purple gradients · excessive rounded corners · detached
 floating panels · charts without interaction · controls that do not work · mobile layouts made by
 stacking desktop modules.
+
+Note what is *not* on that list: an image-led card in a collection you are choosing from (§3, §9).
+The prohibition is on the card as a substitute for layout, not on the shape.
 
 **The test:** hide the logo. If the screen does not read as real-estate spatial sales intelligence, it
 is not finished.

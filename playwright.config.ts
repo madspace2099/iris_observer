@@ -51,7 +51,9 @@ export default defineConfig({
   webServer: {
     command: `pnpm --filter @observer/web build && pnpm --filter @observer/web start --port ${PORT}`,
     url: `http://localhost:${PORT}/sign-in`,
-    reuseExistingServer: false,
+    // Off by default, so a suite run always proves the production build. Set
+    // OBSERVER_REUSE=1 while iterating to skip the rebuild between runs.
+    reuseExistingServer: process.env["OBSERVER_REUSE"] === "1",
     timeout: 240_000,
   },
 });

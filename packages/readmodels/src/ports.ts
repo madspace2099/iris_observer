@@ -1,6 +1,7 @@
 import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contracts";
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
+import type { AskSession, ProjectPulse } from "./pulse";
 
 /**
  * The port every screen reads through.
@@ -63,6 +64,19 @@ export interface ObserverRepository {
   getAgentOverview(query: OverviewQuery): Promise<AgentOverview>;
 
   getPreMeetingBrief(query: BriefQuery): Promise<PreMeetingBriefView>;
+
+  /**
+   * The building and what buyers are doing to it. Drives the signature
+   * surface, and every selection made on it.
+   */
+  getProjectPulse(query: OverviewQuery): Promise<ProjectPulse>;
+
+  /**
+   * Ask Observer. Deterministic in the synthetic phase, behind the interface a
+   * model will later call — the model chooses the query and writes the prose,
+   * never the figures.
+   */
+  getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession>;
 
   /** Resolves an evidence reference for the drill-down panel. */
   getEvidence(viewer: Viewer, evidenceId: string): Promise<Evidence>;

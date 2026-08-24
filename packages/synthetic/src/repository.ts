@@ -8,7 +8,9 @@ import type {
   OverviewQuery,
   Period,
   PeriodPreset,
+  AskSession,
   PreMeetingBriefView,
+  ProjectPulse,
   ProjectSummary,
   TenantSummary,
   ViewContext,
@@ -18,6 +20,7 @@ import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
+import { buildAskSession, buildProjectPulse } from "./pulse";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -151,6 +154,19 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const view = buildPreMeetingBrief(context, query.meetingId);
     if (view === null) throw new NotFoundError(`Meeting "${query.meetingId}"`);
     return view;
+  }
+
+  async getProjectPulse(query: OverviewQuery): Promise<ProjectPulse> {
+    const context = await this.context(query);
+    return buildProjectPulse(context);
+  }
+
+  async getAskSession(
+    query: OverviewQuery,
+    selectionLabel: string | null,
+  ): Promise<AskSession> {
+    const context = await this.context(query);
+    return buildAskSession(context, buildProjectPulse(context), selectionLabel);
   }
 
   async getEvidence(viewer: Viewer, evidenceId: string): Promise<Evidence> {

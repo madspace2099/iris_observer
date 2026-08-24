@@ -124,6 +124,17 @@ export const SIGN_IN_OPTIONS: readonly { key: ViewerKey; viewer: Viewer; blurb: 
   },
 ];
 
+/**
+ * The viewer behind a sign-in option.
+ *
+ * Exists so surfaces outside the session flow — the design laboratory — can
+ * name a role without importing the synthetic package and stepping around the
+ * composition root (ADR-0007).
+ */
+export function viewerFor(key: ViewerKey): Viewer {
+  return VIEWERS[key];
+}
+
 export function isKnownViewerKey(value: string): value is ViewerKey {
   return SIGN_IN_OPTIONS.some((option) => option.key === value);
 }

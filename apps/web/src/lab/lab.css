@@ -1,0 +1,1195 @@
+/*
+ * IRIS Spatial Intelligence — laboratory stylesheet.
+ *
+ * Implements docs/14-design-system.md. Loaded only by /lab routes; production
+ * routes still run the rejected M2.1 card system until a concept is chosen.
+ *
+ * Three surfaces and nothing else:
+ *   .iris-plane       content. No border, no radius, no shadow.
+ *   .iris-rail        controls. Floating, fully rounded, blurred backdrop.
+ *   .iris-instrument  a technical readout of state, drawn as line work.
+ *
+ * If a rule here creates a fourth kind of box, it is wrong.
+ */
+
+.iris {
+  --void: #060709;
+
+  /* The answer sheet's width. The shell reserves exactly this much. */
+  --sheet-w: min(34rem, 38vw);   /* roughly the width of the evidence field */
+
+  --plane: #0b0d11;
+  --plane-2: #101318;
+  --rail: #171b21;
+  --rule: rgb(255 255 255 / 8%);
+  --rule-firm: rgb(255 255 255 / 16%);
+
+  --ink: #f2f5f8;
+  --ink-2: #9fadba;
+  --ink-3: #7f8c9a;
+
+  --accent: #00a3ff;
+  --gain: #3ecf8e;
+  --watch: #e8b339;
+  --loss: #f0616d;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 160ms;
+  --base: 320ms;
+
+  background: var(--void);
+  color: var(--ink);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iris {
+    --fast: 0ms;
+    --base: 0ms;
+  }
+}
+
+/* --- type ----------------------------------------------------------------- */
+
+.iris-kicker {
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.iris-welcome-body .iris-verdict {
+  max-width: 18ch;
+}
+
+.iris-verdict {
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin: 0;
+  max-width: 22ch;
+  text-wrap: balance;
+}
+
+.iris-verdict em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.iris-lede {
+  font-size: 1.0625rem;
+  line-height: 1.6rem;
+  color: var(--ink-2);
+  margin: 0;
+  max-width: 62ch;
+}
+
+.iris-section {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.iris-body {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  margin: 0;
+}
+
+.iris-meta {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--ink-2);
+}
+
+.iris-code {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+}
+
+.iris-figure {
+  font-size: 2.75rem;
+  line-height: 2.75rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.iris-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- chrome --------------------------------------------------------------- */
+
+.iris-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.875rem 1.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.iris-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.iris-brand b {
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.iris-ambient {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.iris-nav {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 1.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.iris-nav a {
+  padding: 0.625rem 0.75rem;
+  color: var(--ink-3);
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-bottom: 2px solid transparent;
+  text-decoration: none;
+}
+
+.iris-nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* --- planes --------------------------------------------------------------- */
+
+.iris-stage {
+  flex: 1;
+  display: grid;
+  min-height: 0;
+}
+
+.iris-plane {
+  background: var(--plane);
+  padding: 1.75rem;
+  min-width: 0;
+}
+
+.iris-plane--fill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.iris-plane--raised {
+  background: var(--plane-2);
+  border-left: 1px solid var(--rule);
+}
+
+.iris-rule {
+  height: 1px;
+  background: var(--rule);
+  border: 0;
+  margin: 1.25rem 0;
+}
+
+.iris-stack > * + * {
+  margin-top: 1.25rem;
+}
+
+/* --- the period scrubber, an instrument ----------------------------------- */
+
+.iris-scrubber {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.iris-tick {
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  color: var(--ink-3);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.iris-tick::before {
+  content: "";
+  width: 1px;
+  height: 0.75rem;
+  background: var(--rule-firm);
+  transition: height var(--fast) var(--ease);
+}
+
+.iris-tick[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+.iris-tick[aria-pressed="true"]::before {
+  height: 1.5rem;
+  width: 2px;
+  background: var(--accent);
+}
+
+.iris-tick:hover::before {
+  height: 1.125rem;
+}
+
+/* --- Project Pulse --------------------------------------------------------- */
+
+.iris-pulse {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/* At full size the building is the composition, so the floors carry air. */
+.iris-pulse[data-size="large"] {
+  gap: 0.5rem;
+}
+
+.iris-pulse[data-size="large"] .iris-pulse-floor {
+  grid-template-columns: 2.75rem 1fr 4.5rem;
+  gap: 1rem;
+}
+
+.iris-pulse[data-size="large"] .iris-pulse-row {
+  gap: 0.375rem;
+}
+
+.iris-pulse[data-size="large"] .iris-cell {
+  border-radius: 3px;
+}
+
+.iris-pulse[data-size="large"] {
+  flex: 1;
+  min-height: 0;
+}
+
+.iris-pulse[data-size="large"] .iris-pulse-floor {
+  flex: 1;
+  min-height: 2.25rem;
+}
+
+.iris-pulse[data-size="large"] .iris-pulse-row,
+.iris-pulse[data-size="large"] .iris-cell {
+  height: 100%;
+}
+
+.iris-pulse[data-size="large"] .iris-pulse-floor-label,
+.iris-pulse[data-size="large"] .iris-pulse-floor-meta {
+  font-size: 0.75rem;
+}
+
+.iris-pulse-floor {
+  display: grid;
+  grid-template-columns: 2.25rem 1fr 3.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.iris-pulse-floor-label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.iris-pulse-row {
+  display: flex;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+/*
+ * A unit cell.
+ *
+ * Fill luminance is attention; the outline is availability; a top accent bar
+ * only appears when something happened in the period. Width tracks floor area,
+ * so the row reads as a stacking plan rather than as a bar chart.
+ */
+.iris-cell {
+  position: relative;
+  height: 1.75rem;
+  min-width: 0;
+  border-radius: 2px;
+  border: 1px solid var(--rule-firm);
+  /*
+   * The ceiling is 58%, not 88%. A full-accent ceiling turned the whole plan
+   * into a wall of saturated blue, which reads as decoration and breaks the
+   * one-loud-element rule. At 58% only the genuinely busy units carry weight.
+   */
+  background: color-mix(in oklab, var(--accent) calc(var(--a) * 58%), #080b0f);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    transform var(--fast) var(--ease),
+    opacity var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.iris-cell[data-status="sold"] {
+  background: repeating-linear-gradient(
+    135deg,
+    rgb(255 255 255 / 6%),
+    rgb(255 255 255 / 6%) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+  border-color: var(--rule);
+}
+
+.iris-cell[data-status="reserved"] {
+  border-style: dashed;
+}
+
+.iris-cell[data-change]::after {
+  content: "";
+  position: absolute;
+  inset: -1px -1px auto -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--watch);
+}
+
+.iris-cell[data-change="sold"]::after {
+  background: var(--loss);
+}
+
+.iris-cell[data-change="new_interest"]::after {
+  background: var(--gain);
+}
+
+.iris-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.iris-pulse[data-dimmed="true"] .iris-cell:not([aria-pressed="true"]):not([data-match="true"]) {
+  opacity: 0.28;
+}
+
+.iris-pulse-floor-meta {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.iris-legend {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+}
+
+.iris-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.iris-swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 2px;
+  border: 1px solid var(--rule-firm);
+}
+
+.iris-ramp {
+  width: 5rem;
+  height: 0.5rem;
+  border-radius: 2px;
+  /* The same square-root curve the cells use, so the key matches the map. */
+  background: linear-gradient(
+    90deg,
+    #080b0f 0%,
+    color-mix(in oklab, var(--accent) 26%, #080b0f) 20%,
+    color-mix(in oklab, var(--accent) 41%, #080b0f) 50%,
+    color-mix(in oklab, var(--accent) 58%, #080b0f) 100%
+  );
+  border: 1px solid var(--rule-firm);
+}
+
+/* --- segment chips, from the IRIS segmented control ------------------------ */
+
+.iris-chips {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.iris-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3125rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+
+.iris-chip:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.iris-chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #05070a;
+}
+
+.iris-chip b {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+/* A dismissible mode chip, straight from HORIZONTAL MENU.fig. */
+.iris-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.3125rem 0.5rem 0.3125rem 0.875rem;
+  border-radius: 999px;
+  background: var(--rail);
+  border: 1px solid var(--rule-firm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.iris-mode button {
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.125rem;
+}
+
+.iris-mode button:hover {
+  color: var(--ink);
+}
+
+/* --- statements: the reading order of a claim ------------------------------ */
+
+.iris-claim {
+  display: grid;
+  grid-template-columns: 3px 1fr;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.iris-claim::before {
+  content: "";
+  background: var(--rule-firm);
+  border-radius: 2px;
+}
+
+.iris-claim[data-tier="statistical_association"]::before {
+  background: repeating-linear-gradient(
+    180deg,
+    var(--rule-firm),
+    var(--rule-firm) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+.iris-claim[data-weight="lead"]::before {
+  background: var(--accent);
+}
+
+.iris-evidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.iris-evidence:hover {
+  color: var(--ink-2);
+  border-bottom-color: var(--rule-firm);
+}
+
+.iris-evidence i {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.iris-claim[data-tier="statistical_association"] .iris-evidence i {
+  background: var(--ink-3);
+}
+
+/* --- figures, inline rather than boxed ------------------------------------- */
+
+.iris-figures {
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.iris-figures > div {
+  min-width: 8rem;
+}
+
+.iris-figures dt {
+  font-size: 0.6875rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+
+.iris-figures dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.iris-figures dd > b {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.iris-figures dd > .iris-code {
+  margin-top: 0.375rem;
+}
+
+.iris-delta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  margin-top: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.iris-delta .iris-code {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.iris-delta[data-tone="good"] {
+  color: var(--gain);
+}
+.iris-delta[data-tone="bad"] {
+  color: var(--loss);
+}
+.iris-delta[data-tone="flat"] {
+  color: var(--ink-3);
+}
+
+/* --- completeness instrument ---------------------------------------------- */
+
+.iris-complete {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.iris-complete-track {
+  display: flex;
+  gap: 2px;
+}
+
+.iris-complete-track i {
+  width: 3px;
+  height: 0.875rem;
+  background: var(--rule-firm);
+  border-radius: 1px;
+}
+
+.iris-complete-track i[data-on="true"] {
+  background: var(--gain);
+}
+
+.iris-complete[data-low="true"] .iris-complete-track i[data-on="true"] {
+  background: var(--watch);
+}
+
+/* --- actions --------------------------------------------------------------- */
+
+.iris-actions {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.iris-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.iris-action[data-primary="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #05070a;
+}
+
+.iris-action:hover {
+  border-color: var(--ink-3);
+}
+
+.iris-action[data-primary="true"]:hover {
+  background: #2bb4ff;
+  border-color: #2bb4ff;
+}
+
+/* --- the command rail, and Ask Observer ------------------------------------ */
+
+.iris-rail {
+  position: sticky;
+  bottom: 1.25rem;
+  margin: 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 999px;
+  background: rgb(23 27 33 / 88%);
+  border: 1px solid var(--rule-firm);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 55%);
+  width: max-content;
+  max-width: calc(100% - 3rem);
+  transition: transform var(--base) var(--ease);
+}
+
+/*
+ * The sheet sits on the evidence field, as the design system specifies — but
+ * the rail is centred on the whole shell, so it has to step aside or the sheet
+ * lands on top of the thing that opened it.
+ */
+.iris[data-sheet="open"] .iris-rail {
+  transform: translateX(calc(var(--sheet-w) / -2));
+}
+
+.iris-rail-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.5rem;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.iris-rail-context b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.iris-rail-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--rule-firm);
+}
+
+.iris-ask {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.875rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid transparent;
+  min-width: 20rem;
+}
+
+.iris-ask:focus-within {
+  border-color: var(--accent);
+}
+
+.iris-ask input {
+  flex: 1;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.iris-ask input::placeholder {
+  color: var(--ink-3);
+}
+
+.iris-ask kbd {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  /* Tertiary ink reaches only 4.0:1 against the rail's lighter ground. */
+  color: var(--ink-2);
+  border: 1px solid var(--rule-firm);
+  border-radius: 4px;
+  padding: 0.0625rem 0.3125rem;
+}
+
+/* --- the answer sheet ------------------------------------------------------ */
+
+.iris-sheet {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sheet-w);
+  background: var(--plane-2);
+  border-left: 1px solid var(--rule-firm);
+  padding: 1.75rem;
+  overflow-y: auto;
+  z-index: 40;
+  box-shadow: -32px 0 64px rgb(0 0 0 / 55%);
+  animation: iris-sheet-in var(--base) var(--ease);
+}
+
+@keyframes iris-sheet-in {
+  from {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iris-sheet {
+    animation: none;
+  }
+}
+
+.iris-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.iris-sheet-close {
+  background: none;
+  border: 0;
+  color: var(--ink-3);
+  font-size: 1.25rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.iris-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  align-items: flex-start;
+}
+
+.iris-suggestion {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  text-align: left;
+  padding: 0.5rem 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  width: 100%;
+}
+
+.iris-suggestion:hover {
+  color: var(--ink);
+  border-bottom-color: var(--rule-firm);
+}
+
+/* --- unit readout ---------------------------------------------------------- */
+
+.iris-readout dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+
+.iris-readout dt {
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.iris-readout dd {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* --- focus ---------------------------------------------------------------- */
+
+.iris :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* --- responsive ------------------------------------------------------------ */
+
+@media (max-width: 80rem) {
+  .iris-figures {
+    gap: 1.75rem;
+  }
+  .iris-ask {
+    min-width: 14rem;
+  }
+  .iris-rail-context {
+    display: none;
+  }
+}
+
+/* ===========================================================================
+   Collection surfaces — the profile picker
+   ---------------------------------------------------------------------------
+   A correction to the doctrine, made after reading more of the Figma file.
+   IRIS does use cards, but only in one situation: browsing a collection of real
+   things you choose between, each led by an image — the project browser at
+   6964:245. It never uses a card for analytical content.
+
+   So the rule is not "nothing is a card". It is:
+     a collection of things to choose from  -> card
+     analytical content                     -> plane
+   =========================================================================== */
+
+.iris-welcome {
+  position: relative;
+  overflow: hidden;
+}
+
+/* The splash atmosphere from 6620:1840. Behind chrome, never behind data. */
+.iris-welcome-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 50% at 72% 18%, rgb(150 176 190 / 20%), transparent 62%),
+    radial-gradient(46% 40% at 22% 78%, rgb(0 163 255 / 9%), transparent 60%),
+    linear-gradient(160deg, #0a0d11 0%, #06080a 55%, #0a0e12 100%);
+  pointer-events: none;
+}
+
+.iris-welcome-top,
+.iris-welcome-body,
+.iris-welcome-foot {
+  position: relative;
+}
+
+.iris-welcome-top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 2.5rem;
+}
+
+.iris-welcome-note {
+  justify-self: end;
+}
+
+.iris-welcome-body {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: 96rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.iris-welcome-foot {
+  padding: 1rem 2.5rem 1.5rem;
+  text-align: center;
+  letter-spacing: 0.3em;
+  color: var(--ink-3);
+}
+
+/* The segmented control from HORIZONTAL MENU.fig: a track with an inset pill. */
+.iris-segmented {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid var(--rule);
+}
+
+.iris-segmented button {
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.375rem 0.9375rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.iris-segmented button[aria-selected="true"] {
+  background: rgb(255 255 255 / 12%);
+  color: var(--ink);
+}
+
+/* --- category rows and the collection card, from the browser 6964:245 ----- */
+
+/*
+ * One row that spans the frame.
+ *
+ * Five equal columns, so the row is the composition rather than a huddle in the
+ * top-left corner. Stretching two cards across 1920 was the first attempt's
+ * failure; leaving 1080 pixels of empty ground beside them was the second's.
+ */
+.iris-collection {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-top: 2.25rem;
+}
+
+/*
+ * Four columns whether or not four cards are showing. Filtering to one group
+ * leaves one card at a quarter width, which is what a row of cards does — a
+ * lone card stretched across the frame is a hero, and this is a chooser.
+ */
+@media (max-width: 80rem) {
+  .iris-collection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.iris-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--plane);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.iris-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--rule-firm);
+}
+
+.iris-card:hover .iris-card-go {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The scrim belongs to the image, not to the card. */
+.iris-card-media {
+  position: relative;
+  display: block;
+}
+
+/*
+ * Where an IRIS project card carries a commissioned render, this carries a
+ * monogram field. Inventing photographs of people who do not exist is exactly
+ * the fabrication the doctrine forbids.
+ */
+.iris-card-image {
+  display: grid;
+  place-items: center;
+  /* Taller than the project cards, so the monogram clears the scrim. */
+  aspect-ratio: 4 / 3.4;
+  padding-bottom: 5.5rem;
+  background:
+    radial-gradient(115% 95% at 32% 22%, hsl(var(--h) 34% 30% / 70%), transparent 70%),
+    linear-gradient(155deg, #141a23, #0a0e13);
+}
+
+.iris-monogram {
+  font-size: 3.25rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: rgb(255 255 255 / 68%);
+}
+
+.iris-card-scrim {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 1.75rem 0.875rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  background: linear-gradient(180deg, transparent, rgb(4 6 8 / 92%) 44%);
+}
+
+.iris-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  align-self: flex-start;
+  padding: 0.1875rem 0.4375rem;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 14%);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.iris-card-name {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.iris-card-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.iris-card-stats {
+  display: flex;
+  gap: 0.875rem;
+}
+
+.iris-card-stats > span {
+  display: flex;
+  flex-direction: column;
+}
+
+.iris-card-stats em {
+  font-style: normal;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.iris-card-stats b {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* The circular arrow button from the project cards. */
+.iris-card-go {
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: rgb(255 255 255 / 92%);
+  color: #05070a;
+  flex: none;
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.iris-card-blurb {
+  padding: 0.75rem 0.875rem 0.875rem;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  border-top: 1px solid var(--rule);
+}
+
+@media (max-width: 60rem) {
+  .iris-welcome-top {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 0.75rem;
+  }
+  .iris-welcome-note {
+    justify-self: start;
+  }
+  .iris-welcome-body {
+    padding: 2rem 1.25rem;
+  }
+}

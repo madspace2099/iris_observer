@@ -81,3 +81,36 @@ on size.
 | The unresolved orange gradient variable         | No resolved value, and a second accent would break the one-saturated-element rule.                  |
 | Full-bleed photographic backgrounds behind data | A gradient or a photograph behind a chart is a lie about the chart. Imagery stays in its own plane. |
 | The left explorer rail                          | See divergences above.                                                                              |
+
+---
+
+## 5. Addendum — the profile picker and the assistant's name
+
+Added after the file `IRIS sales user login.fig` was supplied with the instruction to reuse as many
+existing UI elements as possible rather than to invent new ones.
+
+| Figma node                       | What it is                                                                                                                  | Principle                                                                                 | Observer application                                                                             | Implementation                                             |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `6964:245` Welcome project browser | Segmented control, a featured row, then category carousels of image-led cards: type chip, name, stat pair, circular arrow. | A collection you choose from is browsed as cards. Analytical content never is.           | The profile picker's cards, verbatim in anatomy: chip, name, two stats, circular arrow button.  | `.iris-card` and children in `apps/web/src/lab/lab.css`   |
+| `6964:245` segmented control     | `Running Projects \| In preparations \| Closed projects`, a track with an inset selected pill.                              | Group switching is a control, not navigation.                                             | `Sales agents \| Management \| MADSPACE` on the picker.                                          | `.iris-segmented`                                          |
+| `6620:1840` Welcome splash       | Project wordmark on a soft atmospheric gradient, `IRIS BY MADSPACE` at the foot.                                            | A gradient is permitted where there is no data on it.                                     | The picker's ground and footer. The only gradient field in Observer.                             | `.iris-welcome-sky`, `.iris-welcome-foot`                  |
+| `6872:3494` AI-RIS greeting      | *"Welcome, Bob. I am AI-RIS."* — the assistant introduces itself by name and addresses the signed-in agent.                | The assistant is one named character across both products, and it knows who it is talking to. | "Ask Observer" is the surface; **AI-RIS** is the assistant. The greeting uses the chosen profile. | recorded in `docs/14-design-system.md` §8; wording pending |
+
+### A fourth divergence
+
+**Photography.** IRIS project cards carry commissioned architectural renders, and a profile card in a
+Netflix-style picker would ordinarily carry a portrait. Observer has neither, and generating faces
+for people who do not exist — or buying stock portraits and presenting them as an agency's staff — is
+the same fabrication the render divergence already rules out. The image plane therefore carries a
+**monogram over a tinted field**, deterministic from the name so it never shuffles between renders.
+When a tenant uploads real staff photographs they take the same position and the monogram becomes the
+fallback, exactly as the massing model does for Project Pulse.
+
+### One thing that could not be resolved
+
+`IRIS sales user login.fig` is a local export whose canvas (2316 × 14548) is a vertical stack of
+screens. Its 184 embedded images were extracted, but the export carries no node identifiers that
+resolve against the live file, and no frame named for login, profile, user or agent exists on page
+`4:20`. The picker is therefore assembled from the file's **existing published components** — which
+is what the instruction asked for — rather than copied from one frame. If a specific frame was meant,
+the node link will pin it and the picker can be corrected against it in one pass.
