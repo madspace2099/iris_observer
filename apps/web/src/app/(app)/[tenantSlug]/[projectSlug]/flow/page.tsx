@@ -54,9 +54,19 @@ export default async function FlowPage({
   };
   const kpiWindow = windowFrom(windowParam);
 
-  const [view, charts] = await Promise.all([
+  /*
+   * The period summary is read for two of its fields.
+   *
+   * `changes` is the only place in the product that says what moved in how
+   * meetings are *run* between one period and the next — the counts moving is
+   * a different question and is already above. Its figures, findings and
+   * outcome mix are deliberately not drawn here, because this page and the
+   * opening screen already carry them.
+   */
+  const [view, charts, summary] = await Promise.all([
     repository.getSalesFlow(query),
     repository.getFlowCharts(query, kpiWindow),
+    repository.getShowroomOverview(query),
   ]);
 
   const recorded = view.outcomes
@@ -152,6 +162,36 @@ export default async function FlowPage({
               {recorded} of {view.meetingCount} meetings had an outcome recorded.
             </p>
           </div>
+        </div>
+
+        <hr className="iris-rule" />
+
+        {/* --- what changed in how meetings are run ----------------------- */}
+
+        <div>
+          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            What changed since {view.context.period.baselineLabel}
+          </p>
+          <div className="iris-changes">
+            {summary.changes.map((change) => (
+              <article className="iris-change" key={change.id}>
+                <p className="iris-change-label">{change.label}</p>
+                <p className="iris-change-delta" data-direction={change.direction}>
+                  {change.deltaDisplay}
+                </p>
+                <p className="iris-change-detail">{change.detail}</p>
+                <Link className="iris-action" href={dynamicRoute(change.href)}>
+                  Look at it
+                </Link>
+              </article>
+            ))}
+          </div>
+          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            How the presentations were run, not how many there were — the counts are above. A
+            direction is a statement about two periods at the stated sample size, never a trend and
+            never a cause.
+          </p>
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
 
         <hr className="iris-rule" />

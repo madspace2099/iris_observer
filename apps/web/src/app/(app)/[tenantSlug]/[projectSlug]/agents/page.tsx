@@ -6,8 +6,9 @@ import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
-import { OutcomeKey, OutcomeRing, PairedRates } from "@/showroom/charts";
-import { Radar, RankedBars } from "@/showroom/charts2";
+import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
+import { Radar, RankedBars, SectionSequence } from "@/showroom/charts2";
+import { Measure } from "@/showroom/Measure";
 
 export const metadata: Metadata = { title: "Sales Agents" };
 
@@ -124,24 +125,19 @@ export default async function AgentsPage({
             <div className="iris-band">
               <div>
                 <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-                  {focused.name} — where the presentation time goes
+                  {focused.name} — what they open, in what order, and for how long
                 </p>
-                <PairedRates
-                  leftLabel={focused.name.split(" ")[0] ?? "Agent"}
-                  rightLabel="Team"
-                  rows={focused.sections.map((s) => ({
-                    id: s.sectionId,
-                    label: s.label,
-                    left: s.timeShare,
-                    right: s.teamShare,
-                    note: `reached in ${Math.round(s.reachRate * 100)}% of their meetings`,
-                  }))}
+                <SectionSequence
+                  rows={focused.sections}
+                  agentLabel={focused.name.split(" ")[0] ?? "This agent"}
                 />
                 <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-                  Share of their own presentation time against the team&rsquo;s share of the same
-                  section. The line between the dots is the difference, which is the thing worth
-                  talking about — a single agent&rsquo;s figures on their own say very little.
+                  The order is where each section falls on average across their meetings, not one
+                  meeting&rsquo;s path — nobody presents the same way twice. The bar is their median
+                  stay in that section, scaled against their own longest stop; the team&rsquo;s
+                  median sits beneath it, because a section time on its own has no scale.
                 </p>
+                <Measure id="section.dwell" align="left" />
               </div>
 
               <div className="iris-band-side">

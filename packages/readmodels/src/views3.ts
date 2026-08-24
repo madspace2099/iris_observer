@@ -216,11 +216,30 @@ export interface RepeatDistribution {
 export interface AgentSectionUse {
   readonly sectionId: SectionId;
   readonly label: string;
+  /**
+   * Where this section falls in the agent's running order, 1 first.
+   *
+   * From the mean position across their meetings, not from a single one. An
+   * agent does not present in exactly the same order twice, so the order shown
+   * is their habit rather than a script.
+   */
+  readonly order: number;
+  /** Mean position, 0 first and 1 last. The figure `order` is derived from. */
+  readonly position: number;
+  /** Median seconds in this section. Null where no session could report timing. */
+  readonly medianDwellSeconds: number | null;
+  /** Ready to print: "1m 24s", or "—" when the source cannot say. */
+  readonly dwellDisplay: string;
   /** Share of this agent's total presentation time. */
   readonly timeShare: number;
   /** Share of the team's time in the same section, for contrast. */
   readonly teamShare: number;
+  /** The team's median seconds in the same section, so the agent's has a scale. */
+  readonly teamDwellDisplay: string;
   readonly reachRate: number;
+  /** Share of their meetings that came back to this section after leaving it. */
+  readonly returnRate: number;
+  readonly availability: "legacy_available" | "partially_derivable" | "requires_ue5_v2_event";
 }
 
 export interface AgentProfile {

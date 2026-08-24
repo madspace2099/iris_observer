@@ -122,3 +122,25 @@ export const PRIMARY_NAV = [
 ] as const;
 
 export type NavKey = (typeof PRIMARY_NAV)[number]["key"];
+
+/**
+ * The detail surfaces, in their own row beneath the four.
+ *
+ * Presentation DNA, Unit Attention, Storytelling and Meeting Replay were moved
+ * behind the three views and then linked from nowhere, which is not "behind" —
+ * it is deleted with the files left in the repository. Review was right that
+ * eight equal tabs is too many; the answer is a subordinate row, not an
+ * unreachable route.
+ *
+ * Anything added here must also be reachable, and `surfaces.test.ts` asserts
+ * that every internal route is either in one of these rows or linked from a
+ * view.
+ */
+export const SECONDARY_NAV = [
+  { key: "presentation", label: "Presentation DNA" },
+  { key: "units", label: "Unit Attention" },
+  { key: "storytelling", label: "Storytelling" },
+  { key: "meetings", label: "Meetings" },
+] as const;
+
+export type SecondaryNavKey = (typeof SECONDARY_NAV)[number]["key"];

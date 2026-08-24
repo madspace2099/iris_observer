@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
-import { PrimaryNav } from "@/components/PrimaryNav";
+import { DetailNav, PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
 import { AskRail } from "@/showroom/AskRail";
 import { SyntheticBadge } from "@/showroom/parts";
-import { PRIMARY_NAV, SURFACES } from "@/lib/routes";
+import { PRIMARY_NAV, SECONDARY_NAV, SURFACES } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
 
@@ -70,10 +70,13 @@ export default async function ProjectLayout({
   const tenants = await repository.listTenants(viewer);
   const root = `/${tenant.slug}/${project.slug}`;
 
-  const allowedSections = PRIMARY_NAV.filter((item) => {
-    const surface = SURFACES.find((s) => s.route.endsWith(`/${item.key}`));
+  const permits = (key: string) => {
+    const surface = SURFACES.find((s) => s.route.endsWith(`/${key}`));
     return surface === undefined || surface.requiresRole.includes(viewer.role);
-  }).map((item) => item.key);
+  };
+
+  const allowedSections = PRIMARY_NAV.filter((item) => permits(item.key)).map((item) => item.key);
+  const allowedDetail = SECONDARY_NAV.filter((item) => permits(item.key)).map((item) => item.key);
 
   async function signOut() {
     "use server";
@@ -134,6 +137,8 @@ export default async function ProjectLayout({
           </form>
         </div>
       </header>
+
+      <DetailNav root={root} allowed={allowedDetail} />
 
       <main className="iris-stage" id="main" style={{ display: "block", overflowY: "auto" }}>
         {children}

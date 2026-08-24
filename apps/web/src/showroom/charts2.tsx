@@ -557,6 +557,79 @@ export function RankedBars({
   );
 }
 
+/* --- a running order, with the time spent at each stop ---------------------- */
+
+/**
+ * What one presenter opens, in what order, and for how long.
+ *
+ * The order is a mean position across their meetings, not one meeting's
+ * sequence — nobody presents the same way twice, and a single path shown as
+ * "the" path would claim more than the data says. The team's median sits beside
+ * each row because a section time on its own is a number without a scale.
+ *
+ * One table rather than a running order here and a share-of-time chart
+ * elsewhere: the same measurement drawn twice invites the reader to compare a
+ * chart against itself.
+ */
+export function SectionSequence({
+  rows,
+  agentLabel,
+}: {
+  rows: readonly {
+    readonly sectionId: string;
+    readonly label: string;
+    readonly order: number;
+    readonly dwellDisplay: string;
+    readonly medianDwellSeconds: number | null;
+    readonly teamDwellDisplay: string;
+    readonly reachRate: number;
+    readonly returnRate: number;
+    readonly availability: string;
+  }[];
+  agentLabel: string;
+}) {
+  const peak = Math.max(1, ...rows.map((r) => r.medianDwellSeconds ?? 0));
+
+  return (
+    <ol className="iris-sequence">
+      {rows.map((row) => (
+        <li key={row.sectionId}>
+          <span className="iris-sequence-step">{row.order}</span>
+          <span className="iris-sequence-name">
+            {row.label}
+            <em>
+              reached in {Math.round(row.reachRate * 100)}% of their meetings
+              {row.returnRate < 0.05 ? null : ` · came back in ${Math.round(row.returnRate * 100)}%`}
+            </em>
+          </span>
+          <span className="iris-sequence-track">
+            {/*
+              * Scaled against this agent's own longest stop, so the bar shows
+              * where their time went. The comparison to the team is the number
+              * beside it, not a second bar — two scales in one row is how a
+              * reader reads the wrong one.
+              */}
+            <i style={{ width: `${((row.medianDwellSeconds ?? 0) / peak) * 100}%` }} />
+          </span>
+          <span className="iris-sequence-time">
+            {row.dwellDisplay}
+            <em>team {row.teamDwellDisplay}</em>
+          </span>
+        </li>
+      ))}
+      <li className="iris-sequence-foot">
+        <span />
+        <span className="iris-sequence-name">
+          <em>
+            {agentLabel} typically opens these in this order. Times are the median stay in each
+            section, not the total.
+          </em>
+        </span>
+      </li>
+    </ol>
+  );
+}
+
 /* --- where journeys go, and where they stop ---------------------------------- */
 
 export interface FlowLink {

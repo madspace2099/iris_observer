@@ -1916,3 +1916,58 @@
     border-top: 1px solid var(--rule);
   }
 }
+
+/* --- the detail surfaces, in their own quieter row --------------------------- */
+
+/*
+ * Subordinate to the four views, and visibly so.
+ *
+ * These are drill-downs. Drawn level with the views they would ask the reader
+ * to choose between a question and its own footnote; drawn nowhere at all they
+ * were working analysis removed from the product without the code being
+ * removed, which is how "moved behind the views" became "deleted".
+ */
+.iris-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.4375rem 1.75rem;
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in oklab, var(--plane) 60%, #05070a);
+}
+
+.iris-subnav-item {
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.iris-subnav-item:hover {
+  color: var(--ink-2);
+}
+
+.iris-subnav-item[aria-current="page"] {
+  color: var(--ink);
+  border-color: var(--rule-firm);
+  background: rgb(255 255 255 / 4%);
+}
+
+@media (max-width: 60rem) {
+  .iris-subnav {
+    padding: 0.375rem 1rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .iris-subnav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iris-subnav-item {
+    white-space: nowrap;
+  }
+}

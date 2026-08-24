@@ -57,6 +57,23 @@ export function signedPercent(value: number, locale: string): string {
   return "no change";
 }
 
+/**
+ * A movement and the words for it, produced together.
+ *
+ * The two were computed separately once and disagreed: a change that rounded to
+ * "no change" was still drawn with a downward arrow. Anything that reads as no
+ * change is flat, by construction, because the direction is derived from the
+ * text rather than from the raw number the text has already rounded away.
+ */
+export function movement(
+  delta: number,
+  locale: string,
+): { direction: "up" | "down" | "flat"; deltaDisplay: string } {
+  const deltaDisplay = signedPercent(delta, locale);
+  if (deltaDisplay === "no change") return { direction: "flat", deltaDisplay };
+  return { direction: delta > 0 ? "up" : "down", deltaDisplay };
+}
+
 export function days(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded} ${rounded === 1 ? "day" : "days"}`;

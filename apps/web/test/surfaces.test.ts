@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PRIMARY_NAV, SURFACES } from "../src/lib/routes";
+import { PRIMARY_NAV, SECONDARY_NAV, SURFACES } from "../src/lib/routes";
 
 const appDir = resolve(import.meta.dirname, "../src/app");
 
@@ -63,6 +63,40 @@ describe("surface audience", () => {
       expect(
         SURFACES.some((s) => s.route === route),
         `${route} has no entry in SURFACES — add one and state its audience`,
+      ).toBe(true);
+    }
+  });
+
+  /*
+   * A route nothing links to is deleted, whatever the repository still holds.
+   *
+   * Presentation DNA, Unit Attention, Storytelling and Meeting Replay were
+   * "moved behind the three views" and then linked from nowhere. The code was
+   * all still there; the analysis was gone. This asserts reachability rather
+   * than existence.
+   */
+  it("leaves no project surface unreachable", () => {
+    const linked = new Set<string>([
+      ...PRIMARY_NAV.map((n) => n.key),
+      ...SECONDARY_NAV.map((n) => n.key),
+    ]);
+
+    // Reached from within another surface rather than from a navigation row.
+    const reachedFromAView = new Set([
+      "audience", // the Project view's "Build an audience from this"
+      "overview", // the demoted CRM-led surface, kept for comparison (ADR-0023)
+      "people", // opened from a meeting, never listed on its own
+      "[meetingId]", // a row in the meetings list
+    ]);
+
+    const projectRoutes = SURFACES.filter((s) => s.route.startsWith("/[tenantSlug]/[projectSlug]/"))
+      .map((s) => s.route.split("/").pop() ?? "")
+      .filter((key) => key !== "");
+
+    for (const key of projectRoutes) {
+      expect(
+        linked.has(key) || reachedFromAView.has(key),
+        `/${key} is in SURFACES but nothing navigates to it — put it in a nav row or link it from a view`,
       ).toBe(true);
     }
   });

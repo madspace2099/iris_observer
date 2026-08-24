@@ -85,6 +85,39 @@ function totalSeconds(session: ShowroomSession): number {
   return session.steps.reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
 }
 
+/** The distinct sections a session touched, in the order it first touched them. */
+function orderOf(session: ShowroomSession): SectionId[] {
+  const seen: SectionId[] = [];
+  for (const step of session.steps) if (!seen.includes(step.sectionId)) seen.push(step.sectionId);
+  return seen;
+}
+
+/**
+ * Where a section falls on average, 0 first and 1 last.
+ *
+ * A mean across meetings rather than one meeting's order: nobody presents in
+ * exactly the same order twice, and a single sequence shown as "the" sequence
+ * would be a claim the data does not support.
+ */
+function meanPosition(sessions: readonly ShowroomSession[], sectionId: SectionId): number {
+  const positions = sessions
+    .filter((s) => s.steps.some((x) => x.sectionId === sectionId))
+    .map((s) => {
+      const order = orderOf(s);
+      return order.length <= 1 ? 0 : order.indexOf(sectionId) / (order.length - 1);
+    });
+  return positions.length === 0 ? 0 : positions.reduce((a, b) => a + b, 0) / positions.length;
+}
+
+/** Median seconds in one section, or null where no session could report timing. */
+function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId): number | null {
+  const dwells = sessions
+    .flatMap((s) => s.steps.filter((x) => x.sectionId === sectionId))
+    .map((x) => x.dwellSeconds)
+    .filter((d): d is number => d !== null);
+  return dwells.length === 0 ? null : Math.round(median(dwells));
+}
+
 /* --- time buckets ------------------------------------------------------------ */
 
 /**
@@ -589,18 +622,42 @@ export function buildAgentsView(
     if (mine.length === 0) return [];
 
     const myTotal = mine.reduce((acc, s) => acc + totalSeconds(s), 0);
+    /*
+     * One row per section, carrying the whole answer.
+     *
+     * Order, median time, reach, returns, and the team's figure beside each —
+     * rather than a share-of-time chart here and an order-and-timing chart
+     * somewhere else. Two views of the same measurement in two places is how a
+     * reader ends up comparing a chart against itself.
+     */
     const sections: AgentSectionUse[] = SECTION_IDS.map((id) => {
       const secs = mine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
+      const dwell = sectionDwell(mine, id);
+      const teamDwell = sectionDwell(sessions, id);
       return {
         sectionId: id,
         label: sectionLabel(id),
+        order: 0,
+        position: meanPosition(mine, id),
+        medianDwellSeconds: dwell,
+        // Null, never zero: a section nobody's session could time has no median,
+        // and printing 0s would claim they passed through it instantly.
+        dwellDisplay: dwell === null ? "—" : duration(dwell),
         timeShare: share(secs, myTotal),
         teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
+        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
         reachRate: share(mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length, mine.length),
-      };
+        returnRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
+          Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
+        ),
+        availability: dwell === null ? "requires_ue5_v2_event" : "legacy_available",
+      } satisfies AgentSectionUse;
     })
       .filter((s) => s.reachRate > 0)
-      .sort((x, y) => y.timeShare - x.timeShare);
+      // Running order, because the question is what they open and in what order.
+      .sort((x, y) => x.position - y.position)
+      .map((s, i) => ({ ...s, order: i + 1 }));
 
     const over = [...sections]
       .filter((s) => s.teamShare > 0.02)

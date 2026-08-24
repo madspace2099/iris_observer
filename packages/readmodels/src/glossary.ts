@@ -235,6 +235,32 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     unit: "percent",
   },
   {
+    id: "section.order",
+    label: "Running order",
+    columnLabel: "Order",
+    icon: "sequence",
+    whatItMeasures: "Where a section falls in how this presenter typically moves through IRIS.",
+    howItIsComputed:
+      "The mean position of the section across their meetings, 0 first and 1 last, then ranked. It is a habit across many presentations, not one meeting's path.",
+    sources: DERIVED,
+    limitation:
+      "Nobody presents in exactly the same order twice. A first-placed section is where they usually start, not where they always start.",
+    unit: "count",
+  },
+  {
+    id: "section.dwell",
+    label: "Typical stay",
+    columnLabel: "Typical stay",
+    icon: "clock",
+    whatItMeasures: "How long the presenter typically stays in a section before moving on.",
+    howItIsComputed:
+      "The median of every visit to that section across their meetings. Median rather than average, so one long stop does not drag the figure up. It is the stay per visit, not the total time in the section.",
+    sources: OBSERVED,
+    limitation:
+      "Time on screen is not attention, and sixteen of the imported sessions carry no per-step timing at all — those meetings are absent from this figure rather than counted as zero.",
+    unit: "seconds",
+  },
+  {
     id: "section.glance",
     label: "Opened and left",
     icon: "clock",

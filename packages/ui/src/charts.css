@@ -589,3 +589,165 @@
   font-size: 0.75rem;
   color: var(--ink-2);
 }
+
+/* --- a running order, with the time spent at each stop ----------------------- */
+
+.iris-sequence {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.iris-sequence li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 14rem) minmax(0, 1fr) 6.5rem;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.iris-sequence li:first-child {
+  border-top: 0;
+}
+
+/*
+ * The step number is the finding, so it is drawn rather than written.
+ *
+ * A column of plain digits reads as a row count; a marked one reads as an
+ * order, which is what the column actually is.
+ */
+.iris-sequence-step {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--rule-firm);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+}
+
+.iris-sequence-name {
+  display: grid;
+  gap: 0.0625rem;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.iris-sequence-name em {
+  font-style: normal;
+  font-size: 0.6875rem;
+  color: var(--ink-2);
+}
+
+.iris-sequence-track {
+  position: relative;
+  height: 10px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 5%);
+  overflow: hidden;
+}
+
+.iris-sequence-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in oklab, var(--accent) 55%, #080b0f);
+}
+
+.iris-sequence-time {
+  display: grid;
+  gap: 0.0625rem;
+  justify-items: end;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.iris-sequence-time em {
+  font-style: normal;
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.iris-sequence-foot {
+  border-top: 1px solid var(--rule);
+}
+
+/* The note is about the whole list, so it spans it rather than wrapping inside
+ * the width of one column. */
+.iris-sequence-foot .iris-sequence-name {
+  grid-column: 2 / -1;
+}
+
+@media (max-width: 60rem) {
+  .iris-sequence li {
+    grid-template-columns: 1.5rem minmax(0, 1fr) 5.5rem;
+    gap: 0.5rem;
+  }
+
+  .iris-sequence-track {
+    display: none;
+  }
+}
+
+/* --- what moved between one period and the next ------------------------------ */
+
+.iris-changes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.iris-change {
+  display: grid;
+  gap: 0.25rem;
+  align-content: start;
+  padding: 1rem 1.125rem 1.125rem;
+  background: var(--plane);
+}
+
+.iris-change-label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.iris-change-delta {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/*
+ * Direction is a colour, but never a verdict.
+ *
+ * Up is not good and down is not bad — more Compare use is a change in how the
+ * story is told, not a win — so both directions read as movement and only the
+ * arrow distinguishes them.
+ */
+.iris-change-delta[data-direction="up"]::before {
+  content: "↑ ";
+  color: var(--accent);
+}
+
+.iris-change-delta[data-direction="down"]::before {
+  content: "↓ ";
+  color: var(--watch);
+}
+
+.iris-change-delta[data-direction="flat"] {
+  color: var(--ink-2);
+}
+
+.iris-change-detail {
+  margin: 0 0 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}

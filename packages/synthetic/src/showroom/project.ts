@@ -33,7 +33,7 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { RAW_CATALOGUE } from "../pulse";
-import { count, evidenceRef, money, ok, percent, signedPercent } from "../format";
+import { count, evidenceRef, money, movement, ok, percent, signedPercent } from "../format";
 import { agentById, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
@@ -539,13 +539,7 @@ export function buildShowroomOverview(
       id: "compare_use",
       label: "Compare mode",
       detail: `Used in ${percent(compareRate, locale)} of presentations`,
-      direction:
-        compareRate > previousCompareRate
-          ? "up"
-          : compareRate < previousCompareRate
-            ? "down"
-            : "flat",
-      deltaDisplay: signedPercent(compareRate - previousCompareRate, locale),
+      ...movement(compareRate - previousCompareRate, locale),
       sources: OBSERVED,
       sampleSize: n,
       href: `${base}/presentation`,
@@ -554,15 +548,7 @@ export function buildShowroomOverview(
       id: "surroundings_position",
       label: "Surroundings, early",
       detail: `Opened in the first third of ${percent(surroundingsEarly, locale)} of presentations`,
-      direction:
-        surroundingsEarly >
-        share(
-          previous.filter((s) => reachedEarly(s, "surroundings")).length,
-          Math.max(1, previous.length),
-        )
-          ? "up"
-          : "down",
-      deltaDisplay: signedPercent(
+      ...movement(
         surroundingsEarly -
           share(
             previous.filter((s) => reachedEarly(s, "surroundings")).length,
