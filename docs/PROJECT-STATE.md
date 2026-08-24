@@ -19,7 +19,27 @@ whatever it points at. Update this file at the end of every meaningful session.
 | **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`       |
 | M2.2 Visual reboot — concepts                | 🟡 built; awaiting the user's selection                |
 | **M2.3 Showroom Intelligence refocus**       | 🟡 **built; awaiting visual and product approval**     |
+| **Infrastructure checkpoint**                | 🟠 **partly done; GitHub push blocked on access**      |
 | M3 Remaining intelligence surfaces           | ⛔ blocked on approval                                 |
+
+## Cloud resources — do not ask for these again
+
+Full runbook in `docs/18-deployment.md`. No secret value is recorded anywhere in this repository.
+
+|                       |                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------- |
+| GitHub                | `madspace2099/iris_observer` — public, **still empty**                                                    |
+| Supabase org          | `LEGALIZALJUK` (`cjmkiuszyotwjhbcbviq`)                                                                   |
+| Supabase staging      | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf`, `eu-central-1`, `ACTIVE_HEALTHY`, €0/mo, zero tables |
+| Supabase legacy       | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                              |
+| Vercel team           | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                   |
+| Vercel project        | not created yet — it must be created _linked_ to a repository that has content                            |
+| Vercel root directory | `apps/web`                                                                                                |
+
+**The one blocker.** `git push` is refused: the credential on this machine is GitHub user
+`asbothmate95`, which has no write access to `madspace2099/iris_observer`. Grant that account write
+access, or sign the machine in as one that has it. Nothing else in the checkpoint can finish until
+the repository has content — a Vercel project created against an empty repo cannot later be linked.
 
 ## The correction that reshaped the product
 
@@ -63,8 +83,9 @@ The critique, the defects found and fixed by inspection, and a recommendation
 ## Next recommended action
 
 1. User reviews the Showroom Intelligence screenshots and approves the product direction.
-2. **Infrastructure checkpoint** — GitHub, Vercel Preview, Supabase staging. Instructed and
-   authorised; see `docs/18-deployment.md` when it exists.
+2. **Unblock the GitHub push** (see above), then `git push -u origin main`, then create the Vercel
+   project with the settings in `docs/18-deployment.md` §2–3 and configure the Preview variables
+   in §4.
 3. A live-model smoke test once `FAL_KEY` is available, to confirm ADR-0024's route in practice.
 4. Only then M3.
 
