@@ -11,6 +11,16 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const PORT = 3210;
 
+/**
+ * A deployment to test against, instead of a local server.
+ *
+ * Set OBSERVER_BASE_URL to point the suite at a Vercel deployment. The same
+ * assertions then verify the thing that was actually shipped rather than a
+ * build that only ever existed on this machine — which is the difference
+ * between a green suite and a working deployment.
+ */
+const EXTERNAL = process.env["OBSERVER_BASE_URL"];
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -22,7 +32,7 @@ export default defineConfig({
   retries: process.env["CI"] === undefined ? 0 : 1,
   reporter: process.env["CI"] === undefined ? "list" : [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: EXTERNAL ?? `http://localhost:${PORT}`,
     trace: "retain-on-failure",
     colorScheme: "dark",
   },
@@ -48,12 +58,17 @@ export default defineConfig({
    * anybody will run: an end-to-end suite that passes only against a
    * development build proves less than it appears to.
    */
-  webServer: {
-    command: `pnpm --filter @observer/web build && pnpm --filter @observer/web start --port ${PORT}`,
-    url: `http://localhost:${PORT}/sign-in`,
+  // No local server when testing a deployment: there is nothing to start.
+  ...(EXTERNAL === undefined
+    ? {
+        webServer: {
+          command: `pnpm --filter @observer/web build && pnpm --filter @observer/web start --port ${PORT}`,
+          url: `http://localhost:${PORT}/sign-in`,
     // Off by default, so a suite run always proves the production build. Set
     // OBSERVER_REUSE=1 while iterating to skip the rebuild between runs.
-    reuseExistingServer: process.env["OBSERVER_REUSE"] === "1",
-    timeout: 240_000,
-  },
+          reuseExistingServer: process.env["OBSERVER_REUSE"] === "1",
+          timeout: 240_000,
+        },
+      }
+    : {}),
 });

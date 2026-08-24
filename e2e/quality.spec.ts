@@ -72,7 +72,15 @@ test.describe("session boundary", () => {
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   });
 
-  test("signing out invalidates the session, not only the cookie", async ({ page, context }) => {
+  /*
+   * Sign-out clears the cookie, and the token expires on its own.
+   *
+   * It is no longer revocable server-side: the session is a signed, stateless
+   * token because an in-memory table cannot survive a serverless platform,
+   * where every request may land on a different instance. ADR-0022 records the
+   * trade and the pre-production gate that removes it.
+   */
+  test("signing out clears the session cookie", async ({ page, context }) => {
     await signInAs(page, "Petra Novák");
     const cookie = (await context.cookies()).find((c) => c.name === "observer_session");
     expect(cookie?.httpOnly).toBe(true);
@@ -81,11 +89,35 @@ test.describe("session boundary", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL(/\/sign-in/);
 
-    // Replaying the captured cookie must fail: the server record is gone.
+    // The cookie is gone from the browser, so the next request is unsigned.
+    expect((await context.cookies()).find((c) => c.name === "observer_session")?.value ?? "").toBe(
+      "",
+    );
+    await page.goto("/alpha/northgate/showroom");
+    await page.waitForURL(/\/sign-in/);
+  });
+
+  test("a tampered token grants nothing", async ({ page, context }) => {
+    /*
+     * The property that survived going stateless.
+     *
+     * The token carries the viewer key in the clear, so it is readable — but it
+     * is signed, and swapping "developer" for "madspace" breaks the signature.
+     * Nobody can promote themselves by editing a cookie, which is the mistake
+     * this adapter exists to prevent.
+     */
+    await signInAs(page, "Petra Novák");
+    const cookie = (await context.cookies()).find((c) => c.name === "observer_session");
+    expect(cookie?.value).toBeTruthy();
+
+    const tampered = (cookie?.value ?? "").replace(/^[^.]+/, "madspace");
+    expect(tampered).not.toBe(cookie?.value);
+
+    await context.clearCookies();
     await context.addCookies([
-      { name: "observer_session", value: cookie?.value ?? "", url: "http://localhost:3210" },
+      { name: "observer_session", value: tampered, url: "http://localhost:3210" },
     ]);
-    await page.goto("/alpha/northgate/overview");
+    await page.goto("/madspace");
     await page.waitForURL(/\/sign-in/);
   });
 

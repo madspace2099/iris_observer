@@ -15,6 +15,10 @@ import {
  * itself a tenant or a role** — because a reviewer clicking around must be
  * seeing the access model the product will actually ship, not a cookie they
  * could have edited.
+ *
+ * The session is a signed, stateless token. It has to be: an in-memory table
+ * cannot survive a serverless platform, where the instance that minted a
+ * session is not the instance that reads it.
  */
 describe("session cannot be forged from the browser", () => {
   it("rejects the viewer key itself, which an earlier version accepted", () => {
@@ -39,12 +43,37 @@ describe("session cannot be forged from the browser", () => {
     expect(viewer?.agentId).not.toBeNull();
   });
 
-  it("issues an opaque identifier that leaks no role", () => {
-    const id = createSession("madspace");
-    expect(id).toMatch(/^obs_[0-9a-f]{32}$/);
-    for (const key of ["developer", "madspace", "agency", "agent", "admin"]) {
-      expect(id).not.toContain(key);
+  it("cannot be edited into a different role", () => {
+    /*
+     * The token carries the viewer key in the clear and is signed, so the key
+     * is readable — and useless to change. The earlier implementation hid the
+     * key instead; hiding it was never the property that mattered, and it cost
+     * the ability to work on a platform where no two requests share memory.
+     */
+    const id = createSession("salesAgent");
+    expect(resolveSession(id)?.role).toBe("sales_agent");
+
+    for (const promoted of ["madspace", "developer", "agencyManager"]) {
+      const tampered = id.replace(/^[^.]+/, promoted);
+      expect(tampered).not.toBe(id);
+      expect(resolveSession(tampered), promoted).toBeNull();
     }
+  });
+
+  it("rejects a token whose signature has been altered", () => {
+    const id = createSession("developer");
+    const parts = id.split(".");
+    const flipped = `${parts[0]}.${parts[1]}.${parts[2]}.${(parts[3] ?? "").split("").reverse().join("")}`;
+    expect(resolveSession(flipped)).toBeNull();
+  });
+
+  it("rejects a token that has expired", () => {
+    // The expiry is signed with the rest, so moving it forward breaks the
+    // signature and moving it backward expires the token. Both must fail.
+    const id = createSession("developer");
+    const parts = id.split(".");
+    const past = `${parts[0]}.${Date.now() - 1000}.${parts[2]}.${parts[3]}`;
+    expect(resolveSession(past)).toBeNull();
   });
 
   it("issues a different identifier every time", () => {
@@ -52,13 +81,21 @@ describe("session cannot be forged from the browser", () => {
     expect(ids.size).toBe(20);
   });
 
-  it("stops working the moment the session is destroyed", () => {
+  it("is stateless, which is why sign-out clears the cookie and nothing else", () => {
+    /*
+     * The limitation, asserted rather than hidden.
+     *
+     * There is no server record to delete, so a token copied before sign-out
+     * stays valid until it expires. That is the price of a session that works
+     * on a platform where every request may land on a different instance, and
+     * it is acceptable only because the token grants a profile from a screen
+     * where every profile is already freely selectable, over synthetic data.
+     * ADR-0022 records it; the pre-production gate removes it.
+     */
     const id = createSession("developer");
     expect(resolveSession(id)).not.toBeNull();
     destroySession(id);
-    // A copied cookie must not outlive sign-out, which is why sign-out clears
-    // the server record and not only the cookie.
-    expect(resolveSession(id)).toBeNull();
+    expect(resolveSession(id)).not.toBeNull();
   });
 });
 

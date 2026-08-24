@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Viewer } from "@observer/readmodels";
@@ -15,9 +15,10 @@ import { VIEWERS, viewerByKey, type ViewerKey } from "@observer/synthetic";
  *
  * The security property it does hold, and the one that matters while the data
  * is synthetic, is that **the browser cannot grant itself a tenant or a role**.
- * An earlier version stored the viewer key in the cookie, so anybody could
- * become a MADSPACE administrator by editing one string. Now the cookie holds
- * an opaque identifier that means nothing outside the server's own table.
+ * An earlier version stored the viewer key in the cookie in plain text, so
+ * anybody could become a MADSPACE administrator by editing one string. The
+ * cookie now carries a signed token: the key is visible, and altering it breaks
+ * the signature.
  *
  * Replacing this adapter means replacing this file. Nothing above it changes.
  */
@@ -26,74 +27,89 @@ export const SESSION_COOKIE = "observer_session";
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-interface SessionRecord {
-  readonly viewerKey: ViewerKey;
-  readonly createdAt: number;
-  readonly expiresAt: number;
+/**
+ * The signing secret.
+ *
+ * `OBSERVER_SESSION_SECRET` when it is set. Otherwise a value derived from the
+ * deployment id, which is **not secret** — and that is stated rather than
+ * hidden, because of what a forged token would actually buy: the ability to
+ * pick a profile from a screen where every profile is already freely
+ * selectable, over data that is entirely synthetic.
+ *
+ * Real authentication is a pre-production gate (`docs/11-preproduction-gates.md`).
+ * Until it lands, signing is defence in depth against a *shape* of mistake, not
+ * protection of anything.
+ */
+function signingSecret(): string {
+  const configured = process.env["OBSERVER_SESSION_SECRET"];
+  if (configured !== undefined && configured.length > 0) return configured;
+  return `observer-dev.${process.env["VERCEL_DEPLOYMENT_ID"] ?? process.env["VERCEL_GIT_COMMIT_SHA"] ?? "local"}`;
+}
+
+function sign(payload: string): string {
+  return createHmac("sha256", signingSecret()).update(payload).digest("base64url");
 }
 
 /**
- * Server-side session table.
+ * Mints a session token.
  *
- * In memory, which is correct for a scenario adapter and wrong for production:
- * it does not survive a restart and does not span instances. Both are
- * deliberate, because a durable store here would be the beginning of an
- * authentication system nobody reviewed.
+ * **Stateless, and it has to be.** An earlier version kept a Map of session ids
+ * on the server. That worked on one process and failed completely on Vercel:
+ * every request can land on a different lambda instance, so the session created
+ * by the sign-in action was invisible to the next page load and to `/api/ask` —
+ * which is why Ask Observer answered "could not reach its analysis layer".
  *
- * Hung off `globalThis` rather than held in a module-level binding, because
- * Next bundles route handlers separately from pages and server actions. With a
- * plain module constant the sign-in action and `/api/ask` each get their own
- * empty Map, and every authenticated request from a route handler is rejected
- * as unsigned — which is exactly the failure Ask Observer hit. One process, one
- * table.
+ * The token carries the viewer key and an expiry, signed with HMAC-SHA256. It
+ * still holds the property that matters: **the browser cannot grant itself a
+ * role**, because editing the key invalidates the signature.
+ *
+ * What it gives up is server-side revocation. Signing out clears the cookie,
+ * and the token expires on its own, but a copy taken beforehand stays valid
+ * until then. That is a real limitation of a stateless token and is recorded in
+ * ADR-0022 rather than glossed over — a scenario selector over synthetic data
+ * can carry it; production authentication cannot, and will not be built on this.
  */
-const SESSION_STORE = Symbol.for("observer.sessions");
-
-type SessionGlobal = typeof globalThis & {
-  [SESSION_STORE]?: Map<string, SessionRecord>;
-};
-
-const sessions: Map<string, SessionRecord> = ((): Map<string, SessionRecord> => {
-  const g = globalThis as SessionGlobal;
-  g[SESSION_STORE] ??= new Map<string, SessionRecord>();
-  return g[SESSION_STORE];
-})();
-
-function purgeExpired(now: number): void {
-  for (const [id, record] of sessions) {
-    if (record.expiresAt <= now) sessions.delete(id);
-  }
-}
-
-/** Mints an opaque session. The returned value is the only thing the browser sees. */
 export function createSession(viewerKey: ViewerKey): string {
-  const now = Date.now();
-  purgeExpired(now);
-  const id = `obs_${randomUUID().replace(/-/g, "")}`;
-  sessions.set(id, { viewerKey, createdAt: now, expiresAt: now + SESSION_TTL_MS });
-  return id;
-}
-
-export function destroySession(id: string | undefined): void {
-  if (id !== undefined) sessions.delete(id);
+  const expiresAt = Date.now() + SESSION_TTL_MS;
+  const nonce = randomUUID().replace(/-/g, "").slice(0, 16);
+  const payload = `${viewerKey}.${expiresAt}.${nonce}`;
+  return `${payload}.${sign(payload)}`;
 }
 
 /**
- * Resolves a session identifier to a viewer.
+ * Sign-out.
  *
- * Returns null for anything the server did not issue, including a well-formed
- * guess and a value that used to be valid. The lookup never falls back to
- * interpreting the cookie's contents.
+ * There is no table to delete from. The caller clears the cookie; this exists
+ * so the call site reads the same as it will once real sessions are revocable,
+ * and so replacing this adapter stays a change to one file.
  */
-export function resolveSession(id: string | undefined): Viewer | null {
-  if (id === undefined) return null;
-  const record = sessions.get(id);
-  if (record === undefined) return null;
-  if (record.expiresAt <= Date.now()) {
-    sessions.delete(id);
-    return null;
-  }
-  return viewerByKey(record.viewerKey) ?? null;
+export function destroySession(id: string | undefined): void {
+  void id;
+}
+
+/**
+ * Resolves a token to a viewer.
+ *
+ * Returns null for anything this server did not sign, for anything expired, and
+ * for anything malformed. The signature is compared in constant time, so the
+ * comparison cannot be used to guess a valid one byte at a time.
+ */
+export function resolveSession(token: string | undefined): Viewer | null {
+  if (token === undefined) return null;
+
+  const parts = token.split(".");
+  if (parts.length !== 4) return null;
+  const [viewerKey, expiresAt, nonce, signature] = parts as [string, string, string, string];
+
+  const expected = sign(`${viewerKey}.${expiresAt}.${nonce}`);
+  const given = Buffer.from(signature);
+  const want = Buffer.from(expected);
+  if (given.length !== want.length || !timingSafeEqual(given, want)) return null;
+
+  const expiry = Number(expiresAt);
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) return null;
+
+  return viewerByKey(viewerKey) ?? null;
 }
 
 export async function currentViewer(): Promise<Viewer | null> {

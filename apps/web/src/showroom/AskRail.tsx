@@ -130,13 +130,31 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question, tenantSlug, projectSlug, period, unitCode, meetingId }),
         });
+        /*
+         * A failure has to say which failure it was.
+         *
+         * "Could not reach its analysis layer" was shown for every non-200,
+         * including an expired session — which sent the reader looking for an
+         * outage when the answer was to sign in again.
+         */
+        if (response.status === 401) {
+          setOutcome({
+            question,
+            answer: null,
+            refusal: "Your session has expired. Sign in again and ask once more.",
+            toolsUsed: [],
+            status: { provider: "unknown", model: "unknown", live: false, reason: "not signed in" },
+          });
+          return;
+        }
         if (!response.ok) throw new Error(String(response.status));
         setOutcome((await response.json()) as AskOutcome);
       } catch {
         setOutcome({
           question,
           answer: null,
-          refusal: "Observer could not reach its analysis layer. Nothing was answered from memory.",
+          refusal:
+            "Observer could not reach its analysis layer. Nothing was answered from memory — every figure it reports comes from the same read models the screens draw from, so with the analysis layer unreachable there is nothing honest to say.",
           toolsUsed: [],
           status: { provider: "unknown", model: "unknown", live: false, reason: null },
         });
