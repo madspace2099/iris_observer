@@ -73,7 +73,14 @@ export function UnitMatrix({
             className="iris-matrix-row"
             href={dynamicRoute(href(row.unitCode))}
             data-status={row.status}
-            aria-pressed={selectedCode === row.unitCode}
+            /*
+             * aria-current, not aria-pressed.
+             *
+             * These rows are links, and aria-pressed belongs to toggle buttons —
+             * axe rejects it here, and a screen reader would announce a control
+             * that does not exist.
+             */
+            aria-current={selectedCode === row.unitCode ? "true" : undefined}
             scroll={false}
           >
             <span className="iris-matrix-code">

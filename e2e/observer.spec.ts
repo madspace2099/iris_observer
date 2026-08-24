@@ -17,12 +17,26 @@ async function signInAs(page: Page, name: string) {
     .filter({ hasText: name })
     .getByRole("button", { name: "Continue" })
     .click();
-  await page.waitForURL(/\/overview/);
+  // Sign-in lands on the Showroom since ADR-0023. These tests navigate on from
+  // there rather than assuming where they arrive.
+  await page.waitForURL(/\/(showroom|overview)/);
+}
+
+/**
+ * Signs in and opens the executive overview.
+ *
+ * That surface is no longer the product's front door — the Showroom is — but it
+ * is still a surface, and every promise asserted below still has to hold on it.
+ */
+async function openExecutiveOverview(page: Page, name: string, project = "alpha/northgate") {
+  await signInAs(page, name);
+  await page.goto(`/${project}/overview`);
+  await page.evaluate(() => document.fonts.ready);
 }
 
 test.describe("executive overview", () => {
   test("opens on a verdict with a number in it", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    await openExecutiveOverview(page, "Petra Novák");
 
     const verdict = page.getByRole("heading", { level: 1 });
     await expect(verdict).toBeVisible();
@@ -31,14 +45,14 @@ test.describe("executive overview", () => {
   });
 
   test("shows the four approved headline figures", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    await openExecutiveOverview(page, "Petra Novák");
     for (const label of ["Units Sold", "Revenue", "Average Days to Close", "Active Buyers"]) {
       await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
     }
   });
 
   test("links every generated sentence to its records", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    await openExecutiveOverview(page, "Petra Novák");
     const briefing = page.getByRole("region", { name: /What changed this quarter/i });
     const statements = briefing.getByRole("listitem");
     const count = await statements.count();
@@ -57,7 +71,7 @@ test.describe("executive overview", () => {
   });
 
   test("has no detectable accessibility violations", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    await openExecutiveOverview(page, "Petra Novák");
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
@@ -65,7 +79,7 @@ test.describe("executive overview", () => {
   });
 
   test("renders at a fixed viewport", async ({ page }, testInfo) => {
-    await signInAs(page, "Petra Novák");
+    await openExecutiveOverview(page, "Petra Novák");
     await page.waitForLoadState("load");
     await testInfo.attach("executive-overview", {
       body: await page.screenshot({
@@ -79,7 +93,7 @@ test.describe("executive overview", () => {
 
 test.describe("sales agent", () => {
   test("gets their own overview, not the executive one", async ({ page }) => {
-    await signInAs(page, "Monika Kováčová");
+    await openExecutiveOverview(page, "Monika Kováčová");
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Two meetings this week");
     // No agency-wide figures on the agent's screen.
     await expect(page.getByText("Units Sold", { exact: true })).toHaveCount(0);
@@ -89,14 +103,17 @@ test.describe("sales agent", () => {
   test("sees no section they cannot open", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     const nav = page.getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link", { name: "Overview" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "People" })).toBeVisible();
+    // The four primary sections since ADR-0023, all showroom-rooted. A nav item
+    // the role cannot open is not rendered at all: a disabled one advertises
+    // something they will never be given.
+    for (const section of ["Showroom", "Presentation", "Units", "Storytelling"]) {
+      await expect(nav.getByRole("link", { name: section })).toBeVisible();
+    }
     await expect(nav.getByRole("link", { name: "Sales Flow" })).toHaveCount(0);
-    await expect(nav.getByRole("link", { name: "Project" })).toHaveCount(0);
   });
 
   test("reads the brief and learns the shortlisted unit has sold", async ({ page }) => {
-    await signInAs(page, "Monika Kováčová");
+    await openExecutiveOverview(page, "Monika Kováčová");
     await page.getByRole("link", { name: "Open the brief" }).click();
     await page.waitForURL(/\/meetings\//);
 

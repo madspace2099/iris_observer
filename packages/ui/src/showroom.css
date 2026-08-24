@@ -451,7 +451,7 @@
   background: var(--plane-2);
 }
 
-.iris-matrix-row[aria-pressed="true"] {
+.iris-matrix-row[aria-current="true"] {
   background: var(--plane-2);
   box-shadow: inset 2px 0 0 var(--accent);
 }
@@ -746,6 +746,33 @@
   background: #2bb4ff;
 }
 
+/*
+ * The rail moves out from under the answer sheet.
+ *
+ * The sheet sits on the evidence field, as the design system specifies, but the
+ * rail is centred on the whole shell — so without this it lands underneath the
+ * control that opened it.
+ */
+.iris-rail[data-shifted="true"] {
+  transform: translateX(calc(var(--sheet-w) / -2));
+}
+
+@media (max-width: 48rem) {
+  /*
+   * On a phone the sheet is the screen.
+   *
+   * min(34rem, 38vw) is 156px on a 412px handset — a column of one word per
+   * line. There is also nowhere for the rail to step aside to.
+   */
+  .iris-sheet {
+    width: 100%;
+  }
+
+  .iris-rail[data-shifted="true"] {
+    transform: none;
+  }
+}
+
 /* The rail marks itself while a question is in flight. */
 .iris-rail[data-busy="true"] .iris-ask {
   border-color: var(--accent);
@@ -812,6 +839,16 @@
   font-size: 0.625rem;
   font-weight: 400;
   color: var(--ink-2);
+}
+
+/*
+ * Inside a selected chip the ground is the accent, and secondary ink on it
+ * reaches 1.1:1 — invisible. The count follows the chip's own colour there.
+ */
+.iris-chip[aria-current="true"] b,
+.iris-chip[aria-pressed="true"] b {
+  color: inherit;
+  opacity: 0.75;
 }
 
 /*

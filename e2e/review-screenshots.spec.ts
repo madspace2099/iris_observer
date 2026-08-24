@@ -20,7 +20,10 @@ async function signInAs(page: Page, name: string) {
     .filter({ hasText: name })
     .getByRole("button", { name: "Continue" })
     .click();
-  await page.waitForURL(/\/overview/);
+  // Sign-in lands on the Showroom since ADR-0023. This review set is about the
+  // demoted executive surface, so it navigates on from there.
+  await page.waitForURL(/\/(showroom|overview)/);
+  await page.goto("/alpha/northgate/overview");
   await page.evaluate(() => document.fonts.ready);
 }
 

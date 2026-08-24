@@ -74,6 +74,14 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<AskOutcome | null>(null);
+  /*
+   * Suggestions cycle in order rather than at random.
+   *
+   * A random pick makes the control unpredictable for the reader and the
+   * screenshots unrepeatable for review. Pressing it twice should move through
+   * the list, not roll dice.
+   */
+  const [suggestion, setSuggestion] = useState(0);
 
   const period = params.get("period") ?? "quarter_to_date";
   const unitCode = params.get("unit");
@@ -123,7 +131,19 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
 
   return (
     <>
-      <div className="iris-rail" data-busy={busy ? "true" : undefined}>
+      {/*
+        * The rail steps aside for its own sheet.
+        *
+        * In the laboratory the shell carried a data-sheet attribute and the CSS
+        * read it from there. Production renders the rail from this component and
+        * the shell knows nothing about it, so the sheet landed on top of the
+        * control that opened it. The rail flags its own state instead.
+        */}
+      <div
+        className="iris-rail"
+        data-busy={busy ? "true" : undefined}
+        data-shifted={outcome === null ? undefined : "true"}
+      >
         <span className="iris-rail-context">
           <span className="iris-code">{projectLabel}</span>
           <span className="iris-code">·</span>
@@ -164,7 +184,8 @@ export function AskRail({ projectLabel, root }: { projectLabel: string; root: st
           className="iris-action"
           type="button"
           onClick={() => {
-            const next = SUGGESTIONS[Math.floor(Math.random() * SUGGESTIONS.length)] as string;
+            const next = SUGGESTIONS[suggestion % SUGGESTIONS.length] as string;
+            setSuggestion(suggestion + 1);
             setValue(next);
             void submit(next);
           }}

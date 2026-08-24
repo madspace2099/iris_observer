@@ -140,8 +140,10 @@ export default async function PresentationPage({
               <Link
                 key={agent.agentId}
                 className="iris-chip"
-                aria-pressed={
+                aria-current={
                   comparison?.left.id === agent.agentId || comparison?.right.id === agent.agentId
+                    ? "true"
+                    : undefined
                 }
                 href={dynamicRoute(
                   qs({

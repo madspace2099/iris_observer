@@ -499,7 +499,8 @@
   border-color: var(--ink-3);
 }
 
-.iris-chip[aria-pressed="true"] {
+.iris-chip[aria-pressed="true"],
+.iris-chip[aria-current="true"] {
   background: var(--accent);
   border-color: var(--accent);
   color: #05070a;

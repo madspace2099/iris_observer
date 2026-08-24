@@ -36,8 +36,9 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
 ## What is true right now
 
 - 82 metrics in the registry, **62 source requirements**, 0 uncovered, 0 open decisions, 1 review gate.
-- **24 ADRs. 194 unit tests**, Playwright across 1920×1080, 1440×900 and Pixel 7, zero axe
-  violations, production build green.
+- **24 ADRs. 194 unit tests, 173 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
+  (10 skipped: the desktop-only concepts), **zero axe violations on all nine showroom
+  surfaces at every viewport**, production build green.
 - **Ask Observer is live**, running the controlled tool architecture. Without `FAL_KEY` the
   deterministic provider answers from the same tools; the answer sheet says which produced
   the prose. No live-model smoke test has been run — no key is present on this machine.
@@ -122,6 +123,7 @@ credentials, data processing agreement.
 | 2026-08-24 | Laboratory, 3 routes × 2 desktop viewports, repose and interaction | **11 defects found by looking and fixed**, including an invented profile that had no viewer behind it. Listed in `docs/15-visual-concepts.md` §4 |
 | 2026-08-24 | Legacy IRIS Analytics Dashboard, 2 captures | Read-only audit; both PDFs are pure raster, so the embedded images were extracted and read. 31 measurements inventoried. `docs/16-showroom-intelligence-audit.md` |
 | 2026-08-24 | Showroom surfaces, 5 routes × 3 viewports | 14 defects found by looking and fixed: overlapping headers, a hatched overlay nobody could read, "−0%", "+1,100%" from a base of one, a mobile top bar running off the screen, a command rail floating mid-page. |
+| 2026-08-24 | Bug-fixing sweep | The answer sheet covered the rail that opened it; `aria-pressed` on links, which axe rejects and a screen reader would misannounce; 1.1:1 contrast on a selected chip's count; a random "Suggest" button; a `38vw` answer sheet that is 156px on a handset. |
 | 2026-08-24 | **User review of the unit list** | Rejected as overwhelming. Rebuilt: 12 rows instead of 48, six columns instead of eight, no abbreviations, an icon and an info control on every measurement explaining what it measures, how, from where, and what it does not say. |
 
 ## Where the artefacts are

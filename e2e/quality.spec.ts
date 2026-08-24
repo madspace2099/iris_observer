@@ -14,7 +14,8 @@ async function signInAs(page: Page, name: string) {
     .filter({ hasText: name })
     .getByRole("button", { name: "Continue" })
     .click();
-  await page.waitForURL(/\/overview/);
+  // The front door is the Showroom overview since ADR-0023.
+  await page.waitForURL(/\/showroom/);
 }
 
 test.describe("typography", () => {
@@ -50,9 +51,9 @@ test.describe("typography", () => {
 
   test("does not let the font swap reflow the metric grid", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    const before = await page.locator(".obs-metric").first().boundingBox();
+    const before = await page.locator(".iris-figures > div").first().boundingBox();
     await page.evaluate(() => document.fonts.ready);
-    const after = await page.locator(".obs-metric").first().boundingBox();
+    const after = await page.locator(".iris-figures > div").first().boundingBox();
     // Metric cards carry a min-height precisely so a font arriving mid-render
     // cannot move the figures under the reader's eye.
     expect(after?.height).toBe(before?.height);
@@ -66,7 +67,7 @@ test.describe("session boundary", () => {
     await context.addCookies([
       { name: "observer_session", value: "madspace", url: "http://localhost:3210" },
     ]);
-    await page.goto("/alpha/northgate/overview");
+    await page.goto("/alpha/northgate/showroom");
     await page.waitForURL(/\/sign-in/);
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
   });
@@ -106,29 +107,43 @@ test.describe("the ten-second test", () => {
       return box !== null && box.y < fold;
     };
 
-    // 1. Is it good, bad or inconclusive?  2. What changed?
-    expect(await within(".obs-verdict"), "verdict below the fold").toBe(true);
-    expect(await within(".obs-headline-change"), "headline change below the fold").toBe(true);
-    // 3. Why does it matter — the four figures.  4. What to do — the actions.
-    expect(await within(".obs-metric"), "figures below the fold").toBe(true);
-    expect(await within(".obs-verdict .obs-action"), "actions below the fold").toBe(true);
+    // 1. What happened inside IRIS?  2. What changed?
+    expect(await within(".iris-verdict"), "verdict below the fold").toBe(true);
+    expect(await within(".iris-delta"), "change below the fold").toBe(true);
+    // 3. Why does it matter — the figures.  4. What to inspect next.
+    expect(await within(".iris-figures"), "figures below the fold").toBe(true);
+    expect(await within(".iris-finding"), "findings below the fold").toBe(true);
   });
 
   test("keeps the first screen to at most six figures", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    // The registry holds eighty-two metrics. Rendering the registry would be
-    // the exact failure Stano described in the legacy dashboard.
-    await expect(page.locator(".obs-metric")).toHaveCount(4);
-    await expect(page.locator(".obs-verdict .obs-action")).toHaveCount(2);
+    // The registry holds eighty-two metrics. Rendering the registry would be the
+    // exact failure Stano described in the legacy dashboard, and the one the unit
+    // list was rebuilt to avoid.
+    const figures = await page.locator(".iris-figures > div").count();
+    expect(figures).toBeGreaterThan(0);
+    expect(figures).toBeLessThanOrEqual(6);
   });
 
-  test("shows the rules behind the verdict rather than asserting it", async ({ page }) => {
+  test("every figure on the first screen can say what it measures", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    const rules = page.locator(".obs-rules");
-    await expect(rules).toBeVisible();
-    await rules.getByRole("group").or(rules.locator("summary")).first().click();
-    await expect(page.locator(".obs-rule-list li")).toHaveCount(4);
-    await expect(page.getByText(/verdict-\d+\.\d+\.\d+/)).toBeVisible();
+    // A headline number with no stated definition is what the legacy dashboard
+    // did when it graded a single click "High".
+    const info = page.locator(".iris-figures .iris-measure-info");
+    await expect(info.first()).toBeVisible();
+    await info.first().click();
+    const panel = page.getByRole("note").first();
+    await expect(panel).toContainText("What it measures");
+    await expect(panel).toContainText("What it does not say");
+  });
+
+  test("leads with the presentation, not with the CRM", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    // ADR-0023, asserted at the surface: the verdict is about IRIS, and the
+    // outcome mix is present but labelled as context.
+    await expect(page.locator(".iris-verdict")).toContainText(/presentation/i);
+    await expect(page.getByText(/Outcome context/i)).toBeVisible();
+    await expect(page.getByText(/the CRM owns that/i)).toBeVisible();
   });
 
   test("says insufficient data rather than showing a green light", async ({ page }) => {
