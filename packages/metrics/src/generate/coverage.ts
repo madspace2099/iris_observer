@@ -28,6 +28,7 @@ const SOURCE_TITLES: Record<RequirementSource, string> = {
   sales_agent_flow: "Showroom IRIS sales-agent flow",
   madspace: "MADSPACE decisions",
   webiris_addendum: "WEBIRIS cross-channel addendum",
+  showroom_refocus: "Showroom Intelligence refocus",
 };
 
 function coverageCell(r: SourceRequirement): string {

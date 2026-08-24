@@ -6,6 +6,8 @@ import type {
   ShowroomFinding,
 } from "@observer/readmodels";
 import { INSIGHT_SOURCE_LABELS, type InsightSource } from "@observer/contracts";
+import { defineMeasurement } from "@observer/readmodels";
+import { Measure } from "./Measure";
 import { dynamicRoute } from "@/lib/href";
 import Link from "next/link";
 
@@ -74,12 +76,21 @@ export function Finding({ finding, lead = false }: { finding: ShowroomFinding; l
 
 /* --- figures --------------------------------------------------------------- */
 
+/**
+ * The figure strip.
+ *
+ * Each label carries its own explanation, so the reader can open the rule
+ * behind a number without leaving the screen. A headline figure with no stated
+ * definition is what the legacy dashboard did when it graded one click "High".
+ */
 export function Figures({ figures }: { figures: readonly MetricValue[] }) {
   return (
     <dl className="iris-figures">
       {figures.map((m) => (
         <div key={m.metricId}>
-          <dt>{m.label}</dt>
+          <dt>
+            {defineMeasurement(m.metricId) === undefined ? m.label : <Measure id={m.metricId} />}
+          </dt>
           <dd>
             <b>{m.display ?? "—"}</b>
             {m.comparison === null ? (
@@ -158,7 +169,20 @@ export function DnaLane({
 
 /* --- coverage -------------------------------------------------------------- */
 
-export function Coverage({ coverage }: { coverage: PresentationCoverage }) {
+/**
+ * Coverage, for one meeting or for many.
+ *
+ * "Routinely skipped, 100%" is a nonsense reading of a single presentation —
+ * routine needs more than one occasion. With one meeting the same figures are a
+ * plain statement of what was not opened.
+ */
+export function Coverage({
+  coverage,
+  singleMeeting = false,
+}: {
+  coverage: PresentationCoverage;
+  singleMeeting?: boolean;
+}) {
   return (
     <div className="iris-stack">
       <p className="iris-kicker">Coverage</p>
@@ -181,7 +205,11 @@ export function Coverage({ coverage }: { coverage: PresentationCoverage }) {
           <span className="iris-bar-value">{coverage.medianDepth} steps</span>
         </div>
       </div>
-      {coverage.routinelySkipped.length === 0 ? null : (
+      {coverage.routinelySkipped.length === 0 ? null : singleMeeting ? (
+        <p className="iris-meta">
+          Never opened: {coverage.routinelySkipped.map((s) => s.label).join(" · ")}
+        </p>
+      ) : (
         <p className="iris-meta">
           Routinely skipped:{" "}
           {coverage.routinelySkipped

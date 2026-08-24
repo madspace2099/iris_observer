@@ -813,3 +813,275 @@
   font-weight: 400;
   color: var(--ink-2);
 }
+
+/*
+ * One section's position in the presentation, as a mark on a shared axis.
+ *
+ * Every row uses the same 0–1 track, so the marks line up down the column and
+ * the reading is "this one sits earlier than that one" without a single label
+ * on the axis itself.
+ */
+.iris-position-row {
+  position: relative;
+  height: 1.25rem;
+  border-left: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+}
+
+.iris-position-row::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1px;
+  background: var(--rule);
+}
+
+.iris-position-row i {
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: translateX(-1px);
+}
+
+/* A value column that has to hold "100% · 289s" needs room for it. */
+.iris-bars[data-value-wide="true"] .iris-bar {
+  grid-template-columns: 8.5rem 1fr 6.5rem;
+}
+
+/* --- a measurement that explains itself -------------------------------------- */
+
+/*
+ * Column headers carry a glyph, the full name and an info control.
+ *
+ * The abbreviations they replace — MTGS, MED S, CMP — saved four characters and
+ * cost the reader the meaning of the column. The explanation opens in place
+ * rather than on hover: a tooltip cannot be read twice, is awkward from a
+ * keyboard, and does not exist on a touch screen.
+ */
+.iris-measure {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--ink-2);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.iris-measure[data-align="right"] {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.iris-measure-label {
+  font-family: var(--sans, inherit);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.iris-measure-info {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: none;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  font-style: italic;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.iris-measure-info:hover,
+.iris-measure-info[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.iris-measure-panel {
+  /* The header sets a monospace face for its labels; an explanation is prose. */
+  font-family: var(--sans, ui-sans-serif, system-ui);
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 20;
+  width: min(24rem, 80vw);
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: 8px;
+  background: var(--plane-2);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 60%);
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.iris-measure[data-align="right"] .iris-measure-panel {
+  left: auto;
+  right: 0;
+}
+
+.iris-measure-panel > b {
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.iris-measure-panel > span {
+  display: grid;
+  gap: 0.1875rem;
+  font-family: var(--sans, ui-sans-serif, system-ui);
+  font-size: 0.8125rem;
+  line-height: 1.15rem;
+  color: var(--ink-2);
+}
+
+.iris-measure-panel em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Six columns, none of them an abbreviation. */
+.iris-matrix[data-columns="6"] .iris-matrix-head,
+.iris-matrix[data-columns="6"] .iris-matrix-row {
+  grid-template-columns: 9rem minmax(5rem, 1fr) 7.5rem 8.5rem 8.5rem 8rem;
+  gap: 1rem;
+  padding: 0.5625rem 0.5rem;
+}
+
+.iris-matrix[data-columns="6"] .iris-matrix-head {
+  align-items: end;
+}
+
+/* The unit code carries its own description, so the row needs no legend. */
+.iris-matrix-code {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.iris-matrix-code em {
+  font-family: var(--sans, inherit);
+  font-style: normal;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.iris-matrix-num[data-trend="rising"] {
+  color: var(--gain);
+}
+
+.iris-matrix-num[data-trend="falling"] {
+  color: var(--loss);
+}
+
+.iris-matrix-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 75rem) {
+  .iris-matrix[data-columns="6"] .iris-matrix-head,
+  .iris-matrix[data-columns="6"] .iris-matrix-row {
+    grid-template-columns: 8rem minmax(4rem, 1fr) 5.5rem 6rem;
+  }
+
+  .iris-matrix[data-columns="6"] .iris-matrix-head > :nth-child(n + 5),
+  .iris-matrix[data-columns="6"] .iris-matrix-row > :nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* --- the shell on a phone ---------------------------------------------------- */
+
+/*
+ * The top bar is a three-column grid at desktop width and cannot stay one on a
+ * phone: the nav ran off the right edge and the synthetic badge wrapped into a
+ * three-line pill. It stacks instead, and the section rail scrolls sideways —
+ * an agent walking to a meeting reads this on a phone, so it has to work there.
+ */
+@media (max-width: 48rem) {
+  .iris-top {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .iris-top .iris-nav {
+    justify-self: stretch;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .iris-top .iris-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iris-ambient {
+    justify-self: stretch;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .iris-synthetic {
+    white-space: nowrap;
+    font-size: 0.625rem;
+    padding: 0.1875rem 0.5rem;
+  }
+
+  .iris-stage > .iris-two > .iris-plane,
+  .iris-stage > .iris-one > .iris-plane {
+    padding: 1.25rem 1rem 7rem;
+  }
+
+  /*
+   * The rail is fixed on a phone, not sticky.
+   *
+   * Sticky needs the page to be the scroll container, and here the stage owns
+   * the scrolling — so the rail landed mid-page with content running under it.
+   * Fixed puts it where a command rail belongs, and the plane's bottom padding
+   * keeps the last row clear of it.
+   */
+  .iris-rail {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    width: auto;
+    max-width: none;
+  }
+
+  /* An explanation panel on a phone is the width of the screen, not of a column. */
+  .iris-measure-panel {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: 5.5rem;
+    width: auto;
+  }
+}

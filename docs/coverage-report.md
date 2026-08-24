@@ -14,7 +14,7 @@ Coverage is not always a metric. Some requirements are answered by a read model,
 or a decision, and some are still open — those are listed in full at the end rather than counted as
 done.
 
-- Requirements tracked: **47**
+- Requirements tracked: **62**
 - Uncovered: **0**
 - Open decisions: **0**
 - Decided, waiting on a review gate: **1**
@@ -101,6 +101,30 @@ done.
 | A structured pre-meeting brief in three separated sections, every statement carrying evidence and a drill-down. | cross channel | _PreMeetingBrief_<br>PreMeetingBriefSchema<br>StatementSchema | ✅ contract |
 | The sixteen cross-channel journey metrics. | cross channel | `webiris.anonymous_visitors`<br>`webiris.identified_leads`<br>`webiris.visitor_to_lead`<br>`journey.lead_to_booking`<br>`journey.meeting_attendance_rate`<br>`journey.webiris_to_showroom`<br>`journey.lead_to_attendance_days`<br>`journey.online_to_offer`<br>`journey.online_to_reservation`<br>`journey.online_to_purchase`<br>`journey.conversion_by_online_segment`<br>`journey.preference_agreement`<br>`journey.common_path`<br>`journey.cross_channel_completeness`<br>`journey.unmatched_contacts`<br>`journey.unmatched_meetings` | ✅ metric |
 | A deterministic synthetic Viktória journey, plus the edge cases around it. | cross channel | docs/08-scenarios.md<br>⏭ M2 synthetic read models, then the seeding milestone | ✅ contract |
+
+---
+
+## Showroom Intelligence refocus
+
+15 requirements.
+
+| Requirement | Family | Covered by | Status |
+| --- | --- | --- | --- |
+| IRIS Observer must explain what happened inside the IRIS presentation, not restate what the CRM already concluded. | showroom | _ShowroomOverview_<br>_PresentationIntelligence_<br>_MeetingReplay_<br>_UnitAttentionView_<br>_StorytellingIntelligence_<br>ADR-0023<br>InsightSource | ✅ contract |
+| Every primary insight must be rooted in at least one observed IRIS Showroom fact. | showroom | _ShowroomFinding_<br>ADR-0023<br>isShowroomRooted | ✅ contract |
+| Source type must be visible to the reader and machine-readable, not merely a visual label. | showroom | _ShowroomFinding_<br>_ReplayStep_<br>InsightSource<br>INSIGHT_SOURCE_LABELS | ✅ contract |
+| The order in which IRIS sections are presented, their dwell, repeats, skips and transitions, must be visible and comparable. | showroom | `people.presentation_coverage`<br>_PresentationLane_<br>_PresentationTransition_ | ✅ metric |
+| Two sales agents must be comparable interactively, on how they use IRIS rather than on their results. | showroom | _PresentationComparison_<br>_PresentationDifference_<br>docs/17-showroom-intelligence.md §2 | ✅ contract |
+| Higher-outcome and lower-outcome meeting cohorts must be comparable without causal wording, with sample sizes always shown. | showroom | _PresentationComparison_<br>PROGRESSED_OUTCOMES<br>ADR-0010 | ✅ contract |
+| An individual showroom meeting must be reconstructable as a story, with each step inspectable and its gaps stated. | showroom | _MeetingReplay_<br>_ReplayStep_ | ✅ contract |
+| Apartment activity must become explainable buyer attention, not a sortable table of counts. | showroom | `unit.active_dwell`<br>`unit.recent_interest`<br>`unit.demand_trend`<br>`unit.compare_win_rate`<br>_UnitAttentionView_<br>_UnitAttentionDetail_ | ✅ metric |
+| How the IRIS story itself is used — sections skipped, glanced at, returned to, and which travel together — must be reportable. | showroom | `project.environment_interest`<br>`project.amenity_interest`<br>`project.poi_interest`<br>_StorytellingIntelligence_<br>_SectionUsage_<br>_FeaturePairing_ | ✅ metric |
+| A section opened and abandoned must be distinguishable from one that was presented. | showroom | _SectionUsage_<br>ADR-0016<br>section.glance | ✅ contract |
+| Every figure on screen must be able to say what it measures, how it is computed, where it came from and what it does not say. | showroom | MeasurementDefinition<br>GLOSSARY | ✅ contract |
+| Unknown data must never be rendered as zero, and legacy limitations must be shown honestly. | showroom | _MeetingReplay.gaps_<br>_PresentationLaneStep.availability_<br>MetricState<br>MeasurementAvailability | ✅ contract |
+| The AI agent must answer only from registered Observer evidence, separating observed fact from interpretation, and never claim causation. | showroom | ADR-0024<br>TOOLS<br>CAUSAL_PATTERNS | ✅ contract |
+| The demonstration dataset must be deterministic, must carry imperfect associations, and must be visibly labelled as synthetic. | showroom | showroomSessions<br>SyntheticBadge | ✅ contract |
+| The facts the current UE5 build cannot emit must be listed and prioritised for instrumentation. | showroom | docs/16-showroom-intelligence-audit.md §4<br>⏭ UE5 v2 instrumentation | ✅ contract |
 
 ---
 

@@ -4,6 +4,7 @@ import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { Measure } from "@/showroom/Measure";
 
 export const metadata: Metadata = { title: "Storytelling" };
 
@@ -45,8 +46,12 @@ export default async function StorytellingPage({
           The solid bar is how often a section was reached. The hatched overlay is the share of those
           visits that ended within fifteen seconds — opened and left rather than presented.
         </p>
+        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+          <Measure id="section.reach" />
+          <Measure id="section.glance" />
+        </div>
 
-        <div className="iris-bars" style={{ marginTop: "1rem" }}>
+        <div className="iris-bars" data-value-wide="true" style={{ marginTop: "1rem" }}>
           {view.sections.map((s) => (
             <div className="iris-bar" key={s.sectionId}>
               <span className="iris-bar-label" title={`${s.kind} · mean position ${Math.round(s.meanPosition * 100)}%`}>
@@ -83,23 +88,48 @@ export default async function StorytellingPage({
           <p className="iris-kicker" style={{ marginBottom: ".75rem" }}>
             Where each section lands in the presentation
           </p>
-          <div className="iris-position">
+          {/*
+            * A list, not an axis.
+            *
+            * Six of the nine sections have a mean position between 0.44 and
+            * 0.54, so labelling a 0–1 axis put six names inside a tenth of its
+            * width and none of them could be read. The band is the useful
+            * reading anyway: what opens, what closes, and what floats in the
+            * middle.
+            */}
+          <div className="iris-bars">
             {view.sections
               .filter((s) => s.meetings > 0)
+              .slice()
+              .sort((a, b) => a.meanPosition - b.meanPosition)
               .map((s) => (
-                <span key={s.sectionId} style={{ left: `${s.meanPosition * 100}%` }}>
-                  {s.label}
-                </span>
-              ))}
-            {view.sections
-              .filter((s) => s.meetings > 0)
-              .map((s) => (
-                <i key={`${s.sectionId}-tick`} style={{ left: `${s.meanPosition * 100}%` }} />
+                <div className="iris-bar" key={`pos-${s.sectionId}`}>
+                  <span className="iris-bar-label">{s.label}</span>
+                  <span className="iris-position-row" aria-hidden="true">
+                    <i style={{ left: `${s.meanPosition * 100}%` }} />
+                  </span>
+                  <span className="iris-bar-value">
+                    {s.meanPosition < 0.15
+                      ? "opens"
+                      : s.meanPosition < 0.4
+                        ? "early"
+                        : s.meanPosition < 0.62
+                          ? "middle"
+                          : s.meanPosition < 0.82
+                            ? "late"
+                            : "closes"}
+                  </span>
+                </div>
               ))}
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span className="iris-code">opening</span>
-            <span className="iris-code">close</span>
+          {/* The legend belongs under the axis column, not under the whole row. */}
+          <div className="iris-bar" style={{ marginTop: ".25rem" }}>
+            <span />
+            <span style={{ display: "flex", justifyContent: "space-between" }}>
+              <span className="iris-code">opens the meeting</span>
+              <span className="iris-code">closes it</span>
+            </span>
+            <span />
           </div>
         </div>
 
@@ -115,6 +145,9 @@ export default async function StorytellingPage({
           <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
             Sections that travel together
           </p>
+          <div style={{ marginBottom: ".625rem" }}>
+            <Measure id="section.pairing" />
+          </div>
           <div className="iris-bars">
             {view.pairings.map((p) => (
               <div className="iris-bar" key={`${p.a}-${p.b}`}>
@@ -143,6 +176,10 @@ export default async function StorytellingPage({
           <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
             Environment
           </p>
+          <div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", marginBottom: ".5rem" }}>
+            <Measure id="environment.time_of_day" />
+            <Measure id="environment.weather" />
+          </div>
           <p className="iris-meta">
             Used in {view.environment.meetingsUsingEnvironment} of {view.environment.meetingsTotal}{" "}
             meetings.

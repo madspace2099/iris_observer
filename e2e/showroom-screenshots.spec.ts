@@ -51,6 +51,15 @@ test.describe("showroom intelligence", () => {
     await shoot(page, "05-unit-selected", info.project.name);
   });
 
+  test("every column explains itself", async ({ page }, info) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/units");
+    // The info control is the answer to "what measurement is behind this
+    // number", so it is reviewed rather than assumed.
+    await page.getByRole("button", { name: /What Typical look measures/ }).click();
+    await shoot(page, "11-measurement-explained", info.project.name);
+  });
+
   test("storytelling", async ({ page }, info) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/storytelling");

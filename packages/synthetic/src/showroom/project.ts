@@ -813,6 +813,9 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
       "This session came from the legacy analytics, which records the order of sections but not when each was entered. The sequence is real; the pacing is unknown.",
     );
   }
+  gaps.push(
+    "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
+  );
   if (session.filters.length === 0) {
     gaps.push("Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.");
   }
@@ -906,8 +909,20 @@ export function buildUnitAttention(
       comparisonWins: comparisons.length === 0 ? null : wins,
       shares: touches.filter((t) => t.shared).length,
       trend,
+      /*
+       * A percentage change needs a base worth dividing by.
+       *
+       * One appearance last period becoming twelve this period is "+1,100%",
+       * which is arithmetically true and tells the reader nothing except that
+       * the denominator was tiny. Below three prior appearances the counts are
+       * shown instead.
+       */
       trendDisplay:
-        before === 0 ? "no prior period" : signedPercent((now - before) / Math.max(1, before), locale),
+        before === 0
+          ? `new · ${count(now, locale)}`
+          : before < 3
+            ? `${count(before, locale)} → ${count(now, locale)}`
+            : signedPercent((now - before) / before, locale),
       attention: 0,
       sources: OBSERVED,
     } satisfies UnitAttentionRow;

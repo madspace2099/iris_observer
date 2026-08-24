@@ -68,9 +68,15 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
                   {step.isReturn ? <em> · returned</em> : null}
                   {step.detail === null ? null : <em> · {step.detail}</em>}
                 </span>
+                {/*
+                  * Unavailability is stated once, in the gaps block, not beside
+                  * every affected row. Eleven repetitions of "time not recorded"
+                  * is noise that trains the reader to stop reading it.
+                  */}
                 <span className="iris-replay-time" data-unknown={step.atDisplay === null ? "true" : undefined}>
-                  {step.atDisplay ?? (step.dwellDisplay ?? "time not recorded")}
-                  {step.atDisplay !== null && step.dwellDisplay !== null ? ` · ${step.dwellDisplay}` : ""}
+                  {step.atDisplay === null
+                    ? (step.dwellDisplay ?? "")
+                    : `${step.atDisplay}${step.dwellDisplay === null ? "" : ` · ${step.dwellDisplay}`}`}
                 </span>
               </button>
 
@@ -115,7 +121,7 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
         </div>
 
         <hr className="iris-rule" />
-        <Coverage coverage={replay.coverage} />
+        <Coverage coverage={replay.coverage} singleMeeting />
         <hr className="iris-rule" />
 
         <dl className="iris-detail">
@@ -132,7 +138,15 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
             <dd>{replay.durationDisplay}</dd>
           </div>
           <div>
-            <dt>steps</dt>
+            {/*
+              * "Sections" and "recorded events" are different counts and were
+              * both labelled "steps", so the panel contradicted the headline.
+              */}
+            <dt>sections</dt>
+            <dd>{replay.steps.filter((s) => s.kind === "section").length}</dd>
+          </div>
+          <div>
+            <dt>recorded events</dt>
             <dd>{replay.steps.length}</dd>
           </div>
         </dl>

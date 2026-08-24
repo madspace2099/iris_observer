@@ -58,3 +58,27 @@ test("Ask Observer answers against the current selection", async ({ page }) => {
   // is the thing this product exists to replace.
   await expect(sheet.getByText(/records/).first()).toBeVisible();
 });
+
+test("every figure on the unit list can explain itself", async ({ page }) => {
+  await page.goto("/sign-in");
+  await page.getByRole("listitem").filter({ hasText: "Petra Novák" }).getByRole("button", { name: "Continue" }).click();
+  await page.waitForURL(/\/showroom/);
+  await page.goto("/alpha/northgate/units");
+
+  // No abbreviated headers. A reader should not have to guess what a column is.
+  for (const label of ["Attention", "Meetings", "Typical look", "Shortlisted", "Trend"]) {
+    await expect(page.getByRole("columnheader").or(page.locator(".iris-measure-label")).filter({ hasText: label }).first()).toBeVisible();
+  }
+
+  const info = page.getByRole("button", { name: /What Typical look measures/ });
+  await expect(info).toBeVisible();
+  await info.click();
+
+  const panel = page.getByRole("note");
+  await expect(panel).toBeVisible();
+  // The four things a number has to be able to say about itself.
+  await expect(panel).toContainText("What it measures");
+  await expect(panel).toContainText("How it is computed");
+  await expect(panel).toContainText("What it does not say");
+  await expect(panel).toContainText("IRIS observed");
+});

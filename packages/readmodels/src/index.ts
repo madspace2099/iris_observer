@@ -12,4 +12,5 @@ export * from "./metric-value";
 export * from "./views";
 export * from "./pulse";
 export * from "./showroom";
+export * from "./glossary";
 export * from "./ports";

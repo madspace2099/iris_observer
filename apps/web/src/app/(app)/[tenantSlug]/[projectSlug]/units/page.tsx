@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
-import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { UnitMatrix } from "@/showroom/UnitMatrix";
+import { Measure } from "@/showroom/Measure";
 
 export const metadata: Metadata = { title: "Units" };
 
@@ -39,7 +39,6 @@ export default async function UnitsPage({
     }).toString()}`;
 
   const touched = view.rows.filter((r) => r.meetings > 0);
-  const untouched = view.rows.length - touched.length;
   const detail = view.selected;
 
   return (
@@ -50,68 +49,19 @@ export default async function UnitsPage({
           {touched.length} of {view.rows.length} units were opened in front of a buyer.
         </h1>
         <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Attention is total time spent looking at the unit, scaled against the busiest one in the
-          project. A unit nobody opened is shown at zero because that is a real answer, not a gap.
+          Ordered by how much of the project&rsquo;s looking time each one took. Every column says what
+          it measures — open the <b>i</b> beside a heading to see the rule behind the number and what
+          it does not tell you.
         </p>
 
-        <div className="iris-matrix" style={{ marginTop: ".75rem" }}>
-          <div className="iris-matrix-head">
-            <span>unit</span>
-            <span>attention</span>
-            <span style={{ textAlign: "right" }}>mtgs</span>
-            <span style={{ textAlign: "right" }}>med s</span>
-            <span style={{ textAlign: "right" }}>short</span>
-            <span style={{ textAlign: "right" }}>plans</span>
-            <span style={{ textAlign: "right" }}>cmp</span>
-            <span style={{ textAlign: "right" }}>trend</span>
-          </div>
-          {view.rows.map((row) => (
-            <Link
-              key={row.unitId}
-              className="iris-matrix-row"
-              href={dynamicRoute(href(detail?.row.unitCode === row.unitCode ? null : row.unitCode))}
-              data-status={row.status}
-              aria-pressed={detail?.row.unitCode === row.unitCode}
-              scroll={false}
-            >
-              <span className="iris-matrix-code">{row.unitCode}</span>
-              <span
-                className="iris-matrix-attention"
-                style={{ "--a": row.attention.toFixed(3) } as React.CSSProperties}
-                title={`${row.rooms} rooms · ${row.areaSqm} m² · ${row.orientation} · ${row.status}`}
-              >
-                <i />
-              </span>
-              <span className="iris-matrix-num" data-zero={row.meetings === 0 ? "true" : undefined}>
-                {row.meetings}
-              </span>
-              <span className="iris-matrix-num" data-zero={row.medianDwellSeconds === 0 ? "true" : undefined}>
-                {row.medianDwellSeconds}
-              </span>
-              <span className="iris-matrix-num" data-zero={row.favourites === 0 ? "true" : undefined}>
-                {row.favourites}
-              </span>
-              <span className="iris-matrix-num" data-zero={row.pdfOpens === 0 ? "true" : undefined}>
-                {row.pdfOpens}
-              </span>
-              <span
-                className="iris-matrix-num"
-                data-null={row.comparisonWins === null ? "true" : undefined}
-                title={row.comparisonWins === null ? "never placed in Compare mode" : undefined}
-              >
-                {row.comparisonWins === null ? "—" : `${row.comparisonWins}/${row.comparisonAppearances}`}
-              </span>
-              <span className="iris-matrix-num">{row.trendDisplay}</span>
-            </Link>
-          ))}
-        </div>
-
-        {untouched === 0 ? null : (
-          <p className="iris-meta">
-            {untouched} units were never opened in this period. That is an observation about the
-            presentation, not a gap in the data.
-          </p>
-        )}
+        <UnitMatrix
+          rows={view.rows}
+          selectedCode={detail?.row.unitCode ?? null}
+          hrefFor={view.rows.map((r) => ({
+            code: r.unitCode,
+            href: href(detail?.row.unitCode === r.unitCode ? null : r.unitCode),
+          }))}
+        />
       </section>
 
       <aside className="iris-plane iris-plane--raised iris-stack">
@@ -159,20 +109,54 @@ export default async function UnitsPage({
                 </dd>
               </div>
               <div>
-                <dt>intent marks</dt>
+                <dt>
+                  <Measure id="unit.favourites" />
+                </dt>
                 <dd>
-                  {detail.row.favourites} shortlisted · {detail.row.pdfOpens} plans · {detail.row.screenshots}{" "}
-                  screenshots · {detail.row.shares} shared
+                  {detail.row.favourites} of {detail.row.meetings} meetings
                 </dd>
               </div>
               <div>
-                <dt>examined how</dt>
+                <dt>
+                  <Measure id="unit.pdf_opens" />
+                </dt>
+                <dd>{detail.row.pdfOpens}</dd>
+              </div>
+              <div>
+                <dt>
+                  <Measure id="unit.examined" />
+                </dt>
                 <dd>
-                  {detail.row.balconyViews} balcony · {detail.row.floorCutViews} floor cut
+                  {detail.row.balconyViews} balcony {detail.row.balconyViews === 1 ? "view" : "views"} ·{" "}
+                  {detail.row.floorCutViews} floor {detail.row.floorCutViews === 1 ? "cut" : "cuts"}
                 </dd>
               </div>
               <div>
-                <dt>trend</dt>
+                <dt>
+                  <Measure id="unit.screenshots" />
+                </dt>
+                <dd>{detail.row.screenshots}</dd>
+              </div>
+              <div>
+                <dt>
+                  <Measure id="unit.shares" />
+                </dt>
+                <dd>{detail.row.shares}</dd>
+              </div>
+              <div>
+                <dt>
+                  <Measure id="unit.comparison" />
+                </dt>
+                <dd>
+                  {detail.row.comparisonWins === null
+                    ? "never placed in Compare"
+                    : `kept ${detail.row.comparisonWins} of ${detail.row.comparisonAppearances}`}
+                </dd>
+              </div>
+              <div>
+                <dt>
+                  <Measure id="unit.trend" />
+                </dt>
                 <dd>
                   {detail.row.trend} · {detail.row.trendDisplay}
                 </dd>
@@ -184,22 +168,44 @@ export default async function UnitsPage({
                 <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
                   Weighed against
                 </p>
-                <div className="iris-bars">
-                  {detail.competitors.map((c) => (
-                    <div className="iris-bar" key={c.unitCode}>
-                      <span className="iris-bar-label">{c.unitCode}</span>
-                      <span
-                        className="iris-bar-track"
-                        style={{ "--v": (c.together / Math.max(1, detail.competitors[0]?.together ?? 1)).toFixed(3) } as React.CSSProperties}
-                      >
-                        <i />
-                      </span>
-                      <span className="iris-bar-value">
-                        {c.together}× · kept {c.keptOther}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                {/*
+                  * A list, not bars.
+                  *
+                  * Compare sets are small, so most competitors appear once and
+                  * a bar chart of identical full-width bars says nothing. Bars
+                  * appear only when there is actually a spread to see.
+                  */}
+                {(detail.competitors[0]?.together ?? 0) > 1 ? (
+                  <div className="iris-bars">
+                    {detail.competitors.map((c) => (
+                      <div className="iris-bar" key={c.unitCode}>
+                        <span className="iris-bar-label">{c.unitCode}</span>
+                        <span
+                          className="iris-bar-track"
+                          style={
+                            {
+                              "--v": (
+                                c.together / (detail.competitors[0]?.together ?? 1)
+                              ).toFixed(3),
+                            } as React.CSSProperties
+                          }
+                        >
+                          <i />
+                        </span>
+                        <span className="iris-bar-value">{c.together}×</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="iris-body" style={{ color: "var(--ink-2)" }}>
+                    {detail.competitors.map((c) => c.unitCode).join(", ")} — each once.
+                  </p>
+                )}
+                <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+                  {detail.competitors.filter((c) => c.keptOther > 0).length === 0
+                    ? `${detail.row.unitCode} was the one kept in every comparison it appeared in.`
+                    : `The other unit was kept in ${detail.competitors.reduce((a, c) => a + c.keptOther, 0)} of these.`}
+                </p>
               </div>
             )}
 

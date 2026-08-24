@@ -33,6 +33,14 @@
   --watch: #e8b339;
   --loss: #f0616d;
 
+  /*
+   * The body face, named.
+   *
+   * A monospace block that needs to hand back to prose — an explanation panel
+   * inside a monospace column header — has to name the sans face explicitly, or
+   * it falls through to the system font and the page has two typefaces.
+   */
+  --sans: var(--font-sans);
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
 
   --ease: cubic-bezier(0.2, 0, 0, 1);
@@ -149,6 +157,7 @@
 
 .iris-brand {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 0.5rem;
   font-weight: 600;

@@ -21,10 +21,22 @@ export const REQUIREMENT_SOURCES = [
   "madspace",
   /** The WEBIRIS cross-channel journey addendum. */
   "webiris_addendum",
+  /**
+   * The Showroom Intelligence refocus.
+   *
+   * The audit of the legacy IRIS Analytics Dashboard and the product correction
+   * it produced: the showroom is the subject, the CRM is context (ADR-0023).
+   */
+  "showroom_refocus",
 ] as const;
 export type RequirementSource = (typeof REQUIREMENT_SOURCES)[number];
 
 export const REQUIREMENT_FAMILIES = [
+  /**
+   * Showroom Intelligence. Listed first because it is now the primary coverage
+   * dimension: what happened inside the IRIS presentation.
+   */
+  "showroom",
   "executive",
   "sales_flow",
   "project_unit",
@@ -55,6 +67,140 @@ export interface SourceRequirement {
 }
 
 export const REQUIREMENTS: readonly SourceRequirement[] = [
+  /* --- the Showroom Intelligence refocus ----------------------------------- */
+
+  {
+    id: "showroom.primary_subject",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "IRIS Observer must explain what happened inside the IRIS presentation, not restate what the CRM already concluded.",
+    readModels: ["ShowroomOverview", "PresentationIntelligence", "MeetingReplay", "UnitAttentionView", "StorytellingIntelligence"],
+    contracts: ["ADR-0023", "InsightSource"],
+  },
+  {
+    id: "showroom.every_insight_rooted",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Every primary insight must be rooted in at least one observed IRIS Showroom fact.",
+    contracts: ["ADR-0023", "isShowroomRooted"],
+    readModels: ["ShowroomFinding"],
+  },
+  {
+    id: "showroom.source_visible",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Source type must be visible to the reader and machine-readable, not merely a visual label.",
+    contracts: ["InsightSource", "INSIGHT_SOURCE_LABELS"],
+    readModels: ["ShowroomFinding", "ReplayStep"],
+  },
+  {
+    id: "showroom.presentation_dna",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "The order in which IRIS sections are presented, their dwell, repeats, skips and transitions, must be visible and comparable.",
+    metrics: ["people.presentation_coverage"],
+    readModels: ["PresentationLane", "PresentationTransition"],
+  },
+  {
+    id: "showroom.agent_comparison",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Two sales agents must be comparable interactively, on how they use IRIS rather than on their results.",
+    readModels: ["PresentationComparison", "PresentationDifference"],
+    contracts: ["docs/17-showroom-intelligence.md §2"],
+  },
+  {
+    id: "showroom.cohort_comparison",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Higher-outcome and lower-outcome meeting cohorts must be comparable without causal wording, with sample sizes always shown.",
+    readModels: ["PresentationComparison"],
+    contracts: ["PROGRESSED_OUTCOMES", "ADR-0010"],
+  },
+  {
+    id: "showroom.meeting_replay",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "An individual showroom meeting must be reconstructable as a story, with each step inspectable and its gaps stated.",
+    readModels: ["MeetingReplay", "ReplayStep"],
+  },
+  {
+    id: "showroom.unit_attention",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Apartment activity must become explainable buyer attention, not a sortable table of counts.",
+    metrics: ["unit.active_dwell", "unit.recent_interest", "unit.demand_trend", "unit.compare_win_rate"],
+    readModels: ["UnitAttentionView", "UnitAttentionDetail"],
+  },
+  {
+    id: "showroom.storytelling",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "How the IRIS story itself is used — sections skipped, glanced at, returned to, and which travel together — must be reportable.",
+    metrics: ["project.environment_interest", "project.amenity_interest", "project.poi_interest"],
+    readModels: ["StorytellingIntelligence", "SectionUsage", "FeaturePairing"],
+  },
+  {
+    id: "showroom.meaningful_dwell_visible",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "A section opened and abandoned must be distinguishable from one that was presented.",
+    contracts: ["ADR-0016", "section.glance"],
+    readModels: ["SectionUsage"],
+  },
+  {
+    id: "showroom.every_number_explained",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Every figure on screen must be able to say what it measures, how it is computed, where it came from and what it does not say.",
+    contracts: ["MeasurementDefinition", "GLOSSARY"],
+  },
+  {
+    id: "showroom.unknown_never_zero",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "Unknown data must never be rendered as zero, and legacy limitations must be shown honestly.",
+    contracts: ["MetricState", "MeasurementAvailability"],
+    readModels: ["MeetingReplay.gaps", "PresentationLaneStep.availability"],
+  },
+  {
+    id: "showroom.ai_answers_from_evidence",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "The AI agent must answer only from registered Observer evidence, separating observed fact from interpretation, and never claim causation.",
+    contracts: ["ADR-0024", "TOOLS", "CAUSAL_PATTERNS"],
+  },
+  {
+    id: "showroom.synthetic_visible",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "The demonstration dataset must be deterministic, must carry imperfect associations, and must be visibly labelled as synthetic.",
+    contracts: ["showroomSessions", "SyntheticBadge"],
+  },
+  {
+    id: "showroom.ue5_v2_backlog",
+    source: "showroom_refocus",
+    family: "showroom",
+    requirement:
+      "The facts the current UE5 build cannot emit must be listed and prioritised for instrumentation.",
+    contracts: ["docs/16-showroom-intelligence-audit.md §4"],
+    deferredTo: "UE5 v2 instrumentation",
+  },
+
   /* --- Stano --------------------------------------------------------------- */
   {
     id: "stano.ten_second_verdict",
