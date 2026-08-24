@@ -13,4 +13,6 @@ export * from "./views";
 export * from "./pulse";
 export * from "./showroom";
 export * from "./glossary";
+export * from "./views3";
+export * from "./charts";
 export * from "./ports";

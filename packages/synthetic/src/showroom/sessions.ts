@@ -1,10 +1,15 @@
 import {
+  AMENITIES,
   CORE_SECTION_IDS,
   SECTION_IDS,
+  SURROUNDINGS,
   sectionLabel,
   type MeetingOutcome,
+  type Place,
   type SectionId,
   type ShowroomEnvironmentSelection,
+  type ShowroomFilterApplication,
+  type ShowroomPlaceInteraction,
   type ShowroomSession,
   type ShowroomStep,
   type ShowroomUnitInteraction,
@@ -147,24 +152,40 @@ export function agentById(id: string): SyntheticAgent | undefined {
 
 /* --- named content inside sections ----------------------------------------- */
 
-const AMENITY_ITEMS = [
-  "Fitness",
-  "Kids zone",
-  "Rooftop terrace",
-  "Co-working",
-  "Bicycle store",
-  "Car parking entrance",
-  "Concierge",
-] as const;
+/*
+ * The real place lists, supplied by MADSPACE.
+ *
+ * Buyers do not attend to places uniformly, and a generator that picks
+ * uniformly produces a dataset in which nothing is worth reporting. Weights
+ * make some places genuinely magnetic — the lake, the tram stop, the nursery —
+ * so that "what is this segment actually interested in" has an answer.
+ */
+const PLACE_WEIGHT: Record<string, number> = {
+  family: 1.7,
+  transport: 1.5,
+  leisure: 1.3,
+  convenience: 1.2,
+  shopping: 1.0,
+  lifestyle: 1.0,
+  healthcare: 0.9,
+  landmark: 0.8,
+  work: 0.7,
+  hospitality: 0.4,
+  services: 0.4,
+  neighbourhood: 0.35,
+  building: 0.8,
+};
 
-const POI_ITEMS = [
-  "Primary school",
-  "Tram stop",
-  "Riverside park",
-  "Grocery store",
-  "Pharmacy",
-  "Nursery",
-] as const;
+function weightedPlace(r: () => number, pool: readonly Place[]): Place {
+  const weights = pool.map((p) => PLACE_WEIGHT[p.category] ?? 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let x = r() * total;
+  for (let i = 0; i < pool.length; i += 1) {
+    x -= weights[i] as number;
+    if (x <= 0) return pool[i] as Place;
+  }
+  return pool[pool.length - 1] as Place;
+}
 
 /** Base dwell in seconds per section, before agent bias and noise. */
 const BASE_DWELL: Record<SectionId, number> = {
@@ -296,11 +317,13 @@ function buildSteps(
     let itemId: string | null = null;
     let itemLabel: string | null = null;
     if (sectionId === "amenities" && r() > 0.25) {
-      itemLabel = pick(r, AMENITY_ITEMS);
-      itemId = itemLabel.toLowerCase().replace(/\s+/g, "_");
+      const p = weightedPlace(r, AMENITIES);
+      itemLabel = p.name;
+      itemId = p.id;
     } else if (sectionId === "surroundings" && r() > 0.3) {
-      itemLabel = pick(r, POI_ITEMS);
-      itemId = itemLabel.toLowerCase().replace(/\s+/g, "_");
+      const p = weightedPlace(r, SURROUNDINGS);
+      itemLabel = p.name;
+      itemId = p.id;
     }
 
     steps.push({
@@ -393,6 +416,132 @@ function buildUnits(
       shared: r() < engaged * 0.3,
     } satisfies ShowroomUnitInteraction;
   });
+}
+
+/**
+ * What this buyer lingered on.
+ *
+ * Given an *interest profile* rather than picked at random, so the dataset
+ * contains readable groups: a household drawn to the nursery and the playground,
+ * a commuter drawn to the tram stop and the bus station. Those groups are the
+ * whole point — "select everyone whose favourites were two-room flats and who
+ * spent their time on the nursery" is only answerable if such people exist.
+ *
+ * The profile is the buyer's, not the agent's, and it is deliberately leaky: a
+ * family-leaning visitor still looks at the lake.
+ */
+type InterestProfile = "family" | "commuter" | "lifestyle" | "investor" | "undecided";
+
+const PROFILE_BIAS: Record<InterestProfile, Partial<Record<string, number>>> = {
+  family: { family: 4.5, healthcare: 1.8, convenience: 1.6, leisure: 1.2 },
+  commuter: { transport: 4.5, work: 2.4, convenience: 1.4 },
+  lifestyle: { lifestyle: 3.6, leisure: 2.6, landmark: 1.8, shopping: 1.5 },
+  investor: { work: 3.2, transport: 2.2, neighbourhood: 2.6, landmark: 1.2 },
+  undecided: {},
+};
+
+function chooseProfile(r: () => number): InterestProfile {
+  const x = r();
+  if (x < 0.3) return "family";
+  if (x < 0.52) return "commuter";
+  if (x < 0.72) return "lifestyle";
+  if (x < 0.85) return "investor";
+  return "undecided";
+}
+
+function buildPlaces(
+  r: () => number,
+  profile: InterestProfile,
+  order: readonly SectionId[],
+): ShowroomPlaceInteraction[] {
+  const out: ShowroomPlaceInteraction[] = [];
+  const bias = PROFILE_BIAS[profile];
+
+  const draw = (pool: readonly Place[], count: number, availability: "legacy_available" | "requires_ue5_v2_event") => {
+    const weights = pool.map((p) => (PLACE_WEIGHT[p.category] ?? 1) * (bias[p.category] ?? 1));
+    const total = weights.reduce((a, b) => a + b, 0);
+    const chosen = new Set<string>();
+    for (let i = 0; i < count; i += 1) {
+      let x = r() * total;
+      for (let j = 0; j < pool.length; j += 1) {
+        x -= weights[j] as number;
+        if (x <= 0) {
+          const p = pool[j] as Place;
+          if (!chosen.has(p.id)) {
+            chosen.add(p.id);
+            out.push({
+              placeId: p.id,
+              placeName: p.name,
+              category: p.category,
+              section: p.section,
+              // A place someone cares about holds them; one they do not is a
+              // glance. The spread is what makes the ranking mean anything.
+              dwellSeconds: Math.round(4 + r() * (bias[p.category] === undefined ? 22 : 70)),
+              availability,
+            });
+          }
+          break;
+        }
+      }
+    }
+  };
+
+  if (order.includes("amenities")) draw(AMENITIES, 2 + Math.floor(r() * 4), "legacy_available");
+  if (order.includes("surroundings")) draw(SURROUNDINGS, 2 + Math.floor(r() * 5), "requires_ue5_v2_event");
+  return out;
+}
+
+/**
+ * What the buyer asked for.
+ *
+ * Stated demand rather than observed attention. **The current build emits none
+ * of it** — this is a demonstration of what the UE5 v2 event would answer, and
+ * it is marked as such on every record so no surface can present it as observed.
+ */
+function buildFilters(
+  r: () => number,
+  profile: InterestProfile,
+  catalogue: readonly RawUnit[],
+): ShowroomFilterApplication[] {
+  if (r() < 0.28) return [];
+
+  const out: ShowroomFilterApplication[] = [];
+  const rooms = profile === "family" ? (r() > 0.35 ? 3 : 2) : r() > 0.7 ? 3 : 2;
+  out.push({
+    field: "rooms",
+    value: String(rooms),
+    matches: catalogue.filter((c) => c.rooms === rooms && c.status === "available").length,
+    availability: "requires_ue5_v2_event",
+  });
+
+  if (r() > 0.4) {
+    const cap = 200_000 + Math.round(r() * 9) * 10_000;
+    out.push({
+      field: "price",
+      value: `under €${cap.toLocaleString("en-GB")}`,
+      matches: catalogue.filter((c) => c.price <= cap && c.status === "available").length,
+      availability: "requires_ue5_v2_event",
+    });
+  }
+  if (r() > 0.62) {
+    const aspect = pick(r, ["S", "SW", "W"] as const);
+    out.push({
+      field: "orientation",
+      value: aspect,
+      matches: catalogue.filter((c) => c.orientation === aspect && c.status === "available").length,
+      availability: "requires_ue5_v2_event",
+    });
+  }
+  if (r() > 0.78) {
+    // A floor band nobody has left. The zero-result search is the finding.
+    out.push({
+      field: "floor",
+      value: "7 and above",
+      matches: catalogue.filter((c) => c.floor >= 7 && c.status === "available").length,
+      availability: "requires_ue5_v2_event",
+    });
+  }
+  return out;
 }
 
 function buildEnvironment(
@@ -521,6 +670,25 @@ export function showroomSessions(): readonly ShowroomSession[] {
       // Roughly a third of meetings are with a contact Observer already knows.
       const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
 
+      /*
+       * A returning buyer is a different sales situation.
+       *
+       * Only a contact Observer knows can be counted as returning; a walk-in has
+       * no history to have. Averaging first and third meetings together hides
+       * the thing an agent most wants to see.
+       */
+      const priorMeetings =
+        contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
+
+      const profile = chooseProfile(r);
+
+      /*
+       * The agent's rating of IRIS, 1-5, taken at the end of the session.
+       * MADSPACE only: it is feedback on the software, not on the meeting.
+       * Agents skip it often, and a skipped rating is null rather than a three.
+       */
+      const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
+
       sessions.push({
         sessionId: `ses_${String(index).padStart(4, "0")}`,
         meetingId: `mtg_${String(index).padStart(4, "0")}`,
@@ -534,10 +702,11 @@ export function showroomSessions(): readonly ShowroomSession[] {
         steps,
         units,
         environment: buildEnvironment(r, order),
-        // Filter state is not recoverable from the legacy source and the UE5
-        // module does not emit it yet. Left empty rather than invented.
-        filters: [],
+        filters: buildFilters(r, profile, catalogue),
+        places: buildPlaces(r, profile, order),
         screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
+        irisRating,
+        priorMeetings,
         timingUnavailable,
       });
     }

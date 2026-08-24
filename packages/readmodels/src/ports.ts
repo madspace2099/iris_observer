@@ -2,6 +2,15 @@ import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contrac
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskSession, ProjectPulse } from "./pulse";
+import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "./charts";
+import type {
+  AgentsView,
+  AudienceCriteria,
+  AudienceView,
+  ProjectView,
+  SalesFlowView,
+  ShowroomHome,
+} from "./views3";
 import type {
   AgentSummary,
   MeetingReplay,
@@ -88,13 +97,62 @@ export interface ObserverRepository {
    */
   getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession>;
 
+  /* --- the opening screen and the three views ----------------------------- */
+
+  /**
+   * The opening screen.
+   *
+   * A verdict, three figures and three doors. Everything analytical lives behind
+   * the doors: review found the previous opening screen overloaded, and a
+   * developer with two minutes needs an answer rather than a report.
+   */
+  getHome(query: OverviewQuery): Promise<ShowroomHome>;
+
+  /** How the sales process is performing, period by period and agent by agent. */
+  getSalesFlow(query: OverviewQuery): Promise<SalesFlowView>;
+
+  /**
+   * The charts the Sales Flow view draws.
+   *
+   * Separate from the view because the KPI window is the reader's own control
+   * and changes independently of everything else on the page.
+   */
+  getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts>;
+
+  /** Progress against the plan, and where journeys stop. */
+  getProjectCharts(query: OverviewQuery): Promise<ProjectCharts>;
+
+  /**
+   * Each agent across several dimensions at once.
+   *
+   * Normalised per axis, so the shape is comparable between a busy agent and a
+   * quiet one. Deliberately not a score: the axes are not weighted against each
+   * other and Observer does not add them up.
+   */
+  getAgentCharts(query: OverviewQuery): Promise<AgentCharts>;
+
+  /** What buyers want, what they linger on, and what the project does not have. */
+  getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView>;
+
+  /** How each agent presents, and how their meetings end. */
+  getAgentsView(query: OverviewQuery): Promise<AgentsView>;
+
+  /**
+   * Everyone whose behaviour matched, for outreach.
+   *
+   * Returns meetings rather than people: identity stays on the surface that
+   * already governs it (ADR-0018).
+   */
+  getAudience(query: OverviewQuery, criteria: AudienceCriteria): Promise<AudienceView>;
+
   /* --- Showroom Intelligence (ADR-0023) ----------------------------------- */
 
   /**
-   * The opening view. What happened inside IRIS during the period.
+   * The period summary the three views draw on.
    *
-   * Replaces the executive overview as the product's front door: presentation
-   * behaviour leads, and CRM outcomes appear only as cohort context.
+   * No longer the front door — `getHome` is — but still the surface that states
+   * the period's findings in full, and still where the AI's period summary comes
+   * from.
    */
   getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview>;
 

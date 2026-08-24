@@ -51,9 +51,9 @@ test.describe("typography", () => {
 
   test("does not let the font swap reflow the metric grid", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    const before = await page.locator(".iris-figures > div").first().boundingBox();
+    const before = await page.locator(".iris-home-figures > div").first().boundingBox();
     await page.evaluate(() => document.fonts.ready);
-    const after = await page.locator(".iris-figures > div").first().boundingBox();
+    const after = await page.locator(".iris-home-figures > div").first().boundingBox();
     // Metric cards carry a min-height precisely so a font arriving mid-render
     // cannot move the figures under the reader's eye.
     expect(after?.height).toBe(before?.height);
@@ -139,12 +139,11 @@ test.describe("the ten-second test", () => {
       return box !== null && box.y < fold;
     };
 
-    // 1. What happened inside IRIS?  2. What changed?
+    // The whole opening screen is the ten-second answer since the restructure:
+    // a signal, a verdict, three figures and three doors, all above the fold.
+    expect(await within(".iris-signal"), "signal below the fold").toBe(true);
     expect(await within(".iris-verdict"), "verdict below the fold").toBe(true);
-    expect(await within(".iris-delta"), "change below the fold").toBe(true);
-    // 3. Why does it matter — the figures.  4. What to inspect next.
-    expect(await within(".iris-figures"), "figures below the fold").toBe(true);
-    expect(await within(".iris-finding"), "findings below the fold").toBe(true);
+    expect(await within(".iris-home-figures"), "figures below the fold").toBe(true);
   });
 
   test("keeps the first screen to at most six figures", async ({ page }) => {
@@ -152,7 +151,7 @@ test.describe("the ten-second test", () => {
     // The registry holds eighty-two metrics. Rendering the registry would be the
     // exact failure Stano described in the legacy dashboard, and the one the unit
     // list was rebuilt to avoid.
-    const figures = await page.locator(".iris-figures > div").count();
+    const figures = await page.locator(".iris-home-figures > div").count();
     expect(figures).toBeGreaterThan(0);
     expect(figures).toBeLessThanOrEqual(6);
   });
@@ -161,7 +160,7 @@ test.describe("the ten-second test", () => {
     await signInAs(page, "Petra Novák");
     // A headline number with no stated definition is what the legacy dashboard
     // did when it graded a single click "High".
-    const info = page.locator(".iris-figures .iris-measure-info");
+    const info = page.locator(".iris-home-figures .iris-measure-info");
     await expect(info.first()).toBeVisible();
     await info.first().click();
     const panel = page.getByRole("note").first();
@@ -169,18 +168,111 @@ test.describe("the ten-second test", () => {
     await expect(panel).toContainText("What it does not say");
   });
 
-  test("leads with the presentation, not with the CRM", async ({ page }) => {
+  test("leads with the showroom, not with the CRM", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    // ADR-0023, asserted at the surface: the verdict is about IRIS, and the
-    // outcome mix is present but labelled as context.
-    await expect(page.locator(".iris-verdict")).toContainText(/presentation/i);
-    await expect(page.getByText(/Outcome context/i)).toBeVisible();
-    await expect(page.getByText(/the CRM owns that/i)).toBeVisible();
+    // ADR-0023 at the surface: the opening verdict is about the showroom, and
+    // outcome appears as a rate rather than as the subject.
+    await expect(page.locator(".iris-verdict")).toContainText(/showroom/i);
+    await expect(page.getByText(/of recorded meetings progressing/i)).toBeVisible();
   });
 
   test("says insufficient data rather than showing a green light", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await page.goto("/beta/kingsford/overview");
     await expect(page.getByText("Not enough data", { exact: true })).toBeVisible();
+  });
+});
+
+/**
+ * The chart vocabulary.
+ *
+ * Nine shapes were added at once, and four defects survived typechecking, the
+ * build and the unit suite: a CSS class that collided with the page layout, a
+ * funnel whose bands did not nest, a flow diagram that stacked every node in
+ * one column, and two counts for one agent on one page. None of those is
+ * catchable by an assertion that an element exists, so these check what the
+ * shapes mean rather than that they rendered.
+ */
+test.describe("the chart vocabulary", () => {
+  test("the summary window is the reader's, and it changes the figures", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow?window=year");
+    const year = await page.locator(".iris-kpi-value").first().textContent();
+
+    await page.goto("/alpha/northgate/flow?window=today");
+    const today = await page.locator(".iris-kpi-value").first().textContent();
+
+    // A control that does not move the number it labels is decoration.
+    expect(year).not.toBe(today);
+    await expect(page.locator(".iris-kpi")).toHaveCount(4);
+  });
+
+  test("a window too small to read says so instead of asserting a trend", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow?window=today");
+    await expect(page.getByText(/too few to read a rate from/)).toBeVisible();
+    // "1 meetings" is the kind of small wrongness that makes a product feel
+    // unfinished, and it shipped once.
+    await expect(page.getByText(/\b1 meetings\b/)).toHaveCount(0);
+  });
+
+  test("the funnel's bands nest, so its arithmetic is real", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow");
+    const counts = await page.locator(".iris-funnel-bar b").allTextContents();
+    expect(counts.length).toBeGreaterThan(2);
+
+    const numbers = counts.map((c) => Number(c));
+    for (let i = 1; i < numbers.length; i += 1) {
+      // A funnel means survival. A band wider than the one above it turns the
+      // drop figure beside it into a number that describes nothing.
+      expect(numbers[i]).toBeLessThanOrEqual(numbers[i - 1] as number);
+    }
+  });
+
+  test("the journey flow lays its stages out across the page, not on top of each other", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/project");
+    const nodes = page.locator(".iris-flow-node");
+    await expect(nodes).toHaveCount(4);
+
+    const xs: number[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const box = await nodes.nth(i).boundingBox();
+      xs.push(box?.x ?? 0);
+    }
+    for (let i = 1; i < xs.length; i += 1) {
+      expect(xs[i]).toBeGreaterThan(xs[i - 1] as number);
+    }
+  });
+
+  test("one agent has one meeting count on one page", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/agents");
+
+    // The ring and the radar read different slices once, and disagreed by one.
+    const ring = await page.locator(".iris-ring-card").first().locator(".iris-ring-figure").textContent();
+    const fromRing = Number((ring ?? "").replace(/\D/g, ""));
+    expect(fromRing).toBeGreaterThan(0);
+
+    const radarLabel = await page.locator(".iris-radars .iris-ring-key li").first().textContent();
+    expect(radarLabel).toContain(String(fromRing));
+  });
+
+  test("no surface scrolls sideways on a phone", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "A phone is the only place this can fail.");
+    await signInAs(page, "Petra Novák");
+
+    for (const path of ["/alpha/northgate/flow", "/alpha/northgate/project", "/alpha/northgate/agents"]) {
+      await page.goto(path);
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      // A chart that pushes the page wider than the screen makes every other
+      // surface on it scroll sideways too.
+      expect(overflow, `${path} overflows by ${overflow}px`).toBeLessThanOrEqual(1);
+    }
   });
 });

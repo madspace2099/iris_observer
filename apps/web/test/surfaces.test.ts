@@ -38,15 +38,10 @@ describe("surface audience", () => {
   });
 
   it("keeps MADSPACE administration out of the customer navigation", () => {
-    // The four primary sections are all showroom-rooted since ADR-0023. The
-    // CRM-led overview and the conversion funnel remain reachable but are no
-    // longer what the product opens on.
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual([
-      "showroom",
-      "presentation",
-      "units",
-      "storytelling",
-    ]);
+    // The opening screen plus the three views it opens onto. Everything else —
+    // Presentation DNA, Unit Attention, Storytelling, Meeting Replay — is a
+    // drill-down reached from one of them, not a competing tab.
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);
     const admin = SURFACES.find((s) => s.route === "/madspace");
     expect(admin?.requiresRole).toEqual(["madspace_admin"]);
   });

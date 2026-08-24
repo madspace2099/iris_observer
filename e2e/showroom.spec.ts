@@ -19,6 +19,11 @@ async function signInAs(page: Page, name: string) {
 
 const ROUTES = [
   ["showroom overview", "/alpha/northgate/showroom"],
+  ["sales flow", "/alpha/northgate/flow"],
+  ["project", "/alpha/northgate/project?segment=rooms-2"],
+  ["sales agents", "/alpha/northgate/agents"],
+  ["sales agents, focused", "/alpha/northgate/agents?agent=agt_monika"],
+  ["audience", "/alpha/northgate/audience?rooms=2&category=family"],
   ["presentation, agents", "/alpha/northgate/presentation?mode=agents&left=agt_monika&right=agt_akhilesh"],
   ["presentation, cohorts", "/alpha/northgate/presentation?mode=cohorts"],
   ["presentation, periods", "/alpha/northgate/presentation?mode=periods"],
@@ -40,6 +45,47 @@ for (const [name, route] of ROUTES) {
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 }
+
+test.describe("the three views", () => {
+  test("the opening screen offers three doors and nothing to analyse", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    const doors = page.getByRole("navigation", { name: "Analytics views" }).getByRole("link");
+    await expect(doors).toHaveCount(3);
+    // A verdict, three figures, three doors. Review rejected the previous
+    // opening screen for carrying an analysis instead of an answer.
+    expect(await page.locator(".iris-home-figures > div").count()).toBeLessThanOrEqual(3);
+    await expect(page.locator(".iris-signal")).toBeVisible();
+  });
+
+  test("each door leads somewhere that answers its own question", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    for (const [label, heading] of [
+      ["Sales Flow", /progressing|meeting/i],
+      ["Project", /stock|attention|meeting/i],
+      ["Sales Agents", /present/i],
+    ] as const) {
+      await page.goto("/alpha/northgate/showroom");
+      await page.getByRole("link", { name: new RegExp(label) }).first().click();
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
+    }
+  });
+
+  test("the IRIS rating is MADSPACE only", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/agents");
+    await expect(page.getByText(/Rates IRIS/)).toHaveCount(0);
+  });
+
+  test("the audience builder returns meetings, not people", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/audience?rooms=2&category=family");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/meetings match/);
+    await expect(page.getByText(/meetings, not people/i)).toBeVisible();
+    const body = await page.locator("main").innerText();
+    // No email address and no phone number may reach this surface.
+    expect(/[a-z0-9._%-]+@[a-z0-9.-]+.[a-z]{2,}/i.test(body)).toBe(false);
+  });
+});
 
 test.describe("the product rules, at the surface", () => {
   test("a replay states its gaps rather than leaving blanks", async ({ page }) => {

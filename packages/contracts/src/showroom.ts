@@ -161,6 +161,44 @@ export interface ShowroomUnitInteraction {
   readonly shared: boolean;
 }
 
+/**
+ * A place the agent stopped on, and for how long.
+ *
+ * The most interpretable signal the showroom produces. A visitor whose time goes
+ * to the nursery and the playground is telling the agent something no filter
+ * will — and unlike a filter, it is a *choice the buyer made about content*
+ * rather than a constraint they typed.
+ *
+ * Amenities are recorded at item level today. Points of interest in Surroundings
+ * are not: the current build records that the section was reached and nothing
+ * more, so `availability` on these is `requires_ue5_v2_event` and every surface
+ * reading them says so.
+ */
+export interface ShowroomPlaceInteraction {
+  readonly placeId: string;
+  readonly placeName: string;
+  readonly category: string;
+  readonly section: "surroundings" | "amenities";
+  readonly dwellSeconds: number;
+  readonly availability: z.infer<typeof MeasurementAvailabilitySchema>;
+}
+
+/**
+ * A filter the buyer applied.
+ *
+ * Stated demand, as opposed to observed attention: what they asked for rather
+ * than what they looked at. **The current build emits none of this.** It is
+ * modelled because the product specifies the measurement before the engine
+ * implements it (ADR-0013), and every surface says the data is a demonstration.
+ */
+export interface ShowroomFilterApplication {
+  readonly field: string;
+  readonly value: string;
+  /** How many units matched. Zero is the interesting case. */
+  readonly matches: number;
+  readonly availability: z.infer<typeof MeasurementAvailabilitySchema>;
+}
+
 export interface ShowroomEnvironmentSelection {
   readonly timeOfDay: TimeOfDayPreset | null;
   readonly weather: WeatherPreset | null;
@@ -189,9 +227,26 @@ export interface ShowroomSession {
   readonly steps: readonly ShowroomStep[];
   readonly units: readonly ShowroomUnitInteraction[];
   readonly environment: readonly ShowroomEnvironmentSelection[];
-  /** Filter states applied during the session. Empty when the source cannot say. */
-  readonly filters: readonly { readonly field: string; readonly value: string }[];
+  /** Filter states applied during the session. */
+  readonly filters: readonly ShowroomFilterApplication[];
+  /** Named places the agent stopped on, inside Amenities and Surroundings. */
+  readonly places: readonly ShowroomPlaceInteraction[];
   readonly screenshots: number;
+  /**
+   * The agent's rating of IRIS itself, 1–5, taken at the end of the session.
+   *
+   * **MADSPACE only.** It is feedback on the product, not on the meeting or the
+   * agent, and showing a developer how their sales team rates the software they
+   * were sold would misread it entirely. Null when the agent skipped it.
+   */
+  readonly irisRating: number | null;
+  /**
+   * How many previous meetings this contact has had on this project.
+   *
+   * Zero for a first visit. A second and third meeting are a different sales
+   * situation from a first, and averaging them together hides that.
+   */
+  readonly priorMeetings: number;
   /**
    * True when the session came from a source that cannot supply per-step
    * timing. Surfaces read this to decide between a timeline and a sequence.

@@ -17,7 +17,14 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "@observer/readmodels";
 import type {
+  AgentsView,
+  AudienceCriteria,
+  AudienceView,
+  ProjectView,
+  SalesFlowView,
+  ShowroomHome,
   AgentSummary,
   MeetingReplay,
   MeetingSummary,
@@ -31,7 +38,15 @@ import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse } from "./pulse";
-import { SYNTHETIC_AGENTS, sessionById, sessionsInPeriod } from "./showroom/sessions";
+import { SYNTHETIC_AGENTS, sessionById, sessionsInPeriod, showroomSessions } from "./showroom/sessions";
+import { buildAgentCharts, buildFlowCharts, buildProjectCharts } from "./showroom/charts";
+import {
+  buildAgentsView,
+  buildAudience,
+  buildHome,
+  buildProjectView,
+  buildSalesFlow,
+} from "./showroom/views3";
 import {
   buildMeetingList,
   buildMeetingReplay,
@@ -194,13 +209,86 @@ export class SyntheticObserverRepository implements ObserverRepository {
    * cannot disagree about which meetings exist — which is exactly the class of
    * bug the legacy dashboard has between its two feature-time accumulators.
    */
+  /*
+   * "Today" is the synthetic world's today, not the clock's.
+   *
+   * The named buckets — today, this week, last month — resolve against the same
+   * fixed date the dataset was generated for, or a demo's figures change
+   * overnight and no screenshot or assertion survives it.
+   */
+  private readonly today = new Date(TODAY);
+
   private async slices(query: OverviewQuery) {
     const context = await this.context(query);
+    /*
+     * A third slice, running to the end of today.
+     *
+     * "Quarter to date" ends at midnight this morning, which is right for a
+     * period comparison and wrong for a bucket called Today: the flow view was
+     * reporting zero meetings today because the period had already excluded
+     * them. The named buckets are their own windows and must not be filtered
+     * twice.
+     */
+    const endOfToday = new Date(this.today);
+    endOfToday.setUTCHours(23, 59, 59, 999);
+
     return {
       context,
       current: sessionsInPeriod(context.period.from, context.period.to),
       previous: sessionsInPeriod(context.period.baselineFrom, context.period.baselineTo),
+      throughToday: sessionsInPeriod(context.period.from, endOfToday.toISOString()),
     };
+  }
+
+  async getHome(query: OverviewQuery): Promise<ShowroomHome> {
+    const { context, throughToday, previous } = await this.slices(query);
+    return buildHome(context, throughToday, previous, this.today);
+  }
+
+  async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
+    const { context, throughToday } = await this.slices(query);
+    return buildSalesFlow(context, throughToday, this.today);
+  }
+
+  async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
+    const { context, throughToday } = await this.slices(query);
+    /*
+     * The KPI window reads the whole dataset, not the selected period.
+     *
+     * "All time" inside a quarter-to-date period would be the quarter, which is
+     * not what the control says. The rest of the page stays on the period.
+     */
+    return buildFlowCharts(context, throughToday, showroomSessions(), this.today, window);
+  }
+
+  async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
+    // `current`, matching getProjectView for the same reason.
+    const { context, current } = await this.slices(query);
+    return buildProjectCharts(current, this.today, context.project.locale);
+  }
+
+  async getAgentCharts(query: OverviewQuery): Promise<AgentCharts> {
+    // `current`, matching getAgentsView — the rings and the radars are read as
+    // one page, so they must count the same meetings.
+    const { context, current } = await this.slices(query);
+    const base = `/${context.tenant.slug}/${context.project.slug}`;
+    return buildAgentCharts(current, base, context.project.locale);
+  }
+
+  async getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView> {
+    const { context, current } = await this.slices(query);
+    return buildProjectView(context, current, segmentId);
+  }
+
+  async getAgentsView(query: OverviewQuery): Promise<AgentsView> {
+    const { context, current } = await this.slices(query);
+    // The IRIS rating is feedback on the software, so only MADSPACE sees it.
+    return buildAgentsView(context, current, context.viewer.role === "madspace_admin");
+  }
+
+  async getAudience(query: OverviewQuery, criteria: AudienceCriteria): Promise<AudienceView> {
+    const { context, current } = await this.slices(query);
+    return buildAudience(context, current, criteria);
   }
 
   async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {

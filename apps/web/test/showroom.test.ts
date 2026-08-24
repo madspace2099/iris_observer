@@ -80,14 +80,14 @@ describe("showroom is the primary source", () => {
     expect(isUngroundedInterpretation(["AI_INTERPRETATION", "IRIS_SHOWROOM_OBSERVED"])).toBe(false);
   });
 
-  it("does not put the conversion funnel in the primary navigation", async () => {
+  it("opens on a verdict and three doors, not on four analytical tabs", async () => {
+    /*
+     * Review found four analytical tabs beside each other overwhelming. The
+     * navigation is now the opening screen plus the three views it opens onto;
+     * Presentation DNA, Unit Attention and Storytelling moved behind them.
+     */
     const { PRIMARY_NAV } = await import("../src/lib/routes");
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual([
-      "showroom",
-      "presentation",
-      "units",
-      "storytelling",
-    ]);
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);
   });
 });
 

@@ -56,7 +56,23 @@ export function MeasureIcon({ name }: { name: MeasurementIcon }) {
   );
 }
 
-export function Measure({ id, align = "left" }: { id: string; align?: "left" | "right" }) {
+export function Measure({
+  id,
+  align = "left",
+  label,
+}: {
+  id: string;
+  align?: "left" | "right";
+  /**
+   * A more specific name than the glossary's.
+   *
+   * "Meetings this week" and "Presentations" measure the same thing over
+   * different windows, and letting the glossary overwrite the caller's label
+   * turned a weekly figure into one that read as the period total. The panel
+   * still carries the glossary's full name and its rule.
+   */
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   const definition = defineMeasurement(id);
 
@@ -65,7 +81,7 @@ export function Measure({ id, align = "left" }: { id: string; align?: "left" | "
   return (
     <span className="iris-measure" data-align={align}>
       <MeasureIcon name={definition.icon} />
-      <span className="iris-measure-label">{definition.columnLabel ?? definition.label}</span>
+      <span className="iris-measure-label">{label ?? definition.columnLabel ?? definition.label}</span>
       <button
         type="button"
         className="iris-measure-info"

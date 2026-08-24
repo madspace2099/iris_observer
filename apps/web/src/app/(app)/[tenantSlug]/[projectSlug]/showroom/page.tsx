@@ -1,20 +1,34 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
-import { Changes, Coverage, Figures, Finding, OutcomeContext, SourceChips } from "@/showroom/parts";
 import { presetFrom } from "@/lib/period";
+import { dynamicRoute } from "@/lib/href";
+import { Measure } from "@/showroom/Measure";
+import { SourceChips } from "@/showroom/parts";
 
 export const metadata: Metadata = { title: "Showroom" };
 
 /**
- * The Showroom Overview — the product's front door.
+ * The opening screen.
  *
- * Answers four questions in ten seconds: what happened inside IRIS this
- * period, what changed, what pattern is worth noticing, and what to look at
- * next. Presentation behaviour leads; the CRM's account of what closed sits
- * at the bottom of the evidence field, labelled as context (ADR-0023).
+ * Rebuilt after review, which found the previous one overloaded: a wall of prose
+ * and figures where a verdict belonged.
+ *
+ * A developer with two minutes must be able to tell in ten seconds whether the
+ * showroom meetings are going the right way, see the one thing worth acting on,
+ * and then choose where to go. That is the whole page — a signal, a sentence,
+ * three figures, and three doors. **Nothing analytical lives here.** Everything
+ * that was on this screen moved behind the doors, where it has room to be
+ * explained instead of stacked.
  */
+const SIGNAL_LABEL = {
+  good: "On course",
+  attention: "Needs a look",
+  poor: "Going the wrong way",
+} as const;
+
 export default async function ShowroomPage({
   params,
   searchParams,
@@ -26,49 +40,81 @@ export default async function ShowroomPage({
   const { tenantSlug, projectSlug } = await params;
   const { period } = await searchParams;
 
-  const query = {
+  const home = await repository.getHome({
     viewer,
     tenantSlug,
     projectSlug,
     period: presetFrom(period) as PeriodPreset,
-  };
-  const overview = await repository.getShowroomOverview(query);
+  });
 
   return (
-    <div className="iris-two">
-      <section className="iris-plane iris-stack">
+    <div className="iris-one">
+      <section className="iris-home">
         <p className="iris-kicker">
-          {overview.context.tenant.name} · {overview.context.project.name} ·{" "}
-          {overview.context.period.label}
+          {home.context.tenant.name} · {home.context.project.name} · {home.context.period.label}
         </p>
 
-        <h1 className="iris-verdict">{overview.verdict}</h1>
-        <p className="iris-body" style={{ maxWidth: "60ch", color: "var(--ink-2)" }}>
-          {overview.verdictDetail}
-        </p>
-        <SourceChips sources={overview.verdictSources} />
-
-        <hr className="iris-rule" />
-        <Figures figures={overview.figures} />
-        <hr className="iris-rule" />
-
-        <div>
-          <p className="iris-kicker" style={{ marginBottom: ".25rem" }}>
-            What is worth noticing
-          </p>
-          {overview.findings.map((finding, index) => (
-            <Finding key={finding.id} finding={finding} lead={index === 0} />
-          ))}
+        <div className="iris-signal" data-signal={home.signal}>
+          <span className="iris-signal-mark" aria-hidden="true" />
+          <span className="iris-signal-label">{SIGNAL_LABEL[home.signal]}</span>
         </div>
+
+        <h1 className="iris-verdict">{home.verdict}</h1>
+        <p className="iris-home-because">{home.because}</p>
+
+        <dl className="iris-home-figures">
+          {home.figures.map((f) => (
+            <div key={f.id}>
+              <dt>
+                {f.measurementId === null ? f.label : <Measure id={f.measurementId} label={f.label} />}
+              </dt>
+              <dd>
+                <b>{f.value}</b>
+                <span
+                  className="iris-code"
+                  data-tone={
+                    f.better === "neither" || f.direction === "flat"
+                      ? undefined
+                      : f.direction === f.better
+                        ? "good"
+                        : "bad"
+                  }
+                >
+                  {f.against}
+                </span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {home.alert === null ? null : (
+          <Link className="iris-home-alert" href={dynamicRoute(home.alert.href)}>
+            <span className="iris-code">Worth acting on</span>
+            {home.alert.text}
+          </Link>
+        )}
+
+        <SourceChips sources={home.sources} />
       </section>
 
-      <aside className="iris-plane iris-plane--raised iris-stack">
-        <Changes changes={overview.changes} />
-        <hr className="iris-rule" />
-        <Coverage coverage={overview.coverage} />
-        <hr className="iris-rule" />
-        <OutcomeContext outcomes={overview.outcomeContext} total={overview.meetingCount} />
-      </aside>
+      {/*
+        * The three doors.
+        *
+        * Each carries the single most useful thing behind it, already computed —
+        * so choosing is an informed decision rather than a guess at a label.
+        */}
+      <nav className="iris-doors" aria-label="Analytics views">
+        {home.doors.map((door) => (
+          <Link key={door.id} className="iris-door" href={dynamicRoute(door.href)}>
+            <span className="iris-door-label">{door.label}</span>
+            <span className="iris-door-question">{door.question}</span>
+            <span className="iris-door-headline">{door.headline}</span>
+            <span className="iris-door-go" aria-hidden="true">
+              →
+            </span>
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

@@ -20,6 +20,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   {
+    route: "/[tenantSlug]/[projectSlug]/agents",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  {
+    route: "/[tenantSlug]/[projectSlug]/audience",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  {
     route: "/[tenantSlug]/[projectSlug]/presentation",
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
@@ -47,15 +57,21 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /*
+   * Sales Flow and Project are two of the three doors the opening screen opens
+   * onto, so every role that can reach the opening screen can reach them. They
+   * used to be CRM surfaces restricted to management, and leaving that list in
+   * place silently dropped two of the three doors out of the navigation.
+   */
   {
     route: "/[tenantSlug]/[projectSlug]/flow",
     audience: "internal",
-    requiresRole: ["developer", "agency_manager"],
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   {
     route: "/[tenantSlug]/[projectSlug]/project",
     audience: "internal",
-    requiresRole: ["developer", "agency_manager"],
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   {
     route: "/[tenantSlug]/[projectSlug]/people",
@@ -86,18 +102,23 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
 /**
  * The primary sections.
  *
- * All four are rooted in what IRIS observed. The conversion funnel and the
- * CRM-led executive overview are no longer here: they remain reachable, but a
- * surface a product opens on is a statement about what the product is for, and
- * ADR-0023 settled what this one is for.
+ * Showroom is the opening screen — a verdict and three doors. The other three
+ * are those doors: how the process performs, what buyers want, and how each
+ * person presents.
+ *
+ * Presentation DNA, Unit Attention, Storytelling and Meeting Replay are still
+ * here and still reachable; they moved *behind* the three views rather than
+ * competing with them in the navigation. Review found four analytical tabs
+ * beside each other overwhelming, and it was right: a top-level tab is a claim
+ * that the reader should choose between things, and these are drill-downs.
  *
  * Administration is deliberately absent.
  */
 export const PRIMARY_NAV = [
   { key: "showroom", label: "Showroom" },
-  { key: "presentation", label: "Presentation" },
-  { key: "units", label: "Units" },
-  { key: "storytelling", label: "Storytelling" },
+  { key: "flow", label: "Sales Flow" },
+  { key: "project", label: "Project" },
+  { key: "agents", label: "Sales Agents" },
 ] as const;
 
 export type NavKey = (typeof PRIMARY_NAV)[number]["key"];

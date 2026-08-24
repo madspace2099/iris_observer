@@ -10,6 +10,7 @@ import "@observer/ui/components.css";
 // rebuilt yet keep the older layer until they are.
 import "@observer/ui/iris.css";
 import "@observer/ui/showroom.css";
+import "@observer/ui/charts.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per

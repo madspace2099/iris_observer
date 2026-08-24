@@ -147,6 +147,66 @@ is awkward from a keyboard, and does not exist on a touch screen.
 
 ---
 
+## 5a. The chart vocabulary
+
+Thirteen shapes, hand-drawn in SVG, in `apps/web/src/showroom/charts.tsx` and
+`charts2.tsx`, over read models in `packages/readmodels/src/charts.ts`. No chart
+library: a library's defaults are how a product ends up looking like every other
+dashboard, and none of these is a default shape.
+
+Each exists because a bar could not carry the question:
+
+| Shape | The question it answers | Where |
+|---|---|---|
+| Outcome ring | Parts of one whole, per agent, comparable side by side | Flow, Agents |
+| Paired period columns | Volume against the same days before | Flow |
+| Paired rates | This segment against every other unit | Project |
+| Parity scale | Which side of 1.00× a segment falls on | Project |
+| KPI card + sparkline | A figure, its comparison, and its own recent shape | Flow |
+| Heatmap | Two dimensions at once — weekday against hour | Flow |
+| Annotated line | A series with the moment something changed marked on it | Flow |
+| Stacked columns | Composition, and how the composition itself moved | Flow |
+| Conversion funnel | What survives each step, and what falls out | Flow |
+| Ranked bars | An ordered list where the order is the finding | Flow, Agents |
+| Radar | One presenter across six dimensions, shape as the finding | Agents |
+| Bullet | One value against a target and the pace needed to reach it | Project |
+| Stepped alluvial | Where journeys go, and where they stop | Project |
+
+Four rules the shapes are held to, each because one of them was broken first:
+
+**A funnel means survival.** The bands nest — each is the meetings that did
+everything above it as well — so the drop figure beside a band describes
+something that happened. The first version counted each behaviour independently
+and produced a band wider than the one above it, with a "−3" beside it that
+described nothing. Guarded by a test that walks the bands and asserts they never
+widen.
+
+**An ordered list is read as a ranking whatever the header says.** So the thing
+it is ordered by has to be rankable without implying a verdict on a person. The
+agent list is ordered by presentations given, which is workload. Outcome rate is
+not on any list; it is on the rings, where every agent is drawn to the same
+scale of shares and none is above another (ADR-0023).
+
+**One figure has one value on one page.** A chart bundle reads the same slice as
+the view it is drawn on. The radars and the rings disagreed by one meeting
+because one read `current` and the other `throughToday`; both now read
+`current`. Guarded.
+
+**A radar is a shape, not a score.** Each spoke is normalised against the
+strongest agent on that spoke, because a median unit count and a share cannot
+share a radius. The six spokes are not weighted against each other and are never
+summed. Each spoke names what it measures beneath the chart — a normalised radar
+with six one-word axes and no key is a decoration.
+
+The summary window on Sales Flow — today, week, month, quarter, half, year, all
+— is the reader's own control and moves independently of the page period. "How
+many presentations" is a different question today and this year, and making the
+reader move the whole page to ask the second one is how a dashboard stops being
+read. A window holding fewer than five meetings says so instead of asserting a
+trend from it.
+
+---
+
 ## 6. The AI evidence contract
 
 Five stages, in `apps/web/src/lib/ai/agent.ts`:

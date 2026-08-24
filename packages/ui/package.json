@@ -9,7 +9,8 @@
     "./tokens.css": "./src/tokens.css",
     "./components.css": "./src/components.css",
     "./iris.css": "./src/iris.css",
-    "./showroom.css": "./src/showroom.css"
+    "./showroom.css": "./src/showroom.css",
+    "./charts.css": "./src/charts.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

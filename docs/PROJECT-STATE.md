@@ -57,9 +57,16 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
 ## What is true right now
 
 - 82 metrics in the registry, **62 source requirements**, 0 uncovered, 0 open decisions, 1 review gate.
-- **24 ADRs. 194 unit tests, 173 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
-  (10 skipped: the desktop-only concepts), **zero axe violations on all nine showroom
-  surfaces at every viewport**, production build green.
+- **24 ADRs. 218 unit tests, 246 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
+  (12 skipped: the desktop-only concepts), **zero axe violations on every showroom
+  surface at every viewport**, production build green.
+- **Thirteen chart shapes**, all hand-drawn SVG, documented in `docs/17-showroom-intelligence.md`
+  §5a. Sales Flow carries the summary window, the weekday×hour heatmap, the annotated trend, the
+  stacked composition, the nested behaviour funnel and two ranked lists; Project carries the
+  bullet chart against the sales plan and the stepped journey alluvial; Sales Agents carries one
+  radar per presenter. Four correctness rules — funnels nest, ordered lists are never ordered by
+  outcome, one figure has one value per page, a radar is a shape and not a score — are guarded by
+  tests in `e2e/quality.spec.ts`, each because it was broken first.
 - **Ask Observer is live**, running the controlled tool architecture. Without `FAL_KEY` the
   deterministic provider answers from the same tools; the answer sheet says which produced
   the prose. No live-model smoke test has been run — no key is present on this machine.

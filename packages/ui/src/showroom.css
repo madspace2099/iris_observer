@@ -805,6 +805,25 @@
   padding-bottom: 6rem;
 }
 
+/* The doors are the last thing on the opening screen, so they clear the rail. */
+.iris-doors {
+  margin-bottom: 6rem;
+}
+
+/*
+ * The viewer's name is one line.
+ *
+ * "MADSPACE Operations · 2 developers" wrapped to three and dragged the whole
+ * header down with it. The organisation and role are already on the title
+ * attribute, so the visible part can be trimmed.
+ */
+.iris-ambient > .iris-code {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The nav sits inside the top bar rather than on a row of its own. */
 .iris-top .iris-nav {
   padding: 0;
@@ -1120,5 +1139,780 @@
     top: auto;
     bottom: 5.5rem;
     width: auto;
+  }
+}
+
+/* ===========================================================================
+   Four chart shapes
+   ---------------------------------------------------------------------------
+   Review found the surfaces chaotic because every figure was a horizontal bar.
+   A bar answers one question — how big is this against that — so using it for
+   parts of a whole, for a count across periods, and for two rates compared made
+   three different questions look identical.
+   =========================================================================== */
+
+/* --- the outcome ring --------------------------------------------------------- */
+
+.iris-ring {
+  display: block;
+}
+
+.iris-ring-figure {
+  font-family: var(--sans, inherit);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  fill: var(--ink);
+}
+
+.iris-ring-caption {
+  font-family: var(--mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.1em;
+  fill: var(--ink-2);
+}
+
+.iris-ring-key {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.iris-ring-key li {
+  display: grid;
+  grid-template-columns: 0.5rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.iris-ring-key i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 1px;
+}
+
+.iris-ring-key b {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+/* One agent's card: the ring, its key, and any flag it raised. */
+.iris-rings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1.5rem;
+}
+
+.iris-ring-card {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  padding-right: 1rem;
+  border-right: 1px solid var(--rule);
+}
+
+.iris-ring-card:last-child {
+  border-right: 0;
+}
+
+.iris-ring-card h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.iris-ring-flag {
+  margin: 0.25rem 0 0;
+  padding: 0.5rem 0.625rem;
+  border-left: 2px solid var(--watch);
+  font-size: 0.75rem;
+  line-height: 1.05rem;
+  color: var(--ink-2);
+}
+
+.iris-ring-flag[data-severity="concern"] {
+  border-left-color: var(--loss);
+}
+
+/* --- steps across named periods ------------------------------------------------ */
+
+.iris-steps {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.iris-step {
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+}
+
+.iris-step-bar {
+  position: relative;
+  width: 100%;
+  height: 6rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-bottom: 1px solid var(--rule-firm);
+}
+
+.iris-step-bar i {
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  background: color-mix(in oklab, var(--accent) 40%, #080b0f);
+  border-radius: 2px 2px 0 0;
+  min-height: 2px;
+}
+
+/* Progressed sits inside the column: it is part of the same total. */
+.iris-step-bar b {
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.iris-step-figure {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.iris-step-label {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1rem;
+}
+
+.iris-step-meta {
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-3);
+}
+
+/* --- two rates, paired ---------------------------------------------------------- */
+
+.iris-paired {
+  display: grid;
+  gap: 0;
+}
+
+.iris-paired {
+  max-width: 52rem;
+}
+
+.iris-paired-head,
+.iris-paired-row {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr) 5.5rem 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4375rem 0;
+}
+
+.iris-paired-head > .iris-code {
+  line-height: 0.875rem;
+}
+
+.iris-paired-head {
+  border-bottom: 1px solid var(--rule-firm);
+  padding-bottom: 0.625rem;
+}
+
+.iris-paired-head > .iris-code:nth-child(n + 3) {
+  text-align: right;
+}
+
+.iris-paired-axis {
+  position: relative;
+  height: 0.875rem;
+}
+
+.iris-paired-axis em {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.625rem;
+  color: var(--ink-3);
+}
+
+.iris-paired-row + .iris-paired-row {
+  border-top: 1px solid var(--rule);
+}
+
+.iris-paired-label {
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iris-paired-track {
+  position: relative;
+  height: 1.125rem;
+}
+
+.iris-paired-track::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto 0;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* The gap is the point, so the gap is what gets the ink. */
+.iris-paired-track i {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-1px);
+  background: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+.iris-paired-track b {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 999px;
+}
+
+.iris-paired-track b[data-side="left"] {
+  background: var(--accent);
+}
+
+.iris-paired-track b[data-side="right"] {
+  background: var(--void);
+  border: 1.5px solid var(--ink-3);
+}
+
+.iris-paired-value {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+
+.iris-paired-value[data-muted="true"] {
+  color: var(--ink-2);
+}
+
+/* --- an index against parity ----------------------------------------------------- */
+
+.iris-parity {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.iris-parity {
+  max-width: 46rem;
+}
+
+.iris-parity-row {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.iris-parity-label {
+  font-size: 0.8125rem;
+}
+
+.iris-parity-track {
+  position: relative;
+  height: 1.5rem;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 4%);
+}
+
+/* Parity itself, drawn once so the eye has something to measure against. */
+.iris-parity-track em {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: var(--ink-3);
+}
+
+.iris-parity-track i {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-1.5px);
+  background: color-mix(in oklab, var(--loss) 55%, transparent);
+  border-radius: 2px;
+}
+
+.iris-parity-track i[data-over="true"] {
+  background: color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.iris-parity-track b {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 999px;
+  background: var(--loss);
+}
+
+.iris-parity-row:has(i[data-over="true"]) .iris-parity-track b {
+  background: var(--accent);
+}
+
+.iris-parity-value {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--loss);
+}
+
+.iris-parity-value[data-over="true"] {
+  color: var(--accent);
+}
+
+@media (max-width: 60rem) {
+  .iris-paired-head,
+  .iris-paired-row {
+    grid-template-columns: 7rem 1fr 3rem;
+  }
+
+  .iris-paired-head > :last-child,
+  .iris-paired-row > :last-child {
+    display: none;
+  }
+
+  .iris-steps {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+
+  .iris-step {
+    grid-template-columns: 6rem 1fr auto;
+    justify-items: start;
+    align-items: center;
+  }
+
+  .iris-step-bar {
+    height: 1.5rem;
+    order: 2;
+  }
+
+  .iris-step-bar i,
+  .iris-step-bar b {
+    left: 0;
+    right: auto;
+    top: 25%;
+    bottom: 25%;
+    height: auto !important;
+    width: var(--w, 0);
+  }
+}
+
+/* ===========================================================================
+   The opening screen
+   ---------------------------------------------------------------------------
+   A signal, a sentence, three figures, three doors. Nothing else. Review found
+   the previous version overloaded, and the fix was not smaller type — it was
+   moving the analysis behind the doors where it has room to be explained.
+   =========================================================================== */
+
+/*
+ * Not a plane.
+ *
+ * A plane with a max-width draws a lighter box around the verdict and strands
+ * its own background either side of it. The opening screen sits on the stage
+ * itself; the doors below carry the planes.
+ */
+.iris-home {
+  display: grid;
+  gap: 1.125rem;
+  justify-items: start;
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 4.5rem 2.5rem 3rem;
+}
+
+/* The verdict word, with a mark that carries the reading without the word. */
+.iris-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.3125rem 0.875rem 0.3125rem 0.625rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.iris-signal-mark {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.iris-signal[data-signal="good"] {
+  color: var(--gain);
+  border-color: color-mix(in oklab, var(--gain) 40%, transparent);
+}
+
+.iris-signal[data-signal="attention"] {
+  color: var(--watch);
+  border-color: color-mix(in oklab, var(--watch) 40%, transparent);
+}
+
+.iris-signal[data-signal="poor"] {
+  color: var(--loss);
+  border-color: color-mix(in oklab, var(--loss) 40%, transparent);
+}
+
+.iris-home .iris-verdict {
+  max-width: 20ch;
+  margin: 0;
+}
+
+.iris-home-because {
+  margin: 0;
+  max-width: 56ch;
+  font-size: 1.0625rem;
+  line-height: 1.55rem;
+  color: var(--ink-2);
+}
+
+.iris-home-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.75rem;
+  margin: 1rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  width: 100%;
+}
+
+.iris-home-figures dt {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  margin-bottom: 0.5rem;
+}
+
+.iris-home-figures dd {
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.iris-home-figures dd b {
+  font-size: 2.25rem;
+  line-height: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.iris-home-figures .iris-code[data-tone="good"] {
+  color: var(--gain);
+}
+
+.iris-home-figures .iris-code[data-tone="bad"] {
+  color: var(--loss);
+}
+
+/* The single thing worth acting on. Absent entirely when there is nothing. */
+.iris-home-alert {
+  display: grid;
+  gap: 0.375rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 1px solid color-mix(in oklab, var(--loss) 35%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--loss) 7%, transparent);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.35rem;
+  text-decoration: none;
+}
+
+.iris-home-alert:hover {
+  border-color: var(--loss);
+}
+
+.iris-home-alert .iris-code {
+  color: var(--loss);
+}
+
+/* --- the three doors ------------------------------------------------------- */
+
+.iris-doors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border-top: 1px solid var(--rule);
+  margin-top: 3rem;
+}
+
+/*
+ * A door is a plane, not a card.
+ *
+ * It carries the one useful thing behind it, already computed, so choosing is
+ * an informed decision rather than a guess at a label.
+ */
+.iris-door {
+  display: grid;
+  align-content: start;
+  gap: 0.5rem;
+  padding: 2rem 1.75rem 2.25rem;
+  background: var(--plane);
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+  transition: background var(--fast) var(--ease);
+}
+
+.iris-door:hover {
+  background: var(--plane-2);
+}
+
+.iris-door-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.iris-door-question {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.2rem;
+  max-width: 32ch;
+}
+
+.iris-door-headline {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.875rem;
+  color: var(--accent);
+  line-height: 1.2rem;
+}
+
+.iris-door-go {
+  position: absolute;
+  top: 2rem;
+  right: 1.75rem;
+  color: var(--ink-3);
+  transition: transform var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.iris-door:hover .iris-door-go {
+  color: var(--accent);
+  transform: translateX(3px);
+}
+
+@media (max-width: 60rem) {
+  .iris-home {
+    padding-top: 1.5rem;
+  }
+
+  .iris-home-figures {
+    gap: 1.75rem;
+  }
+
+  .iris-doors {
+    grid-template-columns: 1fr;
+    margin-top: 2rem;
+  }
+
+  .iris-door {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+/* --- a wide band: subject on the left, its context on the right ------------- */
+
+.iris-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(16rem, 0.8fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.iris-band-side {
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--rule);
+}
+
+.iris-ring-card[data-focused="true"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 0.875rem;
+}
+
+.iris-rating {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--watch);
+}
+
+/* A demand row whose filter matched nothing is the finding, so it is marked. */
+.iris-matrix[data-columns="demand"] .iris-matrix-head,
+.iris-matrix[data-columns="demand"] .iris-matrix-row {
+  grid-template-columns: 8rem 1fr 7rem 7rem;
+  gap: 1rem;
+}
+
+.iris-matrix-row[data-empty="true"] {
+  box-shadow: inset 2px 0 0 var(--loss);
+}
+
+.iris-matrix-row[data-empty="true"] .iris-matrix-num[data-zero="true"] {
+  color: var(--loss);
+}
+
+/* --- named places, sized by the time spent on them -------------------------- */
+
+.iris-places {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.iris-place {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: color-mix(in oklab, var(--accent) calc(var(--w) * 26%), var(--plane-2));
+  font-size: 0.8125rem;
+}
+
+/*
+ * A dashed edge for a place the current build cannot record.
+ *
+ * The same visual grammar the Presentation DNA uses for a timing-blind step: the
+ * shape is real, the measurement behind it is not yet available.
+ */
+.iris-place[data-section="surroundings"] {
+  border-style: dashed;
+}
+
+.iris-place b {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+@media (max-width: 75rem) {
+  .iris-band {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .iris-band-side {
+    padding-left: 0;
+    padding-top: 1.75rem;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-head,
+  .iris-matrix[data-columns="demand"] .iris-matrix-row {
+    grid-template-columns: 6rem 1fr 4rem 4rem;
+  }
+}
+
+/* --- choosing an audience --------------------------------------------------- */
+
+.iris-criteria {
+  display: grid;
+  /* Three options in a segmented control need room, or the pill wraps out of
+     its own track. */
+  grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+  gap: 1.5rem 2.5rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.iris-criteria .iris-kicker {
+  margin-bottom: 0.625rem;
+}
+
+.iris-matrix[data-columns="audience"] .iris-matrix-head,
+.iris-matrix[data-columns="audience"] .iris-matrix-row {
+  grid-template-columns: 6rem 10rem minmax(0, 1fr) 10rem;
+  gap: 1rem;
+}
+
+.iris-matrix[data-columns="audience"] .iris-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 75rem) {
+  .iris-matrix[data-columns="audience"] .iris-matrix-head,
+  .iris-matrix[data-columns="audience"] .iris-matrix-row {
+    grid-template-columns: 5rem minmax(0, 1fr) 7rem;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-matrix-head > :nth-child(2),
+  .iris-matrix[data-columns="audience"] .iris-matrix-row > :nth-child(2) {
+    display: none;
+  }
+}
+
+/*
+ * Period buckets, grouped in pairs.
+ *
+ * Each pair carries its own scale, because a day beside a month on one axis
+ * makes the day invisible and nobody compares those two anyway. A rule between
+ * the groups says the scales are not shared.
+ */
+.iris-step-groups {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 2.5rem;
+  align-items: end;
+}
+
+.iris-step-groups > .iris-steps + .iris-steps {
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--rule);
+  margin-left: -1.25rem;
+}
+
+@media (max-width: 60rem) {
+  .iris-step-groups {
+    grid-auto-flow: row;
+    gap: 1.25rem;
+  }
+
+  .iris-step-groups > .iris-steps + .iris-steps {
+    padding-left: 0;
+    margin-left: 0;
+    border-left: 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
   }
 }

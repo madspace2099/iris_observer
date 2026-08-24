@@ -16,6 +16,7 @@ export * from "./identity";
 export * from "./engagement";
 export * from "./observables";
 export * from "./showroom";
+export * from "./places";
 export * from "./evidence";
 export * from "./brief";
 export * from "./intent";

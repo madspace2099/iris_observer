@@ -103,13 +103,24 @@ test.describe("sales agent", () => {
   test("sees no section they cannot open", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     const nav = page.getByRole("navigation", { name: "Sections" });
-    // The four primary sections since ADR-0023, all showroom-rooted. A nav item
-    // the role cannot open is not rendered at all: a disabled one advertises
-    // something they will never be given.
-    for (const section of ["Showroom", "Presentation", "Units", "Storytelling"]) {
+
+    /*
+     * The opening screen and its three doors.
+     *
+     * Presentation DNA, Unit Attention and Storytelling are still reachable but
+     * are no longer top-level tabs: a tab is a claim that the reader should
+     * choose between things, and those are drill-downs behind the three views.
+     * All four are open to a sales agent — the doors are the product, not a
+     * management report.
+     */
+    for (const section of ["Showroom", "Sales Flow", "Project", "Sales Agents"]) {
       await expect(nav.getByRole("link", { name: section })).toBeVisible();
     }
-    await expect(nav.getByRole("link", { name: "Sales Flow" })).toHaveCount(0);
+
+    // A nav item the role cannot open is not rendered at all: a disabled one
+    // advertises something they will never be given.
+    await expect(nav.getByRole("link", { name: "Administration" })).toHaveCount(0);
+    await expect(nav.getByRole("link")).toHaveCount(4);
   });
 
   test("reads the brief and learns the shortlisted unit has sold", async ({ page }) => {
