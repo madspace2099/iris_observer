@@ -49,7 +49,9 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
 
 const { ask } = await import("../src/lib/ai/agent");
 const { classify } = await import("../src/app/api/ask/route");
-const { completeAiRequest } = await import("../src/lib/ai/quota");
+const { completeAiRequest, clientFingerprint } = await import("../src/lib/ai/quota");
+const { telemetrySubject, pseudonymKeyFingerprint, pseudonymKeyIsStable } =
+  await import("../src/lib/ai/identity");
 
 const CONTEXT = {
   viewer: VIEWERS.developer,
@@ -456,5 +458,89 @@ describe("admission and the audit row are the same event", () => {
     expect(migration).toContain(
       "revoke execute on function public.observer_whoami() from anon, authenticated, public",
     );
+  });
+});
+
+/* --- 6. the pseudonym key ---------------------------------------------------------- */
+
+describe("subjects are pseudonyms, and a rotation is not silent", () => {
+  const USER = "usr_petra";
+  const request = () =>
+    new Request("https://example.test/api/ask", {
+      headers: {
+        "x-forwarded-for": "203.0.113.7",
+        "user-agent": "Mozilla/5.0 (test)",
+        "accept-language": "en-GB",
+      },
+    });
+
+  function withPepper<T>(pepper: string | undefined, fn: () => T): T {
+    const before = process.env["OBSERVER_SUBJECT_PEPPER"];
+    if (pepper === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+    else process.env["OBSERVER_SUBJECT_PEPPER"] = pepper;
+    try {
+      return fn();
+    } finally {
+      if (before === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+      else process.env["OBSERVER_SUBJECT_PEPPER"] = before;
+    }
+  }
+
+  const PEPPER_A = "a".repeat(64);
+  const PEPPER_B = "b".repeat(64);
+
+  it("does not produce the digest an unkeyed hash would", async () => {
+    /*
+     * The defect this replaced. `sha256(userId)` over a handful of guessable
+     * demo ids is not a pseudonym: anybody holding the audit table and this
+     * repository recovers the viewer by enumeration in milliseconds.
+     */
+    const { createHash } = await import("node:crypto");
+    const unkeyed = createHash("sha256").update(USER).digest("hex").slice(0, 16);
+    expect(withPepper(PEPPER_A, () => telemetrySubject(USER))).not.toBe(unkeyed);
+  });
+
+  it("gives the same viewer the same subject under the same key", () => {
+    // The property the shared ceiling depends on: one viewer, one bucket,
+    // whichever instance answers.
+    const first = withPepper(PEPPER_A, () => telemetrySubject(USER));
+    const second = withPepper(PEPPER_A, () => telemetrySubject(USER));
+    expect(first).toBe(second);
+  });
+
+  it("gives the same viewer a different subject under a different key", () => {
+    const a = withPepper(PEPPER_A, () => telemetrySubject(USER));
+    const b = withPepper(PEPPER_B, () => telemetrySubject(USER));
+    expect(a).not.toBe(b);
+  });
+
+  it("keys the client fingerprint too, and never carries the address", () => {
+    const a = withPepper(PEPPER_A, () => clientFingerprint(request()));
+    const b = withPepper(PEPPER_B, () => clientFingerprint(request()));
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{32}$/);
+    expect(a).not.toContain("203.0.113");
+  });
+
+  it("names the key by a fingerprint that changes with it and reveals nothing of it", () => {
+    /*
+     * Rotation used to be silent. Without a pepper the key derives from
+     * `SUPABASE_SECRET_KEY`, which gets rotated for reasons unrelated to this
+     * module — and every bucket orphans at once, ceilings restarting from zero
+     * mid-day with nothing in any log.
+     */
+    const a = withPepper(PEPPER_A, () => pseudonymKeyFingerprint());
+    const b = withPepper(PEPPER_B, () => pseudonymKeyFingerprint());
+
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{8}$/);
+    // Eight hex characters of an HMAC under a fixed label: it cannot be the key
+    // and cannot be turned back into one.
+    expect(PEPPER_A).not.toContain(a);
+    expect(a).not.toContain(PEPPER_A.slice(0, 8));
+  });
+
+  it("reports an explicit pepper as stable without reading Supabase", () => {
+    expect(withPepper(PEPPER_A, () => pseudonymKeyIsStable())).toBe(true);
   });
 });

@@ -299,3 +299,61 @@ deployment.
 | Configure Vercel environment variables           | the project                          |
 | Live-model smoke test for ADR-0024               | a `FAL_KEY` being available          |
 | Preview Deployment Protection                    | a Pro plan, if wanted                |
+
+---
+
+## 11. Rotating the pseudonym key
+
+The shared ceiling counts one viewer into one bucket only if every instance
+derives the same subject. That subject is a keyed HMAC, and the key comes from
+`OBSERVER_SUBJECT_PEPPER` if it is set, or is derived from `SUPABASE_SECRET_KEY`
+under a fixed label if it is not.
+
+**The second case couples two unrelated things.** Rotating the Supabase
+credential — for a leak, a policy, a new project — changes every subject and
+every client fingerprint. Every rate-limit bucket is keyed by those values, so
+all of them orphan at once and the per-minute, per-hour, per-client and per-day
+ceilings restart from zero, mid-day, with nothing in any log. A cost control
+that resets itself when an unrelated credential is replaced is not a control.
+
+Two things follow.
+
+### Pin the pepper before you need to rotate anything
+
+```
+OBSERVER_SUBJECT_PEPPER=<32+ random bytes, hex>
+```
+
+Generate with `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`.
+Set it on every environment that shares a database, with the same value. From
+that point the Supabase key can be rotated freely: the pseudonym key no longer
+depends on it, and no bucket moves.
+
+### The change leaves a record either way
+
+The boot line names an eight-character fingerprint of the key in use:
+
+```
+Ask Observer subjects are keyed and stable across instances. Key fingerprint 3f9a1c04 —
+if this changes, every rate-limit bucket has reset.
+```
+
+It is an HMAC of the key under a fixed label, truncated. It cannot be reversed,
+it identifies nothing but itself, and it is different the instant the key is
+different. That turns "the ceilings reset last Tuesday" from an unanswerable
+question into a log search.
+
+It is a record, not a guard. Nothing refuses to start on a changed fingerprint,
+because refusing would turn a legitimate rotation into an outage. When a
+rotation is deliberate, note the old and new fingerprints in the deployment log
+and expect the day's counters to restart — that is the explicit operational
+record the design asks for, and the boot line is what makes it possible to
+write.
+
+### Rotating the pepper itself
+
+Same consequence, deliberately: every bucket orphans. Do it at a quiet hour,
+record both fingerprints, and expect the daily budget to start again from zero.
+Nothing in the audit is affected — `observer.ai_requests` rows keep the subjects
+they were written with, and those were never meant to be joinable across a
+rotation.

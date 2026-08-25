@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import { diagnoseServerSupabase } from "./supabase-env";
-import { pseudonymKeyIsStable } from "@/lib/ai/identity";
+import { pseudonymKeyFingerprint, pseudonymKeyIsStable } from "@/lib/ai/identity";
 
 /**
  * The environment, validated once.
@@ -263,7 +263,21 @@ export function environment(): EnvironmentReport {
    * bucket table. The key itself is never named, never printed and never
    * derived from anything a log line carries.
    */
-  if (!pseudonymKeyIsStable()) {
+  if (pseudonymKeyIsStable()) {
+    /*
+     * The fingerprint, so a rotation is not silent.
+     *
+     * Eight hex characters of an HMAC of the key under a fixed label — it
+     * cannot be reversed and identifies nothing but itself. When it changes,
+     * every rate-limit bucket has just orphaned and every ceiling has restarted
+     * from zero. That happens whenever `SUPABASE_SECRET_KEY` is rotated and no
+     * explicit pepper is set, which is a thing done for unrelated reasons, and
+     * it used to leave no trace anywhere.
+     */
+    problems.push(
+      `Ask Observer subjects are keyed and stable across instances. Key fingerprint ${pseudonymKeyFingerprint()} — if this changes, every rate-limit bucket has reset.`,
+    );
+  } else {
     problems.push(
       "Ask Observer subjects are keyed per process: no OBSERVER_SUBJECT_PEPPER and no Supabase credential to derive one from. Rate-limit buckets will not aggregate across instances.",
     );

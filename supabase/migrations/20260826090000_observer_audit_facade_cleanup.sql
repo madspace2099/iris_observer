@@ -1,27 +1,61 @@
 -- Observer — contract. The superseded façades go.
 --
--- **Do not apply this until no reachable deployment calls these names.**
+-- **Do not apply this until no deployment *can* call these names.**
 --
--- That is a stronger condition than "Production has been promoted". Vercel
--- keeps every build it has ever made reachable at its own URL, and twelve
--- Preview deployments of `release/observer-demo-rc1` were READY when this was
--- written, each one calling `consume_ai_quota` and `record_ai_request`
--- directly. Promotion does not retire them; deleting them, or letting them age
--- out, does.
+-- That is a stronger condition than the one this file first carried, and the
+-- difference matters. The original said to check
 --
--- The check before applying, in order:
+--   select max(occurred_at) from observer.ai_requests where audit_version = 1;
 --
---   1. `main` carries the admission/completion code and Production serves it;
---   2. no other deployment anybody may still open is running an older build —
---      list them, do not assume;
---   3. `observer.ai_requests` has had no new `audit_version = 1` row for long
---      enough to be sure. That is the empirical version of (2), and the one
---      worth trusting:
+-- and treat a quiet result as permission. It is not. Absence of traffic is
+-- evidence about the past and says nothing about capability: a Preview
+-- deployment that nobody has opened for a week is exactly as reachable as one
+-- opened a minute ago. Somebody following an old link, a bookmarked review URL
+-- or a stale Slack message brings it back, and it calls the function this
+-- migration deleted. The ceiling then fails closed on a build that was working
+-- an hour earlier, for a reason nobody changed.
 --
---        select max(occurred_at) from observer.ai_requests where audit_version = 1;
+-- The condition is **capability**, not activity.
 --
--- Nothing here touches data. The rows those functions wrote stay exactly as
--- they are, labelled version 1 with authorship unknown, which is what they are.
+-- ## What must be true before this runs
+--
+-- Every deployment carrying a build older than the admission/completion code
+-- must be unable to serve a request. Vercel keeps every build it has ever made
+-- reachable at its own URL, so one of these has to be true of each:
+--
+--   1. **deleted** — `vercel remove <deployment-url>`, or the dashboard's
+--      Delete on the deployment. Gone, not aliased away;
+--   2. **protected** — Deployment Protection set so the URL cannot serve an
+--      anonymous request (Standard Protection or password). A protected
+--      deployment cannot reach this database because it cannot reach its own
+--      route handler;
+--   3. **superseded on every alias that resolves to it** — necessary but never
+--      sufficient on its own, because the immutable per-deployment URL survives
+--      the alias moving.
+--
+-- Enumerate them. Do not assume:
+--
+--   vercel ls iris-observer
+--
+-- and check every READY deployment whose commit predates the one that
+-- introduced `admit_ai_request`. At the time of writing there were twelve on
+-- `release/observer-demo-rc1` alone, plus the Production build on `main` —
+-- which is a special case: `3515402` contains no quota module at all and
+-- therefore calls neither façade, whatever database it points at.
+--
+-- ## The quiet-table query still has a use
+--
+-- Not as permission. As a *contradiction test*: a recent `audit_version = 1`
+-- row proves something is still writing through the old door, so the answer is
+-- no. A quiet table proves nothing either way and must never be read as yes.
+--
+--   select max(occurred_at) as last_legacy_write, count(*) as legacy_rows
+--     from observer.ai_requests where audit_version = 1;
+--
+-- ## Nothing here touches data
+--
+-- The rows those functions wrote stay exactly as they are, labelled version 1
+-- with authorship unknown, which is what they are. Only the doors close.
 
 drop function if exists public.consume_ai_quota(text, text, text, integer, integer, integer, integer);
 drop function if exists public.record_ai_request(text, text, text, text, text, text, text, text[], integer, integer, integer, integer, integer);
