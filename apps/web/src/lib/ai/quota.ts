@@ -305,8 +305,16 @@ async function describeNotFound(response: Response): Promise<string> {
        * the database which one it is, is the only way to tell a secret key from
        * a publishable one that happens to be in the right variable.
        */
+      /*
+       * The host, on the failure path only.
+       *
+       * A Supabase project ref is not a credential — it is in the URL of every
+       * browser request any Supabase application makes, and it is the one fact
+       * that separates "the key is wrong" from "you are talking to a different
+       * project". Four rounds were spent inferring it from response codes.
+       */
       const role = await callerRole();
-      return `PostgREST was reached but matched no such function for role "${role}" — the URL is right, and this key is not a service-role key`;
+      return `PostgREST at ${hostOf()} matched no such function for role "${role}" — check that host is the intended project, then that the key is a service-role key for it`;
     }
     if (typeof parsed?.code === "string") {
       return `PostgREST answered ${parsed.code} — the URL reaches a project, but not this function`;
@@ -314,7 +322,7 @@ async function describeNotFound(response: Response): Promise<string> {
   } catch {
     // Not PostgREST's JSON at all.
   }
-  return "nothing at that address answered like PostgREST — SUPABASE_URL is not this project's REST endpoint";
+  return `nothing at ${hostOf()} answered like PostgREST — that host is not a Supabase REST endpoint`;
 }
 
 /**
@@ -324,6 +332,17 @@ async function describeNotFound(response: Response): Promise<string> {
  * path that works. `observer_whoami` runs as the caller and returns nothing but
  * the caller's own name — no data, no schema, no configuration.
  */
+/** The configured host, never the key beside it. */
+function hostOf(): string {
+  const config = configured();
+  if (config === null) return "(unconfigured)";
+  try {
+    return new URL(config.url).host;
+  } catch {
+    return "(unparseable)";
+  }
+}
+
 async function callerRole(): Promise<string> {
   const config = configured();
   if (config === null) return "unknown";
