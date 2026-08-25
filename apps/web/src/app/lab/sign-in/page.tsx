@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ProfilePicker, type Profile, type ProfileGroup } from "@/lab/ProfilePicker";
+import { ProfilePicker, type Profile, type ProfileGroup } from "@/showroom/ProfilePicker";
 import { SIGN_IN_OPTIONS } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Profile picker" };

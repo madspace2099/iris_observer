@@ -166,8 +166,10 @@ describe("the synthetic dataset", () => {
   });
 
   it("holds two comparable periods", () => {
-    const current = sessionsInPeriod("2026-07-01", "2026-08-24");
-    const previous = sessionsInPeriod("2026-04-01", "2026-06-30");
+    // Scoped to a project: a date range alone used to return every project's
+    // meetings at once, which is the defect the isolation suite now guards.
+    const current = sessionsInPeriod("prj_northgate01", "2026-07-01", "2026-08-24");
+    const previous = sessionsInPeriod("prj_northgate01", "2026-04-01", "2026-06-30");
     expect(current.length).toBeGreaterThan(30);
     expect(previous.length).toBeGreaterThan(30);
   });
@@ -268,7 +270,7 @@ describe("unknown is never rendered as zero", () => {
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",
       projectSlug: "northgate",
-      meetingId: "mtg_0001" as never,
+      meetingId: "mtg_ng0001" as never,
     });
     expect(replay.gaps.length).toBeGreaterThan(0);
     for (const gap of replay.gaps) expect(gap.length).toBeGreaterThan(20);
@@ -293,7 +295,7 @@ describe("source classification", () => {
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",
       projectSlug: "northgate",
-      meetingId: "mtg_0100" as never,
+      meetingId: "mtg_ng0100" as never,
     });
     const outcome = replay.steps.find((s) => s.kind === "outcome");
     expect(outcome?.sources).toEqual(["CRM_OUTCOME_CONTEXT"]);
@@ -325,23 +327,33 @@ function walk(dir: string): string[] {
 }
 
 describe("the model never sees a secret or a database", () => {
-  it("never exposes FAL_KEY to the client", () => {
+  it("never exposes the model key to the client", () => {
     const sources = walk(join(webRoot, "src")).filter((f) => /\.tsx?$/.test(f));
     for (const file of sources) {
       const text = readFileSync(file, "utf8");
-      expect(text, file).not.toContain("NEXT_PUBLIC_FAL");
-      if (text.includes("FAL_KEY")) {
+      expect(text, file).not.toContain("NEXT_PUBLIC_OPENAI");
+      if (text.includes("OPENAI_API_KEY")) {
         // Anything reading the key must be server-only, and a client component
         // cannot import a module that declares it.
-        expect(text, `${file} reads FAL_KEY without server-only`).toContain('import "server-only"');
-        expect(text, `${file} reads FAL_KEY in a client component`).not.toContain('"use client"');
+        expect(text, `${file} reads the key without server-only`).toContain('import "server-only"');
+        expect(text, `${file} reads the key in a client component`).not.toContain('"use client"');
       }
     }
   });
 
-  it("disables web search on the model route", () => {
+  it("gives the model no hosted tool that can reach the open web", () => {
+    /*
+     * A model that can search can contradict the figures on the screen with
+     * something it read, and the reader has no way to tell which is which. The
+     * request body names its tools explicitly and they are all this product's
+     * own, so the check is that none of OpenAI's hosted tools appears.
+     */
     const provider = readFileSync(join(webRoot, "src/lib/ai/provider.ts"), "utf8");
-    expect(provider).toContain("enable_web_search: false");
+    for (const hosted of ["web_search", "file_search", "code_interpreter", "computer_use"]) {
+      expect(provider, `provider.ts offers the hosted ${hosted} tool`).not.toContain(`"${hosted}`);
+    }
+    // The only tool type this product ever sends is its own function schema.
+    expect(provider).toContain('type: "function"');
   });
 
   it("gives the model no tool that writes", async () => {

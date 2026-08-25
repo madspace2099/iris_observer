@@ -136,7 +136,14 @@ describe("accessibility foundations", () => {
   it("marks the main landmark on every shell", () => {
     expect(read("src/app/(app)/[tenantSlug]/[projectSlug]/layout.tsx")).toContain('id="main"');
     expect(read("src/app/madspace/page.tsx")).toContain('id="main"');
-    expect(read("src/app/sign-in/page.tsx")).toContain('id="main"');
+    /*
+     * Sign-in renders the profile picker, which owns its own `<main>`.
+     *
+     * Asserted where the landmark actually lives rather than on the route that
+     * composes it — a page that delegates its whole shell to a component has
+     * no markup of its own to check.
+     */
+    expect(read("src/showroom/ProfilePicker.tsx")).toContain('id="main"');
   });
 
   it("labels the primary navigation and marks the current page", () => {
@@ -145,10 +152,21 @@ describe("accessibility foundations", () => {
     expect(nav).toContain("aria-current");
   });
 
-  it("labels the context switchers, which are icon-free but unlabelled visually", () => {
-    const switcher = read("src/components/ContextSwitcher.tsx");
-    expect(switcher).toContain("aria-label");
-    expect(switcher).toContain('className="obs-sr"');
+  it("gives every context switcher one exact accessible name", () => {
+    /*
+     * `aria-label` alone, not a wrapping label with hidden text.
+     *
+     * A `<label>` folds its own text *and* the option list into the control's
+     * accessible name — "PeriodQuarter to dateLast 28 days…" — which is both
+     * wrong for a screen reader and ambiguous for anything querying by name.
+     */
+    for (const file of ["src/components/ContextSwitcher.tsx", "src/components/PeriodSwitcher.tsx"]) {
+      const switcher = read(file);
+      expect(switcher, `${file} must name its control`).toContain("aria-label");
+      // The closing tag, not the opening one — the comment above each control
+      // explains why a wrapping label is wrong, and says "<label>" doing it.
+      expect(switcher, `${file} must not wrap the select in a label`).not.toContain("</label>");
+    }
   });
 
   it("announces loading and error states to assistive technology", () => {

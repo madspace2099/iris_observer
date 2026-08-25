@@ -9,6 +9,7 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
+import { NotPermittedError } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 
 /**
@@ -162,6 +163,18 @@ const compareAgentFlows: ToolDefinition<
     rightAgentId: z.string().min(1).describe("Agent id, e.g. agt_akhilesh"),
   }),
   async run(context, args) {
+    /*
+     * The same rule as the surface, enforced in the tool.
+     *
+     * Asking Observer to compare two named colleagues is the league table by
+     * another route, and a control that exists only on the page it was written
+     * for is not a control. `NotPermittedError` is what the agent loop already
+     * turns into an honest refusal.
+     */
+    if (context.viewer.role === "sales_agent") {
+      throw new NotPermittedError("a comparison of named colleagues");
+    }
+
     const view = await repository.getPresentationIntelligence(query(context), {
       mode: "agents",
       left: args.leftAgentId,

@@ -55,7 +55,9 @@ function share(part: number, whole: number): number {
 
 function duration(seconds: number): string {
   const m = Math.floor(seconds / 60);
-  return m === 0 ? `${Math.round(seconds)}s` : `${m}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
+  return m === 0
+    ? `${Math.round(seconds)}s`
+    : `${m}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
 }
 
 function within(sessions: readonly ShowroomSession[], from: number, to: number): ShowroomSession[] {
@@ -135,7 +137,7 @@ export function buildKpis(
 
   const tone = (a: number, b: number, better: "up" | "down"): "good" | "bad" | "flat" => {
     if (a === b) return "flat";
-    return (a > b) === (better === "up") ? "good" : "bad";
+    return a > b === (better === "up") ? "good" : "bad";
   };
 
   const figures: KpiFigure[] = [
@@ -144,8 +146,12 @@ export function buildKpis(
       label: "Presentations",
       measurementId: "showroom.presentations",
       value: count(now.length, locale),
-      qualifier: before.length === 0 ? "no earlier window" : `${count(before.length, locale)} before`,
-      delta: before.length === 0 ? null : signedPercent((now.length - before.length) / before.length, locale),
+      qualifier:
+        before.length === 0 ? "no earlier window" : `${count(before.length, locale)} before`,
+      delta:
+        before.length === 0
+          ? null
+          : signedPercent((now.length - before.length) / before.length, locale),
       tone: tone(now.length, before.length, "up"),
       points,
     },
@@ -184,7 +190,9 @@ export function buildKpis(
         const known = slice.filter((s) => !outcomeIsUnknown(s.outcome));
         return known.length === 0
           ? null
-          : Math.round(share(known.filter((s) => hasProgressed(s.outcome)).length, known.length) * 100);
+          : Math.round(
+              share(known.filter((s) => hasProgressed(s.outcome)).length, known.length) * 100,
+            );
       }),
     },
     {
@@ -289,9 +297,14 @@ const BEHAVIOURS = [
   },
 ] as const;
 
-export function buildBehaviourFunnel(sessions: readonly ShowroomSession[], locale: string): BehaviourFunnel {
+export function buildBehaviourFunnel(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+): BehaviourFunnel {
   const cohort = sessions.filter((s) => s.outcome === "not_interested");
-  const rest = sessions.filter((s) => s.outcome !== "not_interested" && !outcomeIsUnknown(s.outcome));
+  const rest = sessions.filter(
+    (s) => s.outcome !== "not_interested" && !outcomeIsUnknown(s.outcome),
+  );
 
   /*
    * Each band is the meetings that did this **and** everything above it.
@@ -352,7 +365,11 @@ const RADAR_AXES = [
 
 const RADAR_TONES = ["var(--accent)", "var(--gain)", "var(--watch)", "var(--loss)"];
 
-export function buildAgentCharts(sessions: readonly ShowroomSession[], base: string, locale: string): AgentCharts {
+export function buildAgentCharts(
+  sessions: readonly ShowroomSession[],
+  base: string,
+  locale: string,
+): AgentCharts {
   const raw = SYNTHETIC_AGENTS.flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
@@ -362,10 +379,20 @@ export function buildAgentCharts(sessions: readonly ShowroomSession[], base: str
         label: a.name,
         meetings: mine.length,
         values: [
-          median(mine.map((s) => share(CORE_SECTION_IDS.filter((c) => s.steps.some((x) => x.sectionId === c)).length, CORE_SECTION_IDS.length))),
+          median(
+            mine.map((s) =>
+              share(
+                CORE_SECTION_IDS.filter((c) => s.steps.some((x) => x.sectionId === c)).length,
+                CORE_SECTION_IDS.length,
+              ),
+            ),
+          ),
           median(mine.map((s) => s.steps.length)),
           median(mine.map((s) => s.units.length)),
-          share(mine.filter((s) => s.steps.some((x) => x.sectionId === "compare")).length, mine.length),
+          share(
+            mine.filter((s) => s.steps.some((x) => x.sectionId === "compare")).length,
+            mine.length,
+          ),
           share(mine.filter((s) => s.steps.some((x) => x.isReturn)).length, mine.length),
           median(mine.map((s) => s.places.length)),
         ],
@@ -454,7 +481,10 @@ const OUTCOME_COLOURS: Record<MeetingOutcome, string> = {
   skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
 };
 
-export function buildComposition(sessions: readonly ShowroomSession[], locale: string): OutcomeComposition {
+export function buildComposition(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
     const at = new Date(s.startedAt);
@@ -582,7 +612,10 @@ export function buildTargets(today: Date, locale: string): SalesTarget[] {
 
 /* --- where journeys go, and where they stop ---------------------------------------- */
 
-export function buildJourney(sessions: readonly ShowroomSession[], locale: string): JourneyFlowModel {
+export function buildJourney(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+): JourneyFlowModel {
   const opened = sessions.filter((s) => s.units.length > 0);
   const shortlisted = opened.filter((s) => s.units.some((u) => u.favourited));
   const progressed = shortlisted.filter((s) => hasProgressed(s.outcome));

@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ObserverOrb } from "../orb/ObserverOrb";
-import { ObserverAnswer } from "./Answer";
+import { ParticleOrb } from "../orb/ParticleOrb";
+import { ObserverAnswerPanel } from "./Answer";
 import { suggestionsFor } from "./suggestions";
 import { useObserver } from "./useObserver";
+import { useSharedVoice } from "./ObserverVoiceProvider";
 import type { ObserverContext } from "./types";
 
 /**
@@ -16,7 +17,15 @@ import type { ObserverContext } from "./types";
  * the URL, so selecting an agent or a unit changes what it offers to answer
  * without the reader typing the name of the thing they are already looking at.
  */
-export function ObserverRail({ projectLabel, root }: { projectLabel: string; root: string }) {
+export function ObserverRail({
+  projectLabel,
+  root,
+  role,
+}: {
+  projectLabel: string;
+  root: string;
+  role: ObserverContext["role"];
+}) {
   const pathname = usePathname();
   const params = useSearchParams();
   const field = useRef<HTMLInputElement>(null);
@@ -28,6 +37,7 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     tenantSlug,
     projectSlug,
     projectLabel,
+    role,
     period: params.get("period") ?? "quarter_to_date",
     unitCode: params.get("unit"),
     meetingId: /\/meetings\/([^/?]+)/.exec(pathname)?.[1] ?? null,
@@ -38,7 +48,8 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     segment: params.get("segment"),
   };
 
-  const observer = useObserver(context, () => setOpen(true));
+  const observer = useObserver(context);
+  const voice = useSharedVoice();
   const suggestions = suggestionsFor(context);
 
   /*
@@ -50,11 +61,26 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
    */
   const onBriefing = pathname.endsWith("/showroom");
 
+  /*
+   * Any settled outcome opens the sheet, not only a successful one.
+   *
+   * The sheet used to open from an `onInsight` callback that fires only when an
+   * answer validates. A refusal — an expired session, a rate limit, an
+   * unreachable model — left the reader looking at a rail that had visibly
+   * accepted their question and then did nothing at all.
+   */
+  useEffect(() => {
+    if (observer.outcome !== null) setOpen(true);
+  }, [observer.outcome]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
-      if ((event.key === "k" && (event.metaKey || event.ctrlKey)) || (event.key === "/" && !typing)) {
+      if (
+        (event.key === "k" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "/" && !typing)
+      ) {
         event.preventDefault();
         field.current?.focus();
       }
@@ -69,17 +95,36 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     void observer.ask(question);
   };
 
-  const state = observer.outcome === null && !observer.busy ? "idle" : observer.state;
+  /*
+   * A live conversation outranks a settled answer.
+   *
+   * While voice is connected the presence follows the conversation — listening,
+   * thinking, speaking — because that is what is actually true at that moment,
+   * and it is the same rule the console applies. An orb still showing the last
+   * answer while somebody is talking to it is the one reading that is wrong.
+   */
+  const voiceLive =
+    voice.phase === "listening" || voice.phase === "speaking" || voice.phase === "thinking";
+  const state = voiceLive
+    ? voice.orbState
+    : observer.outcome === null && !observer.busy
+      ? "idle"
+      : observer.state;
 
   if (onBriefing) return null;
 
   return (
     <>
-      <div className="obs-rail" data-busy={observer.busy ? "true" : undefined} data-shifted={open ? "true" : undefined}>
-        <ObserverOrb
+      <div
+        className="obs-rail"
+        data-busy={observer.busy ? "true" : undefined}
+        data-shifted={open ? "true" : undefined}
+      >
+        <ParticleOrb
           state={state}
-          intensity={observer.busy ? 0.7 : 0.1}
-          size={38}
+          intensity={observer.busy || voiceLive ? 0.7 : 0.1}
+          frequencies={voice.frequencies}
+          size={60}
           compact
           onActivate={() => field.current?.focus()}
           activateLabel="Focus the Observer prompt"
@@ -118,12 +163,38 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
           <kbd>⌘K</kbd>
         </form>
 
+        {/*
+         * Talking has to be startable from here too.
+         *
+         * The session now outlives navigation, but the only control that opened
+         * one lived on the briefing — so anywhere else the presence could show a
+         * conversation it gave the reader no way to begin. Same control, same
+         * class, same rule: the microphone is requested on a click and nowhere
+         * else.
+         */}
+        {voice.phase === "unavailable" ? null : (
+          <button
+            className="obs-mic"
+            type="button"
+            onClick={() => (voiceLive ? voice.disconnect() : void voice.connect())}
+            aria-pressed={voiceLive}
+            aria-label={voiceLive ? "Stop talking to Observer" : "Talk to Observer"}
+            data-live={voiceLive ? "true" : undefined}
+          >
+            <span aria-hidden="true">●</span>
+          </button>
+        )}
+
         {observer.busy ? (
           <button className="iris-action" type="button" onClick={observer.cancel}>
             Stop
           </button>
         ) : (
-          <button className="iris-action" type="button" onClick={() => send(suggestions[0] as string)}>
+          <button
+            className="iris-action"
+            type="button"
+            onClick={() => send(suggestions[0] as string)}
+          >
             {suggestions[0]}
           </button>
         )}
@@ -142,7 +213,13 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
               ×
             </button>
           </div>
-          <ObserverAnswer outcome={observer.outcome} followUps={suggestions} onFollowUp={send} />
+          <ObserverAnswerPanel
+            outcome={observer.outcome}
+            draft={observer.draft}
+            followUps={suggestions}
+            onFollowUp={send}
+            onRetry={() => void observer.retry()}
+          />
         </aside>
       )}
     </>

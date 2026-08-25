@@ -18,6 +18,20 @@ const PROJECT_LEVEL = [
   "Which units are losing attention?",
 ] as const;
 
+/**
+ * What a sales agent is offered instead.
+ *
+ * Their own patterns, their own preparation, and the team only in aggregate —
+ * never a colleague by name. The product promises them no league table, and an
+ * offer is a promise about what the next screen will contain.
+ */
+const AGENT_LEVEL = [
+  "What changed in my meetings this month?",
+  "How do my presentations differ from the team average?",
+  "Which units are losing attention?",
+  "What should I prepare for my next meeting?",
+] as const;
+
 export function suggestionsFor(context: ObserverContext): readonly string[] {
   if (context.meetingId !== null) {
     return [
@@ -58,7 +72,7 @@ export function suggestionsFor(context: ObserverContext): readonly string[] {
     ];
   }
 
-  return PROJECT_LEVEL;
+  return context.role === "sales_agent" ? AGENT_LEVEL : PROJECT_LEVEL;
 }
 
 /**

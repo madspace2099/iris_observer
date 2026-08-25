@@ -19,10 +19,18 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /*
+   * Sales Agents names colleagues beside one another.
+   *
+   * The sign-in screen promises an agent their own patterns and no league
+   * table, and this surface is the league table. Enforced on the server by
+   * `requireSurface`, not by omitting a link — the route was reachable by
+   * typing it.
+   */
   {
     route: "/[tenantSlug]/[projectSlug]/agents",
     audience: "internal",
-    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+    requiresRole: ["developer", "agency_manager", "madspace_admin"],
   },
   {
     route: "/[tenantSlug]/[projectSlug]/audience",

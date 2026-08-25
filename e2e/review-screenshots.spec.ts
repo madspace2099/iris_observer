@@ -15,11 +15,7 @@ const OUT =
 
 async function signInAs(page: Page, name: string) {
   await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
+  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
   // Sign-in lands on the Showroom since ADR-0023. This review set is about the
   // demoted executive surface, so it navigates on from there.
   await page.waitForURL(/\/(showroom|overview)/);

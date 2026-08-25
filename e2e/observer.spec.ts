@@ -12,11 +12,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function signInAs(page: Page, name: string) {
   await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
+  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
   // Sign-in lands on the Showroom since ADR-0023. These tests navigate on from
   // there rather than assuming where they arrive.
   await page.waitForURL(/\/(showroom|overview)/);
@@ -113,14 +109,23 @@ test.describe("sales agent", () => {
      * All four are open to a sales agent — the doors are the product, not a
      * management report.
      */
-    for (const section of ["Briefing", "Sales Flow", "Project", "Sales Agents"]) {
+    for (const section of ["Briefing", "Sales Flow", "Project"]) {
       await expect(nav.getByRole("link", { name: section })).toBeVisible();
     }
+
+    /*
+     * Sales Agents is not among them.
+     *
+     * It names colleagues beside one another, and the sign-in screen promises
+     * an agent their own patterns and no league table. Enforced on the server:
+     * typing the URL redirects rather than rendering it.
+     */
+    await expect(nav.getByRole("link", { name: "Sales Agents" })).toHaveCount(0);
 
     // A nav item the role cannot open is not rendered at all: a disabled one
     // advertises something they will never be given.
     await expect(nav.getByRole("link", { name: "Administration" })).toHaveCount(0);
-    await expect(nav.getByRole("link")).toHaveCount(4);
+    await expect(nav.getByRole("link")).toHaveCount(3);
   });
 
   test("reads the brief and learns the shortlisted unit has sold", async ({ page }) => {
@@ -173,6 +178,6 @@ test.describe("isolation", () => {
     await page.context().clearCookies();
     await page.goto("/alpha/northgate/overview");
     await page.waitForURL(/\/sign-in/);
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Each profile sees a different Observer/ })).toBeVisible();
   });
 });

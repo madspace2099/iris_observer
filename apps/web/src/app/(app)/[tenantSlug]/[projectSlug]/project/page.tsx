@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -39,6 +40,8 @@ export default async function ProjectPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "project", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const query = {
@@ -209,11 +212,18 @@ export default async function ProjectPage({
                 <span style={{ textAlign: "right" }}>Units matching</span>
               </div>
               {view.demand.slice(0, 10).map((d) => (
-                <div className="iris-matrix-row" key={`${d.field}-${d.value}`} data-empty={d.matches === 0 ? "true" : undefined}>
-                  <span className="iris-bar-label">{d.label}</span>
-                  <span className="iris-bar-label">{d.value}</span>
+                <div
+                  className="iris-matrix-row"
+                  key={`${d.field}-${d.value}`}
+                  data-empty={d.matches === 0 ? "true" : undefined}
+                >
+                  <span className="iris-bar-label" title={d.label}>{d.label}</span>
+                  <span className="iris-bar-label" title={d.value}>{d.value}</span>
                   <span className="iris-matrix-num">{d.applications}</span>
-                  <span className="iris-matrix-num" data-zero={d.matches === 0 ? "true" : undefined}>
+                  <span
+                    className="iris-matrix-num"
+                    data-zero={d.matches === 0 ? "true" : undefined}
+                  >
                     {d.matches}
                   </span>
                 </div>
@@ -233,10 +243,14 @@ export default async function ProjectPage({
             <div className="iris-bars">
               {view.placeCategories.slice(0, 7).map((c) => (
                 <div className="iris-bar" key={c.category}>
-                  <span className="iris-bar-label">{c.label}</span>
+                  <span className="iris-bar-label" title={c.label}>{c.label}</span>
                   <span
                     className="iris-bar-track"
-                    style={{ "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3) } as React.CSSProperties}
+                    style={
+                      {
+                        "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3),
+                      } as React.CSSProperties
+                    }
                   >
                     <i />
                   </span>
@@ -262,7 +276,9 @@ export default async function ProjectPage({
                 className="iris-place"
                 key={p.placeId}
                 data-section={p.section}
-                style={{ "--w": (p.totalDwellSeconds / peakPlace).toFixed(3) } as React.CSSProperties}
+                style={
+                  { "--w": (p.totalDwellSeconds / peakPlace).toFixed(3) } as React.CSSProperties
+                }
                 title={`${p.meetings} meetings · median ${p.medianDwellSeconds}s${
                   p.availability === "requires_ue5_v2_event" ? " · needs a UE5 v2 event" : ""
                 }`}
@@ -273,8 +289,8 @@ export default async function ProjectPage({
             ))}
           </div>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            Sized by total time. Amenities inside the building are recorded today; points of interest
-            in the neighbourhood need a UE5 v2 event and are shown here as a demonstration.
+            Sized by total time. Amenities inside the building are recorded today; points of
+            interest in the neighbourhood need a UE5 v2 event and are shown here as a demonstration.
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>

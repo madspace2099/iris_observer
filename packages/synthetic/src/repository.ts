@@ -38,7 +38,12 @@ import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse } from "./pulse";
-import { SYNTHETIC_AGENTS, sessionById, sessionsInPeriod, showroomSessions } from "./showroom/sessions";
+import {
+  SYNTHETIC_AGENTS,
+  sessionById,
+  sessionsInPeriod,
+  showroomSessions,
+} from "./showroom/sessions";
 import { buildAgentCharts, buildFlowCharts, buildProjectCharts } from "./showroom/charts";
 import {
   buildAgentsView,
@@ -232,11 +237,20 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const endOfToday = new Date(this.today);
     endOfToday.setUTCHours(23, 59, 59, 999);
 
+    /*
+     * Every slice is scoped to the project the viewer resolved.
+     *
+     * `context.project` came from `resolveProject`, which checked the tenant and
+     * the viewer's grants before returning it — so passing its id here is what
+     * makes the authorisation reach the data rather than stopping at the page.
+     */
+    const project = context.project.id as string;
+
     return {
       context,
-      current: sessionsInPeriod(context.period.from, context.period.to),
-      previous: sessionsInPeriod(context.period.baselineFrom, context.period.baselineTo),
-      throughToday: sessionsInPeriod(context.period.from, endOfToday.toISOString()),
+      current: sessionsInPeriod(project, context.period.from, context.period.to),
+      previous: sessionsInPeriod(project, context.period.baselineFrom, context.period.baselineTo),
+      throughToday: sessionsInPeriod(project, context.period.from, endOfToday.toISOString()),
     };
   }
 
@@ -282,6 +296,20 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getAgentsView(query: OverviewQuery): Promise<AgentsView> {
     const { context, current } = await this.slices(query);
+
+    /*
+     * A sales agent may not read a named comparison of their colleagues.
+     *
+     * Refused at the read model, not only at the route, because the route is
+     * one of several ways in — a tool call, a server action or a future export
+     * would each have to remember the rule separately. The product promises an
+     * agent "no league table" on the sign-in screen, and this is the league
+     * table.
+     */
+    if (context.viewer.role === "sales_agent") {
+      throw new NotPermittedError("the team comparison");
+    }
+
     // The IRIS rating is feedback on the software, so only MADSPACE sees it.
     return buildAgentsView(context, current, context.viewer.role === "madspace_admin");
   }

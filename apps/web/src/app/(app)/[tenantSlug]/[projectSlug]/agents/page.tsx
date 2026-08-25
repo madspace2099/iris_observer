@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -42,6 +43,8 @@ export default async function AgentsPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "agents", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const query = {
@@ -147,7 +150,7 @@ export default async function AgentsPage({
                 <div className="iris-bars">
                   {focused.repeats.map((r) => (
                     <div className="iris-bar" key={r.visits}>
-                      <span className="iris-bar-label">{r.label}</span>
+                      <span className="iris-bar-label" title={r.label}>{r.label}</span>
                       <span
                         className="iris-bar-track"
                         style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
@@ -159,8 +162,8 @@ export default async function AgentsPage({
                   ))}
                 </div>
                 <p className="iris-meta" style={{ marginTop: ".625rem" }}>
-                  Only a contact Observer already knows can be counted as returning; a walk-in has no
-                  history to have.
+                  Only a contact Observer already knows can be counted as returning; a walk-in has
+                  no history to have.
                 </p>
               </div>
             </div>
@@ -207,8 +210,8 @@ export default async function AgentsPage({
             </p>
             <RankedBars rows={charts.ranked} />
             <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-              How many, and how long they typically ran. This list is ordered by workload. It is
-              not ordered by outcome, and there is no list here that is.
+              How many, and how long they typically ran. This list is ordered by workload. It is not
+              ordered by outcome, and there is no list here that is.
             </p>
           </div>
 
@@ -216,21 +219,21 @@ export default async function AgentsPage({
             <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
               Across every agent
             </p>
-          <div className="iris-bars">
-            {view.repeats.map((r) => (
-              <div className="iris-bar" key={r.visits}>
-                <span className="iris-bar-label">{r.label}</span>
-                <span
-                  className="iris-bar-track"
-                  style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
-                >
-                  <i />
-                </span>
-                <span className="iris-bar-value">
-                  {r.meetings} · {Math.round(r.share * 100)}%
-                </span>
-              </div>
-            ))}
+            <div className="iris-bars">
+              {view.repeats.map((r) => (
+                <div className="iris-bar" key={r.visits}>
+                  <span className="iris-bar-label" title={r.label}>{r.label}</span>
+                  <span
+                    className="iris-bar-track"
+                    style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
+                  >
+                    <i />
+                  </span>
+                  <span className="iris-bar-value">
+                    {r.meetings} · {Math.round(r.share * 100)}%
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>

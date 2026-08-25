@@ -9,11 +9,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function signInAs(page: Page, name: string) {
   await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
+  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
   // The front door is the Showroom overview since ADR-0023.
   await page.waitForURL(/\/showroom/);
 }
@@ -69,7 +65,9 @@ test.describe("session boundary", () => {
     ]);
     await page.goto("/alpha/northgate/showroom");
     await page.waitForURL(/\/sign-in/);
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    // The sign-in surface is the profile picker now; its heading says what the
+    // choice is for rather than naming the mechanism.
+    await expect(page.getByRole("heading", { name: /Each profile sees a different Observer/ })).toBeVisible();
   });
 
   /*
@@ -121,9 +119,19 @@ test.describe("session boundary", () => {
     await page.waitForURL(/\/sign-in/);
   });
 
-  test("calls itself a scenario selector, not authentication", async ({ page }) => {
+  test("says it is a demonstration without explaining its own implementation", async ({ page }) => {
     await page.goto("/sign-in");
-    await expect(page.getByText(/not production authentication/i)).toBeVisible();
+
+    /*
+     * The status must be clear; the mechanism is not the reader's problem.
+     *
+     * "This is a scenario selector, not production authentication" told a
+     * developer in a consultation that they were looking at scaffolding. The
+     * demonstration status is still stated — it has to be — in product
+     * language.
+     */
+    await expect(page.getByText(/demonstration running on synthetic data/i)).toBeVisible();
+    await expect(page.getByText(/not production authentication/i)).toHaveCount(0);
   });
 });
 

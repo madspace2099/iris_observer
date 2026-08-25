@@ -89,22 +89,41 @@ export function UnitMatrix({
                 {row.rooms} rooms · {row.areaSqm} m²
               </em>
             </span>
+            {/*
+              * Every cell carries its own label.
+              *
+              * The header row disappears when the panel is too narrow for six
+              * columns, and a stack of bare numbers is unreadable without it.
+              * `data-label` is what the CSS prints in front of each figure, and
+              * the visually-hidden copy is what a screen reader hears in both
+              * layouts.
+              */}
             <span
               className="iris-matrix-attention"
+              data-label="Attention"
               style={{ "--a": row.attention.toFixed(3) } as React.CSSProperties}
             >
               <i />
+              <span className="iris-sr">
+                {Math.round(row.attention * 100)}% of the attention on the busiest unit
+              </span>
             </span>
-            <span className="iris-matrix-num">{row.meetings}</span>
-            <span className="iris-matrix-num">
+            <span className="iris-matrix-num" data-label="Meetings">
+              {row.meetings}
+            </span>
+            <span className="iris-matrix-num" data-label="Typical look">
               {row.medianDwellSeconds >= 60
                 ? `${Math.floor(row.medianDwellSeconds / 60)}m ${String(row.medianDwellSeconds % 60).padStart(2, "0")}s`
                 : `${row.medianDwellSeconds}s`}
             </span>
-            <span className="iris-matrix-num" data-zero={row.favourites === 0 ? "true" : undefined}>
+            <span
+              className="iris-matrix-num"
+              data-label="Shortlisted"
+              data-zero={row.favourites === 0 ? "true" : undefined}
+            >
               {row.favourites}
             </span>
-            <span className="iris-matrix-num" data-trend={row.trend}>
+            <span className="iris-matrix-num" data-label="Trend" data-trend={row.trend}>
               {row.trendDisplay}
             </span>
           </Link>

@@ -4,6 +4,7 @@ import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@ob
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Gaps, SourceChips } from "@/showroom/parts";
@@ -48,6 +49,8 @@ export default async function AudiencePage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "audience", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const rooms = search.rooms === "2" || search.rooms === "3" ? Number(search.rooms) : null;
@@ -107,19 +110,25 @@ export default async function AudiencePage({
           <div>
             <p className="iris-kicker">Strength of interest</p>
             <div className="iris-segmented" role="tablist" aria-label="Strength of interest">
-              <Link role="tab" aria-selected={favouritedOnly} href={dynamicRoute(qs({ all: null }))}>
+              <Link
+                role="tab"
+                aria-selected={favouritedOnly}
+                href={dynamicRoute(qs({ all: null }))}
+              >
                 Shortlisted it
               </Link>
-              <Link role="tab" aria-selected={!favouritedOnly} href={dynamicRoute(qs({ all: "1" }))}>
+              <Link
+                role="tab"
+                aria-selected={!favouritedOnly}
+                href={dynamicRoute(qs({ all: "1" }))}
+              >
                 Merely opened it
               </Link>
             </div>
           </div>
 
           <div style={{ gridColumn: "1 / -1" }}>
-            <p className="iris-kicker">
-              Spent at least {seconds}s on places of this kind
-            </p>
+            <p className="iris-kicker">Spent at least {seconds}s on places of this kind</p>
             <div className="iris-mode-strip">
               <Link
                 className="iris-chip"
@@ -162,7 +171,7 @@ export default async function AudiencePage({
             {view.matches.map((m) => (
               <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
                 <span className="iris-matrix-code">{m.startedDisplay}</span>
-                <span className="iris-bar-label">{m.agentName}</span>
+                <span className="iris-bar-label" title={m.agentName}>{m.agentName}</span>
                 <span className="iris-bar-label" title={m.because}>
                   {m.because}
                 </span>

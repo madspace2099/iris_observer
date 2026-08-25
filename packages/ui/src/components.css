@@ -1050,3 +1050,38 @@ a {
 .obs-action {
   white-space: nowrap;
 }
+
+/* --- the brief speaks the same language as every other surface --------------- */
+
+/*
+ * One product, not two.
+ *
+ * The analytical surfaces are flat planes separated by hairlines; the
+ * pre-meeting brief was still built from rounded, shadowed cards, so moving
+ * between them felt like moving between two applications. The brief keeps its
+ * structure — the sections are real, bounded objects — and drops the card
+ * chrome that was doing the separating.
+ *
+ * A card is reserved for a genuine collection: the profile picker's people, a
+ * unit's own object. A fact is not a collection, and wrapping every fact in a
+ * container is how density turns into a scrapbook.
+ */
+.obs-brief-grid .obs-card,
+.obs-brief-section .obs-card {
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding-inline: 0;
+}
+
+.obs-brief-grid .obs-card:first-child,
+.obs-brief-section .obs-card:first-child {
+  border-top: 0;
+}
+
+/* The alert keeps its rail — that is a severity signal, not decoration. */
+.obs-brief-grid .obs-alert {
+  border-radius: 2px;
+}

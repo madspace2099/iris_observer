@@ -61,7 +61,7 @@ test("Ask Observer answers against the current selection", async ({ page }) => {
 
 test("every figure on the unit list can explain itself", async ({ page }) => {
   await page.goto("/sign-in");
-  await page.getByRole("listitem").filter({ hasText: "Petra Novák" }).getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: /Continue as Petra Novák/ }).click();
   await page.waitForURL(/\/showroom/);
   await page.goto("/alpha/northgate/units");
 

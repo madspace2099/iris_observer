@@ -38,7 +38,16 @@ export interface Profile {
    * real link is navigable, middle-clickable and readable by assistive
    * technology without any of that being arranged separately.
    */
-  readonly href: string;
+  /** Where the card goes, when it is a link. */
+  readonly href?: string;
+  /**
+   * The viewer key this card submits, when the picker is a form.
+   *
+   * Production signs in through a server action that mints a session, so the
+   * card has to be a submit button rather than a link — the same card, doing
+   * the thing the real flow needs.
+   */
+  readonly submitValue?: string;
 }
 
 export type ProfileGroup = "sales" | "management" | "madspace";
@@ -118,8 +127,17 @@ function monogramHue(name: string): number {
 }
 
 function ProfileCard({ profile }: { profile: Profile }) {
-  return (
-    <a className="iris-card" href={profile.href}>
+  /*
+   * One accessible name per card, and it says who.
+   *
+   * Five buttons all called "Continue" are five identical announcements to a
+   * screen reader, and the reader has to infer the target from the card they
+   * cannot see.
+   */
+  const label = `Continue as ${profile.name}, ${profile.role}`;
+
+  const inner = (
+    <>
       <span className="iris-card-media">
         <span
           className="iris-card-image"
@@ -158,11 +176,32 @@ function ProfileCard({ profile }: { profile: Profile }) {
       </span>
 
       <span className="iris-card-blurb">{profile.blurb}</span>
+    </>
+  );
+
+  if (profile.submitValue !== undefined) {
+    return (
+      <button className="iris-card" type="submit" name="viewer" value={profile.submitValue} aria-label={label}>
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <a className="iris-card" href={profile.href ?? "#"} aria-label={label}>
+      {inner}
     </a>
   );
 }
 
-export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
+export function ProfilePicker({
+  profiles,
+  note,
+}: {
+  profiles: readonly Profile[];
+  /** One line of demonstration context. Product language, never a disclaimer. */
+  note?: string;
+}) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const shown = profiles.filter((p) => filter === "all" || p.group === filter);
 
@@ -174,6 +213,7 @@ export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
         <div className="iris-brand">
           <b>IRIS</b>
           <span>Observer</span>
+          {note === undefined ? null : <span className="iris-welcome-note">{note}</span>}
         </div>
 
         <div className="iris-segmented" role="tablist" aria-label="Profile group">
@@ -190,10 +230,18 @@ export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
           ))}
         </div>
 
-        <span className="iris-code iris-welcome-note">Scenario selector, not authentication</span>
+        {/*
+          * The demonstration status, in product language.
+          *
+          * "Scenario selector, not authentication" described the
+          * implementation to a reader who had not asked, and told a developer
+          * in a consultation they were looking at scaffolding. What matters to
+          * them is that the figures are synthetic, which the header now says.
+          */}
+        <span className="iris-code iris-welcome-badge">Demo data</span>
       </header>
 
-      <main className="iris-welcome-body">
+      <main className="iris-welcome-body" id="main">
         <p className="iris-kicker">Choose your profile</p>
         <h1 className="iris-verdict">Each profile sees a different Observer.</h1>
 

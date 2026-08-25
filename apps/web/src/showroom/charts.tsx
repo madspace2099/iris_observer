@@ -72,8 +72,7 @@ export function OutcomeRing({
       className="iris-ring"
       role="img"
       aria-label={
-        label ??
-        `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
+        label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
       }
     >
       <circle cx={c} cy={c} r={r} fill="none" stroke="var(--rule)" strokeWidth={stroke} />
@@ -97,7 +96,13 @@ export function OutcomeRing({
           </path>
         );
       })}
-      <text x={c} y={c - 2} className="iris-ring-figure" textAnchor="middle" dominantBaseline="middle">
+      <text
+        x={c}
+        y={c - 2}
+        className="iris-ring-figure"
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
         {total}
       </text>
       <text x={c} y={c + size * 0.14} className="iris-ring-caption" textAnchor="middle">
@@ -193,7 +198,13 @@ export function PairedRates({
   leftLabel,
   rightLabel,
 }: {
-  rows: readonly { readonly id: string; readonly label: string; readonly left: number; readonly right: number; readonly note?: string | null }[];
+  rows: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly left: number;
+    readonly right: number;
+    readonly note?: string | null;
+  }[];
   leftLabel: string;
   rightLabel: string;
 }) {
@@ -246,7 +257,12 @@ export function ParityScale({
   rows,
   max = 2,
 }: {
-  rows: readonly { readonly id: string; readonly label: string; readonly index: number; readonly note: string }[];
+  rows: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly index: number;
+    readonly note: string;
+  }[];
   max?: number;
 }) {
   const place = (v: number) => `${Math.min(100, Math.max(0, (v / max) * 100))}%`;

@@ -1,88 +1,117 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+
 import type { OrbState } from "../orb/profile";
 import type { AskOutcome, ObserverContext } from "./types";
 
 /**
- * One Observer exchange, and the state the orb shows while it happens.
+ * One Observer exchange, streamed, and the state the orb shows while it runs.
  *
  * The orb state is derived here rather than set by whoever renders it, so the
  * presence on screen cannot drift out of step with what the application is
- * doing. `thinking` means a request is genuinely in flight; `insight` means an
- * answer with evidence came back; `unavailable` means the interpretation layer
- * could not be reached and says so instead of inventing prose.
+ * doing. `thinking` means a request is genuinely in flight. `insight`,
+ * `contradictory_evidence` and `waiting_for_human` come from the *answer* —
+ * the server decides which of those is true, because it is the side that saw
+ * the evidence. `error` means the interpretation layer could not be reached and
+ * says so instead of inventing prose.
+ *
+ * ## On the streamed text
+ *
+ * `draft` is what the model is producing right now. It is shown, and it is
+ * **not** the answer: when the stream finishes the server sends a validated
+ * `ObserverAnswer`, and the draft is replaced by it or discarded. A reader
+ * never keeps a sentence that failed validation, and the component makes that
+ * visible by rendering the draft in a distinct, explicitly provisional state.
  */
 
 export interface ObserverSession {
   readonly state: OrbState;
   readonly busy: boolean;
   readonly outcome: AskOutcome | null;
-  /** What the tool layer is doing, in words, while it does it. */
+  /** What the tool layer is doing, in words, while it does it. Real stages. */
   readonly progress: string | null;
-  ask: (question: string) => Promise<void>;
+  /** Analyses that have actually run this turn. */
+  readonly tools: readonly string[];
+  /** Provisional streamed prose. Replaced by the validated answer. */
+  readonly draft: { readonly answer: string; readonly interpretation: string } | null;
+  /** The last question asked, so Retry does not need it typed again. */
+  readonly lastQuestion: string | null;
+  ask: (question: string, depth?: "standard" | "deep") => Promise<void>;
+  retry: () => Promise<void>;
   cancel: () => void;
   dismiss: () => void;
 }
 
-/*
- * Said while the request is in flight.
- *
- * These describe the work the controlled tool loop actually performs — reading
- * the session slice, comparing lanes, resolving evidence — rather than counting
- * to three. They advance on a timer because the route answers in one response;
- * if it is ever streamed, the same slot carries the real stage names.
- */
-const STAGES = [
-  "Reading the measured sessions",
-  "Comparing what the tools returned",
-  "Checking the evidence behind it",
-] as const;
+const EMPTY_DRAFT = { answer: "", interpretation: "" };
+
+/** The orb state an answer implies, with the client's own states kept out. */
+function stateFor(outcome: AskOutcome): OrbState {
+  if (outcome.answer === null) return "error";
+  switch (outcome.answer.orbState) {
+    case "insight":
+      return "insight";
+    case "contradictory_evidence":
+      return "contradictory_evidence";
+    case "waiting_for_human":
+      return "waiting_for_human";
+    case "error":
+      return "error";
+  }
+}
+
+function failure(question: string, refusal: string): AskOutcome {
+  return {
+    question,
+    answer: null,
+    refusal,
+    toolsUsed: [],
+    sources: [],
+    demoData: true,
+    status: { provider: "unknown", model: "unknown", live: false, reason: null },
+  };
+}
 
 export function useObserver(context: ObserverContext, onInsight?: () => void): ObserverSession {
   const [state, setState] = useState<OrbState>("idle");
   const [outcome, setOutcome] = useState<AskOutcome | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [tools, setTools] = useState<readonly string[]>([]);
+  const [draft, setDraft] = useState<{ answer: string; interpretation: string } | null>(null);
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
+  const [lastDepth, setLastDepth] = useState<"standard" | "deep">("standard");
   const abort = useRef<AbortController | null>(null);
-  const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopTicker = useCallback(() => {
-    if (ticker.current !== null) {
-      clearInterval(ticker.current);
-      ticker.current = null;
-    }
-  }, []);
 
   const cancel = useCallback(() => {
     abort.current?.abort();
     abort.current = null;
-    stopTicker();
     setProgress(null);
-    setState(outcome === null ? "idle" : "insight");
-  }, [outcome, stopTicker]);
+    setDraft(null);
+    setState(outcome === null ? "idle" : stateFor(outcome));
+  }, [outcome]);
 
   const dismiss = useCallback(() => {
     setOutcome(null);
+    setDraft(null);
+    setTools([]);
     setState("idle");
   }, []);
 
   const ask = useCallback(
-    async (question: string) => {
+    async (question: string, depth: "standard" | "deep" = "standard") => {
       if (question.trim().length === 0 || abort.current !== null) return;
 
       const controller = new AbortController();
       abort.current = controller;
       setState("thinking");
-      setProgress(STAGES[0] as string);
-
-      let stage = 0;
-      ticker.current = setInterval(() => {
-        stage = Math.min(STAGES.length - 1, stage + 1);
-        setProgress(STAGES[stage] as string);
-      }, 900);
+      setProgress("Choosing the analysis");
+      setTools([]);
+      setDraft(null);
+      setLastQuestion(question);
+      setLastDepth(depth);
 
       try {
-        const response = await fetch("/api/ask", {
+        const response = await fetch("/api/ask/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
@@ -93,48 +122,143 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
             period: context.period,
             unitCode: context.unitCode,
             meetingId: context.meetingId,
+            depth,
           }),
         });
 
         /*
          * A failure has to say which failure it was.
          *
-         * "Could not reach its analysis layer" was shown for every non-200,
-         * including an expired session — which sent the reader looking for an
-         * outage when the answer was to sign in again.
+         * "Could not reach its analysis layer" was once shown for every
+         * non-200, including an expired session — which sent the reader looking
+         * for an outage when the answer was to sign in again.
          */
         if (response.status === 401) {
-          setOutcome({
-            question,
-            answer: null,
-            refusal: "Your session has expired. Sign in again and ask once more.",
-            toolsUsed: [],
-            status: { provider: "unknown", model: "unknown", live: false, reason: "not signed in" },
-          });
-          setState("unavailable");
+          setOutcome(
+            failure(question, "Your session has expired. Sign in again and ask once more."),
+          );
+          setState("error");
           return;
         }
-        if (!response.ok) throw new Error(String(response.status));
+        if (response.status === 429) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          setOutcome(
+            failure(
+              question,
+              body?.error ?? "You are asking faster than this demonstration allows.",
+            ),
+          );
+          setState("error");
+          return;
+        }
+        if (!response.ok || response.body === null) throw new Error(String(response.status));
 
-        const next = (await response.json()) as AskOutcome;
-        setOutcome(next);
-        setState(next.answer === null ? "unavailable" : "insight");
-        if (next.answer !== null) onInsight?.();
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let settled = false;
+        const building = { ...EMPTY_DRAFT };
+
+        /*
+         * A minimal SSE parser rather than `EventSource`.
+         *
+         * `EventSource` cannot issue a POST and cannot carry a JSON body, and
+         * this request needs both. The framing is simple enough that parsing it
+         * is smaller than the workaround would be.
+         */
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let split = buffer.indexOf("\n\n");
+          while (split !== -1) {
+            const frame = buffer.slice(0, split);
+            buffer = buffer.slice(split + 2);
+            split = buffer.indexOf("\n\n");
+
+            const nameLine = /^event: (.+)$/m.exec(frame);
+            const dataLine = /^data: (.+)$/m.exec(frame);
+            if (nameLine?.[1] === undefined || dataLine?.[1] === undefined) continue;
+
+            let payload: unknown;
+            try {
+              payload = JSON.parse(dataLine[1]);
+            } catch {
+              continue;
+            }
+
+            switch (nameLine[1]) {
+              case "stage":
+                setProgress((payload as { label: string }).label);
+                break;
+              case "tool": {
+                const name = (payload as { name: string }).name;
+                setTools((current) => (current.includes(name) ? current : [...current, name]));
+                break;
+              }
+              case "delta": {
+                const { field, delta } = payload as { field: string; delta: string };
+                if (field === "answer") building.answer += delta;
+                if (field === "interpretation") building.interpretation += delta;
+                setState("speaking");
+                setDraft({ ...building });
+                break;
+              }
+              case "final": {
+                const next = payload as AskOutcome;
+                settled = true;
+                setOutcome(next);
+                setDraft(null);
+                setState(stateFor(next));
+                if (next.answer !== null) onInsight?.();
+                break;
+              }
+              case "failure":
+                settled = true;
+                setOutcome(
+                  failure(
+                    question,
+                    (payload as { error: string }).error ??
+                      "Observer could not complete this answer.",
+                  ),
+                );
+                setDraft(null);
+                setState("error");
+                break;
+            }
+          }
+        }
+
+        /*
+         * A stream that ended without a final event is a failure, not an answer.
+         *
+         * Left unhandled this is the worst state in the whole feature: prose on
+         * screen that never passed validation, with an orb that looks settled.
+         */
+        if (!settled) {
+          setOutcome(
+            failure(
+              question,
+              "Observer's answer ended before it was complete, so it has been discarded rather than shown. The measured evidence on this page is unaffected.",
+            ),
+          );
+          setDraft(null);
+          setState("error");
+        }
       } catch (error) {
         // An aborted request is the reader's decision, not a failure.
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setOutcome({
-          question,
-          answer: null,
-          refusal:
+        setOutcome(
+          failure(
+            question,
             "Observer could not reach its interpretation layer. Nothing has been answered from memory — every figure it reports comes from the same read models the screens draw from. The measured evidence is still on the page.",
-          toolsUsed: [],
-          status: { provider: "unknown", model: "unknown", live: false, reason: null },
-        });
-        setState("unavailable");
+          ),
+        );
+        setDraft(null);
+        setState("error");
       } finally {
         abort.current = null;
-        stopTicker();
         setProgress(null);
       }
     },
@@ -145,16 +269,24 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
       context.tenantSlug,
       context.unitCode,
       onInsight,
-      stopTicker,
     ],
   );
 
+  const retry = useCallback(async () => {
+    if (lastQuestion === null) return;
+    await ask(lastQuestion, lastDepth);
+  }, [ask, lastDepth, lastQuestion]);
+
   return {
     state,
-    busy: state === "thinking",
+    busy: state === "thinking" || state === "speaking",
     outcome,
     progress,
+    tools,
+    draft,
+    lastQuestion,
     ask,
+    retry,
     cancel,
     dismiss,
   };

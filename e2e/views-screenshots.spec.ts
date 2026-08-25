@@ -11,7 +11,7 @@ const OUT = "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-I
 
 async function signIn(page: Page, name: string) {
   await page.goto("/sign-in");
-  await page.getByRole("listitem").filter({ hasText: name }).getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
   await page.waitForURL(/\/showroom/);
   await page.evaluate(() => document.fonts.ready);
 }

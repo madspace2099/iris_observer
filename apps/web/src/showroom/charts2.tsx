@@ -40,7 +40,9 @@ export function Sparkline({
   const peak = Math.max(1, ...points);
   const step = width / (points.length - 1);
   const y = (v: number) => height - 2 - (v / peak) * (height - 4);
-  const d = points.map((v, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const d = points
+    .map((v, i) => `${i === 0 ? "M" : "L"} ${(i * step).toFixed(1)} ${y(v).toFixed(1)}`)
+    .join(" ");
   const last = points[points.length - 1] ?? 0;
 
   return (
@@ -99,7 +101,9 @@ export function KpiCard({
           )}
           {qualifier === null ? null : <span className="iris-code">{qualifier}</span>}
         </div>
-        {points === undefined ? null : <Sparkline points={points} label={`${value} over recent weeks`} />}
+        {points === undefined ? null : (
+          <Sparkline points={points} label={`${value} over recent weeks`} />
+        )}
       </div>
     </article>
   );
@@ -128,7 +132,9 @@ export function TrendLine({
   const x = (i: number) => pad.left + (i / (points.length - 1)) * innerW;
   const y = (v: number) => pad.top + innerH - (v / peak) * innerH;
 
-  const line = points.map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(" ");
+  const line = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`)
+    .join(" ");
   const marked = annotation === undefined || annotation === null ? null : points[annotation.index];
 
   return (
@@ -140,14 +146,23 @@ export function TrendLine({
     >
       {[0, 0.5, 1].map((t) => (
         <g key={t}>
-          <line x1={pad.left} x2={width - pad.right} y1={y(peak * t)} y2={y(peak * t)} className="iris-trend-grid" />
+          <line
+            x1={pad.left}
+            x2={width - pad.right}
+            y1={y(peak * t)}
+            y2={y(peak * t)}
+            className="iris-trend-grid"
+          />
           <text x={pad.left - 6} y={y(peak * t) + 3} className="iris-trend-tick" textAnchor="end">
             {Math.round(peak * t)}
           </text>
         </g>
       ))}
 
-      <path d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`} className="iris-trend-fill" />
+      <path
+        d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
+        className="iris-trend-fill"
+      />
       <path d={line} className="iris-trend-line" />
 
       {points.map((p, i) => (
@@ -167,9 +182,9 @@ export function TrendLine({
             className="iris-trend-mark"
           />
           {/*
-            * Flipped to the left once the mark is past the midpoint, so a note
-            * on the last week is readable rather than clipped by the frame.
-            */}
+           * Flipped to the left once the mark is past the midpoint, so a note
+           * on the last week is readable rather than clipped by the frame.
+           */}
           <text
             x={x(annotation.index) + (annotation.index > points.length / 2 ? -6 : 6)}
             y={pad.top + 10}
@@ -183,7 +198,13 @@ export function TrendLine({
 
       {points.map((p, i) =>
         i % Math.ceil(points.length / 8) === 0 ? (
-          <text key={`${p.label}-x`} x={x(i)} y={height - 8} className="iris-trend-tick" textAnchor="middle">
+          <text
+            key={`${p.label}-x`}
+            x={x(i)}
+            y={height - 8}
+            className="iris-trend-tick"
+            textAnchor="middle"
+          >
             {p.label}
           </text>
         ) : null,
@@ -198,7 +219,11 @@ export function StackedBars({
   columns,
   keys,
 }: {
-  columns: readonly { readonly label: string; readonly parts: Readonly<Record<string, number>>; readonly total: number }[];
+  columns: readonly {
+    readonly label: string;
+    readonly parts: Readonly<Record<string, number>>;
+    readonly total: number;
+  }[];
   keys: readonly { readonly id: string; readonly label: string; readonly colour: string }[];
 }) {
   const peak = Math.max(1, ...columns.map((c) => c.total));
@@ -271,8 +296,16 @@ export function BulletChart({
             <span className="iris-bullet-label">{row.label}</span>
             <span className="iris-bullet-track" title={row.note}>
               {/* The qualitative bands: behind, on pace, ahead. */}
-              <em className="iris-bullet-band" style={{ width: pct(row.pace * 0.8) }} data-band="behind" />
-              <em className="iris-bullet-band" style={{ width: pct(row.pace * 1.1) }} data-band="near" />
+              <em
+                className="iris-bullet-band"
+                style={{ width: pct(row.pace * 0.8) }}
+                data-band="behind"
+              />
+              <em
+                className="iris-bullet-band"
+                style={{ width: pct(row.pace * 1.1) }}
+                data-band="near"
+              />
               <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
               <b style={{ left: pct(row.pace) }} title={`Needed by now: ${Math.round(row.pace)}`} />
               <u style={{ left: pct(row.target) }} title={`Target: ${row.target}`} />
@@ -410,7 +443,11 @@ export function Funnel({
               )}
             </span>
             <span className="iris-funnel-drop">
-              {i === 0 ? `${Math.round((step.count / first) * 100)}%` : lost === 0 ? "—" : `−${lost}`}
+              {i === 0
+                ? `${Math.round((step.count / first) * 100)}%`
+                : lost === 0
+                  ? "—"
+                  : `−${lost}`}
             </span>
           </div>
         );
@@ -438,7 +475,12 @@ export function Radar({
   size = 240,
 }: {
   axes: readonly string[];
-  series: readonly { readonly id: string; readonly label: string; readonly values: readonly number[]; readonly tone: string }[];
+  series: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly values: readonly number[];
+    readonly tone: string;
+  }[];
   size?: number;
 }) {
   const c = size / 2;
@@ -481,7 +523,9 @@ export function Radar({
             key={s.id}
             className="iris-radar-shape"
             style={{ "--tone": s.tone } as React.CSSProperties}
-            points={s.values.map((v, i) => point(i, Math.max(0.02, Math.min(1, v))).join(",")).join(" ")}
+            points={s.values
+              .map((v, i) => point(i, Math.max(0.02, Math.min(1, v))).join(","))
+              .join(" ")}
           />
         ))}
         {axes.map((axis, i) => {
@@ -542,7 +586,9 @@ export function RankedBars({
             ) : (
               <Link href={dynamicRoute(row.href)}>{row.label}</Link>
             )}
-            {row.sub === null ? null : <em>{row.sub}</em>}
+            {/* Truncated visibly, and never unreachable: the full line is the
+                element's own title. */}
+            {row.sub === null ? null : <em title={row.sub}>{row.sub}</em>}
           </span>
           <span className="iris-ranked-track">
             <i style={{ width: `${(row.value / peak) * 100}%` }} />
@@ -599,16 +645,18 @@ export function SectionSequence({
             {row.label}
             <em>
               reached in {Math.round(row.reachRate * 100)}% of their meetings
-              {row.returnRate < 0.05 ? null : ` · came back in ${Math.round(row.returnRate * 100)}%`}
+              {row.returnRate < 0.05
+                ? null
+                : ` · came back in ${Math.round(row.returnRate * 100)}%`}
             </em>
           </span>
           <span className="iris-sequence-track">
             {/*
-              * Scaled against this agent's own longest stop, so the bar shows
-              * where their time went. The comparison to the team is the number
-              * beside it, not a second bar — two scales in one row is how a
-              * reader reads the wrong one.
-              */}
+             * Scaled against this agent's own longest stop, so the bar shows
+             * where their time went. The comparison to the team is the number
+             * beside it, not a second bar — two scales in one row is how a
+             * reader reads the wrong one.
+             */}
             <i style={{ width: `${((row.medianDwellSeconds ?? 0) / peak) * 100}%` }} />
           </span>
           <span className="iris-sequence-time">

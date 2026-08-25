@@ -68,6 +68,27 @@ export default defineConfig({
     // OBSERVER_REUSE=1 while iterating to skip the rebuild between runs.
           reuseExistingServer: process.env["OBSERVER_REUSE"] === "1",
           timeout: 240_000,
+          /*
+           * The demonstration ceilings, raised for the suite.
+           *
+           * One server process serves all three viewport projects, and the Ask
+           * limiter and breaker are per-instance by design (ADR-0026). A burst
+           * test in one project therefore starved the other two: every project
+           * passed alone and seventeen tests failed together, which looks like
+           * flakiness and is actually the control working.
+           *
+           * Raised rather than disabled — `ask-security.spec.ts` still proves a
+           * burst is stopped and a breaker opens, just with room for four
+           * hundred honest requests alongside them.
+           */
+          env: {
+            // High enough that ordinary tests never reach it, low enough that
+            // the burst test still proves the limiter works.
+            OBSERVER_ASK_PER_MINUTE: "30",
+            OBSERVER_ASK_PER_VIEWER_PER_DAY: "5000",
+            OBSERVER_ASK_PER_INSTANCE_PER_DAY: "20000",
+            OBSERVER_BREAKER_THRESHOLD: "500",
+          },
         },
       }
     : {}),

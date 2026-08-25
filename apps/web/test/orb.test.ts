@@ -53,7 +53,7 @@ describe("the Observer orb", () => {
   });
 
   it("goes quiet rather than red when it cannot interpret", () => {
-    const off = orbProfile("unavailable");
+    const off = orbProfile("error");
     expect(off.saturation).toBeLessThan(0.5);
     expect(off.luminance).toBeLessThan(orbProfile("idle").luminance);
     expect(off.label).toMatch(/evidence is still available/i);

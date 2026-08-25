@@ -26,27 +26,80 @@ import { evidenceRef, money } from "./format";
  * at half the project average.
  */
 
-const FLOORS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
-const BLOCKS = ["A", "B", "C"] as const;
-const PER_BLOCK = 2;
-
-/** Orientation follows the block's aspect. A faces south, C faces west. */
-const BLOCK_ORIENTATION: Record<string, PulseUnit["orientation"]> = {
-  A: "S",
-  B: "SW",
-  C: "W",
-};
+/**
+ * A building, described rather than assumed.
+ *
+ * Every project in the demonstration world is a different development. A
+ * catalogue hard-coded to one stacking plan is how three projects came to
+ * report the same flats, the same demand and the same sold count — so each
+ * project names its own blocks, floors and aspects, and `A-402` exists in
+ * exactly one of them.
+ */
+export interface BuildingSpec {
+  readonly floors: readonly number[];
+  readonly blocks: readonly string[];
+  readonly perBlock: number;
+  readonly orientation: Readonly<Record<string, PulseUnit["orientation"]>>;
+  /** How much of the lower stock has already moved, 0–1. */
+  readonly soldPressure: number;
+  /** Units written by hand in the scenario document, pinned against drift. */
+  readonly pinned: Readonly<Record<string, Partial<PulseUnit> & { status: UnitStatus }>>;
+}
 
 /**
  * The five units written by hand in the scenario document. They are pinned so
  * the brief, the Overview narrative and the Pulse cannot drift apart.
  */
-const PINNED: Record<string, Partial<PulseUnit> & { status: UnitStatus }> = {
+const NORTHGATE_PINNED: Record<string, Partial<PulseUnit> & { status: UnitStatus }> = {
   "A-402": { rooms: 2, areaSqm: 63, price: 214_000, status: "available", orientation: "S" },
   "B-301": { rooms: 2, areaSqm: 59, price: 202_000, status: "available", orientation: "SW" },
   "A-505": { rooms: 2, areaSqm: 66, price: 229_000, status: "sold", orientation: "S" },
   "C-204": { rooms: 3, areaSqm: 88, price: 268_000, status: "reserved", orientation: "W" },
   "A-204": { rooms: 2, areaSqm: 61, price: 189_000, status: "available", orientation: "N" },
+};
+
+/**
+ * The three developments.
+ *
+ * Deliberately different sizes and shapes, because the point of a second and a
+ * third project is to prove the product reads each one on its own terms. A
+ * reader who sees the same 48 units under every name learns nothing except
+ * that the demonstration is fake.
+ */
+export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
+  prj_northgate01: {
+    floors: [1, 2, 3, 4, 5, 6, 7, 8],
+    blocks: ["A", "B", "C"],
+    perBlock: 2,
+    orientation: { A: "S", B: "SW", C: "W" },
+    soldPressure: 0.25,
+    pinned: NORTHGATE_PINNED,
+  },
+  // Riverside is a smaller waterside scheme: two blocks, six floors, and a
+  // different aspect — its stock faces the water, east and north-east.
+  prj_riversidew1: {
+    floors: [1, 2, 3, 4, 5, 6],
+    blocks: ["R", "W"],
+    perBlock: 3,
+    orientation: { R: "E", W: "N" },
+    soldPressure: 0.44,
+    pinned: {
+      "R-201": { rooms: 2, areaSqm: 57, price: 178_000, status: "available", orientation: "E" },
+      "W-402": { rooms: 3, areaSqm: 91, price: 246_000, status: "reserved", orientation: "N" },
+    },
+  },
+  // Kingsford Yard is a single tall block, three weeks on sale, almost nothing
+  // moved yet — which is the whole reason it exists in this world.
+  prj_beta0000001: {
+    floors: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    blocks: ["K"],
+    perBlock: 3,
+    orientation: { K: "SE" },
+    soldPressure: 0.86,
+    pinned: {
+      "K-301": { rooms: 2, areaSqm: 54, price: 312_000, status: "available", orientation: "SE" },
+    },
+  },
 };
 
 /** A small deterministic hash, so every derived figure is reproducible. */
@@ -74,22 +127,23 @@ export interface RawUnit {
   status: UnitStatus;
 }
 
-function buildCatalogue(): RawUnit[] {
+function buildCatalogue(spec: BuildingSpec): RawUnit[] {
   const units: RawUnit[] = [];
 
-  for (const floor of FLOORS) {
-    for (const block of BLOCKS) {
-      for (let index = 1; index <= PER_BLOCK; index += 1) {
+  for (const floor of spec.floors) {
+    for (const block of spec.blocks) {
+      for (let index = 1; index <= spec.perBlock; index += 1) {
         const code = unitCode(block, floor, index);
-        const pinned = PINNED[code];
+        const pinned = spec.pinned[code];
         const r = seed(code);
 
         // Two- and three-room units alternate by position; the top two floors
         // carry the larger plans, as a real stacking plan does.
-        const rooms = pinned?.rooms ?? (floor >= 7 ? 3 : index === 2 && block !== "B" ? 3 : 2);
+        const top = spec.floors[spec.floors.length - 1] ?? 8;
+        const rooms = pinned?.rooms ?? (floor >= top - 1 ? 3 : index === 2 && block !== "B" ? 3 : 2);
         const areaSqm =
           pinned?.areaSqm ?? (rooms === 2 ? 58 + Math.round(r * 9) : 84 + Math.round(r * 12));
-        const orientation = pinned?.orientation ?? BLOCK_ORIENTATION[block] ?? "S";
+        const orientation = pinned?.orientation ?? spec.orientation[block] ?? "S";
 
         // Price: area, a floor premium, and a south-facing premium.
         const base = areaSqm * 2_950;
@@ -98,16 +152,23 @@ function buildCatalogue(): RawUnit[] {
         const price =
           pinned?.price ?? Math.round((base + floorPremium + aspectPremium) / 1000) * 1000;
 
-        // Availability: the lower floors have moved, the middle is live, and a
-        // handful of upper units are reserved. 48 units, 11 sold, 5 reserved.
+        /*
+         * Availability, scaled by how long the scheme has been selling.
+         *
+         * `soldPressure` is the threshold a unit must clear to have moved, so a
+         * low number means most of the lower stock has gone and a high one means
+         * almost nothing has. Kingsford sits at 0.86 because it launched three
+         * weeks ago, and a demonstration that showed it half sold would be
+         * telling the reader something untrue about a real sales situation.
+         */
         let status: UnitStatus = "available";
         if (pinned !== undefined) {
           status = pinned.status;
-        } else if (floor <= 2 && r > 0.25) {
+        } else if (floor <= 2 && r > spec.soldPressure) {
           status = "sold";
-        } else if (floor === 3 && r > 0.78) {
+        } else if (floor === 3 && r > spec.soldPressure + 0.53) {
           status = "sold";
-        } else if (floor >= 6 && r > 0.86) {
+        } else if (floor >= 6 && r > spec.soldPressure + 0.61) {
           status = "reserved";
         }
 
@@ -147,16 +208,42 @@ const CHANGE_FOR: Record<string, UnitChange> = {
 };
 
 /**
- * The catalogue itself, exposed once.
+ * The catalogue for one project, memoised.
  *
- * The Pulse and the showroom session generator must draw units from the same
- * building, or the stacking plan and the meeting records will quietly disagree
- * about which flat exists.
+ * The Pulse, the unit surfaces and the showroom session generator must all draw
+ * from the same building, or the stacking plan and the meeting records quietly
+ * disagree about which flat exists — and they must draw from *that project's*
+ * building, which is the correction this function exists to make.
  */
-export const RAW_CATALOGUE: readonly RawUnit[] = buildCatalogue();
+const catalogues = new Map<string, readonly RawUnit[]>();
+
+export function catalogueFor(projectId: string): readonly RawUnit[] {
+  const cached = catalogues.get(projectId);
+  if (cached !== undefined) return cached;
+
+  const spec = BUILDINGS[projectId];
+  if (spec === undefined) {
+    /*
+     * An unknown project gets nothing, not Northgate.
+     *
+     * Returning a default catalogue is exactly the bug this replaces: a screen
+     * that cannot find its building should render its empty state, so the gap
+     * is visible instead of being filled with another development's flats.
+     */
+    catalogues.set(projectId, []);
+    return [];
+  }
+
+  const built = buildCatalogue(spec);
+  catalogues.set(projectId, built);
+  return built;
+}
+
+/** Northgate's catalogue. Retained for the surfaces that are still single-project. */
+export const RAW_CATALOGUE: readonly RawUnit[] = catalogueFor("prj_northgate01");
 
 export function buildProjectPulse(context: ViewContext): ProjectPulse {
-  const raw = buildCatalogue();
+  const raw = catalogueFor(context.project.id as string);
   const { locale, currency } = {
     locale: context.project.locale,
     currency: context.project.currency,
@@ -269,7 +356,7 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     context,
     buildingLabel: context.project.name,
     floors,
-    blocks: [...BLOCKS],
+    blocks: [...new Set(units.map((u) => u.block))],
     segments,
     totals: {
       units: units.length,

@@ -1206,3 +1206,26 @@
     padding: 2rem 1.25rem;
   }
 }
+
+/*
+ * One line of demonstration context beside the brand.
+ *
+ * The surface it replaced explained its own implementation to the reader —
+ * "this is a scenario selector, not production authentication" — which tells a
+ * developer in a consultation that they are looking at scaffolding. The status
+ * still has to be clear; it does not have to sound unfinished.
+ */
+.iris-welcome-note {
+  flex-basis: 100%;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-2);
+  max-width: 52ch;
+}
+
+.iris-welcome-badge {
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+}

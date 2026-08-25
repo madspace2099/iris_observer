@@ -1,49 +1,34 @@
-import type { InsightSource } from "@observer/contracts";
+import type { InsightSource, ObserverAnswer } from "@observer/contracts";
 
 /**
  * The shape of an Observer exchange, shared by every surface that holds one.
  *
- * The five parts of an answer are separate fields rather than one block of
- * prose, because the whole architecture turns on the reader being able to see
- * which part a model wrote and which part it did not (ADR-0024).
+ * The parts of an answer are separate fields rather than one block of prose,
+ * because the whole architecture turns on the reader being able to see which
+ * part a model wrote and which part it did not (ADR-0026). `ObserverAnswer`
+ * itself is imported from the contracts package rather than restated here —
+ * one definition, validated on the server, rendered on the client.
  */
 
-export interface ToolFact {
-  readonly label: string;
-  readonly value: string;
-  readonly note: string | null;
-}
+export type { ObserverAnswer } from "@observer/contracts";
 
-export interface AnswerEvidence {
-  readonly evidenceId: string;
-  readonly tier: string;
-  readonly href: string;
-  readonly observationCount: number;
-}
-
-export interface AskAnswer {
-  readonly observed: readonly ToolFact[];
-  readonly interpretation: string;
-  readonly recommendation: string | null;
-  readonly limitations: readonly string[];
-  readonly confidence: "high" | "moderate" | "low";
-  readonly dataCompleteness: string;
-  readonly evidence: readonly AnswerEvidence[];
-  readonly sources: readonly InsightSource[];
-  readonly action: { readonly label: string; readonly href: string } | null;
+export interface ObserverStatus {
+  readonly provider: string;
+  readonly model: string;
+  readonly live: boolean;
+  /** Always null or the one fixed sentence. Redacted before it is sent. */
+  readonly reason: string | null;
 }
 
 export interface AskOutcome {
   readonly question: string;
-  readonly answer: AskAnswer | null;
+  readonly answer: ObserverAnswer | null;
   readonly refusal: string | null;
   readonly toolsUsed: readonly string[];
-  readonly status: {
-    readonly provider: string;
-    readonly model: string;
-    readonly live: boolean;
-    readonly reason: string | null;
-  };
+  readonly sources: readonly InsightSource[];
+  /** Whether this deployment is running demonstration data. Shown, not hidden. */
+  readonly demoData: boolean;
+  readonly status: ObserverStatus;
 }
 
 /**
@@ -54,6 +39,14 @@ export interface AskOutcome {
  * is a complete question.
  */
 export interface ObserverContext {
+  /**
+   * What this reader is allowed to be shown.
+   *
+   * Offers are part of the authorisation surface: suggesting "Compare the sales
+   * agents" to a sales agent advertises a screen they may not open, and the
+   * refusal that follows reads as a broken product rather than as a policy.
+   */
+  readonly role: "developer" | "agency_manager" | "sales_agent" | "madspace_admin";
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly projectLabel: string;

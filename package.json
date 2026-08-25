@@ -19,7 +19,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "matrix": "tsx packages/metrics/src/generate/cli.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "audit:secrets": "node scripts/secret-audit.mjs",
+    "smoke:openai": "node scripts/openai-smoke.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

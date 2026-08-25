@@ -14,11 +14,7 @@ const OUT =
 
 async function signInAs(page: Page, name: string) {
   await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
+  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
   await page.waitForURL(/\/showroom/);
   await page.evaluate(() => document.fonts.ready);
 }

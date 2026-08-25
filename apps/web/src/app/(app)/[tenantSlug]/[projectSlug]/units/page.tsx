@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { UnitMatrix } from "@/showroom/UnitMatrix";
@@ -26,6 +27,8 @@ export default async function UnitsPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "units", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const query = {
@@ -186,7 +189,7 @@ export default async function UnitsPage({
                   <div className="iris-bars">
                     {detail.competitors.map((c) => (
                       <div className="iris-bar" key={c.unitCode}>
-                        <span className="iris-bar-label">{c.unitCode}</span>
+                        <span className="iris-bar-label" title={c.unitCode}>{c.unitCode}</span>
                         <span
                           className="iris-bar-track"
                           style={

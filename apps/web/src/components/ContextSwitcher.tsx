@@ -40,8 +40,12 @@ export function ContextSwitcher({
   }
 
   return (
-    <label className="obs-context">
-      <span className="obs-sr">{label}</span>
+    <div className="obs-context">
+      {/*
+        * `aria-label` rather than a wrapping label with hidden text: a label
+        * folds its own text and the option list into the control's accessible
+        * name, which makes every query for it ambiguous.
+        */}
       <select
         className="obs-action"
         value={value}
@@ -55,6 +59,6 @@ export function ContextSwitcher({
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }

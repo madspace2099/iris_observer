@@ -81,7 +81,10 @@ describe("sales flow", () => {
     const flow = await syntheticRepository.getSalesFlow(QUERY);
     expect(flow.rings.length).toBeGreaterThan(1);
     for (const ring of flow.rings) {
-      expect(ring.slices.reduce((a, s) => a + s.count, 0), ring.name).toBe(ring.meetings);
+      expect(
+        ring.slices.reduce((a, s) => a + s.count, 0),
+        ring.name,
+      ).toBe(ring.meetings);
       expect(ring.slices.reduce((a, s) => a + s.share, 0)).toBeCloseTo(1, 5);
     }
   });

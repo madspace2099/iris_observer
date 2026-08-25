@@ -20,6 +20,31 @@ export default function Error({
     console.error("[observer] screen failed", error);
   }, [error]);
 
+  /*
+   * A refusal is not a fault.
+   *
+   * Layouts and pages render in parallel, so a page that reads a project the
+   * viewer does not hold throws here even though the layout is already
+   * rendering its own "not available" panel. Reporting that as a broken screen
+   * sends the reader to support for something that is working exactly as
+   * intended.
+   *
+   * Matched on the message because a server error is serialised before it
+   * reaches this boundary — the class does not survive the crossing.
+   */
+  const refused = /no access to|not available to your account/i.test(error.message);
+
+  if (refused) {
+    return (
+      <section className="obs-state" role="alert">
+        <strong>This project is not available to your account</strong>
+        <span>
+          If you expected access, ask the developer who owns the project to grant it.
+        </span>
+      </section>
+    );
+  }
+
   return (
     <section className="obs-state" role="alert">
       <strong>This screen could not be loaded</strong>

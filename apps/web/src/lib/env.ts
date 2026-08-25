@@ -8,7 +8,7 @@ import { z } from "zod";
  *
  * **It never returns a secret.** Callers ask whether something is configured,
  * not what it is. The one exception is the module that actually makes the
- * request — the model provider reads `FAL_KEY` directly — and a test asserts
+ * request — the model provider reads the key directly — and a test asserts
  * that nothing which reads a key can be a client component.
  *
  * **It never stops the application from building.** Observer runs on the
@@ -17,7 +17,45 @@ import { z } from "zod";
  * `OBSERVER_DATA_SOURCE` is `synthetic`, and an error the moment it is not.
  * A build that fails because a database nobody reads is unconfigured would be a
  * false alarm; a runtime that silently reads an empty database would be worse.
+ *
+ * Model *identifiers* are configuration, not secrets, and are validated here
+ * beside everything else (ADR-0026). The key is not: it never appears in the
+ * report this module returns.
  */
+
+/**
+ * Reasoning effort, as the Responses API spells it.
+ *
+ * `medium` is the product default. `high` is reserved for deep reports and
+ * complex comparisons and is requested per call, never set globally — a
+ * deployment that quietly runs every answer at `high` is a deployment whose
+ * bill is a surprise.
+ */
+export const REASONING_EFFORTS = ["low", "medium", "high"] as const;
+export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
+/**
+ * A model identifier, checked for shape rather than for membership.
+ *
+ * Deliberately not an enum. Model names change faster than deployments do, and
+ * an enum here would mean a code change to adopt a successor. What must not
+ * happen is a *silent* substitution, and that is prevented elsewhere: the
+ * allowlist in `ai/limits.ts` decides which identifiers this deployment will
+ * actually call, and an unavailable model raises a configuration error rather
+ * than falling through to a different one.
+ */
+const ModelId = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9._:-]+$/, "must be a bare model identifier");
+
+/** `false` only when spelled exactly. Anything else is treated as true. */
+const BooleanFlag = (fallback: boolean) =>
+  z
+    .enum(["true", "false"])
+    .default(fallback ? "true" : "false")
+    .transform((v) => v === "true");
 
 const Schema = z.object({
   /**
@@ -40,9 +78,37 @@ const Schema = z.object({
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SECRET_KEY: z.string().min(1).optional(),
 
-  FAL_KEY: z.string().min(1).optional(),
-  OBSERVER_LLM_PROVIDER: z.enum(["fal-openrouter", "deterministic"]).default("fal-openrouter"),
-  OBSERVER_LLM_MODEL: z.string().min(1).optional(),
+  /**
+   * The only secret this file knows the *name* of.
+   *
+   * Validated for presence so a misconfigured deployment says so at startup,
+   * and then never carried into the report below.
+   */
+  OPENAI_API_KEY: z.string().min(1).optional(),
+
+  /* --- the model configuration (ADR-0026) --------------------------------- */
+
+  /** Primary intelligence. Analysis, comparison, every reader-facing answer. */
+  OPENAI_TEXT_MODEL: ModelId.default("gpt-5.6-sol"),
+  /** Background work only, and only where a wrong answer is cheap to correct. */
+  OPENAI_FAST_MODEL: ModelId.default("gpt-5.6-luna"),
+  /** The realtime voice model. Never reached from the browser directly. */
+  OPENAI_VOICE_MODEL: ModelId.default("gpt-realtime-2.1"),
+  OPENAI_REASONING_EFFORT: z.enum(REASONING_EFFORTS).default("medium"),
+  /**
+   * Vendor-side retention.
+   *
+   * Present as a variable so the posture is auditable in a deployment's own
+   * configuration, and pinned to `false` by the provider regardless — see
+   * `ai/provider.ts`. Setting it to `true` here changes nothing, which is the
+   * intended outcome of somebody trying.
+   */
+  OPENAI_STORE_RESPONSES: BooleanFlag(false),
+
+  /** Whether Ask Observer calls a model at all. */
+  OBSERVER_AI_ENABLED: BooleanFlag(true),
+  /** Whether the realtime voice layer is offered. */
+  OBSERVER_VOICE_ENABLED: BooleanFlag(true),
 });
 
 export type ObserverEnvironment = z.infer<typeof Schema>;
@@ -51,7 +117,7 @@ export type ObserverEnvironment = z.infer<typeof Schema>;
  * What is configured, without saying what any of it is.
  *
  * This is the shape surfaces and diagnostics may read. Every field is a
- * boolean or an enum; there is no path from here to a key.
+ * boolean, an enum or a model identifier; there is no path from here to a key.
  */
 export interface EnvironmentReport {
   readonly dataSource: "synthetic";
@@ -60,11 +126,18 @@ export interface EnvironmentReport {
     readonly browserConfigured: boolean;
     readonly serverConfigured: boolean;
   };
-  readonly model: {
-    readonly provider: "fal-openrouter" | "deterministic";
-    readonly configured: boolean;
-    /** The model id is configuration, not a secret, so it may be shown. */
-    readonly model: string | null;
+  readonly ai: {
+    /** The feature switch, before any question of whether a key exists. */
+    readonly enabled: boolean;
+    /** Whether a key is present. Never which key, never how long. */
+    readonly keyConfigured: boolean;
+    /** Model ids are configuration and may be shown to an operator. */
+    readonly textModel: string;
+    readonly fastModel: string;
+    readonly voiceModel: string;
+    readonly reasoningEffort: ReasoningEffort;
+    readonly storeResponses: boolean;
+    readonly voiceEnabled: boolean;
   };
   /** Problems worth a server log. Never contains a value. */
   readonly problems: readonly string[];
@@ -102,9 +175,28 @@ export function environment(): EnvironmentReport {
       "Supabase server variables are not set. Harmless while OBSERVER_DATA_SOURCE is synthetic; required before any milestone reads the database.",
     );
   }
-  if (env.OBSERVER_LLM_PROVIDER === "fal-openrouter" && env.FAL_KEY === undefined) {
+
+  const keyConfigured = env.OPENAI_API_KEY !== undefined;
+  if (env.OBSERVER_AI_ENABLED && !keyConfigured) {
     problems.push(
-      "FAL_KEY is not set, so Ask Observer answers from the deterministic provider. The same tools and the same evidence, in plainer prose.",
+      "OBSERVER_AI_ENABLED is on but OPENAI_API_KEY is not set. Ask Observer answers from the deterministic provider: the same tools and the same evidence, in plainer prose.",
+    );
+  }
+  if (env.OPENAI_STORE_RESPONSES) {
+    /*
+     * Said out loud rather than honoured.
+     *
+     * The provider pins `store: false`. A deployment that has asked for
+     * retention deserves to be told its request was ignored, instead of
+     * discovering the posture by reading source.
+     */
+    problems.push(
+      "OPENAI_STORE_RESPONSES is true. It is ignored: Observer pins store=false on every request (ADR-0026).",
+    );
+  }
+  if (env.OBSERVER_VOICE_ENABLED && !keyConfigured) {
+    problems.push(
+      "OBSERVER_VOICE_ENABLED is on but no key is configured, so the voice layer stays disabled and says so.",
     );
   }
 
@@ -112,10 +204,15 @@ export function environment(): EnvironmentReport {
     dataSource: env.OBSERVER_DATA_SOURCE,
     environment: env.OBSERVER_ENVIRONMENT,
     supabase: { browserConfigured, serverConfigured },
-    model: {
-      provider: env.OBSERVER_LLM_PROVIDER,
-      configured: env.FAL_KEY !== undefined,
-      model: env.OBSERVER_LLM_MODEL ?? null,
+    ai: {
+      enabled: env.OBSERVER_AI_ENABLED,
+      keyConfigured,
+      textModel: env.OPENAI_TEXT_MODEL,
+      fastModel: env.OPENAI_FAST_MODEL,
+      voiceModel: env.OPENAI_VOICE_MODEL,
+      reasoningEffort: env.OPENAI_REASONING_EFFORT,
+      storeResponses: env.OPENAI_STORE_RESPONSES,
+      voiceEnabled: env.OBSERVER_VOICE_ENABLED,
     },
     problems,
   };
@@ -134,7 +231,8 @@ export function reportEnvironment(): void {
   const lines = [
     `[observer] data source: ${report.dataSource} · environment: ${report.environment}`,
     `[observer] supabase: browser ${report.supabase.browserConfigured ? "configured" : "not configured"}, server ${report.supabase.serverConfigured ? "configured" : "not configured"}`,
-    `[observer] model: ${report.model.provider}${report.model.configured ? "" : " (no key — deterministic answers)"}`,
+    `[observer] ai: ${report.ai.enabled ? "enabled" : "disabled"} · key ${report.ai.keyConfigured ? "present" : "absent"} · text ${report.ai.textModel} · fast ${report.ai.fastModel} · effort ${report.ai.reasoningEffort}`,
+    `[observer] voice: ${report.ai.voiceEnabled ? "offered" : "disabled"} · model ${report.ai.voiceModel}`,
     ...report.problems.map((p) => `[observer] ${p}`),
   ];
   for (const line of lines) console.info(line);
@@ -143,4 +241,9 @@ export function reportEnvironment(): void {
 /** True when the deployment must not be indexed or mistaken for production. */
 export function isStaging(): boolean {
   return environment().environment !== "production";
+}
+
+/** Test seam. The report is cached for the process; tests need it rebuilt. */
+export function resetEnvironmentCache(): void {
+  cached = null;
 }

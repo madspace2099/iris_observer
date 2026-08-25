@@ -66,7 +66,11 @@ export interface ActivityMatrix {
   readonly columns: readonly string[];
   /** Keyed `${weekday}|${hour}`. */
   readonly cells: Readonly<Record<string, number>>;
-  readonly busiest: { readonly weekday: string; readonly hour: string; readonly meetings: number } | null;
+  readonly busiest: {
+    readonly weekday: string;
+    readonly hour: string;
+    readonly meetings: number;
+  } | null;
   readonly quietest: { readonly weekday: string; readonly meetings: number } | null;
   readonly meetingsCounted: number;
 }
@@ -161,7 +165,11 @@ export interface StackedColumn {
 
 export interface OutcomeComposition {
   readonly columns: readonly StackedColumn[];
-  readonly keys: readonly { readonly id: MeetingOutcome; readonly label: string; readonly colour: string }[];
+  readonly keys: readonly {
+    readonly id: MeetingOutcome;
+    readonly label: string;
+    readonly colour: string;
+  }[];
 }
 
 /* --- a series with its turning point --------------------------------------------- */

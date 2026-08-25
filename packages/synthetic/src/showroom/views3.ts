@@ -49,7 +49,11 @@ import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
 const OBSERVED = ["IRIS_SHOWROOM_OBSERVED"] as const;
 const DERIVED = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"] as const;
-const WITH_OUTCOME = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"] as const;
+const WITH_OUTCOME = [
+  "IRIS_SHOWROOM_OBSERVED",
+  "IRIS_SHOWROOM_DERIVED",
+  "CRM_OUTCOME_CONTEXT",
+] as const;
 
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
 export function meetings(n: number, locale: string): string {
@@ -129,7 +133,8 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  */
 function bucketBounds(today: Date) {
   const day = 24 * 60 * 60 * 1000;
-  const startOfDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const startOfDay = (d: Date) =>
+    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const t0 = startOfDay(today).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
   const weekday = (startOfDay(today).getUTCDay() + 6) % 7;
@@ -151,7 +156,10 @@ function bucketBounds(today: Date) {
      */
     {
       id: "last_week" as const,
-      label: elapsedDays === 7 ? "Last week" : `Last week, first ${elapsedDays} day${elapsedDays === 1 ? "" : "s"}`,
+      label:
+        elapsedDays === 7
+          ? "Last week"
+          : `Last week, first ${elapsedDays} day${elapsedDays === 1 ? "" : "s"}`,
       from: thisWeek - 7 * day,
       to: thisWeek - 7 * day + elapsedDays * day,
     },
@@ -215,7 +223,10 @@ function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
  * of four is a verdict on the person, which is the league table this product
  * refuses to be.
  */
-function outcomeFlag(sessions: readonly ShowroomSession[], teamProgressed: number): AgentOutcomeRing["flag"] {
+function outcomeFlag(
+  sessions: readonly ShowroomSession[],
+  teamProgressed: number,
+): AgentOutcomeRing["flag"] {
   if (sessions.length < 8) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   if (decided.length < 6) {
@@ -272,10 +283,19 @@ export function buildSalesFlow(
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const periods = buildPeriods(sessions, today);
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
-  const teamProgressed = share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length);
+  const teamProgressed = share(
+    decided.filter((s) => hasProgressed(s.outcome)).length,
+    decided.length,
+  );
 
   const rings = SYNTHETIC_AGENTS.map((a) =>
-    buildRing(sessions.filter((s) => s.agentId === a.id), a.id, a.name, base, teamProgressed),
+    buildRing(
+      sessions.filter((s) => s.agentId === a.id),
+      a.id,
+      a.name,
+      base,
+      teamProgressed,
+    ),
   ).filter((r) => r.meetings > 0);
 
   const unrecorded = sessions.length - decided.length;
@@ -290,7 +310,12 @@ export function buildSalesFlow(
       soWhat:
         "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
       nextStep: { label: `Open ${flagged[0].name.split(" ")[0]}`, href: flagged[0].href },
-      evidence: evidenceRef(`flow-${flagged[0].agentId}`, "statistical_association", flagged[0].href, flagged[0].meetings),
+      evidence: evidenceRef(
+        `flow-${flagged[0].agentId}`,
+        "statistical_association",
+        flagged[0].href,
+        flagged[0].meetings,
+      ),
       sampleSize: flagged[0].meetings,
       sources: [...WITH_OUTCOME],
       caveat: null,
@@ -364,7 +389,11 @@ function buildSegment(
   const placeSeconds = new Map<string, { label: string; category: string; secs: number }>();
   for (const s of meetings) {
     for (const p of s.places) {
-      const e = placeSeconds.get(p.placeId) ?? { label: p.placeName, category: p.category, secs: 0 };
+      const e = placeSeconds.get(p.placeId) ?? {
+        label: p.placeName,
+        category: p.category,
+        secs: 0,
+      };
       e.secs += p.dwellSeconds;
       placeSeconds.set(p.placeId, e);
     }
@@ -390,12 +419,25 @@ function buildSegment(
     share(xs.filter(f).length, xs.length);
 
   const examinedHow = [
-    { id: "balcony", label: "Balcony view", f: (t: (typeof touches)[number]) => t.balconyViews > 0 },
-    { id: "floor_cut", label: "Floor cut", f: (t: (typeof touches)[number]) => t.floorCutViews > 0 },
+    {
+      id: "balcony",
+      label: "Balcony view",
+      f: (t: (typeof touches)[number]) => t.balconyViews > 0,
+    },
+    {
+      id: "floor_cut",
+      label: "Floor cut",
+      f: (t: (typeof touches)[number]) => t.floorCutViews > 0,
+    },
     { id: "plan", label: "Floor plan opened", f: (t: (typeof touches)[number]) => t.pdfOpened },
-    { id: "screenshot", label: "Screenshot", f: (t: (typeof touches)[number]) => t.screenshots > 0 },
+    {
+      id: "screenshot",
+      label: "Screenshot",
+      f: (t: (typeof touches)[number]) => t.screenshots > 0,
+    },
     { id: "shared", label: "Shared", f: (t: (typeof touches)[number]) => t.shared },
-  ].map((e) => ({ id: e.id, label: e.label, rate: rate(mine, e.f), otherRate: rate(others, e.f) }))
+  ]
+    .map((e) => ({ id: e.id, label: e.label, rate: rate(mine, e.f), otherRate: rate(others, e.f) }))
     .sort((a, b) => b.rate - a.rate);
 
   return {
@@ -462,19 +504,30 @@ export function buildProjectView(
   const demand = [...demandMap.values()].sort((a, b) => b.applications - a.applications);
 
   /* Places. */
-  const placeMap = new Map<string, { name: string; category: PlaceCategory; section: "surroundings" | "amenities"; secs: number[]; meetings: Set<string>; availability: "legacy_available" | "requires_ue5_v2_event" }>();
+  const placeMap = new Map<
+    string,
+    {
+      name: string;
+      category: PlaceCategory;
+      section: "surroundings" | "amenities";
+      secs: number[];
+      meetings: Set<string>;
+      availability: "legacy_available" | "requires_ue5_v2_event";
+    }
+  >();
   for (const s of sessions) {
     for (const p of s.places) {
-      const e =
-        placeMap.get(p.placeId) ??
-        {
-          name: p.placeName,
-          category: p.category as PlaceCategory,
-          section: p.section,
-          secs: [],
-          meetings: new Set<string>(),
-          availability: p.availability === "legacy_available" ? ("legacy_available" as const) : ("requires_ue5_v2_event" as const),
-        };
+      const e = placeMap.get(p.placeId) ?? {
+        name: p.placeName,
+        category: p.category as PlaceCategory,
+        section: p.section,
+        secs: [],
+        meetings: new Set<string>(),
+        availability:
+          p.availability === "legacy_available"
+            ? ("legacy_available" as const)
+            : ("requires_ue5_v2_event" as const),
+      };
       e.secs.push(p.dwellSeconds);
       e.meetings.add(s.meetingId);
       placeMap.set(p.placeId, e);
@@ -523,7 +576,12 @@ export function buildProjectView(
       baseline: `${percent(twoRoom.stockShare, locale)} of available stock`,
       soWhat: twoRoom.soWhat,
       nextStep: { label: `Open ${twoRoom.label}`, href: `${base}/project?segment=${twoRoom.id}` },
-      evidence: evidenceRef("project-segment", "statistical_association", `${base}/project`, twoRoom.meetings),
+      evidence: evidenceRef(
+        "project-segment",
+        "statistical_association",
+        `${base}/project`,
+        twoRoom.meetings,
+      ),
       sampleSize: twoRoom.meetings,
       sources: [...DERIVED],
       caveat: null,
@@ -540,7 +598,12 @@ export function buildProjectView(
       soWhat:
         "A search with no answer is the clearest demand signal a project gets, and the only one that names something the building does not have.",
       nextStep: null,
-      evidence: evidenceRef(`demand-${z.field}`, "observed_sequence", `${base}/project`, z.applications),
+      evidence: evidenceRef(
+        `demand-${z.field}`,
+        "observed_sequence",
+        `${base}/project`,
+        z.applications,
+      ),
       sampleSize: sessions.length,
       sources: [...OBSERVED],
       caveat:
@@ -556,8 +619,16 @@ export function buildProjectView(
       baseline: `${count(topCategory.meetings, locale)} meetings reached them`,
       soWhat:
         "What buyers linger on is the argument they are buying. It is also the sharpest way to pick who to contact when something in that category changes.",
-      nextStep: { label: "Build an audience", href: `${base}/audience?category=${topCategory.category}` },
-      evidence: evidenceRef("project-places", "observed_sequence", `${base}/project`, sessions.length),
+      nextStep: {
+        label: "Build an audience",
+        href: `${base}/audience?category=${topCategory.category}`,
+      },
+      evidence: evidenceRef(
+        "project-places",
+        "observed_sequence",
+        `${base}/project`,
+        sessions.length,
+      ),
       sampleSize: sessions.length,
       sources: [...OBSERVED],
       caveat:
@@ -586,17 +657,24 @@ export function buildProjectView(
 
 function repeatDistribution(sessions: readonly ShowroomSession[]): RepeatDistribution[] {
   const buckets = [0, 1, 2, 3];
-  return buckets.map((visits) => {
-    const inside = sessions.filter((s) =>
-      visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
-    );
-    return {
-      visits,
-      label: visits === 0 ? "First meeting" : visits === 3 ? "Fourth or later" : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
-      meetings: inside.length,
-      share: share(inside.length, sessions.length),
-    };
-  }).filter((b) => b.meetings > 0);
+  return buckets
+    .map((visits) => {
+      const inside = sessions.filter((s) =>
+        visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
+      );
+      return {
+        visits,
+        label:
+          visits === 0
+            ? "First meeting"
+            : visits === 3
+              ? "Fourth or later"
+              : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
+        meetings: inside.length,
+        share: share(inside.length, sessions.length),
+      };
+    })
+    .filter((b) => b.meetings > 0);
 }
 
 export function buildAgentsView(
@@ -607,7 +685,10 @@ export function buildAgentsView(
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
-  const teamProgressed = share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length);
+  const teamProgressed = share(
+    decided.filter((s) => hasProgressed(s.outcome)).length,
+    decided.length,
+  );
 
   const teamSectionSecs = new Map<SectionId, number>();
   for (const s of sessions) {
@@ -646,7 +727,10 @@ export function buildAgentsView(
         timeShare: share(secs, myTotal),
         teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
         teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
-        reachRate: share(mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length, mine.length),
+        reachRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
+          mine.length,
+        ),
         returnRate: share(
           mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
           Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
@@ -702,7 +786,12 @@ export function buildAgentsView(
       soWhat:
         "A presenter's habit is visible long before its result is. Whether it is worth copying or worth changing is a coaching conversation this figure can start.",
       nextStep: { label: `Open ${distinct.name.split(" ")[0]}`, href: distinct.href },
-      evidence: evidenceRef(`agent-signature-${distinct.agentId}`, "observed_sequence", distinct.href, distinct.meetings),
+      evidence: evidenceRef(
+        `agent-signature-${distinct.agentId}`,
+        "observed_sequence",
+        distinct.href,
+        distinct.meetings,
+      ),
       sampleSize: distinct.meetings,
       sources: [...DERIVED],
       caveat: null,
@@ -719,10 +808,16 @@ export function buildAgentsView(
       soWhat:
         "A project whose meetings are almost all first meetings is filling the top of the pipeline and not yet working it.",
       nextStep: { label: "See the meetings", href: `${base}/meetings` },
-      evidence: evidenceRef("agents-repeats", "observed_sequence", `${base}/meetings`, sessions.length),
+      evidence: evidenceRef(
+        "agents-repeats",
+        "observed_sequence",
+        `${base}/meetings`,
+        sessions.length,
+      ),
       sampleSize: sessions.length,
       sources: [...DERIVED],
-      caveat: "Only a contact Observer already knows can be counted as returning; a walk-in has no history.",
+      caveat:
+        "Only a contact Observer already knows can be counted as returning; a walk-in has no history.",
     });
   }
 
@@ -755,11 +850,13 @@ export function buildAudience(
   const matches = sessions
     .filter((s) => {
       const units = criteria.favouritedOnly ? s.units.filter((u) => u.favourited) : s.units;
-      const unitOk = roomCodes === null ? units.length > 0 : units.some((u) => roomCodes.has(u.unitCode));
+      const unitOk =
+        roomCodes === null ? units.length > 0 : units.some((u) => roomCodes.has(u.unitCode));
       const placeOk =
         criteria.placeCategory === null ||
         s.places.some(
-          (p) => p.category === criteria.placeCategory && p.dwellSeconds >= criteria.minimumPlaceSeconds,
+          (p) =>
+            p.category === criteria.placeCategory && p.dwellSeconds >= criteria.minimumPlaceSeconds,
         );
       return unitOk && placeOk;
     })
@@ -776,7 +873,10 @@ export function buildAudience(
 
       return {
         meetingId: s.meetingId,
-        startedDisplay: new Date(s.startedAt).toLocaleDateString(locale, { day: "numeric", month: "short" }),
+        startedDisplay: new Date(s.startedAt).toLocaleDateString(locale, {
+          day: "numeric",
+          month: "short",
+        }),
         agentName: agent?.name ?? s.agentId,
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
@@ -857,28 +957,65 @@ export function buildHome(
   const month = periods.find((p) => p.id === "this_month")?.meetings ?? 0;
   const lastMonth = periods.find((p) => p.id === "last_month")?.meetings ?? 0;
   const weekIsReadable = week + lastWeek >= 8;
+  /*
+   * Three states, not two: better, worse, and *unknowable*.
+   *
+   * A project with no CRM connected records no outcome, so its progression rate
+   * is undefined — and `0%` is the one rendering of undefined that reads as a
+   * measured result. Riverside and Kingsford both reported "0% progressing"
+   * against "0% before", which told the reader that nobody progressed when the
+   * truth is that nothing recorded whether they did.
+   */
+  const outcomesRecorded = decided.length > 0;
+  const hasBaseline = previous.length > 0;
+
   const volumeOk = weekIsReadable
     ? week >= lastWeek * 0.8
     : lastMonth === 0
       ? month > 0
       : month >= lastMonth * 0.8;
-  const progressOk = previousProgressed === 0 ? progressed > 0.3 : progressed >= previousProgressed * 0.9;
-  const signal: ShowroomSignal =
-    volumeOk && progressOk ? "good" : !volumeOk && !progressOk ? "poor" : "attention";
+  const progressOk =
+    previousProgressed === 0 ? progressed > 0.3 : progressed >= previousProgressed * 0.9;
 
-  const verdict =
-    signal === "good"
+  /*
+   * Without outcomes the signal rests on volume alone, and says so.
+   *
+   * Grading a project on a rate it cannot measure would put a confident colour
+   * on the screen with nothing behind it.
+   */
+  const signal: ShowroomSignal = !outcomesRecorded
+    ? "attention"
+    : volumeOk && progressOk
+      ? "good"
+      : !volumeOk && !progressOk
+        ? "poor"
+        : "attention";
+
+  const verdict = !outcomesRecorded
+    ? "The showroom is running; no outcomes are being recorded."
+    : signal === "good"
       ? "The showroom is on course."
       : signal === "poor"
         ? "The showroom is going the wrong way."
         : "The showroom needs a look.";
 
+  /*
+   * The progression clause, or an honest statement that there is none.
+   *
+   * Returned with the joining punctuation it needs, because a clause that
+   * sometimes continues the sentence and sometimes starts a new one cannot be
+   * glued on with one fixed separator without producing ". and 40%".
+   */
+  const progressClause = !outcomesRecorded
+    ? ". No meeting outcome has been recorded on this project, so no progression rate can be computed."
+    : hasBaseline
+      ? `, and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
+      : `, and ${percent(progressed, locale)} of recorded meetings progressing. There is no earlier period to compare against.`;
+
   const because = weekIsReadable
-    ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week, ` +
-      `and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
-    : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month, ` +
-      `and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before. ` +
-      `This week is too early to read on its own.`;
+    ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week${progressClause}`
+    : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month${progressClause}` +
+      " This week is too early to read on its own.";
 
   const figures: HomeFigure[] = [
     {
@@ -905,19 +1042,32 @@ export function buildHome(
     {
       id: "progressed",
       label: "Progressing",
-      value: percent(progressed, locale),
-      against: `${percent(previousProgressed, locale)} in the previous period`,
-      direction: progressed > previousProgressed ? "up" : progressed < previousProgressed ? "down" : "flat",
-      better: "up",
+      // An em dash, not a zero. The figure is unavailable, not nil.
+      value: outcomesRecorded ? percent(progressed, locale) : "—",
+      against: !outcomesRecorded
+        ? "no outcome recorded on this project"
+        : hasBaseline
+          ? `${percent(previousProgressed, locale)} in the previous period`
+          : "no earlier period to compare",
+      direction:
+        !outcomesRecorded || !hasBaseline
+          ? "flat"
+          : progressed > previousProgressed
+            ? "up"
+            : progressed < previousProgressed
+              ? "down"
+              : "flat",
+      // Nothing to grade when nothing was measured.
+      better: outcomesRecorded && hasBaseline ? "up" : "neither",
       measurementId: null,
     },
     {
       id: "unrecorded",
-      label: "Outcome not recorded",
+      label: outcomesRecorded ? "Outcome not recorded" : "Awaiting a CRM connection",
       value: count(sessions.length - decided.length, locale),
       against: `of ${count(sessions.length, locale)} meetings`,
       direction: "flat",
-      better: "down",
+      better: outcomesRecorded ? "down" : "neither",
       measurementId: null,
     },
   ];
@@ -932,7 +1082,10 @@ export function buildHome(
   const alert =
     flagged?.flag == null
       ? null
-      : { text: `${flagged.agent.name}: ${flagged.flag.text}`, href: `${base}/agents?agent=${flagged.agent.id}` };
+      : {
+          text: `${flagged.agent.name}: ${flagged.flag.text}`,
+          href: `${base}/agents?agent=${flagged.agent.id}`,
+        };
 
   const project = buildProjectView(context, sessions, "rooms-2");
   const twoRoom = project.segments.find((s) => s.id === "rooms-2");
