@@ -92,7 +92,13 @@ export type SharedVerdict =
   | { readonly allowed: true }
   | {
       readonly allowed: false;
-      readonly reason: "rate_limited" | "hourly_limit" | "client_limit" | "daily_budget";
+      readonly reason:
+        | "rate_limited"
+        | "hourly_limit"
+        | "client_limit"
+        | "daily_budget"
+        /** Configured, and the database could not be reached. See below. */
+        | "ceiling_unavailable";
       readonly retryAfterSeconds: number;
     };
 
@@ -124,15 +130,30 @@ export function sharedQuotaConfigured(): boolean {
  *
  * ## When the database cannot be reached
  *
- * The request is allowed, and the in-process limiter still applies.
+ * **The request is refused, and no model is called.** This reversed a decision,
+ * so both sides are recorded.
  *
- * That is a deliberate choice and worth stating. Failing closed would mean a
- * Supabase outage silently disables Ask Observer during a client consultation,
- * with a refusal the reader cannot distinguish from a broken product. Failing
- * open degrades the ceiling to per-instance — which is exactly where it was
- * before this module — while the vendor-side spend limit configured on the
- * OpenAI project remains untouched underneath. Neither ceiling replaces the
- * other, and this one is not the last line.
+ * It used to fail open: the request proceeded and the in-process limiter still
+ * applied. The argument was that a Supabase outage should not disable Ask
+ * Observer mid-consultation, and that the vendor-side spend limit sits
+ * underneath anyway.
+ *
+ * The argument against won, and it is the stronger one for a public
+ * demonstration. This ceiling exists to bound a bill. A ceiling that removes
+ * itself precisely when its enforcement mechanism breaks is not a ceiling — it
+ * is a ceiling-shaped assumption, and the outage that disables it is exactly
+ * the moment nobody is watching. Failing open also has no *visible* symptom, so
+ * a deployment could spend a month unbounded and look identical to one that
+ * was fine.
+ *
+ * The cost is real and stated: an unreachable database now stops Ask Observer
+ * answering in a model's words. The reader is told to try again shortly, and
+ * **every measured figure on every screen is untouched** — none of them needed
+ * the network, which is the property that makes this affordable.
+ *
+ * A deployment with **no** Supabase configured is a different case and is left
+ * alone: nothing promised it a shared ceiling, so nothing is taken away. That
+ * is local development and the test suite, not a demonstration URL.
  */
 export async function consumeSharedQuota(
   session: string,
@@ -164,7 +185,9 @@ export async function consumeSharedQuota(
       signal: AbortSignal.timeout(Math.min(5_000, LIMITS.requestTimeoutMs)),
     });
 
-    if (!response.ok) return { allowed: true };
+    // A database that answers with an error is a database that did not count
+    // this request. Same treatment as one that did not answer at all.
+    if (!response.ok) return unavailable();
 
     const rows = (await response.json()) as readonly {
       allowed: boolean;
@@ -173,7 +196,8 @@ export async function consumeSharedQuota(
     }[];
 
     const verdict = rows[0];
-    if (verdict === undefined || verdict.allowed) return { allowed: true };
+    if (verdict === undefined) return unavailable();
+    if (verdict.allowed) return { allowed: true };
 
     const reason = verdict.reason;
     return {
@@ -186,8 +210,18 @@ export async function consumeSharedQuota(
     };
   } catch {
     // Unreachable, timed out, or malformed. See the note above.
-    return { allowed: true };
+    return unavailable();
   }
+}
+
+/**
+ * The refusal used when the ceiling itself is the thing that failed.
+ *
+ * Short retry: an outage is usually brief, and a reader who waits twenty
+ * seconds and succeeds has lost almost nothing.
+ */
+function unavailable(): SharedVerdict {
+  return { allowed: false, reason: "ceiling_unavailable", retryAfterSeconds: 20 };
 }
 
 /* --- the audit --------------------------------------------------------------- */

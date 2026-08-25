@@ -36,13 +36,30 @@ customer. It is also personal data this product has no reason to hold.
 spent quota would let somebody exhaust a ceiling they were never permitted to
 use.
 
-**It fails open.** If Postgres cannot be reached the request proceeds and the
-in-process limiter still applies. Failing closed would mean a database outage
-silently disables Ask Observer in the middle of a client consultation, with a
-refusal the reader cannot distinguish from a broken product. Failing open
-degrades the ceiling to per-instance — which is exactly where it was before —
-while the vendor-side spend limit on the OpenAI project remains underneath.
-This ceiling is not the last line, and is not built as though it were.
+**It fails closed, and that reverses an earlier decision.** Both sides are kept
+because the reversal matters.
+
+It used to fail open: an unreachable Postgres let the request through and the
+in-process limiter still applied. The argument was that a Supabase outage should
+not disable Ask Observer mid-consultation, and that the vendor-side spend limit
+sits underneath regardless.
+
+The argument against is stronger for a public demonstration. This ceiling exists
+to bound a bill, and one that removes itself precisely when its enforcement
+mechanism breaks is not a ceiling — it is a ceiling-shaped assumption, and the
+outage that disables it is exactly the moment nobody is watching. Failing open
+has no visible symptom either: a deployment could run unbounded for a month and
+look identical to one that was fine.
+
+So a deployment that **has** Supabase configured and cannot reach it refuses,
+and calls no model. A deployment that has **none** configured is untouched —
+nothing promised it a shared ceiling, so nothing is taken away. That distinction
+is what keeps local development and the test suite working.
+
+The cost is stated rather than hidden: an unreachable database stops Ask
+Observer answering in a model's words. The reader is told to try again shortly,
+and **every measured figure on every screen is unaffected** — none of them
+needed the network, which is the property that makes this affordable.
 
 ## The audit
 

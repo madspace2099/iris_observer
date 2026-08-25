@@ -84,6 +84,14 @@ export const SHARED_REFUSAL_TEXT = {
   client_limit: "This device has reached its hourly question limit for the demonstration.",
   daily_budget:
     "The demonstration has answered its questions for today. The measured evidence on every screen is unaffected.",
+  /*
+   * The ceiling itself failed, and the reader is told the truth about it
+   * without being handed an operator's diagnosis: no database name, no
+   * variable, no status code. What they need is that it is brief, that it is
+   * not their fault, and that the figures they came for are still there.
+   */
+  ceiling_unavailable:
+    "Observer cannot take questions for a moment. Every measured figure on this screen is unaffected — try the question again shortly.",
 } as const;
 
 /** A request that passed every check. The audit and telemetry both read it. */

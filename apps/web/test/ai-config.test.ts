@@ -4,6 +4,8 @@ import { environment, resetEnvironmentCache } from "../src/lib/env";
 import { modelIsAllowed } from "../src/lib/ai/limits";
 import { publicBlocker, voiceBlocker } from "../src/lib/ai/voice";
 import { diagnoseServerSupabase, resolveServerSupabase } from "../src/lib/supabase-env";
+import { consumeSharedQuota } from "../src/lib/ai/quota";
+import { SHARED_REFUSAL_TEXT } from "../src/lib/ai/gate";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
 import { addUsage } from "../src/lib/ai/telemetry";
 
@@ -388,5 +390,78 @@ describe("a Supabase variable that is set but cannot work", () => {
     });
     expect(env.problems.join(" ")).toMatch(/SUPABASE_URL set to something unusable/);
     expect(env.problems.join(" ")).not.toMatch(/SUPABASE_SECRET_KEY set to something unusable/);
+  });
+});
+
+/* --- the ceiling fails closed, once there is a ceiling ------------------------ */
+
+describe("an unreachable shared ceiling", () => {
+  const CONFIGURED = {
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+  } as NodeJS.ProcessEnv;
+
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    delete process.env["SUPABASE_URL"];
+    delete process.env["SUPABASE_SECRET_KEY"];
+  });
+
+  function configure() {
+    process.env["SUPABASE_URL"] = CONFIGURED["SUPABASE_URL"] as string;
+    process.env["SUPABASE_SECRET_KEY"] = CONFIGURED["SUPABASE_SECRET_KEY"] as string;
+  }
+
+  it("refuses rather than proceeding unbounded", async () => {
+    /*
+     * This reversed a decision. A ceiling that removes itself exactly when its
+     * enforcement mechanism breaks is not a ceiling, and failing open has no
+     * visible symptom — a deployment could run unbounded for a month and look
+     * identical to one that was fine.
+     */
+    configure();
+    globalThis.fetch = (() => Promise.reject(new Error("network down"))) as typeof fetch;
+
+    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    expect(verdict.allowed).toBe(false);
+    if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
+  });
+
+  it("refuses when the database answers with an error", async () => {
+    configure();
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response("nope", { status: 500 }))) as typeof fetch;
+
+    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("refuses when the database answers with nothing usable", async () => {
+    configure();
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }),
+      )) as typeof fetch;
+
+    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("leaves a deployment with no ceiling configured alone", async () => {
+    /*
+     * Nothing promised this one a shared ceiling, so nothing is taken away.
+     * That is local development and this test suite — not a demonstration URL.
+     */
+    globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
+
+    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it("tells the reader the figures are unaffected, and names no internals", () => {
+    const said = SHARED_REFUSAL_TEXT.ceiling_unavailable;
+    expect(said).toMatch(/unaffected/i);
+    expect(said).not.toMatch(/supabase|database|postgres|rpc|500/i);
   });
 });
