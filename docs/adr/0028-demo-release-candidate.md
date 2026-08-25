@@ -57,7 +57,7 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Nine defects this gate found
+## Ten defects this gate found
 
 None was visible to the unit suite, and each was the product telling the reader
 something untrue.
@@ -171,6 +171,25 @@ an end-to-end test asserts no word but "Today" names both a rolling window and
 a calendar bucket on the same page. The test was checked against the defect: it
 fails when the old label is put back.
 
+**One rejected variable disabled every other one.** The environment was parsed
+in a single call, and `parsed.success ? parsed.data : Schema.parse({})` threw
+the whole object away when any one field failed. A mistyped `SUPABASE_URL`
+would therefore make a correctly configured `OPENAI_API_KEY` report as absent,
+and *absent* and *invalid* are indistinguishable from outside — so whoever is
+debugging goes and checks the wrong variable, on a deployment nobody can shell
+into.
+
+Each variable is validated on its own now. A rejected one is named, its default
+applies, and nothing else is touched. The validator's own message is
+deliberately not repeated: Zod echoes what it received on an enum mismatch, and
+this file reads variables that must never be echoed. One test sets a key, a bad
+flag and a password-bearing URL, and asserts that none of the three appears in
+the report.
+
+Found while diagnosing the environment-variable scoping below, and it is the
+reason that diagnosis can now be trusted: the second build reported *absent*
+with no rejection message beside it, which rules out a bad value.
+
 ## Known limitations
 
 **Prose paraphrase is not detected generally.** The composer drops identical
@@ -181,6 +200,30 @@ Separating one from two genuinely different findings that share vocabulary —
 needs to know which word is the subject, and guessing at it drops real content.
 `findAnswerDefects` manages it on a model's answer because it works on terse
 finding labels, where the whole label is the subject. Prose is not that.
+
+## The environment variables, and where they went
+
+`OPENAI_API_KEY`, `SUPABASE_URL` and `SUPABASE_SECRET_KEY` were set in Vercel.
+Two consecutive Preview builds report all three as absent:
+
+    [observer] supabase: browser not configured, server not configured
+    [observer] ai: enabled · key absent · text gpt-5.6-sol …
+
+That is the deployment's own startup log, and the second of those builds carries
+the per-variable validation above — so a present-but-rejected value would have
+named itself, and none did. The variables are not in the process at all.
+
+Confirmed independently at the other end: a question asked through the Preview
+answered from the deterministic composer, and `observer.ai_requests` and
+`observer.ai_rate_buckets` both stayed at zero rows. If `SUPABASE_SECRET_KEY`
+had been present the audit row would have been written whether or not a model
+answered.
+
+A Vercel environment variable is saved against a set of environments —
+Production, Preview, Development. One saved for Production alone is invisible to
+preview deployments, which is exactly what two builds report. It cannot be
+inspected or corrected from here: the Vercel connector exposes no
+environment-variable tool and there is no CLI on this machine.
 
 ## Release blocker at the time of writing
 

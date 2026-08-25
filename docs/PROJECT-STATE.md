@@ -38,7 +38,7 @@ Full runbook in `docs/18-deployment.md`. No secret value is recorded anywhere in
 | Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                      |
 | **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                          |
 | **Preview URL**  | **https://iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app** — the release candidate |
-| Vercel variables | **none set.** No MCP tool and no CLI reaches them; they are the user's to add in the dashboard.            |
+| Vercel variables | Set by the user, but **not reaching Preview builds** — almost certainly scoped to Production only. No MCP tool and no CLI reaches them from here. |
 
 **One thing to know.** The deployment landed on **Production**, not Preview: `create_git_project`
 deploys from the linked repository's production branch, and `main` is it. That was not the intent and
@@ -48,14 +48,20 @@ deleted to undo it. Push any non-`main` branch to get a genuine Preview.
 
 ## The release blocker
 
-`OPENAI_API_KEY` is configured on this machine but the API rejects it:
-`401 invalid_api_key` on `/v1/models` and on `/v1/responses`. It is verifiably not the key
-that was pasted into a conversation and must be treated as compromised — compared by
-SHA-256 digest — and it is additionally wrapped in placeholder angle brackets, which is
-a 401 on its own. Every Ask Observer answer is therefore the deterministic composition.
+**The three Vercel environment variables are not reaching Preview builds.** They were
+set, and two consecutive Preview deployments report all three absent in their own
+startup log — with no per-variable rejection beside them, which rules out a bad value.
+Confirmed at the other end too: a question asked on the Preview left
+`observer.ai_requests` at zero rows, which cannot happen if `SUPABASE_SECRET_KEY` is
+present. A Vercel variable saved for Production alone is invisible to preview
+deployments, and that fits every observation.
 
-Nothing else blocks the candidate. Details and the two variables Vercel still needs are
-in `docs/adr/0028-demo-release-candidate.md`.
+Separately, the key on **this machine** is wrapped in placeholder angle brackets and is
+rejected by the API — `401 invalid_api_key` on `/v1/models` and `/v1/responses`. It is
+verifiably not the key pasted into a conversation, compared by SHA-256 digest.
+
+So no model-backed answer has been produced anywhere yet. Details in
+`docs/adr/0028-demo-release-candidate.md`.
 
 ## The correction that reshaped the product
 
@@ -122,11 +128,11 @@ The critique, the defects found and fixed by inspection, and a recommendation
 
 Two of these are the user's and cannot be done from here.
 
-1. **Confirm the compromised OpenAI key is revoked** in the OpenAI dashboard, and set a working
-   `OPENAI_API_KEY` in Vercel → Settings → Environment Variables, marked Sensitive. Paste the
-   value alone: the one on this machine is wrapped in `<` and `>`, which the API rejects.
-2. **Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in Vercel**, both Sensitive, server-side only.
-   Until they are set the shared ceiling fails open to the per-instance limiter.
+1. **Tick "Preview" on all three Vercel variables.** They are set but not reaching preview
+   deployments; the environment checkboxes are the one setting that explains it.
+2. **Confirm the compromised OpenAI key is revoked** in the OpenAI dashboard. Paste the
+   replacement's value alone: the one on this machine is wrapped in `<` and `>`, which the
+   API rejects on every call.
 3. User reviews the release candidate on the Preview URL and approves or rejects it.
 4. Only then: merge, tag, promote, and M3. None of those has been done.
 
