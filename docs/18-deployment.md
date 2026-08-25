@@ -44,17 +44,24 @@ Never force-push. Never rewrite remote history. If the remote has diverged, push
 
 ### Supabase
 
-|                    |                                                                                               |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| Organization       | `LEGALIZALJUK` (`cjmkiuszyotwjhbcbviq`) — the only organization on the account                |
-| Project name       | `iris-observer-staging`                                                                       |
-| Project ref        | `jtvqecusxzogqubxpoyf`                                                                        |
-| Region             | `eu-central-1` (Frankfurt) — the European region closest to Slovak and Central European users |
-| Created            | 2026-08-24                                                                                    |
-| Status             | `ACTIVE_HEALTHY`                                                                              |
-| Cost               | €0/month                                                                                      |
-| Tables in `public` | **none**                                                                                      |
-| Security advisors  | **none**                                                                                      |
+|                    |                                     |
+| ------------------ | ----------------------------------- |
+| Organization       | `sekhesnlqiutdovgcoqw`              |
+| Project name       | `IRIS OBSERVER`                     |
+| Project ref        | `tfcchobwobpadenampyh`              |
+| Region             | `eu-west-1`                         |
+| Created            | 2026-08-24                          |
+| Status             | `ACTIVE_HEALTHY`                    |
+| Postgres           | 17.6                                |
+| Cost               | €0/month                            |
+| Tables in `public` | **none** — three RPC functions only |
+
+**This is the project the Vercel Preview reaches.** It was not the first choice.
+`iris-observer-staging` (`jtvqecusxzogqubxpoyf`, eu-central-1) was provisioned for this and holds
+the same migrations, but the Supabase–Vercel integration injects `SUPABASE_URL` for the project
+_it_ is linked to, which overrode every hand-set value. Rather than untangle the integration, the
+schema was built in the project the integration already pointed at. Neither other project was
+deleted.
 
 **The old project is deliberately not reused.** `asboth.mate@madspace.co.uk's Project`
 (`vrhrzlvhyxrkxxcjxmaf`, `eu-west-1`, `INACTIVE`) belongs to the obsolete MVP and previously served
@@ -197,8 +204,29 @@ pnpm verify        # format:check, lint, typecheck, unit tests, production build
 pnpm exec playwright test
 ```
 
-Expected: 194 unit tests, 173 Playwright tests (10 skipped — the desktop-only concepts), zero axe
+Expected: 455 unit tests, 495 Playwright tests across three viewports (77 skipped — the
+desktop-only concepts, the wide-only review sets, and the opt-in live-model file), zero axe
 violations, clean build.
+
+Against a deployment rather than a local server, point the suite at it and switch the
+live-model file on:
+
+```bash
+OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright test
+```
+
+### Database migrations come first
+
+The Supabase MCP tools are write-blocked from the authoring session, so every migration is
+applied by hand through the SQL Editor. **Apply it before pushing the code that depends on
+it.** `20260825205000` drops the two superseded façades, so between the migration and the new
+build the running deployment calls functions that no longer exist: the ceiling fails closed
+and Ask Observer refuses for the length of the deploy. Every measured figure on every screen
+is unaffected, which is what makes that window affordable.
+
+`_sql-to-paste/` holds the generated block and the read-only verification query. It is
+gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
+and those copies are generated from them.
 
 ---
 
@@ -241,8 +269,8 @@ serve `X-Robots-Tag: noindex` to search engines.
    `OBSERVER_DATA_SOURCE=synthetic`.
 2. If the Vercel–Supabase integration was used: Settings → Integrations → Supabase → **Disconnect
    project**. This removes the managed variables and leaves the Supabase project untouched.
-3. Supabase → `iris-observer-staging` → Settings → General → **Pause project** to stop it without
-   losing it.
+3. Supabase → `IRIS OBSERVER` (`tfcchobwobpadenampyh`) → Settings → General → **Pause project** to
+   stop it without losing it.
 
 **Never delete a cloud project to recover from an error.** Pause it, disconnect it, or roll back the
 deployment.

@@ -80,6 +80,11 @@ test.describe("Observer review set", () => {
 
   test("Observer on an agent comparison", async ({ page }, info) => {
     test.skip(info.project.name !== "wide", "One viewport is enough.");
+    // Fifteen seconds was calibrated against a deterministic answer. A
+    // two-agent comparison is the heaviest question in this file — several
+    // tool calls before a word is written — and against a live model it ran
+    // past that while the page still read `Observer is answering.`
+    test.setTimeout(150_000);
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/agents?agent=agt_monika");
     await settle(page, 900);
@@ -87,7 +92,7 @@ test.describe("Observer review set", () => {
       .getByPlaceholder("Ask Observer…")
       .fill("Compare Monika and Akhilesh's presentation flows.");
     await page.getByPlaceholder("Ask Observer…").press("Enter");
-    await expect(page.getByRole("dialog", { name: "Observer" })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("dialog", { name: "Observer" })).toBeVisible({ timeout: 90_000 });
     await settle(page);
     await shoot(page, "09-observer-agents");
   });

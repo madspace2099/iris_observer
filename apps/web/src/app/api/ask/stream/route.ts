@@ -91,8 +91,20 @@ export async function POST(request: Request) {
               controller.enqueue(frame("delta", { field: event.field, delta: event.delta }));
               break;
             case "final":
-              reportOutcome(event.outcome, admitted, started);
+              /*
+               * The reader first, then the record — but the record before the
+               * stream closes.
+               *
+               * `reportOutcome` now waits on a database write, and putting that
+               * ahead of the final frame would make every answer land later for
+               * no reader-visible gain. Putting it after, but inside the
+               * generator, keeps it inside the request's lifetime: the runtime
+               * cannot freeze this instance while the stream is still open, and
+               * an unawaited write is exactly how the Preview lost 20 of 153
+               * records.
+               */
               controller.enqueue(frame("final", publicOutcome(event.outcome)));
+              await reportOutcome(event.outcome, admitted, started);
               break;
           }
         }

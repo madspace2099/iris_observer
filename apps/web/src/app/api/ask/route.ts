@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { ask, type ObserverOutcome } from "@/lib/ai/agent";
 import { gate, redactStatus, type Admitted } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
-import { recordAudit } from "@/lib/ai/quota";
+import { completeAiRequest, type ResponseSource } from "@/lib/ai/quota";
 import { recordAsk } from "@/lib/ai/telemetry";
 
 /**
@@ -22,12 +22,50 @@ import { recordAsk } from "@/lib/ai/telemetry";
 
 export const runtime = "nodejs";
 
+/**
+ * Who wrote what the reader received — the same fact the answer sheet renders.
+ *
+ * Four shapes, and the first two were one for as long as this audit existed:
+ * `answered` was recorded whenever an answer existed, so prose the deterministic
+ * composer wrote was filed under the configured model's name. The screen was
+ * already honest about it ("written by the tools"); the durable record was not,
+ * and the durable record is the one an operator reads a week later.
+ *
+ * `modelAuthored` is derived from the same `status.live` the interface reads, so
+ * the two cannot disagree by construction. A test asserts it for every branch.
+ */
+export function classify(outcome: ObserverOutcome): {
+  readonly responseSource: ResponseSource;
+  readonly modelAuthored: boolean;
+} {
+  if (outcome.answer !== null) {
+    return outcome.status.live
+      ? { responseSource: "model", modelAuthored: true }
+      : { responseSource: "deterministic_composer", modelAuthored: false };
+  }
+
+  /*
+   * No answer at all. A refusal is a decision the pipeline made; a failure is
+   * one it suffered.
+   *
+   * Not separated by `status.live`, which was the obvious move and the wrong
+   * one: a deployment running evidence-only reports `live: false` for every
+   * request, so a policy refusal on it — the CRM-only guard, say — would have
+   * been filed as a provider failure and sent an operator hunting an outage
+   * that never happened. The misconfiguration is the thing that is genuinely
+   * an operator's, and it is the one case that says so in the reason code.
+   */
+  return outcome.diagnostics.fallbackReason === "provider_misconfigured" || outcome.refusal === null
+    ? { responseSource: "failure", modelAuthored: false }
+    : { responseSource: "refusal", modelAuthored: false };
+}
+
 /** Telemetry, without the answer, the question or anything a person said. */
-export function reportOutcome(
+export async function reportOutcome(
   outcome: ObserverOutcome,
   admitted: Admitted,
   startedAt: number,
-): void {
+): Promise<void> {
   const outcomeKind =
     outcome.answer !== null
       ? "answered"
@@ -36,6 +74,8 @@ export function reportOutcome(
         : outcome.status.provider === "openai"
           ? "misconfigured"
           : "unavailable";
+
+  const { responseSource, modelAuthored } = classify(outcome);
 
   recordAsk({
     subject: admitted.subject,
@@ -55,29 +95,38 @@ export function reportOutcome(
   });
 
   /*
-   * The durable half of the same record.
+   * The durable half of the same record, and it is awaited.
    *
    * `recordAsk` is in-process and dies with the instance, which is fine for a
    * log line and useless for "how many questions has this demonstration
    * answered today". This one outlives the lambda and carries no content —
-   * counts, timings and an outcome, never a question or an answer.
+   * codes, counts and timings, never a question or an answer.
+   *
+   * It used to be `void`. A serverless runtime may freeze the instance the
+   * moment the response is sent, and an unawaited promise dies with it: the
+   * Preview admitted 153 requests and recorded 133. The row itself is no longer
+   * at risk — admission writes it inside the quota transaction — but its
+   * terminal result is, so the route waits for this before it finishes.
    */
-  void recordAudit({
-    subject: admitted.subject,
-    clientHash: admitted.clientHash,
-    tenantSlug: admitted.context.tenantSlug,
-    projectSlug: admitted.context.projectSlug,
-    viewerRole: admitted.context.viewer.role,
+  await completeAiRequest({
+    requestId: admitted.requestId,
     // `misconfigured` is an operator's word; the audit table records what the
     // reader got, and they got no model either way.
     outcome: outcomeKind === "misconfigured" ? "unavailable" : outcomeKind,
-    model: outcome.status.model,
+    responseSource,
+    attemptedProvider: outcome.status.provider,
+    attemptedModel: outcome.diagnostics.modelAttempted ? outcome.status.model : null,
+    modelAttempted: outcome.diagnostics.modelAttempted,
+    modelAuthored,
+    // Null unless a model wrote the prose. Recording the configured name here
+    // is precisely the defect this replaced.
+    authorModel: modelAuthored ? outcome.status.model : null,
+    fallbackReason: outcome.diagnostics.fallbackReason,
     tools: outcome.toolsUsed,
     toolCalls: outcome.toolsUsed.length,
     inputTokens: outcome.diagnostics.usage?.inputTokens ?? null,
     outputTokens: outcome.diagnostics.usage?.outputTokens ?? null,
     latencyMs: Date.now() - startedAt,
-    questionChars: admitted.question.length,
   });
 }
 
@@ -131,7 +180,7 @@ export async function POST(request: Request) {
     AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
   );
 
-  reportOutcome(outcome, admitted, started);
+  await reportOutcome(outcome, admitted, started);
 
   return NextResponse.json(publicOutcome(outcome), {
     // An answer is a function of the question, the viewer and the period. None

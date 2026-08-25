@@ -75,8 +75,39 @@ export interface ObserverOutcome {
     readonly schemaRejected: boolean;
     readonly truncated: boolean;
     readonly reasoningEffort: string;
+    /**
+     * Why the deterministic composer wrote the prose, or null if a model did.
+     *
+     * The audit records this, so it is a fixed code and never a provider
+     * message: an upstream error can quote the request back, and the request
+     * carries project evidence. The operator-facing detail stays in the log
+     * line `reportUpstreamFailure` writes.
+     */
+    readonly fallbackReason: FallbackReason | null;
+    /** Whether a model call was made at all. False means none was configured. */
+    readonly modelAttempted: boolean;
   };
 }
+
+/**
+ * The five ways an answer ends up in Observer's own words.
+ *
+ * Each names a different failure and a different fix, which is the point:
+ * "the model did not write this" was one undifferentiated fact for as long as
+ * the audit existed, and an operator reading it could not tell a missing key
+ * from prose the output guard rejected.
+ */
+export type FallbackReason =
+  /** No model resolved — the feature is off, or no key is configured. */
+  | "model_unavailable"
+  /** A key or model the deployment cannot use. An operator's problem. */
+  | "provider_misconfigured"
+  /** The composing turn threw: timeout, upstream error, aborted request. */
+  | "composition_failed"
+  /** Prose came back and failed schema validation. */
+  | "schema_rejected"
+  /** Prose validated and broke a product rule — a causal claim, or a citation that does not resolve. */
+  | "output_guard";
 
 export interface AskContextInput extends ToolContext {
   readonly agentIds: readonly string[];
@@ -431,7 +462,8 @@ export async function runTools(
    * what did run.
    */
   const answer = (call: { callId?: string }, output: Record<string, unknown>) => {
-    if (call.callId !== undefined) outputs.push({ callId: call.callId, output: JSON.stringify(output) });
+    if (call.callId !== undefined)
+      outputs.push({ callId: call.callId, output: JSON.stringify(output) });
   };
 
   for (const call of calls.slice(0, LIMITS.maxToolCalls)) {
@@ -652,6 +684,7 @@ function outcomeShell(
   status: ModelStatus,
   refusal: string,
   effort: string,
+  fallback: FallbackReason | null = null,
 ): ObserverOutcome {
   return {
     question,
@@ -667,6 +700,17 @@ function outcomeShell(
       schemaRejected: false,
       truncated: false,
       reasoningEffort: effort,
+      /*
+       * Usually null: a refusal is not a fallback.
+       *
+       * Nothing was composed and nothing fell back to anything — the pipeline
+       * declined, and inventing a reason would be worse than having none. The
+       * exception is a deployment whose model is misconfigured, which produces
+       * a refusal too and is the one case an operator must be able to find.
+       * That is what separates `refusal` from `failure` in the audit.
+       */
+      fallbackReason: fallback,
+      modelAttempted: false,
     },
   };
 }
@@ -725,6 +769,7 @@ export async function* askStream(
         resolution.status,
         "AI explanation is temporarily unavailable. Showing computed Observer evidence instead.",
         effort,
+        "provider_misconfigured",
       ),
     };
     return;
@@ -903,6 +948,7 @@ export async function* askStream(
     schemaRejected: boolean,
     truncated: boolean,
     live: boolean,
+    fallback: FallbackReason | null = null,
   ): ObserverOutcome => ({
     question: trimmed,
     answer,
@@ -926,11 +972,30 @@ export async function* askStream(
     status: live && !configurationFault ? status : { ...status, live: false },
     sources: live ? [...sources, "AI_INTERPRETATION" as const] : sources,
     demoData: true,
-    diagnostics: { turns, usage, schemaRejected, truncated, reasoningEffort: effort },
+    diagnostics: {
+      turns,
+      usage,
+      schemaRejected,
+      truncated,
+      reasoningEffort: effort,
+      /*
+       * A configuration fault outranks whatever the branch reported.
+       *
+       * A bad key surfaces as a composition failure at the branch that catches
+       * it, and "the composing turn threw" sends an operator to look at
+       * timeouts. `ModelConfigurationError` already knows better, and it is the
+       * one reason a person can act on directly.
+       */
+      fallbackReason: live ? null : configurationFault ? "provider_misconfigured" : fallback,
+      modelAttempted: model !== null,
+    },
   });
 
   if (model === null) {
-    yield { type: "final", outcome: finish(deterministic, false, false, false) };
+    yield {
+      type: "final",
+      outcome: finish(deterministic, false, false, false, "model_unavailable"),
+    };
     return;
   }
 
@@ -1014,7 +1079,10 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     if (error instanceof ModelConfigurationError) configurationFault = true;
     recordUpstreamFailure();
     reportUpstreamFailure("composition", error);
-    yield { type: "final", outcome: finish(deterministic, false, false, false) };
+    yield {
+      type: "final",
+      outcome: finish(deterministic, false, false, false, "composition_failed"),
+    };
     return;
   }
 
@@ -1025,12 +1093,15 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     // Streamed text is discarded rather than salvaged. Half a sentence that
     // failed validation is not an answer, and repairing it would produce prose
     // nobody can trace afterwards.
-    yield { type: "final", outcome: finish(deterministic, true, truncated, false) };
+    yield {
+      type: "final",
+      outcome: finish(deterministic, true, truncated, false, "schema_rejected"),
+    };
     return;
   }
 
   if (containsCausalClaim(parsed) || !isTraceableAnswer(parsed, question)) {
-    yield { type: "final", outcome: finish(deterministic, true, truncated, false) };
+    yield { type: "final", outcome: finish(deterministic, true, truncated, false, "output_guard") };
     return;
   }
 

@@ -21,24 +21,24 @@ whatever it points at. Update this file at the end of every meaningful session.
 | **M2.3 Showroom Intelligence refocus**       | 🟡 **built; awaiting visual and product approval**     |
 | **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**           |
 | Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`** |
-| **Demo release candidate**                   | 🟡 **on Preview; blocked on a working OpenAI key**     |
+| **Demo release candidate**                   | 🟡 **on Preview; model live, audit rebuilt**           |
 | M3 Remaining intelligence surfaces           | ⛔ blocked on approval                                 |
 
 ## Cloud resources — do not ask for these again
 
 Full runbook in `docs/18-deployment.md`. No secret value is recorded anywhere in this repository.
 
-|                  |                                                                                                           |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                              |
-| Supabase org     | `LEGALIZALJUK` (`cjmkiuszyotwjhbcbviq`)                                                                   |
-| Supabase staging | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf`, `eu-central-1`, `ACTIVE_HEALTHY`, €0/mo, zero tables |
-| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                              |
-| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                   |
-| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                      |
-| **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                          |
-| **Preview URL**  | **https://iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app** — the release candidate |
-| Vercel variables | Set by the user, but **not reaching Preview builds** — almost certainly scoped to Production only. No MCP tool and no CLI reaches them from here. |
+|                  |                                                                                                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                                                                                                                              |
+| Supabase preview | **`IRIS OBSERVER`, ref `tfcchobwobpadenampyh`, `eu-west-1`, `ACTIVE_HEALTHY`, €0/mo** — the project the Preview actually reaches                                                                          |
+| Supabase unused  | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf` — provisioned first, holds the same migrations, never reached by the Preview. Left alone.                                                             |
+| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                                                                                                                              |
+| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                                                                                                                   |
+| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                                                                                                                      |
+| **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                                                                                                                           |
+| **Preview URL**  | **https://iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app** — the release candidate                                                                                             |
+| Vercel variables | `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` — reaching Preview builds and working. The Supabase pair is supplied by the Supabase–Vercel integration, which is why hand-set values never took. |
 
 **One thing to know.** The deployment landed on **Production**, not Preview: `create_git_project`
 deploys from the linked repository's production branch, and `main` is it. That was not the intent and
@@ -46,20 +46,54 @@ is recorded rather than glossed over. It is harmless in this state — synthetic
 staging badge on every screen, a sign-in that states it is not authentication — and nothing was
 deleted to undo it. Push any non-`main` branch to get a genuine Preview.
 
-## The release blocker
+## The release blocker, and how it closed
 
-**`SUPABASE_URL` on the Vercel Preview points at a third Supabase project.** The
-deployment's own log names it: `PostgREST at tfcchobwobpadenampyh.supabase.co matched no such
-function`. That host is live, and it is neither `jtvqecusxzogqubxpoyf` (iris-observer-staging)
-nor `vrhrzlvhyxrkxxcjxmaf` (the paused legacy project) — the only two in this account.
+**`SUPABASE_URL` on the Vercel Preview pointed at a Supabase project that was not in this
+account.** The deployment's own log named it: `PostgREST at tfcchobwobpadenampyh.supabase.co
+matched no such function`. Five rounds of diagnosis went into establishing that — 406 from an
+unexposed schema, 404 from the wrong project, 401 from an unrecognised key, `PGRST202` from a
+role that could not match the function, and finally `observer_whoami()` answering 200 to one
+caller and 404 to another, which is only possible against two different PostgREST instances.
+The fault was the host, never the key.
 
-It very likely arrives from the Supabase–Vercel integration, which injects `SUPABASE_URL`
-for whichever Supabase project *it* is linked to, overriding or conflicting with the value
-set by hand.
+It came from the Supabase–Vercel integration, which injects `SUPABASE_URL` for whichever
+project _it_ is linked to and overrides hand-set values on every sync.
 
-Because the ceiling fails closed, every Ask Observer request on the Preview is refused and
-no model is called. Locally, with the same code and a working key, Observer answers in a
-model's words and all 22 acceptance checks pass.
+**Resolved on 2026-08-25 by moving the schema rather than the variable.** `tfcchobwobpadenampyh`
+(`IRIS OBSERVER`, eu-west-1) is now the official Preview database. The four migrations were
+applied there through the SQL Editor — each part verified byte-identical to its source file
+first, because the Supabase MCP tools are write-blocked from this session. The Supabase CLI has
+no record of them; see `supabase/README.md` for the `migration repair` reconciliation.
+
+Verified afterwards on the deployment itself, not by SQL alone: the shared counters move
+(`project/day` climbing, `session/minute` reaching its ceiling of 10 under a burst) and the
+audit records rows. Both are only reachable through PostgREST with the server-side secret
+key, so their movement is proof the real transport works.
+
+## What that verification then found
+
+Two defects in the audit, neither visible from the code alone.
+
+**It could not say who wrote the answer.** `answered · gpt-5.6-sol` was recorded whether a
+model had written a word or the deterministic composer had — while the screen said "written
+by the tools" for the same request. Migration `20260825205000` adds `response_source`
+(`model` · `deterministic_composer` · `refusal` · `failure`), a nullable `author_model`, a
+separate `attempted_model`, and a `fallback_reason` code. `model_authored` is derived from the
+same `live` flag the answer sheet renders, and a test asserts they agree on every branch.
+
+**It lost requests: 153 admitted, 133 recorded.** The write was fired and forgotten after the
+response, and a serverless instance may freeze once it has responded. Awaiting it would only
+have narrowed the window, so the invariant is structural: the row is inserted inside the same
+transaction that consumes the quota. A request interrupted before its terminal result stays
+visible as `started` rather than vanishing.
+
+A refused request has no audit row and should not — the ceiling declines before any work — so
+an admitted-request count and an audit-row count are the same number, which is what makes
+reconciling them meaningful.
+
+The `observer_whoami` diagnostic is revoked from the browser roles; the two superseded façades
+are dropped. See [ADR-0028](adr/0028-demo-release-candidate.md) and
+[supabase/README.md](../supabase/README.md) for the audit contract.
 
 ## The correction that reshaped the product
 

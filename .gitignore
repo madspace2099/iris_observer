@@ -34,3 +34,7 @@ screenshots/
 # ending in .local.json is this machine's own and is not.
 .claude/settings.local.json
 **/*.local.json
+
+# Operator scratch: SQL generated from supabase/migrations for manual application.
+# The migrations themselves are version-controlled; these copies are not.
+_sql-to-paste/

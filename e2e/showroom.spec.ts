@@ -115,6 +115,18 @@ test.describe("the product rules, at the surface", () => {
   });
 
   test("Ask Observer answers from evidence, on any surface", async ({ page }) => {
+    /*
+     * A model turn, not a render.
+     *
+     * This waited five seconds — the default — because for most of this
+     * project's life the answer came from the deterministic composer and
+     * arrived in the same tick. Against a deployment with a working key it is
+     * a real Responses API call: the measured average is 5.7s and the tail is
+     * longer. The page said so at the moment of failure — `status: Observer is
+     * answering.` — so the assertion was not catching a missing sheet, it was
+     * outrunning one.
+     */
+    test.setTimeout(150_000);
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/storytelling");
     const ask = page.getByPlaceholder("Ask Observer…");
@@ -122,7 +134,7 @@ test.describe("the product rules, at the surface", () => {
     await ask.press("Enter");
 
     const sheet = page.getByRole("dialog", { name: "Observer" });
-    await expect(sheet).toBeVisible();
+    await expect(sheet).toBeVisible({ timeout: 90_000 });
     /*
      * Measured and interpreted stay labelled and stay apart.
      *

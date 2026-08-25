@@ -141,8 +141,8 @@ number and almost no vocabulary.
 selling three weeks, so "last month" is a month in which it did not exist. The
 briefing read "41 meetings this month against 0 last month" — arithmetically
 true, and inviting exactly the comparison it should not: 41 against nothing is a
-first period, not growth. ADR-0027 corrected the *progression* figure for this
-and left the *volume* figure beside it still making the claim. There is now no
+first period, not growth. ADR-0027 corrected the _progression_ figure for this
+and left the _volume_ figure beside it still making the claim. There is now no
 comparison, no arrow and no direction where there is no baseline. Found by
 looking at a screenshot.
 
@@ -153,7 +153,7 @@ project of every tenant. Northgate therefore reported 98 presentations this
 month above a chart reading 32, and the 98 counted Riverside and Beta
 Development's Kingsford.
 
-The window ignores the *period*. It does not get to ignore the *project*. It
+The window ignores the _period_. It does not get to ignore the _project_. It
 now reads the same unclipped set scoped to the project the viewer already
 resolved.
 
@@ -164,7 +164,7 @@ breakdown, the audience filter and the sales-plan bullet chart. Riverside Walk
 and Kingsford Yard both showed Northgate's forty-eight units against Northgate's
 sold count and Northgate's target.
 
-ADR-0027 scoped the *sessions* and stopped there. The route, the read model and
+ADR-0027 scoped the _sessions_ and stopped there. The route, the read model and
 the tool were all correct; the catalogue underneath them was not. Riverside now
 has its 36 units in buildings R and W, Kingsford its 30 in building K, and the
 constant is deleted rather than deprecated — one that is correct for a single
@@ -177,7 +177,7 @@ on a project's list must match that project's buildings.
 
 **One screen, two windows, one name.** The Sales Flow summary offers Today /
 This week / This month, and the chart beneath it carries calendar buckets with
-the same words. The summary's windows are *rolling* — thirty days back from
+the same words. The summary's windows are _rolling_ — thirty days back from
 tonight — so the page read "This month: 41" in the summary and "This month: 32"
 in the chart, three inches apart, both correct and neither reconcilable by
 anybody looking at them.
@@ -192,7 +192,7 @@ fails when the old label is put back.
 in a single call, and `parsed.success ? parsed.data : Schema.parse({})` threw
 the whole object away when any one field failed. A mistyped `SUPABASE_URL`
 would therefore make a correctly configured `OPENAI_API_KEY` report as absent,
-and *absent* and *invalid* are indistinguishable from outside — so whoever is
+and _absent_ and _invalid_ are indistinguishable from outside — so whoever is
 debugging goes and checks the wrong variable, on a deployment nobody can shell
 into.
 
@@ -204,7 +204,7 @@ flag and a password-bearing URL, and asserts that none of the three appears in
 the report.
 
 Found while diagnosing the environment-variable scoping below, and it is the
-reason that diagnosis can now be trusted: the second build reported *absent*
+reason that diagnosis can now be trusted: the second build reported _absent_
 with no rejection message beside it, which rules out a bad value.
 
 ## Known limitations
@@ -256,7 +256,7 @@ The project URL is not a secret and is stated in full:
 
 ### The workaround, and why it was not taken
 
-The publishable key *could* be made to work: grant `execute` on
+The publishable key _could_ be made to work: grant `execute` on
 `observer.consume_ai_quota` to `anon` and let the browser-safe key call it. The
 function is `security definer`, so the tables would stay unreadable.
 
@@ -286,3 +286,67 @@ is therefore not consultation-ready until a working key is configured.
 `env.ts` now reports a malformed key as a named problem at startup. A key that
 is present but the wrong shape produced a 401 indistinguishable from a revoked
 key or an empty account, and the operator had no way to tell which.
+
+## Addendum — 2026-08-25
+
+Two things above are now history, and are left standing because an ADR records
+what was decided when, not what turned out later.
+
+**The OpenAI key works.** The malformed value was replaced. The Preview answers
+in the model's own words as `gpt-5.6-sol`, with `live: true` beside the answer
+and a read tool in the transcript.
+
+**The Supabase project changed.** The URL stated above,
+`https://jtvqecusxzogqubxpoyf.supabase.co`, is not the one the deployment
+reaches. The Supabase–Vercel integration supplies `SUPABASE_URL` for the project
+_it_ is linked to and overrides hand-set values on every sync, so the Preview
+was calling `tfcchobwobpadenampyh.supabase.co` — a live project outside the
+account these tools could see. The schema was moved to that project rather than
+the variable to this one; `IRIS OBSERVER` (`tfcchobwobpadenampyh`, eu-west-1) is
+the official Preview database. Nothing was deleted.
+
+**The workaround above still stands.** Granting `execute` to `anon` was
+reconsidered during the move and rejected again for the same reason. The
+counters are reachable only through `security definer` façades in `public`, and
+verification on the running project confirms even `service_role` cannot read
+`observer.ai_rate_buckets` directly — only the function can.
+
+## Addendum — 2026-08-25, later: the audit told two lies
+
+Both were found by verifying the deployment rather than reading the code, which
+is the argument for doing it at all.
+
+**It could not say who wrote the prose.** `outcome` was `answered` whenever an
+answer existed, and `model` held the configured model's name whether or not that
+model had written a word. So a deterministic fallback — which the answer sheet
+labels honestly as "written by the tools" — was recorded as
+`answered · gpt-5.6-sol`. ADR-0024 exists to keep exactly one claim honest, and
+the durable record of that claim was wrong. The screen and the audit now derive
+`live` and `model_authored` from the same value, and a test asserts they agree
+on every branch rather than trusting that they will.
+
+`response_source` takes one of four values — `model`, `deterministic_composer`,
+`refusal`, `failure` — and `author_model` is null unless a model wrote the final
+prose. What was attempted is kept under an accurate name, `attempted_model`,
+because it is a useful fact and was never the same fact.
+
+**It lost requests.** 153 admitted on the Preview, 133 recorded. The obvious
+cause was the unawaited `void recordAudit(...)` — a serverless instance may
+freeze once it has responded — but a hypothesis is not a fix, and awaiting the
+same call would only have narrowed the window. The invariant is structural now:
+the row is inserted in the _same transaction_ that consumes the quota, so a
+request cannot be admitted without leaving a trace. The terminal result is
+awaited separately, and a request interrupted before it arrives stays visible as
+`started` rather than vanishing.
+
+One consequence worth stating: a refused request has no audit row at all, and
+should not. The ceiling declines before any work happens, so admitted-request
+and audit-row counts are the same number — which is what makes reconciling them
+meaningful instead of a comparison of two unlike things.
+
+**The `observer_whoami` diagnostic left the browser.** It is revoked from `anon`
+and `authenticated` and kept for the server key, which still calls it to tell a
+wrong-key 401 apart from a wrong-project 404 — the failure this milestone spent
+five rounds on. The two superseded façades, `consume_ai_quota` and
+`record_ai_request`, are dropped rather than left unreachable: two doors to the
+same counters is the drift this codebase avoids.

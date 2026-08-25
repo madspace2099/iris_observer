@@ -43,7 +43,32 @@ test.describe("the model is answering", () => {
     return page.locator(".obs-answer-role", { hasText: /Observer.s reading/ }).first();
   }
 
+  /*
+   * A region, not a dialog — and which one depends on where you asked.
+   *
+   * Two tests here located the answer with `getByRole("dialog", { name:
+   * "Observer" })`, copied from the suites that ask on a detail surface, where
+   * Observer does open over the page. These tests never leave the briefing,
+   * and there Observer *is* the interface rather than a panel on it (ADR-0025)
+   * — the accessibility tree says `region "Observer"`, and no dialog exists to
+   * find. Both tests waited out their whole budget for an element the product
+   * had correctly not rendered, which read as a hang and was a wrong locator.
+   */
+  function answerRegion(page: Page) {
+    return page.getByRole("region", { name: "Observer" });
+  }
+
   async function ask(page: Page, question: string) {
+    /*
+     * The ninety seconds below were unreachable without this.
+     *
+     * Playwright's default test budget is thirty seconds, and no assertion can
+     * outlive the test containing it — so the wait on the next line could never
+     * have spent more than thirty of its ninety, whatever it was waiting for.
+     * The two lighter questions in this file answered inside thirty and hid the
+     * contradiction. A causal "why" runs deeper and does not.
+     */
+    test.setTimeout(150_000);
     await page.getByPlaceholder(/^Ask Observer about/).fill(question);
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     // A reasoning model on a cold lambda is not quick. The ceiling is the
@@ -72,8 +97,7 @@ test.describe("the model is answering", () => {
     await signInAs(page, "Petra Novák");
     await ask(page, "Why did presentation depth change this period?");
 
-    const sheet = page.getByRole("dialog", { name: "Observer" });
-    const body = (await sheet.innerText()).toLowerCase();
+    const body = (await answerRegion(page).innerText()).toLowerCase();
 
     /*
      * Either move is acceptable and one of them must be made: decline the
@@ -92,8 +116,7 @@ test.describe("the model is answering", () => {
     await signInAs(page, "Petra Novák");
     await ask(page, "Why did presentation depth change this period?");
 
-    const sheet = page.getByRole("dialog", { name: "Observer" });
-    const body = (await sheet.innerText()).toLowerCase();
+    const body = (await answerRegion(page).innerText()).toLowerCase();
 
     for (const word of ["because", "caused by", "drives the", "leads to", "results in"]) {
       expect(body.includes(word), `causal wording in a model's answer: "${word}"`).toBe(false);

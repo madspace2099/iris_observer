@@ -1,4 +1,6 @@
 import "server-only";
+
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { NotPermittedError } from "@observer/readmodels";
@@ -6,7 +8,7 @@ import { NotPermittedError } from "@observer/readmodels";
 import { currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { LIMITS, checkAllowance, recordAttempt, type RefusalReason } from "./limits";
-import { clientFingerprint, consumeSharedQuota } from "./quota";
+import { admitAiRequest, clientFingerprint } from "./quota";
 import { safetyIdentifier, telemetrySubject } from "./identity";
 import type { AskContextInput } from "./agent";
 
@@ -102,9 +104,19 @@ export type GateResult =
       readonly ok: true;
       readonly question: string;
       readonly context: AskContextInput;
+      /** The hashed telemetry subject. Also the shared ceiling's bucket key. */
       readonly subject: string;
       /** Opaque, salted, never an address. Carried for the audit record. */
       readonly clientHash: string;
+      /**
+       * The audit row this request already has.
+       *
+       * Admission wrote it. The route closes it with a terminal result, and a
+       * request that never gets that far stays visible as `started` — which is
+       * the whole reason the id is minted before the database is called rather
+       * than handed back by it.
+       */
+      readonly requestId: string;
     }
   | {
       readonly ok: false;
@@ -193,11 +205,38 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
    * anything earlier never touches it.
    */
   const clientHash = request === undefined ? "unknown" : clientFingerprint(request);
-  const shared = await consumeSharedQuota(
-    viewer.userId,
+
+  /*
+   * One id, generated here, carried to the end.
+   *
+   * Admission and the terminal result are two calls to the database, and
+   * without a shared key the second cannot find what the first wrote. It is
+   * generated before the call rather than returned by it so that a retried
+   * admission is recognisably the same request instead of a second one.
+   */
+  const requestId = randomUUID();
+
+  /*
+   * The hashed subject, not the user id.
+   *
+   * These buckets were keyed by `viewer.userId` while the audit recorded
+   * `telemetrySubject(userId)`, so the two could not be joined and the raw id
+   * sat in a table that is meant to hold nothing identifying. The hash is
+   * unsalted and therefore stable across instances, which is the property a
+   * shared ceiling needs — a per-process salt would give every lambda its own
+   * counter and quietly undo this whole module.
+   */
+  const subject = telemetrySubject(viewer.userId);
+
+  const shared = await admitAiRequest({
+    requestId,
+    session: subject,
     clientHash,
-    `${body.data.tenantSlug}/${body.data.projectSlug}`,
-  );
+    tenantSlug: body.data.tenantSlug,
+    projectSlug: body.data.projectSlug,
+    viewerRole: viewer.role,
+    questionChars: body.data.question.length,
+  });
   if (!shared.allowed) {
     return deny(429, SHARED_REFUSAL_TEXT[shared.reason], shared.retryAfterSeconds);
   }
@@ -208,7 +247,8 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
   return {
     ok: true,
     question: body.data.question,
-    subject: telemetrySubject(viewer.userId),
+    subject,
+    requestId,
     clientHash,
     context: {
       viewer,

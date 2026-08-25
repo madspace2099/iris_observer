@@ -4,7 +4,25 @@ import { environment, resetEnvironmentCache } from "../src/lib/env";
 import { modelIsAllowed } from "../src/lib/ai/limits";
 import { publicBlocker, voiceBlocker } from "../src/lib/ai/voice";
 import { diagnoseServerSupabase, resolveServerSupabase } from "../src/lib/supabase-env";
-import { consumeSharedQuota } from "../src/lib/ai/quota";
+import { admitAiRequest } from "../src/lib/ai/quota";
+
+/**
+ * One admission, spelled once.
+ *
+ * `admitAiRequest` takes the audit fields too, because a request is admitted
+ * and recorded in the same transaction now. None of these tests care what is in
+ * them — they are about how the ceiling answers HTTP — so the shape lives here
+ * rather than seven times below.
+ */
+const admission = {
+  requestId: "00000000-0000-4000-8000-000000000000",
+  session: "session",
+  clientHash: "client",
+  tenantSlug: "alpha",
+  projectSlug: "northgate",
+  viewerRole: "developer",
+  questionChars: 24,
+} as const;
 import { SHARED_REFUSAL_TEXT } from "../src/lib/ai/gate";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
 import { addUsage } from "../src/lib/ai/telemetry";
@@ -423,7 +441,7 @@ describe("an unreachable shared ceiling", () => {
     configure();
     globalThis.fetch = (() => Promise.reject(new Error("network down"))) as typeof fetch;
 
-    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const verdict = await admitAiRequest(admission);
     expect(verdict.allowed).toBe(false);
     if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
   });
@@ -433,7 +451,7 @@ describe("an unreachable shared ceiling", () => {
     globalThis.fetch = (() =>
       Promise.resolve(new Response("nope", { status: 500 }))) as typeof fetch;
 
-    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const verdict = await admitAiRequest(admission);
     expect(verdict.allowed).toBe(false);
   });
 
@@ -444,7 +462,7 @@ describe("an unreachable shared ceiling", () => {
         new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }),
       )) as typeof fetch;
 
-    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const verdict = await admitAiRequest(admission);
     expect(verdict.allowed).toBe(false);
   });
 
@@ -455,7 +473,7 @@ describe("an unreachable shared ceiling", () => {
      */
     globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
 
-    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const verdict = await admitAiRequest(admission);
     expect(verdict.allowed).toBe(true);
   });
 
@@ -529,11 +547,11 @@ describe("the two kinds of rejected key", () => {
      */
     configured();
     respondWith('{"code":"42501","message":"permission denied for function consume_ai_quota"}');
-    const denied = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const denied = await admitAiRequest(admission);
 
     configured();
     respondWith('{"message":"Invalid API key","hint":"Double check your API key."}');
-    const unknown = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const unknown = await admitAiRequest(admission);
 
     for (const verdict of [denied, unknown]) {
       expect(verdict.allowed).toBe(false);
@@ -547,7 +565,7 @@ describe("the two kinds of rejected key", () => {
     globalThis.fetch = (() =>
       Promise.resolve(new Response("<html>gateway</html>", { status: 401 }))) as typeof fetch;
 
-    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    const verdict = await admitAiRequest(admission);
     expect(verdict.allowed).toBe(false);
   });
 });
