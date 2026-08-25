@@ -139,7 +139,24 @@ check(
 );
 scan("the voice endpoint", voiceBody);
 
-/* --- 5. what the sign-in screen promises -------------------------------------- */
+/* --- 5. what the deployment says it is configured with ------------------------ */
+
+/*
+ * There is no endpoint that reports the environment, and there should not be:
+ * a public page listing which secrets a server holds is a reconnaissance gift.
+ *
+ * The voice capability endpoint answers the same question sideways and without
+ * naming anything. It is available only when a key is configured *and* the
+ * voice model is on the allowlist, so `available: true` is proof a key is
+ * present. It cannot say whether the key works — only the API can say that,
+ * and only by being called.
+ */
+const capability = JSON.parse(voiceBody === "" ? "{}" : voiceBody);
+console.log(
+  `info  a model key is ${capability.available === true ? "configured" : "absent or rejected"} on this deployment`,
+);
+
+/* --- 6. what the sign-in screen promises -------------------------------------- */
 
 check("the sign-in screen says it is not authentication", /not authentication|demonstration/i.test(html));
 check("the deployment declares itself synthetic", /synthetic|demonstration/i.test(html));
