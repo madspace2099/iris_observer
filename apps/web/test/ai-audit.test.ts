@@ -271,11 +271,11 @@ describe("the terminal result carries codes, never content", () => {
       "fetch",
       vi.fn((_url: string, init: RequestInit) => {
         sent = JSON.parse(String(init.body)) as Record<string, unknown>;
-        return Promise.resolve(new Response("true", { status: 200 }));
+        return Promise.resolve(new Response(JSON.stringify("completed"), { status: 200 }));
       }),
     );
 
-    await expect(completeAiRequest(RESULT)).resolves.toBe(true);
+    await expect(completeAiRequest(RESULT)).resolves.toBe("completed");
 
     expect(sent["p_request_id"]).toBe(RESULT.requestId);
     expect(sent["p_response_source"]).toBe("deterministic_composer");
@@ -300,11 +300,11 @@ describe("the terminal result carries codes, never content", () => {
   it("reports a miss instead of assuming the row was there", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.resolve(new Response("false", { status: 200 }))),
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify("not_found"), { status: 200 }))),
     );
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    await expect(completeAiRequest(RESULT)).resolves.toBe(false);
+    await expect(completeAiRequest(RESULT)).resolves.toBe("not_found");
     expect(warn).toHaveBeenCalled();
     // Observable to an operator, and never to a browser: this is a log line.
     expect(String(warn.mock.calls[0]?.[0])).toContain("[observer.audit]");
@@ -321,7 +321,7 @@ describe("the terminal result carries codes, never content", () => {
     );
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
-    await expect(completeAiRequest(RESULT)).resolves.toBe(false);
+    await expect(completeAiRequest(RESULT)).resolves.toBe("unreachable");
     const line = String(warn.mock.calls[0]?.[0]);
     expect(line).toContain("HTTP 400");
     expect(line).not.toContain("relation");
@@ -352,7 +352,7 @@ describe("the audit write outlives the response", () => {
       "fetch",
       vi.fn(async () => {
         await arrived;
-        return new Response("true", { status: 200 });
+        return new Response(JSON.stringify("completed"), { status: 200 });
       }),
     );
 
@@ -384,7 +384,7 @@ describe("the audit write outlives the response", () => {
     expect(settled, "the write settled before the database answered").toBe(false);
 
     release?.();
-    await expect(writing).resolves.toBe(true);
+    await expect(writing).resolves.toBe("completed");
   });
 
   const web = (p: string) => readFileSync(join(process.cwd(), "apps/web", p), "utf8");
@@ -436,22 +436,20 @@ describe("admission and the audit row are the same event", () => {
     expect(gate).toContain('deny(404, "Not found.", null)');
   });
 
-  it("writes the row inside the transaction that consumes the quota", () => {
-    // Not "after admission" — inside it. There is no ordering to get wrong and
-    // no promise to lose.
-    const insert = migration.indexOf("insert into observer.ai_requests");
-    const consume = migration.indexOf("from observer.consume_ai_quota(");
-    expect(consume).toBeGreaterThan(-1);
-    expect(consume).toBeLessThan(insert);
-    expect(migration).toContain("if v_allowed then");
-    // A retried admission must not produce a second row.
-    expect(migration).toContain("on conflict (request_id) do nothing");
+  /*
+   * What the migration *does* is proven against a real Postgres in
+   * `supabase/test/audit-contract.test.ts` — quota consumed once per id, one
+   * row, a completed record that cannot be rewritten, historical rows left
+   * describing themselves. Asserting the SQL text here was a stand-in for
+   * running it, and it aged into a test that broke when the design improved
+   * while proving nothing about either version.
+   *
+   * What stays is the one guarantee that lives in this file rather than in the
+   * database: the id exists before the database is called, and authorisation
+   * happens before admission.
+   */
+  it("declares the ceiling before the migration relies on it", () => {
     expect(migration).toContain("create unique index if not exists ai_requests_request_id_key");
-  });
-
-  it("leaves an interrupted request visible rather than absent", () => {
-    expect(migration).toContain("'started'");
-    expect(migration).toContain("state             = 'complete'");
   });
 
   it("takes the diagnostic away from the browser key", () => {

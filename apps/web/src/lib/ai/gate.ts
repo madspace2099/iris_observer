@@ -94,7 +94,27 @@ export const SHARED_REFUSAL_TEXT = {
    */
   ceiling_unavailable:
     "Observer cannot take questions for a moment. Every measured figure on this screen is unaffected — try the question again shortly.",
+  /*
+   * Not a ceiling, and deliberately not phrased like one.
+   *
+   * "Try again in a moment" is the wrong instruction here: retrying is what
+   * produced the second arrival. This request already has an answer on its way
+   * or already delivered, and the reader is told that rather than being invited
+   * to duplicate it again.
+   */
+  duplicate_request: "Observer is already answering this question.",
 } as const;
+
+/**
+ * A repeat is a conflict, not a rate limit.
+ *
+ * 429 tells a client to back off and retry, which is precisely wrong for a
+ * request the server has already accepted once — and any sensible client
+ * library will act on it. 409 says what actually happened.
+ */
+function sharedRefusalStatus(reason: keyof typeof SHARED_REFUSAL_TEXT): number {
+  return reason === "duplicate_request" ? 409 : 429;
+}
 
 /** A request that passed every check. The audit and telemetry both read it. */
 export type Admitted = Extract<GateResult, { readonly ok: true }>;
@@ -238,7 +258,12 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
     questionChars: body.data.question.length,
   });
   if (!shared.allowed) {
-    return deny(429, SHARED_REFUSAL_TEXT[shared.reason], shared.retryAfterSeconds);
+    return deny(
+      sharedRefusalStatus(shared.reason),
+      SHARED_REFUSAL_TEXT[shared.reason],
+      // A duplicate has nothing to wait for; a ceiling does.
+      shared.reason === "duplicate_request" ? null : shared.retryAfterSeconds,
+    );
   }
 
   /* 6. the meter, only once the request is going to happen */

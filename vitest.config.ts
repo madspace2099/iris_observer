@@ -11,7 +11,12 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["packages/**/test/**/*.test.ts", "apps/**/test/**/*.test.ts"],
+    include: [
+      "packages/**/test/**/*.test.ts",
+      "apps/**/test/**/*.test.ts",
+      // The migrations are tested against a real Postgres, beside what they change.
+      "supabase/test/**/*.test.ts",
+    ],
     // Playwright owns e2e/. Vitest must not try to collect it.
     exclude: ["e2e/**", "**/node_modules/**"],
     passWithNoTests: true,

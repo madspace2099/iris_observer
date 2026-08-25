@@ -91,9 +91,17 @@ A refused request has no audit row and should not — the ceiling declines befor
 an admitted-request count and an audit-row count are the same number, which is what makes
 reconciling them meaningful.
 
-The `observer_whoami` diagnostic is revoked from the browser roles; the two superseded façades
-are dropped. See [ADR-0028](adr/0028-demo-release-candidate.md) and
+The `observer_whoami` diagnostic is revoked from the browser roles. The two superseded façades
+are **kept** during the expand phase and dropped by a separate contract migration — Vercel keeps
+every build reachable at its own URL, and twelve Preview deployments of this branch were READY
+and still calling them by name. See [ADR-0028](adr/0028-demo-release-candidate.md) and
 [supabase/README.md](../supabase/README.md) for the audit contract.
+
+An independent review of the first draft found four release blockers, all fixed before any
+Supabase write: it would have dropped façades a live deployment still calls; it would have
+relabelled every historical row as an interrupted request with authorship `false`; admission
+consumed quota _before_ its conflict clause, so a retry spent a second unit of the daily budget
+and left one row; and completion rewrote an already-completed record, timestamp included.
 
 ## The correction that reshaped the product
 

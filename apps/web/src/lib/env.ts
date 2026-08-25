@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import { diagnoseServerSupabase } from "./supabase-env";
+import { pseudonymKeyIsStable } from "@/lib/ai/identity";
 
 /**
  * The environment, validated once.
@@ -249,6 +250,22 @@ export function environment(): EnvironmentReport {
   } else {
     problems.push(
       `The shared rate limiter is on, reading ${supabase.using.join(" and ")}, against ${supabase.host ?? "an unreadable host"}.`,
+    );
+  }
+
+  /*
+   * Whether the ceiling can actually aggregate.
+   *
+   * Subjects and client fingerprints are keyed HMACs, and the key has to be the
+   * same on every instance or one viewer becomes one bucket *per lambda* — a
+   * distributed limiter that silently is not one. There is no visible symptom,
+   * which is why it is stated at boot rather than left to be discovered in a
+   * bucket table. The key itself is never named, never printed and never
+   * derived from anything a log line carries.
+   */
+  if (!pseudonymKeyIsStable()) {
+    problems.push(
+      "Ask Observer subjects are keyed per process: no OBSERVER_SUBJECT_PEPPER and no Supabase credential to derive one from. Rate-limit buckets will not aggregate across instances.",
     );
   }
 

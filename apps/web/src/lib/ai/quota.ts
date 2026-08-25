@@ -1,8 +1,9 @@
 import "server-only";
 
-import { createHash, randomUUID } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { resolveServerSupabase } from "@/lib/supabase-env";
 import type { FallbackReason } from "./agent";
+import { pseudonymKey } from "./identity";
 import { LIMITS } from "./limits";
 
 /**
@@ -32,9 +33,9 @@ import { LIMITS } from "./limits";
  * single caller punishes the busiest customer. It is also personal data this
  * product has no reason to hold.
  *
- * The fingerprint is a salted hash of coarse request properties. It survives a
- * cleared cookie well enough to slow an abusive client, and it cannot be
- * reversed into an address.
+ * The fingerprint is a keyed HMAC over coarse request properties. It survives
+ * a cleared cookie well enough to slow an abusive client, and it cannot be
+ * reversed into an address by anybody who does not hold the key.
  */
 export function clientFingerprint(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for") ?? "";
@@ -43,23 +44,24 @@ export function clientFingerprint(request: Request): string {
   const language = request.headers.get("accept-language") ?? "";
 
   /*
-   * Salted with a server secret, so the hash cannot be recomputed from a
-   * guessed address. Without a configured secret the salt is per-process,
-   * which degrades the fingerprint to "this instance" rather than leaking
-   * anything — the safe direction.
+   * Keyed, not merely salted — and by the same key the subject uses.
+   *
+   * A salt prepended to the input of a plain digest is a keyed construction
+   * only by accident: it is the length-extension shape, it invites the mistake
+   * of logging the salt beside the digest, and it made the *stability* of the
+   * key a separate question from its secrecy. `OBSERVER_SESSION_SECRET` was
+   * usually unset, so the salt was a per-process UUID — every lambda produced a
+   * different fingerprint for the same device, and the per-client hourly
+   * ceiling counted a browser once per instance.
+   *
+   * `pseudonymKey()` answers both: HMAC rather than prefix-and-hash, and a key
+   * that is identical across every instance of a deployment. An address is
+   * still never stored, and still cannot be recovered from what is.
    */
-  const salt = process.env["OBSERVER_SESSION_SECRET"] ?? processSalt();
-
-  return createHash("sha256")
-    .update(`${salt}|${address}|${agent}|${language}`)
+  return createHmac("sha256", pseudonymKey())
+    .update(`client ${address} ${agent} ${language}`)
     .digest("hex")
     .slice(0, 32);
-}
-
-let cachedSalt: string | null = null;
-function processSalt(): string {
-  cachedSalt ??= randomUUID();
-  return cachedSalt;
 }
 
 /* --- the ceilings ------------------------------------------------------------ */
@@ -99,7 +101,15 @@ export type SharedVerdict =
         | "client_limit"
         | "daily_budget"
         /** Configured, and the database could not be reached. See below. */
-        | "ceiling_unavailable";
+        | "ceiling_unavailable"
+        /**
+         * This request id has already been admitted.
+         *
+         * Neither allowed nor refused by a ceiling: it is the same request
+         * arriving twice. Nothing is consumed, no second row is written, and
+         * no second model call may start.
+         */
+        | "duplicate_request";
       readonly retryAfterSeconds: number;
     };
 
@@ -125,7 +135,7 @@ export function sharedQuotaConfigured(): boolean {
  *
  * All of it is known before any work happens, which is what makes the row
  * writable at admission. Nothing here is content: `questionChars` is the
- * question's *length*, `session` and `clientHash` are opaque salted subjects,
+ * question's *length*, `session` and `clientHash` are keyed pseudonyms,
  * and the two slugs are the tenancy the request named.
  */
 export interface Admission {
@@ -273,6 +283,19 @@ export async function admitAiRequest(admission: Admission): Promise<SharedVerdic
     if (verdict.allowed) return { allowed: true };
 
     const reason = verdict.reason;
+
+    /*
+     * A duplicate is not a ceiling, and must not be answered like one.
+     *
+     * Falling through to `rate_limited` here would tell the reader to try again
+     * in a moment — inviting exactly the retry that produced the duplicate —
+     * and would hide the one condition that means two executions believe they
+     * own the same request.
+     */
+    if (reason === "duplicate_request") {
+      return { allowed: false, reason: "duplicate_request", retryAfterSeconds: 0 };
+    }
+
     return {
       allowed: false,
       reason:
@@ -492,9 +515,20 @@ export interface TerminalResult {
  * Returns whether a row matched, so a miss is reported rather than assumed
  * successful.
  */
-export async function completeAiRequest(result: TerminalResult): Promise<boolean> {
+/**
+ * What became of the write.
+ *
+ * `completed` and `duplicate_ignored` are both success: the record says what
+ * happened and says it once. `conflict` means two executions disagreed about
+ * one request and the stored row stood. `not_found` should be impossible.
+ * `unconfigured` is a deployment that was never promised an audit.
+ */
+export type CompletionOutcome =
+  "completed" | "duplicate_ignored" | "conflict" | "not_found" | "unreachable" | "unconfigured";
+
+export async function completeAiRequest(result: TerminalResult): Promise<CompletionOutcome> {
   const config = configured();
-  if (config === null) return false;
+  if (config === null) return "unconfigured";
 
   try {
     /*
@@ -534,22 +568,40 @@ export async function completeAiRequest(result: TerminalResult): Promise<boolean
     if (!response.ok) {
       // The status only. A PostgREST error body can quote the statement back.
       console.warn(`[observer.audit] the terminal result was not stored — HTTP ${response.status}`);
-      return false;
+      return "unreachable";
     }
 
-    // The façade returns whether it matched a row. A false here means the
-    // admission row is missing, which should be impossible and is worth saying.
-    const matched = (await response.json()) as boolean | null;
-    if (matched !== true) {
-      console.warn(
-        "[observer.audit] no admitted request matched this result — the row stays started",
-      );
-      return false;
+    const outcome = (await response.json()) as string | null;
+    switch (outcome) {
+      case "completed":
+      case "duplicate_ignored":
+        return outcome;
+
+      /*
+       * Two executions believed they owned one request, and disagreed about
+       * what happened. The stored row wins — it was written first and a
+       * completed record is not rewritten — and this is said loudly, because
+       * the alternative is a silent divergence between the audit and reality.
+       */
+      case "conflict":
+        console.warn(
+          "[observer.audit] a second, different result arrived for a completed request — the stored record stands",
+        );
+        return "conflict";
+
+      // The admission row is missing, which should be impossible: admission
+      // writes it in the same transaction that consumes the quota.
+      case "not_found":
+        console.warn("[observer.audit] no admitted request matched this result");
+        return "not_found";
+
+      default:
+        console.warn(`[observer.audit] unrecognised completion outcome — ${String(outcome)}`);
+        return "unreachable";
     }
-    return true;
   } catch (error) {
     const name = error instanceof Error ? error.constructor.name : typeof error;
     console.warn(`[observer.audit] the terminal result could not be stored — ${name}`);
-    return false;
+    return "unreachable";
   }
 }

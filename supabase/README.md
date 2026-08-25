@@ -44,15 +44,41 @@ Only what a public demonstration needs to protect itself:
 - `ai_rate_buckets` — shared counters for Ask Observer;
 - `ai_requests` — a redacted audit of _that_ a question happened;
 - `consume_ai_quota()` — the atomic gate;
-- `admit_ai_request()` — the gate plus the audit row, in one transaction;
-- `complete_ai_request()` — the terminal result, idempotent;
+- `admit_ai_request()` — the gate plus the audit row, in one transaction, and
+  a repeated request id consumes nothing;
+- `complete_ai_request()` — the terminal result, written once;
 - `prune_ai_rate_buckets()` — housekeeping.
 
-Two functions are reachable through PostgREST, both `security definer` façades
-in `public` and both granted to `service_role` alone: `admit_ai_request` and
-`complete_ai_request`. `observer_whoami` is also reachable by the server key —
-it tells a wrong-key 401 apart from a wrong-project 404, which cost five rounds
-of diagnosis once — but no longer by a browser one.
+Reachable through PostgREST, every one a `security definer` façade in `public`
+granted to `service_role` alone: `admit_ai_request`, `complete_ai_request`, and
+— during the expand phase only — the superseded `consume_ai_quota` and
+`record_ai_request`. `observer_whoami` is reachable by the server key, which
+uses it to tell a wrong-key 401 apart from a wrong-project 404; no browser role
+may execute anything in `public`.
+
+## Expand and contract
+
+The audit change ships as two migrations, and the second must wait.
+
+`20260825205000` **expands**: it adds columns, back-fills the rows that were
+already there, adds constraints and adds the new functions. It removes nothing.
+The two superseded façades keep working, and `record_ai_request` is rewritten so
+its rows are labelled `audit_version` 1 with authorship unknown rather than
+violating the new constraints.
+
+`20260826090000` **contracts**: it drops those two façades. Applying it early
+breaks every deployment still calling them — and Vercel keeps _every_ build
+reachable at its own URL, so "Production has been promoted" is not the
+condition. Twelve Preview deployments of `release/observer-demo-rc1` were READY
+when this was written, each one calling the old names.
+
+The empirical check, which is the one worth trusting:
+
+```sql
+select max(occurred_at) from observer.ai_requests where audit_version = 1;
+```
+
+A recent timestamp means somebody is still writing through the old door.
 
 The showroom read models are **not** here. Observer still answers from the
 deterministic synthetic repository; the real ingest is a later milestone.
@@ -79,7 +105,15 @@ reconciled against each other.
 | `question_chars`                                                     | The question's _length_.                                        |
 
 `fallback_reason` is one of `model_unavailable`, `provider_misconfigured`,
-`composition_failed`, `schema_rejected` or `output_guard`.
+`composition_failed`, `schema_rejected` or `output_guard` — an allow-list the
+database enforces, which is also what keeps a provider error message out of the
+column.
+
+Nine named check constraints hold the rest, and `supabase/test/audit-contract.test.ts`
+runs every migration against a real Postgres to prove they do: an author named
+beside a fallback, `model` as a source with no author, a state nobody defined and
+a version-2 row with no request id are all rejected by the database rather than
+by a convention.
 
 **Never stored:** the question, the answer, any prompt, any tool argument, any
 provider error body, any key, anything identifying. `subject` and `client_hash`
@@ -96,6 +130,12 @@ route finishes.
 
 A row left reading `started` is an interrupted request. That is a fact worth
 having, and the thing the old design could not tell apart from silence.
+
+Admission is retry-safe: it takes an advisory lock on the request id, looks for
+an existing row, and only then spends. A repeated id returns `duplicate_request`
+having consumed nothing. Completion is write-once: only a `started` row becomes
+terminal, an exact retry is ignored without moving `completed_at`, and a
+conflicting second result is refused and logged.
 
 ## Row-level security
 

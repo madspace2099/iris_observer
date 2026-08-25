@@ -350,3 +350,52 @@ wrong-key 401 apart from a wrong-project 404 — the failure this milestone spen
 five rounds on. The two superseded façades, `consume_ai_quota` and
 `record_ai_request`, are dropped rather than left unreachable: two doors to the
 same counters is the drift this codebase avoids.
+
+## Addendum — 2026-08-25, third: what static review caught
+
+The audit rebuild above was reviewed before it was applied, and four of its
+claims did not survive. None had reached a database, which is the argument for
+reviewing a migration rather than a deployment.
+
+**It would have dropped façades that live deployments still call.** The
+reasoning had been "Production has not been promoted, so nothing calls them" —
+true, and beside the point. Vercel keeps every build it has ever made reachable
+at its own URL, and twelve Preview deployments of this branch were READY, each
+calling `consume_ai_quota` and `record_ai_request` by name. The change now ships
+as expand-and-contract: nothing is removed until an empirical check —
+`select max(occurred_at) ... where audit_version = 1` — shows nobody is writing
+through the old door.
+
+**It would have rewritten history.** `add column state ... default 'started'`
+turns every completed historical request into an interrupted one, and
+`model_authored boolean not null default false` claims a model demonstrably did
+_not_ write those answers. Neither is true and neither is recoverable: the fact
+was never recorded. Historical rows are back-filled as `audit_version` 1,
+`state` complete, `completed_at` drawn from `occurred_at`, and authorship
+**null** — unknown, which is the honest value and the one the whole migration
+exists to protect.
+
+**Admission was not retry-safe.** It consumed quota and _then_ inserted
+`on conflict (request_id) do nothing`, so a repeated id spent a second unit of
+the daily budget while leaving one row — making unequal the two numbers this
+work exists to keep equal. The order is now lock, look, then spend, and a
+repeat returns `duplicate_request` having consumed nothing.
+
+**Completion was not write-once.** It updated any matching row, so a retry
+rewrote a completed record and moved `completed_at`. Only a `started` row now
+becomes terminal; an exact retry is ignored without touching a stored value; a
+conflicting second result is refused and logged.
+
+Two smaller corrections. The audit contract is enforced by nine named check
+constraints rather than by convention. And `telemetrySubject` — an unkeyed
+`sha256(userId)` over a handful of guessable ids, used as both a rate-limit
+bucket key and a durable audit column — is now a keyed HMAC. Its key comes from
+`OBSERVER_SUBJECT_PEPPER`, or is derived from the Supabase credential under a
+fixed label so that it stays identical across every instance of a deployment. A
+per-process key would have turned the distributed ceiling back into a
+per-instance one, silently, which is why the boot line now says when that is
+what a deployment has.
+
+One sentence in the addendum above is therefore wrong and is left standing as
+written: the superseded façades are _not_ dropped by that migration. They are
+dropped by `20260826090000`, later, on evidence.

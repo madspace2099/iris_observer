@@ -218,11 +218,24 @@ OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright 
 ### Database migrations come first
 
 The Supabase MCP tools are write-blocked from the authoring session, so every migration is
-applied by hand through the SQL Editor. **Apply it before pushing the code that depends on
-it.** `20260825205000` drops the two superseded façades, so between the migration and the new
-build the running deployment calls functions that no longer exist: the ceiling fails closed
-and Ask Observer refuses for the length of the deploy. Every measured figure on every screen
-is unaffected, which is what makes that window affordable.
+applied by hand through the SQL Editor. The audit change ships in two halves and the order
+is the whole point.
+
+**1. Expand — `20260825205000`.** Adds columns, back-fills the rows already there, adds
+constraints, adds the new functions. Removes nothing. Both old façades keep working, so it
+may be applied at any time, before or after the code that uses the new names. A build running
+the old code and a build running the new one are both correct against this schema.
+
+**2. Contract — `20260826090000`.** Drops `public.consume_ai_quota` and
+`public.record_ai_request`. **Not on promotion — on evidence.** Vercel keeps every build it
+has ever made reachable at its own URL, so promoting `main` retires nothing. Run this first:
+
+```sql
+select max(occurred_at) from observer.ai_requests where audit_version = 1;
+```
+
+A timestamp inside the last day means something is still writing through the old door. Wait,
+or delete the deployments that are.
 
 `_sql-to-paste/` holds the generated block and the read-only verification query. It is
 gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
