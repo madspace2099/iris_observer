@@ -47,12 +47,12 @@ for (const [name, route] of ROUTES) {
 }
 
 test.describe("the three views", () => {
-  test("the opening screen offers three doors and nothing to analyse", async ({ page }) => {
+  test("the briefing offers three doors and nothing to analyse", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    const doors = page.getByRole("navigation", { name: "Analytics views" }).getByRole("link");
+    const doors = page.getByRole("navigation", { name: "Views" }).getByRole("link");
     await expect(doors).toHaveCount(3);
-    // A verdict, three figures, three doors. Review rejected the previous
-    // opening screen for carrying an analysis instead of an answer.
+    // Observer's sentence, three figures, three doors. Review rejected the
+    // earlier opening screen for carrying an analysis instead of an answer.
     expect(await page.locator(".iris-home-figures > div").count()).toBeLessThanOrEqual(3);
     await expect(page.locator(".iris-signal")).toBeVisible();
   });
@@ -121,12 +121,19 @@ test.describe("the product rules, at the surface", () => {
     await ask.fill("Which IRIS sections are being skipped most frequently?");
     await ask.press("Enter");
 
-    const sheet = page.getByRole("dialog", { name: "Ask Observer" });
+    const sheet = page.getByRole("dialog", { name: "Observer" });
     await expect(sheet).toBeVisible();
-    // The five parts an answer must separate.
-    await expect(sheet.getByText("Observed", { exact: true })).toBeVisible();
-    await expect(sheet.getByText("Interpretation", { exact: true })).toBeVisible();
-    await expect(sheet.getByText(/Confidence and evidence/i)).toBeVisible();
+    /*
+     * Measured and interpreted stay labelled and stay apart.
+     *
+     * The qualifying detail folds away now — an interpretation buried under its
+     * own caveats is not read — but which part a tool computed and which part a
+     * model may have written is the product's central claim (ADR-0024), and a
+     * claim only made in the documentation is not being made.
+     */
+    await expect(sheet.getByText("Measured", { exact: true })).toBeVisible();
+    await expect(sheet.getByText(/Observer.s reading/)).toBeVisible();
+    await sheet.getByText(/Confidence and evidence/i).click();
     await expect(sheet.getByText(/records ·/).first()).toBeVisible();
   });
 });

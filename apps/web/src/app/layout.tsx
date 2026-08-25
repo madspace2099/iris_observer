@@ -11,6 +11,7 @@ import "@observer/ui/components.css";
 import "@observer/ui/iris.css";
 import "@observer/ui/showroom.css";
 import "@observer/ui/charts.css";
+import "@observer/ui/observer.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per

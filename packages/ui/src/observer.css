@@ -1,0 +1,615 @@
+/*
+ * Observer's presence.
+ *
+ * One luminous focal point on a near-black architectural ground, and a
+ * composition that gives the intelligence and the way into it the same weight
+ * as the figures. Everything here is restraint in service of that: no glass
+ * cards, no glowing borders, no second gradient competing with the orb.
+ */
+
+/* --- the briefing page ------------------------------------------------------- */
+
+/*
+ * One measure for the whole column.
+ *
+ * The console ran full-bleed while the figures beneath it sat in a narrower
+ * centred block, so the page read as a banner with a different page underneath
+ * it. Everything now hangs off the same left edge.
+ */
+.obs-page {
+  --obs-measure: 76rem;
+  display: grid;
+  align-content: start;
+}
+
+.obs-page > * {
+  width: 100%;
+  max-width: var(--obs-measure);
+  margin-inline: auto;
+  padding-inline: 2.5rem;
+}
+
+/* --- the console, at the top of the briefing --------------------------------- */
+
+.obs-console {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  align-items: center;
+  gap: 3.5rem;
+  padding-block: 2.25rem 2rem;
+  position: relative;
+}
+
+/*
+ * A single wash behind the orb, bled into the page rather than framed.
+ *
+ * A card would put a border between Observer and the project it is talking
+ * about, which is the opposite of the thing being claimed.
+ */
+.obs-console::before {
+  content: "";
+  position: absolute;
+  inset: -2rem -4rem;
+  background: radial-gradient(
+    58% 76% at 16% 50%,
+    color-mix(in oklab, var(--accent) 9%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+.obs-console-orb {
+  display: grid;
+  place-items: center;
+  /* Reserved, so the first canvas frame does not move the column. */
+  min-height: 21rem;
+}
+
+.obs-console-body {
+  display: grid;
+  gap: 0.875rem;
+  align-content: center;
+  max-width: 46rem;
+}
+
+.obs-greeting {
+  margin: 0;
+  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/*
+ * The one sentence.
+ *
+ * Large enough to be the first thing read on the page and short enough to be
+ * read in one pass. Observer speaks in the first person because it is the thing
+ * that did the reading.
+ */
+.obs-lede {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.4vw, 2.125rem);
+  line-height: 1.22;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+  max-width: 26ch;
+  text-wrap: balance;
+}
+
+/* --- the way in -------------------------------------------------------------- */
+
+.obs-prompt {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: 0.75rem;
+  background: color-mix(in oklab, var(--plane) 80%, #000);
+  max-width: 40rem;
+  transition: border-color 140ms ease;
+}
+
+.obs-prompt:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.obs-prompt textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  padding: 0.5rem 0;
+  field-sizing: content;
+  max-height: 8rem;
+}
+
+.obs-prompt textarea::placeholder {
+  color: var(--ink-3);
+}
+
+.obs-send {
+  flex: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--rule-firm);
+  background: var(--surface-hover);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.obs-send[data-emphasis="primary"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
+}
+
+.obs-send:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.obs-progress {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--accent);
+}
+
+/* --- what it offers to answer next ------------------------------------------- */
+
+.obs-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+
+.obs-chip {
+  padding: 0.375rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.obs-chip:hover {
+  color: var(--ink);
+  border-color: var(--rule-firm);
+  background: var(--surface-hover);
+}
+
+.obs-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- what it said ------------------------------------------------------------ */
+
+.obs-answer {
+  display: grid;
+  gap: 0.875rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+  max-width: 44rem;
+}
+
+.obs-answer-question {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.obs-answer-said {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.obs-answer-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+}
+
+.obs-answer-facts dt {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.obs-answer-facts dd {
+  margin: 0.125rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.obs-answer-facts b {
+  font-family: var(--mono);
+  font-size: 1rem;
+}
+
+.obs-answer-facts dd span {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.obs-answer-basis > summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  padding: 0.25rem 0;
+}
+
+.obs-answer-basis > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.obs-answer-basis[open] > summary {
+  color: var(--ink-2);
+  margin-bottom: 0.625rem;
+}
+
+.obs-answer-limits {
+  margin: 0 0 0.75rem;
+  padding-left: 1.125rem;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.obs-answer-refs {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+}
+
+.obs-answer-provenance {
+  margin-top: 0.75rem;
+  color: var(--ink-3);
+}
+
+/*
+ * The action sits at its own width.
+ *
+ * Stretched across the answer it read as the page's primary call to action,
+ * which it is not — it is one place the reader might go next.
+ */
+.obs-answer .iris-action {
+  justify-self: start;
+}
+
+.obs-followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.obs-dismiss {
+  justify-self: start;
+  margin-top: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* --- the evidence beneath the sentence --------------------------------------- */
+
+.obs-basis {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding-block: 1.75rem 2.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.obs-basis-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.obs-basis-head .iris-kicker {
+  margin: 0;
+}
+
+.obs-basis-because {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* --- collapsed, on every other surface --------------------------------------- */
+
+.obs-rail {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4375rem 0.5rem 0.4375rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--rule-firm);
+  background: color-mix(in oklab, var(--surface-overlay) 88%, #000);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 55%);
+  max-width: min(56rem, calc(100vw - 2rem));
+  transition: transform 220ms ease;
+}
+
+.obs-rail[data-shifted="true"] {
+  transform: translateX(calc(-50% - 19vw));
+}
+
+/*
+ * The context yields to the prompt, not the other way round.
+ *
+ * Naming the project, the agent and the unit pushed the input down to a few
+ * characters wide, so the primary control became the smallest thing in the
+ * rail. The context now truncates; the prompt does not.
+ */
+.obs-rail-context {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  color: var(--ink-3);
+  overflow: hidden;
+  max-width: 16rem;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.obs-rail-pin {
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obs-rail > .iris-action {
+  flex: none;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.obs-rail-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 20rem;
+  min-width: 14rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--rule);
+}
+
+.obs-rail-form input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.obs-rail-form input::placeholder {
+  color: var(--ink-3);
+}
+
+.obs-rail kbd {
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-3);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.125rem 0.3125rem;
+}
+
+/* --- narrower ---------------------------------------------------------------- */
+
+@media (max-width: 74rem) {
+  /*
+   * The presence steps aside for the way in.
+   *
+   * Stacked at full size the orb took the whole first screen and pushed the
+   * sentence and the prompt below the fold. On a narrow screen it sits beside
+   * the greeting at a fraction of the size — still the same entity, still the
+   * same states, no longer the entire viewport.
+   */
+  .obs-console {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+    padding-top: 1.5rem;
+  }
+
+  .obs-console-orb {
+    min-height: 0;
+  }
+
+  .obs-console .obs-orb-canvas {
+    width: 7.5rem;
+    height: 7.5rem;
+  }
+
+  .obs-console::before {
+    background: radial-gradient(
+      70% 40% at 30% 22%,
+      color-mix(in oklab, var(--accent) 9%, transparent),
+      transparent 70%
+    );
+  }
+}
+
+@media (max-width: 60rem) {
+  .obs-lede {
+    max-width: none;
+    font-size: 1.375rem;
+    line-height: 1.28;
+  }
+
+  .obs-console {
+    gap: 1rem;
+  }
+
+  .obs-console .obs-orb-canvas {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .obs-rail {
+    left: 0.75rem;
+    right: 0.75rem;
+    transform: none;
+    max-width: none;
+    flex-wrap: wrap;
+  }
+
+  .obs-rail[data-shifted="true"] {
+    transform: none;
+  }
+
+  .obs-rail-context {
+    display: none;
+  }
+
+  .obs-rail-form {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .obs-answer-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Reduced motion.
+ *
+ * The orb still says which state it is in — colour, luminance and aperture are
+ * drawn in the single frame it renders — and the words beside it say it too.
+ * Nothing here depends on movement to be understood.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .obs-rail {
+    transition: none;
+  }
+}
+
+/*
+ * Which part is measured and which part is read.
+ *
+ * Small, but never absent: the separation between a figure a tool computed and
+ * a sentence a model may have written is the product's central claim, and a
+ * claim that only appears in the documentation is not being made.
+ */
+.obs-answer-role {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.obs-answer-role + .obs-answer-said,
+.obs-answer-role + .obs-answer-facts {
+  margin-top: -0.375rem;
+}
+
+/* --- Observer, embodied ------------------------------------------------------ */
+
+/*
+ * The orb owns the only glow on the page.
+ *
+ * One luminous focal point, and everything around it calmer than it would be
+ * on its own. A screen where every panel glows has no focus, and the whole
+ * argument for an embodied presence is that the reader knows where it is.
+ */
+.obs-orb {
+  display: grid;
+  place-items: center;
+  position: relative;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+}
+
+button.obs-orb {
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+button.obs-orb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.obs-orb-canvas {
+  display: block;
+  /* Sized here so the box is reserved before the first frame lands and nothing
+     moves when it does. */
+  width: var(--orb-size, 20rem);
+  height: var(--orb-size, 20rem);
+  max-width: 100%;
+}
+
+.obs-orb--compact .obs-orb-canvas {
+  filter: saturate(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-orb-canvas {
+    transition: none;
+  }
+}
+
+/*
+ * The doors keep their own edges.
+ *
+ * The row draws its dividers with a background showing through 1px gaps, so
+ * the page's horizontal padding turned into two dark bands at its ends.
+ */
+.obs-page > .iris-doors {
+  padding-inline: 0;
+}

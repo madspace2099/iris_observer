@@ -57,7 +57,7 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
 ## What is true right now
 
 - 82 metrics in the registry, **62 source requirements**, 0 uncovered, 0 open decisions, 1 review gate.
-- **24 ADRs. 218 unit tests, 246 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
+- **25 ADRs. 235 unit tests, 256 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
   (12 skipped: the desktop-only concepts), **zero axe violations on every showroom
   surface at every viewport**, production build green.
 - **Thirteen chart shapes**, all hand-drawn SVG, documented in `docs/17-showroom-intelligence.md`
@@ -67,6 +67,11 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
   radar per presenter. Four correctness rules — funnels nest, ordered lists are never ordered by
   outcome, one figure has one value per page, a radar is a shape and not a score — are guarded by
   tests in `e2e/quality.spec.ts`, each because it was broken first.
+- **Observer is the interface** (ADR-0025). The opening surface is a briefing: the orb, a
+  first-person sentence, a prominent prompt and context-aware offers, above the fold at
+  1920×1080, 1440×900 and on a phone. The orb is canvas-drawn, state-driven and has no
+  runtime asset; its state mapping is asserted by the unit suite. No voice control is shown,
+  because voice is not implemented.
 - **Ask Observer is live**, running the controlled tool architecture. Without `FAL_KEY` the
   deterministic provider answers from the same tools; the answer sheet says which produced
   the prose. No live-model smoke test has been run — no key is present on this machine.

@@ -115,7 +115,7 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
  * Administration is deliberately absent.
  */
 export const PRIMARY_NAV = [
-  { key: "showroom", label: "Showroom" },
+  { key: "showroom", label: "Briefing" },
   { key: "flow", label: "Sales Flow" },
   { key: "project", label: "Project" },
   { key: "agents", label: "Sales Agents" },

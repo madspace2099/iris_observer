@@ -139,11 +139,17 @@ test.describe("the ten-second test", () => {
       return box !== null && box.y < fold;
     };
 
-    // The whole opening screen is the ten-second answer since the restructure:
-    // a signal, a verdict, three figures and three doors, all above the fold.
-    expect(await within(".iris-signal"), "signal below the fold").toBe(true);
-    expect(await within(".iris-verdict"), "verdict below the fold").toBe(true);
-    expect(await within(".iris-home-figures"), "figures below the fold").toBe(true);
+    /*
+     * Observer opens the product, so Observer has to be above the fold.
+     *
+     * The presence, the sentence and the prompt are the ten-second answer now,
+     * and the prompt being a primary control rather than a footer field is the
+     * whole point of the direction — so its position is asserted, not assumed.
+     */
+    expect(await within(".obs-orb"), "Observer below the fold").toBe(true);
+    expect(await within(".obs-lede"), "the briefing sentence below the fold").toBe(true);
+    expect(await within(".obs-prompt"), "the prompt below the fold").toBe(true);
+    expect(await within(".obs-suggestions"), "the suggestions below the fold").toBe(true);
   });
 
   test("keeps the first screen to at most six figures", async ({ page }) => {
@@ -170,10 +176,25 @@ test.describe("the ten-second test", () => {
 
   test("leads with the showroom, not with the CRM", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    // ADR-0023 at the surface: the opening verdict is about the showroom, and
-    // outcome appears as a rate rather than as the subject.
-    await expect(page.locator(".iris-verdict")).toContainText(/showroom/i);
+    // ADR-0023 at the surface: the opening sentence is about the presentations,
+    // and outcome appears as a rate rather than as the subject.
+    await expect(page.locator(".obs-lede")).toContainText(/showroom/i);
     await expect(page.getByText(/of recorded meetings progressing/i)).toBeVisible();
+  });
+
+  test("makes the prompt a primary control, not a footer field", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === "mobile", "A phone has no side-by-side composition.");
+    await signInAs(page, "Petra Novák");
+
+    const prompt = await page.locator(".obs-prompt").boundingBox();
+    const viewport = page.viewportSize();
+    expect(prompt).not.toBeNull();
+    expect(viewport).not.toBeNull();
+
+    // Wide enough to read as the way in rather than as a search box tucked into
+    // a corner, and in the upper half of the opening composition.
+    expect(prompt!.width).toBeGreaterThan((viewport!.width ?? 0) * 0.25);
+    expect(prompt!.y).toBeLessThan((viewport!.height ?? 0) * 0.6);
   });
 
   test("says insufficient data rather than showing a green light", async ({ page }) => {

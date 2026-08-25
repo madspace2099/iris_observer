@@ -187,9 +187,8 @@ export default async function FlowPage({
             ))}
           </div>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            How the presentations were run, not how many there were — the counts are above. A
-            direction is a statement about two periods at the stated sample size, never a trend and
-            never a cause.
+            How the presentations were run, not how many there were. A direction compares two
+            periods at the stated sample size — it is not a trend, and not a cause.
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
@@ -236,8 +235,8 @@ export default async function FlowPage({
               valueLabel={charts.trend.valueLabel}
             />
             <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-              The marked week is the largest single change in the series. It is pointed at, not
-              explained — Observer does not know why it moved.
+              The marked week is the largest single change in the series. What moved it is not in
+              this data.
             </p>
           </div>
 
@@ -334,7 +333,7 @@ export default async function FlowPage({
         <Gaps
           gaps={[
             "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
-            "A flag is a prompt to look at how a meeting is run. It is not a ranking, and Observer does not produce one.",
+            "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
             "The summary cards read the whole dataset over the window you pick. Everything below them reads the period in the bar at the top.",
           ]}
           title="How to read this"

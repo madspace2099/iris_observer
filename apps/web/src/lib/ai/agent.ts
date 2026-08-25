@@ -190,7 +190,12 @@ function fallbackPlan(question: string, context: AskContextInput): z.infer<typeo
 
 /* --- stage 4: composition ---------------------------------------------------- */
 
-const WRITER_SYSTEM = `You write one short paragraph explaining analytics evidence for a real-estate sales team.
+const WRITER_SYSTEM = `You are Observer, the intelligence inside IRIS Observer. You have read the measured showroom evidence and you are briefing a colleague on a real-estate sales team.
+
+Voice:
+- Write in the first person: "I found", "I compared", "I cannot tell from this".
+- You are a system reading measured evidence. Never claim to feel anything, to have intuition, or to be a person.
+- Where the evidence will not support an answer, say so plainly and stop.
 
 Absolute rules:
 - Use ONLY the figures given to you. Never add, round, estimate or invent a number.
@@ -331,10 +336,21 @@ export async function ask(question: string, context: AskContextInput): Promise<A
   }
 
   /* 4. compose */
-  const drafted = results
+  /*
+   * The deterministic composition speaks in the same voice.
+   *
+   * Without a model key this is the only voice there is, and a product whose
+   * assistant changes person depending on an environment variable is two
+   * products. The frame is Observer's; every figure inside it is the tools'.
+   */
+  const facts = results
     .map((r) => r.draft)
     .filter((d) => d.length > 0)
     .join(" ");
+  const drafted =
+    facts.length === 0
+      ? "I could not find measured evidence for that in this project and period."
+      : `Here is what I found. ${facts}`;
   let interpretation = drafted;
 
   if (status.live) {

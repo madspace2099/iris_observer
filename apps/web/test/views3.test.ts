@@ -184,9 +184,18 @@ describe("the audience builder", () => {
   });
 
   it("says what a behaviour is and is not", async () => {
+    /*
+     * The wording may change; the guarantee may not.
+     *
+     * Product-boundary explanations were stripped from the interface, and this
+     * caveat was caught in the sweep. It is not that kind of copy: inferring a
+     * household from where somebody's attention went is the inference this
+     * product must visibly refuse, so it is asserted on meaning rather than on
+     * a phrase.
+     */
     const view = await syntheticRepository.getAudience(QUERY, FAMILY);
     const caveats = view.caveats.join(" ");
-    expect(caveats).toMatch(/does not infer/i);
+    expect(caveats).toMatch(/never inferred|does not infer|not a fact about anyone's household/i);
     expect(caveats).toMatch(/meetings, not people/i);
   });
 

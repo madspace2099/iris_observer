@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import { DetailNav, PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
-import { AskRail } from "@/showroom/AskRail";
+import { ObserverRail } from "@/showroom/observer/ObserverRail";
 import { SyntheticBadge } from "@/showroom/parts";
 import { PRIMARY_NAV, SECONDARY_NAV, SURFACES } from "@/lib/routes";
 import { repository } from "@/lib/repository";
@@ -145,12 +145,14 @@ export default async function ProjectLayout({
       </main>
 
       {/*
-       * Ask Observer is chrome, not a page.
+       * Observer is chrome, not a page.
        *
-       * It sits on every surface and carries the current context, because an
-       * assistant you have to navigate to is one nobody asks.
+       * It sits on every surface and carries the current analytical context, so
+       * a question about the agent or the unit already on screen does not have
+       * to name it. The briefing renders the same entity at full size; here it
+       * is collapsed to a presence and a prompt.
        */}
-      <AskRail projectLabel={project.name} root={root} />
+      <ObserverRail projectLabel={project.name} root={root} />
     </div>
   );
 }

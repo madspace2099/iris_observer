@@ -193,8 +193,7 @@ export default async function AgentsPage({
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
             Each spoke is scaled against the strongest agent on that spoke, so the shapes are
             comparable to each other and not to an absolute. A wider shape is a different way of
-            presenting, not a better one — the six spokes are not weighted against each other and
-            Observer does not add them into a score.
+            presenting, not a better one.
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
@@ -246,7 +245,7 @@ export default async function AgentsPage({
 
         <Gaps
           gaps={[
-            "These are differences in how people present, at the stated sample sizes. They are not a ranking, and Observer does not produce one.",
+            "These are differences in how people present, at the stated sample sizes. They are not a ranking.",
             ...(view.showRatings
               ? [
                   "The IRIS rating is the agent's own score for the software at the end of a session. It is visible to MADSPACE only.",

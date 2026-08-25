@@ -79,10 +79,12 @@ test.describe("showroom intelligence", () => {
 
   test("ask observer", async ({ page }, info) => {
     await signInAs(page, "Petra Novák");
-    const ask = page.getByPlaceholder("Ask Observer…");
+    // Sign-in lands on the briefing, where Observer is the console rather than
+    // the collapsed rail — one Observer per screen.
+    const ask = page.getByPlaceholder(/^Ask Observer about/);
     await ask.fill("Compare Monika and Akhilesh's presentation flows.");
     await ask.press("Enter");
-    await page.getByRole("dialog", { name: "Ask Observer" }).waitFor();
+    await page.locator(".obs-answer").waitFor();
     await shoot(page, "10-ask", info.project.name);
   });
 });

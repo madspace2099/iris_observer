@@ -303,7 +303,7 @@ export default async function ProjectPage({
         <Gaps
           gaps={[
             "Filter state and individual points of interest are not emitted by the current showroom build. Both are shown as a demonstration of what the UE5 v2 event would answer.",
-            "Time spent on a kind of place is a behaviour. Observer does not infer anything about a buyer's household from it and must not be read as doing so.",
+            "Time spent on a kind of place is a behaviour, not a fact about anyone's household.",
           ]}
         />
       </section>

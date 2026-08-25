@@ -6,22 +6,23 @@ import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Measure } from "@/showroom/Measure";
-import { SourceChips } from "@/showroom/parts";
+import { ObserverConsole } from "@/showroom/observer/ObserverConsole";
+import { greetingFor } from "@/showroom/observer/suggestions";
 
-export const metadata: Metadata = { title: "Showroom" };
+export const metadata: Metadata = { title: "Briefing" };
 
 /**
- * The opening screen.
+ * The briefing.
  *
- * Rebuilt after review, which found the previous one overloaded: a wall of prose
- * and figures where a verdict belonged.
+ * Observer opens the product: its presence, what it found, and the way to ask
+ * it something — all above the fold and all at the weight of the figures rather
+ * than beneath them. A prompt in a footer teaches the reader that asking is a
+ * secondary activity, and the argument of this product is that it is the
+ * primary one.
  *
- * A developer with two minutes must be able to tell in ten seconds whether the
- * showroom meetings are going the right way, see the one thing worth acting on,
- * and then choose where to go. That is the whole page — a signal, a sentence,
- * three figures, and three doors. **Nothing analytical lives here.** Everything
- * that was on this screen moved behind the doors, where it has room to be
- * explained instead of stacked.
+ * Beneath it, the same three figures and three doors as before. They are the
+ * evidence for the sentence Observer just said, so they follow it rather than
+ * competing with it.
  */
 const SIGNAL_LABEL = {
   good: "On course",
@@ -29,7 +30,7 @@ const SIGNAL_LABEL = {
   poor: "Going the wrong way",
 } as const;
 
-export default async function ShowroomPage({
+export default async function BriefingPage({
   params,
   searchParams,
 }: {
@@ -47,20 +48,59 @@ export default async function ShowroomPage({
     period: presetFrom(period) as PeriodPreset,
   });
 
-  return (
-    <div className="iris-one">
-      <section className="iris-home">
-        <p className="iris-kicker">
-          {home.context.tenant.name} · {home.context.project.name} · {home.context.period.label}
-        </p>
+  /*
+   * The greeting is resolved here, not in the browser.
+   *
+   * A greeting derived from the clock during hydration is two different renders
+   * of the same page, which React reports as an error and the reader sees as a
+   * flicker.
+   */
+  const greeting = greetingFor(new Date().getHours(), viewer.displayName);
 
-        <div className="iris-signal" data-signal={home.signal}>
-          <span className="iris-signal-mark" aria-hidden="true" />
-          <span className="iris-signal-label">{SIGNAL_LABEL[home.signal]}</span>
+  /*
+   * Observer speaks, but never writes the figures.
+   *
+   * The verdict and the alert are the read models' sentences, unchanged.
+   * Observer supplies only the frame around them — what it looked at, and
+   * whether it found something. It never claims to feel anything about what it
+   * found, and where there is nothing worth acting on it says that instead of
+   * manufacturing urgency.
+   */
+  const reviewed = `I reviewed ${home.meetingCount} showroom ${
+    home.meetingCount === 1 ? "presentation" : "presentations"
+  } ${home.context.period.label.toLowerCase()}.`;
+  const briefing =
+    home.alert === null ? `${reviewed} ${home.verdict}` : `${reviewed} ${home.alert.text}`;
+
+  return (
+    <div className="iris-one obs-page">
+      <ObserverConsole
+        context={{
+          tenantSlug,
+          projectSlug,
+          projectLabel: home.context.project.name,
+          period: presetFrom(period),
+          unitCode: null,
+          meetingId: null,
+          agentId: null,
+          agentName: null,
+          segment: null,
+        }}
+        greeting={greeting}
+        briefing={briefing}
+        hasObservation={home.alert !== null}
+      />
+
+      <section className="obs-basis">
+        <div className="obs-basis-head">
+          <p className="iris-kicker">Behind that</p>
+          <div className="iris-signal" data-signal={home.signal}>
+            <span className="iris-signal-mark" aria-hidden="true" />
+            <span className="iris-signal-label">{SIGNAL_LABEL[home.signal]}</span>
+          </div>
         </div>
 
-        <h1 className="iris-verdict">{home.verdict}</h1>
-        <p className="iris-home-because">{home.because}</p>
+        <p className="obs-basis-because">{home.because}</p>
 
         <dl className="iris-home-figures">
           {home.figures.map((f) => (
@@ -86,24 +126,15 @@ export default async function ShowroomPage({
             </div>
           ))}
         </dl>
-
-        {home.alert === null ? null : (
-          <Link className="iris-home-alert" href={dynamicRoute(home.alert.href)}>
-            <span className="iris-code">Worth acting on</span>
-            {home.alert.text}
-          </Link>
-        )}
-
-        <SourceChips sources={home.sources} />
       </section>
 
       {/*
-        * The three doors.
+        * Where to go next.
         *
-        * Each carries the single most useful thing behind it, already computed —
+        * Each carries the single most useful thing behind it, already computed,
         * so choosing is an informed decision rather than a guess at a label.
         */}
-      <nav className="iris-doors" aria-label="Analytics views">
+      <nav className="iris-doors" aria-label="Views">
         {home.doors.map((door) => (
           <Link key={door.id} className="iris-door" href={dynamicRoute(door.href)}>
             <span className="iris-door-label">{door.label}</span>

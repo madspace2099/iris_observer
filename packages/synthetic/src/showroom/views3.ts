@@ -803,7 +803,8 @@ export function buildAudience(
     ofMeetings: sessions.length,
     caveats: [
       "This selects meetings, not people. Open a meeting to reach the contact — identity stays on the surface that already governs it.",
-      "Time spent on a category of place is a behaviour, not a fact about anyone's household. Observer does not infer family status and must not be read as doing so.",
+      // A privacy guarantee, not a product-boundary note: it stays on screen.
+      "Time spent on a category of place is a behaviour, not a fact about anyone's household. Family status is never inferred from it.",
       ...(criteria.placeCategory === null
         ? []
         : [

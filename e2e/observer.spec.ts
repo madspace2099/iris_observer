@@ -113,7 +113,7 @@ test.describe("sales agent", () => {
      * All four are open to a sales agent — the doors are the product, not a
      * management report.
      */
-    for (const section of ["Showroom", "Sales Flow", "Project", "Sales Agents"]) {
+    for (const section of ["Briefing", "Sales Flow", "Project", "Sales Agents"]) {
       await expect(nav.getByRole("link", { name: section })).toBeVisible();
     }
 

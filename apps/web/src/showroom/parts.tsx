@@ -328,7 +328,7 @@ export function OutcomeContext({
   return (
     <div>
       <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
-        Outcome context · CRM
+        How those meetings ended
       </p>
       <div className="iris-outcomes">
         {outcomes.map((o) => (
@@ -338,10 +338,7 @@ export function OutcomeContext({
         ))}
         <span style={{ marginLeft: "auto" }}>of {total} meetings</span>
       </div>
-      <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-        Shown to segment the presentations above. Observer does not report on the commercial process
-        itself — the CRM owns that.
-      </p>
+
     </div>
   );
 }
