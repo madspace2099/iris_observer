@@ -302,58 +302,84 @@ deployment.
 
 ---
 
-## 11. Rotating the pseudonym key
+## 11. The pseudonym key
 
-The shared ceiling counts one viewer into one bucket only if every instance
-derives the same subject. That subject is a keyed HMAC, and the key comes from
-`OBSERVER_SUBJECT_PEPPER` if it is set, or is derived from `SUPABASE_SECRET_KEY`
-under a fixed label if it is not.
+`OBSERVER_SUBJECT_PEPPER` is **required**. A deployment without a valid one
+refuses every Ask Observer question at the gate — before the quota is consulted,
+before an audit row is written, before any model is called — and names the
+reason in the boot line.
 
-**The second case couples two unrelated things.** Rotating the Supabase
-credential — for a leak, a policy, a new project — changes every subject and
-every client fingerprint. Every rate-limit bucket is keyed by those values, so
-all of them orphan at once and the per-minute, per-hour, per-client and per-day
-ceilings restart from zero, mid-day, with nothing in any log. A cost control
-that resets itself when an unrelated credential is replaced is not a control.
+### The contract
 
-Two things follow.
-
-### Pin the pepper before you need to rotate anything
+At least **32 bytes of cryptographically random material**:
 
 ```
-OBSERVER_SUBJECT_PEPPER=<32+ random bytes, hex>
+node -e "console.log(crypto.randomBytes(32).toString('hex'))"
 ```
 
-Generate with `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`.
-Set it on every environment that shares a database, with the same value. From
-that point the Supabase key can be rotated freely: the pseudonym key no longer
-depends on it, and no bucket moves.
+Rejected, each with its own message: absent, empty or whitespace, shorter than
+32 bytes, wrapped in quotes or brackets, padded with whitespace, an obvious
+placeholder, or repeating too few distinct characters. The last rule is relaxed
+only where `VITEST` or `NODE_ENV=test` is set, so the suite can use an
+unmistakably fake value and a deployment cannot.
 
-### The change leaves a record either way
+**The same value on every environment that shares a database.** Two environments
+with different peppers write subjects that do not match, so the ceilings count
+them as different people and aggregate nothing.
 
-The boot line names an eight-character fingerprint of the key in use:
+### It is derived from nothing, on purpose
+
+An earlier draft derived it from `SUPABASE_SECRET_KEY` when no pepper was set.
+That coupled two lifecycles that have no business being coupled: rotating the
+database credential — for a leak, a policy, a new project — silently changed
+every subject and client fingerprint, orphaned every rate-limit bucket and
+restarted all four ceilings from zero, mid-day, with nothing in any log.
+
+A key whose value is a function of another key is also a key whose compromise is
+a function of another key's compromise.
+
+### Rotation is a maintenance operation
+
+Rotating the pepper **changes every pseudonymous identifier** and therefore
+**resets subject-scoped quota buckets**. That is not a side effect to be avoided
+— it is what rotation means when identifiers are keyed — but it must be planned
+rather than discovered:
+
+1. do it at a quiet hour, not mid-demonstration;
+2. record the old and new **key id** in the deployment log;
+3. expect the per-minute, per-hour, per-client and per-day counters to start
+   again from zero;
+4. set the same new value on every environment sharing the database, in one
+   pass. A half-rotated pair of environments is two populations of subjects.
+
+The audit is unaffected. `observer.ai_requests` rows keep the subjects they were
+written with and the `key_id` that made them, which is precisely what lets
+somebody see afterwards that a rotation happened rather than infer it from a
+counter that looks wrong.
+
+### The key id
+
+Sixteen hex characters of an HMAC of the key under a fixed label. Preimage
+resistant, useless to an attacker, different the instant the key is different.
+
+It appears in two places, deliberately:
 
 ```
-Ask Observer subjects are keyed and stable across instances. Key fingerprint 3f9a1c04 —
-if this changes, every rate-limit bucket has reset.
+Ask Observer subjects are keyed. Key id 3f9a1c04e7b52d18 — if this changes,
+every rate-limit bucket has reset.
 ```
 
-It is an HMAC of the key under a fixed label, truncated. It cannot be reversed,
-it identifies nothing but itself, and it is different the instant the key is
-different. That turns "the ceilings reset last Tuesday" from an unanswerable
-question into a log search.
+and on **every version-2 audit row**, in `key_id`. The boot line is the fast
+signal; the column is the durable one. A startup log ages out of a platform's
+retention, and the question a rotation raises gets asked afterwards, sometimes
+long afterwards. A column answers it. An expired log line does not.
 
-It is a record, not a guard. Nothing refuses to start on a changed fingerprint,
-because refusing would turn a legitimate rotation into an outage. When a
-rotation is deliberate, note the old and new fingerprints in the deployment log
-and expect the day's counters to restart — that is the explicit operational
-record the design asks for, and the boot line is what makes it possible to
-write.
+```sql
+select key_id, min(occurred_at), max(occurred_at), count(*)
+  from observer.ai_requests where audit_version = 2 group by key_id order by 2;
+```
 
-### Rotating the pepper itself
+More than one row there is a rotation, with the date it happened.
 
-Same consequence, deliberately: every bucket orphans. Do it at a quiet hour,
-record both fingerprints, and expect the daily budget to start again from zero.
-Nothing in the audit is affected — `observer.ai_requests` rows keep the subjects
-they were written with, and those were never meant to be joinable across a
-rotation.
+It is a record, not a guard: nothing refuses to start on a changed key id,
+because that would turn a legitimate rotation into an outage.

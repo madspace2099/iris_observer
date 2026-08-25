@@ -70,7 +70,8 @@ alter table observer.ai_requests
   add column if not exists model_authored  boolean,
   add column if not exists author_model    text,
   add column if not exists fallback_reason text,
-  add column if not exists completed_at    timestamptz;
+  add column if not exists completed_at    timestamptz,
+  add column if not exists key_id          text;
 
 -- Backfill before any default exists, so the historical rows are described
 -- rather than relabelled. They were completed requests; their outcome and
@@ -103,6 +104,8 @@ comment on column observer.ai_requests.author_model is
   'The model that wrote the final prose, or null. Null is the honest answer for every fallback, and for every version-1 row.';
 comment on column observer.ai_requests.model_authored is
   'Equals the `live` flag the answer sheet renders. Null on version-1 rows: unknown, not false.';
+comment on column observer.ai_requests.key_id is
+  'Which pseudonym key produced this row''s subject and client_hash. An HMAC of that key, never the key. Rotating the pepper changes it, and subjects written under different key ids are not comparable.';
 comment on column observer.ai_requests.fallback_reason is
   'Why the deterministic composer answered instead. A fixed code from an allow-list, never a provider message.';
 comment on column observer.ai_requests.occurred_at is
@@ -153,6 +156,20 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'ai_requests_v2_requires_question_chars') then
     alter table observer.ai_requests add constraint ai_requests_v2_requires_question_chars
       check (audit_version = 1 or question_chars is not null);
+  end if;
+
+  /*
+   * Which key produced the pseudonyms on this row.
+   *
+   * Required of version 2 and impossible for version 1, which was written
+   * before the key existed. It is what turns a rotation from an unexplained
+   * counter reset into a fact somebody can query: subjects under two different
+   * key ids are not the same viewer twice, they are two unrelated strings.
+   */
+  if not exists (select 1 from pg_constraint where conname = 'ai_requests_v2_requires_key_id') then
+    alter table observer.ai_requests add constraint ai_requests_v2_requires_key_id
+      check ((audit_version = 1 and key_id is null)
+             or (audit_version = 2 and key_id is not null and key_id ~ '^[0-9a-f]{16}$'));
   end if;
 
   if not exists (select 1 from pg_constraint where conname = 'ai_requests_outcome_allowed') then
@@ -252,7 +269,8 @@ create or replace function observer.admit_ai_request(
   p_tenant_slug     text,
   p_project_slug    text,
   p_viewer_role     text,
-  p_question_chars  integer
+  p_question_chars  integer,
+  p_key_id          text
 )
 returns table (allowed boolean, reason text, retry_after_seconds integer)
 language plpgsql
@@ -288,10 +306,10 @@ begin
   if v_allowed then
     insert into observer.ai_requests (
       audit_version, request_id, subject, client_hash, tenant_slug, project_slug,
-      viewer_role, state, question_chars
+      viewer_role, state, question_chars, key_id
     ) values (
       2, p_request_id, p_session, p_client_hash, p_tenant_slug, p_project_slug,
-      p_viewer_role, 'started', coalesce(p_question_chars, 0)
+      p_viewer_role, 'started', coalesce(p_question_chars, 0), p_key_id
     );
   end if;
 
@@ -396,7 +414,7 @@ begin
 end;
 $$;
 
-revoke all on function observer.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer)
+revoke all on function observer.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text)
   from anon, authenticated, public;
 revoke all on function observer.complete_ai_request(uuid, text, text, text, text, boolean, boolean, text, text, text[], integer, integer, integer, integer)
   from anon, authenticated, public;
@@ -415,7 +433,8 @@ create or replace function public.admit_ai_request(
   p_tenant_slug     text,
   p_project_slug    text,
   p_viewer_role     text,
-  p_question_chars  integer
+  p_question_chars  integer,
+  p_key_id          text
 )
 returns table (allowed boolean, reason text, retry_after_seconds integer)
 language sql
@@ -425,11 +444,11 @@ as $$
   select * from observer.admit_ai_request(
     p_request_id, p_session, p_client_hash, p_project,
     p_per_minute, p_per_hour, p_client_per_hour, p_project_per_day,
-    p_tenant_slug, p_project_slug, p_viewer_role, p_question_chars
+    p_tenant_slug, p_project_slug, p_viewer_role, p_question_chars, p_key_id
   );
 $$;
 
-comment on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer) is
+comment on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text) is
   'The door to the shared Ask Observer ceiling. Consuming it and recording the request are one transaction, and a repeated request id consumes nothing.';
 
 create or replace function public.complete_ai_request(
@@ -463,12 +482,12 @@ $$;
 comment on function public.complete_ai_request(uuid, text, text, text, text, boolean, boolean, text, text, text[], integer, integer, integer, integer) is
   'Records the terminal result of an admitted request, once. Returns completed, duplicate_ignored, conflict or not_found.';
 
-revoke all on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer)
+revoke all on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text)
   from anon, authenticated, public;
 revoke all on function public.complete_ai_request(uuid, text, text, text, text, boolean, boolean, text, text, text[], integer, integer, integer, integer)
   from anon, authenticated, public;
 
-grant execute on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer)
+grant execute on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text)
   to service_role;
 grant execute on function public.complete_ai_request(uuid, text, text, text, text, boolean, boolean, text, text, text[], integer, integer, integer, integer)
   to service_role;

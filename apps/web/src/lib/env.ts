@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import { diagnoseServerSupabase } from "./supabase-env";
-import { pseudonymKeyFingerprint, pseudonymKeyIsStable } from "@/lib/ai/identity";
+import { describePepper, pseudonymKeyId } from "@/lib/ai/identity";
 
 /**
  * The environment, validated once.
@@ -263,23 +263,31 @@ export function environment(): EnvironmentReport {
    * bucket table. The key itself is never named, never printed and never
    * derived from anything a log line carries.
    */
-  if (pseudonymKeyIsStable()) {
+  const pepper = describePepper();
+  if (pepper.ok) {
     /*
-     * The fingerprint, so a rotation is not silent.
+     * The key id, so a rotation is not silent.
      *
-     * Eight hex characters of an HMAC of the key under a fixed label — it
+     * Sixteen hex characters of an HMAC of the key under a fixed label — it
      * cannot be reversed and identifies nothing but itself. When it changes,
      * every rate-limit bucket has just orphaned and every ceiling has restarted
-     * from zero. That happens whenever `SUPABASE_SECRET_KEY` is rotated and no
-     * explicit pepper is set, which is a thing done for unrelated reasons, and
-     * it used to leave no trace anywhere.
+     * from zero. The same value is stored on every audit row, because a boot
+     * line ages out of a platform's retention and the question it answers gets
+     * asked afterwards.
      */
     problems.push(
-      `Ask Observer subjects are keyed and stable across instances. Key fingerprint ${pseudonymKeyFingerprint()} — if this changes, every rate-limit bucket has reset.`,
+      `Ask Observer subjects are keyed. Key id ${pseudonymKeyId()} — if this changes, every rate-limit bucket has reset.`,
     );
   } else {
+    /*
+     * Named, and refused. There is no degraded mode here: without the pepper
+     * there is no bucket key that means anything across instances, so the gate
+     * declines every question before a ceiling, an audit row or a model call.
+     * The problem is said by name — never the value — because "unavailable" on
+     * its own has sent people to check the wrong variable before.
+     */
     problems.push(
-      "Ask Observer subjects are keyed per process: no OBSERVER_SUBJECT_PEPPER and no Supabase credential to derive one from. Rate-limit buckets will not aggregate across instances.",
+      `Ask Observer is refusing every question: OBSERVER_SUBJECT_PEPPER ${pepper.problem}. Set at least 32 bytes of random secret.`,
     );
   }
 

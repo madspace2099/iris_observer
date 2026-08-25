@@ -50,8 +50,14 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
 const { ask } = await import("../src/lib/ai/agent");
 const { classify } = await import("../src/app/api/ask/route");
 const { completeAiRequest, clientFingerprint } = await import("../src/lib/ai/quota");
-const { telemetrySubject, pseudonymKeyFingerprint, pseudonymKeyIsStable } =
-  await import("../src/lib/ai/identity");
+const {
+  telemetrySubject,
+  pseudonymKeyId,
+  describePepper,
+  pepperConfigured,
+  PepperMisconfiguredError,
+} = await import("../src/lib/ai/identity");
+const { environment, resetEnvironmentCache } = await import("../src/lib/env");
 
 const CONTEXT = {
   viewer: VIEWERS.developer,
@@ -461,10 +467,13 @@ describe("admission and the audit row are the same event", () => {
   });
 });
 
-/* --- 6. the pseudonym key ---------------------------------------------------------- */
+/* --- 6. the pepper is mandatory ---------------------------------------------------- */
 
-describe("subjects are pseudonyms, and a rotation is not silent", () => {
+describe("the pseudonym key is required, and nothing stands in for it", () => {
   const USER = "usr_petra";
+  const REAL = "9f2c4a7e13b58d6021ce74af8b3d905612e7ac48fd0b6931a5c8e2470df6b31a";
+  const OTHER = "5b81de3fa704c962185d3ecb47f0a29d6c53718be0af42d93167ca85be24071f";
+
   const request = () =>
     new Request("https://example.test/api/ask", {
       headers: {
@@ -474,10 +483,10 @@ describe("subjects are pseudonyms, and a rotation is not silent", () => {
       },
     });
 
-  function withPepper<T>(pepper: string | undefined, fn: () => T): T {
+  function withPepper<T>(value: string | undefined, fn: () => T): T {
     const before = process.env["OBSERVER_SUBJECT_PEPPER"];
-    if (pepper === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
-    else process.env["OBSERVER_SUBJECT_PEPPER"] = pepper;
+    if (value === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+    else process.env["OBSERVER_SUBJECT_PEPPER"] = value;
     try {
       return fn();
     } finally {
@@ -486,61 +495,210 @@ describe("subjects are pseudonyms, and a rotation is not silent", () => {
     }
   }
 
-  const PEPPER_A = "a".repeat(64);
-  const PEPPER_B = "b".repeat(64);
+  /* --- 9.1 a missing pepper fails closed ---------------------------------------- */
 
-  it("does not produce the digest an unkeyed hash would", async () => {
+  it("refuses when the pepper is absent, rather than inventing one", () => {
     /*
-     * The defect this replaced. `sha256(userId)` over a handful of guessable
-     * demo ids is not a pseudonym: anybody holding the audit table and this
-     * repository recovers the viewer by enumeration in milliseconds.
+     * The whole point of the change. Two fallbacks used to live here — a
+     * subkey of `SUPABASE_SECRET_KEY`, then a per-process random value — and
+     * the second was the dangerous one because it *worked*: questions were
+     * answered, subjects were protected, and one viewer was counted into one
+     * bucket per lambda. A distributed ceiling that was not one, with nothing
+     * to notice.
      */
+    expect(withPepper(undefined, () => describePepper())).toEqual({
+      ok: false,
+      problem: "is not set",
+    });
+    expect(withPepper(undefined, () => pepperConfigured())).toBe(false);
+    expect(() => withPepper(undefined, () => telemetrySubject(USER))).toThrow(
+      PepperMisconfiguredError,
+    );
+  });
+
+  /* --- 9.2 a weak pepper fails closed ------------------------------------------- */
+
+  const weak: readonly { name: string; value: string; problem: RegExp }[] = [
+    { name: "whitespace only", value: "   ", problem: /empty or whitespace/ },
+    { name: "too short", value: "8f2c4a7e13b58d60", problem: /at least 32 bytes/ },
+    { name: "exactly one byte short", value: "a".repeat(31), problem: /is 31 bytes/ },
+    { name: "quoted", value: `"${REAL}"`, problem: /quotes or brackets/ },
+    { name: "angle-bracketed", value: `<${REAL}>`, problem: /quotes or brackets/ },
+    { name: "padded", value: ` ${REAL} `, problem: /quotes or brackets|whitespace/ },
+    {
+      name: "a placeholder",
+      value: "change-me-change-me-change-me-change-me",
+      problem: /placeholder/,
+    },
+    {
+      name: "your-secret-here",
+      value: "your-secret-here-your-secret-here-abc",
+      problem: /placeholder/,
+    },
+  ];
+
+  for (const scenario of weak) {
+    it(`refuses a pepper that is ${scenario.name}`, () => {
+      const verdict = withPepper(scenario.value, () => describePepper());
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) expect(verdict.problem).toMatch(scenario.problem);
+      expect(() => withPepper(scenario.value, () => telemetrySubject(USER))).toThrow(
+        PepperMisconfiguredError,
+      );
+    });
+  }
+
+  it("accepts obvious test material only where a test is running", () => {
+    /*
+     * Sixty-four `a`s is what the suite injects: long enough, deterministic,
+     * and unmistakably not a secret. It must pass under VITEST and fail
+     * everywhere else, and the two must be the same code path or the rule is
+     * untested where it matters.
+     */
+    const repeated = "a".repeat(64);
+    expect(withPepper(repeated, () => describePepper()).ok).toBe(true);
+
+    const vitest = process.env["VITEST"];
+    const node = process.env["NODE_ENV"];
+    delete process.env["VITEST"];
+    process.env["NODE_ENV"] = "production";
+    try {
+      const verdict = withPepper(repeated, () => describePepper());
+      expect(verdict.ok).toBe(false);
+      if (!verdict.ok) expect(verdict.problem).toMatch(/too few distinct characters/);
+    } finally {
+      if (vitest !== undefined) process.env["VITEST"] = vitest;
+      if (node === undefined) delete process.env["NODE_ENV"];
+      else process.env["NODE_ENV"] = node;
+    }
+  });
+
+  /* --- 9.3 a valid pepper is stable across instances ----------------------------- */
+
+  it("gives one viewer one subject, whichever instance asks", () => {
+    /*
+     * Stability is the property the shared ceiling is built on, and it is why
+     * the key may not be per-process. `describePepper` reads the environment
+     * every call and holds no state, so two calls model two lambdas.
+     */
+    expect(withPepper(REAL, () => telemetrySubject(USER))).toBe(
+      withPepper(REAL, () => telemetrySubject(USER)),
+    );
+    expect(withPepper(REAL, () => clientFingerprint(request()))).toBe(
+      withPepper(REAL, () => clientFingerprint(request())),
+    );
+    expect(withPepper(REAL, () => pseudonymKeyId())).toBe(withPepper(REAL, () => pseudonymKeyId()));
+  });
+
+  /* --- 9.4 different peppers, different identifiers ------------------------------ */
+
+  it("gives the same viewer unrelated identifiers under a different key", () => {
+    expect(withPepper(REAL, () => telemetrySubject(USER))).not.toBe(
+      withPepper(OTHER, () => telemetrySubject(USER)),
+    );
+    expect(withPepper(REAL, () => clientFingerprint(request()))).not.toBe(
+      withPepper(OTHER, () => clientFingerprint(request())),
+    );
+    expect(withPepper(REAL, () => pseudonymKeyId())).not.toBe(
+      withPepper(OTHER, () => pseudonymKeyId()),
+    );
+  });
+
+  it("is not the digest an unkeyed hash would produce", async () => {
+    // The original defect: `sha256(userId)` over a handful of guessable demo
+    // ids is not a pseudonym, it is an index anybody can rebuild.
     const { createHash } = await import("node:crypto");
-    const unkeyed = createHash("sha256").update(USER).digest("hex").slice(0, 16);
-    expect(withPepper(PEPPER_A, () => telemetrySubject(USER))).not.toBe(unkeyed);
+    expect(withPepper(REAL, () => telemetrySubject(USER))).not.toBe(
+      createHash("sha256").update(USER).digest("hex").slice(0, 16),
+    );
   });
 
-  it("gives the same viewer the same subject under the same key", () => {
-    // The property the shared ceiling depends on: one viewer, one bucket,
-    // whichever instance answers.
-    const first = withPepper(PEPPER_A, () => telemetrySubject(USER));
-    const second = withPepper(PEPPER_A, () => telemetrySubject(USER));
-    expect(first).toBe(second);
-  });
-
-  it("gives the same viewer a different subject under a different key", () => {
-    const a = withPepper(PEPPER_A, () => telemetrySubject(USER));
-    const b = withPepper(PEPPER_B, () => telemetrySubject(USER));
-    expect(a).not.toBe(b);
-  });
-
-  it("keys the client fingerprint too, and never carries the address", () => {
-    const a = withPepper(PEPPER_A, () => clientFingerprint(request()));
-    const b = withPepper(PEPPER_B, () => clientFingerprint(request()));
-    expect(a).not.toBe(b);
-    expect(a).toMatch(/^[0-9a-f]{32}$/);
-    expect(a).not.toContain("203.0.113");
-  });
-
-  it("names the key by a fingerprint that changes with it and reveals nothing of it", () => {
+  it("separates the fingerprint's fields with something a header cannot contain", () => {
     /*
-     * Rotation used to be silent. Without a pepper the key derives from
-     * `SUPABASE_SECRET_KEY`, which gets rotated for reasons unrelated to this
-     * module — and every bucket orphans at once, ceilings restarting from zero
-     * mid-day with nothing in any log.
+     * A user-agent contains spaces, so joining three header fields with one
+     * made the input ambiguous: a crafted agent could collide with a different
+     * address-agent-language triple and two clients would share a bucket. NUL
+     * cannot appear in a header value.
      */
-    const a = withPepper(PEPPER_A, () => pseudonymKeyFingerprint());
-    const b = withPepper(PEPPER_B, () => pseudonymKeyFingerprint());
-
-    expect(a).not.toBe(b);
-    expect(a).toMatch(/^[0-9a-f]{8}$/);
-    // Eight hex characters of an HMAC under a fixed label: it cannot be the key
-    // and cannot be turned back into one.
-    expect(PEPPER_A).not.toContain(a);
-    expect(a).not.toContain(PEPPER_A.slice(0, 8));
+    const collide = (ua: string, lang: string) =>
+      withPepper(REAL, () =>
+        clientFingerprint(
+          new Request("https://example.test/api/ask", {
+            headers: {
+              "x-forwarded-for": "203.0.113.7",
+              "user-agent": ua,
+              "accept-language": lang,
+            },
+          }),
+        ),
+      );
+    expect(collide("Mozilla/5.0 en-GB", "")).not.toBe(collide("Mozilla/5.0", "en-GB"));
   });
 
-  it("reports an explicit pepper as stable without reading Supabase", () => {
-    expect(withPepper(PEPPER_A, () => pseudonymKeyIsStable())).toBe(true);
+  /* --- 9.5 the raw pepper never leaves ------------------------------------------- */
+
+  it("never appears in an identifier, a key id or an error", () => {
+    const subject = withPepper(REAL, () => telemetrySubject(USER));
+    const client = withPepper(REAL, () => clientFingerprint(request()));
+    const keyId = withPepper(REAL, () => pseudonymKeyId());
+
+    for (const value of [subject, client, keyId]) {
+      expect(value).not.toContain(REAL);
+      // Nor any workable fragment of it.
+      expect(value).not.toContain(REAL.slice(0, 12));
+    }
+    expect(keyId).toMatch(/^[0-9a-f]{16}$/);
+
+    const error = new PepperMisconfiguredError("is 4 bytes; at least 32 bytes are required");
+    expect(error.message).not.toContain(REAL);
+    expect(String(error.stack ?? "")).not.toContain(REAL);
+  });
+
+  it("never appears in the environment report a deployment logs", () => {
+    /*
+     * `environment()` is what writes the boot line. It reports the key *id*, so
+     * a rotation leaves a trace — and must never report the key.
+     */
+    const report = withPepper(REAL, () => {
+      resetEnvironmentCache();
+      return environment();
+    });
+    const serialised = JSON.stringify(report);
+    expect(serialised).not.toContain(REAL);
+    expect(serialised).not.toContain(REAL.slice(0, 12));
+    expect(report.problems.join(" ")).toContain(withPepper(REAL, () => pseudonymKeyId()));
+    resetEnvironmentCache();
+  });
+
+  /* --- 9.6 no model is called when validation fails ------------------------------ */
+
+  it("refuses at the gate, before the quota, the audit or any model call", () => {
+    /*
+     * Asserted on the gate's source order rather than by driving a request,
+     * because the claim is about *sequence*: the refusal has to happen before
+     * anything is spent, and a behavioural test that merely observes a refusal
+     * cannot tell whether a quota unit was consumed on the way to it.
+     */
+    const gate = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/gate.ts"), "utf8");
+
+    const check = gate.indexOf("const pepper = describePepper()");
+    const authorise = gate.indexOf("await repository.resolveProject");
+    const allowance = gate.indexOf("const verdict = checkAllowance");
+    const admit = gate.indexOf("await admitAiRequest(");
+
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(authorise);
+    expect(check).toBeLessThan(allowance);
+    expect(check).toBeLessThan(admit);
+    expect(gate).toContain("if (!pepper.ok)");
+
+    /*
+     * And the model is downstream of the gate entirely: both routes refuse on
+     * `admitted.ok` before `ask` is reached. `ai-security.test.ts` asserts that
+     * pairing; what matters here is that the pepper check is inside the gate
+     * rather than somewhere the model call could precede.
+     */
+    const route = readFileSync(join(process.cwd(), "apps/web", "src/app/api/ask/route.ts"), "utf8");
+    expect(route.indexOf("admitted.ok")).toBeLessThan(route.indexOf("await ask("));
   });
 });

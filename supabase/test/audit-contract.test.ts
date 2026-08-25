@@ -57,9 +57,12 @@ async function database(stopBefore?: string): Promise<PGlite> {
   return db;
 }
 
+/** Sixteen hex characters, the shape the key-id constraint requires. */
+const KEY_ID = "0123456789abcdef";
+
 const ADMIT = `select * from public.admit_ai_request(
   $1, 'subject-a', 'client-a', 'alpha/northgate', 10, 60, 120, 500,
-  'alpha', 'northgate', 'developer', 42)`;
+  'alpha', 'northgate', 'developer', 42, '${KEY_ID}')`;
 
 const ID = "11111111-1111-4111-8111-111111111111";
 
@@ -203,7 +206,7 @@ describe("admission is retry-safe", () => {
     // A ceiling of one, then eight more attempts with fresh ids.
     const tight = `select * from public.admit_ai_request(
       gen_random_uuid(), 'subject-b', 'client-b', 'alpha/northgate', 1, 60, 120, 500,
-      'alpha', 'northgate', 'developer', 12)`;
+      'alpha', 'northgate', 'developer', 12, '${KEY_ID}')`;
     for (let i = 0; i < 9; i += 1) await db.query(tight);
 
     await db.exec("reset role");
@@ -256,9 +259,9 @@ describe("admission is retry-safe", () => {
     await expect(
       db.query(
         `insert into observer.ai_requests (audit_version, request_id, subject, client_hash,
-           tenant_slug, project_slug, viewer_role, state, question_chars)
-         values (2, $1, 's', 'c', 'alpha', 'northgate', 'developer', 'started', 1)`,
-        [ID],
+           tenant_slug, project_slug, viewer_role, state, question_chars, key_id)
+         values (2, $1, 's', 'c', 'alpha', 'northgate', 'developer', 'started', 1, $2)`,
+        [ID, KEY_ID],
       ),
     ).rejects.toThrow(/duplicate key|unique/i);
   });
@@ -364,7 +367,7 @@ describe("the database refuses an incoherent audit row", () => {
   const base = `insert into observer.ai_requests
     (audit_version, request_id, subject, client_hash, tenant_slug, project_slug, viewer_role,
      state, question_chars, outcome, response_source, model_attempted, model_authored,
-     author_model, attempted_model, fallback_reason, completed_at, tool_calls)`;
+     author_model, attempted_model, fallback_reason, completed_at, tool_calls, key_id)`;
 
   const row = (over: Record<string, string> = {}) => {
     const v = {
@@ -381,12 +384,13 @@ describe("the database refuses an incoherent audit row", () => {
       fallback_reason: "null",
       completed_at: "now()",
       tool_calls: "1",
+      key_id: "'0123456789abcdef'",
       ...over,
     };
     return `${base} values (${v.audit_version}, ${v.request_id}, 's', 'c', 'alpha', 'northgate',
       'developer', ${v.state}, ${v.question_chars}, ${v.outcome}, ${v.response_source},
       ${v.model_attempted}, ${v.model_authored}, ${v.author_model}, ${v.attempted_model},
-      ${v.fallback_reason}, ${v.completed_at}, ${v.tool_calls})`;
+      ${v.fallback_reason}, ${v.completed_at}, ${v.tool_calls}, ${v.key_id})`;
   };
 
   let db: PGlite;
@@ -441,6 +445,18 @@ describe("the database refuses an incoherent audit row", () => {
       constraint: /requires_request_id/,
     },
     {
+      // Which key produced the pseudonyms is not optional for a row that has
+      // any: without it a rotation is an unexplained counter reset.
+      name: "a version-2 row with no key id",
+      over: { key_id: "null" },
+      constraint: /requires_key_id/,
+    },
+    {
+      name: "a key id that is not the right shape",
+      over: { key_id: "'not-hex'" },
+      constraint: /requires_key_id/,
+    },
+    {
       name: "a completed row that says nothing about what happened",
       over: { outcome: "null", response_source: "null" },
       constraint: /complete_is_terminal|authorship_coherent/,
@@ -456,7 +472,7 @@ describe("the database refuses an incoherent audit row", () => {
     it(`rejects ${scenario.name}`, async () => {
       const statement =
         scenario.name === "a negative tool-call count"
-          ? row().replace("now(), 1)", "now(), -1)")
+          ? row({ tool_calls: "-1" })
           : row(scenario.over);
       await expect(db.exec(statement)).rejects.toThrow(scenario.constraint);
     });

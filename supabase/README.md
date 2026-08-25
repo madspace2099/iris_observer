@@ -90,19 +90,20 @@ has none, because it never happened: the ceiling declines before any work, so an
 admitted-request count and an audit-row count are the same number and can be
 reconciled against each other.
 
-| column                                                               | meaning                                                         |
-| -------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `request_id`                                                         | Minted by the route, unique, stable across a retry.             |
-| `state`                                                              | `started` at admission, `complete` when the route reports back. |
-| `response_source`                                                    | `model`, `deterministic_composer`, `refusal` or `failure`.      |
-| `model_authored`                                                     | Equals the `live` flag the answer sheet renders.                |
-| `author_model`                                                       | The model that wrote the prose, or **null**.                    |
-| `attempted_provider` / `attempted_model`                             | What was tried, whatever happened next.                         |
-| `model_attempted`                                                    | Whether a model call was made at all.                           |
-| `fallback_reason`                                                    | A fixed code, never a provider message.                         |
-| `outcome`                                                            | The terminal outcome, null until `complete`.                    |
-| `tools`, `tool_calls`, `input_tokens`, `output_tokens`, `latency_ms` | Counts and timings.                                             |
-| `question_chars`                                                     | The question's _length_.                                        |
+| column                                                               | meaning                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `request_id`                                                         | Minted by the route, unique, stable across a retry.                                                                     |
+| `key_id`                                                             | Which pseudonym key produced `subject` and `client_hash`. Sixteen hex characters of an HMAC of that key, never the key. |
+| `state`                                                              | `started` at admission, `complete` when the route reports back.                                                         |
+| `response_source`                                                    | `model`, `deterministic_composer`, `refusal` or `failure`.                                                              |
+| `model_authored`                                                     | Equals the `live` flag the answer sheet renders.                                                                        |
+| `author_model`                                                       | The model that wrote the prose, or **null**.                                                                            |
+| `attempted_provider` / `attempted_model`                             | What was tried, whatever happened next.                                                                                 |
+| `model_attempted`                                                    | Whether a model call was made at all.                                                                                   |
+| `fallback_reason`                                                    | A fixed code, never a provider message.                                                                                 |
+| `outcome`                                                            | The terminal outcome, null until `complete`.                                                                            |
+| `tools`, `tool_calls`, `input_tokens`, `output_tokens`, `latency_ms` | Counts and timings.                                                                                                     |
+| `question_chars`                                                     | The question's _length_.                                                                                                |
 
 `fallback_reason` is one of `model_unavailable`, `provider_misconfigured`,
 `composition_failed`, `schema_rejected` or `output_guard` — an allow-list the
@@ -117,7 +118,16 @@ by a convention.
 
 **Never stored:** the question, the answer, any prompt, any tool argument, any
 provider error body, any key, anything identifying. `subject` and `client_hash`
-are opaque hashes.
+are keyed HMACs under `OBSERVER_SUBJECT_PEPPER`, which is mandatory and derived
+from nothing — a deployment without it refuses every question rather than
+falling back to something that merely looks configured.
+
+`key_id` names the key those pseudonyms were made with. Two rows carrying
+different key ids hold subjects that cannot be compared: they are unrelated
+strings, not one viewer twice. It is stored per row rather than only logged at
+startup, because a boot line ages out of a platform's retention and the question
+a rotation raises — _why did the counters restart on the 14th?_ — is asked
+afterwards.
 
 ### The two defects this replaced
 

@@ -9,7 +9,7 @@ import { currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { LIMITS, checkAllowance, recordAttempt, type RefusalReason } from "./limits";
 import { admitAiRequest, clientFingerprint } from "./quota";
-import { safetyIdentifier, telemetrySubject } from "./identity";
+import { describePepper, pseudonymKeyId, safetyIdentifier, telemetrySubject } from "./identity";
 import type { AskContextInput } from "./agent";
 
 /**
@@ -162,6 +162,31 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
   const viewer = await currentViewer();
   if (viewer === null) return deny(401, "Not signed in.", null);
 
+  /*
+   * 1b. the pseudonym key, before anything is spent.
+   *
+   * Every subject and client fingerprint is an HMAC under this key, and there
+   * is no fallback: a deployment without 32 bytes of random secret in
+   * `OBSERVER_SUBJECT_PEPPER` cannot produce a bucket key that means anything.
+   *
+   * It is checked *here*, third statement of the gate, so that a misconfigured
+   * deployment refuses before the quota is consulted, before an audit row is
+   * written and before any model is called. Discovering it further down would
+   * mean an exception somewhere between those three, and a request that had
+   * already spent something.
+   *
+   * The reader gets the same sentence as any other unavailability. The
+   * operator gets the reason, by name, in the server log — and the log line
+   * carries the problem, never the value.
+   */
+  const pepper = describePepper();
+  if (!pepper.ok) {
+    console.warn(
+      `[observer.gate] refusing every question — OBSERVER_SUBJECT_PEPPER ${pepper.problem}`,
+    );
+    return deny(503, SHARED_REFUSAL_TEXT.ceiling_unavailable, 30);
+  }
+
   /* 2. shape */
   const body = AskBodySchema.safeParse(rawBody);
   // The schema's own message can echo the input back. A fixed string cannot.
@@ -250,6 +275,7 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
 
   const shared = await admitAiRequest({
     requestId,
+    keyId: pseudonymKeyId(),
     session: subject,
     clientHash,
     tenantSlug: body.data.tenantSlug,
