@@ -185,16 +185,41 @@ test.describe("the Observer rail covers nothing", () => {
 });
 
 test.describe("Observer holds still while it answers", () => {
+  /*
+   * Waits for an answer, and refuses to accept anything else.
+   *
+   * Both tests below used to fill the box, wait six seconds and measure. On a
+   * deployment where every question was being refused, nothing rendered, the
+   * orb sat perfectly still, and they passed — proving that a thing which never
+   * happened did not move the layout.
+   *
+   * `.obs-answer-role` carrying "Observer's reading" exists only on a rendered
+   * answer. A refusal renders one sentence and an "Ask again" control, and has
+   * no such label, so waiting for it is waiting for the real thing.
+   */
+  async function askAndAwaitAnswer(page: Page, question: string) {
+    await page.getByPlaceholder(/^Ask Observer about/).fill(question);
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+
+    const reading = page.locator(".obs-answer-role", { hasText: /Observer.s reading/ }).first();
+    // A cold lambda plus a reasoning model is not quick, and the point of this
+    // test is what happens once the answer is actually there.
+    await expect(reading, "no answer rendered — the layout assertion would be vacuous").toBeVisible({
+      timeout: 90_000,
+    });
+    // Let the expansion settle before measuring where things ended up.
+    await page.waitForTimeout(400);
+  }
+
   test("the orb does not move when an answer arrives", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.waitForTimeout(700);
 
     const orb = page.locator(".obs-console-orb");
     const before = await orb.boundingBox();
+    expect(before, "the orb was not on the page to begin with").not.toBeNull();
 
-    await page.getByPlaceholder(/^Ask Observer about/).fill("What changed this month?");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await page.waitForTimeout(6000);
+    await askAndAwaitAnswer(page, "What changed this month?");
 
     const after = await orb.boundingBox();
     const moved = Math.abs((after?.y ?? 0) - (before?.y ?? 0));
@@ -206,7 +231,10 @@ test.describe("Observer holds still while it answers", () => {
      * the grid and slid the orb down the page — a presence that lurches when it
      * starts speaking does not read as one.
      */
-    expect(moved, `the orb moved ${moved}px`).toBeLessThanOrEqual(4);
+    expect(
+      moved,
+      `the orb moved ${moved}px: y ${Math.round(before?.y ?? 0)} before, ${Math.round(after?.y ?? 0)} after a rendered answer`,
+    ).toBeLessThanOrEqual(4);
   });
 
   test("the prompt does not move either", async ({ page }) => {
@@ -215,12 +243,16 @@ test.describe("Observer holds still while it answers", () => {
 
     const prompt = page.locator(".obs-prompt");
     const before = await prompt.boundingBox();
+    expect(before, "the prompt was not on the page to begin with").not.toBeNull();
 
-    await page.getByPlaceholder(/^Ask Observer about/).fill("Compare the sales agents");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await page.waitForTimeout(6000);
+    await askAndAwaitAnswer(page, "Compare the sales agents");
 
     const after = await prompt.boundingBox();
-    expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThanOrEqual(4);
+    const moved = Math.abs((after?.y ?? 0) - (before?.y ?? 0));
+
+    expect(
+      moved,
+      `the prompt moved ${moved}px: y ${Math.round(before?.y ?? 0)} before, ${Math.round(after?.y ?? 0)} after a rendered answer`,
+    ).toBeLessThanOrEqual(4);
   });
 });
