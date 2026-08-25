@@ -166,12 +166,23 @@ export async function consumeSharedQuota(
   try {
     const response = await fetch(`${config.url}/rest/v1/rpc/consume_ai_quota`, {
       method: "POST",
+      /*
+       * No schema profile header, deliberately.
+       *
+       * These headers said `observer`, and PostgREST answered 406 on every
+       * call — "Invalid schema: observer. Only the following schemas are
+       * exposed: public, graphql_public" — so the shared ceiling was never once
+       * consumed over the transport the application actually uses. Direct SQL
+       * had verified the function and skipped the path entirely.
+       *
+       * The reachable function is now a `security definer` façade in `public`
+       * that does its work inside `observer`. The counters and the audit stay
+       * unexposed; only the door is public, and only the secret key opens it.
+       */
       headers: {
         apikey: config.key,
         Authorization: `Bearer ${config.key}`,
         "Content-Type": "application/json",
-        "Accept-Profile": "observer",
-        "Content-Profile": "observer",
       },
       body: JSON.stringify({
         p_session: session,
@@ -185,9 +196,21 @@ export async function consumeSharedQuota(
       signal: AbortSignal.timeout(Math.min(5_000, LIMITS.requestTimeoutMs)),
     });
 
-    // A database that answers with an error is a database that did not count
-    // this request. Same treatment as one that did not answer at all.
-    if (!response.ok) return unavailable();
+    /*
+     * A database that answers with an error is a database that did not count
+     * this request. Same treatment as one that did not answer at all — and it
+     * says so now, because a silent ceiling failure is precisely what hid a 406
+     * on every request for as long as this code existed.
+     *
+     * The status code only. A PostgREST error body can quote the statement
+     * back, and this is a log line.
+     */
+    if (!response.ok) {
+      console.warn(
+        `[observer.quota] the shared ceiling refused to count — HTTP ${response.status}`,
+      );
+      return unavailable();
+    }
 
     const rows = (await response.json()) as readonly {
       allowed: boolean;
@@ -208,8 +231,11 @@ export async function consumeSharedQuota(
           : "rate_limited",
       retryAfterSeconds: verdict.retry_after_seconds ?? 60,
     };
-  } catch {
-    // Unreachable, timed out, or malformed. See the note above.
+  } catch (error) {
+    // Unreachable, timed out, or malformed. See the note above. The error's
+    // class, never its message: a fetch failure can carry the URL.
+    const name = error instanceof Error ? error.constructor.name : typeof error;
+    console.warn(`[observer.quota] the shared ceiling could not be reached — ${name}`);
     return unavailable();
   }
 }
@@ -260,29 +286,35 @@ export async function recordAudit(record: AuditRecord): Promise<void> {
   if (config === null) return;
 
   try {
-    await fetch(`${config.url}/rest/v1/ai_requests`, {
+    /*
+     * Through a function, not into the table.
+     *
+     * A table something needs to write to does not have to become a table
+     * anything can read. `observer.ai_requests` stays unexposed and the insert
+     * goes through a `security definer` façade in `public` — the same reason,
+     * and the same shape, as the ceiling above.
+     */
+    await fetch(`${config.url}/rest/v1/rpc/record_ai_request`, {
       method: "POST",
       headers: {
         apikey: config.key,
         Authorization: `Bearer ${config.key}`,
         "Content-Type": "application/json",
-        "Content-Profile": "observer",
-        Prefer: "return=minimal",
       },
       body: JSON.stringify({
-        subject: record.subject,
-        client_hash: record.clientHash,
-        tenant_slug: record.tenantSlug,
-        project_slug: record.projectSlug,
-        viewer_role: record.viewerRole,
-        outcome: record.outcome,
-        model: record.model,
-        tools: record.tools,
-        tool_calls: record.toolCalls,
-        input_tokens: record.inputTokens,
-        output_tokens: record.outputTokens,
-        latency_ms: record.latencyMs,
-        question_chars: record.questionChars,
+        p_subject: record.subject,
+        p_client_hash: record.clientHash,
+        p_tenant_slug: record.tenantSlug,
+        p_project_slug: record.projectSlug,
+        p_viewer_role: record.viewerRole,
+        p_outcome: record.outcome,
+        p_model: record.model,
+        p_tools: record.tools,
+        p_tool_calls: record.toolCalls,
+        p_input_tokens: record.inputTokens,
+        p_output_tokens: record.outputTokens,
+        p_latency_ms: record.latencyMs,
+        p_question_chars: record.questionChars,
       }),
       signal: AbortSignal.timeout(3_000),
     });
