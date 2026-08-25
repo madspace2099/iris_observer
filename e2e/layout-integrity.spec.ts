@@ -198,6 +198,13 @@ test.describe("Observer holds still while it answers", () => {
    * no such label, so waiting for it is waiting for the real thing.
    */
   async function askAndAwaitAnswer(page: Page, question: string) {
+    /*
+     * The default 30s test timeout fires before the wait below can, which
+     * turns a genuinely slow first answer — a cold lambda plus a reasoning
+     * model — into a failure that looks like a layout defect. The budget has
+     * to cover the answer, not just the measuring.
+     */
+    test.setTimeout(150_000);
     await page.getByPlaceholder(/^Ask Observer about/).fill(question);
     await page.getByRole("button", { name: "Ask", exact: true }).click();
 
