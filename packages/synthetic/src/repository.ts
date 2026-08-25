@@ -320,8 +320,23 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {
-    const { context, current, previous } = await this.slices(query);
-    return buildShowroomOverview(context, current, previous);
+    /*
+     * `throughToday`, matching `getHome` and `getSalesFlow`.
+     *
+     * It read `current`, and `current` runs to the period's stated end while
+     * `throughToday` stops at the end of today. On a to-date period those are
+     * different by whatever happened today — one meeting, at the time of
+     * writing — so the briefing said "I reviewed 74 showroom presentations"
+     * and the answer beneath it said "Measured across 73 meetings", on the
+     * same screen, about the same period.
+     *
+     * The Sales Flow page had both numbers in it for the same reason: it reads
+     * this and `getSalesFlow` together. Same defect as the rings disagreeing
+     * with the radars, same fix — figures read as one page must count one set
+     * of meetings.
+     */
+    const { context, throughToday, previous } = await this.slices(query);
+    return buildShowroomOverview(context, throughToday, previous);
   }
 
   async getPresentationIntelligence(

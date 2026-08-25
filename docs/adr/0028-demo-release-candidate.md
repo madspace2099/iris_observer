@@ -57,10 +57,10 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Two defects the acceptance run found
+## Four defects this gate found
 
-Neither was visible to the unit suite, and both were about the product telling
-the reader something untrue.
+None was visible to the unit suite, and each was the product telling the reader
+something untrue.
 
 **`live` described the deployment, not the answer.** A correctly configured
 model that then timed out — or returned prose the schema rejected — still
@@ -76,6 +76,36 @@ the causal step nor the refusal of it. The deterministic path had neither, so
 — which reads as an answer to the question that was asked and is not one. It
 now says what the measurement cannot settle and names the comparison that would
 narrow it, in the same voice, without a causal word in it.
+
+**The operator's diagnosis was on the reader's screen.** With no key configured
+— the state of any deployment nobody has set up yet — the first screen told
+every visitor "Voice is unavailable: No `OPENAI_API_KEY` is set on the server,
+so no client secret can be minted." A variable name is not a secret and nothing
+leaked, but that sentence is written for whoever can go and set the variable and
+was being shown on a public URL to an audience who cannot. `VoiceBlocker` now
+carries two sentences and `publicBlocker()` puts only the reader's on the wire.
+Found by the black-box run, not by the suite, which asserted on the first
+element with `role="note"` and had been reading the wrong one.
+
+**Two counts of the same meetings disagreed on one screen.** The briefing said
+"I reviewed 74 showroom presentations quarter to date" and the answer beneath it
+said "Measured across 73 meetings". `getHome` read `throughToday` and
+`getShowroomOverview` read `current`, which on a to-date period differ by
+whatever happened today. The Sales Flow page carried both numbers for the same
+reason, since it reads `getSalesFlow` and `getShowroomOverview` together. Same
+defect as the rings disagreeing with the radars in ADR-0027, same fix: figures
+read as one page count one set of meetings. Found by looking at a screenshot.
+
+## Known limitations
+
+**The evidence-only path can paraphrase itself.** Two overlapping tools produce
+two sentences saying one thing — "Compare went unopened in 71%" beside "Compare
+was never opened in 71% of presentations". Identical restatements are dropped;
+paraphrases are not, because separating a paraphrase from two genuinely
+different findings that share vocabulary needs to know which word is the
+subject, and guessing at it drops real content. `findAnswerDefects` catches
+this on a model's answer because it works on terse finding labels, where the
+whole label is the subject. Prose is not that.
 
 ## Release blocker at the time of writing
 

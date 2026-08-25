@@ -453,9 +453,39 @@ export function composeDeterministic(
    * that would narrow it.
    */
   const causal = isCausalQuestion(question);
+
+  /*
+   * Two tools that measured the same thing said it twice.
+   *
+   * The drafts were concatenated as they arrived, so a router that picked two
+   * overlapping tools produced the same sentence twice. Sentences are compared
+   * on their content words and their figures, so an identical restatement is
+   * dropped.
+   *
+   * **What this does not catch, stated rather than implied:** a *paraphrase*.
+   * "Compare went unopened in 71%" and "Compare was never opened in 71% of
+   * presentations" share three words out of six and survive as two sentences.
+   * Separating that from two genuinely different findings — "Gallery opened in
+   * 56% of meetings" beside "Compare opened in 56% of meetings" — needs to know
+   * which word is the subject, and guessing at it drops real content. The
+   * equivalent guard on a model's answer, `findAnswerDefects`, works on terse
+   * finding labels where the whole label is the subject; prose is not that.
+   */
+  const seenSentences = new Set<string>();
   const facts = results
-    .map((r) => r.draft)
-    .filter((d) => d.length > 0)
+    .flatMap((r) => (r.draft.length === 0 ? [] : r.draft.split(/(?<=[.!?])\s+/)))
+    .filter((sentence) => {
+      const shape = sentence
+        .toLowerCase()
+        .replace(/[^a-z0-9% ]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 3 || /\d/.test(w))
+        .sort()
+        .join(" ");
+      if (shape.length === 0 || seenSentences.has(shape)) return false;
+      seenSentences.add(shape);
+      return true;
+    })
     .join(" ");
 
   const findings = results.flatMap((result, index) => {

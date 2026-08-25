@@ -102,13 +102,6 @@ export interface VoiceBlocker {
 }
 
 /**
- * Whether voice can be offered at all, before any network call.
- *
- * Returns the blocker rather than a boolean, because "switched off", "no key"
- * and "the model is not on the allowlist" are three different operator tasks
- * and a single `false` would send somebody looking in the wrong place.
- */
-/**
  * The half of a blocker the browser is allowed to receive.
  *
  * `kind` so the interface can decide what to render, `reader` so it has
@@ -126,9 +119,17 @@ export function publicBlocker(blocker: VoiceBlocker | null): PublicVoiceBlocker 
   return blocker === null ? null : { kind: blocker.kind, reader: blocker.reader };
 }
 
+/**
+ * Whether voice can be offered at all, before any network call.
+ *
+ * Returns the blocker rather than a boolean, because "switched off", "no key"
+ * and "the model is not on the allowlist" are three different operator tasks
+ * and a single `false` would send somebody looking in the wrong place.
+ */
 export function voiceBlocker(): VoiceBlocker | null {
   const env = environment();
-  const SPOKEN = "Observer is not taking spoken questions on this deployment.";
+  const SPOKEN =
+    "Observer is not taking spoken questions on this deployment. It still answers in text.";
 
   if (!env.ai.voiceEnabled) {
     return {

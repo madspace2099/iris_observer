@@ -192,7 +192,7 @@ export function ObserverConsole({
 
         {voice.blocker === null ? null : (
           <p className="obs-voice-blocker" role="note">
-            {voice.blocker.reader} Observer still answers in text.
+            {voice.blocker.reader}
           </p>
         )}
 

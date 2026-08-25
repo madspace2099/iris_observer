@@ -195,3 +195,48 @@ describe("missing data is stated, never borrowed and never zero", () => {
     expect(home.meetingCount).toBeLessThan(60);
   });
 });
+
+/* --- one page, one set of meetings ------------------------------------------ */
+
+describe("figures read together count the same meetings", () => {
+  /*
+   * The briefing said "I reviewed 74 showroom presentations quarter to date"
+   * and the Ask Observer answer beneath it said "Measured across 73 meetings",
+   * on the same screen, about the same period. `getHome` read `throughToday`
+   * and `getShowroomOverview` read `current`, and on a to-date period those
+   * differ by whatever happened today.
+   *
+   * The Sales Flow page reads `getSalesFlow` and `getShowroomOverview`
+   * together, so it carried both numbers for the same reason.
+   */
+  for (const [tenantSlug, projectSlug] of [
+    ["alpha", "northgate"],
+    ["alpha", "riverside"],
+  ] as const) {
+    it(`agrees between the briefing and the period summary on ${projectSlug}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug,
+        projectSlug,
+        period: "quarter_to_date" as const,
+      };
+      const home = await syntheticRepository.getHome(query);
+      const overview = await syntheticRepository.getShowroomOverview(query);
+
+      expect(overview.meetingCount).toBe(home.meetingCount);
+    });
+
+    it(`agrees between the sales flow and the period summary on ${projectSlug}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug,
+        projectSlug,
+        period: "quarter_to_date" as const,
+      };
+      const flow = await syntheticRepository.getSalesFlow(query);
+      const overview = await syntheticRepository.getShowroomOverview(query);
+
+      expect(overview.meetingCount).toBe(flow.meetingCount);
+    });
+  }
+});
