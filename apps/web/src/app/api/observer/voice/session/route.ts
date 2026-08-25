@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { gate } from "@/lib/ai/gate";
 import { ModelConfigurationError } from "@/lib/ai/provider";
-import { createVoiceSession, voiceBlocker } from "@/lib/ai/voice";
+import { createVoiceSession, publicBlocker, voiceBlocker } from "@/lib/ai/voice";
 
 /**
  * Mints the browser's realtime credential.
@@ -29,7 +29,7 @@ export async function GET() {
    */
   const blocker = voiceBlocker();
   return NextResponse.json(
-    { available: blocker === null, blocker },
+    { available: blocker === null, blocker: publicBlocker(blocker) },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -55,14 +55,15 @@ export async function POST(request: Request) {
   const blocker = voiceBlocker();
   if (blocker !== null) {
     /*
-     * The blocker is returned, and it is non-secret by construction.
+     * The reader's half of the blocker, and only that half.
      *
-     * A variable name and a model identifier are configuration. Neither is a
-     * key, and an operator staring at a disabled microphone deserves to know
-     * which of the three reasons applies rather than guessing.
+     * A variable name is not a key, but it is still configuration, and this
+     * deployment is a public demonstration: the operator's diagnosis goes to
+     * the server log, where the operator is.
      */
+    console.info(`[observer] voice unavailable: ${blocker.detail}`);
     return NextResponse.json(
-      { error: "Voice is not available on this deployment.", blocker },
+      { error: "Voice is not available on this deployment.", blocker: publicBlocker(blocker) },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }

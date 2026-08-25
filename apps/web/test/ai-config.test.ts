@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { environment, resetEnvironmentCache } from "../src/lib/env";
 import { modelIsAllowed } from "../src/lib/ai/limits";
-import { voiceBlocker } from "../src/lib/ai/voice";
+import { publicBlocker, voiceBlocker } from "../src/lib/ai/voice";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
 import { addUsage } from "../src/lib/ai/telemetry";
 
@@ -152,6 +152,34 @@ describe("the voice layer reports why it is off", () => {
     expect(blocker?.detail).toMatch(/gpt-realtime-experimental/);
     // A model identifier and a variable name. Neither is a secret.
     expect(blocker?.detail).not.toMatch(/sk-/);
+  });
+
+  it("keeps the operator's diagnosis off the browser's copy", () => {
+    /*
+     * The two halves used to be one field, and the screen rendered the
+     * operator's: every visitor to the demonstration was told which variable
+     * was unset on the server. `publicBlocker` is what the route sends, and
+     * this is the assertion that it carries nothing to act on.
+     */
+    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
+    const blocker = voiceBlocker();
+    const publicHalf = publicBlocker(blocker);
+
+    expect(publicHalf).not.toBeNull();
+    expect(publicHalf?.reader).toMatch(/spoken questions/i);
+    expect(JSON.stringify(publicHalf)).not.toMatch(/OPENAI|SUPABASE|OBSERVER_/);
+    expect(Object.keys(publicHalf ?? {}).sort()).toEqual(["kind", "reader"]);
+  });
+
+  it("says the same reader-facing sentence whichever the reason", () => {
+    // Three operator tasks, one thing the reader needs to know.
+    withEnv({ OBSERVER_VOICE_ENABLED: "false" });
+    const off = voiceBlocker()?.reader;
+    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
+    const noKey = voiceBlocker()?.reader;
+
+    expect(off).toBeDefined();
+    expect(off).toBe(noKey);
   });
 
   it("is available when everything is set", () => {

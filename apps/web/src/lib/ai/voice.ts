@@ -79,11 +79,27 @@ const DELEGATE_TOOL = {
 
 export const DELEGATE_TOOL_NAME = DELEGATE_TOOL.name;
 
-/** Why the voice layer is not available, in words an operator can act on. */
-export type VoiceBlocker =
-  | { readonly kind: "disabled"; readonly detail: string }
-  | { readonly kind: "not_configured"; readonly detail: string }
-  | { readonly kind: "model_not_allowed"; readonly detail: string };
+/**
+ * Why the voice layer is not available.
+ *
+ * Two audiences, two sentences, and they must not be interchanged. `detail` is
+ * an operator's diagnosis and names the variable to go and set; it belongs in a
+ * server log. `reader` is what appears on screen.
+ *
+ * They were one field, and the screen showed the operator's: every visitor to
+ * the demonstration was told which environment variable was unset on the
+ * server. That is a configuration detail handed to an audience who cannot act
+ * on it and should not be shown it.
+ */
+export type VoiceBlockerKind = "disabled" | "not_configured" | "model_not_allowed";
+
+export interface VoiceBlocker {
+  readonly kind: VoiceBlockerKind;
+  /** For the server log. Names variables. Never rendered. */
+  readonly detail: string;
+  /** For the person in front of the screen. Names nothing. */
+  readonly reader: string;
+}
 
 /**
  * Whether voice can be offered at all, before any network call.
@@ -92,21 +108,47 @@ export type VoiceBlocker =
  * and "the model is not on the allowlist" are three different operator tasks
  * and a single `false` would send somebody looking in the wrong place.
  */
+/**
+ * The half of a blocker the browser is allowed to receive.
+ *
+ * `kind` so the interface can decide what to render, `reader` so it has
+ * something to render. `detail` stays on the server: it is written for whoever
+ * can act on it, and nobody holding a browser on a public demonstration can.
+ */
+export interface PublicVoiceBlocker {
+  readonly kind: VoiceBlockerKind;
+  readonly reader: string;
+}
+
+export function publicBlocker(blocker: VoiceBlocker | null): PublicVoiceBlocker | null {
+  // Built by naming fields, never by deleting them — a payload assembled by
+  // removal grows a leak the first time somebody adds a field upstream.
+  return blocker === null ? null : { kind: blocker.kind, reader: blocker.reader };
+}
+
 export function voiceBlocker(): VoiceBlocker | null {
   const env = environment();
+  const SPOKEN = "Observer is not taking spoken questions on this deployment.";
+
   if (!env.ai.voiceEnabled) {
-    return { kind: "disabled", detail: "OBSERVER_VOICE_ENABLED is false." };
+    return {
+      kind: "disabled",
+      detail: "OBSERVER_VOICE_ENABLED is false.",
+      reader: SPOKEN,
+    };
   }
   if (!env.ai.keyConfigured) {
     return {
       kind: "not_configured",
       detail: "No OPENAI_API_KEY is set on the server, so no client secret can be minted.",
+      reader: SPOKEN,
     };
   }
   if (!modelIsAllowed(env.ai.voiceModel)) {
     return {
       kind: "model_not_allowed",
       detail: `The configured voice model "${env.ai.voiceModel}" is not in OBSERVER_ALLOWED_MODELS.`,
+      reader: SPOKEN,
     };
   }
   return null;

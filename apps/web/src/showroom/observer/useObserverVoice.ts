@@ -40,14 +40,21 @@ export type VoicePhase =
   | "speaking"
   | "error";
 
+/**
+ * What the server is willing to tell a browser about a disabled microphone.
+ *
+ * `kind` for the interface, `reader` for the person. The operator's diagnosis —
+ * which variable is unset, which model is off the allowlist — is deliberately
+ * absent: it used to be here, and it was rendered on a public demonstration.
+ */
 export interface VoiceBlocker {
   readonly kind: string;
-  readonly detail: string;
+  readonly reader: string;
 }
 
 export interface ObserverVoice {
   readonly phase: VoicePhase;
-  /** Non-secret, operator-facing. Rendered where an operator can see it. */
+  /** Reader-facing. The operator's version of this never leaves the server. */
   readonly blocker: VoiceBlocker | null;
   /** What was said, so the text interface can carry the same conversation. */
   readonly transcript: readonly { readonly who: "you" | "observer"; readonly text: string }[];
@@ -123,7 +130,7 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
       .then((body: { available?: boolean; blocker?: VoiceBlocker | null } | null) => {
         if (cancelled || body === null) return;
         if (body.available === true && supported) setPhase("idle");
-        else setBlocker(body.blocker ?? { kind: "unsupported", detail: "This browser cannot." });
+        else setBlocker(body.blocker ?? { kind: "unsupported", reader: "This browser cannot take spoken questions." });
       })
       .catch(() => {
         /* Voice simply stays unavailable. The text interface is untouched. */
@@ -205,7 +212,7 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
           blocker?: VoiceBlocker;
         } | null;
         setBlocker(
-          body?.blocker ?? { kind: "unavailable", detail: "The voice session could not start." },
+          body?.blocker ?? { kind: "unavailable", reader: "The voice session could not start." },
         );
         setPhase("error");
         return;
@@ -352,11 +359,14 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
       );
 
       if (!answer.ok) {
+        // The status code and the model go to the console, where an operator
+        // looking for them will find them. The screen gets a sentence.
+        console.info(
+          `[observer] voice: realtime endpoint answered ${answer.status} for ${session.model}`,
+        );
         setBlocker({
           kind: "realtime_unreachable",
-          // A status code is not a secret and is the single most useful thing
-          // an operator can be told here.
-          detail: `The realtime endpoint answered ${answer.status}. Check that this account can reach ${session.model}.`,
+          reader: "Observer could not open a voice channel.",
         });
         setPhase("error");
         disconnect();
@@ -375,11 +385,11 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
       if (error instanceof DOMException && error.name === "NotAllowedError") {
         setBlocker({
           kind: "microphone_denied",
-          detail: "The microphone permission was declined. Observer still answers in text.",
+          reader: "The microphone permission was declined.",
         });
         setPhase("idle");
       } else {
-        setBlocker({ kind: "failed", detail: "The voice connection could not be established." });
+        setBlocker({ kind: "failed", reader: "The voice connection could not be established." });
         setPhase("error");
       }
       disconnect();

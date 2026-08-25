@@ -177,7 +177,14 @@ test.describe("the ten-second test", () => {
     const info = page.locator(".iris-home-figures .iris-measure-info");
     await expect(info.first()).toBeVisible();
     await info.first().click();
-    const panel = page.getByRole("note").first();
+    /*
+     * Scoped to the figures, not to "the first note on the page".
+     *
+     * A deployment with no model key renders a second `role="note"` — the
+     * voice notice — above these, and the unscoped locator picked that up. The
+     * assertion is about the panel this button opened, so it says so.
+     */
+    const panel = page.locator(".iris-home-figures .iris-measure-panel").first();
     await expect(panel).toContainText("What it measures");
     await expect(panel).toContainText("What it does not say");
   });
