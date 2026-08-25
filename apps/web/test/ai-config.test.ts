@@ -465,3 +465,38 @@ describe("an unreachable shared ceiling", () => {
     expect(said).not.toMatch(/supabase|database|postgres|rpc|500/i);
   });
 });
+
+describe("a key that brought its punctuation along", () => {
+  /*
+   * The same mistake has now landed on two different variables: the OpenAI key
+   * arrived wrapped in placeholder angle brackets and returned 401 on every
+   * call for hours. A key is opaque and unpunctuated; anything else is a paste
+   * that brought its container with it.
+   */
+  for (const [what, value] of [
+    ["angle brackets", "<observer-test-server-key-0000000000>"],
+    ["double quotes", '"observer-test-server-key-0000000000"'],
+    ["a trailing newline", "observer-test-server-key-0000000000\n\u00a0x"],
+    ["an inner space", "observer-test server-key-0000000000"],
+  ] as const) {
+    it(`is called malformed when it carries ${what}`, () => {
+      const diagnosis = diagnoseServerSupabase({
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SECRET_KEY: value,
+      } as NodeJS.ProcessEnv);
+
+      expect(diagnosis.configured).toBe(false);
+      expect(diagnosis.malformed).toEqual(["SUPABASE_SECRET_KEY"]);
+    });
+  }
+
+  it("still accepts a clean key", () => {
+    const diagnosis = diagnoseServerSupabase({
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    } as NodeJS.ProcessEnv);
+
+    expect(diagnosis.configured).toBe(true);
+    expect(diagnosis.malformed).toEqual([]);
+  });
+});

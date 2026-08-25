@@ -89,13 +89,22 @@ function isHttpUrl(value: string): boolean {
  * A key that could be a key.
  *
  * Shape only, never a network check — the API is the only thing that can say
- * whether a credential is *valid*. What this catches is the mistake somebody
- * actually makes: pasting the legacy `service_role` JWT into the variable meant
- * for a modern secret key. Both are long strings, and the wrong one produces a
- * permission error much further downstream.
+ * whether a credential is *valid*. What this catches is the class of mistake
+ * people actually make at a keyboard, and it has now caught the same one twice
+ * on two different variables:
+ *
+ *   - the legacy `service_role` JWT pasted into the slot meant for a modern
+ *     secret key. Both are long opaque strings, and the wrong one fails much
+ *     further downstream with a permission error that names nothing;
+ *   - a value carrying the punctuation from wherever it was copied. The OpenAI
+ *     key arrived wrapped in placeholder angle brackets and returned 401 on
+ *     every call for hours. A key is opaque and unpunctuated: no whitespace, no
+ *     brackets, no quotes. Anything else is a paste that brought its container
+ *     along.
  */
 function isSecretKey(value: string): boolean {
   if (value.startsWith("eyJ")) return false;
+  if (/[\s<>"'`]/.test(value)) return false;
   return value.length >= 20;
 }
 

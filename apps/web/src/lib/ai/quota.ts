@@ -206,8 +206,22 @@ export async function consumeSharedQuota(
      * back, and this is a log line.
      */
     if (!response.ok) {
+      /*
+       * The status is the diagnosis, so it is spelled out rather than left as
+       * a number to look up. These three have each cost real time on this
+       * deployment already: 406 was an unexposed schema, 404 was the wrong
+       * project, 401 was a key the project would not accept.
+       */
+      const meaning =
+        response.status === 401 || response.status === 403
+          ? " — the project did not accept SUPABASE_SECRET_KEY"
+          : response.status === 404
+            ? " — the function is not there; check SUPABASE_URL points at the right project"
+            : response.status === 406
+              ? " — the schema is not exposed to PostgREST"
+              : "";
       console.warn(
-        `[observer.quota] the shared ceiling refused to count — HTTP ${response.status}`,
+        `[observer.quota] the shared ceiling refused to count — HTTP ${response.status}${meaning}`,
       );
       return unavailable();
     }
