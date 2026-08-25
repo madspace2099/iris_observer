@@ -38,3 +38,6 @@ screenshots/
 # Operator scratch: SQL generated from supabase/migrations for manual application.
 # The migrations themselves are version-controlled; these copies are not.
 _sql-to-paste/
+
+# Independent-review bundles: generated from the repository, never part of it.
+_review/
