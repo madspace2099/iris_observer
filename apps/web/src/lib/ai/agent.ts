@@ -115,6 +115,26 @@ export interface AskContextInput extends ToolContext {
 export const CAUSAL_PATTERNS =
   /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves|proving|responsible for)\b/i;
 
+/**
+ * Says out loud that the model call failed, and why.
+ *
+ * Both upstream catch blocks swallowed their error. The reader is meant to
+ * lose nothing — the figures never needed the network — and that part was
+ * right. What was wrong is that *nobody* was told: a deployment whose
+ * composition turn failed on every request looked identical to one with no key
+ * configured, and the only visible difference was `live: false` on an answer
+ * sheet nobody reads for diagnostics.
+ *
+ * Name and message only, never the request body or the response. A provider's
+ * error message is written for an operator; a provider's payload may carry the
+ * prompt back.
+ */
+function reportUpstreamFailure(stage: "planning" | "composition", error: unknown): void {
+  const name = error instanceof Error ? error.constructor.name : typeof error;
+  const message = error instanceof Error ? error.message : "no message";
+  console.warn(`[observer.ai] ${stage} turn failed — ${name}: ${message.slice(0, 300)}`);
+}
+
 export function containsCausalClaim(answer: ObserverAnswer): boolean {
   const prose = [
     answer.answer,
@@ -373,6 +393,18 @@ export interface ToolRun {
   readonly results: readonly ToolResult[];
   readonly forbidden: boolean;
   readonly rejected: readonly string[];
+  /**
+   * One output for every call the *model* made, keyed by the id it used.
+   *
+   * The Responses API rejects an input that replays a `function_call` without
+   * the `function_call_output` that answers it — "No tool output found for
+   * function call call_…" — and it rejects the whole request, not the item. So
+   * a rejected tool still gets an output saying it was rejected.
+   *
+   * Calls the deterministic router chose have no id and appear here not at all:
+   * the model never asked for them, so there is nothing to answer.
+   */
+  readonly outputs: readonly { readonly callId: string; readonly output: string }[];
 }
 
 /**
@@ -383,12 +415,24 @@ export interface ToolRun {
  * and the voice agent does not is a control that does not exist.
  */
 export async function runTools(
-  calls: readonly { tool: string; args: Record<string, unknown> }[],
+  calls: readonly { tool: string; args: Record<string, unknown>; callId?: string }[],
   context: AskContextInput,
 ): Promise<ToolRun> {
   const results: ToolResult[] = [];
   const rejected: string[] = [];
+  const outputs: { callId: string; output: string }[] = [];
   let forbidden = false;
+
+  /*
+   * Every model-made call leaves an output, whatever happened to it.
+   *
+   * Silence is not an option the API allows, and it is not one the model
+   * deserves either: told that a tool was refused, it words the answer around
+   * what did run.
+   */
+  const answer = (call: { callId?: string }, output: Record<string, unknown>) => {
+    if (call.callId !== undefined) outputs.push({ callId: call.callId, output: JSON.stringify(output) });
+  };
 
   for (const call of calls.slice(0, LIMITS.maxToolCalls)) {
     /*
@@ -400,30 +444,45 @@ export async function runTools(
      */
     if (!TOOL_NAMES.includes(call.tool)) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "no such analysis on this deployment" });
       continue;
     }
     const tool = toolByName(call.tool);
     if (tool === undefined) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "no such analysis on this deployment" });
       continue;
     }
     const args = tool.input.safeParse(call.args);
     if (!args.success) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "the arguments did not match the tool's schema" });
       continue;
     }
     try {
-      results.push(await tool.run(context, args.data));
+      const result = await tool.run(context, args.data);
+      results.push(result);
+      answer(call, {
+        tool: result.tool,
+        sampleSize: result.sampleSize,
+        facts: result.facts,
+        caveats: result.caveats,
+      });
     } catch (error) {
       // A tool the viewer may not run is a different answer from no such tool,
       // and telling a sales agent that no analysis exists when the real reason
       // is that the brief is not theirs to read would be a lie of convenience.
-      if (error instanceof NotPermittedError) forbidden = true;
-      // Anything else contributes nothing rather than a guess.
+      if (error instanceof NotPermittedError) {
+        forbidden = true;
+        answer(call, { status: "refused", reason: "this viewer's grants do not include it" });
+      } else {
+        // Anything else contributes nothing rather than a guess.
+        answer(call, { status: "unavailable", reason: "the analysis could not be computed" });
+      }
     }
   }
 
-  return { results, forbidden, rejected };
+  return { results, forbidden, rejected, outputs };
 }
 
 /* --- deterministic composition ------------------------------------------------------ */
@@ -693,7 +752,14 @@ export async function* askStream(
 
   let usage: ModelUsage | null = null;
   let turns = 0;
-  let calls: { tool: string; args: Record<string, unknown> }[] = [];
+  /*
+   * `callId` is present only when the *model* asked for this tool.
+   *
+   * Calls the deterministic router chose have none, and must have none: an
+   * output answering a call the model never made is as invalid to the API as a
+   * call with no output.
+   */
+  let calls: { tool: string; args: Record<string, unknown>; callId?: string }[] = [];
   const transcript: ModelMessage[] = [
     { role: "user", content: `${contextBlock(context)}\n\nQUESTION: ${trimmed}` },
   ];
@@ -739,7 +805,9 @@ export async function* askStream(
             // Malformed arguments are dropped, not repaired. The schema check
             // below would reject them anyway; this just avoids a throw.
           }
-          calls.push({ tool: call.name, args });
+          // The model's own id travels with the call, so the composition turn
+          // can answer it by the name the model used.
+          calls.push({ tool: call.name, args, callId: call.callId });
         }
       }
 
@@ -760,6 +828,7 @@ export async function* askStream(
         configurationFault = true;
       }
       recordUpstreamFailure();
+      reportUpstreamFailure("planning", error);
       calls = routeQuestion(trimmed, context).map((c) => ({ ...c }));
     }
   }
@@ -869,17 +938,18 @@ export async function* askStream(
 
   yield { type: "stage", label: "Checking the evidence behind it" };
 
-  for (const result of run.results) {
-    transcript.push({
-      role: "tool_result",
-      callId: `tool_${result.tool}`,
-      output: JSON.stringify({
-        tool: result.tool,
-        sampleSize: result.sampleSize,
-        facts: result.facts,
-        caveats: result.caveats,
-      }),
-    });
+  /*
+   * Answer every call the model made, by the id it used.
+   *
+   * This loop used to invent an id — `tool_${result.tool}` — while the replayed
+   * `function_call` carried the model's real `call_id`. The two never matched,
+   * so the API rejected every composition turn with "No tool output found for
+   * function call call_…", on every question, for as long as the code existed.
+   * Nothing caught it: the fake provider does not validate the body, and until
+   * a working key existed the turn was never reached.
+   */
+  for (const output of run.outputs) {
+    transcript.push({ role: "tool_result", callId: output.callId, output: output.output });
   }
 
   transcript.push({
@@ -896,11 +966,31 @@ Answer the question using only the figures above. Cite bundle ids in every findi
   try {
     for await (const event of model.streamRespond({
       instructions: SYSTEM,
-      // The tool transcript is replayed, but no tools are offered on this turn:
-      // the analysis is finished and the only remaining job is wording.
+      /*
+       * The tools are declared and forbidden, which is not the same as absent.
+       *
+       * The analysis is finished and the only remaining job is wording, so the
+       * model must not call anything — hence `toolChoice: "none"`. But the
+       * transcript replays the calls the planning turn made, and the Responses
+       * API rejects a `function_call` item whose definition is not in the
+       * request. Sending `tools: []` here made every composition turn fail with
+       * "the request was rejected on input", on every question, against the
+       * real API. Nothing caught it: the fake provider does not validate the
+       * body, and until a working key existed the turn was never reached.
+       */
       messages: transcript,
-      tools: [],
-      reasoningEffort: effort,
+      tools: toolSpecs(),
+      toolChoice: "none",
+      /*
+       * Wording needs less deliberation than choosing what to measure.
+       *
+       * The analysis is finished by this point; what remains is putting
+       * computed figures into sentences. Spending a planning-grade reasoning
+       * budget on that is slow and costs money for nothing — 15 seconds a
+       * question, most of it invisible. A reader who asked for a deep report
+       * still gets one.
+       */
+      reasoningEffort: context.depth === "deep" ? effort : "low",
       maxOutputTokens: LIMITS.maxOutputTokens,
       safetyIdentifier: context.safetyIdentifier,
       responseSchema: { name: "observer_answer", schema: answerJsonSchema() },
@@ -923,6 +1013,7 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     // Same rule as the planning turn: the prose is lost, the figures are not.
     if (error instanceof ModelConfigurationError) configurationFault = true;
     recordUpstreamFailure();
+    reportUpstreamFailure("composition", error);
     yield { type: "final", outcome: finish(deterministic, false, false, false) };
     return;
   }

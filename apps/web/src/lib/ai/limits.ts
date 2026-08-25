@@ -50,7 +50,22 @@ export interface Limits {
 
 export const LIMITS: Limits = {
   maxQuestionChars: number("OBSERVER_MAX_QUESTION_CHARS", 500),
-  maxOutputTokens: number("OBSERVER_MAX_OUTPUT_TOKENS", 700),
+  /*
+   * Reasoning counts against this, and it is the larger half.
+   *
+   * The ceiling was 700, sized for the answer alone. On the Responses API
+   * `max_output_tokens` covers the reasoning tokens too, and a composition turn
+   * at medium effort spent 746 of them before writing a character — so every
+   * answer was truncated mid-JSON, failed validation, and fell back to the
+   * deterministic composer. The guard worked; the budget was wrong.
+   *
+   * 2000 is the measured requirement, not a guess: the heaviest observed turn
+   * is a deep report at high effort, 1118 output tokens with 335 of them
+   * reasoning. That leaves useful headroom and keeps the cost ceiling in
+   * `ai-security.test.ts` — which exists to stop this number drifting upward
+   * unexamined — exactly where it was.
+   */
+  maxOutputTokens: number("OBSERVER_MAX_OUTPUT_TOKENS", 2_000),
   maxToolCalls: number("OBSERVER_MAX_TOOL_CALLS", 3),
   requestTimeoutMs: number("OBSERVER_LLM_TIMEOUT_MS", 30_000),
   perMinute: number("OBSERVER_ASK_PER_MINUTE", 10),

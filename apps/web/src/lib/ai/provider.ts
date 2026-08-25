@@ -78,6 +78,17 @@ export interface ModelTurn {
   readonly signal?: AbortSignal;
   /** Overrides the configured text model. Used for the fast background path. */
   readonly model?: string;
+  /**
+   * Whether the model may call a tool this turn.
+   *
+   * `"none"` declares the tools without permitting a call, which is not the
+   * same as declaring no tools. The composition turn replays the function calls
+   * the planning turn made, and the Responses API rejects a `function_call`
+   * item whose definition is absent from the request — so a turn that says
+   * "here is what you asked for, now write it up" must still carry the tool
+   * list, and must forbid using it.
+   */
+  readonly toolChoice?: "auto" | "none";
 }
 
 export interface ModelUsage {
@@ -175,11 +186,20 @@ export function describeOpenAiFailure(
       return new ModelConfigurationError("openai: the key was rejected");
     }
     if (status === 400) {
-      // A rejected parameter is a code or configuration fault, not an outage.
-      // Naming the parameter is safe; it is a field name, never a value.
-      return new ModelConfigurationError(
-        `openai: the request was rejected${error.param === null || error.param === undefined ? "" : ` on "${String(error.param)}"`}`,
-      );
+      /*
+       * A rejected parameter is a code or configuration fault, not an outage.
+       *
+       * The parameter name alone was not enough to fix one: every composition
+       * turn failed with `on "input"`, which narrows the problem to a field
+       * containing the entire conversation. The provider's own sentence says
+       * *which part* of it, and is written for an operator — it names types and
+       * indices, not content. Carried through, and capped, because the one
+       * thing it must never become is a channel for the payload.
+       */
+      const where =
+        error.param === null || error.param === undefined ? "" : ` on "${String(error.param)}"`;
+      const why = typeof error.message === "string" ? `: ${error.message.slice(0, 240)}` : "";
+      return new ModelConfigurationError(`openai: the request was rejected${where}${why}`);
     }
     if (status === 429) return new ModelUnavailableError("openai: rate limited");
     return new ModelUnavailableError(`openai: request failed with status ${status}`);
@@ -331,7 +351,14 @@ function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
       parameters: tool.parameters,
       strict: false,
     }));
-    body["tool_choice"] = "auto";
+    /*
+     * `none` still declares the tools. That distinction is the whole point:
+     * the composition turn replays the calls the planning turn made, and the
+     * API rejects a `function_call` in `input` with no matching definition —
+     * "the request was rejected on input", which is what it did on every
+     * composition turn until this was passed.
+     */
+    body["tool_choice"] = turn.toolChoice ?? "auto";
     body["parallel_tool_calls"] = false;
   }
 
