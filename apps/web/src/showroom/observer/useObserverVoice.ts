@@ -130,7 +130,13 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
       .then((body: { available?: boolean; blocker?: VoiceBlocker | null } | null) => {
         if (cancelled || body === null) return;
         if (body.available === true && supported) setPhase("idle");
-        else setBlocker(body.blocker ?? { kind: "unsupported", reader: "This browser cannot take spoken questions. Observer still answers in text." });
+        else
+          setBlocker(
+            body.blocker ?? {
+              kind: "unsupported",
+              reader: "This browser cannot take spoken questions. Observer still answers in text.",
+            },
+          );
       })
       .catch(() => {
         /* Voice simply stays unavailable. The text interface is untouched. */
@@ -212,7 +218,10 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
           blocker?: VoiceBlocker;
         } | null;
         setBlocker(
-          body?.blocker ?? { kind: "unavailable", reader: "The voice session could not start. Observer still answers in text." },
+          body?.blocker ?? {
+            kind: "unavailable",
+            reader: "The voice session could not start. Observer still answers in text.",
+          },
         );
         setPhase("error");
         return;
@@ -389,7 +398,10 @@ export function useObserverVoice(context: ObserverContext): ObserverVoice {
         });
         setPhase("idle");
       } else {
-        setBlocker({ kind: "failed", reader: "The voice connection could not be established. Observer still answers in text." });
+        setBlocker({
+          kind: "failed",
+          reader: "The voice connection could not be established. Observer still answers in text.",
+        });
         setPhase("error");
       }
       disconnect();

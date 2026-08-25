@@ -217,8 +217,12 @@ export default async function ProjectPage({
                   key={`${d.field}-${d.value}`}
                   data-empty={d.matches === 0 ? "true" : undefined}
                 >
-                  <span className="iris-bar-label" title={d.label}>{d.label}</span>
-                  <span className="iris-bar-label" title={d.value}>{d.value}</span>
+                  <span className="iris-bar-label" title={d.label}>
+                    {d.label}
+                  </span>
+                  <span className="iris-bar-label" title={d.value}>
+                    {d.value}
+                  </span>
                   <span className="iris-matrix-num">{d.applications}</span>
                   <span
                     className="iris-matrix-num"
@@ -243,7 +247,9 @@ export default async function ProjectPage({
             <div className="iris-bars">
               {view.placeCategories.slice(0, 7).map((c) => (
                 <div className="iris-bar" key={c.category}>
-                  <span className="iris-bar-label" title={c.label}>{c.label}</span>
+                  <span className="iris-bar-label" title={c.label}>
+                    {c.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={

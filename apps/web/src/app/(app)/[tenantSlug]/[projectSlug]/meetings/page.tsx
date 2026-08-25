@@ -58,17 +58,19 @@ export default async function MeetingsPage({
           {meetings.map((m) => (
             <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
               <span className="iris-matrix-code">{m.label}</span>
-              <span className="iris-bar-label" title={m.agentName}>{m.agentName}</span>
+              <span className="iris-bar-label" title={m.agentName}>
+                {m.agentName}
+              </span>
               <span className="iris-matrix-num">{m.durationDisplay}</span>
               <span className="iris-matrix-num">{m.sectionCount}</span>
               <span className="iris-matrix-num">{m.unitCount}</span>
               {/*
-                * The outcome is a phrase, not a figure.
-                *
-                * It sat in a 4.5rem numeric column and "Presentation only" was
-                * cut to "Presentation onl" at every width, including 1920 —
-                * two empty placeholder cells were holding the space it needed.
-                */}
+               * The outcome is a phrase, not a figure.
+               *
+               * It sat in a 4.5rem numeric column and "Presentation only" was
+               * cut to "Presentation onl" at every width, including 1920 —
+               * two empty placeholder cells were holding the space it needed.
+               */}
               <span className="iris-matrix-outcome">{m.outcomeLabel}</span>
             </Link>
           ))}

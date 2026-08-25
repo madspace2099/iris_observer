@@ -179,9 +179,7 @@ export interface SupabaseDiagnosis {
   readonly host: string | null;
 }
 
-export function diagnoseServerSupabase(
-  source: NodeJS.ProcessEnv = process.env,
-): SupabaseDiagnosis {
+export function diagnoseServerSupabase(source: NodeJS.ProcessEnv = process.env): SupabaseDiagnosis {
   const { url, key } = slots(source);
 
   const using: string[] = [];

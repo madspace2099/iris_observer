@@ -48,11 +48,14 @@ export async function POST(request: Request) {
    * the gate takes a question at all here: the delegation path needs one, and
    * the ordinary path supplies a placeholder that is never sent anywhere.
    */
-  const admitted = await gate({
-    ...parsed.data,
-    question: parsed.data.question ?? "voice tool call",
-    depth: "standard",
-  }, request);
+  const admitted = await gate(
+    {
+      ...parsed.data,
+      question: parsed.data.question ?? "voice tool call",
+      depth: "standard",
+    },
+    request,
+  );
 
   if (!admitted.ok) {
     return NextResponse.json({ error: admitted.message }, { status: admitted.httpStatus });

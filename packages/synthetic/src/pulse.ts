@@ -140,7 +140,8 @@ function buildCatalogue(spec: BuildingSpec): RawUnit[] {
         // Two- and three-room units alternate by position; the top two floors
         // carry the larger plans, as a real stacking plan does.
         const top = spec.floors[spec.floors.length - 1] ?? 8;
-        const rooms = pinned?.rooms ?? (floor >= top - 1 ? 3 : index === 2 && block !== "B" ? 3 : 2);
+        const rooms =
+          pinned?.rooms ?? (floor >= top - 1 ? 3 : index === 2 && block !== "B" ? 3 : 2);
         const areaSqm =
           pinned?.areaSqm ?? (rooms === 2 ? 58 + Math.round(r * 9) : 84 + Math.round(r * 12));
         const orientation = pinned?.orientation ?? spec.orientation[block] ?? "S";

@@ -146,7 +146,11 @@ export default async function BriefingPage({
         {home.doors.map((door) => (
           // The doors carry the period too: a briefing read for the last 28
           // days must open a view of the last 28 days.
-          <Link key={door.id} className="iris-door" href={dynamicRoute(withPeriod(door.href, presetFrom(period)))}>
+          <Link
+            key={door.id}
+            className="iris-door"
+            href={dynamicRoute(withPeriod(door.href, presetFrom(period)))}
+          >
             <span className="iris-door-label">{door.label}</span>
             <span className="iris-door-question">{door.question}</span>
             <span className="iris-door-headline">{door.headline}</span>

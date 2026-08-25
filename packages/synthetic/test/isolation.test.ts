@@ -55,7 +55,10 @@ describe("every session belongs to exactly one project", () => {
     // Every project in the world has data of its own. A project with none is a
     // project whose screens will borrow someone else's.
     for (const project of PROJECTS) {
-      expect(byProject.get(project.id as string) ?? 0, `${project.slug} has no sessions`).toBeGreaterThan(0);
+      expect(
+        byProject.get(project.id as string) ?? 0,
+        `${project.slug} has no sessions`,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -135,9 +138,7 @@ describe("two developers do not share records", () => {
   it("refuses a project the viewer does not hold", async () => {
     // Petra is Alpha's developer. Beta's project is not hers to read, and the
     // repository must raise rather than return an empty, plausible-looking page.
-    await expect(
-      syntheticRepository.getHome(query(petra, "beta", "kingsford")),
-    ).rejects.toThrow();
+    await expect(syntheticRepository.getHome(query(petra, "beta", "kingsford"))).rejects.toThrow();
   });
 
   it("keeps identical slugs in different tenants apart", async () => {
@@ -373,9 +374,10 @@ describe("the summary window ignores the period, never the project", () => {
       const presentations = cards.find((k) => /presentation/i.test(k.label));
       const value = Number(String(presentations?.value ?? "0").replace(/[^0-9]/g, ""));
 
-      expect(value, `${window} counts ${value} of ${northgate} Northgate meetings`).toBeLessThanOrEqual(
-        northgate,
-      );
+      expect(
+        value,
+        `${window} counts ${value} of ${northgate} Northgate meetings`,
+      ).toBeLessThanOrEqual(northgate);
     }
   });
 

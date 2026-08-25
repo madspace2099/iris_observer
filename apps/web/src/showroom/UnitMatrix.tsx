@@ -90,14 +90,14 @@ export function UnitMatrix({
               </em>
             </span>
             {/*
-              * Every cell carries its own label.
-              *
-              * The header row disappears when the panel is too narrow for six
-              * columns, and a stack of bare numbers is unreadable without it.
-              * `data-label` is what the CSS prints in front of each figure, and
-              * the visually-hidden copy is what a screen reader hears in both
-              * layouts.
-              */}
+             * Every cell carries its own label.
+             *
+             * The header row disappears when the panel is too narrow for six
+             * columns, and a stack of bare numbers is unreadable without it.
+             * `data-label` is what the CSS prints in front of each figure, and
+             * the visually-hidden copy is what a screen reader hears in both
+             * layouts.
+             */}
             <span
               className="iris-matrix-attention"
               data-label="Attention"

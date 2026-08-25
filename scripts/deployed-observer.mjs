@@ -85,7 +85,11 @@ const surface = (o) => JSON.stringify(o.payload ?? {}).toLowerCase();
   if (answer !== null) {
     const prose = JSON.stringify(answer).toLowerCase();
 
-    check("why-compare-fell", "states the current period", /quarter to date/i.test(JSON.stringify(answer)));
+    check(
+      "why-compare-fell",
+      "states the current period",
+      /quarter to date/i.test(JSON.stringify(answer)),
+    );
     check(
       "why-compare-fell",
       "states the comparison period",
@@ -141,7 +145,11 @@ const surface = (o) => JSON.stringify(o.payload ?? {}).toLowerCase();
   const outcome = await ask(page, { ...NORTHGATE, question, depth: "standard" });
   results.push({ scenario: "ordinary-question", question, ...outcome.payload });
 
-  check("ordinary-question", "answered", outcome.status === 200 && outcome.payload?.answer !== null);
+  check(
+    "ordinary-question",
+    "answered",
+    outcome.status === 200 && outcome.payload?.answer !== null,
+  );
   check("ordinary-question", "the model wrote it", outcome.payload?.status?.live === true);
   check("ordinary-question", "a read tool ran", (outcome.payload?.toolsUsed ?? []).length > 0);
   await context.close();
@@ -230,7 +238,10 @@ const surface = (o) => JSON.stringify(o.payload ?? {}).toLowerCase();
 }
 
 mkdirSync(dirname(EVIDENCE), { recursive: true });
-writeFileSync(EVIDENCE, JSON.stringify({ base: BASE, at: new Date().toISOString(), results }, null, 2));
+writeFileSync(
+  EVIDENCE,
+  JSON.stringify({ base: BASE, at: new Date().toISOString(), results }, null, 2),
+);
 
 await browser.close();
 console.log(

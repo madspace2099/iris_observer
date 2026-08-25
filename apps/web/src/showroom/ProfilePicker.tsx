@@ -181,7 +181,13 @@ function ProfileCard({ profile }: { profile: Profile }) {
 
   if (profile.submitValue !== undefined) {
     return (
-      <button className="iris-card" type="submit" name="viewer" value={profile.submitValue} aria-label={label}>
+      <button
+        className="iris-card"
+        type="submit"
+        name="viewer"
+        value={profile.submitValue}
+        aria-label={label}
+      >
         {inner}
       </button>
     );
@@ -231,13 +237,13 @@ export function ProfilePicker({
         </div>
 
         {/*
-          * The demonstration status, in product language.
-          *
-          * "Scenario selector, not authentication" described the
-          * implementation to a reader who had not asked, and told a developer
-          * in a consultation they were looking at scaffolding. What matters to
-          * them is that the figures are synthetic, which the header now says.
-          */}
+         * The demonstration status, in product language.
+         *
+         * "Scenario selector, not authentication" described the
+         * implementation to a reader who had not asked, and told a developer
+         * in a consultation they were looking at scaffolding. What matters to
+         * them is that the figures are synthetic, which the header now says.
+         */}
         <span className="iris-code iris-welcome-badge">Demo data</span>
       </header>
 

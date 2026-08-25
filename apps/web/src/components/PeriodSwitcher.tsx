@@ -46,13 +46,13 @@ export function PeriodSwitcher() {
   return (
     <div className="obs-context">
       {/*
-        * Named once, and exactly.
-        *
-        * A wrapping `<label>` folds its own text *and* the option list into the
-        * control's accessible name, which produced "PeriodQuarter to dateLast
-        * 28 days…". `aria-label` alone gives it the name a reader — and an
-        * assistive technology — actually hears.
-        */}
+       * Named once, and exactly.
+       *
+       * A wrapping `<label>` folds its own text *and* the option list into the
+       * control's accessible name, which produced "PeriodQuarter to dateLast
+       * 28 days…". `aria-label` alone gives it the name a reader — and an
+       * assistive technology — actually hears.
+       */}
       <select
         className="obs-action"
         value={active}

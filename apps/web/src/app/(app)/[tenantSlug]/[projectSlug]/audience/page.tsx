@@ -171,7 +171,9 @@ export default async function AudiencePage({
             {view.matches.map((m) => (
               <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
                 <span className="iris-matrix-code">{m.startedDisplay}</span>
-                <span className="iris-bar-label" title={m.agentName}>{m.agentName}</span>
+                <span className="iris-bar-label" title={m.agentName}>
+                  {m.agentName}
+                </span>
                 <span className="iris-bar-label" title={m.because}>
                   {m.because}
                 </span>

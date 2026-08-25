@@ -150,7 +150,9 @@ export default async function AgentsPage({
                 <div className="iris-bars">
                   {focused.repeats.map((r) => (
                     <div className="iris-bar" key={r.visits}>
-                      <span className="iris-bar-label" title={r.label}>{r.label}</span>
+                      <span className="iris-bar-label" title={r.label}>
+                        {r.label}
+                      </span>
                       <span
                         className="iris-bar-track"
                         style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
@@ -222,7 +224,9 @@ export default async function AgentsPage({
             <div className="iris-bars">
               {view.repeats.map((r) => (
                 <div className="iris-bar" key={r.visits}>
-                  <span className="iris-bar-label" title={r.label}>{r.label}</span>
+                  <span className="iris-bar-label" title={r.label}>
+                    {r.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}

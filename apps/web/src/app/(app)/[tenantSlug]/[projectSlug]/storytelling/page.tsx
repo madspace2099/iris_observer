@@ -115,7 +115,9 @@ export default async function StorytellingPage({
               .sort((a, b) => a.meanPosition - b.meanPosition)
               .map((s) => (
                 <div className="iris-bar" key={`pos-${s.sectionId}`}>
-                  <span className="iris-bar-label" title={s.label}>{s.label}</span>
+                  <span className="iris-bar-label" title={s.label}>
+                    {s.label}
+                  </span>
                   <span className="iris-position-row" aria-hidden="true">
                     <i style={{ left: `${s.meanPosition * 100}%` }} />
                   </span>
@@ -204,7 +206,9 @@ export default async function StorytellingPage({
               .sort((a, b) => b.count - a.count)
               .map((t) => (
                 <div className="iris-bar" key={t.preset}>
-                  <span className="iris-bar-label" title={t.label}>{t.label}</span>
+                  <span className="iris-bar-label" title={t.label}>
+                    {t.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={
@@ -224,7 +228,9 @@ export default async function StorytellingPage({
               .sort((a, b) => b.count - a.count)
               .map((w) => (
                 <div className="iris-bar" key={w.preset}>
-                  <span className="iris-bar-label" title={w.label}>{w.label}</span>
+                  <span className="iris-bar-label" title={w.label}>
+                    {w.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={
@@ -250,7 +256,9 @@ export default async function StorytellingPage({
           <div className="iris-bars">
             {view.beforeShortlist.slice(0, 6).map((b) => (
               <div className="iris-bar" key={b.sectionId}>
-                <span className="iris-bar-label" title={b.label}>{b.label}</span>
+                <span className="iris-bar-label" title={b.label}>
+                  {b.label}
+                </span>
                 <span
                   className="iris-bar-track"
                   style={{ "--v": b.rate.toFixed(3) } as React.CSSProperties}

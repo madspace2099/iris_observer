@@ -35,14 +35,14 @@ export default async function MadspacePage() {
         <Card as="section">
           <SectionHead title="Administration" aside={viewer.displayName} />
           {/*
-            * Named for what it is, not for when it lands.
-            *
-            * "Arrives in M9" is internal roadmap language on a route a
-            * developer can open during a consultation. It tells the reader
-            * nothing they can use and quietly dates the product. The promise
-            * the surface exists to keep is worth stating; the milestone number
-            * is not.
-            */}
+           * Named for what it is, not for when it lands.
+           *
+           * "Arrives in M9" is internal roadmap language on a route a
+           * developer can open during a consultation. It tells the reader
+           * nothing they can use and quietly dates the product. The promise
+           * the surface exists to keep is worth stating; the milestone number
+           * is not.
+           */}
           <StateMessage
             title="Not part of this demonstration"
             detail="Administration covers tenants, projects, branding, users, agencies, showroom installations, integrations, unit import and project activation — creating a project must never require a code change, and this is where that promise is kept. It is outside the scope of what is being shown today."

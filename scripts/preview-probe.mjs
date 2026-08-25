@@ -102,7 +102,11 @@ const anonymous = await fetch(`${BASE}/api/ask`, {
 });
 const anonymousBody = await anonymous.text();
 
-check("an unauthenticated question is refused", anonymous.status === 401, `HTTP ${anonymous.status}`);
+check(
+  "an unauthenticated question is refused",
+  anonymous.status === 401,
+  `HTTP ${anonymous.status}`,
+);
 check("the refusal is one sentence", anonymousBody.length < 200, `${anonymousBody.length} bytes`);
 check(
   "the refusal carries no stack trace",
@@ -158,7 +162,10 @@ console.log(
 
 /* --- 6. what the sign-in screen promises -------------------------------------- */
 
-check("the sign-in screen says it is not authentication", /not authentication|demonstration/i.test(html));
+check(
+  "the sign-in screen says it is not authentication",
+  /not authentication|demonstration/i.test(html),
+);
 check("the deployment declares itself synthetic", /synthetic|demonstration/i.test(html));
 
 console.log(

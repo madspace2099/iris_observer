@@ -763,96 +763,96 @@ export function showroomSessions(): readonly ShowroomSession[] {
       const from = new Date(`${bounds.from}T09:00:00.000Z`).getTime();
       const to = new Date(`${bounds.to}T18:00:00.000Z`).getTime();
 
-    for (let i = 0; i < bounds.meetings; i += 1) {
-      index += 1;
-      const r = rng(dataset.seed ^ (index * 2654435761));
-      const agent = chooseAgent(r, roster);
+      for (let i = 0; i < bounds.meetings; i += 1) {
+        index += 1;
+        const r = rng(dataset.seed ^ (index * 2654435761));
+        const agent = chooseAgent(r, roster);
 
-      // Meetings land on working days, spread across the period, weighted
-      // toward late morning and mid-afternoon.
-      const at = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
-      at.setUTCHours(9 + Math.floor(r() * 8), Math.floor(r() * 60), 0, 0);
+        // Meetings land on working days, spread across the period, weighted
+        // toward late morning and mid-afternoon.
+        const at = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
+        at.setUTCHours(9 + Math.floor(r() * 8), Math.floor(r() * 60), 0, 0);
 
-      const timingUnavailable = phase === "previous" && i < dataset.legacyImports;
-      const order = buildSequence(r, agent);
-      const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
+        const timingUnavailable = phase === "previous" && i < dataset.legacyImports;
+        const order = buildSequence(r, agent);
+        const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
 
-      const usedCompare = order.includes("compare");
-      const units = buildUnits(r, agent, catalogue, usedCompare);
+        const usedCompare = order.includes("compare");
+        const units = buildUnits(r, agent, catalogue, usedCompare);
 
-      const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
-      const coverage = coreReached / CORE_SECTION_IDS.length;
-      const surroundingsIndex = order.indexOf("surroundings");
-      const surroundingsEarly =
-        surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
-      const returned = steps.some((s) => s.isReturn);
+        const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
+        const coverage = coreReached / CORE_SECTION_IDS.length;
+        const surroundingsIndex = order.indexOf("surroundings");
+        const surroundingsEarly =
+          surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
+        const returned = steps.some((s) => s.isReturn);
 
-      /*
-       * No CRM means no outcome — not a nil one.
-       *
-       * `skipped` is this product's word for "nothing recorded it". Drawing an
-       * outcome for a project with no CRM connected would invent the one fact
-       * that project cannot have, and every progression rate computed from it
-       * would be fiction presented as measurement.
-       */
-      const outcome = dataset.crmConnected
-        ? chooseOutcome(r, agent, {
-            coverage,
-            surroundingsEarly,
-            compared: usedCompare,
-            returned,
-          })
-        : "skipped";
+        /*
+         * No CRM means no outcome — not a nil one.
+         *
+         * `skipped` is this product's word for "nothing recorded it". Drawing an
+         * outcome for a project with no CRM connected would invent the one fact
+         * that project cannot have, and every progression rate computed from it
+         * would be fiction presented as measurement.
+         */
+        const outcome = dataset.crmConnected
+          ? chooseOutcome(r, agent, {
+              coverage,
+              surroundingsEarly,
+              compared: usedCompare,
+              returned,
+            })
+          : "skipped";
 
-      // Roughly a third of meetings are with a contact Observer already knows.
-      const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
+        // Roughly a third of meetings are with a contact Observer already knows.
+        const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
 
-      /*
-       * A returning buyer is a different sales situation.
-       *
-       * Only a contact Observer knows can be counted as returning; a walk-in has
-       * no history to have. Averaging first and third meetings together hides
-       * the thing an agent most wants to see.
-       */
-      const priorMeetings =
-        contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
+        /*
+         * A returning buyer is a different sales situation.
+         *
+         * Only a contact Observer knows can be counted as returning; a walk-in has
+         * no history to have. Averaging first and third meetings together hides
+         * the thing an agent most wants to see.
+         */
+        const priorMeetings =
+          contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
 
-      const profile = chooseProfile(r);
+        const profile = chooseProfile(r);
 
-      /*
-       * The agent's rating of IRIS, 1-5, taken at the end of the session.
-       * MADSPACE only: it is feedback on the software, not on the meeting.
-       * Agents skip it often, and a skipped rating is null rather than a three.
-       */
-      const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
+        /*
+         * The agent's rating of IRIS, 1-5, taken at the end of the session.
+         * MADSPACE only: it is feedback on the software, not on the meeting.
+         * Agents skip it often, and a skipped rating is null rather than a three.
+         */
+        const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
 
-      /*
-       * Identifiers carry the project.
-       *
-       * `mtg_0004` existed once under all three developments at the same time.
-       * A meeting id has to name exactly one meeting, or a deep link opens
-       * somebody else's presentation.
-       */
-      sessions.push({
-        sessionId: `ses_${dataset.code}${String(index).padStart(4, "0")}`,
-        meetingId: `mtg_${dataset.code}${String(index).padStart(4, "0")}`,
-        projectId: dataset.projectId,
-        agentId: agent.id,
-        contactId,
-        startedAt: at.toISOString(),
-        endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
-        durationSeconds,
-        outcome,
-        steps,
-        units,
-        environment: buildEnvironment(r, order),
-        filters: buildFilters(r, profile, catalogue),
-        places: buildPlaces(r, profile, order),
-        screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
-        irisRating,
-        priorMeetings,
-        timingUnavailable,
-      });
+        /*
+         * Identifiers carry the project.
+         *
+         * `mtg_0004` existed once under all three developments at the same time.
+         * A meeting id has to name exactly one meeting, or a deep link opens
+         * somebody else's presentation.
+         */
+        sessions.push({
+          sessionId: `ses_${dataset.code}${String(index).padStart(4, "0")}`,
+          meetingId: `mtg_${dataset.code}${String(index).padStart(4, "0")}`,
+          projectId: dataset.projectId,
+          agentId: agent.id,
+          contactId,
+          startedAt: at.toISOString(),
+          endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
+          durationSeconds,
+          outcome,
+          steps,
+          units,
+          environment: buildEnvironment(r, order),
+          filters: buildFilters(r, profile, catalogue),
+          places: buildPlaces(r, profile, order),
+          screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
+          irisRating,
+          priorMeetings,
+          timingUnavailable,
+        });
       }
     }
   }

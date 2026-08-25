@@ -90,7 +90,7 @@ navigation link carries the selection.
 
 ### Failure keeps the evidence
 
-A model that cannot be reached lost the reader their *figures*: a configuration
+A model that cannot be reached lost the reader their _figures_: a configuration
 fault ended the request before a single tool had run. Every figure on the page
 is computed by read models that never needed the network. The fault is recorded,
 the status says the prose is not a model's, and the analysis still runs.

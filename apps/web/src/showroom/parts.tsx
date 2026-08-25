@@ -163,13 +163,13 @@ export function DnaLane({
         </span>
       </div>
       {/*
-        * A scrollable region needs a keyboard route into it.
-        *
-        * The lane scrolls inside itself when a panel is too narrow for nine
-        * sections, and a region that only a pointer can reach is a region a
-        * keyboard reader cannot read at all. `tabindex` makes it focusable and
-        * the group label says what they have landed on.
-        */}
+       * A scrollable region needs a keyboard route into it.
+       *
+       * The lane scrolls inside itself when a panel is too narrow for nine
+       * sections, and a region that only a pointer can reach is a region a
+       * keyboard reader cannot read at all. `tabindex` makes it focusable and
+       * the group label says what they have landed on.
+       */}
       <div
         className="iris-dna-track"
         tabIndex={0}
@@ -196,21 +196,21 @@ export function DnaLane({
             }${step.returnRate > 0 ? ` · returned to in ${Math.round(step.returnRate * 100)}%` : ""}`}
           >
             {/*
-              * Both labels, and the container decides which is shown.
-              *
-              * The step is a flex item sized by how often the section was
-              * reached, so how much room it has is not knowable from the
-              * viewport — at 1366 more than thirty of these were clipped
-              * mid-word, turning "Surroundings" into "Surroundi" and
-              * "Compare" into "Comp". A container query on the step itself
-              * asks the only question that matters: does *this* box fit its
-              * name?
-              *
-              * The short form is a three-letter code, never a truncation: two
-              * letters cannot be told apart, and an ellipsis is not a label.
-              * The full name stays reachable through the code's own title, the
-              * step's tooltip and the key beneath the lane.
-              */}
+             * Both labels, and the container decides which is shown.
+             *
+             * The step is a flex item sized by how often the section was
+             * reached, so how much room it has is not knowable from the
+             * viewport — at 1366 more than thirty of these were clipped
+             * mid-word, turning "Surroundings" into "Surroundi" and
+             * "Compare" into "Comp". A container query on the step itself
+             * asks the only question that matters: does *this* box fit its
+             * name?
+             *
+             * The short form is a three-letter code, never a truncation: two
+             * letters cannot be told apart, and an ellipsis is not a label.
+             * The full name stays reachable through the code's own title, the
+             * step's tooltip and the key beneath the lane.
+             */}
             <span className="iris-dna-full">{step.label}</span>
             <abbr className="iris-dna-code" title={step.label}>
               {shortCode(step.label)}
@@ -242,7 +242,13 @@ const SECTION_CODES: Readonly<Record<string, string>> = {
 };
 
 export function shortCode(label: string): string {
-  return SECTION_CODES[label] ?? label.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+  return (
+    SECTION_CODES[label] ??
+    label
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 3)
+      .toUpperCase()
+  );
 }
 
 /* --- coverage -------------------------------------------------------------- */

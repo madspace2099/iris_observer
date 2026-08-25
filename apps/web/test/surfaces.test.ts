@@ -160,7 +160,10 @@ describe("accessibility foundations", () => {
      * accessible name — "PeriodQuarter to dateLast 28 days…" — which is both
      * wrong for a screen reader and ambiguous for anything querying by name.
      */
-    for (const file of ["src/components/ContextSwitcher.tsx", "src/components/PeriodSwitcher.tsx"]) {
+    for (const file of [
+      "src/components/ContextSwitcher.tsx",
+      "src/components/PeriodSwitcher.tsx",
+    ]) {
       const switcher = read(file);
       expect(switcher, `${file} must name its control`).toContain("aria-label");
       // The closing tag, not the opening one — the comment above each control

@@ -189,7 +189,9 @@ export default async function UnitsPage({
                   <div className="iris-bars">
                     {detail.competitors.map((c) => (
                       <div className="iris-bar" key={c.unitCode}>
-                        <span className="iris-bar-label" title={c.unitCode}>{c.unitCode}</span>
+                        <span className="iris-bar-label" title={c.unitCode}>
+                          {c.unitCode}
+                        </span>
                         <span
                           className="iris-bar-track"
                           style={
