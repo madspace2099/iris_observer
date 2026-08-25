@@ -214,7 +214,7 @@ export async function consumeSharedQuota(
        */
       const meaning =
         response.status === 401 || response.status === 403
-          ? " — the project did not accept SUPABASE_SECRET_KEY"
+          ? ` — ${await describeRejection(response)}`
           : response.status === 404
             ? " — the function is not there; check SUPABASE_URL points at the right project"
             : response.status === 406
@@ -262,6 +262,34 @@ export async function consumeSharedQuota(
  */
 function unavailable(): SharedVerdict {
   return { allowed: false, reason: "ceiling_unavailable", retryAfterSeconds: 20 };
+}
+
+/**
+ * Which kind of 401 this is, in words, from one field.
+ *
+ * Two very different mistakes arrive as the same status:
+ *
+ *   - a key the project does not recognise at all — the wrong project's key, or
+ *     one since rotated. PostgREST answers "Invalid API key";
+ *   - a key the project *does* recognise, authenticating as a role the function
+ *     is not granted to. That is what pasting the **publishable** key into
+ *     `SUPABASE_SECRET_KEY` produces, and it is the likeliest next mistake
+ *     after the first one is fixed. Postgres answers SQLSTATE 42501.
+ *
+ * Only the classification is returned. The body itself is never logged: a
+ * PostgREST error can quote the statement that failed, and the statement
+ * carries the session and client identifiers.
+ */
+async function describeRejection(response: Response): Promise<string> {
+  try {
+    const parsed = (await response.clone().json()) as { code?: unknown };
+    if (parsed?.code === "42501") {
+      return "the key is valid for this project but the function is not granted to its role — that is the publishable key, not the secret key";
+    }
+  } catch {
+    // A body that is not JSON tells us nothing, which is its own answer.
+  }
+  return "the project does not recognise SUPABASE_SECRET_KEY — wrong project, or the key has been rotated";
 }
 
 /* --- the audit --------------------------------------------------------------- */

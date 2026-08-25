@@ -500,3 +500,54 @@ describe("a key that brought its punctuation along", () => {
     expect(diagnosis.malformed).toEqual([]);
   });
 });
+
+describe("the two kinds of rejected key", () => {
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    delete process.env["SUPABASE_URL"];
+    delete process.env["SUPABASE_SECRET_KEY"];
+  });
+
+  function configured() {
+    process.env["SUPABASE_URL"] = "https://example.supabase.co";
+    process.env["SUPABASE_SECRET_KEY"] = FAKE_SECRET_KEY;
+  }
+
+  function respondWith(body: string) {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response(body, { status: 401, headers: { "Content-Type": "application/json" } }),
+      )) as typeof fetch;
+  }
+
+  it("refuses either way, and never puts the body in the verdict", async () => {
+    /*
+     * A PostgREST error can quote the statement that failed, and the statement
+     * carries the session and client identifiers. Only a classification is
+     * ever derived from it.
+     */
+    configured();
+    respondWith('{"code":"42501","message":"permission denied for function consume_ai_quota"}');
+    const denied = await consumeSharedQuota("session", "client", "alpha/northgate");
+
+    configured();
+    respondWith('{"message":"Invalid API key","hint":"Double check your API key."}');
+    const unknown = await consumeSharedQuota("session", "client", "alpha/northgate");
+
+    for (const verdict of [denied, unknown]) {
+      expect(verdict.allowed).toBe(false);
+      if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
+      expect(JSON.stringify(verdict)).not.toMatch(/permission denied|Invalid API key|42501/);
+    }
+  });
+
+  it("survives a 401 whose body is not JSON at all", async () => {
+    configured();
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response("<html>gateway</html>", { status: 401 }))) as typeof fetch;
+
+    const verdict = await consumeSharedQuota("session", "client", "alpha/northgate");
+    expect(verdict.allowed).toBe(false);
+  });
+});
