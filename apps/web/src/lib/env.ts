@@ -131,6 +131,17 @@ export interface EnvironmentReport {
     readonly enabled: boolean;
     /** Whether a key is present. Never which key, never how long. */
     readonly keyConfigured: boolean;
+    /**
+     * Whether the key is even the right *shape*.
+     *
+     * A key that is present but malformed produces a 401 on every call, and a
+     * 401 is indistinguishable at the surface from a revoked key or an empty
+     * account: Ask Observer quietly falls back to evidence-only prose and the
+     * operator has no way to tell why. This one boolean is the difference
+     * between "the model is unavailable" and "the variable was set wrongly",
+     * and it is derivable from the shape without reading the secret.
+     */
+    readonly keyWellFormed: boolean;
     /** Model ids are configuration and may be shown to an operator. */
     readonly textModel: string;
     readonly fastModel: string;
@@ -177,6 +188,22 @@ export function environment(): EnvironmentReport {
   }
 
   const keyConfigured = env.OPENAI_API_KEY !== undefined;
+  /*
+   * Shape, not value.
+   *
+   * An OpenAI key is `sk-` followed by URL-safe characters and nothing else.
+   * The failures worth catching here are the ones a person makes at a keyboard:
+   * pasting the placeholder brackets around the value, leaving quotes on, or
+   * letting a line break in. Every one of them yields a 401 that reads exactly
+   * like a revoked key.
+   */
+  const keyWellFormed =
+    env.OPENAI_API_KEY !== undefined && /^sk-[A-Za-z0-9_-]+$/.test(env.OPENAI_API_KEY);
+  if (keyConfigured && !keyWellFormed) {
+    problems.push(
+      "OPENAI_API_KEY is set but is not shaped like an OpenAI key — check for placeholder angle brackets, surrounding quotes or a stray line break. Every model call will be rejected until it is corrected.",
+    );
+  }
   if (env.OBSERVER_AI_ENABLED && !keyConfigured) {
     problems.push(
       "OBSERVER_AI_ENABLED is on but OPENAI_API_KEY is not set. Ask Observer answers from the deterministic provider: the same tools and the same evidence, in plainer prose.",
@@ -207,6 +234,7 @@ export function environment(): EnvironmentReport {
     ai: {
       enabled: env.OBSERVER_AI_ENABLED,
       keyConfigured,
+      keyWellFormed,
       textModel: env.OPENAI_TEXT_MODEL,
       fastModel: env.OPENAI_FAST_MODEL,
       voiceModel: env.OPENAI_VOICE_MODEL,
@@ -231,7 +259,7 @@ export function reportEnvironment(): void {
   const lines = [
     `[observer] data source: ${report.dataSource} · environment: ${report.environment}`,
     `[observer] supabase: browser ${report.supabase.browserConfigured ? "configured" : "not configured"}, server ${report.supabase.serverConfigured ? "configured" : "not configured"}`,
-    `[observer] ai: ${report.ai.enabled ? "enabled" : "disabled"} · key ${report.ai.keyConfigured ? "present" : "absent"} · text ${report.ai.textModel} · fast ${report.ai.fastModel} · effort ${report.ai.reasoningEffort}`,
+    `[observer] ai: ${report.ai.enabled ? "enabled" : "disabled"} · key ${report.ai.keyConfigured ? (report.ai.keyWellFormed ? "present" : "present but malformed") : "absent"} · text ${report.ai.textModel} · fast ${report.ai.fastModel} · effort ${report.ai.reasoningEffort}`,
     `[observer] voice: ${report.ai.voiceEnabled ? "offered" : "disabled"} · model ${report.ai.voiceModel}`,
     ...report.problems.map((p) => `[observer] ${p}`),
   ];

@@ -43,7 +43,7 @@ const SSE_HEADERS = {
 
 export async function POST(request: Request) {
   const started = Date.now();
-  const admitted = await gate(await request.json().catch(() => null));
+  const admitted = await gate(await request.json().catch(() => null), request);
 
   if (!admitted.ok) {
     /*
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
               controller.enqueue(frame("delta", { field: event.field, delta: event.delta }));
               break;
             case "final":
-              reportOutcome(event.outcome, admitted.subject, started);
+              reportOutcome(event.outcome, admitted, started);
               controller.enqueue(frame("final", publicOutcome(event.outcome)));
               break;
           }

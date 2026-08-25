@@ -6,6 +6,7 @@ import { NotPermittedError } from "@observer/readmodels";
 import { currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { LIMITS, checkAllowance, recordAttempt, type RefusalReason } from "./limits";
+import { clientFingerprint, consumeSharedQuota } from "./quota";
 import { safetyIdentifier, telemetrySubject } from "./identity";
 import type { AskContextInput } from "./agent";
 
@@ -69,12 +70,33 @@ export const REFUSAL_TEXT: Readonly<Record<RefusalReason, string>> = {
   model_not_allowed: UNAVAILABLE,
 };
 
+/**
+ * What the reader is told when a *shared* ceiling stops them.
+ *
+ * Named for the reader's situation, not for the counter that fired. "The
+ * demonstration has answered its questions for today" is a fact somebody can
+ * act on; "project daily bucket exhausted" is an implementation detail wearing
+ * a sentence.
+ */
+export const SHARED_REFUSAL_TEXT = {
+  rate_limited: "You are asking faster than this demonstration allows. Try again in a moment.",
+  hourly_limit: "You have reached this hour's question limit for the demonstration.",
+  client_limit: "This device has reached its hourly question limit for the demonstration.",
+  daily_budget:
+    "The demonstration has answered its questions for today. The measured evidence on every screen is unaffected.",
+} as const;
+
+/** A request that passed every check. The audit and telemetry both read it. */
+export type Admitted = Extract<GateResult, { readonly ok: true }>;
+
 export type GateResult =
   | {
       readonly ok: true;
       readonly question: string;
       readonly context: AskContextInput;
       readonly subject: string;
+      /** Opaque, salted, never an address. Carried for the audit record. */
+      readonly clientHash: string;
     }
   | {
       readonly ok: false;
@@ -95,7 +117,7 @@ function deny(httpStatus: number, message: string, retryAfterSeconds: number | n
  * project authorisation a property of the data layer rather than a check
  * somebody remembered to write — or a refusal with the status to send.
  */
-export async function gate(rawBody: unknown): Promise<GateResult> {
+export async function gate(rawBody: unknown, request?: Request): Promise<GateResult> {
   /* 1. authentication */
   const viewer = await currentViewer();
   if (viewer === null) return deny(401, "Not signed in.", null);
@@ -151,13 +173,35 @@ export async function gate(rawBody: unknown): Promise<GateResult> {
     return deny(429, REFUSAL_TEXT[verdict.reason], verdict.retryAfterSeconds);
   }
 
-  /* 5. the meter, only once the request is going to happen */
+  /*
+   * 5. the shared ceiling
+   *
+   * The in-process check above refuses the obvious cases without a round trip.
+   * This one is the ceiling that actually bounds the bill: every instance of
+   * this deployment counts into the same buckets, atomically, so a serverless
+   * platform cannot hand each lambda its own budget.
+   *
+   * Runs last of the checks and before the meter, so a request refused by
+   * anything earlier never touches it.
+   */
+  const clientHash = request === undefined ? "unknown" : clientFingerprint(request);
+  const shared = await consumeSharedQuota(
+    viewer.userId,
+    clientHash,
+    `${body.data.tenantSlug}/${body.data.projectSlug}`,
+  );
+  if (!shared.allowed) {
+    return deny(429, SHARED_REFUSAL_TEXT[shared.reason], shared.retryAfterSeconds);
+  }
+
+  /* 6. the meter, only once the request is going to happen */
   recordAttempt(viewer.userId);
 
   return {
     ok: true,
     question: body.data.question,
     subject: telemetrySubject(viewer.userId),
+    clientHash,
     context: {
       viewer,
       tenantSlug: body.data.tenantSlug,

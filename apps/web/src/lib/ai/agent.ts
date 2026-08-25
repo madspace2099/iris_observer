@@ -7,6 +7,7 @@ import {
   isShowroomRooted,
   isUngroundedInterpretation,
   isProducibleTier,
+  isCausalQuestion,
   type EvidenceBundle,
   type InsightSource,
   type ObserverAnswer,
@@ -438,7 +439,20 @@ export function composeDeterministic(
   results: readonly ToolResult[],
   bundles: readonly EvidenceBundle[],
   context: AskContextInput,
+  question = "",
 ): ObserverAnswer {
+  /*
+   * A "why" asked of this path is still a "why".
+   *
+   * The live path has the four moves in its system prompt and `findAnswerDefects`
+   * rejecting an answer that makes neither the causal step nor the refusal of
+   * it. This path had neither: `Explain why Compare mode fell` returned three
+   * descriptive figures and stopped, which reads as an answer to the question
+   * that was asked and is not one. The figures are the same; what is added is
+   * the sentence saying what they can and cannot settle, and the comparison
+   * that would narrow it.
+   */
+  const causal = isCausalQuestion(question);
   const facts = results
     .map((r) => r.draft)
     .filter((d) => d.length > 0)
@@ -479,11 +493,19 @@ export function composeDeterministic(
            * of it failed — which is the guard doing its job on the one piece of
            * prose in this file that a model did not write.
            */
-          `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}, reported without interpretation. No language model is configured on this deployment.`,
-    limitations:
-      caveats.length > 0
+          causal
+          ? `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}. They show what changed. They cannot establish why: nothing measured here varies one thing at a time, so what you have is an association between a period and a set of numbers. The comparison that would narrow it is this same period split by presenter and by buyer cohort — a change present in both narrows to the presentation itself, a change present in one narrows to that group.`
+          : `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}, reported without interpretation.`,
+    limitations: [
+      ...(causal
+        ? [
+            "This is an association between a period and a set of measurements. No comparison here isolates a cause.",
+          ]
+        : []),
+      ...(caveats.length > 0
         ? caveats
-        : ["No language model is configured, so this answer is the tools' own wording."],
+        : ["This wording is Observer's own composition, not a language model's."]),
+    ].slice(0, 6),
     recommendedActions:
       action === null
         ? []
@@ -774,7 +796,7 @@ export async function* askStream(
   }
 
   const bundles = bundlesFor(run.results, context);
-  const deterministic = composeDeterministic(run.results, bundles, context);
+  const deterministic = composeDeterministic(run.results, bundles, context, trimmed);
   const toolsUsed = run.results.map((r) => r.tool);
 
   const finish = (
@@ -788,13 +810,21 @@ export async function* askStream(
     refusal: null,
     toolsUsed,
     /*
-     * The status carries the fault; the answer carries the figures.
+     * `live` describes the answer, not the deployment.
      *
-     * A misconfigured model means the prose is Observer's own composition
-     * rather than a model's, which the reader is entitled to know — and which
-     * the answer sheet already shows. It does not mean there is no answer.
+     * It used to describe the deployment: a correctly configured model that
+     * then timed out, or returned prose the schema rejected, still reported
+     * `live: true` beside an answer the deterministic composer had written.
+     * The reader was told they were reading a model's words when they were
+     * not — the one claim ADR-0024 exists to keep honest.
+     *
+     * So the flag is the fourth argument here, set by whichever branch reached
+     * this point, and a configuration fault forces it down as well. A missing
+     * model means the prose is Observer's own composition, which the reader is
+     * entitled to know and which the answer sheet already shows. It does not
+     * mean there is no answer: the figures never came from the model.
      */
-    status: configurationFault ? { ...status, live: false } : status,
+    status: live && !configurationFault ? status : { ...status, live: false },
     sources: live ? [...sources, "AI_INTERPRETATION" as const] : sources,
     demoData: true,
     diagnostics: { turns, usage, schemaRejected, truncated, reasoningEffort: effort },

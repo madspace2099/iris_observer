@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     ...parsed.data,
     question: parsed.data.question ?? "voice tool call",
     depth: "standard",
-  });
+  }, request);
 
   if (!admitted.ok) {
     return NextResponse.json({ error: admitted.message }, { status: admitted.httpStatus });

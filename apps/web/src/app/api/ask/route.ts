@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { ask, type ObserverOutcome } from "@/lib/ai/agent";
-import { gate, redactStatus } from "@/lib/ai/gate";
+import { gate, redactStatus, type Admitted } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
+import { recordAudit } from "@/lib/ai/quota";
 import { recordAsk } from "@/lib/ai/telemetry";
 
 /**
@@ -22,17 +23,23 @@ import { recordAsk } from "@/lib/ai/telemetry";
 export const runtime = "nodejs";
 
 /** Telemetry, without the answer, the question or anything a person said. */
-export function reportOutcome(outcome: ObserverOutcome, subject: string, startedAt: number): void {
+export function reportOutcome(
+  outcome: ObserverOutcome,
+  admitted: Admitted,
+  startedAt: number,
+): void {
+  const outcomeKind =
+    outcome.answer !== null
+      ? "answered"
+      : outcome.status.live
+        ? "refused"
+        : outcome.status.provider === "openai"
+          ? "misconfigured"
+          : "unavailable";
+
   recordAsk({
-    subject,
-    outcome:
-      outcome.answer !== null
-        ? "answered"
-        : outcome.status.live
-          ? "refused"
-          : outcome.status.provider === "openai"
-            ? "misconfigured"
-            : "unavailable",
+    subject: admitted.subject,
+    outcome: outcomeKind,
     provider: outcome.status.provider,
     model: outcome.status.model,
     reasoningEffort: outcome.diagnostics.reasoningEffort,
@@ -45,6 +52,32 @@ export function reportOutcome(outcome: ObserverOutcome, subject: string, started
     reasoningTokens: outcome.diagnostics.usage?.reasoningTokens ?? null,
     truncated: outcome.diagnostics.truncated,
     schemaRejected: outcome.diagnostics.schemaRejected,
+  });
+
+  /*
+   * The durable half of the same record.
+   *
+   * `recordAsk` is in-process and dies with the instance, which is fine for a
+   * log line and useless for "how many questions has this demonstration
+   * answered today". This one outlives the lambda and carries no content —
+   * counts, timings and an outcome, never a question or an answer.
+   */
+  void recordAudit({
+    subject: admitted.subject,
+    clientHash: admitted.clientHash,
+    tenantSlug: admitted.context.tenantSlug,
+    projectSlug: admitted.context.projectSlug,
+    viewerRole: admitted.context.viewer.role,
+    // `misconfigured` is an operator's word; the audit table records what the
+    // reader got, and they got no model either way.
+    outcome: outcomeKind === "misconfigured" ? "unavailable" : outcomeKind,
+    model: outcome.status.model,
+    tools: outcome.toolsUsed,
+    toolCalls: outcome.toolsUsed.length,
+    inputTokens: outcome.diagnostics.usage?.inputTokens ?? null,
+    outputTokens: outcome.diagnostics.usage?.outputTokens ?? null,
+    latencyMs: Date.now() - startedAt,
+    questionChars: admitted.question.length,
   });
 }
 
@@ -68,7 +101,7 @@ export function publicOutcome(outcome: ObserverOutcome) {
 
 export async function POST(request: Request) {
   const started = Date.now();
-  const admitted = await gate(await request.json().catch(() => null));
+  const admitted = await gate(await request.json().catch(() => null), request);
 
   if (!admitted.ok) {
     return NextResponse.json(
@@ -98,7 +131,7 @@ export async function POST(request: Request) {
     AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
   );
 
-  reportOutcome(outcome, admitted.subject, started);
+  reportOutcome(outcome, admitted, started);
 
   return NextResponse.json(publicOutcome(outcome), {
     // An answer is a function of the question, the viewer and the period. None

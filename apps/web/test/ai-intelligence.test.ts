@@ -48,7 +48,7 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
   };
 });
 
-const { ask } = await import("../src/lib/ai/agent");
+const { ask, CAUSAL_PATTERNS } = await import("../src/lib/ai/agent");
 
 const CONTEXT = {
   viewer: VIEWERS.developer,
@@ -430,5 +430,82 @@ describe("demonstration data is declared", () => {
     await ask("Summarise the period.", CONTEXT);
     const first = (model.seen as { messages: { content?: string }[] }[])[0];
     expect(first?.messages[0]?.content).toContain("synthetic demonstration data");
+  });
+});
+
+/* --- what the status claims -------------------------------------------------------- */
+
+describe("the status describes the answer, not the deployment", () => {
+  /*
+   * Found by an acceptance run against a deployment whose model timed out.
+   * A correctly configured model that then fails still had `live: true` beside
+   * an answer the deterministic composer wrote — the reader was told they were
+   * reading a model's words when they were not.
+   */
+  it("reports live=false when the composition turn fails", async () => {
+    useModel([PLAN, { failWith: "unavailable" }]);
+    const outcome = await ask("Summarise the period.", CONTEXT);
+
+    expect(outcome.answer).not.toBeNull();
+    expect(outcome.status.live).toBe(false);
+    expect(outcome.sources).not.toContain("AI_INTERPRETATION");
+  });
+
+  it("reports live=false when the model's prose fails validation", async () => {
+    useModel([PLAN, { text: "{ not json" }]);
+    const outcome = await ask("Summarise the period.", CONTEXT);
+
+    expect(outcome.answer).not.toBeNull();
+    expect(outcome.status.live).toBe(false);
+    expect(outcome.diagnostics.schemaRejected).toBe(true);
+  });
+
+  it("reports live=true only when the model's own answer survived every check", async () => {
+    useModel([PLAN, { text: composed() }]);
+    const outcome = await ask("Summarise the period.", CONTEXT);
+
+    expect(outcome.status.live).toBe(true);
+    expect(outcome.sources).toContain("AI_INTERPRETATION");
+  });
+});
+
+/* --- "why", without a model -------------------------------------------------------- */
+
+describe("a causal question answered deterministically", () => {
+  const WHY = "Explain why Compare mode fell, and cite the evidence.";
+
+  it("says what the evidence cannot settle", async () => {
+    // No model configured: the default resolution is evidence-only.
+    const outcome = await ask(WHY, CONTEXT);
+
+    expect(outcome.answer).not.toBeNull();
+    expect(outcome.answer?.interpretation).toMatch(/cannot establish why/i);
+    expect(outcome.answer?.limitations.join(" ")).toMatch(/association/i);
+  });
+
+  it("names the comparison that would narrow it", async () => {
+    const outcome = await ask(WHY, CONTEXT);
+    expect(outcome.answer?.interpretation).toMatch(/presenter|cohort/i);
+  });
+
+  it("still carries the figures and their evidence", async () => {
+    const outcome = await ask(WHY, CONTEXT);
+    expect(outcome.answer?.findings.length).toBeGreaterThan(0);
+    expect(outcome.answer?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it("makes no causal claim of its own", async () => {
+    const outcome = await ask(WHY, CONTEXT);
+    const prose = [
+      outcome.answer?.answer,
+      outcome.answer?.interpretation,
+      ...(outcome.answer?.limitations ?? []),
+    ].join(" ");
+    expect(CAUSAL_PATTERNS.test(prose)).toBe(false);
+  });
+
+  it("leaves a descriptive question free of the causal caveat", async () => {
+    const outcome = await ask("How many presentations were given?", CONTEXT);
+    expect(outcome.answer?.interpretation).not.toMatch(/cannot establish why/i);
   });
 });

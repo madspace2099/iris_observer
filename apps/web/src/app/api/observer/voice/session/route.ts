@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admitted = await gate(await request.json().catch(() => null));
+  const admitted = await gate(await request.json().catch(() => null), request);
 
   if (!admitted.ok) {
     return NextResponse.json(
