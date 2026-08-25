@@ -299,7 +299,14 @@ async function describeNotFound(response: Response): Promise<string> {
   try {
     const parsed = (await response.clone().json()) as { code?: unknown };
     if (parsed?.code === "PGRST202") {
-      return "PostgREST was reached but matched no such function for this key's role — the URL is right; check the key's role has EXECUTE";
+      /*
+       * PostgREST can assume exactly three roles — anon, authenticated and
+       * service_role — and they are indistinguishable in this response. Asking
+       * the database which one it is, is the only way to tell a secret key from
+       * a publishable one that happens to be in the right variable.
+       */
+      const role = await callerRole();
+      return `PostgREST was reached but matched no such function for role "${role}" — the URL is right, and this key is not a service-role key`;
     }
     if (typeof parsed?.code === "string") {
       return `PostgREST answered ${parsed.code} — the URL reaches a project, but not this function`;
@@ -308,6 +315,36 @@ async function describeNotFound(response: Response): Promise<string> {
     // Not PostgREST's JSON at all.
   }
   return "nothing at that address answered like PostgREST — SUPABASE_URL is not this project's REST endpoint";
+}
+
+/**
+ * The role the configured key actually authenticates as.
+ *
+ * Asked only when the ceiling has already failed, so it costs nothing on the
+ * path that works. `observer_whoami` runs as the caller and returns nothing but
+ * the caller's own name — no data, no schema, no configuration.
+ */
+async function callerRole(): Promise<string> {
+  const config = configured();
+  if (config === null) return "unknown";
+  try {
+    const response = await fetch(`${config.url}/rest/v1/rpc/observer_whoami`, {
+      method: "POST",
+      headers: {
+        apikey: config.key,
+        Authorization: `Bearer ${config.key}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (!response.ok) return `unknown (HTTP ${response.status})`;
+    const rows = (await response.json()) as readonly { effective_role?: unknown }[];
+    const role = rows[0]?.effective_role;
+    return typeof role === "string" ? role : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 async function describeRejection(response: Response): Promise<string> {
