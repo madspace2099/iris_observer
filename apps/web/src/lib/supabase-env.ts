@@ -167,6 +167,16 @@ export interface SupabaseDiagnosis {
   readonly malformed: readonly string[];
   /** Set, understood, and deliberately not read. */
   readonly ignored: readonly string[];
+  /**
+   * The host the client will call, or null.
+   *
+   * A Supabase project ref is not a credential — it is in the URL of every
+   * browser request any Supabase application makes. It is here because a
+   * deployment pointed at the wrong project is indistinguishable from one with
+   * a bad key until somebody says which host is being called, and that cost
+   * five rounds of inference to establish once.
+   */
+  readonly host: string | null;
 }
 
 export function diagnoseServerSupabase(
@@ -192,11 +202,21 @@ export function diagnoseServerSupabase(
     return value !== undefined && value.trim().length > 0;
   });
 
+  let host: string | null = null;
+  if (url.state === "present") {
+    try {
+      host = new URL(url.value).host;
+    } catch {
+      host = null;
+    }
+  }
+
   return {
     configured: url.state === "present" && key.state === "present",
     using,
     missing,
     malformed,
     ignored,
+    host,
   };
 }

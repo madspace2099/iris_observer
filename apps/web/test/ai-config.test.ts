@@ -590,3 +590,43 @@ describe("a SUPABASE_URL that is not just an origin", () => {
     });
   }
 });
+
+describe("the boot line names the host", () => {
+  afterEach(() => {
+    delete process.env["SUPABASE_URL"];
+    delete process.env["SUPABASE_SECRET_KEY"];
+  });
+
+  it("says which project the ceiling will call", () => {
+    /*
+     * A deployment pointed at the wrong project is indistinguishable from one
+     * with a bad key until something says which host is being called. That took
+     * five rounds of inference to establish once, from status codes alone.
+     */
+    const env = withEnv({
+      SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    });
+
+    expect(env.supabase.serverConfigured).toBe(true);
+    expect(env.problems.join(" ")).toMatch(/against abcdefghijklmnop\.supabase\.co/);
+  });
+
+  it("carries the host and never the key beside it", () => {
+    const diagnosis = diagnoseServerSupabase({
+      SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    } as NodeJS.ProcessEnv);
+
+    expect(diagnosis.host).toBe("abcdefghijklmnop.supabase.co");
+    expect(JSON.stringify(diagnosis)).not.toMatch(FAKE_SECRET_KEY);
+  });
+
+  it("has no host to report when the URL is unusable", () => {
+    const diagnosis = diagnoseServerSupabase({
+      SUPABASE_URL: "not-a-url",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    } as NodeJS.ProcessEnv);
+    expect(diagnosis.host).toBeNull();
+  });
+});

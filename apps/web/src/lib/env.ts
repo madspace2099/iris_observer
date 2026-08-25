@@ -247,7 +247,9 @@ export function environment(): EnvironmentReport {
       } Ask Observer still answers; its ceiling is per-instance until this is configured.`,
     );
   } else {
-    problems.push(`The shared rate limiter is on, reading ${supabase.using.join(" and ")}.`);
+    problems.push(
+      `The shared rate limiter is on, reading ${supabase.using.join(" and ")}, against ${supabase.host ?? "an unreadable host"}.`,
+    );
   }
 
   const keyConfigured = env.OPENAI_API_KEY !== undefined;
