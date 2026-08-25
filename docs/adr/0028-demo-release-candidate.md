@@ -57,7 +57,7 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Four defects this gate found
+## Five defects this gate found
 
 None was visible to the unit suite, and each was the product telling the reader
 something untrue.
@@ -107,6 +107,15 @@ Fixed at the source rather than downstream: the draft takes the first finding
 that introduces a figure the verdict has not already stated. Judged on figures
 because the wording is exactly what differs — those two sentences share one
 number and almost no vocabulary.
+
+**A project with no history was compared against nothing.** Kingsford has been
+selling three weeks, so "last month" is a month in which it did not exist. The
+briefing read "41 meetings this month against 0 last month" — arithmetically
+true, and inviting exactly the comparison it should not: 41 against nothing is a
+first period, not growth. ADR-0027 corrected the *progression* figure for this
+and left the *volume* figure beside it still making the claim. There is now no
+comparison, no arrow and no direction where there is no baseline. Found by
+looking at a screenshot.
 
 ## Known limitations
 

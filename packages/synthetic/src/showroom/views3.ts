@@ -1007,36 +1007,60 @@ export function buildHome(
    * glued on with one fixed separator without producing ". and 40%".
    */
   const progressClause = !outcomesRecorded
-    ? ". No meeting outcome has been recorded on this project, so no progression rate can be computed."
+    ? `. No meeting outcome has been recorded on this project, so no progression rate can be computed.${
+        hasBaseline ? "" : " There is no earlier period to compare against either."
+      }`
     : hasBaseline
       ? `, and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
       : `, and ${percent(progressed, locale)} of recorded meetings progressing. There is no earlier period to compare against.`;
 
+  /*
+   * A project with no history is not a project that did badly.
+   *
+   * Kingsford has been selling three weeks, so "last month" is a month in which
+   * it did not exist. The sentence read "41 meetings this month against 0 last
+   * month", which is arithmetically true and invites exactly the comparison it
+   * should not: 41 against nothing is not growth, it is a first period. The
+   * progression figure was already corrected for this; the volume figure beside
+   * it was still making the claim.
+   */
+  const volumeClause = hasBaseline
+    ? weekIsReadable
+      ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week`
+      : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month`
+    : `${meetings(weekIsReadable ? week : month, locale)} ${weekIsReadable ? "this week" : "this month"}`;
+
   const because = weekIsReadable
-    ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week${progressClause}`
-    : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month${progressClause}` +
-      " This week is too early to read on its own.";
+    ? `${volumeClause}${progressClause}`
+    : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
 
   const figures: HomeFigure[] = [
     {
       id: "meetings",
       label: weekIsReadable ? "Meetings this week" : "Meetings this month",
       value: count(weekIsReadable ? week : month, locale),
-      against: weekIsReadable
-        ? `${count(lastWeek, locale)} last week`
-        : `${count(lastMonth, locale)} last month`,
-      direction: weekIsReadable
-        ? week > lastWeek
-          ? "up"
-          : week < lastWeek
-            ? "down"
-            : "flat"
-        : month > lastMonth
-          ? "up"
-          : month < lastMonth
-            ? "down"
-            : "flat",
-      better: "up",
+      // Same rule as the sentence above: no baseline, no comparison, and no
+      // arrow — an arrow is a claim about a direction there is nothing to move
+      // from.
+      against: !hasBaseline
+        ? "no earlier period to compare"
+        : weekIsReadable
+          ? `${count(lastWeek, locale)} last week`
+          : `${count(lastMonth, locale)} last month`,
+      direction: !hasBaseline
+        ? "flat"
+        : weekIsReadable
+          ? week > lastWeek
+            ? "up"
+            : week < lastWeek
+              ? "down"
+              : "flat"
+          : month > lastMonth
+            ? "up"
+            : month < lastMonth
+              ? "down"
+              : "flat",
+      better: !hasBaseline ? "neither" : "up",
       measurementId: "showroom.presentations",
     },
     {

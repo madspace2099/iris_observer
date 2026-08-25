@@ -240,3 +240,51 @@ describe("figures read together count the same meetings", () => {
     });
   }
 });
+
+/* --- a first period is not a bad period ------------------------------------- */
+
+describe("a project with no history claims no comparison", () => {
+  /*
+   * Kingsford has been selling three weeks, so "last month" is a month in
+   * which it did not exist. The briefing read "41 meetings this month against
+   * 0 last month" — arithmetically true, and inviting exactly the comparison
+   * it should not: 41 against nothing is a first period, not growth.
+   *
+   * The progression figure had already been corrected for this. The volume
+   * figure beside it was still making the claim.
+   */
+  const query = {
+    viewer: VIEWERS.agencyManager,
+    tenantSlug: "beta",
+    projectSlug: "kingsford",
+    period: "quarter_to_date" as const,
+  };
+
+  it("does not compare volume against a period that does not exist", async () => {
+    const home = await syntheticRepository.getHome(query);
+    expect(home.because).not.toMatch(/against 0 last (month|week)/i);
+    expect(home.because).toMatch(/no earlier period/i);
+  });
+
+  it("shows no arrow on a figure with nothing to move from", async () => {
+    const home = await syntheticRepository.getHome(query);
+    const volume = home.figures.find((f) => f.id === "meetings");
+
+    expect(volume?.against).toMatch(/no earlier period/i);
+    expect(volume?.direction).toBe("flat");
+    expect(volume?.better).toBe("neither");
+  });
+
+  it("still compares volume where a baseline exists", async () => {
+    const home = await syntheticRepository.getHome({
+      viewer: VIEWERS.developer,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "quarter_to_date" as const,
+    });
+    const volume = home.figures.find((f) => f.id === "meetings");
+
+    expect(volume?.against).toMatch(/last (month|week)/i);
+    expect(volume?.better).toBe("up");
+  });
+});
