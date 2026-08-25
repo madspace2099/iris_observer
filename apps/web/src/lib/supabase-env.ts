@@ -76,10 +76,25 @@ function read(
   return { state: "absent" };
 }
 
+/**
+ * An origin, and only an origin.
+ *
+ * The client appends `/rest/v1/…` to this value, so anything already on the end
+ * of it silently becomes part of the path: a trailing slash produces `//rest/v1`
+ * and a copied `…/rest/v1` produces `/rest/v1/rest/v1`. Both are a 404 from
+ * PostgREST, which is indistinguishable from a missing function and from a key
+ * whose role cannot see one — three different problems, one status code, and no
+ * way to tell them apart from outside.
+ *
+ * A trailing slash is forgiven because it is unambiguous and common; a path is
+ * not, because it means the value is not what this variable is for.
+ */
 function isHttpUrl(value: string): boolean {
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    if (parsed.pathname !== "/" && parsed.pathname !== "") return false;
+    return parsed.search === "" && parsed.hash === "";
   } catch {
     return false;
   }

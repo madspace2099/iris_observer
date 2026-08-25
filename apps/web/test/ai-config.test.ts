@@ -551,3 +551,42 @@ describe("the two kinds of rejected key", () => {
     expect(verdict.allowed).toBe(false);
   });
 });
+
+describe("a SUPABASE_URL that is not just an origin", () => {
+  /*
+   * The client appends `/rest/v1/…`, so anything already on the end of the
+   * value becomes part of the path — and PostgREST answers 404, which is
+   * indistinguishable from a missing function and from a role that cannot see
+   * one. Three problems, one status, no way to tell them apart from outside.
+   */
+  for (const [what, value] of [
+    ["a REST path already on it", "https://example.supabase.co/rest/v1"],
+    ["any other path", "https://example.supabase.co/project"],
+    ["a query string", "https://example.supabase.co/?apikey=x"],
+    ["no scheme at all", "example.supabase.co"],
+  ] as const) {
+    it(`is called malformed when it carries ${what}`, () => {
+      const diagnosis = diagnoseServerSupabase({
+        SUPABASE_URL: value,
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      } as NodeJS.ProcessEnv);
+
+      expect(diagnosis.configured).toBe(false);
+      expect(diagnosis.malformed).toContain("SUPABASE_URL");
+    });
+  }
+
+  for (const value of [
+    "https://example.supabase.co",
+    // A bare trailing slash is unambiguous and common, so it is forgiven.
+    "https://example.supabase.co/",
+  ]) {
+    it(`accepts ${value}`, () => {
+      const diagnosis = diagnoseServerSupabase({
+        SUPABASE_URL: value,
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      } as NodeJS.ProcessEnv);
+      expect(diagnosis.configured).toBe(true);
+    });
+  }
+});

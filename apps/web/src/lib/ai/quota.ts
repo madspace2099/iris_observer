@@ -216,7 +216,7 @@ export async function consumeSharedQuota(
         response.status === 401 || response.status === 403
           ? ` — ${await describeRejection(response)}`
           : response.status === 404
-            ? " — the function is not there; check SUPABASE_URL points at the right project"
+            ? ` — ${await describeNotFound(response)}`
             : response.status === 406
               ? " — the schema is not exposed to PostgREST"
               : "";
@@ -280,6 +280,36 @@ function unavailable(): SharedVerdict {
  * PostgREST error can quote the statement that failed, and the statement
  * carries the session and client identifiers.
  */
+/**
+ * Which kind of 404 this is.
+ *
+ * A 404 has meant three different things on this deployment already, and the
+ * status alone cannot separate them:
+ *
+ *   - `PGRST202` — PostgREST was reached and could not match the function *for
+ *     the calling role*. So the URL is right and either the arguments or the
+ *     role's grants are not;
+ *   - anything else, or a body that is not PostgREST's — the request never
+ *     reached PostgREST at all, which means the URL is not this project's REST
+ *     endpoint.
+ *
+ * The code is a machine identifier, never content.
+ */
+async function describeNotFound(response: Response): Promise<string> {
+  try {
+    const parsed = (await response.clone().json()) as { code?: unknown };
+    if (parsed?.code === "PGRST202") {
+      return "PostgREST was reached but matched no such function for this key's role — the URL is right; check the key's role has EXECUTE";
+    }
+    if (typeof parsed?.code === "string") {
+      return `PostgREST answered ${parsed.code} — the URL reaches a project, but not this function`;
+    }
+  } catch {
+    // Not PostgREST's JSON at all.
+  }
+  return "nothing at that address answered like PostgREST — SUPABASE_URL is not this project's REST endpoint";
+}
+
 async function describeRejection(response: Response): Promise<string> {
   try {
     const parsed = (await response.clone().json()) as { code?: unknown };
