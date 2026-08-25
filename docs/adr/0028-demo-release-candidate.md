@@ -221,9 +221,37 @@ answered.
 
 A Vercel environment variable is saved against a set of environments —
 Production, Preview, Development. One saved for Production alone is invisible to
-preview deployments, which is exactly what two builds report. It cannot be
+preview deployments, which is exactly what the builds report. It cannot be
 inspected or corrected from here: the Vercel connector exposes no
 environment-variable tool and there is no CLI on this machine.
+
+### What the Supabase connector can and cannot do
+
+Asked to configure the two variables from the Supabase connector, and it cannot.
+`get_publishable_keys` returns exactly what its name says: the modern
+publishable key and the legacy `anon` JWT, both browser-safe by design. There is
+no tool that returns a secret or service-role key, and there should not be — a
+connector able to export server credentials is an exfiltration channel with a
+friendly name.
+
+The project URL is not a secret and is stated in full:
+`https://jtvqecusxzogqubxpoyf.supabase.co`.
+
+### The workaround, and why it was not taken
+
+The publishable key *could* be made to work: grant `execute` on
+`observer.consume_ai_quota` to `anon` and let the browser-safe key call it. The
+function is `security definer`, so the tables would stay unreadable.
+
+It is refused because the caller supplies the ceilings. Anyone holding the
+publishable key — which is in the browser bundle by definition — could pass
+`p_per_minute => 1000000` and be unbounded, which is the opposite of the
+feature. Moving the ceilings into a table inside the function fixes that and
+leaves the second problem: a public caller can still consume the project's daily
+budget deliberately and lock the demonstration out of its own limiter.
+
+A ceiling that anybody may call is not a ceiling. The secret key stays a server
+credential, and the configuration step stays a human one.
 
 ## Release blocker at the time of writing
 
