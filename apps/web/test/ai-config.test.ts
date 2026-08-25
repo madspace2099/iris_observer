@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { environment, resetEnvironmentCache } from "../src/lib/env";
 import { modelIsAllowed } from "../src/lib/ai/limits";
 import { publicBlocker, voiceBlocker } from "../src/lib/ai/voice";
+import { diagnoseServerSupabase, resolveServerSupabase } from "../src/lib/supabase-env";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
 import { addUsage } from "../src/lib/ai/telemetry";
 
@@ -247,7 +248,7 @@ describe("a rejected variable does not take the others with it", () => {
     const env = withEnv({
       OPENAI_API_KEY: "sk-test-key",
       SUPABASE_URL: "not-a-url",
-      SUPABASE_SECRET_KEY: "sb_secret_test",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
     });
 
     expect(env.ai.keyConfigured).toBe(true);
@@ -282,5 +283,110 @@ describe("a rejected variable does not take the others with it", () => {
     // `OBSERVER_AI_ENABLED` defaults to true, so the fallback is visible.
     expect(env.ai.enabled).toBe(true);
     expect(env.ai.textModel).toBe("gpt-5.6-sol");
+  });
+});
+
+/* --- which Supabase variables count ------------------------------------------ */
+
+/*
+ * Long enough to pass the shape check, and deliberately not spelled like a real
+ * secret key: a literal beginning `sb_secret_` in a tracked file is a finding in
+ * the secret audit, and it should stay one. The scanner keeps no allowlist.
+ */
+const FAKE_SECRET_KEY = "observer-test-server-key-0000000000";
+
+describe("the Supabase diagnosis", () => {
+  it("accepts the public spelling of the URL, which is not a secret", () => {
+    const resolved = resolveServerSupabase({
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    } as NodeJS.ProcessEnv);
+
+    expect(resolved?.url).toBe("https://example.supabase.co");
+    expect(resolved?.from).toContain("NEXT_PUBLIC_SUPABASE_URL");
+  });
+
+  it("refuses the legacy service-role key rather than silently adopting it", () => {
+    /*
+     * The Vercel–Supabase integration injects `SUPABASE_SERVICE_ROLE_KEY`.
+     * This project was set up on the modern secret keys, and quietly changing
+     * which credential a deployment runs on is not a thing to do by fallback.
+     */
+    const source = {
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiJ9.legacy.jwt",
+    } as NodeJS.ProcessEnv;
+
+    expect(resolveServerSupabase(source)).toBeNull();
+    expect(diagnoseServerSupabase(source).ignored).toContain("SUPABASE_SERVICE_ROLE_KEY");
+  });
+
+  it("names what is missing and what was skipped, and no values", () => {
+    const source = {
+      SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiJ9.must.not.appear",
+      POSTGRES_URL: "postgres://user:hunter2@db.example.com:5432/postgres",
+    } as NodeJS.ProcessEnv;
+    const diagnosis = diagnoseServerSupabase(source);
+
+    expect(diagnosis.configured).toBe(false);
+    expect(diagnosis.missing).toEqual(["SUPABASE_URL", "SUPABASE_SECRET_KEY"]);
+    expect(diagnosis.ignored).toEqual(["SUPABASE_SERVICE_ROLE_KEY", "POSTGRES_URL"]);
+
+    const said = JSON.stringify(diagnosis);
+    expect(said).not.toMatch(/hunter2/);
+    expect(said).not.toMatch(/must\.not\.appear/);
+  });
+
+  it("treats a blank variable as unset rather than as configured", () => {
+    const source = { SUPABASE_URL: "  ", SUPABASE_SECRET_KEY: "" } as NodeJS.ProcessEnv;
+    expect(resolveServerSupabase(source)).toBeNull();
+    expect(diagnoseServerSupabase(source).configured).toBe(false);
+  });
+
+  it("reports the limiter as off, by variable name, in the environment report", () => {
+    delete process.env["SUPABASE_URL"];
+    delete process.env["SUPABASE_SECRET_KEY"];
+    const env = withEnv({});
+    expect(env.supabase.serverConfigured).toBe(false);
+    expect(env.problems.join(" ")).toMatch(/shared rate limiter is off/);
+    expect(env.problems.join(" ")).toMatch(/SUPABASE_SECRET_KEY/);
+  });
+});
+
+describe("a Supabase variable that is set but cannot work", () => {
+  it("is called malformed, not present and not missing", () => {
+    const diagnosis = diagnoseServerSupabase({
+      SUPABASE_URL: "localhost:54321",
+      SUPABASE_SECRET_KEY: "sb_secret_long_enough_to_pass",
+    } as NodeJS.ProcessEnv);
+
+    expect(diagnosis.configured).toBe(false);
+    expect(diagnosis.malformed).toEqual(["SUPABASE_URL"]);
+    expect(diagnosis.missing).toEqual([]);
+  });
+
+  it("catches the legacy JWT pasted into the modern variable", () => {
+    /*
+     * Both are long opaque strings, and the wrong one fails much further
+     * downstream with a permission error that names nothing.
+     */
+    const diagnosis = diagnoseServerSupabase({
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SECRET_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.service.role",
+    } as NodeJS.ProcessEnv);
+
+    expect(diagnosis.configured).toBe(false);
+    expect(diagnosis.malformed).toEqual(["SUPABASE_SECRET_KEY"]);
+  });
+
+  it("says so in the environment report, by name", () => {
+    // `withEnv` never deletes, so both are set explicitly rather than trusting
+    // whatever an earlier test left behind.
+    const env = withEnv({
+      SUPABASE_URL: "localhost:54321",
+      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+    });
+    expect(env.problems.join(" ")).toMatch(/SUPABASE_URL set to something unusable/);
+    expect(env.problems.join(" ")).not.toMatch(/SUPABASE_SECRET_KEY set to something unusable/);
   });
 });

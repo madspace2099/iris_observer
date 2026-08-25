@@ -1,6 +1,8 @@
 import "server-only";
 import { z } from "zod";
 
+import { diagnoseServerSupabase } from "./supabase-env";
+
 /**
  * The environment, validated once.
  *
@@ -209,17 +211,43 @@ export function environment(): EnvironmentReport {
   const browserConfigured =
     env.NEXT_PUBLIC_SUPABASE_URL !== undefined &&
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY !== undefined;
-  const serverConfigured = env.SUPABASE_URL !== undefined && env.SUPABASE_SECRET_KEY !== undefined;
+  /*
+   * Asked of the one module that knows which names count, so this report and
+   * the limiter can never disagree about whether Supabase is configured.
+   */
+  const supabase = diagnoseServerSupabase(process.env);
+  const serverConfigured = supabase.configured;
 
   if (env.OBSERVER_ENVIRONMENT !== "development" && !browserConfigured) {
     problems.push(
       "Supabase browser variables are not set. Harmless while OBSERVER_DATA_SOURCE is synthetic; required before any milestone reads the database.",
     );
   }
-  if (env.OBSERVER_ENVIRONMENT !== "development" && !serverConfigured) {
+
+  /*
+   * Say which variable is missing, and which were seen and skipped.
+   *
+   * "Supabase server variables are not set" was true and useless: it is the
+   * same sentence whether nobody set them, or they were set for the wrong
+   * deployment environment, or the platform injected them under names this
+   * code does not read. Naming them turns a guess into a next step — and a
+   * variable's *name* is not a secret, which is why only names appear here.
+   */
+  if (!serverConfigured) {
+    const causes: string[] = [];
+    if (supabase.missing.length > 0) causes.push(`${supabase.missing.join(" and ")} not set`);
+    if (supabase.malformed.length > 0) {
+      causes.push(`${supabase.malformed.join(" and ")} set to something unusable`);
+    }
     problems.push(
-      "Supabase server variables are not set. Harmless while OBSERVER_DATA_SOURCE is synthetic; required before any milestone reads the database.",
+      `The shared rate limiter is off: ${causes.join("; ")}.${
+        supabase.ignored.length === 0
+          ? ""
+          : ` These Supabase variables are set and deliberately not used: ${supabase.ignored.join(", ")}.`
+      } Ask Observer still answers; its ceiling is per-instance until this is configured.`,
     );
+  } else {
+    problems.push(`The shared rate limiter is on, reading ${supabase.using.join(" and ")}.`);
   }
 
   const keyConfigured = env.OPENAI_API_KEY !== undefined;

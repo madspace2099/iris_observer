@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
+import { resolveServerSupabase } from "@/lib/supabase-env";
 import { LIMITS } from "./limits";
 
 /**
@@ -95,16 +96,16 @@ export type SharedVerdict =
       readonly retryAfterSeconds: number;
     };
 
-interface Configured {
-  readonly url: string;
-  readonly key: string;
-}
-
-function configured(): Configured | null {
-  const url = process.env["SUPABASE_URL"];
-  const key = process.env["SUPABASE_SECRET_KEY"];
-  if (url === undefined || key === undefined || url.length === 0 || key.length === 0) return null;
-  return { url, key };
+/*
+ * Which variable holds what is decided in one place, and not here.
+ *
+ * This module read `SUPABASE_URL` and `SUPABASE_SECRET_KEY` directly while
+ * `env.ts` decided separately whether Supabase was "configured". Two lists of
+ * names in two files drift, and when they drift a deployment that *is*
+ * configured reports that it is not.
+ */
+function configured(): { readonly url: string; readonly key: string } | null {
+  return resolveServerSupabase();
 }
 
 /** Whether the shared ceiling is available at all. Reported, never guessed at. */
