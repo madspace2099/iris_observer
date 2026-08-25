@@ -115,6 +115,31 @@ function describe(d: PresentationDifferenceLike, side: "left" | "right"): string
 const NO_CAUSATION =
   "This is an association at the stated sample size, not evidence that one way of presenting produces a different outcome.";
 
+/** Every figure in a sentence, as written. `72%` and `72` are different. */
+function figuresIn(sentence: string): readonly string[] {
+  return [...sentence.matchAll(/\d[\d.,]*%?/g)].map((m) => m[0]);
+}
+
+/**
+ * The first finding that says something the lead sentence has not.
+ *
+ * A finding restating a figure already in the verdict adds a second sentence
+ * and no second fact, which reads as two pieces of evidence when it is one —
+ * the same thing `findAnswerDefects` rejects in a model's answer.
+ *
+ * Judged on figures rather than on wording, because the wording is exactly what
+ * differs: "Compare went unopened in 72%" and "Compare was never opened in 72%
+ * of presentations" share one number and almost no vocabulary.
+ */
+function firstNewFinding(lead: string, findings: readonly { statement: string }[]): string {
+  const stated = new Set(figuresIn(lead));
+  for (const finding of findings) {
+    const figures = figuresIn(finding.statement);
+    if (figures.length === 0 || figures.some((f) => !stated.has(f))) return finding.statement;
+  }
+  return "";
+}
+
 /* --- 1. summarize_showroom_period ------------------------------------------ */
 
 const summarizeShowroomPeriod: ToolDefinition<z.ZodObject<Record<string, never>>> = {
@@ -145,7 +170,20 @@ const summarizeShowroomPeriod: ToolDefinition<z.ZodObject<Record<string, never>>
       sampleSize: overview.meetingCount,
       caveats: overview.findings.flatMap((f) => (f.caveat === null ? [] : [f.caveat])),
       action: { label: "Open the Showroom overview", href: `${root(context)}/showroom` },
-      draft: `${overview.verdict} ${overview.findings[0]?.statement ?? ""}`.trim(),
+      /*
+       * The first finding the verdict has not already made.
+       *
+       * The verdict leads with whatever moved most, and `findings[0]` is
+       * usually that same thing in other words, so pinning the draft to index
+       * zero produced "Compare went unopened in 72%. Compare was never opened
+       * in 72% of presentations." — one measurement, twice, in the one line
+       * this tool contributes to a composed answer.
+       *
+       * A finding that introduces no figure the verdict has not already stated
+       * adds nothing to a single line, so the draft takes the first one that
+       * does.
+       */
+      draft: `${overview.verdict} ${firstNewFinding(overview.verdict, overview.findings)}`.trim(),
     };
   },
 };

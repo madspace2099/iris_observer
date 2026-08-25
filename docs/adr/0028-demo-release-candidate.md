@@ -96,16 +96,28 @@ reason, since it reads `getSalesFlow` and `getShowroomOverview` together. Same
 defect as the rings disagreeing with the radars in ADR-0027, same fix: figures
 read as one page count one set of meetings. Found by looking at a screenshot.
 
+**The composed answer restated itself.** `summarize_showroom_period` built its
+one-line draft as `verdict + findings[0]`, and the verdict leads with whatever
+moved most — which is usually what `findings[0]` is about. The answer read
+"Compare went unopened in 72%. Compare was never opened in 72% of
+presentations." One measurement, two sentences, which reads as two pieces of
+evidence.
+
+Fixed at the source rather than downstream: the draft takes the first finding
+that introduces a figure the verdict has not already stated. Judged on figures
+because the wording is exactly what differs — those two sentences share one
+number and almost no vocabulary.
+
 ## Known limitations
 
-**The evidence-only path can paraphrase itself.** Two overlapping tools produce
-two sentences saying one thing — "Compare went unopened in 71%" beside "Compare
-was never opened in 71% of presentations". Identical restatements are dropped;
-paraphrases are not, because separating a paraphrase from two genuinely
-different findings that share vocabulary needs to know which word is the
-subject, and guessing at it drops real content. `findAnswerDefects` catches
-this on a model's answer because it works on terse finding labels, where the
-whole label is the subject. Prose is not that.
+**Prose paraphrase is not detected generally.** The composer drops identical
+restatements from two tools, and the tool above no longer produces a paraphrase
+of itself, but nothing catches an arbitrary paraphrase across two tools.
+Separating one from two genuinely different findings that share vocabulary —
+"Gallery opened in 56% of meetings" beside "Compare opened in 56% of meetings" —
+needs to know which word is the subject, and guessing at it drops real content.
+`findAnswerDefects` manages it on a model's answer because it works on terse
+finding labels, where the whole label is the subject. Prose is not that.
 
 ## Release blocker at the time of writing
 

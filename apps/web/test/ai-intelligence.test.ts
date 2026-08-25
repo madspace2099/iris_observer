@@ -509,3 +509,38 @@ describe("a causal question answered deterministically", () => {
     expect(outcome.answer?.interpretation).not.toMatch(/cannot establish why/i);
   });
 });
+
+/* --- one measurement, one sentence -------------------------------------------- */
+
+describe("a composed answer does not restate itself", () => {
+  /*
+   * The period tool's draft was `verdict + findings[0]`, and the verdict leads
+   * with whatever moved most — which is usually what `findings[0]` is about.
+   * The answer read "Compare went unopened in 72%. Compare was never opened in
+   * 72% of presentations."
+   */
+  it("states no figure twice in the answer prose", async () => {
+    const outcome = await ask("What changed this month?", CONTEXT);
+    const prose = outcome.answer?.answer ?? "";
+
+    const sentences = prose.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+    const figuresOf = (s: string) => [...s.matchAll(/\d[\d.,]*%?/g)].map((m) => m[0]);
+
+    for (let i = 0; i < sentences.length; i += 1) {
+      const mine = figuresOf(sentences[i] ?? "");
+      if (mine.length === 0) continue;
+      const earlier = new Set(sentences.slice(0, i).flatMap(figuresOf));
+      expect(
+        mine.some((f) => !earlier.has(f)),
+        `"${sentences[i]}" adds no figure the sentences before it had not`,
+      ).toBe(true);
+    }
+  });
+
+  it("still says something after the lead sentence", async () => {
+    // The dedupe must not empty the answer: dropping every finding would leave
+    // a verdict alone, which is what the tools already put on the screen.
+    const outcome = await ask("What changed this month?", CONTEXT);
+    expect((outcome.answer?.answer ?? "").length).toBeGreaterThan(40);
+  });
+});
