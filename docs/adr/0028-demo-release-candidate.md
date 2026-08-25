@@ -57,7 +57,7 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Eight defects this gate found
+## Nine defects this gate found
 
 None was visible to the unit suite, and each was the product telling the reader
 something untrue.
@@ -157,6 +157,19 @@ with a comment on it.
 Nine tests across the two: no window may count more meetings than its project
 has, three projects must have three different sales plans, and every unit code
 on a project's list must match that project's buildings.
+
+**One screen, two windows, one name.** The Sales Flow summary offers Today /
+This week / This month, and the chart beneath it carries calendar buckets with
+the same words. The summary's windows are *rolling* — thirty days back from
+tonight — so the page read "This month: 41" in the summary and "This month: 32"
+in the chart, three inches apart, both correct and neither reconcilable by
+anybody looking at them.
+
+A rolling window is a perfectly good thing to offer. Calling it a calendar
+month is not. They are "Last 7 days", "Last 30 days", "Last 91 days" now, and
+an end-to-end test asserts no word but "Today" names both a rolling window and
+a calendar bucket on the same page. The test was checked against the defect: it
+fails when the old label is put back.
 
 ## Known limitations
 

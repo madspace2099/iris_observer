@@ -312,3 +312,30 @@ test.describe("the chart vocabulary", () => {
     }
   });
 });
+
+test.describe("one label, one window", () => {
+  /*
+   * The Sales Flow page carries a rolling summary window above calendar
+   * buckets. Both used the same words: "This month: 41" in the summary and
+   * "This month: 32" in the chart, three inches apart, both correct and
+   * neither reconcilable by the reader.
+   *
+   * The rolling windows now say how long they are. This asserts that no
+   * duration word appears twice on the page meaning two different spans.
+   */
+  test("the summary window never borrows a calendar bucket's name", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow");
+
+    const windowLabels = await page.locator(".iris-window .iris-chip").allInnerTexts();
+    const bucketLabels = await page.locator(".iris-step-label").allInnerTexts();
+
+    const normalise = (s: string) => s.trim().toLowerCase();
+    const windows = new Set(windowLabels.map(normalise).filter((s) => s.length > 0));
+    const buckets = new Set(bucketLabels.map(normalise).filter((s) => s.length > 0));
+
+    // "Today" is the one word that means the same thing in both, and does.
+    const shared = [...windows].filter((w) => buckets.has(w) && w !== "today");
+    expect(shared, `both a rolling window and a calendar bucket are called: ${shared.join(", ")}`).toEqual([]);
+  });
+});

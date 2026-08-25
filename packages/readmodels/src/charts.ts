@@ -18,14 +18,24 @@ import type { EvidenceRef } from "./metric-value";
  * "How many presentations" is a different question today and this year, and a
  * dashboard that answers only one of them makes the reader do arithmetic. The
  * window is the reader's choice; the comparison always moves with it.
+ *
+ * **Every label says how long, not which calendar period**, and that is a
+ * correction. These windows are rolling — thirty days back from tonight — and
+ * they were labelled "This month", "This week", "This quarter". The Sales Flow
+ * page carries calendar buckets in the chart beneath them, so one screen had
+ * "This month: 41" in the summary and "This month: 32" in the chart, three
+ * inches apart, both correct and neither reconcilable by the reader.
+ *
+ * A rolling window is a perfectly good thing to offer. Calling it a calendar
+ * month is not.
  */
 export const KPI_WINDOWS = [
   { id: "today", label: "Today", days: 1 },
-  { id: "week", label: "This week", days: 7 },
-  { id: "month", label: "This month", days: 30 },
-  { id: "quarter", label: "This quarter", days: 91 },
-  { id: "half", label: "Half year", days: 182 },
-  { id: "year", label: "This year", days: 365 },
+  { id: "week", label: "Last 7 days", days: 7 },
+  { id: "month", label: "Last 30 days", days: 30 },
+  { id: "quarter", label: "Last 91 days", days: 91 },
+  { id: "half", label: "Last 182 days", days: 182 },
+  { id: "year", label: "Last 365 days", days: 365 },
   { id: "all", label: "All time", days: 3650 },
 ] as const;
 
