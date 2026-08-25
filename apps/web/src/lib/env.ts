@@ -156,20 +156,55 @@ export interface EnvironmentReport {
 
 let cached: EnvironmentReport | null = null;
 
+/**
+ * Validates each variable on its own.
+ *
+ * The whole object used to be parsed in one call, and one rejected value threw
+ * every other value away: `const env = parsed.success ? parsed.data :
+ * Schema.parse({})`. A single mistyped `SUPABASE_URL` would therefore leave a
+ * correctly configured `OPENAI_API_KEY` reported as absent — and the two
+ * failures look identical from outside, so the operator goes and checks the
+ * wrong variable.
+ *
+ * One bad value now disables exactly itself, says so by name, and every other
+ * variable keeps working.
+ *
+ * **The validator's own message is deliberately not repeated.** Zod echoes what
+ * it received for an enum mismatch, and this function reads variables that must
+ * never be echoed anywhere. The variable's name is enough: the schema that
+ * rejected it is thirty lines above this comment.
+ */
+function validateIndependently(source: NodeJS.ProcessEnv): {
+  readonly env: ObserverEnvironment;
+  readonly problems: readonly string[];
+} {
+  const problems: string[] = [];
+  const values: Record<string, unknown> = {};
+
+  for (const [name, field] of Object.entries(Schema.shape)) {
+    const schema = field as z.ZodType;
+    const result = schema.safeParse(source[name]);
+    if (result.success) {
+      values[name] = result.data;
+      continue;
+    }
+
+    problems.push(
+      `${name} is set to a value this deployment cannot use, so it is being ignored and the default applies. Nothing else is affected.`,
+    );
+    // Whatever the variable would have been had it been left unset.
+    const fallback = schema.safeParse(undefined);
+    if (fallback.success) values[name] = fallback.data;
+  }
+
+  return { env: values as ObserverEnvironment, problems };
+}
+
 export function environment(): EnvironmentReport {
   if (cached !== null) return cached;
 
-  const parsed = Schema.safeParse(process.env);
-  const problems: string[] = [];
-
-  if (!parsed.success) {
-    // Report the variable names, never the values that failed.
-    for (const issue of parsed.error.issues) {
-      problems.push(`${issue.path.join(".")}: ${issue.message}`);
-    }
-  }
-
-  const env = parsed.success ? parsed.data : Schema.parse({});
+  const { env, problems: fieldProblems } = validateIndependently(process.env);
+  const problems: string[] = [...fieldProblems];
 
   const browserConfigured =
     env.NEXT_PUBLIC_SUPABASE_URL !== undefined &&

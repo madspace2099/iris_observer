@@ -31,21 +31,31 @@ test.describe("the model is answering", () => {
     await page.evaluate(() => document.fonts.ready);
   }
 
+  /*
+   * The label that says who wrote the prose — not merely the first one.
+   *
+   * `.obs-answer-role` marks several labels in the sheet: "Measured", "What to
+   * do", and this one. `.first()` picked "Measured", so an assertion looking
+   * for "written by the tools" passed against a string that could never have
+   * contained it. Located by its own text instead.
+   */
+  function readingLabel(page: Page) {
+    return page.locator(".obs-answer-role", { hasText: /Observer.s reading/ }).first();
+  }
+
   async function ask(page: Page, question: string) {
     await page.getByPlaceholder(/^Ask Observer about/).fill(question);
     await page.getByRole("button", { name: "Ask", exact: true }).click();
     // A reasoning model on a cold lambda is not quick. The ceiling is the
     // request timeout the server itself enforces, doubled, plus the render.
-    await expect(page.locator(".obs-answer-role").first()).toBeVisible({ timeout: 90_000 });
+    await expect(readingLabel(page)).toBeVisible({ timeout: 90_000 });
   }
 
   test("a model wrote the prose, not the tools", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await ask(page, "Explain why Compare mode fell, and cite the evidence.");
 
-    const role = page.locator(".obs-answer-role").first();
-    await expect(role).toContainText(/Observer.s reading/);
-    await expect(role).not.toContainText(/written by the tools/);
+    await expect(readingLabel(page)).not.toContainText(/written by the tools/);
   });
 
   test("the answer still carries measured evidence under it", async ({ page }) => {

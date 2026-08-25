@@ -231,3 +231,56 @@ describe("telemetry carries numbers and nothing else", () => {
     });
   });
 });
+
+/* --- one bad variable disables one variable ---------------------------------- */
+
+describe("a rejected variable does not take the others with it", () => {
+  /*
+   * The whole environment was parsed in one call, and one rejected value threw
+   * every other value away — `parsed.success ? parsed.data : Schema.parse({})`.
+   *
+   * The consequence is a diagnosis that sends the operator to the wrong place:
+   * a mistyped `SUPABASE_URL` makes a perfectly good `OPENAI_API_KEY` report as
+   * absent, and "absent" and "invalid" look identical from outside.
+   */
+  it("keeps a good key when a different variable is invalid", () => {
+    const env = withEnv({
+      OPENAI_API_KEY: "sk-test-key",
+      SUPABASE_URL: "not-a-url",
+      SUPABASE_SECRET_KEY: "sb_secret_test",
+    });
+
+    expect(env.ai.keyConfigured).toBe(true);
+    expect(env.supabase.serverConfigured).toBe(false);
+  });
+
+  it("names the variable it rejected", () => {
+    const env = withEnv({ OPENAI_API_KEY: "sk-test-key", SUPABASE_URL: "not-a-url" });
+    expect(env.problems.join(" ")).toMatch(/SUPABASE_URL/);
+  });
+
+  it("never repeats the value it rejected", () => {
+    /*
+     * Zod echoes what it received on an enum mismatch, and this file reads
+     * variables that must never be echoed. The report carries names only.
+     */
+    const env = withEnv({
+      OPENAI_API_KEY: "sk-live-must-not-appear",
+      OBSERVER_AI_ENABLED: "yes-please",
+      SUPABASE_URL: "postgres://user:hunter2@example.com",
+    });
+    const said = JSON.stringify(env);
+
+    expect(said).not.toMatch(/sk-live-must-not-appear/);
+    expect(said).not.toMatch(/yes-please/);
+    expect(said).not.toMatch(/hunter2/);
+  });
+
+  it("falls back to the default for the variable it rejected, and only that one", () => {
+    const env = withEnv({ OBSERVER_AI_ENABLED: "yes-please", OPENAI_TEXT_MODEL: "gpt-5.6-sol" });
+
+    // `OBSERVER_AI_ENABLED` defaults to true, so the fallback is visible.
+    expect(env.ai.enabled).toBe(true);
+    expect(env.ai.textModel).toBe("gpt-5.6-sol");
+  });
+});
