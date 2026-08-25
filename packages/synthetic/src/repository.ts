@@ -226,16 +226,32 @@ export class SyntheticObserverRepository implements ObserverRepository {
   private async slices(query: OverviewQuery) {
     const context = await this.context(query);
     /*
-     * A third slice, running to the end of today.
+     * One slice for the period. Not two.
      *
-     * "Quarter to date" ends at midnight this morning, which is right for a
-     * period comparison and wrong for a bucket called Today: the flow view was
-     * reporting zero meetings today because the period had already excluded
-     * them. The named buckets are their own windows and must not be filtered
-     * twice.
+     * There used to be two: `current`, running to the period's stated end, and
+     * `throughToday`, running to the end of today. "Quarter to date" ends at
+     * midnight this morning, so a bucket called Today was empty on a period
+     * that had already excluded today — which is what the second slice was
+     * for.
+     *
+     * Two slices meant two answers to "how many meetings are in this period",
+     * and both reached the screen: the briefing said "I reviewed 74 showroom
+     * presentations quarter to date" while Presentation DNA said "73 meetings"
+     * about the same quarter. Worse, `throughToday` ignored the period's end
+     * entirely, so **Last completed quarter reported 132 meetings** — every
+     * meeting in the dataset — on the three surfaces that read it.
+     *
+     * So the period's window is extended through today when the period is
+     * still running, and left alone when it is not. A period that ended within
+     * the last day is still running; anything older is history and does not
+     * grow.
      */
     const endOfToday = new Date(this.today);
     endOfToday.setUTCHours(23, 59, 59, 999);
+
+    const stillRunning =
+      new Date(context.period.to).getTime() >= this.today.getTime() - 24 * 60 * 60 * 1000;
+    const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
 
     /*
      * Every slice is scoped to the project the viewer resolved.
@@ -248,31 +264,30 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
     return {
       context,
-      current: sessionsInPeriod(project, context.period.from, context.period.to),
+      current: sessionsInPeriod(project, context.period.from, periodEnd),
       previous: sessionsInPeriod(project, context.period.baselineFrom, context.period.baselineTo),
-      throughToday: sessionsInPeriod(project, context.period.from, endOfToday.toISOString()),
     };
   }
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
-    const { context, throughToday, previous } = await this.slices(query);
-    return buildHome(context, throughToday, previous, this.today);
+    const { context, current, previous } = await this.slices(query);
+    return buildHome(context, current, previous, this.today);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
-    const { context, throughToday } = await this.slices(query);
-    return buildSalesFlow(context, throughToday, this.today);
+    const { context, current } = await this.slices(query);
+    return buildSalesFlow(context, current, this.today);
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
-    const { context, throughToday } = await this.slices(query);
+    const { context, current } = await this.slices(query);
     /*
      * The KPI window reads the whole dataset, not the selected period.
      *
      * "All time" inside a quarter-to-date period would be the quarter, which is
      * not what the control says. The rest of the page stays on the period.
      */
-    return buildFlowCharts(context, throughToday, showroomSessions(), this.today, window);
+    return buildFlowCharts(context, current, showroomSessions(), this.today, window);
   }
 
   async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
@@ -320,23 +335,10 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {
-    /*
-     * `throughToday`, matching `getHome` and `getSalesFlow`.
-     *
-     * It read `current`, and `current` runs to the period's stated end while
-     * `throughToday` stops at the end of today. On a to-date period those are
-     * different by whatever happened today — one meeting, at the time of
-     * writing — so the briefing said "I reviewed 74 showroom presentations"
-     * and the answer beneath it said "Measured across 73 meetings", on the
-     * same screen, about the same period.
-     *
-     * The Sales Flow page had both numbers in it for the same reason: it reads
-     * this and `getSalesFlow` together. Same defect as the rings disagreeing
-     * with the radars, same fix — figures read as one page must count one set
-     * of meetings.
-     */
-    const { context, throughToday, previous } = await this.slices(query);
-    return buildShowroomOverview(context, throughToday, previous);
+    // One slice, like every other read model. See `slices()` for why there
+    // used to be two and what having two put on the screen.
+    const { context, current, previous } = await this.slices(query);
+    return buildShowroomOverview(context, current, previous);
   }
 
   async getPresentationIntelligence(

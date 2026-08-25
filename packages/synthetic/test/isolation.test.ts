@@ -288,3 +288,53 @@ describe("a project with no history claims no comparison", () => {
     expect(volume?.better).toBe("up");
   });
 });
+
+/* --- one period, one count -------------------------------------------------- */
+
+describe("every surface counts the same period identically", () => {
+  /*
+   * There were two slices: `current`, running to the period's stated end, and
+   * `throughToday`, running to the end of today. Two slices meant two answers
+   * to "how many meetings are in this period", and both reached the screen —
+   * the briefing said 74 quarter-to-date while Presentation DNA said 73.
+   *
+   * `throughToday` also ignored the period's end, so **Last completed quarter
+   * reported every meeting in the dataset** on the three surfaces that read it.
+   * That one was not a rounding difference: 132 against 58.
+   */
+  const PRESETS = ["quarter_to_date", "last_28_days", "last_quarter", "year_to_date"] as const;
+
+  for (const period of PRESETS) {
+    it(`agrees across surfaces on ${period}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period,
+      };
+      const counts = await Promise.all([
+        syntheticRepository.getHome(query).then((v) => v.meetingCount),
+        syntheticRepository.getSalesFlow(query).then((v) => v.meetingCount),
+        syntheticRepository.getShowroomOverview(query).then((v) => v.meetingCount),
+        syntheticRepository.getProjectView(query, null).then((v) => v.meetingCount),
+      ]);
+
+      expect(new Set(counts).size, `counts disagree: ${counts.join(", ")}`).toBe(1);
+      expect(counts[0]).toBeGreaterThan(0);
+    });
+  }
+
+  it("does not let a completed period keep growing", async () => {
+    const query = {
+      viewer: VIEWERS.developer,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "last_quarter" as const,
+    };
+    const completed = await syntheticRepository.getHome(query);
+    const everything = showroomSessions().filter((s) => s.projectId === "prj_northgate01");
+
+    // A finished quarter is history. It cannot contain the whole dataset.
+    expect(completed.meetingCount).toBeLessThan(everything.length);
+  });
+});

@@ -57,7 +57,7 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Five defects this gate found
+## Six defects this gate found
 
 None was visible to the unit suite, and each was the product telling the reader
 something untrue.
@@ -87,14 +87,26 @@ carries two sentences and `publicBlocker()` puts only the reader's on the wire.
 Found by the black-box run, not by the suite, which asserted on the first
 element with `role="note"` and had been reading the wrong one.
 
-**Two counts of the same meetings disagreed on one screen.** The briefing said
-"I reviewed 74 showroom presentations quarter to date" and the answer beneath it
-said "Measured across 73 meetings". `getHome` read `throughToday` and
-`getShowroomOverview` read `current`, which on a to-date period differ by
-whatever happened today. The Sales Flow page carried both numbers for the same
-reason, since it reads `getSalesFlow` and `getShowroomOverview` together. Same
-defect as the rings disagreeing with the radars in ADR-0027, same fix: figures
-read as one page count one set of meetings. Found by looking at a screenshot.
+**Two counts of the same meetings disagreed on one screen**, and following it
+found something worse. The briefing said "I reviewed 74 showroom presentations
+quarter to date" and the answer beneath it said "Measured across 73 meetings".
+
+The repository built two slices of every period: `current`, running to the
+period's stated end, and `throughToday`, running to the end of today. Two
+slices meant two answers to "how many meetings are in this period" and both
+reached the screen — the briefing and Sales Flow read one, Presentation DNA and
+Project read the other.
+
+`throughToday` also ignored the period's end entirely. So **"Last completed
+quarter" reported 132 meetings** — every meeting in the dataset, four months of
+them — on the three surfaces that read it, against the 58 the other surfaces
+reported for the same selection. That is not a rounding difference; it is a
+finished quarter that kept growing.
+
+There is one slice now. It extends through today when the period is still
+running and stops at the period's end when it is not. Five tests assert that
+four surfaces agree on four presets, and that a completed period cannot contain
+the whole dataset. Found by looking at a screenshot.
 
 **The composed answer restated itself.** `summarize_showroom_period` built its
 one-line draft as `verdict + findings[0]`, and the verdict leads with whatever
