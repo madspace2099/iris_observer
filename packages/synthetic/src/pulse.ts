@@ -239,8 +239,15 @@ export function catalogueFor(projectId: string): readonly RawUnit[] {
   return built;
 }
 
-/** Northgate's catalogue. Retained for the surfaces that are still single-project. */
-export const RAW_CATALOGUE: readonly RawUnit[] = catalogueFor("prj_northgate01");
+/*
+ * There was a `RAW_CATALOGUE` here — Northgate's units, as a module constant,
+ * "retained for the surfaces that are still single-project". Four builders
+ * read it, and every project rendered Northgate's stock as a result.
+ *
+ * It is gone rather than deprecated. A constant that is correct for one
+ * project and silently wrong for every other one is not a thing to leave
+ * lying about with a comment on it.
+ */
 
 export function buildProjectPulse(context: ViewContext): ProjectPulse {
   const raw = catalogueFor(context.project.id as string);

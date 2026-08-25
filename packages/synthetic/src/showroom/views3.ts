@@ -34,7 +34,7 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
+import { catalogueFor } from "../pulse";
 import { count, evidenceRef, percent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
@@ -369,9 +369,18 @@ function buildSegment(
   spec: (typeof SEGMENTS)[number],
 ): SegmentInterest {
   const locale = context.project.locale;
-  const inSegment = new Set(RAW_CATALOGUE.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
-  const available = RAW_CATALOGUE.filter((u) => u.rooms === spec.rooms && u.status === "available");
-  const allAvailable = RAW_CATALOGUE.filter((u) => u.status === "available");
+  /*
+   * This project's units, not Northgate's.
+   *
+   * `RAW_CATALOGUE` is a module constant pinned to `prj_northgate01`, so every
+   * project rendered Northgate's forty-eight apartments — including Beta
+   * Development's Kingsford, which is a different developer's stock on a
+   * competitor's screen.
+   */
+  const catalogue = catalogueFor(context.project.id as string);
+  const inSegment = new Set(catalogue.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
+  const available = catalogue.filter((u) => u.rooms === spec.rooms && u.status === "available");
+  const allAvailable = catalogue.filter((u) => u.status === "available");
 
   const touches = sessions.flatMap((s) => s.units);
   const mine = touches.filter((t) => inSegment.has(t.unitCode));
@@ -845,7 +854,11 @@ export function buildAudience(
   const roomCodes =
     criteria.rooms === null
       ? null
-      : new Set(RAW_CATALOGUE.filter((u) => u.rooms === criteria.rooms).map((u) => u.code));
+      : new Set(
+          catalogueFor(context.project.id as string)
+            .filter((u) => u.rooms === criteria.rooms)
+            .map((u) => u.code),
+        );
 
   const matches = sessions
     .filter((s) => {

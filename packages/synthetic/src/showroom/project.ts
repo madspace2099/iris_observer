@@ -32,7 +32,7 @@ import type {
   UnitAttentionView,
   ViewContext,
 } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
+import { catalogueFor } from "../pulse";
 import { count, evidenceRef, money, movement, ok, percent, signedPercent } from "../format";
 import { agentById, SYNTHETIC_AGENTS } from "./sessions";
 
@@ -930,7 +930,8 @@ export function buildUnitAttention(
   const currency = context.project.currency;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
 
-  const rows: UnitAttentionRow[] = RAW_CATALOGUE.map((unit) => {
+  // This project's units. See the note in `views3.ts`.
+  const rows: UnitAttentionRow[] = catalogueFor(context.project.id as string).map((unit) => {
     const touches = sessions.flatMap((s) => s.units.filter((u) => u.unitCode === unit.code));
     const previousTouches = previous.flatMap((s) =>
       s.units.filter((u) => u.unitCode === unit.code),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PROJECTS, TENANTS, VIEWERS } from "../src/world";
 import { syntheticRepository } from "../src/repository";
-import { showroomSessions } from "../src/showroom/sessions";
+import { sessionsForProject, showroomSessions } from "../src/showroom/sessions";
 import type { PeriodPreset, Viewer } from "@observer/readmodels";
 
 /**
@@ -336,5 +336,135 @@ describe("every surface counts the same period identically", () => {
 
     // A finished quarter is history. It cannot contain the whole dataset.
     expect(completed.meetingCount).toBeLessThan(everything.length);
+  });
+});
+
+/* --- the KPI window is not a back door -------------------------------------- */
+
+describe("the summary window ignores the period, never the project", () => {
+  /*
+   * `getFlowCharts` passed `showroomSessions()` — every meeting in every
+   * project of every tenant — as the set the KPI window reads, because the
+   * window must be able to say "all time" without being clipped to the
+   * selected period.
+   *
+   * So Northgate's Sales Flow reported 98 presentations this month above a
+   * chart reading 32, and the 98 counted Riverside and Beta Development's
+   * Kingsford. A developer was shown a competitor's volume inside their own
+   * headline figure, on a page whose route, read model and tool had all been
+   * scoped correctly. The isolation tests checked the read models; nothing
+   * checked the charts.
+   */
+  const WINDOWS = ["today", "week", "month", "quarter", "half", "year", "all"] as const;
+
+  async function kpis(tenantSlug: string, projectSlug: string, viewer: Viewer, window: string) {
+    const charts = await syntheticRepository.getFlowCharts(
+      { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+      window as never,
+    );
+    return charts.kpis.figures;
+  }
+
+  it("never counts more meetings than the project has", async () => {
+    const northgate = sessionsForProject("prj_northgate01").length;
+
+    for (const window of WINDOWS) {
+      const cards = await kpis("alpha", "northgate", VIEWERS.developer, window);
+      const presentations = cards.find((k) => /presentation/i.test(k.label));
+      const value = Number(String(presentations?.value ?? "0").replace(/[^0-9]/g, ""));
+
+      expect(value, `${window} counts ${value} of ${northgate} Northgate meetings`).toBeLessThanOrEqual(
+        northgate,
+      );
+    }
+  });
+
+  it("gives two projects different summaries", async () => {
+    const [north, river] = await Promise.all([
+      kpis("alpha", "northgate", VIEWERS.developer, "all"),
+      kpis("alpha", "riverside", VIEWERS.developer, "all"),
+    ]);
+
+    expect(JSON.stringify(north)).not.toBe(JSON.stringify(river));
+  });
+
+  it("never lets one developer's window reach another developer's project", async () => {
+    const kingsford = sessionsForProject("prj_beta0000001").length;
+    const riverside = sessionsForProject("prj_riversidew1").length;
+    const northgate = sessionsForProject("prj_northgate01").length;
+
+    const cards = await kpis("alpha", "northgate", VIEWERS.developer, "all");
+    const presentations = cards.find((k) => /presentation/i.test(k.label));
+    const value = Number(String(presentations?.value ?? "0").replace(/[^0-9]/g, ""));
+
+    expect(kingsford).toBeGreaterThan(0);
+    expect(value).toBe(northgate);
+    expect(value).not.toBe(northgate + riverside + kingsford);
+  });
+});
+
+/* --- the catalogue belongs to the project ----------------------------------- */
+
+describe("a project shows its own stock", () => {
+  /*
+   * `RAW_CATALOGUE` is a module constant pinned to `prj_northgate01`, and four
+   * builders read it directly: the unit list, the segment breakdown, the
+   * audience filter and the sales-plan bullet chart.
+   *
+   * So Riverside Walk and Kingsford Yard both rendered Northgate's
+   * forty-eight apartments, with Northgate's sold count against Northgate's
+   * target. Beta Development — a different developer — was looking at Alpha's
+   * stock, on a page whose route, session data and read model had all been
+   * scoped correctly in the previous milestone. The catalogue never was.
+   */
+  const CASES = [
+    ["alpha", "northgate", VIEWERS.developer, /^[ABC]-/],
+    ["alpha", "riverside", VIEWERS.developer, /^[RW]-/],
+    ["beta", "kingsford", VIEWERS.agencyManager, /^K-/],
+  ] as const;
+
+  for (const [tenantSlug, projectSlug, viewer, codePattern] of CASES) {
+    it(`${projectSlug} lists only its own units`, async () => {
+      const view = await syntheticRepository.getUnitAttention(
+        { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+        null,
+      );
+
+      expect(view.rows.length).toBeGreaterThan(0);
+      for (const row of view.rows) {
+        expect(row.unitCode, `${projectSlug} shows ${row.unitCode}`).toMatch(codePattern);
+      }
+    });
+  }
+
+  it("gives three projects three different sales plans", async () => {
+    const plans = await Promise.all(
+      CASES.map(([tenantSlug, projectSlug, viewer]) =>
+        syntheticRepository
+          .getProjectCharts({ viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const })
+          .then((c) => c.targets.map((t) => `${t.actual}/${t.total}`).join(" ")),
+      ),
+    );
+
+    expect(new Set(plans).size, `plans: ${plans.join(" | ")}`).toBe(plans.length);
+  });
+
+  it("never puts one developer's unit count on another's plan", async () => {
+    const [alpha, beta] = await Promise.all([
+      syntheticRepository.getProjectCharts({
+        viewer: VIEWERS.developer,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "quarter_to_date" as const,
+      }),
+      syntheticRepository.getProjectCharts({
+        viewer: VIEWERS.agencyManager,
+        tenantSlug: "beta",
+        projectSlug: "kingsford",
+        period: "quarter_to_date" as const,
+      }),
+    ]);
+
+    expect(alpha.targets[0]?.total).not.toBe(beta.targets[0]?.total);
   });
 });

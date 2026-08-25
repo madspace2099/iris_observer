@@ -28,7 +28,7 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { KPI_WINDOWS } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
+import { catalogueFor } from "../pulse";
 import { count, evidenceRef, percent, signedPercent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 import { meetings } from "./views3";
@@ -571,10 +571,12 @@ export function buildTrend(sessions: readonly ShowroomSession[], locale: string)
  * be by now — because 33% sold is neither good nor bad until you know the plan
  * expected 41%.
  */
-export function buildTargets(today: Date, locale: string): SalesTarget[] {
-  const total = RAW_CATALOGUE.length;
-  const sold = RAW_CATALOGUE.filter((u) => u.status === "sold").length;
-  const reserved = RAW_CATALOGUE.filter((u) => u.status === "reserved").length;
+export function buildTargets(projectId: string, today: Date, locale: string): SalesTarget[] {
+  // This project's stock. The sales plan was Northgate's on every project.
+  const catalogue = catalogueFor(projectId);
+  const total = catalogue.length;
+  const sold = catalogue.filter((u) => u.status === "sold").length;
+  const reserved = catalogue.filter((u) => u.status === "reserved").length;
 
   const startedOn = new Date("2026-01-15T00:00:00Z");
   const targetDate = new Date("2028-06-30T00:00:00Z");
@@ -664,11 +666,15 @@ export function buildFlowCharts(
 }
 
 export function buildProjectCharts(
+  projectId: string,
   sessions: readonly ShowroomSession[],
   today: Date,
   locale: string,
 ): ProjectCharts {
-  return { targets: buildTargets(today, locale), journey: buildJourney(sessions, locale) };
+  return {
+    targets: buildTargets(projectId, today, locale),
+    journey: buildJourney(sessions, locale),
+  };
 }
 
 export { SECTION_IDS, sectionLabel, type SectionId };

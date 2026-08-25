@@ -57,7 +57,7 @@ Both tables carry RLS with no policies and every grant to `anon`,
 `authenticated` and `public` is revoked. Supabase's linter reports
 `rls_enabled_no_policy` at INFO. That finding is the control working.
 
-## Six defects this gate found
+## Eight defects this gate found
 
 None was visible to the unit suite, and each was the product telling the reader
 something untrue.
@@ -128,6 +128,35 @@ first period, not growth. ADR-0027 corrected the *progression* figure for this
 and left the *volume* figure beside it still making the claim. There is now no
 comparison, no arrow and no direction where there is no baseline. Found by
 looking at a screenshot.
+
+**A developer's own figures counted a competitor's meetings.** The Sales Flow
+summary window must be able to say "all time" without being clipped to the
+selected period, so it was handed `showroomSessions()` — every meeting in every
+project of every tenant. Northgate therefore reported 98 presentations this
+month above a chart reading 32, and the 98 counted Riverside and Beta
+Development's Kingsford.
+
+The window ignores the *period*. It does not get to ignore the *project*. It
+now reads the same unclipped set scoped to the project the viewer already
+resolved.
+
+**Every project rendered Northgate's apartments.** `RAW_CATALOGUE` was a module
+constant pinned to `prj_northgate01` — "retained for the surfaces that are
+still single-project" — and four builders read it: the unit list, the segment
+breakdown, the audience filter and the sales-plan bullet chart. Riverside Walk
+and Kingsford Yard both showed Northgate's forty-eight units against Northgate's
+sold count and Northgate's target.
+
+ADR-0027 scoped the *sessions* and stopped there. The route, the read model and
+the tool were all correct; the catalogue underneath them was not. Riverside now
+has its 36 units in buildings R and W, Kingsford its 30 in building K, and the
+constant is deleted rather than deprecated — one that is correct for a single
+project and silently wrong for every other is not a thing to leave lying about
+with a comment on it.
+
+Nine tests across the two: no window may count more meetings than its project
+has, three projects must have three different sales plans, and every unit code
+on a project's list must match that project's buildings.
 
 ## Known limitations
 

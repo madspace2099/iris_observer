@@ -41,8 +41,8 @@ import { buildAskSession, buildProjectPulse } from "./pulse";
 import {
   SYNTHETIC_AGENTS,
   sessionById,
+  sessionsForProject,
   sessionsInPeriod,
-  showroomSessions,
 } from "./showroom/sessions";
 import { buildAgentCharts, buildFlowCharts, buildProjectCharts } from "./showroom/charts";
 import {
@@ -282,18 +282,42 @@ export class SyntheticObserverRepository implements ObserverRepository {
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
     const { context, current } = await this.slices(query);
     /*
-     * The KPI window reads the whole dataset, not the selected period.
+     * The KPI window ignores the selected *period*. It does not ignore the
+     * project.
      *
      * "All time" inside a quarter-to-date period would be the quarter, which is
-     * not what the control says. The rest of the page stays on the period.
+     * not what the control says — so the window reads outside the period, and
+     * the rest of the page stays on it.
+     *
+     * It used to read `showroomSessions()`: every meeting in every project of
+     * every tenant. Northgate's Sales Flow therefore reported 98 presentations
+     * this month above a chart reading 32, and the 98 included Riverside and —
+     * a different developer entirely — Beta Development's Kingsford. A
+     * developer was being shown a competitor's volume inside their own
+     * headline figure.
+     *
+     * `sessionsForProject` is the same unfiltered-by-period set, scoped to the
+     * project the viewer already resolved. That scoping is what makes the
+     * authorisation reach the data rather than stopping at the page.
      */
-    return buildFlowCharts(context, current, showroomSessions(), this.today, window);
+    return buildFlowCharts(
+      context,
+      current,
+      sessionsForProject(context.project.id as string),
+      this.today,
+      window,
+    );
   }
 
   async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
     // `current`, matching getProjectView for the same reason.
     const { context, current } = await this.slices(query);
-    return buildProjectCharts(current, this.today, context.project.locale);
+    return buildProjectCharts(
+      context.project.id as string,
+      current,
+      this.today,
+      context.project.locale,
+    );
   }
 
   async getAgentCharts(query: OverviewQuery): Promise<AgentCharts> {
