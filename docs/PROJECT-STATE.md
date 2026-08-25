@@ -48,20 +48,18 @@ deleted to undo it. Push any non-`main` branch to get a genuine Preview.
 
 ## The release blocker
 
-**The three Vercel environment variables are not reaching Preview builds.** They were
-set, and two consecutive Preview deployments report all three absent in their own
-startup log — with no per-variable rejection beside them, which rules out a bad value.
-Confirmed at the other end too: a question asked on the Preview left
-`observer.ai_requests` at zero rows, which cannot happen if `SUPABASE_SECRET_KEY` is
-present. A Vercel variable saved for Production alone is invisible to preview
-deployments, and that fits every observation.
+**`SUPABASE_URL` on the Vercel Preview points at a third Supabase project.** The
+deployment's own log names it: `PostgREST at tfcchobwobpadenampyh.supabase.co matched no such
+function`. That host is live, and it is neither `jtvqecusxzogqubxpoyf` (iris-observer-staging)
+nor `vrhrzlvhyxrkxxcjxmaf` (the paused legacy project) — the only two in this account.
 
-Separately, the key on **this machine** is wrapped in placeholder angle brackets and is
-rejected by the API — `401 invalid_api_key` on `/v1/models` and `/v1/responses`. It is
-verifiably not the key pasted into a conversation, compared by SHA-256 digest.
+It very likely arrives from the Supabase–Vercel integration, which injects `SUPABASE_URL`
+for whichever Supabase project *it* is linked to, overriding or conflicting with the value
+set by hand.
 
-So no model-backed answer has been produced anywhere yet. Details in
-`docs/adr/0028-demo-release-candidate.md`.
+Because the ceiling fails closed, every Ask Observer request on the Preview is refused and
+no model is called. Locally, with the same code and a working key, Observer answers in a
+model's words and all 22 acceptance checks pass.
 
 ## The correction that reshaped the product
 
