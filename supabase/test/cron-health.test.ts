@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * The health verifier, executed.
  *
  * `observer-cron-health.sql` is the only artefact in this release whose logic
- * is complicated enough to be wrong — twenty-five rows of catalogue queries,
+ * is complicated enough to be wrong — twenty-six rows of catalogue queries,
  * privilege probes and interval arithmetic, written to be pasted into a SQL
  * editor by an operator at three in the morning. A verifier with a bug in it is
  * worse than no verifier: it reports PASS.
@@ -29,7 +29,7 @@ import { describe, expect, it } from "vitest";
  *
  * One row can never pass here, deliberately: row 3 asks whether the scheduler
  * process is alive, and in PGlite it is not. Every test below expects exactly
- * that one failure and nothing else, so the "healthy" baseline is 24 of 25 with
+ * that one failure and nothing else, so the "healthy" baseline is 25 of 26 with
  * row 3 named. If a change ever makes row 3 pass locally, something is faking
  * the thing this file exists to detect.
  */
@@ -152,8 +152,8 @@ function failed(rows: readonly Row[]): readonly number[] {
 }
 
 describe("the health verifier reads a healthy installation correctly", () => {
-  it("returns twenty-five rows", async () => {
-    expect(await health(await healthy())).toHaveLength(25);
+  it("returns twenty-six rows", async () => {
+    expect(await health(await healthy())).toHaveLength(26);
   });
 
   it("passes everything except the row that cannot pass without a scheduler", async () => {
@@ -173,7 +173,7 @@ describe("the health verifier reads a healthy installation correctly", () => {
     expect(at(6)?.actual).toBe("0 * * * *");
     expect(at(7)?.actual).toBe("select observer.run_rate_bucket_retention(48);");
     expect(at(9)?.actual).toBe("48");
-    expect(at(11)?.actual).toBe("1");
+    expect(at(11)?.actual).toBe("(none)");
   });
 });
 
@@ -187,9 +187,9 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     await db.exec(`delete from cron.job where jobname = '${JOB}'`);
 
     const rows = await health(db);
-    // 4 count, 5 active, 6 schedule, 7 command, 8 function, 9 threshold,
-    // 10 database, 11 total.
-    expect(failed(rows)).toEqual(expect.arrayContaining([4, 5, 6, 7, 8, 9, 10, 11]));
+    // 4 count, 5 active, 6 schedule, 7 command, 8 name, 9 threshold,
+    // 10 database, 14 an owner that cannot be read off a job that is not there.
+    expect(failed(rows)).toEqual(expect.arrayContaining([4, 5, 6, 7, 8, 9, 10, 14]));
     expect(rows.find((x) => x["#"] === 5)?.actual).toBe("(no job)");
   });
 
@@ -202,7 +202,15 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     expect(rows.find((x) => x["#"] === 5)?.actual).toBe("false");
   });
 
-  it("a DUPLICATED job under another name", async () => {
+  it("a SECOND CLEANER under another name — reported, never deleted", async () => {
+    /*
+     * Row 11 changed meaning this round. It used to count every job whose
+     * command mentioned an Observer function, including our own, and expect 1.
+     * It now lists OTHER jobs and expects none — because the migration no
+     * longer deletes what it does not own, and this file never deleted
+     * anything. The verifier's job is to say "somebody else is also pruning
+     * this table", by name, and leave the decision to a person.
+     */
     const db = await healthy();
     await db.exec(
       `select cron.schedule('someones-own-cleanup', '*/5 * * * *',
@@ -211,7 +219,26 @@ describe("every way the scheduler can be broken reads FAIL", () => {
 
     const rows = await health(db);
     expect(failed(rows)).toEqual([NO_SCHEDULER, 11]);
-    expect(rows.find((x) => x["#"] === 11)?.actual).toBe("2");
+    expect(rows.find((x) => x["#"] === 11)?.actual).toBe("someones-own-cleanup");
+
+    // And reading the health of the database did not change it.
+    expect(
+      (await db.query<{ n: number }>(`select count(*)::int as n from cron.job`)).rows[0]?.n,
+    ).toBe(2);
+  });
+
+  it("a foreign job in ANOTHER database is not reported as ours", async () => {
+    // It cannot touch these tables, so flagging it would be noise that trains
+    // an operator to ignore row 11.
+    const db = await healthy();
+    await db.exec(
+      `insert into cron.job (schedule, command, jobname, database)
+       values ('*/5 * * * *', 'select observer.prune_ai_rate_buckets(12)',
+               'elsewhere-cleanup', 'some-other-database')`,
+    );
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER]);
   });
 
   it("a duplicate under the SAME name", async () => {
@@ -222,12 +249,12 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     );
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual(expect.arrayContaining([4, 11]));
+    expect(failed(rows)).toEqual(expect.arrayContaining([4]));
   });
 
   it("a STALE scheduler — the job is perfect and has not run for three hours", async () => {
     /*
-     * The failure mode this whole round is about. Rows 4 to 20 are untouched:
+     * The failure mode this whole round is about. Rows 4 to 21 are untouched:
      * the job exists, is active, has the right schedule and the right command,
      * and the function it calls is present and private. Nothing is being
      * deleted.
@@ -238,18 +265,18 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     await db.exec(`update observer.maintenance set last_pruned_at = now() - interval '3 hours'`);
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 22, 23]);
-    expect(rows.find((x) => x["#"] === 22)?.actual).toMatch(/^UNHEALTHY \(last success /);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 23, 24]);
+    expect(rows.find((x) => x["#"] === 23)?.actual).toMatch(/^UNHEALTHY \(last success /);
   });
 
   it("a job that has NEVER run", async () => {
     const db = await installed();
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual(expect.arrayContaining([20, 21, 22, 23]));
-    expect(rows.find((x) => x["#"] === 21)?.actual).toBe("(never ran)");
-    expect(rows.find((x) => x["#"] === 22)?.actual).toBe("UNHEALTHY (never succeeded)");
-    expect(rows.find((x) => x["#"] === 23)?.actual).toBe("(never ran)");
+    expect(failed(rows)).toEqual(expect.arrayContaining([21, 22, 23, 24]));
+    expect(rows.find((x) => x["#"] === 22)?.actual).toBe("(never ran)");
+    expect(rows.find((x) => x["#"] === 23)?.actual).toBe("UNHEALTHY (never succeeded)");
+    expect(rows.find((x) => x["#"] === 24)?.actual).toBe("(never ran)");
   });
 
   it("a FAILING job — the most recent run errored", async () => {
@@ -259,9 +286,9 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     await ranAt(db, "10 minutes", "failed");
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 21, 24]);
-    expect(rows.find((x) => x["#"] === 21)?.actual).toBe("failed");
-    expect(rows.find((x) => x["#"] === 24)?.actual).toBe("1");
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 22, 25]);
+    expect(rows.find((x) => x["#"] === 22)?.actual).toBe("failed");
+    expect(rows.find((x) => x["#"] === 25)?.actual).toBe("1");
   });
 
   it("a job pointed at the WRONG function or the WRONG threshold", async () => {
@@ -291,8 +318,119 @@ describe("every way the scheduler can be broken reads FAIL", () => {
     );
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 25]);
-    expect(rows.find((x) => x["#"] === 25)?.actual).toMatch(/old$/);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 26]);
+    expect(rows.find((x) => x["#"] === 26)?.actual).toMatch(/old$/);
+  });
+});
+
+/*
+ * Row 13 used to read `prosecdef and proconfig is not null`, which proves
+ * neither half of "definer with a fixed search_path". These are the databases
+ * it passed on.
+ */
+describe("row 13 proves a fixed search_path, not merely some configuration", () => {
+  const at13 = (rows: readonly Row[]) => rows.find((x) => x["#"] === 13);
+
+  it("reads the search path actually set, on a correct installation", async () => {
+    const rows = await health(await healthy());
+    expect(at13(rows)?.actual).toBe("security definer; search_path=observer, pg_catalog");
+    expect(at13(rows)?.verdict).toBe("PASS");
+  });
+
+  it("FAILS on an unrelated setting with no search_path — the old check passed here", async () => {
+    /*
+     * The exact shape the previous check could not see. `proconfig` is
+     * `{statement_timeout=5s}`: non-null, so `proconfig is not null` was true,
+     * and the function is a SECURITY DEFINER resolving unqualified names
+     * through whatever search_path its caller happens to hold.
+     */
+    const db = await healthy();
+    await db.exec(`
+      alter function observer.run_rate_bucket_retention(integer) reset search_path;
+      alter function observer.run_rate_bucket_retention(integer) set statement_timeout = '5s';
+    `);
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 13]);
+    expect(at13(rows)?.actual).toBe("security definer; NO search_path");
+
+    // The old predicate, evaluated on this same database, would have said true.
+    const old = await db.query<{ ok: boolean }>(
+      `select bool_and(p.prosecdef and p.proconfig is not null) as ok
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'observer' and p.proname = 'run_rate_bucket_retention'`,
+    );
+    expect(old.rows[0]?.ok).toBe(true);
+  });
+
+  it("FAILS when the search path is gone entirely", async () => {
+    const db = await healthy();
+    await db.exec(`alter function observer.run_rate_bucket_retention(integer) reset all`);
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 13]);
+    expect(at13(rows)?.actual).toBe("security definer; NO search_path");
+  });
+
+  it("FAILS when the search path is the wrong one", async () => {
+    const db = await healthy();
+    await db.exec(
+      `alter function observer.run_rate_bucket_retention(integer) set search_path = public`,
+    );
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 13]);
+    expect(at13(rows)?.actual).toBe("security definer; search_path=public");
+  });
+
+  it("FAILS when the function is not SECURITY DEFINER", async () => {
+    const db = await healthy();
+    await db.exec(`alter function observer.run_rate_bucket_retention(integer) security invoker`);
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 13]);
+    expect(at13(rows)?.actual).toBe("SECURITY INVOKER; search_path=observer, pg_catalog");
+  });
+
+  it("FAILS when an unexpected overload appears", async () => {
+    const db = await healthy();
+    await db.exec(`
+      create function observer.run_rate_bucket_retention(p_keep text) returns integer
+      language sql as $fn$ select 0 $fn$;
+    `);
+
+    const rows = await health(db);
+    // 12 counts two, and 13 aggregates two descriptions into one string.
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 12, 13]);
+    expect(at13(rows)?.actual).toContain(" | ");
+  });
+
+  it("FAILS when the function is missing altogether", async () => {
+    const db = await healthy();
+    await db.exec(`drop function observer.run_rate_bucket_retention(integer)`);
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual(expect.arrayContaining([12, 13]));
+    expect(at13(rows)?.actual).toBe("(missing)");
+  });
+});
+
+describe("row 14 catches a job that will fail every run", () => {
+  it("FAILS when the job owner cannot execute the cleanup function", async () => {
+    /*
+     * Perfectly scheduled, perfectly named, right command, right threshold —
+     * and it errors on every execution because the role it runs as was never
+     * granted EXECUTE. Rows 4 to 13 all pass on this database.
+     */
+    const db = await healthy();
+    await db.exec(`create role scheduler_without_rights nologin`);
+    await db.exec(
+      `update cron.job set username = 'scheduler_without_rights' where jobname = '${JOB}'`,
+    );
+
+    const rows = await health(db);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 14]);
+    expect(rows.find((x) => x["#"] === 14)?.actual).toBe("false");
   });
 });
 
@@ -304,8 +442,8 @@ describe("the verifier is honest about privilege", () => {
     );
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 15]);
-    expect(rows.find((x) => x["#"] === 15)?.actual).toContain("authenticated");
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 16]);
+    expect(rows.find((x) => x["#"] === 16)?.actual).toContain("authenticated");
   });
 
   it("fails if a retention façade ever appears in public", async () => {
@@ -317,7 +455,7 @@ describe("the verifier is honest about privilege", () => {
     `);
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 18]);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 19]);
   });
 
   it("fails if cleanup is ever put back into the admission path", async () => {
@@ -338,6 +476,6 @@ describe("the verifier is honest about privilege", () => {
     `);
 
     const rows = await health(db);
-    expect(failed(rows)).toEqual([NO_SCHEDULER, 14]);
+    expect(failed(rows)).toEqual([NO_SCHEDULER, 15]);
   });
 });

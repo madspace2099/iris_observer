@@ -171,6 +171,31 @@ State it precisely and it is defensible:
 operator precondition — `supabase/prerequisites/observer-cron-prerequisite.sql`
 — and the migration aborts rather than reporting success without it.
 
+The migration owns **one job name** and touches nothing else in `cron.job`. An
+earlier draft unscheduled anything whose command mentioned an Observer function;
+that would have deleted scheduled work belonging to somebody else. A differently
+named job that appears to target Observer retention now stops the migration
+before it writes anything, and a person decides what that job is for. See
+`docs/18-deployment.md`.
+
+## Verifiers
+
+Version-controlled under `supabase/verifiers/`, because a verifier with a bug in
+it is worse than no verifier — it reports PASS — and these two are complicated
+enough to have one. Both are read-only, and both are executed by the test suite
+against a real Postgres.
+
+- `observer-cron-health.sql` — 26 checks on the scheduled retention: the
+  extension, the scheduler process, the job's exact name, schedule, command,
+  database and owner, the function's `SECURITY DEFINER` and fixed `search_path`,
+  every browser-role privilege, and — the part a catalogue check cannot give
+  you — whether it has actually **run**, recently and successfully.
+- `observer-http-compat-proof.sql` — the deployed-build compatibility proof for
+  rollout steps 4 and 5. It correlates the test request by a time floor plus
+  five controlled properties and **requires exactly one match**: zero is a
+  failure and two is a failure, because a check that can pass by reading
+  somebody else's request proves nothing about yours.
+
 `ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
 one there would let anybody holding the durable table follow a browser between
 customers — the same cross-tenant linkability the subject had, arriving by a

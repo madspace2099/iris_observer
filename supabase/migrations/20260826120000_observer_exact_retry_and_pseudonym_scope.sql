@@ -256,7 +256,22 @@ declare
   v_reason  text;
   v_retry   integer;
   v_version integer := coalesce(p_pseudonym_version, 1);
-  v_scoped  boolean := p_audit_client_hash is not null
+  /*
+   * THREE STATES, NOT TWO. An earlier version of this function had one boolean
+   * — "is there a usable scoped hash?" — and treated absent and blank as the
+   * same thing, so `p_audit_client_hash = ''` with version 1 was admitted as
+   * legacy. It is not legacy. A caller that sends an empty string is a caller
+   * that meant to send something and computed nothing, and filing its row as
+   * "a build from before the scheme existed" is a false label on the one table
+   * that exists to be believed.
+   *
+   *   v_absent   the parameter is genuinely NULL — the 13-key caller, which
+   *              never mentions it at all and reaches NULL through the default;
+   *   v_usable   non-null and non-blank after trimming;
+   *   neither    blank, or whitespace only. Malformed. Refused.
+   */
+  v_absent  boolean := p_audit_client_hash is null;
+  v_usable  boolean := p_audit_client_hash is not null
                        and length(btrim(p_audit_client_hash)) > 0;
 begin
   if p_request_id is null then
@@ -276,17 +291,21 @@ begin
    *
    * Two combinations are legal and nothing else is:
    *
-   *   legacy   no audit hash, version 1 — a build made before the scheme
-   *            existed, filed as such;
-   *   scoped   an audit hash that is present, non-empty and *different from
-   *            the global one*, version 2. Identical hashes would mean the
-   *            caller scoped nothing and said it had.
+   *   legacy   `p_audit_client_hash IS NULL` — genuinely absent, not blank —
+   *            with effective version 1. This is the deployed 13-key caller,
+   *            which omits both parameters and reaches NULL and 1 through the
+   *            defaults. That path is unchanged and must stay unchanged.
+   *   scoped   an audit hash that is non-null, non-blank after trimming and
+   *            *different from the global one*, with version 2. Identical
+   *            hashes would mean the caller scoped nothing and said it had.
    *
-   * Anything else fails closed here: no quota, no row, no model.
+   * Anything else fails closed here: no quota, no row, no model. That now
+   * includes `''` and `'   '` under either version, which the previous
+   * `not v_scoped` spelling admitted as legacy.
    */
   if not (
-       (not v_scoped and v_version = 1)
-    or (v_scoped and v_version = 2 and p_audit_client_hash is distinct from p_client_hash)
+       (v_absent and v_version = 1)
+    or (v_usable and v_version = 2 and p_audit_client_hash is distinct from p_client_hash)
   ) then
     return query select false, 'invalid_admission', 0;
     return;
@@ -312,10 +331,11 @@ begin
       viewer_role, state, question_chars, key_id, pseudonym_version
     ) values (
       2, p_request_id, p_session,
-      -- One decision, not two independent ones. `v_scoped` is the same value
-      -- the coherence check above tested, so the stored hash and the stored
-      -- version cannot disagree.
-      case when v_scoped then p_audit_client_hash else p_client_hash end,
+      -- One decision, not two independent ones. `v_usable` is the same value
+      -- the coherence check above tested, and by this point the only way to be
+      -- here with a non-null hash is to have passed as `scoped`, so the stored
+      -- hash and the stored version cannot disagree.
+      case when v_usable then p_audit_client_hash else p_client_hash end,
       p_tenant_slug, p_project_slug,
       p_viewer_role, 'started', coalesce(p_question_chars, 0), p_key_id,
       v_version::smallint

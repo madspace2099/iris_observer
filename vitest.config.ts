@@ -28,5 +28,18 @@ export default defineConfig({
     // Playwright owns e2e/. Vitest must not try to collect it.
     exclude: ["e2e/**", "**/node_modules/**"],
     passWithNoTests: true,
+    /*
+     * The database tests each boot a WASM Postgres and apply every migration —
+     * roughly a second per case in isolation, and more when three such files
+     * run in parallel. Vitest's 5s default started timing out as `supabase/test`
+     * grew from one file to three, which is a fact about start-up cost rather
+     * than about the code under test.
+     *
+     * Raised rather than narrowed to a `describe`, because the cost is in the
+     * fixture and every one of those files pays it. Nothing here loops or
+     * retries, so a genuinely hung test still fails; it just takes longer to
+     * say so.
+     */
+    testTimeout: 30_000,
   },
 });

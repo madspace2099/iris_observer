@@ -182,43 +182,115 @@ revoke all on function observer.run_rate_bucket_retention(integer)
 /* --- 4. exactly one scheduled job ----------------------------------------- */
 
 /*
- * Convergence is explicit rather than inherited.
+ * THIS MIGRATION OWNS ONE JOB NAME AND NOTHING ELSE.
  *
- * Supabase documents `cron.schedule` as overwriting a job of the same name, and
- * that is probably enough — but "probably" is how the last several defects got
- * in. Every job that targets Observer retention is unscheduled first, under any
- * name, and then exactly one is created. Reapplication therefore converges by
- * construction rather than by trusting an upsert.
+ *   observer-prune-ai-rate-buckets
  *
- * The `command ilike` clauses deliberately also catch a job somebody scheduled
- * by hand against the same functions. There must be one.
+ * The previous version unscheduled anything whose command mentioned an Observer
+ * function, under any name. An independent review called that destructive
+ * overreach and was right: `cron.job` is shared by the whole project, a job
+ * somebody else scheduled and manages is not this migration's to delete, and
+ * the previous test suite made the overreach explicit by creating a job called
+ * `someones-own-cleanup` and asserting it was destroyed. A migration that
+ * deletes other people's scheduled work in order to tidy up is a worse problem
+ * than the duplicate it was tidying.
  *
- * The postcondition is asserted here, in the transaction, against the real
- * `cron.job` table. If the count is not exactly one the migration raises and
- * the whole thing rolls back — including the function above, so a database can
- * never end up holding the cleanup without the schedule that makes it
- * retention.
+ * So: DETECT, then FAIL CLOSED. A differently named job that appears to target
+ * Observer retention stops this migration before it touches anything, and the
+ * operator decides what that job is for. Nothing foreign is modified — and
+ * because the abort happens before any write, and inside the transaction
+ * regardless, every foreign row is left exactly as it was found.
+ *
+ * WHAT THE DETECTOR CAN AND CANNOT SEE. It is a substring scan over
+ * `cron.command`. It catches the realistic case — somebody scheduled the same
+ * function by hand — and it cannot catch every semantically equivalent command:
+ * a wrapper function, a quoted identifier, `EXECUTE` of a string built at
+ * runtime, a `DELETE FROM observer.ai_rate_buckets` written out longhand. It is
+ * a guard against the likely collision, not a proof of uniqueness, and nothing
+ * downstream may treat it as one.
+ *
+ * SCOPE. Both the detector and the ownership check are scoped to
+ * `current_database()`: a job registered against another database in the
+ * cluster never touches these tables and is none of our business. A job holding
+ * our name but owned by another role is also refused rather than deleted —
+ * `cron.unschedule` would fail on it anyway, and failing with an explanation
+ * beats failing with a permission error.
  */
 do $$
 declare
   c_job_name constant text := 'observer-prune-ai-rate-buckets';
   c_schedule constant text := '0 * * * *';
   c_command  constant text := 'select observer.run_rate_bucket_retention(48);';
+  v_foreign  text;
   v_jobid    bigint;
   v_count    integer;
 begin
+  /* --- 4a. refuse to proceed past somebody else's job -------------------- */
+
+  select string_agg(quote_literal(j.jobname) || ' (owner ' || j.username || ')',
+                    ', ' order by j.jobname)
+    into v_foreign
+    from cron.job j
+   where j.jobname is distinct from c_job_name
+     and j.database = current_database()
+     and (j.command ilike '%run_rate_bucket_retention%'
+          or j.command ilike '%prune_ai_rate_buckets%');
+
+  if v_foreign is not null then
+    raise exception
+      using errcode = 'raise_exception',
+            message = 'another cron job appears to target Observer retention: ' || v_foreign,
+            detail  = 'This migration owns only the job named observer-prune-ai-rate-buckets. It will not modify or delete a job it does not own, and it will not install a second cleaner beside one.',
+            hint    = 'Decide what that job is for. Unschedule it yourself if it is a leftover, or rename it to observer-prune-ai-rate-buckets if it was meant to be this one, then apply this migration again.';
+  end if;
+
+  /* --- 4b. refuse to touch our own name in the wrong hands --------------- */
+
+  select string_agg(j.jobname || ' (owner ' || j.username || ', database ' || j.database || ')',
+                    ', ' order by j.jobid)
+    into v_foreign
+    from cron.job j
+   where j.jobname = c_job_name
+     and (j.database is distinct from current_database()
+          or j.username is distinct from current_user);
+
+  if v_foreign is not null then
+    raise exception
+      using errcode = 'insufficient_privilege',
+            message = 'a cron job named ' || c_job_name || ' exists under another owner or database: ' || v_foreign,
+            detail  = 'Unscheduling it is not this migration''s to do.',
+            hint    = 'Resolve the ownership by hand, then apply this migration again.';
+  end if;
+
+  /* --- 4c. replace exactly the job this migration owns -------------------- */
+
+  /*
+   * Supabase documents `cron.schedule` as overwriting a job of the same
+   * case-sensitive name, and that alone would be enough. The explicit
+   * unschedule is kept because it is bounded to the owned name — it can only
+   * ever delete this migration's own job — and because it converges even if a
+   * row was inserted into `cron.job` directly, which the documented upsert
+   * would leave duplicated.
+   */
   for v_jobid in
     select j.jobid
       from cron.job j
      where j.jobname = c_job_name
-        or j.command ilike '%observer.run_rate_bucket_retention%'
-        or j.command ilike '%observer.prune_ai_rate_buckets%'
+       and j.database = current_database()
+       and j.username = current_user
   loop
     perform cron.unschedule(v_jobid);
   end loop;
 
   perform cron.schedule(c_job_name, c_schedule, c_command);
 
+  /* --- 4d. the postcondition, asserted in the transaction ---------------- */
+
+  /*
+   * If this is not exactly right the migration raises and the whole thing rolls
+   * back — including `run_rate_bucket_retention` above, so a database can never
+   * end up holding the cleanup without the schedule that makes it retention.
+   */
   select count(*) into v_count
     from cron.job j
    where j.jobname = c_job_name
@@ -235,12 +307,12 @@ begin
 
   select count(*) into v_count
     from cron.job j
-   where j.command ilike '%observer.run_rate_bucket_retention%'
-      or j.command ilike '%observer.prune_ai_rate_buckets%';
+   where j.jobname = c_job_name;
 
   if v_count <> 1 then
     raise exception
-      'observer retention expected exactly one cleanup job in cron.job, found %', v_count;
+      'observer retention expected one job named %, found % across all databases and owners',
+      c_job_name, v_count;
   end if;
 end $$;
 

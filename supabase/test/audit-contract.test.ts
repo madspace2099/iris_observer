@@ -1023,6 +1023,24 @@ describe("an incoherent admission is refused before anything is spent", () => {
     { name: "scoped version with the global hash", audit: "global-hash", version: 2 },
     { name: "legacy version with a scoped hash", audit: "scoped-hash", version: 1 },
     { name: "a scheme nobody defined", audit: "scoped-hash", version: 3 },
+
+    /*
+     * ABSENT IS NOT BLANK, and the previous version of this function treated
+     * them as the same thing. It asked one question — "is there a usable scoped
+     * hash?" — so `''` answered no and the row was filed as legacy: a build
+     * from before the scheme existed. It is not that. A caller sending an empty
+     * string is a caller that meant to compute a fingerprint and computed
+     * nothing, and mislabelling it puts a wrong claim in the one table whose
+     * whole job is to be believed.
+     *
+     * Only `IS NULL` is legacy now, which is exactly what the deployed 13-key
+     * caller produces: it never mentions the parameter and reaches NULL through
+     * the default.
+     */
+    { name: "legacy version with an empty hash", audit: "", version: 1 },
+    { name: "legacy version with a whitespace hash", audit: "   ", version: 1 },
+    { name: "an empty hash with no version at all", audit: "", version: null },
+    { name: "a whitespace hash with no version at all", audit: "   ", version: null },
   ];
 
   for (const scenario of invalid) {
@@ -1042,6 +1060,34 @@ describe("an incoherent admission is refused before anything is spent", () => {
       expect(after.rows[0]).toEqual(before.rows[0]);
     });
   }
+
+  it("still admits the deployed 13-key caller, which omits both parameters", async () => {
+    /*
+     * The compatibility that must not break. `3f298a6` sends thirteen
+     * arguments and never mentions a scheme or a scoped hash; both reach the
+     * function through defaults, as NULL and 1. Tightening blank to invalid
+     * must not touch this path, so it is exercised through the real 13-argument
+     * call rather than by passing NULL explicitly.
+     */
+    const d = await database();
+    await d.exec("set role service_role");
+
+    const r = await d.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 'subject-legacy', 'global-hash',
+         'alpha/northgate', 10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2)`,
+      ["dddddddd-0000-4000-8000-000000000001", KEY_ID],
+    );
+    expect(r.rows[0]?.allowed).toBe(true);
+
+    await d.exec("reset role");
+    const row = await d.query<{ version: number; hash: string }>(
+      `select pseudonym_version as version, client_hash as hash
+         from observer.ai_requests where request_id = $1`,
+      ["dddddddd-0000-4000-8000-000000000001"],
+    );
+    // Version 1, storing the global hash — honestly what that build derives.
+    expect(row.rows[0]).toEqual({ version: 1, hash: "global-hash" });
+  });
 
   it("admits the two combinations that are coherent", async () => {
     const d = await database();
@@ -1420,12 +1466,12 @@ describe("the scheduled job [TEXT + STAND-IN]", () => {
     });
   });
 
-  it("still holds exactly one job after being applied twice [STAND-IN]", async () => {
+  it("still holds exactly one job after being applied three times [STAND-IN]", async () => {
     /*
      * The stand-in's `cron.schedule` deliberately does NOT upsert by name, so
-     * this passes only because the migration unschedules every matching job
-     * first. If somebody replaces that with a bare `cron.schedule` on the
-     * grounds that Supabase documents an upsert, this test fails.
+     * this passes only because the migration unschedules its OWN job first. If
+     * somebody replaces that with a bare `cron.schedule` on the grounds that
+     * Supabase documents an upsert, this test fails.
      */
     const d = await databaseWithRetention();
     await d.exec(sql(RETENTION));
@@ -1435,26 +1481,150 @@ describe("the scheduled job [TEXT + STAND-IN]", () => {
     expect(r.rows[0]?.n).toBe(1);
   });
 
-  it("absorbs a duplicate scheduled under another name [STAND-IN]", async () => {
+  it("corrects its own job when the schedule or command has drifted [STAND-IN]", async () => {
     const d = await databaseWithRetention();
     await d.exec(
-      `select cron.schedule('someones-own-cleanup', '*/5 * * * *',
-         'select observer.prune_ai_rate_buckets(12)')`,
+      `update cron.job
+          set schedule = '*/7 * * * *',
+              command  = 'select observer.run_rate_bucket_retention(2);',
+              active   = false
+        where jobname = '${JOB_NAME}'`,
     );
-    expect(
-      (await d.query<{ n: number }>(`select count(*)::int as n from cron.job`)).rows[0]?.n,
-    ).toBe(2);
 
     await d.exec(sql(RETENTION));
 
-    const r = await d.query<{ jobname: string; command: string }>(
-      `select jobname, command from cron.job`,
-    );
+    const r = await d.query<{
+      jobname: string;
+      schedule: string;
+      command: string;
+      active: boolean;
+    }>(`select jobname, schedule, command, active from cron.job`);
     expect(r.rows).toHaveLength(1);
-    expect(r.rows[0]?.jobname).toBe(JOB_NAME);
-    expect(r.rows[0]?.command).toBe(JOB_COMMAND);
+    expect(r.rows[0]).toEqual({
+      jobname: JOB_NAME,
+      schedule: JOB_SCHEDULE,
+      command: JOB_COMMAND,
+      active: true,
+    });
+  });
+});
+
+/*
+ * `cron.job` belongs to the whole project. Everything below is about what this
+ * migration must NOT do to it.
+ */
+describe("the migration owns one job name and touches nothing else [STAND-IN]", () => {
+  /** Every column of every job, as a comparable snapshot. */
+  const snapshot = async (d: PGlite) =>
+    (
+      await d.query<{ row: string }>(`select (j.*)::text as row from cron.job j order by j.jobid`)
+    ).rows.map((r) => r.row);
+
+  const foreign = `select cron.schedule('someones-own-cleanup', '*/5 * * * *',
+       'select observer.prune_ai_rate_buckets(12)')`;
+
+  it("REFUSES to run while a differently named job targets Observer retention", async () => {
+    /*
+     * The previous version of this migration deleted that job, and the previous
+     * version of this test asserted the deletion as correct behaviour. An
+     * independent review called it destructive overreach and was right: a job
+     * somebody else scheduled and manages is not a migration's to remove.
+     *
+     * It now fails closed and names the job, so a person decides.
+     */
+    const d = await databaseWithRetention();
+    await d.exec(foreign);
+
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow(
+      /another cron job appears to target Observer retention.*someones-own-cleanup/s,
+    );
   });
 
+  it("leaves that foreign job byte-for-byte unchanged when it refuses", async () => {
+    const d = await databaseWithRetention();
+    await d.exec(foreign);
+    const before = await snapshot(d);
+
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow();
+
+    expect(await snapshot(d)).toEqual(before);
+    expect(before.some((row) => row.includes("someones-own-cleanup"))).toBe(true);
+  });
+
+  it("leaves an unrelated job untouched, and still converges on its own", async () => {
+    // Nothing to do with Observer. It must survive a successful application.
+    const d = await databaseWithRetention();
+    await d.exec(`select cron.schedule('nightly-vacuum', '0 3 * * *', 'VACUUM')`);
+    const before = await snapshot(d);
+
+    await d.exec(sql(RETENTION));
+
+    const after = await snapshot(d);
+    const vacuum = (rows: readonly string[]) => rows.filter((r) => r.includes("nightly-vacuum"));
+    expect(vacuum(after)).toEqual(vacuum(before));
+    expect(
+      (
+        await d.query<{ n: number }>(`select count(*)::int as n from cron.job where jobname = $1`, [
+          JOB_NAME,
+        ])
+      ).rows[0]?.n,
+    ).toBe(1);
+  });
+
+  it("never deletes a job in another database, even under its own name", async () => {
+    const d = await databaseWithRetention();
+    await d.exec(
+      `insert into cron.job (schedule, command, jobname, database)
+       values ('0 * * * *', 'select observer.run_rate_bucket_retention(48);',
+               '${JOB_NAME}', 'some-other-database')`,
+    );
+    const before = await snapshot(d);
+
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow(/exists under another owner or database/);
+
+    expect(await snapshot(d)).toEqual(before);
+  });
+
+  it("never deletes a job belonging to another owner", async () => {
+    const d = await databaseWithRetention();
+    await d.exec(`create role someone_else nologin`);
+    await d.exec(
+      `insert into cron.job (schedule, command, jobname, username)
+       values ('0 * * * *', 'select observer.run_rate_bucket_retention(48);',
+               '${JOB_NAME}', 'someone_else')`,
+    );
+    const before = await snapshot(d);
+
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow(/exists under another owner or database/);
+
+    expect(await snapshot(d)).toEqual(before);
+    expect(before.some((row) => row.includes("someone_else"))).toBe(true);
+  });
+
+  it("does not select jobs for deletion by their command text", () => {
+    /*
+     * The mechanical guard. `cron.unschedule` may only ever be reached from a
+     * query filtered by the owned job name — never by what a command contains.
+     */
+    const text = statementsOnly(sql(RETENTION));
+    const start = text.indexOf("for v_jobid in");
+    const end = text.indexOf("end loop", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+
+    const deletionLoop = text.slice(start, end);
+    expect(deletionLoop).toContain("cron.unschedule");
+    expect(deletionLoop).toContain("j.jobname = c_job_name");
+    expect(deletionLoop).not.toMatch(/ilike/i);
+    expect(deletionLoop).not.toMatch(/command/i);
+
+    // And `cron.unschedule` appears exactly once in the whole file, so there is
+    // no second, less careful deletion path somewhere else.
+    expect(text.match(/cron\.unschedule/g)).toHaveLength(1);
+  });
+});
+
+describe("the scheduled job, continued [STAND-IN]", () => {
   it("aborts if the job did not end up as intended [STAND-IN]", async () => {
     /*
      * The migration asserts its own postcondition against `cron.job` inside the

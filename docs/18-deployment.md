@@ -402,6 +402,32 @@ install it. It is available at 1.6.4. Enabling it is rollout step 1 —
 in the dashboard — and the migration refuses to apply without it rather than
 creating a cleanup function with nothing to run it.
 
+#### The migration owns one job name, and only that
+
+`cron.job` belongs to the whole project. An earlier version of this migration
+unscheduled any job whose command mentioned an Observer function, under any
+name; an independent review called that destructive overreach and was right. A
+job somebody else scheduled and manages is not a migration's to delete, however
+much it looks like a duplicate.
+
+So the ownership rule is narrow and the failure is loud:
+
+- the migration creates, replaces and unschedules **only**
+  `observer-prune-ai-rate-buckets`, selected by name and scoped to this database
+  and this owner;
+- a **differently named** job whose command mentions an Observer retention
+  function **stops the migration before it writes anything**, names the job, and
+  asks a person to decide. Nothing foreign is modified;
+- a job holding our name but owned by another role, or registered against
+  another database, is likewise refused rather than deleted;
+- the detector is a substring scan over `cron.command`. It catches the realistic
+  collision — somebody scheduling the same function by hand — and **cannot** see
+  a wrapper function, a quoted identifier, a run-time `EXECUTE` or a longhand
+  `DELETE`. It is a guard, not a proof of uniqueness.
+
+Row 11 of the health verifier reports the same condition read-only, and reports
+is all it does.
+
 ### Rotation is a maintenance operation
 
 Rotating the pepper **changes every pseudonymous identifier** and therefore
