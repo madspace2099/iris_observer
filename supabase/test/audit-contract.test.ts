@@ -30,6 +30,8 @@ function migrationFiles(): readonly string[] {
 
 const EXPAND = "20260825205000_observer_audit_provenance.sql";
 const CONTRACT = "20260826090000_observer_audit_facade_cleanup.sql";
+const FORWARD = "20260826120000_observer_exact_retry_and_pseudonym_scope.sql";
+const RETENTION = "20260826140000_observer_bucket_retention.sql";
 
 function sql(file: string): string {
   return readFileSync(join(MIGRATIONS, file), "utf8");
@@ -919,5 +921,220 @@ describe("PostgREST has exactly one admit_ai_request to choose from", () => {
     expect(dropObserver).toBeLessThan(createObserver);
     expect(createObserver).toBeLessThan(createPublic);
     expect(corrective).not.toContain("create or replace function public.admit_ai_request");
+  });
+});
+
+/* --- 9. the scheme and the hash must agree --------------------------------- */
+
+describe("an incoherent admission is refused before anything is spent", () => {
+  /*
+   * The two arguments were independently `coalesce`d, which let one
+   * combination through that is a lie in the table: no scoped hash and
+   * `p_pseudonym_version = 2` stored the GLOBAL hash under a label saying
+   * tenant-scoped. Anybody later reading the audit would trust a row that
+   * follows a browser between customers precisely because it claims it cannot.
+   */
+  const admit = (db: PGlite, audit: string | null, version: number | null) =>
+    db.query<{ allowed: boolean; reason: string | null }>(
+      `select * from public.admit_ai_request($1, 'subject-a', 'global-hash',
+         'alpha/northgate', 10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42,
+         $2, $3, $4)`,
+      [ID, KEY_ID, audit, version],
+    );
+
+  const counts = (db: PGlite) =>
+    db.query<{ rows: number; units: number }>(
+      `select (select count(*) from observer.ai_requests)::int              as rows,
+              (select coalesce(sum(count), 0) from observer.ai_rate_buckets)::int as units`,
+    );
+
+  const invalid: readonly { name: string; audit: string | null; version: number | null }[] = [
+    { name: "scoped version with no scoped hash", audit: null, version: 2 },
+    { name: "scoped version with an empty scoped hash", audit: "", version: 2 },
+    { name: "scoped version with a whitespace scoped hash", audit: "   ", version: 2 },
+    // Identical hashes mean the caller scoped nothing and said it had.
+    { name: "scoped version with the global hash", audit: "global-hash", version: 2 },
+    { name: "legacy version with a scoped hash", audit: "scoped-hash", version: 1 },
+    { name: "a scheme nobody defined", audit: "scoped-hash", version: 3 },
+  ];
+
+  for (const scenario of invalid) {
+    it(`refuses ${scenario.name}, spending nothing`, async () => {
+      const d = await database();
+      // Counted as the owner: `service_role` deliberately cannot read the
+      // observer schema directly, which is the control working.
+      const before = await counts(d);
+
+      await d.exec("set role service_role");
+      const r = await admit(d, scenario.audit, scenario.version);
+      expect(r.rows[0]).toMatchObject({ allowed: false, reason: "invalid_admission" });
+      await d.exec("reset role");
+
+      const after = await counts(d);
+      // Neither table moved: no quota consumed, no audit row written.
+      expect(after.rows[0]).toEqual(before.rows[0]);
+    });
+  }
+
+  it("admits the two combinations that are coherent", async () => {
+    const d = await database();
+    await d.exec("set role service_role");
+
+    const legacy = await admit(d, null, 1);
+    expect(legacy.rows[0]).toMatchObject({ allowed: true });
+
+    const scoped = await d.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 'subject-b', 'global-hash',
+         'alpha/northgate', 10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42,
+         $2, 'scoped-hash', 2)`,
+      ["bbbbbbbb-0000-4000-8000-000000000001", KEY_ID],
+    );
+    expect(scoped.rows[0]?.allowed).toBe(true);
+  });
+});
+
+/* --- 10. migration 3 is safely rerunnable ---------------------------------- */
+
+describe("applying the forward migration twice changes nothing", () => {
+  /*
+   * It failed the second time: the fifteen-argument function it had just made
+   * met a bare CREATE. A migration that only works once is one nobody dares
+   * re-apply after a partial failure, which is exactly when it is needed.
+   */
+  it("leaves one function per schema, and both call forms still resolve", async () => {
+    const d = await database();
+
+    await d.exec(sql(FORWARD));
+    await d.exec(sql(FORWARD));
+
+    for (const schema of ["public", "observer"]) {
+      const r = await d.query<{ n: number; nargs: number; ndefaults: number }>(
+        `select count(*)::int as n, max(p.pronargs)::int as nargs,
+                max(p.pronargdefaults)::int as ndefaults
+           from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+          where ns.nspname = $1 and p.proname = 'admit_ai_request'`,
+        [schema],
+      );
+      expect(r.rows[0], `${schema} after a re-run`).toEqual({ n: 1, nargs: 15, ndefaults: 2 });
+    }
+
+    await d.exec("set role service_role");
+    const legacy = await d.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 's', 'g', 'alpha/northgate',
+         10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2)`,
+      ["cccccccc-0000-4000-8000-000000000001", KEY_ID],
+    );
+    const scoped = await d.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 's2', 'g', 'alpha/northgate',
+         10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2, 'scoped', 2)`,
+      ["cccccccc-0000-4000-8000-000000000002", KEY_ID],
+    );
+    expect(legacy.rows[0]?.allowed).toBe(true);
+    expect(scoped.rows[0]?.allowed).toBe(true);
+
+    // And the twelve-argument shape is still gone.
+    await expect(
+      d.query(
+        `select public.admit_ai_request($1, 's', 'c', 'alpha/northgate', 10, 60, 120, 500,
+           'alpha', 'northgate', 'developer', 42)`,
+        ["cccccccc-0000-4000-8000-000000000003"],
+      ),
+    ).rejects.toThrow(/does not exist/i);
+  });
+
+  it("tells PostgREST to reload, in both unapplied migrations", () => {
+    /*
+     * PostgREST resolves an RPC from a cached picture of the schema. A changed
+     * signature that it has not been told about answers PGRST202 for the new
+     * shape and keeps offering the old one — stale metadata this project has
+     * already spent a round diagnosing. Inside the transaction, so a rolled-back
+     * migration does not announce a change that never happened.
+     */
+    expect(sql(FORWARD)).toContain("notify pgrst, 'reload schema'");
+    expect(sql(CONTRACT)).toContain("notify pgrst, 'reload schema'");
+    expect(sql(RETENTION)).toContain("notify pgrst, 'reload schema'");
+  });
+});
+
+/* --- 11. retention actually runs ------------------------------------------- */
+
+describe("rate buckets are pruned, not merely prunable", () => {
+  /*
+   * The documentation said the table "is pruned". Read-only inspection of the
+   * live database found `prune_ai_rate_buckets` present and nothing calling it:
+   * consume did not, admit did not, pg_cron was not installed, and there was no
+   * trigger. A retention claim resting on a function nobody invokes is a claim
+   * about a function.
+   */
+  const seed = async (d: PGlite) => {
+    await d.exec(`
+      insert into observer.ai_rate_buckets (scope, subject, window_kind, window_start, count)
+      values ('session', 'ancient', 'hour', now() - interval '80 hours', 3),
+             ('client',  'ancient', 'hour', now() - interval '60 hours', 3),
+             ('session', 'recent',  'hour', now() - interval '2 hours',  3),
+             ('project', 'recent',  'day',  now() - interval '10 hours', 3)`);
+  };
+
+  it("removes what has expired and keeps what has not", async () => {
+    const d = await database();
+    await seed(d);
+
+    const removed = await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`);
+    expect(removed.rows[0]?.n).toBe(2);
+
+    const left = await d.query<{ subject: string }>(
+      `select distinct subject from observer.ai_rate_buckets order by subject`,
+    );
+    expect(left.rows.map((r) => r.subject)).toEqual(["recent"]);
+  });
+
+  it("runs at most once an hour, however many requests arrive", async () => {
+    const d = await database();
+    await seed(d);
+
+    expect(
+      (await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`)).rows[0]?.n,
+    ).toBe(2);
+    // A second call inside the window declines rather than re-scanning.
+    expect(
+      (await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`)).rows[0]?.n,
+    ).toBe(0);
+  });
+
+  it("is wired into admission, and admission still counts correctly", async () => {
+    const d = await database();
+    await seed(d);
+    await d.exec("set role service_role");
+
+    // Ten admissions against a ceiling of three: the ceiling still holds, and
+    // the ancient buckets are gone by the end of it.
+    let allowed = 0;
+    for (let i = 0; i < 10; i += 1) {
+      const r = await d.query<{ allowed: boolean }>(
+        `select allowed from public.admit_ai_request(gen_random_uuid(), 'retention-subject',
+           'retention-client', 'alpha/northgate', 3, 60, 120, 500,
+           'alpha', 'northgate', 'developer', 12, $1)`,
+        [KEY_ID],
+      );
+      if (r.rows[0]?.allowed) allowed += 1;
+    }
+    expect(allowed).toBe(3);
+
+    await d.exec("reset role");
+    const ancient = await d.query<{ n: number }>(
+      `select count(*)::int as n from observer.ai_rate_buckets where subject = 'ancient'`,
+    );
+    expect(ancient.rows[0]?.n).toBe(0);
+  });
+
+  it("keeps the maintenance row away from every browser role", async () => {
+    const d = await database();
+    for (const role of ["anon", "authenticated"]) {
+      const r = await d.query<{ allowed: boolean }>(
+        `select has_table_privilege($1, 'observer.maintenance', 'SELECT') as allowed`,
+        [role],
+      );
+      expect(r.rows[0]?.allowed).toBe(false);
+    }
   });
 });

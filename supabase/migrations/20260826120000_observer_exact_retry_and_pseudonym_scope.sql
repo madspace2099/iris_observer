@@ -198,10 +198,24 @@ $$;
 -- rows fall back to the global hash and record `pseudonym_version = 1`: the
 -- old derivation, labelled as the old derivation. It keeps working and it
 -- keeps telling the truth about itself.
+-- **Safely rerunnable.** Both known signatures are dropped, not just the one
+-- this migration replaces: the thirteen-argument form it supersedes, and the
+-- fifteen-argument form it creates. Without the second drop a re-run met its
+-- own function and failed on a bare CREATE — and a migration that only works
+-- the first time is one nobody dares re-apply after a partial failure.
+--
+-- Public façades first, then the implementations they depend on. Dropping the
+-- other way round fails on the dependency.
 drop function if exists public.admit_ai_request(
   uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text);
+drop function if exists public.admit_ai_request(
+  uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text,
+  text, integer);
 drop function if exists observer.admit_ai_request(
   uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text);
+drop function if exists observer.admit_ai_request(
+  uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text,
+  text, integer);
 
 create function observer.admit_ai_request(
   p_request_id        uuid,
@@ -233,9 +247,40 @@ declare
   v_allowed boolean;
   v_reason  text;
   v_retry   integer;
+  v_version integer := coalesce(p_pseudonym_version, 1);
+  v_scoped  boolean := p_audit_client_hash is not null
+                       and length(btrim(p_audit_client_hash)) > 0;
 begin
   if p_request_id is null then
     return query select false, 'duplicate_request', 0;
+    return;
+  end if;
+
+  /*
+   * The scheme and the hash must agree, and disagreeing is refused before a
+   * single unit is spent.
+   *
+   * The two arguments were independently `coalesce`d, which let one
+   * combination through that is a lie in the table: no scoped hash and
+   * `p_pseudonym_version = 2` stored the GLOBAL hash under a label saying
+   * tenant-scoped. Anybody later reading the audit would trust a row that
+   * follows a browser between customers precisely because it claims it cannot.
+   *
+   * Two combinations are legal and nothing else is:
+   *
+   *   legacy   no audit hash, version 1 — a build made before the scheme
+   *            existed, filed as such;
+   *   scoped   an audit hash that is present, non-empty and *different from
+   *            the global one*, version 2. Identical hashes would mean the
+   *            caller scoped nothing and said it had.
+   *
+   * Anything else fails closed here: no quota, no row, no model.
+   */
+  if not (
+       (not v_scoped and v_version = 1)
+    or (v_scoped and v_version = 2 and p_audit_client_hash is distinct from p_client_hash)
+  ) then
+    return query select false, 'invalid_admission', 0;
     return;
   end if;
 
@@ -259,12 +304,13 @@ begin
       viewer_role, state, question_chars, key_id, pseudonym_version
     ) values (
       2, p_request_id, p_session,
-      -- The scoped hash when there is one; the global hash only for a caller
-      -- that predates the distinction, whose row says so.
-      coalesce(p_audit_client_hash, p_client_hash),
+      -- One decision, not two independent ones. `v_scoped` is the same value
+      -- the coherence check above tested, so the stored hash and the stored
+      -- version cannot disagree.
+      case when v_scoped then p_audit_client_hash else p_client_hash end,
       p_tenant_slug, p_project_slug,
       p_viewer_role, 'started', coalesce(p_question_chars, 0), p_key_id,
-      coalesce(p_pseudonym_version, 1)::smallint
+      v_version::smallint
     );
   end if;
 
@@ -311,3 +357,17 @@ revoke all on function public.admit_ai_request(uuid, text, text, text, integer, 
   from anon, authenticated, public;
 grant execute on function public.admit_ai_request(uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text, text, integer)
   to service_role;
+
+/* --- 7. tell PostgREST its cache is stale --------------------------------- */
+
+-- PostgREST caches the schema and resolves an RPC by the argument names it
+-- remembers. This migration changes `admit_ai_request`'s signature, so an
+-- instance still holding the old picture answers PGRST202 for the new call
+-- shape and keeps offering the old one — a stale-metadata failure this project
+-- has already spent a round diagnosing once.
+--
+-- Supabase normally reloads on DDL through an event trigger, but "normally" is
+-- an assumption and this notification is one line. Inside the transaction, so
+-- PostgreSQL delivers it only if the migration commits: a rolled-back migration
+-- must not tell anybody to reload a schema that never changed.
+notify pgrst, 'reload schema';

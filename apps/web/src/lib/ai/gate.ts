@@ -109,6 +109,13 @@ export const SHARED_REFUSAL_TEXT = {
    * to duplicate it again.
    */
   duplicate_request: "Observer is already answering this question.",
+  /*
+   * Unreachable from this codebase, and therefore worth a sentence of its own
+   * rather than a shrug. The database refused an admission whose pseudonym
+   * scheme and audit hash described different things; retrying cannot fix it.
+   */
+  invalid_admission:
+    "Observer cannot take this question. Every measured figure on this screen is unaffected.",
 } as const;
 
 /**
@@ -119,7 +126,11 @@ export const SHARED_REFUSAL_TEXT = {
  * library will act on it. 409 says what actually happened.
  */
 function sharedRefusalStatus(reason: keyof typeof SHARED_REFUSAL_TEXT): number {
-  return reason === "duplicate_request" ? 409 : 429;
+  if (reason === "duplicate_request") return 409;
+  // Nothing the caller sends can fix it, and nothing about the request was
+  // wrong. 500 is the honest code for a server that refused itself.
+  if (reason === "invalid_admission") return 500;
+  return 429;
 }
 
 /** A request that passed every check. The audit and telemetry both read it. */
@@ -163,7 +174,16 @@ function deny(httpStatus: number, message: string, retryAfterSeconds: number | n
  * project authorisation a property of the data layer rather than a check
  * somebody remembered to write — or a refusal with the status to send.
  */
-export async function gate(rawBody: unknown, request?: Request): Promise<GateResult> {
+/*
+ * The request is mandatory, and that is a privacy fix rather than tidiness.
+ *
+ * It was optional, and the absent branch stored the literal string "unknown" as
+ * the durable audit client hash. That value is identical in every tenant, which
+ * is precisely the cross-tenant linkable identifier the scoping work exists to
+ * remove — reintroduced by a fallback nobody looked at. Both production callers
+ * always had a `Request`; only the parameter's type said otherwise.
+ */
+export async function gate(rawBody: unknown, request: Request): Promise<GateResult> {
   /* 1. authentication */
   const viewer = await currentViewer();
   if (viewer === null) return deny(401, "Not signed in.", null);
@@ -274,9 +294,8 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
    * is what the durable audit row stores, so the table cannot be used to follow
    * a browser between customers.
    */
-  const clientHash = request === undefined ? "unknown" : clientFingerprint(request);
-  const auditClientHash =
-    request === undefined ? "unknown" : auditClientFingerprint(request, tenantId);
+  const clientHash = clientFingerprint(request);
+  const auditClientHash = auditClientFingerprint(request, tenantId);
 
   /*
    * One id, generated here, carried to the end.
@@ -319,7 +338,9 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
       sharedRefusalStatus(shared.reason),
       SHARED_REFUSAL_TEXT[shared.reason],
       // A duplicate has nothing to wait for; a ceiling does.
-      shared.reason === "duplicate_request" ? null : shared.retryAfterSeconds,
+      shared.reason === "duplicate_request" || shared.reason === "invalid_admission"
+        ? null
+        : shared.retryAfterSeconds,
     );
   }
 

@@ -138,8 +138,17 @@ the counters restart on the 14th?_ — is asked afterwards.
 
 The per-client hourly ceiling exists to catch one browser hammering the
 demonstration, including across tenants, so its bucket key is a **global**
-fingerprint. That value lives only in `ai_rate_buckets`, which holds nothing
-older than the longest window in use and is pruned.
+fingerprint. That value lives only in `ai_rate_buckets` and never reaches the
+durable audit.
+
+**Retention was claimed before it existed.** This paragraph used to end "and is
+pruned". `prune_ai_rate_buckets` was there; nothing called it — not the ceiling,
+not admission, no `pg_cron` job, no trigger — so buckets accumulated
+indefinitely and the retention promise rested on a function nobody invoked.
+Migration `20260826140000` adds `observer.prune_if_due` and calls it from
+admission: at most one prune an hour, guarded by a non-blocking advisory lock,
+keeping 48 hours — a full day beyond the longest window in use, so a bucket is
+never removed while it could still be counted.
 
 `ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
 one there would let anybody holding the durable table follow a browser between

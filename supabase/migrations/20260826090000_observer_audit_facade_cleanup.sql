@@ -28,10 +28,12 @@
 --   2. **protected** — Deployment Protection set so the URL cannot serve an
 --      anonymous request (Standard Protection or password). A protected
 --      deployment cannot reach this database because it cannot reach its own
---      route handler;
---   3. **superseded on every alias that resolves to it** — necessary but never
---      sufficient on its own, because the immutable per-deployment URL survives
---      the alias moving.
+--      route handler.
+--
+-- Moving an alias is NOT a third option. It retires a name, never a
+-- deployment: the immutable per-deployment URL survives any alias change, and
+-- anybody holding it still reaches the old code. It may accompany (1) or (2),
+-- and it can never substitute for either.
 --
 -- Enumerate them. Do not assume:
 --
@@ -59,6 +61,12 @@
 
 drop function if exists public.consume_ai_quota(text, text, text, integer, integer, integer, integer);
 drop function if exists public.record_ai_request(text, text, text, text, text, text, text, text[], integer, integer, integer, integer, integer);
+
+-- PostgREST caches the schema. Dropping a function it still remembers leaves it
+-- offering an RPC that no longer exists, and answering something other than a
+-- clean 404 to whatever calls it. Inside the transaction, so the notification
+-- is delivered only if this commits.
+notify pgrst, 'reload schema';
 
 -- `observer.consume_ai_quota` is deliberately **not** dropped. It is the single
 -- implementation of the ceiling and `observer.admit_ai_request` calls it. Only

@@ -221,8 +221,14 @@ export function safetyIdentifier(userId: string, tenantSlug: string): string {
  *
  * 1 — viewer only. Cross-tenant linkable. Superseded.
  * 2 — tenant-scoped.
+ *
+ * A literal type rather than `number`. The database refuses a row whose scheme
+ * and hash disagree, and the type refuses to describe one: a widened `number`
+ * would let a future caller pass 3, or pass 2 beside no scoped hash, and find
+ * out at the database instead of at the keyboard.
  */
-export const PSEUDONYM_VERSION = 2;
+export type PseudonymVersion = 1 | 2;
+export const PSEUDONYM_VERSION: PseudonymVersion = 2;
 
 /**
  * A short, non-reversible tag for telemetry, the rate buckets and the audit.

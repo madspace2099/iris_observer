@@ -830,3 +830,115 @@ describe("a durable pseudonym is scoped to one tenant", () => {
     expect(quota).toContain("p_pseudonym_version: admission.pseudonymVersion");
   });
 });
+
+/* --- 8. the global fingerprint did not change ------------------------------- */
+
+describe("the global client fingerprint is byte-for-byte what it was", () => {
+  /*
+   * A regression vector, because a claim about which buckets survive a deploy
+   * is only as good as the value that keys them.
+   *
+   * `clientFingerprint` was refactored into a shared helper taking a scope
+   * string. With scope "client" the hashed input is
+   * `client\u0000<addr>\u0000<ua>\u0000<lang>` — character for character what
+   * it was before the refactor. So the per-client hourly bucket does NOT reset
+   * when this branch deploys, and neither does the project/day bucket, whose
+   * subject is the tenant and project slug. Only the session-scoped buckets
+   * restart, because only `telemetrySubject` changed.
+   *
+   * The expected digest below is pinned. If the derivation is ever touched
+   * again, this fails and whoever touched it has to say so out loud.
+   */
+  const PEPPER = "9f2c4a7e13b58d6021ce74af8b3d905612e7ac48fd0b6931a5c8e2470df6b31a";
+
+  const fixed = () =>
+    new Request("https://example.test/api/ask", {
+      headers: {
+        "x-forwarded-for": "203.0.113.7, 70.41.3.18",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "accept-language": "en-GB,en;q=0.9",
+      },
+    });
+
+  function withPepper<T>(value: string, fn: () => T): T {
+    const before = process.env["OBSERVER_SUBJECT_PEPPER"];
+    process.env["OBSERVER_SUBJECT_PEPPER"] = value;
+    try {
+      return fn();
+    } finally {
+      if (before === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+      else process.env["OBSERVER_SUBJECT_PEPPER"] = before;
+    }
+  }
+
+  it("matches the pinned digest for a fixed pepper and fixed headers", async () => {
+    const { createHmac } = await import("node:crypto");
+    const expected = createHmac("sha256", PEPPER)
+      .update(
+        "client\u0000203.0.113.7\u0000Mozilla/5.0 (Windows NT 10.0; Win64; x64)\u0000en-GB,en;q=0.9",
+      )
+      .digest("hex")
+      .slice(0, 32);
+
+    expect(withPepper(PEPPER, () => clientFingerprint(fixed()))).toBe(expected);
+  });
+
+  it("takes only the first forwarded address, trimmed", () => {
+    const one = withPepper(PEPPER, () => clientFingerprint(fixed()));
+    const same = withPepper(PEPPER, () =>
+      clientFingerprint(
+        new Request("https://example.test/api/ask", {
+          headers: {
+            "x-forwarded-for": "203.0.113.7",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "accept-language": "en-GB,en;q=0.9",
+          },
+        }),
+      ),
+    );
+    expect(one).toBe(same);
+  });
+});
+
+/* --- 9. there is no cross-tenant "unknown" --------------------------------- */
+
+describe("a request with no client headers is still scoped to its tenant", () => {
+  /*
+   * The gate's optional-request branch stored the literal string "unknown" as
+   * the durable audit client hash — identical in every tenant, which is exactly
+   * the cross-tenant linkable identifier the scoping work exists to remove,
+   * reintroduced by a fallback nobody looked at.
+   *
+   * `gate` now requires a `Request`, so the branch is gone. What remains to
+   * prove is behavioural: a request carrying no useful headers at all still
+   * produces a value that differs between tenants.
+   */
+  const PEPPER = "9f2c4a7e13b58d6021ce74af8b3d905612e7ac48fd0b6931a5c8e2470df6b31a";
+  const bare = () => new Request("https://example.test/api/ask");
+
+  function withPepper<T>(value: string, fn: () => T): T {
+    const before = process.env["OBSERVER_SUBJECT_PEPPER"];
+    process.env["OBSERVER_SUBJECT_PEPPER"] = value;
+    try {
+      return fn();
+    } finally {
+      if (before === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+      else process.env["OBSERVER_SUBJECT_PEPPER"] = before;
+    }
+  }
+
+  it("gives two tenants two different values for the same empty request", () => {
+    const alpha = withPepper(PEPPER, () => auditClientFingerprint(bare(), "tn_alpha"));
+    const beta = withPepper(PEPPER, () => auditClientFingerprint(bare(), "tn_beta"));
+
+    expect(alpha).not.toBe(beta);
+    expect(alpha).toMatch(/^[0-9a-f]{32}$/);
+    expect(beta).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("never produces the literal that used to be stored", () => {
+    const value = withPepper(PEPPER, () => auditClientFingerprint(bare(), "tn_alpha"));
+    expect(value).not.toBe("unknown");
+    expect(value).not.toContain("unknown");
+  });
+});

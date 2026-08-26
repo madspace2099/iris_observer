@@ -338,6 +338,41 @@ restarted all four ceilings from zero, mid-day, with nothing in any log.
 A key whose value is a function of another key is also a key whose compromise is
 a function of another key's compromise.
 
+### What a deploy of the tenant-scoping branch resets
+
+Not everything, and the difference is worth stating precisely because an earlier
+report said "existing rate-limit buckets orphan" without qualification.
+
+| bucket             | keyed by                   | survives the deploy? |
+| ------------------ | -------------------------- | -------------------- |
+| `client` / hour    | the **global** fingerprint | **yes**              |
+| `project` / day    | `tenant/project`           | **yes**              |
+| `session` / minute | `telemetrySubject`         | no                   |
+| `session` / hour   | `telemetrySubject`         | no                   |
+
+`clientFingerprint` was refactored into a shared helper taking a scope string,
+and with scope `client` the hashed input is character for character what it was
+before: `client` + NUL + address + NUL + agent + NUL + language. A pinned
+regression vector in `apps/web/test/ai-audit.test.ts` asserts the digest, so a
+future change to that derivation fails a test rather than silently resetting a
+ceiling. The project key is two slugs and never depended on the pepper at all.
+
+Only `telemetrySubject` changed, because only it gained the tenant. So the two
+session-scoped ceilings restart and the two that bound cost and abuse do not.
+
+### Rate-bucket retention
+
+The table is bounded by `observer.prune_if_due`, called from admission: at most
+one prune an hour, guarded by a non-blocking advisory lock, keeping 48 hours —
+a full day beyond the longest window in use, so a bucket is never removed while
+it could still be counted.
+
+It was not bounded before. The documentation said the table "is pruned" while
+`prune_ai_rate_buckets` existed and nothing called it: not the ceiling, not
+admission, no `pg_cron` job, no trigger. Read-only inspection of the live
+database found 78 buckets with the oldest 37 hours old — inside the 48 only
+because the deployment is young. Migration `20260826140000` wires it up.
+
 ### Rotation is a maintenance operation
 
 Rotating the pepper **changes every pseudonymous identifier** and therefore

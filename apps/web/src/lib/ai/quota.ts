@@ -3,7 +3,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { resolveServerSupabase } from "@/lib/supabase-env";
 import type { FallbackReason } from "./agent";
-import { pseudonymKey } from "./identity";
+import { pseudonymKey, type PseudonymVersion } from "./identity";
 import { LIMITS } from "./limits";
 
 /**
@@ -49,8 +49,15 @@ export function clientFingerprint(request: Request): string {
  *
  * The GLOBAL fingerprint above keys the per-client hourly ceiling. Catching a
  * single browser hammering two tenants is that ceiling's entire purpose, and a
- * tenant-scoped value cannot do it. It lives only in `ai_rate_buckets`, which
- * holds nothing older than the longest window in use and is pruned.
+ * tenant-scoped value cannot do it. It lives only in `ai_rate_buckets`, never
+ * in the durable audit.
+ *
+ * That table is bounded — but it was not, and the difference matters enough to
+ * record. The documentation said for several rounds that it "is pruned", while
+ * `prune_ai_rate_buckets` existed and *nothing called it*: not the ceiling, not
+ * admission, no `pg_cron` job, no trigger. Retention was a property of a
+ * function nobody invoked. Migration `20260826140000` wires it into admission,
+ * bounded to at most one prune an hour and never blocking.
  *
  * This one goes in `ai_requests`, which is durable. A global value there would
  * let anybody holding the table follow one browser between customers — the same
@@ -141,6 +148,16 @@ export type SharedVerdict =
         /** Configured, and the database could not be reached. See below. */
         | "ceiling_unavailable"
         /**
+         * The pseudonym scheme and the audit hash disagreed.
+         *
+         * Not a ceiling and not a duplicate: the database refused a request
+         * whose two halves described different things — a scoped version
+         * beside no scoped hash, or a scoped hash identical to the global one.
+         * It should be unreachable from this codebase, which is exactly why it
+         * is worth hearing about rather than mapping onto a rate limit.
+         */
+        | "invalid_admission"
+        /**
          * This request id has already been admitted.
          *
          * Neither allowed nor refused by a ceiling: it is the same request
@@ -195,7 +212,7 @@ export interface Admission {
   /** Tenant-scoped. This is the one the durable row keeps. */
   readonly auditClientHash: string;
   /** Which derivation produced the subject and the scoped hash. */
-  readonly pseudonymVersion: number;
+  readonly pseudonymVersion: PseudonymVersion;
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly viewerRole: string;
@@ -350,6 +367,20 @@ export async function admitAiRequest(admission: Admission): Promise<SharedVerdic
      */
     if (reason === "duplicate_request") {
       return { allowed: false, reason: "duplicate_request", retryAfterSeconds: 0 };
+    }
+
+    /*
+     * A refusal nobody should ever see, said plainly rather than disguised.
+     *
+     * Retrying cannot fix an incoherent admission, so answering it with a rate
+     * limit would invite exactly the wrong response and hide a bug in this
+     * process behind a sentence about traffic.
+     */
+    if (reason === "invalid_admission") {
+      console.warn(
+        "[observer.quota] the database refused an incoherent admission — the pseudonym scheme and the audit hash disagreed",
+      );
+      return { allowed: false, reason: "invalid_admission", retryAfterSeconds: 0 };
     }
 
     return {
