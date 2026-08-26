@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac } from "node:crypto";
+import type { EnvSource } from "@/lib/supabase-env";
 
 /**
  * Who OpenAI is told is asking, without telling it who is asking.
@@ -107,9 +108,14 @@ const PLACEHOLDER =
  * deterministic and unmistakably not a secret — and exactly what a deployment
  * must refuse. `VITEST` is set by the runner; neither it nor `NODE_ENV=test` is
  * set on Preview or Production.
+ *
+ * Read from the same source as everything else rather than from `process.env`
+ * directly, so `describePepper` is a function of its argument and nothing more.
+ * A test can then describe a deployment — a bag with no `VITEST` in it — instead
+ * of mutating the runner's own environment to pretend to be one.
  */
-function inTestEnvironment(): boolean {
-  return process.env["VITEST"] !== undefined || process.env["NODE_ENV"] === "test";
+function inTestEnvironment(source: EnvSource): boolean {
+  return source["VITEST"] !== undefined || source["NODE_ENV"] === "test";
 }
 
 /**
@@ -118,7 +124,7 @@ function inTestEnvironment(): boolean {
  * Shape only — nothing can prove entropy — but every rejection below is a
  * mistake somebody actually makes in a dashboard field.
  */
-export function describePepper(source: NodeJS.ProcessEnv = process.env): PepperVerdict {
+export function describePepper(source: EnvSource = process.env): PepperVerdict {
   const raw = source["OBSERVER_SUBJECT_PEPPER"];
   if (raw === undefined) return { ok: false, problem: "is not set" };
   if (raw.trim().length === 0) return { ok: false, problem: "is empty or whitespace" };
@@ -145,7 +151,7 @@ export function describePepper(source: NodeJS.ProcessEnv = process.env): PepperV
   }
 
   // Sixty-four of the same character is 64 bytes and no entropy whatsoever.
-  if (!inTestEnvironment() && new Set(raw).size < 8) {
+  if (!inTestEnvironment(source) && new Set(raw).size < 8) {
     return { ok: false, problem: "repeats too few distinct characters to be random" };
   }
 
@@ -153,7 +159,7 @@ export function describePepper(source: NodeJS.ProcessEnv = process.env): PepperV
 }
 
 /** Whether this deployment may answer questions at all. */
-export function pepperConfigured(source: NodeJS.ProcessEnv = process.env): boolean {
+export function pepperConfigured(source: EnvSource = process.env): boolean {
   return describePepper(source).ok;
 }
 
@@ -204,6 +210,21 @@ export function safetyIdentifier(userId: string, tenantSlug: string): string {
 }
 
 /**
+ * Which derivation the pseudonyms below use.
+ *
+ * Stored on every version-2 audit row beside `key_id`, because the two answer
+ * different questions and either can change without the other. The key id says
+ * *which secret*; this says *which scheme*. Tenant-scoping changed every
+ * pseudonym while leaving the pepper — and therefore the key id — untouched, so
+ * a row carrying only a key id could not say whether its subject was comparable
+ * with the row above it.
+ *
+ * 1 — viewer only. Cross-tenant linkable. Superseded.
+ * 2 — tenant-scoped.
+ */
+export const PSEUDONYM_VERSION = 2;
+
+/**
  * A short, non-reversible tag for telemetry, the rate buckets and the audit.
  *
  * Distinct from the safety identifier on purpose — reusing one value in two
@@ -218,10 +239,24 @@ export function safetyIdentifier(userId: string, tenantSlug: string): string {
  *
  * Sixteen hex characters rather than twelve. 64 bits is ample to keep viewers
  * apart and leaves no reason to think about collisions in a bucket key.
+ *
+ * ## Scoped to a tenant, and to the *authorised* one
+ *
+ * It hashed the viewer alone, and one pepper is shared by the whole
+ * deployment — so a sales agent working for two developers wrote the *same*
+ * subject into both tenants' audit rows. Anybody holding the table could follow
+ * a named person between customers, which is the correlation ADR-0023's tenancy
+ * model exists to prevent, built into the one table meant to hold nothing
+ * identifying.
+ *
+ * The tenant argument is the canonical id the repository returned after
+ * authorising the viewer — never the slug from the request body. A caller who
+ * could choose the scoping input could choose to be un-scoped, and a
+ * pseudonym whose namespace the untrusted side picks is not scoped at all.
  */
-export function telemetrySubject(userId: string): string {
+export function telemetrySubject(userId: string, tenantId: string): string {
   return createHmac("sha256", pseudonymKey())
-    .update(`subject\u0000${userId}`)
+    .update(`subject\u0000v2\u0000${tenantId}\u0000${userId}`)
     .digest("hex")
     .slice(0, 16);
 }

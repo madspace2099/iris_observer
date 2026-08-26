@@ -38,6 +38,33 @@ import { LIMITS } from "./limits";
  * reversed into an address by anybody who does not hold the key.
  */
 export function clientFingerprint(request: Request): string {
+  return fingerprint(request, "client");
+}
+
+/**
+ * The client identifier that is written to the durable audit — tenant-scoped.
+ *
+ * Two values rather than one, because they answer different questions and only
+ * one of them may be kept.
+ *
+ * The GLOBAL fingerprint above keys the per-client hourly ceiling. Catching a
+ * single browser hammering two tenants is that ceiling's entire purpose, and a
+ * tenant-scoped value cannot do it. It lives only in `ai_rate_buckets`, which
+ * holds nothing older than the longest window in use and is pruned.
+ *
+ * This one goes in `ai_requests`, which is durable. A global value there would
+ * let anybody holding the table follow one browser between customers — the same
+ * cross-tenant linkability the subject had, arriving by a different column.
+ *
+ * The tenant argument is the canonical id the repository returned after
+ * authorisation, for the same reason it is there: a caller who chooses the
+ * scoping input chooses not to be scoped.
+ */
+export function auditClientFingerprint(request: Request, tenantId: string): string {
+  return fingerprint(request, `audit\u0000v2\u0000${tenantId}`);
+}
+
+function fingerprint(request: Request, scope: string): string {
   const forwarded = request.headers.get("x-forwarded-for") ?? "";
   const address = forwarded.split(",")[0]?.trim() ?? "";
   const agent = request.headers.get("user-agent") ?? "";
@@ -70,7 +97,7 @@ export function clientFingerprint(request: Request): string {
    * the file as binary. That is not hypothetical; it happened in this codebase.
    */
   return createHmac("sha256", pseudonymKey())
-    .update(`client\u0000${address}\u0000${agent}\u0000${language}`)
+    .update(`${scope}\u0000${address}\u0000${agent}\u0000${language}`)
     .digest("hex")
     .slice(0, 32);
 }
@@ -163,7 +190,12 @@ export interface Admission {
    */
   readonly keyId: string;
   readonly session: string;
+  /** Global. Keys the per-client ceiling; never stored in the audit. */
   readonly clientHash: string;
+  /** Tenant-scoped. This is the one the durable row keeps. */
+  readonly auditClientHash: string;
+  /** Which derivation produced the subject and the scoped hash. */
+  readonly pseudonymVersion: number;
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly viewerRole: string;
@@ -260,6 +292,8 @@ export async function admitAiRequest(admission: Admission): Promise<SharedVerdic
         p_viewer_role: admission.viewerRole,
         p_question_chars: admission.questionChars,
         p_key_id: admission.keyId,
+        p_audit_client_hash: admission.auditClientHash,
+        p_pseudonym_version: admission.pseudonymVersion,
       }),
       signal: AbortSignal.timeout(Math.min(5_000, LIMITS.requestTimeoutMs)),
     });

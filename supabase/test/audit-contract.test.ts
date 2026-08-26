@@ -259,8 +259,9 @@ describe("admission is retry-safe", () => {
     await expect(
       db.query(
         `insert into observer.ai_requests (audit_version, request_id, subject, client_hash,
-           tenant_slug, project_slug, viewer_role, state, question_chars, key_id)
-         values (2, $1, 's', 'c', 'alpha', 'northgate', 'developer', 'started', 1, $2)`,
+           tenant_slug, project_slug, viewer_role, state, question_chars, key_id,
+           pseudonym_version)
+         values (2, $1, 's', 'c', 'alpha', 'northgate', 'developer', 'started', 1, $2, 2)`,
         [ID, KEY_ID],
       ),
     ).rejects.toThrow(/duplicate key|unique/i);
@@ -367,7 +368,8 @@ describe("the database refuses an incoherent audit row", () => {
   const base = `insert into observer.ai_requests
     (audit_version, request_id, subject, client_hash, tenant_slug, project_slug, viewer_role,
      state, question_chars, outcome, response_source, model_attempted, model_authored,
-     author_model, attempted_model, fallback_reason, completed_at, tool_calls, key_id)`;
+     author_model, attempted_model, fallback_reason, completed_at, tool_calls, key_id,
+     pseudonym_version)`;
 
   const row = (over: Record<string, string> = {}) => {
     const v = {
@@ -385,12 +387,14 @@ describe("the database refuses an incoherent audit row", () => {
       completed_at: "now()",
       tool_calls: "1",
       key_id: "'0123456789abcdef'",
+      pseudonym_version: "2",
       ...over,
     };
     return `${base} values (${v.audit_version}, ${v.request_id}, 's', 'c', 'alpha', 'northgate',
       'developer', ${v.state}, ${v.question_chars}, ${v.outcome}, ${v.response_source},
       ${v.model_attempted}, ${v.model_authored}, ${v.author_model}, ${v.attempted_model},
-      ${v.fallback_reason}, ${v.completed_at}, ${v.tool_calls}, ${v.key_id})`;
+      ${v.fallback_reason}, ${v.completed_at}, ${v.tool_calls}, ${v.key_id},
+      ${v.pseudonym_version})`;
   };
 
   let db: PGlite;
@@ -455,6 +459,13 @@ describe("the database refuses an incoherent audit row", () => {
       name: "a key id that is not the right shape",
       over: { key_id: "'not-hex'" },
       constraint: /requires_key_id/,
+    },
+    {
+      // Which derivation made the pseudonyms. Tenant-scoping changed every one
+      // of them while leaving the pepper — and the key id — untouched.
+      name: "a version-2 row with no pseudonym scheme",
+      over: { pseudonym_version: "null" },
+      constraint: /requires_pseudonym_version/,
     },
     {
       name: "a completed row that says nothing about what happened",
@@ -531,5 +542,197 @@ describe("what each role can reach", () => {
     for (const fn of r.rows) {
       expect(fn.cfg, `${fn.proname} has no fixed search_path`).toMatch(/search_path=/);
     }
+  });
+});
+
+/* --- 6. an exact retry means every persisted field --------------------------------- */
+
+describe("completion tells a repeat from a disagreement", () => {
+  /*
+   * The defect this closes. The first comparison covered the eight provenance
+   * fields and none of the five persisted metrics, so a second completion with
+   * the same provenance and *different* usage was answered
+   * `duplicate_ignored` — the caller told nothing had changed and nothing was
+   * wrong, when two executions had disagreed about what the request cost.
+   *
+   * The behaviour script missed it too, because its conflicting example also
+   * changed `response_source`, authorship and the fallback reason. A test that
+   * varies five things at once cannot say which one was noticed.
+   */
+  const TERMINAL = {
+    outcome: "answered",
+    responseSource: "model",
+    attemptedProvider: "openai",
+    attemptedModel: "gpt-5.6-sol",
+    modelAttempted: true,
+    modelAuthored: true,
+    authorModel: "gpt-5.6-sol",
+    fallbackReason: null as string | null,
+    tools: "{summarize_showroom_period}",
+    toolCalls: 1,
+    inputTokens: 900,
+    outputTokens: 120,
+    latencyMs: 4300,
+  };
+
+  const complete = (db: PGlite, over: Partial<typeof TERMINAL> = {}) => {
+    const v = { ...TERMINAL, ...over };
+    return db.query<{ result: string }>(
+      `select public.complete_ai_request($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) as result`,
+      [
+        ID,
+        v.outcome,
+        v.responseSource,
+        v.attemptedProvider,
+        v.attemptedModel,
+        v.modelAttempted,
+        v.modelAuthored,
+        v.authorModel,
+        v.fallbackReason,
+        v.tools,
+        v.toolCalls,
+        v.inputTokens,
+        v.outputTokens,
+        v.latencyMs,
+      ],
+    );
+  };
+
+  async function completedOnce(): Promise<PGlite> {
+    const db = await database();
+    await db.exec("set role service_role");
+    await db.query(ADMIT, [ID]);
+    const first = await complete(db);
+    expect(first.rows[0]?.result).toBe("completed");
+    return db;
+  }
+
+  const stored = (db: PGlite) =>
+    db.query(
+      `select tools, tool_calls, input_tokens, output_tokens, latency_ms, completed_at,
+              response_source, author_model
+         from observer.ai_requests where request_id = $1`,
+      [ID],
+    );
+
+  it("calls a byte-for-byte repeat a duplicate", async () => {
+    const db = await completedOnce();
+    const again = await complete(db);
+    expect(again.rows[0]?.result).toBe("duplicate_ignored");
+  });
+
+  const differences: readonly { name: string; over: Partial<typeof TERMINAL> }[] = [
+    { name: "output tokens", over: { outputTokens: 121 } },
+    { name: "input tokens", over: { inputTokens: 901 } },
+    { name: "latency", over: { latencyMs: 4301 } },
+    { name: "the tool list", over: { tools: "{summarize_showroom_period,compare_agent_flows}" } },
+    { name: "the tool count", over: { toolCalls: 2 } },
+  ];
+
+  for (const scenario of differences) {
+    it(`calls a retry differing only in ${scenario.name} a conflict`, async () => {
+      const db = await completedOnce();
+      await db.exec("reset role");
+      const before = await stored(db);
+
+      await db.exec("set role service_role");
+      const retry = await complete(db, scenario.over);
+      expect(retry.rows[0]?.result).toBe("conflict");
+
+      // Nothing moved — not a metric, not the timestamp.
+      await db.exec("reset role");
+      const after = await stored(db);
+      expect(after.rows[0]).toEqual(before.rows[0]);
+    });
+  }
+
+  it("treats a null tool list and an empty one as the same thing", async () => {
+    /*
+     * The first write normalises with `coalesce(p_tools, '{}')`, so the
+     * comparison has to normalise identically or a caller sending null twice
+     * would be told it disagreed with itself.
+     */
+    const db = await database();
+    await db.exec("set role service_role");
+    await db.query(ADMIT, [ID]);
+    await complete(db, { tools: null as unknown as string, toolCalls: null as unknown as number });
+    const again = await complete(db, {
+      tools: null as unknown as string,
+      toolCalls: null as unknown as number,
+    });
+    expect(again.rows[0]?.result).toBe("duplicate_ignored");
+
+    const third = await complete(db, { tools: "{}", toolCalls: 0 });
+    expect(third.rows[0]?.result).toBe("duplicate_ignored");
+  });
+});
+
+/* --- 7. the pseudonym scheme is recorded, and old callers keep working ------------- */
+
+describe("a row says which derivation made its pseudonyms", () => {
+  it("stores the scheme and the tenant-scoped client hash", async () => {
+    const db = await database();
+    await db.exec("set role service_role");
+    await db.query(
+      `select * from public.admit_ai_request($1, 'subject-a', 'global-hash', 'alpha/northgate',
+         10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2, 'scoped-hash', 2)`,
+      [ID, KEY_ID],
+    );
+    await db.exec("reset role");
+
+    const r = await db.query<{ pseudonym_version: number; client_hash: string }>(
+      `select pseudonym_version, client_hash from observer.ai_requests where request_id = $1`,
+      [ID],
+    );
+    // The global hash keys the ceiling; the scoped one is what is kept.
+    expect(r.rows[0]).toEqual({ pseudonym_version: 2, client_hash: "scoped-hash" });
+
+    const bucket = await db.query<{ subject: string }>(
+      `select subject from observer.ai_rate_buckets where scope = 'client'`,
+    );
+    expect(bucket.rows[0]?.subject).toBe("global-hash");
+  });
+
+  it("still admits a caller built before the scheme existed, and labels its rows", async () => {
+    /*
+     * Both new parameters carry defaults, so a thirteen-argument call from an
+     * older build resolves. Its row falls back to the global hash and records
+     * `pseudonym_version = 1` — the old derivation, labelled as the old
+     * derivation, rather than quietly filed beside the new one.
+     */
+    const db = await database();
+    await db.exec("set role service_role");
+    await db.query(ADMIT, [ID]);
+    await db.exec("reset role");
+
+    const r = await db.query<{ pseudonym_version: number; client_hash: string }>(
+      `select pseudonym_version, client_hash from observer.ai_requests where request_id = $1`,
+      [ID],
+    );
+    expect(r.rows[0]).toEqual({ pseudonym_version: 1, client_hash: "client-a" });
+  });
+
+  it("refuses a version-2 row with no scheme, and one with a scheme nobody defined", async () => {
+    const db = await database();
+    const base = `insert into observer.ai_requests
+      (audit_version, request_id, subject, client_hash, tenant_slug, project_slug, viewer_role,
+       state, question_chars, key_id, pseudonym_version)
+      values (2, gen_random_uuid(), 's', 'c', 'alpha', 'northgate', 'developer', 'started', 1,
+              '0123456789abcdef', `;
+    await expect(db.exec(base + "null)")).rejects.toThrow(/requires_pseudonym_version/);
+    await expect(db.exec(base + "9)")).rejects.toThrow(/requires_pseudonym_version/);
+    await expect(db.exec(base + "2)")).resolves.toBeDefined();
+  });
+
+  it("scopes its own constraint check to the table, not just the name", () => {
+    /*
+     * `conname` is not globally unique, so a name-only existence check can be
+     * satisfied by a constraint on a different table and skip its own work.
+     * The applied migration checks by name alone and is immutable; this one
+     * does not, and that is the forward correction.
+     */
+    const corrective = sql("20260826120000_observer_exact_retry_and_pseudonym_scope.sql");
+    expect(corrective).toContain("conrelid = v_table");
+    expect(corrective).toContain("'observer.ai_requests'::regclass");
   });
 });

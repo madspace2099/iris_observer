@@ -8,7 +8,6 @@ import type * as ProviderModule from "../src/lib/ai/provider";
 import type { ModelResolution, ObserverModel } from "../src/lib/ai/provider";
 import type { TerminalResult } from "../src/lib/ai/quota";
 import { resetLimits } from "../src/lib/ai/limits";
-import { resetEnvironmentCache } from "../src/lib/env";
 
 /**
  * The audit, and the two things it got wrong.
@@ -49,8 +48,10 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
 
 const { ask } = await import("../src/lib/ai/agent");
 const { classify } = await import("../src/app/api/ask/route");
-const { completeAiRequest, clientFingerprint } = await import("../src/lib/ai/quota");
+const { completeAiRequest, clientFingerprint, auditClientFingerprint } =
+  await import("../src/lib/ai/quota");
 const {
+  PSEUDONYM_VERSION,
   telemetrySubject,
   pseudonymKeyId,
   describePepper,
@@ -351,7 +352,17 @@ describe("the audit write outlives the response", () => {
     process.env["SUPABASE_URL"] = "https://example.supabase.co";
     process.env["SUPABASE_SECRET_KEY"] = "placeholder-not-a-key-000000000000";
 
-    let release: (() => void) | null = null;
+    /*
+     * A no-op rather than `null`, and no assertion either.
+     *
+     * A `Promise` executor runs synchronously, so `release` is the real
+     * resolver by the next statement — but TypeScript cannot see that and
+     * narrows a `null` initialiser to `null` forever, making the call site
+     * unreachable in the type system. Starting from a function keeps the type
+     * honest without a definite-assignment assertion; the placeholder is
+     * replaced before anything can call it.
+     */
+    let release: () => void = () => undefined;
     const arrived = new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -391,7 +402,7 @@ describe("the audit write outlives the response", () => {
     await Promise.resolve();
     expect(settled, "the write settled before the database answered").toBe(false);
 
-    release?.();
+    release();
     await expect(writing).resolves.toBe("completed");
   });
 
@@ -472,6 +483,7 @@ describe("admission and the audit row are the same event", () => {
 describe("the pseudonym key is required, and nothing stands in for it", () => {
   const USER = "usr_petra";
   const REAL = "9f2c4a7e13b58d6021ce74af8b3d905612e7ac48fd0b6931a5c8e2470df6b31a";
+  const ALPHA = "tn_alpha";
   const OTHER = "5b81de3fa704c962185d3ecb47f0a29d6c53718be0af42d93167ca85be24071f";
 
   const request = () =>
@@ -511,7 +523,7 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
       problem: "is not set",
     });
     expect(withPepper(undefined, () => pepperConfigured())).toBe(false);
-    expect(() => withPepper(undefined, () => telemetrySubject(USER))).toThrow(
+    expect(() => withPepper(undefined, () => telemetrySubject(USER, ALPHA))).toThrow(
       PepperMisconfiguredError,
     );
   });
@@ -542,7 +554,7 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
       const verdict = withPepper(scenario.value, () => describePepper());
       expect(verdict.ok).toBe(false);
       if (!verdict.ok) expect(verdict.problem).toMatch(scenario.problem);
-      expect(() => withPepper(scenario.value, () => telemetrySubject(USER))).toThrow(
+      expect(() => withPepper(scenario.value, () => telemetrySubject(USER, ALPHA))).toThrow(
         PepperMisconfiguredError,
       );
     });
@@ -581,8 +593,8 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
      * the key may not be per-process. `describePepper` reads the environment
      * every call and holds no state, so two calls model two lambdas.
      */
-    expect(withPepper(REAL, () => telemetrySubject(USER))).toBe(
-      withPepper(REAL, () => telemetrySubject(USER)),
+    expect(withPepper(REAL, () => telemetrySubject(USER, ALPHA))).toBe(
+      withPepper(REAL, () => telemetrySubject(USER, ALPHA)),
     );
     expect(withPepper(REAL, () => clientFingerprint(request()))).toBe(
       withPepper(REAL, () => clientFingerprint(request())),
@@ -593,8 +605,8 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
   /* --- 9.4 different peppers, different identifiers ------------------------------ */
 
   it("gives the same viewer unrelated identifiers under a different key", () => {
-    expect(withPepper(REAL, () => telemetrySubject(USER))).not.toBe(
-      withPepper(OTHER, () => telemetrySubject(USER)),
+    expect(withPepper(REAL, () => telemetrySubject(USER, ALPHA))).not.toBe(
+      withPepper(OTHER, () => telemetrySubject(USER, ALPHA)),
     );
     expect(withPepper(REAL, () => clientFingerprint(request()))).not.toBe(
       withPepper(OTHER, () => clientFingerprint(request())),
@@ -608,7 +620,7 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
     // The original defect: `sha256(userId)` over a handful of guessable demo
     // ids is not a pseudonym, it is an index anybody can rebuild.
     const { createHash } = await import("node:crypto");
-    expect(withPepper(REAL, () => telemetrySubject(USER))).not.toBe(
+    expect(withPepper(REAL, () => telemetrySubject(USER, ALPHA))).not.toBe(
       createHash("sha256").update(USER).digest("hex").slice(0, 16),
     );
   });
@@ -638,7 +650,7 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
   /* --- 9.5 the raw pepper never leaves ------------------------------------------- */
 
   it("never appears in an identifier, a key id or an error", () => {
-    const subject = withPepper(REAL, () => telemetrySubject(USER));
+    const subject = withPepper(REAL, () => telemetrySubject(USER, ALPHA));
     const client = withPepper(REAL, () => clientFingerprint(request()));
     const keyId = withPepper(REAL, () => pseudonymKeyId());
 
@@ -700,5 +712,121 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
      */
     const route = readFileSync(join(process.cwd(), "apps/web", "src/app/api/ask/route.ts"), "utf8");
     expect(route.indexOf("admitted.ok")).toBeLessThan(route.indexOf("await ask("));
+  });
+});
+
+/* --- 7. pseudonyms do not cross tenants -------------------------------------------- */
+
+describe("a durable pseudonym is scoped to one tenant", () => {
+  const USER = "usr_petra";
+  const PEPPER = "9f2c4a7e13b58d6021ce74af8b3d905612e7ac48fd0b6931a5c8e2470df6b31a";
+  const ALPHA = "tn_alpha";
+  const BETA = "tn_beta";
+
+  const request = () =>
+    new Request("https://example.test/api/ask", {
+      headers: {
+        "x-forwarded-for": "203.0.113.7",
+        "user-agent": "Mozilla/5.0 (test)",
+        "accept-language": "en-GB",
+      },
+    });
+
+  function withPepper<T>(value: string, fn: () => T): T {
+    const before = process.env["OBSERVER_SUBJECT_PEPPER"];
+    process.env["OBSERVER_SUBJECT_PEPPER"] = value;
+    try {
+      return fn();
+    } finally {
+      if (before === undefined) delete process.env["OBSERVER_SUBJECT_PEPPER"];
+      else process.env["OBSERVER_SUBJECT_PEPPER"] = before;
+    }
+  }
+
+  it("gives the same viewer the same subject inside one tenant", () => {
+    expect(withPepper(PEPPER, () => telemetrySubject(USER, ALPHA))).toBe(
+      withPepper(PEPPER, () => telemetrySubject(USER, ALPHA)),
+    );
+  });
+
+  it("gives the same viewer a different subject in another tenant", () => {
+    /*
+     * The defect this closes. One pepper is shared by the whole deployment, so
+     * a viewer-only digest made a sales agent working for two developers the
+     * same string in both tenants' audit rows — a join anybody holding the
+     * table could perform, and precisely the correlation the tenancy model
+     * exists to prevent.
+     */
+    expect(withPepper(PEPPER, () => telemetrySubject(USER, ALPHA))).not.toBe(
+      withPepper(PEPPER, () => telemetrySubject(USER, BETA)),
+    );
+  });
+
+  it("gives the same browser a different durable fingerprint in another tenant", () => {
+    expect(withPepper(PEPPER, () => auditClientFingerprint(request(), ALPHA))).not.toBe(
+      withPepper(PEPPER, () => auditClientFingerprint(request(), BETA)),
+    );
+    // …and the same one within a tenant, or it could not be a bucket key.
+    expect(withPepper(PEPPER, () => auditClientFingerprint(request(), ALPHA))).toBe(
+      withPepper(PEPPER, () => auditClientFingerprint(request(), ALPHA)),
+    );
+  });
+
+  it("keeps the global fingerprint global, and out of the durable row", () => {
+    /*
+     * Two values, two jobs. The global one keys the per-client hourly ceiling —
+     * catching one browser across two tenants is that ceiling's entire purpose,
+     * and a scoped value cannot do it. It must therefore stay tenant-blind, and
+     * must never be what the audit stores.
+     */
+    const global = withPepper(PEPPER, () => clientFingerprint(request()));
+    expect(global).toBe(withPepper(PEPPER, () => clientFingerprint(request())));
+    expect(global).not.toBe(withPepper(PEPPER, () => auditClientFingerprint(request(), ALPHA)));
+    expect(global).not.toBe(withPepper(PEPPER, () => auditClientFingerprint(request(), BETA)));
+
+    // The gate stores the scoped one. Asserted on the source, because the
+    // claim is about which of two values reaches the database.
+    const gate = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/gate.ts"), "utf8");
+    expect(gate).toContain("auditClientHash,");
+    expect(gate).toContain("auditClientFingerprint(request, tenantId)");
+    const quota = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/quota.ts"), "utf8");
+    expect(quota).toContain("p_audit_client_hash: admission.auditClientHash");
+    expect(quota).not.toContain("p_audit_client_hash: admission.clientHash");
+  });
+
+  it("scopes by the authorised tenant, never by the slug in the request", () => {
+    /*
+     * A caller who chooses the scoping input chooses not to be scoped: two
+     * spellings of one slug would be two namespaces, and a slug the viewer has
+     * no grant on would be a namespace they picked. The canonical id is
+     * assigned from the repository's answer, after it has refused anything they
+     * may not see.
+     */
+    const gate = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/gate.ts"), "utf8");
+
+    const authorise = gate.indexOf("await repository.resolveProject");
+    const assign = gate.indexOf("tenantId = String(resolved.tenant.id)");
+    const useSubject = gate.indexOf("telemetrySubject(viewer.userId, tenantId)");
+    const useClient = gate.indexOf("auditClientFingerprint(request, tenantId)");
+
+    expect(authorise).toBeGreaterThan(-1);
+    expect(assign).toBeGreaterThan(authorise);
+    expect(useSubject).toBeGreaterThan(assign);
+    expect(useClient).toBeGreaterThan(assign);
+
+    // The untrusted slug is never the scoping input.
+    expect(gate).not.toContain("telemetrySubject(viewer.userId, body.data.tenantSlug)");
+    expect(gate).not.toContain("auditClientFingerprint(request, body.data.tenantSlug)");
+  });
+
+  it("records which derivation made them, beside which key", () => {
+    /*
+     * `key_id` names the secret. Tenant-scoping changed every pseudonym while
+     * leaving the pepper untouched, so a row carrying only a key id could not
+     * say whether its subject was comparable with the row above it.
+     */
+    expect(PSEUDONYM_VERSION).toBe(2);
+    const quota = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/quota.ts"), "utf8");
+    expect(quota).toContain("p_pseudonym_version: admission.pseudonymVersion");
   });
 });

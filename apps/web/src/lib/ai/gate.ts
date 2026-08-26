@@ -8,8 +8,14 @@ import { NotPermittedError } from "@observer/readmodels";
 import { currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { LIMITS, checkAllowance, recordAttempt, type RefusalReason } from "./limits";
-import { admitAiRequest, clientFingerprint } from "./quota";
-import { describePepper, pseudonymKeyId, safetyIdentifier, telemetrySubject } from "./identity";
+import { admitAiRequest, auditClientFingerprint, clientFingerprint } from "./quota";
+import {
+  PSEUDONYM_VERSION,
+  describePepper,
+  pseudonymKeyId,
+  safetyIdentifier,
+  telemetrySubject,
+} from "./identity";
 import type { AskContextInput } from "./agent";
 
 /**
@@ -195,6 +201,16 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
   /* 3. authorisation — tenant, project and role, enforced by the port */
   let projectLabel: string;
   let periodLabel: string;
+  /**
+   * The canonical tenant, from the port that authorised it.
+   *
+   * Not `body.data.tenantSlug`. The pseudonyms below are scoped by this value,
+   * and a caller who chooses the scoping input chooses not to be scoped — two
+   * spellings of one slug would be two namespaces, and a slug the viewer has no
+   * grant on would be a namespace they picked. The repository has already
+   * refused anything they may not see by the time this is assigned.
+   */
+  let tenantId: string;
   let agentIds: readonly string[];
   try {
     const resolved = await repository.resolveProject(
@@ -203,6 +219,7 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
       body.data.projectSlug,
     );
     projectLabel = resolved.project.name;
+    tenantId = String(resolved.tenant.id);
 
     const period = await repository.resolvePeriod(resolved.project.id, body.data.period);
     periodLabel = period.label;
@@ -249,7 +266,17 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
    * Runs last of the checks and before the meter, so a request refused by
    * anything earlier never touches it.
    */
+  /*
+   * Two client identifiers, and only one of them is kept.
+   *
+   * The global one keys the per-client hourly ceiling — catching one browser
+   * across two tenants is that ceiling's whole purpose. The tenant-scoped one
+   * is what the durable audit row stores, so the table cannot be used to follow
+   * a browser between customers.
+   */
   const clientHash = request === undefined ? "unknown" : clientFingerprint(request);
+  const auditClientHash =
+    request === undefined ? "unknown" : auditClientFingerprint(request, tenantId);
 
   /*
    * One id, generated here, carried to the end.
@@ -262,22 +289,26 @@ export async function gate(rawBody: unknown, request?: Request): Promise<GateRes
   const requestId = randomUUID();
 
   /*
-   * The hashed subject, not the user id.
+   * The keyed, tenant-scoped subject — not the user id, and not a viewer-only
+   * hash either.
    *
-   * These buckets were keyed by `viewer.userId` while the audit recorded
-   * `telemetrySubject(userId)`, so the two could not be joined and the raw id
-   * sat in a table that is meant to hold nothing identifying. The hash is
-   * unsalted and therefore stable across instances, which is the property a
-   * shared ceiling needs — a per-process salt would give every lambda its own
-   * counter and quietly undo this whole module.
+   * These buckets were keyed by `viewer.userId` while the audit recorded a
+   * digest of it, so the two could not be joined and the raw id sat in a table
+   * meant to hold nothing identifying. Then the digest was viewer-only, so one
+   * agent working for two developers wrote the same subject into both tenants'
+   * rows. It is now an HMAC over the canonical tenant *and* the viewer: stable
+   * across instances, which the shared ceiling needs, and different in every
+   * tenant, which the audit needs.
    */
-  const subject = telemetrySubject(viewer.userId);
+  const subject = telemetrySubject(viewer.userId, tenantId);
 
   const shared = await admitAiRequest({
     requestId,
     keyId: pseudonymKeyId(),
+    pseudonymVersion: PSEUDONYM_VERSION,
     session: subject,
     clientHash,
+    auditClientHash,
     tenantSlug: body.data.tenantSlug,
     projectSlug: body.data.projectSlug,
     viewerRole: viewer.role,

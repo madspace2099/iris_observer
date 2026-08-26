@@ -399,3 +399,53 @@ what a deployment has.
 One sentence in the addendum above is therefore wrong and is left standing as
 written: the superseded façades are _not_ dropped by that migration. They are
 dropped by `20260826090000`, later, on evidence.
+
+## Addendum — 2026-08-26: the expand migration met review
+
+`20260825205000` is applied to the live database and is immutable from here.
+Three findings against it are corrected by `20260826120000`, forward-only.
+
+**"Exact retry" compared the wrong half of the row.** `complete_ai_request`
+tested the eight provenance fields and none of the five persisted metrics, so a
+second completion with the same provenance and different usage was answered
+`duplicate_ignored` — the caller told nothing had changed when two executions
+had disagreed about what the request cost. The behaviour script did not catch it
+because its conflicting example also changed the response source, the authorship
+and the fallback reason; a test that varies five things at once cannot say which
+one was noticed. The comparison now covers every persisted terminal field, with
+the same normalisation the first write used.
+
+**The durable pseudonyms were stable across tenants.** `telemetrySubject` hashed
+the viewer alone and one pepper serves the whole deployment, so a sales agent
+working for two developers wrote the _same_ subject into both tenants' audit
+rows, and the same browser wrote the same `client_hash`. Anybody holding the
+table could follow a named person between customers — the correlation ADR-0023's
+tenancy model exists to prevent, built into the one table meant to hold nothing
+identifying.
+
+Both are now scoped by the canonical tenant id the repository returns _after_
+authorising the viewer, never by the slug in the request body: a caller who
+chooses the scoping input chooses not to be scoped.
+
+The per-client hourly ceiling keeps a _global_ fingerprint, because catching one
+browser across two tenants is that ceiling's entire purpose. It lives only in
+`ai_rate_buckets`, which is pruned. The durable row keeps the scoped one.
+
+**`key_id` named the secret, not the derivation.** Tenant-scoping changed every
+pseudonym while leaving the pepper untouched, so two rows could carry one key id
+and incomparable subjects. `pseudonym_version` is added beside it and required
+of every version-2 row. The live database held **zero** version-2 rows when this
+was written — 133 rows, all version 1, verified read-only — so nothing needed
+reclassifying, and the back-fill is written anyway.
+
+Two smaller corrections, both found by the tests rather than by reading. The
+constraint was first written as `pseudonym_version in (1, 2)`, which is NULL
+when the column is NULL and therefore _passes_ — three-valued logic turning a
+required field into an optional one. And the new parameter was `smallint`, which
+PostgREST could never have matched: it sends a JSON number as `int4` and resolves
+by argument type, so every request would have answered `PGRST202`.
+
+Finally, `20260825205000` checks for its constraints by `conname` alone, and
+constraint names are not globally unique. It is applied and stays as it is;
+`20260826120000` scopes its own check by `conrelid` and this addendum records
+which migration remains immutable.

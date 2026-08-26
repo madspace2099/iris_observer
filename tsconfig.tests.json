@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  /*
+   * A type-check target for the tests this milestone touched, and only those.
+   *
+   * `apps/web/tsconfig.json` includes `src/**` and nothing else, so no test file
+   * has ever been type-checked. That is how `telemetrySubject(USER)` kept
+   * passing after the function grew a second parameter: JavaScript filled the
+   * tenant with `undefined`, every assertion still held, and the suite happily
+   * proved that a subject derived from nothing is stable.
+   *
+   * Turning the whole test tree on surfaces 39 errors across four files, almost
+   * all of them pre-existing looseness — partial `ProcessEnv` literals, a
+   * `FakeModel` cast, a viewer role narrowed to one tenant. Repairing those is
+   * real work and none of it is this change, so this target is deliberately
+   * narrow: the files this milestone edited, checked under exactly the same
+   * strictness as the source they exercise.
+   *
+   * **It is meant to grow.** Every file added here is one that can no longer
+   * drift from the code it tests. Adding the rest is a milestone of its own.
+   */
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "paths": { "@/*": ["./apps/web/src/*"] }
+  },
+  "include": [
+    "apps/web/test/ai-audit.test.ts",
+    "apps/web/test/ai-config.test.ts",
+    "supabase/test/audit-contract.test.ts"
+  ]
+}

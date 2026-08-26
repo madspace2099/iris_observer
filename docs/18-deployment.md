@@ -375,11 +375,16 @@ retention, and the question a rotation raises gets asked afterwards, sometimes
 long afterwards. A column answers it. An expired log line does not.
 
 ```sql
-select key_id, min(occurred_at), max(occurred_at), count(*)
-  from observer.ai_requests where audit_version = 2 group by key_id order by 2;
+select key_id, pseudonym_version, min(occurred_at), max(occurred_at), count(*)
+  from observer.ai_requests where audit_version = 2
+ group by key_id, pseudonym_version order by 3;
 ```
 
-More than one row there is a rotation, with the date it happened.
+More than one `key_id` is a rotation, with the date it happened. More than one
+`pseudonym_version` is a change of _derivation_ — tenant-scoping was one — and
+matters for the same reason: subjects made under two schemes are unrelated
+strings, not one viewer twice. Either can change without the other, which is why
+both are recorded.
 
 It is a record, not a guard: nothing refuses to start on a changed key id,
 because that would turn a legitimate rotation into an outage.

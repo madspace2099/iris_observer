@@ -63,9 +63,12 @@ type Slot =
   | { readonly state: "malformed"; readonly name: string }
   | { readonly state: "absent" };
 
+/** A bag of environment values. `process.env` satisfies it; so does a literal. */
+export type EnvSource = Readonly<Record<string, string | undefined>>;
+
 function read(
   names: readonly string[],
-  source: NodeJS.ProcessEnv,
+  source: EnvSource,
   usable: (value: string) => boolean,
 ): Slot {
   for (const name of names) {
@@ -123,7 +126,7 @@ function isSecretKey(value: string): boolean {
   return value.length >= 20;
 }
 
-function slots(source: NodeJS.ProcessEnv) {
+function slots(source: EnvSource) {
   return {
     url: read(URL_NAMES, source, isHttpUrl),
     key: read(SECRET_NAMES, source, isSecretKey),
@@ -143,9 +146,7 @@ export interface ServerSupabase {
  * The only function in the codebase that returns the secret key, and it is
  * `server-only`. Its one caller is the shared quota limiter.
  */
-export function resolveServerSupabase(
-  source: NodeJS.ProcessEnv = process.env,
-): ServerSupabase | null {
+export function resolveServerSupabase(source: EnvSource = process.env): ServerSupabase | null {
   const { url, key } = slots(source);
   if (url.state !== "present" || key.state !== "present") return null;
   return { url: url.value, key: key.value, from: [url.name, key.name] };
@@ -179,7 +180,7 @@ export interface SupabaseDiagnosis {
   readonly host: string | null;
 }
 
-export function diagnoseServerSupabase(source: NodeJS.ProcessEnv = process.env): SupabaseDiagnosis {
+export function diagnoseServerSupabase(source: EnvSource = process.env): SupabaseDiagnosis {
   const { url, key } = slots(source);
 
   const using: string[] = [];

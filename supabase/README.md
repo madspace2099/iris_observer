@@ -90,20 +90,21 @@ has none, because it never happened: the ceiling declines before any work, so an
 admitted-request count and an audit-row count are the same number and can be
 reconciled against each other.
 
-| column                                                               | meaning                                                                                                                 |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `request_id`                                                         | Minted by the route, unique, stable across a retry.                                                                     |
-| `key_id`                                                             | Which pseudonym key produced `subject` and `client_hash`. Sixteen hex characters of an HMAC of that key, never the key. |
-| `state`                                                              | `started` at admission, `complete` when the route reports back.                                                         |
-| `response_source`                                                    | `model`, `deterministic_composer`, `refusal` or `failure`.                                                              |
-| `model_authored`                                                     | Equals the `live` flag the answer sheet renders.                                                                        |
-| `author_model`                                                       | The model that wrote the prose, or **null**.                                                                            |
-| `attempted_provider` / `attempted_model`                             | What was tried, whatever happened next.                                                                                 |
-| `model_attempted`                                                    | Whether a model call was made at all.                                                                                   |
-| `fallback_reason`                                                    | A fixed code, never a provider message.                                                                                 |
-| `outcome`                                                            | The terminal outcome, null until `complete`.                                                                            |
-| `tools`, `tool_calls`, `input_tokens`, `output_tokens`, `latency_ms` | Counts and timings.                                                                                                     |
-| `question_chars`                                                     | The question's _length_.                                                                                                |
+| column                                                               | meaning                                                                                                                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `request_id`                                                         | Minted by the route, unique, stable across a retry.                                                                         |
+| `key_id`                                                             | Which pseudonym **key** produced `subject` and `client_hash`. Sixteen hex characters of an HMAC of that key, never the key. |
+| `pseudonym_version`                                                  | Which **derivation** produced them. 1 = viewer-only, cross-tenant linkable. 2 = tenant-scoped.                              |
+| `state`                                                              | `started` at admission, `complete` when the route reports back.                                                             |
+| `response_source`                                                    | `model`, `deterministic_composer`, `refusal` or `failure`.                                                                  |
+| `model_authored`                                                     | Equals the `live` flag the answer sheet renders.                                                                            |
+| `author_model`                                                       | The model that wrote the prose, or **null**.                                                                                |
+| `attempted_provider` / `attempted_model`                             | What was tried, whatever happened next.                                                                                     |
+| `model_attempted`                                                    | Whether a model call was made at all.                                                                                       |
+| `fallback_reason`                                                    | A fixed code, never a provider message.                                                                                     |
+| `outcome`                                                            | The terminal outcome, null until `complete`.                                                                                |
+| `tools`, `tool_calls`, `input_tokens`, `output_tokens`, `latency_ms` | Counts and timings.                                                                                                         |
+| `question_chars`                                                     | The question's _length_.                                                                                                    |
 
 `fallback_reason` is one of `model_unavailable`, `provider_misconfigured`,
 `composition_failed`, `schema_rejected` or `output_guard` — an allow-list the
@@ -122,12 +123,30 @@ are keyed HMACs under `OBSERVER_SUBJECT_PEPPER`, which is mandatory and derived
 from nothing — a deployment without it refuses every question rather than
 falling back to something that merely looks configured.
 
-`key_id` names the key those pseudonyms were made with. Two rows carrying
-different key ids hold subjects that cannot be compared: they are unrelated
-strings, not one viewer twice. It is stored per row rather than only logged at
-startup, because a boot line ages out of a platform's retention and the question
-a rotation raises — _why did the counters restart on the 14th?_ — is asked
-afterwards.
+`key_id` names the key those pseudonyms were made with; `pseudonym_version`
+names the algorithm. Both are needed, because either can change without the
+other: rotating the pepper changes the key id and leaves the scheme alone, and
+tenant-scoping changed every pseudonym while leaving the pepper — and therefore
+the key id — untouched. Two rows differing in either hold subjects that cannot
+be compared: unrelated strings, not one viewer twice.
+
+Both are stored per row rather than only logged at startup, because a boot line
+ages out of a platform's retention and the question a rotation raises — _why did
+the counters restart on the 14th?_ — is asked afterwards.
+
+### Two client identifiers, and only one is kept
+
+The per-client hourly ceiling exists to catch one browser hammering the
+demonstration, including across tenants, so its bucket key is a **global**
+fingerprint. That value lives only in `ai_rate_buckets`, which holds nothing
+older than the longest window in use and is pruned.
+
+`ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
+one there would let anybody holding the durable table follow a browser between
+customers — the same cross-tenant linkability the subject had, arriving by a
+different column. The subject is scoped the same way, by the canonical tenant id
+the repository returns _after_ authorising the viewer, never by the slug in the
+request body.
 
 ### The two defects this replaced
 

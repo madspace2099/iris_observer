@@ -22,6 +22,14 @@ const admission = {
   projectSlug: "northgate",
   viewerRole: "developer",
   questionChars: 24,
+  keyId: "0123456789abcdef",
+  /*
+   * Two client identifiers, and the audit keeps the tenant-scoped one. Spelled
+   * differently here so a test that mixed them up would fail rather than pass
+   * on a coincidence.
+   */
+  auditClientHash: "client-scoped-to-alpha",
+  pseudonymVersion: 2,
 } as const;
 import { SHARED_REFUSAL_TEXT } from "../src/lib/ai/gate";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
@@ -229,8 +237,8 @@ describe("the caller's identity", () => {
   it("keeps the telemetry tag separate from the vendor identifier", () => {
     // Reusing one value in two systems is how a correlation nobody intended
     // gets built.
-    expect(telemetrySubject("usr_1")).not.toBe(safetyIdentifier("usr_1", "alpha"));
-    expect(telemetrySubject("usr_1")).not.toContain("usr_1");
+    expect(telemetrySubject("usr_1", "tn_alpha")).not.toBe(safetyIdentifier("usr_1", "alpha"));
+    expect(telemetrySubject("usr_1", "tn_alpha")).not.toContain("usr_1");
   });
 });
 
