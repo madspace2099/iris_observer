@@ -190,11 +190,29 @@ against a real Postgres.
   database and owner, the function's `SECURITY DEFINER` and fixed `search_path`,
   every browser-role privilege, and — the part a catalogue check cannot give
   you — whether it has actually **run**, recently and successfully.
-- `observer-http-compat-proof.sql` — the deployed-build compatibility proof for
-  rollout steps 4 and 5. It correlates the test request by a time floor plus
-  five controlled properties and **requires exactly one match**: zero is a
-  failure and two is a failure, because a check that can pass by reading
-  somebody else's request proves nothing about yours.
+- `observer-http-compat-proof.sql` — the deployed-build proof, for rollout steps
+  4–5 (the deployed legacy build) and step 9 (the new one). One file, four
+  modes, chosen by parameter rather than by editing predicates:
+
+  | | `pseudonym_version` | cross-tenant hashes | audit delta |
+  | --- | --- | --- | --- |
+  | `legacy`, one tenant | 1 | — | 1 |
+  | `legacy`, two tenants | 1 | **equal** | 2 |
+  | `scoped`, one tenant | 2 | — | 1 |
+  | `scoped`, two tenants | 2 | **different** | 2 |
+
+  Both hash expectations are correct behaviour for their build — version 1
+  stores the tenant-blind global fingerprint, version 2 a per-tenant one — and
+  every mode can return an all-PASS result. Nothing is "inverted" by the reader.
+
+  **What each mode actually proves is different, and the file says so.** The
+  deployed `3f298a6` build returns its request id nowhere, so its mode is a
+  time-bounded controlled correlation: exactly one row matching five properties
+  you chose, with every other row in the window named and failed. That is not
+  the same claim as *this row came from that request*. The new build returns
+  `X-Observer-Request-Id`, so its mode selects by primary key — and the file
+  refuses to run in `scoped` mode without it, rather than quietly falling back
+  to the weaker proof.
 
 `ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
 one there would let anybody holding the durable table follow a browser between

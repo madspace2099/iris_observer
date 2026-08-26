@@ -167,6 +167,48 @@ function deny(httpStatus: number, message: string, retryAfterSeconds: number | n
 }
 
 /**
+ * The header that names the audit row this response belongs to.
+ *
+ * ## Why it exists
+ *
+ * Verifying that a deployment writes the audit row it is supposed to write
+ * means finding that row afterwards. The deployed `3f298a6` build returns its
+ * request id nowhere, so its verification has to correlate on a time window
+ * plus properties the operator controlled — which establishes that exactly one
+ * matching row exists and nothing else was written, but is not the same claim
+ * as *this row came from that request*.
+ *
+ * This closes the gap for every build from here on. One header, the same UUID
+ * admission already wrote, and the row is found by primary key.
+ *
+ * ## What it is safe to expose
+ *
+ * A v4 UUID minted by `randomUUID()` in this process. It is not derived from
+ * the viewer, the tenant, the pepper or any key; it is not a session token and
+ * grants nothing. The caller cannot influence it — admission mints it — so
+ * echoing it back tells the caller only which row its own request created.
+ *
+ * ## When it must and must not appear
+ *
+ * Only after admission has succeeded, because only then does a row exist. A
+ * refusal — unauthenticated, malformed, over the ceiling, misconfigured
+ * pepper — writes nothing, and a header pointing at a row that does not exist
+ * would be worse than no header at all.
+ */
+export const REQUEST_ID_HEADER = "X-Observer-Request-Id";
+
+/**
+ * Response headers for an admitted request.
+ *
+ * Takes the whole `Admitted` rather than a string, so the header cannot be
+ * attached to a response that has no admission behind it — the type is the
+ * enforcement.
+ */
+export function admittedHeaders(admitted: Admitted): Record<string, string> {
+  return { [REQUEST_ID_HEADER]: admitted.requestId };
+}
+
+/**
  * Authenticates, validates, authorises and meters one request.
  *
  * Returns either a fully-resolved context — with the project and period already

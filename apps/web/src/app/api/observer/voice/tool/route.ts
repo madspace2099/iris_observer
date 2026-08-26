@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ask, runTools } from "@/lib/ai/agent";
-import { AskBodySchema, gate } from "@/lib/ai/gate";
+import { admittedHeaders, AskBodySchema, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { TOOL_NAMES } from "@/lib/ai/tools";
 import { DELEGATE_TOOL_NAME } from "@/lib/ai/voice";
@@ -64,7 +64,11 @@ export async function POST(request: Request) {
   /* The delegation path: hand the question to the server-side Sol pipeline. */
   if (parsed.data.tool === DELEGATE_TOOL_NAME) {
     if (parsed.data.question === null) {
-      return NextResponse.json({ error: "No question supplied." }, { status: 400 });
+      // Post-admission: a row already exists, so this response names it too.
+      return NextResponse.json(
+        { error: "No question supplied." },
+        { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
+      );
     }
     const outcome = await ask(
       parsed.data.question,
@@ -88,7 +92,7 @@ export async function POST(request: Request) {
         orbState: outcome.answer?.orbState ?? "error",
         tools: outcome.toolsUsed,
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
     // rephrasing the same request in a loop.
     return NextResponse.json(
       { error: `No such analysis: ${parsed.data.tool}.` },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -114,7 +118,7 @@ export async function POST(request: Request) {
           ? "This account is not permitted to read that analysis."
           : "That analysis returned nothing for this project and period.",
       },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
+      { status: 200, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -128,6 +132,6 @@ export async function POST(request: Request) {
         spoken: result.draft,
       })),
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
   );
 }

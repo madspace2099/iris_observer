@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ask, type ObserverOutcome } from "@/lib/ai/agent";
-import { gate, redactStatus, type Admitted } from "@/lib/ai/gate";
+import { admittedHeaders, gate, redactStatus, type Admitted } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { completeAiRequest, type ResponseSource } from "@/lib/ai/quota";
 import { recordAsk } from "@/lib/ai/telemetry";
@@ -185,6 +185,10 @@ export async function POST(request: Request) {
   return NextResponse.json(publicOutcome(outcome), {
     // An answer is a function of the question, the viewer and the period. None
     // of that survives a shared cache.
-    headers: { "Cache-Control": "no-store" },
+    //
+    // `X-Observer-Request-Id` names the audit row this answer closed — the same
+    // UUID admission wrote, on every admitted outcome, model-authored and
+    // deterministic fallback alike. The body contract is untouched.
+    headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) },
   });
 }

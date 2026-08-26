@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { gate } from "@/lib/ai/gate";
+import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { ModelConfigurationError } from "@/lib/ai/provider";
 import { createVoiceSession, publicBlocker, voiceBlocker } from "@/lib/ai/voice";
 
@@ -64,13 +64,15 @@ export async function POST(request: Request) {
     console.info(`[observer] voice unavailable: ${blocker.detail}`);
     return NextResponse.json(
       { error: "Voice is not available on this deployment.", blocker: publicBlocker(blocker) },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
+      { status: 503, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
   try {
     const session = await createVoiceSession();
-    return NextResponse.json(session, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(session, {
+      headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) },
+    });
   } catch (error) {
     /*
      * A configuration fault says so; anything else is one fixed sentence.
@@ -85,12 +87,12 @@ export async function POST(request: Request) {
           error: "Voice is not available on this deployment.",
           blocker: { kind: "model_not_allowed", detail: error.message },
         },
-        { status: 503, headers: { "Cache-Control": "no-store" } },
+        { status: 503, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
       );
     }
     return NextResponse.json(
       { error: "Voice could not be started. The text interface is unaffected." },
-      { status: 503, headers: { "Cache-Control": "no-store" } },
+      { status: 503, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 }

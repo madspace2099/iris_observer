@@ -1,5 +1,5 @@
 import { askStream } from "@/lib/ai/agent";
-import { gate } from "@/lib/ai/gate";
+import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { publicOutcome, reportOutcome } from "../route";
 
@@ -126,5 +126,8 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response(stream, { headers: SSE_HEADERS });
+  // The request id goes out with the response head, before the first frame, so
+  // a reader that never finishes consuming the stream can still name the audit
+  // row its request created.
+  return new Response(stream, { headers: { ...SSE_HEADERS, ...admittedHeaders(admitted) } });
 }

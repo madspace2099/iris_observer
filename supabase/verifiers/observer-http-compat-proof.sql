@@ -1,228 +1,326 @@
--- IRIS Observer — deterministic proof that the DEPLOYED build still works
--- after migration 3. Reads only.
+-- IRIS Observer — deterministic proof that a DEPLOYED build writes the audit
+-- row it is supposed to write. Reads only.
 --
--- ROLLOUT STEPS 4 AND 5. Run part A, ask one question through the deployed
--- Preview, then run part B.
+-- ROLLOUT STEPS 4-5 (the deployed legacy build) and STEP 9 (the new build).
+-- One file, four modes, no predicate editing and no inverted PASS/FAIL.
 --
--- ## What this settles, and why SQL alone cannot
+-- ============================================================================
+-- CANONICAL_QUESTION: How did Northgate showroom perform today?
+-- CANONICAL_LENGTH:   41
+-- ============================================================================
 --
--- Migration 3 changes `admit_ai_request` from thirteen parameters to fifteen,
--- two of them defaulted. Direct SQL resolves a function by POSITION AND TYPE and
--- will happily prove the 13-argument call works. PostgREST resolves by the
--- NAMES IN THE JSON BODY, against a CACHED picture of the schema. Those are
--- different mechanisms and only an HTTP request exercises the second.
+-- Those two lines are the single source of truth for the fixed question. The
+-- prose below, the default `question_chars` parameter and the test fixture in
+-- `supabase/test/http-proof.test.ts` are all checked against them; the test
+-- derives the length from the literal rather than trusting either number.
 --
--- The deployed `3f298a6` build sends thirteen keys. If PostgREST does not
--- resolve them against the fifteen-parameter function, every question on every
--- live Preview stops being answered — and no local test would have seen it.
+-- The previous version of this file declared a 39-character question to be 41
+-- characters. Nobody counted it, and a proof whose correlation key is wrong
+-- matches nothing — the operator would have read "0 - proof void" and had no
+-- idea why.
 --
--- ## Why not "order by occurred_at desc limit 1"
 --
--- The previous version of this procedure read the newest audit row. That is not
--- a proof, it is a guess: anybody else using a Preview, a crawler, a retried
--- request or a second browser tab writes a row in the same window, and the
--- guess silently reports on theirs. A verification step that can pass by
--- reading somebody else's data verifies nothing.
+-- ## What each mode actually proves
 --
--- ## Why not the request id
+--   LEGACY  build 3f298a6, already deployed and unchangeable. It mints its
+--           request id inside `gate()` and returns it NOWHERE — not in the
+--           body, not in a header, not on a log line (verified by reading
+--           `git show 3f298a6:apps/web/src/lib/ai/{gate,quota}.ts` and
+--           `.../app/api/ask/route.ts`).
 --
--- It would be exact, and it is not available. `3f298a6` mints the id with
--- `randomUUID()` inside `gate()` and never returns it: not in the response
--- body, not in a header, and not on any log line — every `console.warn` in that
--- commit is on a failure path and none of them prints it. Verified by reading
--- `git show 3f298a6:apps/web/src/lib/ai/{gate,quota}.ts` and
--- `.../app/api/ask/route.ts`.
+--           So this mode is a TIME-BOUNDED CONTROLLED CORRELATION, and that is
+--           weaker than identification. It establishes that exactly one row
+--           exists in a window you opened, carrying five properties you chose,
+--           with no other row written in that window. It does NOT prove by
+--           construction that the row is the one your HTTP request produced.
+--           Row 12 is what closes most of that gap: any unaccounted row in the
+--           window fails the whole proof rather than being ignored.
 --
--- So the correlation is built from a time floor plus properties the operator
--- controls, and it REQUIRES EXACTLY ONE MATCH. Zero is a failure. Two is a
--- failure. There is no "latest".
+--   SCOPED  the new build, which returns `X-Observer-Request-Id`. That header
+--           carries the same UUID the admission wrote, so the row is selected
+--           by primary key. This IS exact identification, and rows 2 and 13
+--           say which of the two you got.
+--
+-- The mode also decides two expectations that used to be described in prose and
+-- left for the operator to invert by hand:
+--
+--   pseudonym_version        legacy 1        scoped 2
+--   cross-tenant hashes      legacy equal    scoped different
+--
+-- Both are correct behaviour for their build. Version 1 stores the tenant-blind
+-- global fingerprint, so one browser in two tenants gives the SAME hash; the
+-- scoped build derives per tenant, so it must give DIFFERENT ones. Every
+-- legitimate mode can return all-PASS.
+--
 --
 -- ## Nothing here prints a fingerprint, a subject or a key
 --
 -- Every identifier is compared, never selected. The only values this file can
--- emit are booleans, counts, versions and slugs.
+-- emit are booleans, counts, versions, slugs and the words below.
 
 
 /* ========================================================================== */
-/* PART A — BEFORE the request.                                               */
+/* PART A — BEFORE the request(s). Run this first and KEEP BOTH VALUES.       */
 /* ========================================================================== */
 
 /*
- * Run this first and KEEP THE OUTPUT. `floor_ts` is the time bound the whole
- * proof rests on: any row that existed before it cannot be the test request.
- *
  * `clock_timestamp()`, not `now()`: `now()` is the transaction start and would
  * be a floor slightly in the past.
+ *
+ * `audit_rows_before` is not decoration. Part B subtracts it to get the delta,
+ * which is how "exactly one controlled request" and "exactly two, one per
+ * tenant" are told apart from "one of them plus somebody else's".
  */
-select clock_timestamp()                                   as floor_ts,
-       (select count(*) from observer.ai_requests)          as audit_rows_before,
-       (select count(*) from observer.ai_requests
-         where audit_version = 2)                           as v2_rows_before;
+select clock_timestamp()                          as floor_ts,
+       (select count(*) from observer.ai_requests) as audit_rows_before;
 
 
 /* ========================================================================== */
-/* NOW ASK THE QUESTION — through the deployed Preview, not through SQL.      */
+/* NOW ASK — through the deployed Preview, not through SQL.                   */
 /* ========================================================================== */
 
 /*
- *   URL       iris-observer-git-release-observer-demo-rc1-madspaces-projects
- *               .vercel.app
- *   sign in   the scenario selector; choose the DEVELOPER viewer
- *   tenant    alpha        project   northgate
+ * Sign in as the AGENCY MANAGER scenario profile (Tomáš Varga). That viewer is
+ * the only one holding projects in two tenants, which is what makes the
+ * cross-tenant check possible from ONE browser:
  *
- * Ask exactly this, and nothing else, from ONE browser tab. It is 41 characters
- * including the question mark, and 41 is the correlation key — an unusual
- * enough length that an unrelated visitor is unlikely to collide with it, and
- * exact enough that a typo shows up as "no row matched" rather than as a false
- * pass:
+ *   primary   tenant alpha  project northgate
+ *   sibling   tenant beta   project kingsford      <- note: a DIFFERENT slug
  *
- *     How did the northgate showroom perform?
+ * The sibling project slug is not the same as the primary one and must be
+ * named explicitly. There is no `beta/northgate`.
  *
- * COUNT IT BEFORE YOU SEND IT. If your question is not 41 characters, put its
- * real length into :question_chars below. The point is that YOU know the number,
- * not that the number is 41.
+ * Ask exactly this, character for character, from ONE browser tab:
  *
- * Ask it ONCE. Do not retry, do not refresh, do not open a second tab. A retry
- * mints a second request id and writes a second row, and part B is designed to
- * fail on two rows rather than pick one.
+ *     How did Northgate showroom perform today?
+ *
+ * ONE-TENANT MODE: ask it once, in alpha/northgate. Set cross_tenant_done to
+ * false below.
+ *
+ * TWO-TENANT MODE: ask it once in alpha/northgate, then switch project to
+ * beta/kingsford IN THE SAME BROWSER and ask the identical question again. Set
+ * cross_tenant_done to true.
+ *
+ * Do not retry, refresh or open a second tab. A retry mints a second request id
+ * and writes a second row, and rows 2, 11 and 12 are built to fail on that
+ * rather than pick one.
+ *
+ * SCOPED BUILD ONLY: read `X-Observer-Request-Id` from each response (browser
+ * devtools -> Network -> the /api/ask request -> Response Headers) and paste
+ * the UUIDs below. For the legacy build there is no such header; leave them
+ * null and the file falls back to correlation, saying so in row 13.
  */
 
 
 /* ========================================================================== */
-/* PART B — AFTER the request. Substitute the two values, then run.           */
+/* PART B — AFTER. Fill in the parameters, then run. Every row must PASS.     */
 /* ========================================================================== */
-
-/*
- * Replace:
- *   '2026-08-26 12:34:56.789+00'   with the floor_ts from part A, verbatim
- *   41                             with your question's length
- *
- * Every row must read PASS. If row 1 reads anything but "exactly 1", STOP:
- * every row after it is meaningless, and the reason is in row 1's actual value.
- */
 
 with params as (
-  select '2026-08-26 12:34:56.789+00'::timestamptz as floor_ts,
-         41                                        as question_chars,
-         'alpha'                                   as tenant_slug,
-         'northgate'                               as project_slug,
-         'developer'                               as viewer_role
+  select
+    /* --- from part A, verbatim --------------------------------------- */
+    '2026-08-26 12:34:56.789+00'::timestamptz as floor_ts,
+    133::bigint                               as audit_rows_before,
+
+    /* --- which build answered ----------------------------------------- */
+    -- 'legacy' = the deployed 3f298a6 Preview (rollout steps 4-5)
+    -- 'scoped' = the new build after step 8    (rollout step 9)
+    'legacy'::text                            as expected_build,
+
+    /* --- which mode you ran ------------------------------------------- */
+    false                                     as cross_tenant_done,
+
+    /* --- the controlled properties ------------------------------------ */
+    'alpha'::text                             as primary_tenant,
+    'northgate'::text                         as primary_project,
+    'beta'::text                              as sibling_tenant,
+    'kingsford'::text                         as sibling_project,
+    'agency_manager'::text                    as viewer_role,
+    41                                        as question_chars,
+
+    /* --- exact correlation, scoped build only ------------------------- */
+    null::uuid                                as primary_request_id,
+    null::uuid                                as sibling_request_id
+),
+
+mode as (
+  select p.*,
+         (p.expected_build = 'scoped')                             as scoped,
+         case when p.expected_build = 'scoped' then 2 else 1 end   as want_version,
+         case when p.cross_tenant_done then 2 else 1 end           as want_delta,
+         (p.expected_build in ('legacy', 'scoped'))                as build_known,
+         -- The new build must be identified exactly. Falling back to question
+         -- length for a build that hands you its request id would be choosing
+         -- the weaker proof when the stronger one is on the wire.
+         (p.expected_build <> 'scoped' or p.primary_request_id is not null)
+                                                                   as exactness_ok
+    from params p
 ),
 
 /*
- * The candidate set. Five controlled properties and a time floor — not an
- * ordering, not a limit. If this holds more than one row the operator asked
- * twice or somebody else asked the same question at the same length in the same
- * tenant within the window, and either way the proof is void.
- */
-candidate as (
-  select r.*
-    from observer.ai_requests r, params p
-   where r.occurred_at    >= p.floor_ts
-     and r.tenant_slug     = p.tenant_slug
-     and r.project_slug    = p.project_slug
-     and r.viewer_role     = p.viewer_role
-     and r.question_chars  = p.question_chars
-),
-
-/*
- * The same browser, seen from a second tenant. Optional, and worth the extra
- * two minutes: it is the only way to demonstrate from the audit table alone
- * that the stored hash really is the GLOBAL one, without printing it.
+ * The controlled rows.
  *
- * To use it, repeat the question in the OTHER tenant from the SAME browser
- * before running part B, and set `cross_tenant_done` to true. Version-1 rows
- * store the tenant-blind fingerprint, so two rows from one browser in two
- * tenants must hold the SAME client_hash. A version-2 build would give two
- * different ones — which is the whole point of the scoping work, and the reason
- * this check flips meaning after step 9.
+ * By request id when one was supplied — that is a primary-key lookup and
+ * nothing else can satisfy it. Otherwise by the floor plus five properties the
+ * operator chose. Never by an ordering, never with a LIMIT.
  */
-sibling as (
+primary_row as (
   select r.*
-    from observer.ai_requests r, params p
-   where r.occurred_at   >= p.floor_ts
-     and r.project_slug   = p.project_slug
-     and r.viewer_role    = p.viewer_role
-     and r.question_chars = p.question_chars
-     and r.tenant_slug   <> p.tenant_slug
+    from observer.ai_requests r, mode m
+   where r.occurred_at >= m.floor_ts
+     and (
+       (m.primary_request_id is not null and r.request_id = m.primary_request_id)
+       or (m.primary_request_id is null
+           and r.tenant_slug    = m.primary_tenant
+           and r.project_slug   = m.primary_project
+           and r.viewer_role    = m.viewer_role
+           and r.question_chars = m.question_chars)
+     )
+),
+
+/*
+ * The sibling is an EXACT tenant and project pair, not "anything that is not
+ * the primary tenant". A sibling defined by inequality would silently accept a
+ * third tenant, or a row from a project that happens to share a slug.
+ */
+sibling_row as (
+  select r.*
+    from observer.ai_requests r, mode m
+   where m.cross_tenant_done
+     and r.occurred_at >= m.floor_ts
+     and (
+       (m.sibling_request_id is not null and r.request_id = m.sibling_request_id)
+       or (m.sibling_request_id is null
+           and r.tenant_slug    = m.sibling_tenant
+           and r.project_slug   = m.sibling_project
+           and r.viewer_role    = m.viewer_role
+           and r.question_chars = m.question_chars)
+     )
+),
+
+/*
+ * Anything else written in the window.
+ *
+ * Matched on the table's own primary key rather than on `request_id`, because a
+ * legacy façade write carries a NULL request id and `not in` over a set
+ * containing NULL quietly returns nothing at all.
+ */
+interference as (
+  select r.*
+    from observer.ai_requests r, mode m
+   where r.occurred_at >= m.floor_ts
+     and not exists (select 1 from primary_row p where p.id = r.id)
+     and not exists (select 1 from sibling_row s where s.id = r.id)
 ),
 
 checks as (
 
-  /* --- the correlation itself --------------------------------------------- */
+  /* --- the parameters themselves ------------------------------------- */
 
   select 1 as ord,
-         'rows matching floor + tenant + project + role + length' as item,
-         'exactly 1' as expect,
-         (select case count(*) when 1 then 'exactly 1'
-                 else count(*)::text || ' — proof void' end from candidate) as actual
+         'the parameters describe a defined mode' as item,
+         'ok' as expect,
+         (select case
+            when not m.build_known
+              then 'expected_build must be legacy or scoped, got ' || quote_literal(m.expected_build)
+            when not m.exactness_ok
+              then 'scoped build requires primary_request_id from X-Observer-Request-Id'
+            else 'ok' end
+          from mode m) as actual
 
-  /* --- what the deployed build wrote -------------------------------------- */
+  /* --- the correlation ------------------------------------------------ */
 
-  -- The new admission path ran. A 13-key call that failed to resolve would have
-  -- produced no row at all, and row 1 would already have said so.
-  union all select 2, 'audit_version', '2',
-    (select coalesce(max(audit_version)::text, '(no row)') from candidate)
+  union all select 2, 'rows matching the primary request', 'exactly 1',
+    (select case count(*) when 1 then 'exactly 1'
+            else count(*)::text || ' — proof void' end from primary_row)
 
-  -- Honestly labelled as the old derivation, because that is what 3f298a6
-  -- computes. A 2 here would mean the row claims tenant-scoping that the
-  -- deployed code does not perform.
-  union all select 3, 'pseudonym_version', '1',
-    (select coalesce(max(pseudonym_version)::text, '(no row)') from candidate)
-
-  -- Migration 3 accepts version 1 only with a genuinely absent scoped hash, so
-  -- a version-1 row is by construction storing the global fingerprint. Row 8
-  -- is the independent evidence for the same claim.
-  --
-  -- Every row below aggregates rather than selecting a bare column. If the
-  -- candidate set holds two rows, this file must still RETURN a table saying
-  -- so — row 1 already does — rather than abort with "more than one row
-  -- returned by a subquery". An operator staring at a Postgres error instead of
-  -- a verdict grid is one step away from deciding the proof "sort of passed".
-  union all select 4, 'the row names the key that made its pseudonyms', 'true',
-    (select coalesce(
-       bool_and(key_id is not null and key_id ~ '^[0-9a-f]{12,}$')::text, '(no row)')
-       from candidate)
-
-  -- Admission wrote it; the route completed it. `started` here would mean the
-  -- terminal write was lost, which is the defect the audit rebuild fixed.
-  union all select 5, 'state', 'complete',
-    (select coalesce(max(state), '(no row)') from candidate)
-
-  union all select 6, 'response_source is one of the four defined values', 'true',
-    (select coalesce(
-       (max(response_source) in ('model', 'deterministic_composer', 'refusal', 'failure'))::text,
-       '(no row)') from candidate)
-
-  -- Nothing identifying, and nothing that is content rather than a measurement.
-  union all select 7, 'the row holds a length, not a question', 'true',
-    (select coalesce(bool_and(question_chars > 0)::text, '(no row)') from candidate)
-
-  /* --- the optional cross-tenant evidence ---------------------------------- */
-
-  /*
-   * Reads "(not attempted)" and PASSES if you did not do the second tenant.
-   * Skipping it costs one independent check; faking it would cost more.
-   */
-  union all select 8, 'same browser, other tenant: the stored hash is tenant-blind',
-    'same hash (or not attempted)',
+  union all select 3, 'rows matching the sibling request',
+    (select case when m.cross_tenant_done then 'exactly 1' else 'not attempted' end from mode m),
     (select case
-       when (select count(*) from candidate) <> 1 then 'ambiguous — see row 1'
-       when (select count(*) from sibling) = 0 then 'same hash (or not attempted)'
-       when (select count(*) from sibling) > 1 then 'ambiguous — more than one sibling row'
-       when (select max(c.client_hash) from candidate c)
-            = (select max(s.client_hash) from sibling s) then 'same hash (or not attempted)'
-       else 'DIFFERENT — the stored hash is not the global one'
+       when not (select cross_tenant_done from mode) then
+         case (select count(*) from sibling_row)
+           when 0 then 'not attempted'
+           else (select count(*)::text from sibling_row) || ' — unexpected sibling rows' end
+       else
+         case (select count(*) from sibling_row)
+           when 1 then 'exactly 1'
+           else (select count(*)::text from sibling_row) || ' — proof void' end
      end)
 
-  /* --- and nothing else moved ---------------------------------------------- */
+  union all select 13, 'how the primary row was identified',
+    (select case when m.scoped then 'request_id (exact)'
+                 else 'time + controlled properties (correlation)' end from mode m),
+    (select case when m.primary_request_id is not null then 'request_id (exact)'
+                 else 'time + controlled properties (correlation)' end from mode m)
 
-  -- One admitted request is one audit row. If this is not 1 the request was
-  -- retried, or something else wrote in the window, and rows 2 to 8 may be
-  -- describing a different request than the one you sent.
-  union all select 9, 'audit rows written since floor_ts', '1',
-    (select count(*)::text from observer.ai_requests r, params p
-      where r.occurred_at >= p.floor_ts)
+  /* --- what the row says ---------------------------------------------- */
+
+  -- Written by the new admission path. A 13-key call that failed to resolve
+  -- through PostgREST would have produced no row at all, and row 2 would
+  -- already have said so.
+  union all select 4, 'audit_version', '2',
+    (select coalesce(max(audit_version)::text, '(no row)') from primary_row)
+
+  -- Mode-decided. Legacy derives viewer-only pseudonyms and must say 1; the
+  -- scoped build derives per tenant and must say 2. Neither is "inverted".
+  union all select 5, 'pseudonym_version',
+    (select want_version::text from mode),
+    (select coalesce(max(pseudonym_version)::text, '(no row)') from primary_row)
+
+  union all select 6, 'state', 'complete',
+    (select coalesce(max(state), '(no row)') from primary_row)
+
+  union all select 7, 'response_source is one of the four defined values', 'true',
+    (select coalesce(
+       bool_and(response_source in
+         ('model', 'deterministic_composer', 'refusal', 'failure'))::text, '(no row)')
+       from primary_row)
+
+  union all select 8, 'the row names the key that made its pseudonyms', 'true',
+    (select coalesce(
+       bool_and(key_id is not null and key_id ~ '^[0-9a-f]{12,}$')::text, '(no row)')
+       from primary_row)
+
+  union all select 9, 'the row holds a length, not a question', 'true',
+    (select coalesce(bool_and(question_chars > 0)::text, '(no row)') from primary_row)
+
+  /* --- the cross-tenant relationship ---------------------------------- */
+
+  /*
+   * The independent evidence that the stored hash is what its version claims.
+   * One browser, two tenants:
+   *   version 1 stores the tenant-blind global fingerprint  -> EQUAL
+   *   version 2 stores a tenant-scoped fingerprint          -> DIFFERENT
+   * Skipping the second tenant costs this check and nothing else.
+   */
+  union all select 10, 'same browser, two tenants: the stored hashes',
+    (select case when not m.cross_tenant_done then 'not attempted'
+                 when m.scoped then 'different (tenant-scoped)'
+                 else 'equal (global)' end from mode m),
+    (select case
+       when not (select cross_tenant_done from mode) then 'not attempted'
+       when (select count(*) from primary_row) <> 1
+         or (select count(*) from sibling_row) <> 1 then 'ambiguous — see rows 2 and 3'
+       when (select max(client_hash) from primary_row)
+          = (select max(client_hash) from sibling_row) then 'equal (global)'
+       else 'different (tenant-scoped)'
+     end)
+
+  /* --- and nothing else happened -------------------------------------- */
+
+  -- One controlled request per mode, counted against the Part A baseline.
+  union all select 11, 'audit rows written since floor_ts',
+    (select want_delta::text from mode),
+    (select ((select count(*) from observer.ai_requests) - m.audit_rows_before)::text from mode m)
+
+  -- Interference is named, not tolerated. An unrelated row in the window can
+  -- never stand in for the controlled request: rows 2 and 3 select the
+  -- controlled ones by identity or by property, and anything left over fails
+  -- here with its tenant and project shown.
+  union all select 12, 'unaccounted rows in the window', '(none)',
+    (select coalesce(
+       string_agg(distinct i.tenant_slug || '/' || i.project_slug, ', '), '(none)')
+       from interference i)
 )
 select ord as "#",
        item as "check",
@@ -231,22 +329,3 @@ select ord as "#",
        case when coalesce(actual, '(missing)') = expect then 'PASS' else 'FAIL' end as "verdict"
   from checks
  order by ord;
-
-
-/* ========================================================================== */
-/* AFTER STEP 9 — the same file, two expectations inverted                    */
-/* ========================================================================== */
-
-/*
- * Once the new build is deployed and answering, run this again against a fresh
- * question. Two rows are expected to change, and they are the whole point of
- * the pseudonym work:
- *
- *   row 3   pseudonym_version   1  ->  2
- *   row 8   the cross-tenant hash comparison must now read DIFFERENT, because
- *           the new build derives a tenant-scoped fingerprint and the durable
- *           audit must not be able to follow one browser between customers
- *
- * Everything else must read exactly the same. If row 3 still says 1 after the
- * new deployment is live, the old build is still serving.
- */
