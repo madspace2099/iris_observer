@@ -178,6 +178,25 @@ named job that appears to target Observer retention now stops the migration
 before it writes anything, and a person decides what that job is for. See
 `docs/18-deployment.md`.
 
+## Four different questions, and only one of them is about the database
+
+"Does `3f298a6` work?" collapsed four properties into one word for several
+rounds, and the answer was different for each of them:
+
+|                                          |                                                                                                                                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **database RPC signature compatibility** | Proven. Its 13-key call resolves against the 15-parameter function through the defaults, asserted from the catalogue and against a real Postgres.                                    |
+| **application runtime readiness**        | **Not proven.** `3f298a6` is the commit that made `OBSERVER_SUBJECT_PEPPER` mandatory: without it the gate returns 503 for every question, before admission and before an audit row. |
+| **environment configuration**            | **Unknown from here.** The Vercel tooling available exposes projects, deployments and protection settings — never environment-variable names, scopes or values.                      |
+| **observed HTTP behaviour**              | **Never attempted.** No request has been made to any deployment from this work.                                                                                                      |
+
+A signature that resolves says nothing about a deployment that refuses every
+question before reaching it. Nothing in this release may describe `3f298a6` as
+currently answering questions until the fourth row has been demonstrated against
+a deployment carrying a valid pepper — and, because Vercel applies
+environment-variable changes only to new deployments, that means a **fresh
+redeploy of the same SHA**, never the existing URL. See `docs/18-deployment.md`.
+
 ## Verifiers
 
 Version-controlled under `supabase/verifiers/`, because a verifier with a bug in
@@ -185,6 +204,16 @@ it is worse than no verifier — it reports PASS — and these two are complicat
 enough to have one. Both are read-only, and both are executed by the test suite
 against a real Postgres.
 
+- `observer-ai-readiness.sql` — 11 checks, and a different question from the one
+  above. The compatibility proof accepts `deterministic_composer` as a complete
+  pass, correctly, because its subject is the database path. Observer answers
+  without a model by design, so a deployment with no `OPENAI_API_KEY` reads
+  13/13 there while never calling one. This gate takes the exact
+  `X-Observer-Request-Id` and requires `response_source = 'model'`,
+  `model_attempted`, `model_authored`, no `fallback_reason`, and the authoring
+  model equal to the attempted one. When the answer came from the composer it
+  says so in words: _Observer application works, but live AI is not yet
+  enabled._ `e2e/observer-live.spec.ts` proves the same fact from the screen.
 - `observer-cron-health.sql` — 26 checks on the scheduled retention: the
   extension, the scheduler process, the job's exact name, schedule, command,
   database and owner, the function's `SECURITY DEFINER` and fixed `search_path`,
@@ -210,6 +239,11 @@ against a real Postgres.
   time-bounded controlled correlation: exactly one row matching four properties
   you chose, with every other row in the window named and failed. That is not
   the same claim as _this row came from that request_.
+
+  Row 1 also refuses a configuration outside the four defined modes even when
+  the surplus parameter would never be read — a sibling id in scoped one-tenant
+  mode, a null `expected_build`, a null `cross_tenant_done`. Unused is not
+  permitted, and there is now one definition of validity rather than two.
 
   For the new build, **exact** means all six of these together, per request —
   never a request id on its own:

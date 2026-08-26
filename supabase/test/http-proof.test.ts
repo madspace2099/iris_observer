@@ -73,8 +73,9 @@ interface Row {
 interface Params {
   readonly floorTs: string;
   readonly auditRowsBefore: number;
-  readonly expectedBuild: string;
-  readonly crossTenantDone: boolean;
+  /** `null` is expressible on purpose: a half-filled block must be refused. */
+  readonly expectedBuild: string | null;
+  readonly crossTenantDone: boolean | null;
   readonly primaryTenant?: string;
   readonly primaryProject?: string;
   readonly siblingTenant?: string;
@@ -86,6 +87,7 @@ interface Params {
 }
 
 const uuidLit = (v: string | null | undefined) => (v == null ? "null::uuid" : `'${v}'::uuid`);
+const textLit = (v: string | null | undefined) => (v == null ? "null::text" : `'${v}'::text`);
 
 /**
  * Part B of the operator's file with its parameter block swapped.
@@ -107,8 +109,8 @@ function partB(p: Params): string {
   select
     '${p.floorTs}'::timestamptz as floor_ts,
     ${p.auditRowsBefore}::bigint as audit_rows_before,
-    '${p.expectedBuild}'::text as expected_build,
-    ${p.crossTenantDone} as cross_tenant_done,
+    ${textLit(p.expectedBuild)} as expected_build,
+    ${p.crossTenantDone === null ? "null::boolean" : String(p.crossTenantDone)} as cross_tenant_done,
     '${p.primaryTenant ?? "alpha"}'::text as primary_tenant,
     '${p.primaryProject ?? "northgate"}'::text as primary_project,
     '${p.siblingTenant ?? "beta"}'::text as sibling_tenant,
@@ -477,6 +479,31 @@ describe("scoped mode refuses every property-only fallback", () => {
     expect(at(rows, 1)?.actual).toContain("legacy mode takes no request ids");
   });
 
+  it("FAILS scoped one-tenant carrying a sibling id nothing would read", async () => {
+    /*
+     * The last strict-mode gap. `cross_tenant_done = false` means the sibling
+     * parameter is never consulted, so the selected primary row is not
+     * corrupted — and the old row 1 said nothing. UNUSED IS NOT PERMITTED. A
+     * configuration outside the four defined modes has to be refused even when
+     * the extra value is harmless, or "row 1 refuses everything else" is not a
+     * true sentence, and an operator who pasted the wrong id into the wrong box
+     * is told their proof was fine.
+     */
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: false,
+      primaryRequestId: ID.primary,
+      siblingRequestId: ID.sibling,
+    });
+    expect(failed(rows)).toEqual([1, 13]);
+    expect(at(rows, 1)?.actual).toBe("scoped one-tenant mode takes no sibling_request_id");
+  });
+
   it("FAILS an undefined build name", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary });
@@ -489,6 +516,59 @@ describe("scoped mode refuses every property-only fallback", () => {
     });
     expect(failed(rows)).toContain(1);
     expect(at(rows, 1)?.actual).toContain("expected_build must be legacy or scoped");
+  });
+
+  it("FAILS a null expected_build", async () => {
+    // A half-filled parameter block is not a request to guess a default.
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: null,
+      crossTenantDone: false,
+    });
+    expect(failed(rows)).toContain(1);
+    expect(at(rows, 1)?.actual).toBe("expected_build must be set — legacy or scoped");
+  });
+
+  it("FAILS a null cross_tenant_done", async () => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "legacy",
+      crossTenantDone: null,
+    });
+    expect(failed(rows)).toContain(1);
+    expect(at(rows, 1)?.actual).toBe("cross_tenant_done must be true or false, not null");
+  });
+
+  it("uses one definition of validity for row 1 and row 13", () => {
+    /*
+     * There were two, and they disagreed. `mode_problem` is now computed once
+     * in the `mode` CTE; row 1 prints it and row 13 reads it.
+     */
+    expect(PROOF_SQL.match(/mode_problem/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(PROOF_SQL).toContain("(select m.mode_problem from mode m) as actual");
+    expect(PROOF_SQL).toContain("when m.mode_problem <> 'ok' then 'invalid — see row 1'");
+
+    /*
+     * The superseded columns are gone as COLUMNS. `ids_ok` still appears once,
+     * in the comment explaining why there is now one definition instead of two
+     * — which is worth keeping, so the check is about what the CTE computes
+     * rather than about whether a word appears anywhere in the prose.
+     */
+    const modeCte = PROOF_SQL.slice(
+      PROOF_SQL.indexOf("mode as ("),
+      PROOF_SQL.indexOf("primary_row as ("),
+    );
+    expect(modeCte).toContain("as mode_problem");
+    expect(modeCte).not.toContain("as ids_ok");
+    expect(modeCte).not.toContain("as build_known");
   });
 });
 

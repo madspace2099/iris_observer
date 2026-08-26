@@ -22,16 +22,21 @@
 --
 -- ## The four modes, and exactly what each one requires
 --
---   legacy, one tenant    no request ids at all. The primary row is found by
---                         bounded controlled-property correlation.
---   legacy, two tenants   no request ids at all. Both rows by correlation.
---   scoped, one tenant    primary_request_id REQUIRED. No property-only
---                         fallback.
---   scoped, two tenants   primary_request_id AND sibling_request_id REQUIRED,
---                         and they must differ. No property-only fallback for
---                         either row.
+--   legacy, one tenant    BOTH ids NULL. The primary row is found by bounded
+--                         controlled-property correlation.
+--   legacy, two tenants   BOTH ids NULL. Both rows by correlation.
+--   scoped, one tenant    primary_request_id NOT NULL, sibling_request_id
+--                         NULL. No property-only fallback.
+--   scoped, two tenants   BOTH NOT NULL and DISTINCT. No property-only
+--                         fallback for either row.
 --
--- Row 1 refuses every other combination before any of the rest can read PASS.
+-- `expected_build` and `cross_tenant_done` must both be stated; a NULL in
+-- either is a parameter block somebody half-filled, not a default to guess.
+--
+-- Row 1 refuses every other combination before any of the rest can read PASS,
+-- and it does so from ONE definition (`mode_problem`) that row 13 also reads.
+-- An unused parameter is not a permitted one: a sibling id supplied in scoped
+-- ONE-tenant mode is refused even though nothing would have read it.
 --
 --
 -- ## What "exact" means here, precisely
@@ -192,26 +197,51 @@ mode as (
          (p.expected_build = 'scoped')                             as scoped,
          case when p.expected_build = 'scoped' then 2 else 1 end   as want_version,
          case when p.cross_tenant_done then 2 else 1 end           as want_delta,
-         (p.expected_build in ('legacy', 'scoped'))                as build_known,
          /*
-          * The mode definition, enforced rather than described.
+          * ONE DEFINITION OF A VALID MODE, and everything downstream reads it.
           *
-          * scoped one tenant   primary id required
-          * scoped two tenants  BOTH ids required, and distinct — swapping or
-          *                     repeating one would let a single row satisfy
-          *                     both halves of a two-request proof
-          * legacy either       no ids at all; supplying one would claim an
-          *                     exactness the deployed build cannot provide
+          * There were two before — `ids_ok` and row 1's own `case` — and they
+          * were subtly different: row 1 never objected to a sibling id in
+          * scoped ONE-tenant mode, because `cross_tenant_done = false` makes
+          * that parameter unused. Unused is not the same as permitted. A
+          * configuration outside the four defined modes must be refused even
+          * when the extra value happens to be harmless, or "row 1 refuses
+          * everything else" is not a true sentence.
+          *
+          *   legacy, one tenant    both ids NULL
+          *   legacy, two tenants   both ids NULL
+          *   scoped, one tenant    primary NOT NULL, sibling NULL
+          *   scoped, two tenants   both NOT NULL, and DISTINCT — repeating or
+          *                         swapping one would let a single row satisfy
+          *                         both halves of a two-request proof
+          *
+          * The two mode selectors must also be stated at all: a NULL
+          * `expected_build` or `cross_tenant_done` is a parameter block
+          * somebody half-filled, not a default worth guessing.
           */
          case
-           when p.expected_build = 'scoped' then
-             p.primary_request_id is not null
-             and (not p.cross_tenant_done
-                  or (p.sibling_request_id is not null
-                      and p.sibling_request_id is distinct from p.primary_request_id))
-           else
-             p.primary_request_id is null and p.sibling_request_id is null
-         end                                                       as ids_ok
+           when p.expected_build is null
+             then 'expected_build must be set — legacy or scoped'
+           when p.expected_build not in ('legacy', 'scoped')
+             then 'expected_build must be legacy or scoped, got ' || quote_literal(p.expected_build)
+           when p.cross_tenant_done is null
+             then 'cross_tenant_done must be true or false, not null'
+           when p.expected_build = 'legacy'
+                and (p.primary_request_id is not null or p.sibling_request_id is not null)
+             then 'legacy mode takes no request ids; the deployed build returns none'
+           when p.expected_build = 'scoped' and p.primary_request_id is null
+             then 'scoped mode requires primary_request_id from X-Observer-Request-Id'
+           when p.expected_build = 'scoped' and not p.cross_tenant_done
+                and p.sibling_request_id is not null
+             then 'scoped one-tenant mode takes no sibling_request_id'
+           when p.expected_build = 'scoped' and p.cross_tenant_done
+                and p.sibling_request_id is null
+             then 'scoped two-tenant mode requires sibling_request_id as well'
+           when p.expected_build = 'scoped' and p.cross_tenant_done
+                and p.sibling_request_id is not distinct from p.primary_request_id
+             then 'the two request ids must differ — one row cannot be both requests'
+           else 'ok'
+         end                                                       as mode_problem
     from params p
 ),
 
@@ -274,21 +304,7 @@ checks as (
   select 1 as ord,
          'the parameters describe a defined mode' as item,
          'ok' as expect,
-         (select case
-            when not m.build_known
-              then 'expected_build must be legacy or scoped, got ' || quote_literal(m.expected_build)
-            when m.scoped and m.primary_request_id is null
-              then 'scoped mode requires primary_request_id from X-Observer-Request-Id'
-            when m.scoped and m.cross_tenant_done and m.sibling_request_id is null
-              then 'scoped two-tenant mode requires sibling_request_id as well'
-            when m.scoped and m.cross_tenant_done
-                 and m.sibling_request_id is not distinct from m.primary_request_id
-              then 'the two request ids must differ — one row cannot be both requests'
-            when not m.scoped and (m.primary_request_id is not null
-                                   or m.sibling_request_id is not null)
-              then 'legacy mode takes no request ids; the deployed build returns none'
-            else 'ok' end
-          from mode m) as actual
+         (select m.mode_problem from mode m) as actual
 
   /* --- the correlation ------------------------------------------------ */
 
@@ -313,7 +329,7 @@ checks as (
     (select case when m.scoped then 'request id + every controlled property'
                  else 'time + controlled properties (correlation)' end from mode m),
     (select case
-       when not m.ids_ok then 'invalid — see row 1'
+       when m.mode_problem <> 'ok' then 'invalid — see row 1'
        when m.scoped then 'request id + every controlled property'
        else 'time + controlled properties (correlation)' end from mode m)
 

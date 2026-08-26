@@ -258,7 +258,74 @@ live-model file on:
 OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright test
 ```
 
-### Database migrations come first
+### The rollout order, and why the application comes first
+
+Two orderings here were discovered by audit, not by design, and both would have wasted database
+mutations before anybody noticed the application could not answer.
+
+**`3f298a6` is the commit that made the pepper mandatory.** Its gate returns HTTP 503 for every Ask
+Observer question when `OBSERVER_SUBJECT_PEPPER` is absent — before admission, before an audit row,
+before any model call. So a deployment of that commit without the variable answers nothing at all.
+
+**Vercel environment-variable changes do not affect previous deployments; they apply only to new
+deployments.** Setting the variable on the project therefore does **not** repair the existing
+`3f298a6` Preview URL. That build keeps its own environment snapshot for ever.
+
+> **The original `3f298a6` deployment URL remains pepper-less even after the project variable is
+> configured.** It must never be used for the legacy HTTP compatibility proof. A fresh redeploy of
+> the same SHA is a different deployment with a different URL, and only that one has the variable.
+
+The corrected sequence, in full. Steps 1–2 are read-only; nothing external is mutated before
+explicit operator approval.
+
+| #   | Step                                                                                                                                                                                                      | Mutates        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 1   | Read-only preflight: Git, Supabase catalogue, Vercel deployments, environment-variable **names and scopes** only                                                                                          | no             |
+| 2   | Explicit operator approval for every external mutation below                                                                                                                                              | no             |
+| 3   | **Pepper configuration** — generate ≥32 random bytes and store it as a _sensitive_ Vercel variable for **every** Preview and Production environment sharing the Supabase project, all with the same value | Vercel         |
+| 4   | **Redeploy exact SHA `3f298a6` as a fresh Preview** so that commit finally receives the variable. Do **not** push the local commits to achieve this                                                       | Vercel         |
+| 5   | Confirm the new deployment is READY and its source SHA is exactly `3f298a6`; make one **pre-migration HTTP smoke** request through it and confirm it **answers** rather than returning the pepper 503     | 1 audit row    |
+| 6   | Enable Supabase Cron (`observer-cron-prerequisite.sql`)                                                                                                                                                   | Supabase       |
+| 7   | Verify `pg_cron` is installed and the scheduler process is alive                                                                                                                                          | no             |
+| 8   | Apply Migration 3                                                                                                                                                                                         | Supabase       |
+| 9   | Apply Migration 4                                                                                                                                                                                         | Supabase       |
+| 10  | Run **Part A**, _then_ the controlled request through the fresh `3f298a6` Preview. Part A must come after the step-5 smoke so that smoke cannot contaminate the proof window                              | 1 audit row    |
+| 11  | Run **legacy Part B**: `expected_build = 'legacy'`, both ids NULL. Require 13/13 with `pseudonym_version = 1`                                                                                             | no             |
+| 12  | Schema, Cron-health and rollback-protected behavioural verification                                                                                                                                       | no             |
+| 13  | Wait through an hourly Cron execution and require **26/26**                                                                                                                                               | no             |
+| 14  | Only now **push** the corrected local release branch                                                                                                                                                      | Git            |
+| 15  | Verify the resulting scoped Preview using `X-Observer-Request-Id`                                                                                                                                         | 1–2 audit rows |
+| 16  | Run **scoped Part B** and require 13/13 with `pseudonym_version = 2`                                                                                                                                      | no             |
+| 17  | **Separately prove a real model-authored response** if live AI is expected — `observer-ai-readiness.sql` plus `OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright test`                                    | no             |
+| 18  | Enumerate and delete or genuinely protect every old deployment capable of reaching a legacy façade                                                                                                        | Vercel         |
+| 19  | Apply the **contract migration** last                                                                                                                                                                     | Supabase       |
+
+**No Production promotion is part of this sequence.**
+
+If secure secret entry cannot be performed without exposing the value to an assistant, a log, a
+shell history or a generated artefact, **step 3 pauses for Matthew to enter it directly in the
+Vercel dashboard.** No procedure here prints, copies or stores a pepper.
+
+#### Step 17 is not optional, and it is not the same question as step 16
+
+Observer answers without a model by design: the deterministic composer runs the same tools over the
+same evidence and writes plainer prose. A deployment with no `OPENAI_API_KEY` answers every
+question, renders every figure and reads **13/13** on the compatibility proof — which accepts
+`model`, `deterministic_composer`, `refusal` and `failure`, correctly, because its question is about
+the database path.
+
+So if the controlled request is answered by the deterministic composer, the honest report is:
+
+```text
+Observer application works, but live AI is not yet enabled.
+```
+
+Not "the AI is working". `observer-ai-readiness.sql` proves the audit half through the exact request
+id — `response_source = 'model'`, `model_attempted`, `model_authored`, no `fallback_reason`, and the
+authoring model equal to the attempted one — and `e2e/observer-live.spec.ts` proves the screen half
+from the rendered answer sheet.
+
+### Database migrations come first, once the application is proven
 
 The Supabase MCP tools are write-blocked from the authoring session, so every migration is
 applied by hand through the SQL Editor. The audit change ships in two halves and the order

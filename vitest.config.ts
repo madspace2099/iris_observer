@@ -41,5 +41,14 @@ export default defineConfig({
      * say so.
      */
     testTimeout: 30_000,
+    /*
+     * The same reasoning, for `beforeAll`. `audit-contract` builds its fixture
+     * in a hook — every migration against a fresh WASM Postgres — and hooks are
+     * governed by their own budget, which stayed at Vitest's 10s default and
+     * started timing out as `supabase/test` grew to five PGlite files. It
+     * passed alone and failed in the suite, which is the signature of a
+     * fixture-cost limit rather than a defect.
+     */
+    hookTimeout: 30_000,
   },
 });

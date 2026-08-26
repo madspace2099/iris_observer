@@ -32,6 +32,8 @@
     "supabase/test/audit-contract.test.ts",
     "supabase/test/cron-health.test.ts",
     "supabase/test/http-proof.test.ts",
+    "supabase/test/ai-readiness.test.ts",
+    "supabase/test/rollout-order.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }
