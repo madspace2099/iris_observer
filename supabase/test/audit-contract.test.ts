@@ -736,3 +736,188 @@ describe("a row says which derivation made its pseudonyms", () => {
     expect(corrective).toContain("'observer.ai_requests'::regclass");
   });
 });
+
+/* --- 8. exactly one callable admission path -------------------------------------- */
+
+describe("PostgREST has exactly one admit_ai_request to choose from", () => {
+  /*
+   * PGRST203 is what happens when it has two.
+   *
+   * The forward migration widens the function rather than adding a second one,
+   * and it must: PostgREST resolves an RPC by the names in the JSON body, and
+   * two overloads that both accept those names are ambiguous. It answers
+   * "Could not choose the best candidate function" and every request fails —
+   * a production-only failure that no direct-SQL test would see, because SQL
+   * resolves by position and type instead.
+   *
+   * So the migration drops before it creates, and these assertions read the
+   * catalogue rather than the file.
+   */
+
+  const SIGNATURE =
+    "uuid, text, text, text, integer, integer, integer, integer, text, text, text, integer, text, text, integer";
+
+  interface Catalog {
+    readonly n: number;
+    readonly signature: string;
+    readonly nargs: number;
+    readonly ndefaults: number;
+    readonly definer: boolean;
+    readonly config: string | null;
+  }
+
+  const catalog = (db: PGlite, schema: string, name: string) =>
+    db.query<Catalog>(
+      `select count(*) over ()::int          as n,
+              oidvectortypes(p.proargtypes)  as signature,
+              p.pronargs::int                as nargs,
+              p.pronargdefaults::int         as ndefaults,
+              p.prosecdef                    as definer,
+              array_to_string(p.proconfig, ',') as config
+         from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+        where ns.nspname = $1 and p.proname = $2`,
+      [schema, name],
+    );
+
+  it("leaves one function, not an overload pair", async () => {
+    const db = await database();
+    for (const schema of ["public", "observer"]) {
+      const r = await catalog(db, schema, "admit_ai_request");
+      expect(r.rows.length, `${schema}.admit_ai_request is not unique`).toBe(1);
+      expect(r.rows[0]?.n).toBe(1);
+    }
+  });
+
+  it("carries the intended signature and exactly two trailing defaults", async () => {
+    const db = await database();
+    const r = await catalog(db, "public", "admit_ai_request");
+    expect(r.rows[0]?.signature).toBe(SIGNATURE);
+    expect(r.rows[0]?.nargs).toBe(15);
+    // `p_audit_client_hash` and `p_pseudonym_version`. Defaults are what let a
+    // build made before the scheme existed keep resolving.
+    expect(r.rows[0]?.ndefaults).toBe(2);
+    expect(r.rows[0]?.definer).toBe(true);
+    expect(r.rows[0]?.config).toMatch(/search_path=/);
+  });
+
+  it("resolves both the legacy call and the tenant-scoped one", async () => {
+    const db = await database();
+    await db.exec("set role service_role");
+
+    // Thirteen arguments: what commit 3f298a6 sends. Verified from that
+    // commit's own source, not inferred from its name.
+    const legacy = await db.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 's', 'global', 'alpha/northgate',
+         10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2)`,
+      ["aaaaaaaa-0000-4000-8000-000000000001", KEY_ID],
+    );
+    expect(legacy.rows[0]?.allowed).toBe(true);
+
+    const scoped = await db.query<{ allowed: boolean }>(
+      `select allowed from public.admit_ai_request($1, 's2', 'global', 'alpha/northgate',
+         10, 60, 120, 500, 'alpha', 'northgate', 'developer', 42, $2, 'scoped', 2)`,
+      ["aaaaaaaa-0000-4000-8000-000000000002", KEY_ID],
+    );
+    expect(scoped.rows[0]?.allowed).toBe(true);
+  });
+
+  it("labels each call with the scheme it actually used", async () => {
+    const db = await database();
+    await db.exec("set role service_role");
+    await db.query(
+      `select public.admit_ai_request($1, 's', 'global', 'alpha/northgate', 10, 60, 120, 500,
+         'alpha', 'northgate', 'developer', 42, $2)`,
+      ["aaaaaaaa-0000-4000-8000-000000000001", KEY_ID],
+    );
+    await db.query(
+      `select public.admit_ai_request($1, 's2', 'global', 'alpha/northgate', 10, 60, 120, 500,
+         'alpha', 'northgate', 'developer', 42, $2, 'scoped', 2)`,
+      ["aaaaaaaa-0000-4000-8000-000000000002", KEY_ID],
+    );
+    await db.exec("reset role");
+
+    const r = await db.query<{
+      request_id: string;
+      pseudonym_version: number;
+      client_hash: string;
+    }>(
+      `select request_id::text, pseudonym_version, client_hash
+         from observer.ai_requests where audit_version = 2 order by request_id`,
+    );
+    // The legacy caller cannot have scoped anything, and its row says so
+    // rather than being filed beside rows that did.
+    expect(r.rows[0]).toEqual({
+      request_id: "aaaaaaaa-0000-4000-8000-000000000001",
+      pseudonym_version: 1,
+      client_hash: "global",
+    });
+    expect(r.rows[1]).toEqual({
+      request_id: "aaaaaaaa-0000-4000-8000-000000000002",
+      pseudonym_version: 2,
+      client_hash: "scoped",
+    });
+  });
+
+  it("no longer resolves the twelve-argument call commit 1ee5d2d sends", async () => {
+    /*
+     * Stated rather than hidden. Adding `p_key_id` in the expand migration
+     * already broke that shape, and the forward migration does not restore it:
+     * a build that cannot name the key that made its pseudonyms must not be
+     * able to write rows, or the key id guarantees nothing.
+     */
+    const db = await database();
+    await db.exec("set role service_role");
+    await expect(
+      db.query(
+        `select public.admit_ai_request($1, 's', 'c', 'alpha/northgate', 10, 60, 120, 500,
+           'alpha', 'northgate', 'developer', 42)`,
+        ["aaaaaaaa-0000-4000-8000-000000000003"],
+      ),
+    ).rejects.toThrow(/does not exist/i);
+  });
+
+  it("is callable by the server role and by nothing else", async () => {
+    const db = await database();
+    const r = await db.query<{ role: string; allowed: boolean }>(
+      `select role, has_function_privilege(role, p.oid, 'EXECUTE') as allowed
+         from unnest(array['anon','authenticated','service_role']) role,
+              pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+        where ns.nspname = 'public' and p.proname = 'admit_ai_request'
+        order by role`,
+    );
+    expect(r.rows).toEqual([
+      { role: "anon", allowed: false },
+      { role: "authenticated", allowed: false },
+      { role: "service_role", allowed: true },
+    ]);
+  });
+
+  it("keeps the observer-schema implementation unreachable from a browser", async () => {
+    const db = await database();
+    const r = await db.query<{ role: string; allowed: boolean }>(
+      `select role, has_function_privilege(role, p.oid, 'EXECUTE') as allowed
+         from unnest(array['anon','authenticated']) role,
+              pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+        where ns.nspname = 'observer' and p.proname = 'admit_ai_request'`,
+    );
+    expect(r.rows.every((x) => x.allowed === false)).toBe(true);
+  });
+
+  it("drops before it creates, so no stale overload can survive", () => {
+    // The property the catalogue assertions above rest on, read from the
+    // migration itself: a bare CREATE beside the old one is what produces the
+    // ambiguity, and there is none.
+    const corrective = sql("20260826120000_observer_exact_retry_and_pseudonym_scope.sql");
+    const dropPublic = corrective.indexOf("drop function if exists public.admit_ai_request");
+    const dropObserver = corrective.indexOf("drop function if exists observer.admit_ai_request");
+    const createObserver = corrective.indexOf("create function observer.admit_ai_request");
+    const createPublic = corrective.indexOf("create function public.admit_ai_request");
+
+    expect(dropPublic).toBeGreaterThan(-1);
+    expect(dropObserver).toBeGreaterThan(-1);
+    expect(dropPublic).toBeLessThan(createObserver);
+    expect(dropObserver).toBeLessThan(createObserver);
+    expect(createObserver).toBeLessThan(createPublic);
+    expect(corrective).not.toContain("create or replace function public.admit_ai_request");
+  });
+});
