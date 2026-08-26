@@ -1,6 +1,7 @@
 -- IRIS Observer — is a MODEL actually answering? Reads only.
 --
--- ROLLOUT STEP 17, and it is deliberately separate from
+-- LIVE-MODEL READINESS PHASE — the last one before the contract phase, and
+-- deliberately separate from
 -- `observer-http-compat-proof.sql`.
 --
 --
@@ -32,15 +33,29 @@
 -- hands you the id in the response headers.
 --
 --
--- ## What it reports when the answer is honest but not live
+-- ## The three sentences row 11 can say, and what each one means
 --
--- If the row says `deterministic_composer`, this file fails and the correct
--- sentence to report is:
+--   live AI is answering
+--       ALL TEN conditions hold: exactly one row, state complete,
+--       response_source model, model_attempted, model_authored, no
+--       fallback_reason, provider openai, a non-empty attempted model, a
+--       non-empty author model, and the two models equal.
 --
---     Observer application works, but live AI is not yet enabled.
+--   Observer application works, but live AI is not yet enabled
+--       A VALID composer row. Complete, honestly labelled, nothing claimed
+--       that did not happen. Report exactly this — never "the AI is working".
 --
--- NOT "the AI is working". The two are different states and only one of them
--- is what a demonstration of live AI needs.
+--   Live AI is not proven — see the failed checks
+--       Anything else, including a row labelled `model` whose other columns
+--       contradict it. "Not live" and "inconsistent" are different findings,
+--       and reporting the second as the first sends somebody hunting a missing
+--       API key when the audit is describing two events at once.
+--
+-- The verdict is computed from ONE definition (`verdict.live`), not from a
+-- shortcut. An earlier version said "live AI is answering" on `response_source
+-- = 'model'` and `model_authored` alone — two of the ten — so a row that failed
+-- rows 4, 6, 8 or 9 still produced that sentence. The eleven-row result failed;
+-- the sentence a person reads did not.
 --
 --
 -- ## The screen half
@@ -68,6 +83,48 @@ with params as (
 
 row_under_test as (
   select r.* from observer.ai_requests r, params p where r.request_id = p.request_id
+),
+
+/*
+ * ONE DEFINITION OF READINESS, and row 11 is the only thing that reads it.
+ *
+ * The previous verdict said "live AI is answering" whenever `response_source`
+ * was `model` and `model_authored` was true — two of the ten conditions. So a
+ * row could fail rows 4, 6, 8 or 9 (a model credited but never attempted, a
+ * fallback reason sitting beside a model-authored answer, an authoring model
+ * that is not the attempted one, the wrong provider) and the human-facing
+ * sentence still said the AI was working. The eleven-row result failed; the
+ * sentence a person reads did not.
+ *
+ * `live` below is the conjunction of every condition rows 1 to 10 test. It is
+ * computed once, from the row, and used nowhere else.
+ */
+readiness as (
+  select
+    (select count(*) from row_under_test) = 1                                as one_row,
+    coalesce((select max(state)           from row_under_test), '')          as state,
+    coalesce((select max(response_source) from row_under_test), '')          as source,
+    coalesce((select bool_and(model_attempted) from row_under_test), false)  as attempted,
+    coalesce((select bool_and(model_authored)  from row_under_test), false)  as authored,
+    (select max(fallback_reason)  from row_under_test)                       as fallback,
+    coalesce((select max(attempted_provider) from row_under_test), '')       as provider,
+    coalesce((select max(attempted_model)    from row_under_test), '')       as attempted_model,
+    coalesce((select max(author_model)       from row_under_test), '')       as author_model
+),
+
+verdict as (
+  select r.*,
+         (r.one_row
+          and r.state    = 'complete'
+          and r.source   = 'model'
+          and r.attempted
+          and r.authored
+          and r.fallback is null
+          and r.provider = 'openai'
+          and length(r.attempted_model) > 0
+          and length(r.author_model)    > 0
+          and r.author_model = r.attempted_model)                            as live
+    from readiness r
 ),
 
 checks as (
@@ -123,16 +180,32 @@ checks as (
 
   /* --- the verdict, in words ------------------------------------------- */
 
+  /*
+   * Three sentences, and only three.
+   *
+   *   live AI is answering       every one of the ten conditions holds
+   *   Observer application …     a VALID composer row: complete, honestly
+   *                              labelled, nothing claimed that did not happen
+   *   Live AI is not proven …    anything else, including a row labelled
+   *                              `model` whose other columns contradict it
+   *
+   * The third exists because "not live" and "inconsistent" are different
+   * findings, and reporting an inconsistent row as an honest composer answer
+   * would send somebody looking for a missing API key when the audit is
+   * actually describing two events at once.
+   */
   union all select 11, 'verdict', 'live AI is answering',
     (select case
-       when (select count(*) from row_under_test) <> 1 then 'no single row — see row 1'
-       when (select max(response_source) from row_under_test) = 'model'
-            and (select bool_and(model_authored) from row_under_test)
-         then 'live AI is answering'
-       when (select max(response_source) from row_under_test) = 'deterministic_composer'
+       when v.live then 'live AI is answering'
+       when v.one_row
+            and v.state = 'complete'
+            and v.source = 'deterministic_composer'
+            and not v.attempted
+            and not v.authored
+            and length(v.author_model) = 0
          then 'Observer application works, but live AI is not yet enabled'
-       else 'no answer at all — ' || (select max(response_source) from row_under_test)
-     end)
+       else 'Live AI is not proven — see the failed checks'
+     end from verdict v)
 )
 select ord as "#",
        item as "check",

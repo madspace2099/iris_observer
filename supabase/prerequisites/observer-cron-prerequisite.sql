@@ -1,6 +1,13 @@
 -- IRIS Observer — Supabase Cron prerequisite.
 --
--- ROLLOUT STEP 1. Run this BEFORE `20260826140000_observer_bucket_retention.sql`.
+-- CRON PREREQUISITE PHASE. Run it AFTER the application-readiness phase has
+-- proved a deployment can answer, and BEFORE
+-- `20260826140000_observer_bucket_retention.sql`.
+--
+-- Phase names rather than step numbers, deliberately: the numbered sequence has
+-- been renumbered three times and an operator following a stale "step 1" inside
+-- a SQL file would run the database work before the application was known to
+-- work at all. The authoritative order lives in `docs/18-deployment.md`.
 --
 -- Target project : IRIS OBSERVER  (ref tfcchobwobpadenampyh)
 --

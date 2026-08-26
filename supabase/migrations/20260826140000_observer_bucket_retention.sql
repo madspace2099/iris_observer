@@ -52,7 +52,15 @@
  *   grant all privileges on all tables in schema cron to postgres;
  *
  * That is shipped as `supabase/prerequisites/observer-cron-prerequisite.sql`
- * and is step 1 of the rollout, deliberately outside this file:
+ * and belongs to the CRON PREREQUISITE PHASE — which itself comes after the
+ * application-readiness phase, not first. A phase name rather than a step
+ * number: this comment named the first position in a numbered sequence while
+ * the corrected order puts the application before any database mutation. An operator
+ * trusting the stale number would have enabled Cron and applied migrations
+ * before knowing a deployment could answer at all. The authoritative order
+ * lives in `docs/18-deployment.md`.
+ *
+ * It is deliberately outside this file:
  *
  *   - `drop extension pg_cron` deletes every job in the project, so the
  *     extension's lifecycle belongs to the operator, not to a table migration;

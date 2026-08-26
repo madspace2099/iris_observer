@@ -96,14 +96,21 @@ const COMPOSER_ANSWER: Completion = {
   fallback: "model_unavailable",
 };
 
-/** One admitted, completed request written through the real functions. */
-async function ask(db: PGlite, id: string, c: Completion): Promise<void> {
+/** Admission only. The row exists and stays `started`. */
+async function admit(db: PGlite, id: string): Promise<void> {
   await db.exec("set role service_role");
   await db.query(
     `select public.admit_ai_request($1, 'subject-x', 'global-hash', 'alpha/northgate',
        1000, 6000, 12000, 50000, 'alpha', 'northgate', 'agency_manager', 41, $2, $3, 2)`,
     [id, KEY_ID, `scoped-${id.slice(0, 8)}`],
   );
+  await db.exec("reset role");
+}
+
+/** One admitted, completed request written through the real functions. */
+async function ask(db: PGlite, id: string, c: Completion): Promise<void> {
+  await admit(db, id);
+  await db.exec("set role service_role");
   await db.query(
     `select public.complete_ai_request($1, 'answered', $2, 'openai', $3, $4, $5, $6, $7,
        '{summarize_showroom_period}', 1, 900, 120, 4300)`,
@@ -186,7 +193,100 @@ describe("the gate refuses to guess", () => {
     const rows = await gate(db, OTHER);
     expect(at(rows, 1)?.actual).toBe("0 — check the header you pasted");
     expect(failed(rows)).toContain(1);
-    expect(at(rows, 11)?.actual).toBe("no single row — see row 1");
+    expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
+  });
+
+  /*
+   * Row 11 is a sentence a person reads and acts on, so it gets its own block.
+   *
+   * Each row below is labelled `model` and contradicted by another column. The
+   * previous verdict looked at two of the ten conditions — `response_source`
+   * and `model_authored` — so every one of these produced "live AI is
+   * answering" while the eleven-row result failed. The number failed; the
+   * sentence lied.
+   */
+  const INCONSISTENT: readonly { name: string; c: Completion }[] = [
+    {
+      name: "the credited model is not the attempted one",
+      c: { ...MODEL_ANSWER, attemptedModel: "gpt-4o-mini" },
+    },
+    {
+      name: "a fallback reason sits beside a model answer",
+      c: { ...MODEL_ANSWER, fallback: "output_guard" },
+    },
+    { name: "the author model is empty", c: { ...MODEL_ANSWER, authorModel: "" } },
+  ];
+
+  /*
+   * Two combinations are missing from that list on purpose, and the reason is
+   * better than the test would have been: the DATABASE refuses them outright.
+   * `ai_requests_authorship_coherent` rejects a model credited but never
+   * attempted, and `model` as a source with `model_authored = false`. They can
+   * never reach the verifier because they can never be stored.
+   */
+  it("cannot even store a model credited without an attempt", async () => {
+    const db = await database();
+    await expect(ask(db, ID, { ...MODEL_ANSWER, modelAttempted: false })).rejects.toThrow(
+      /ai_requests_authorship_coherent/,
+    );
+  });
+
+  it("cannot even store `model` as a source with authorship false", async () => {
+    const db = await database();
+    await expect(ask(db, ID, { ...MODEL_ANSWER, modelAuthored: false })).rejects.toThrow(
+      /ai_requests_authorship_coherent/,
+    );
+  });
+
+  for (const scenario of INCONSISTENT) {
+    it(`never says live AI is answering when ${scenario.name}`, async () => {
+      const db = await database();
+      await ask(db, ID, scenario.c);
+
+      const rows = await gate(db, ID);
+      expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
+      expect(failed(rows).length).toBeGreaterThan(0);
+    });
+  }
+
+  it("never says live AI is answering for an unknown request id", async () => {
+    const db = await database();
+    await ask(db, ID, MODEL_ANSWER);
+
+    const rows = await gate(db, OTHER);
+    expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
+  });
+
+  it("never says live AI is answering for an incomplete row", async () => {
+    // Admitted and never completed: the row is `started`, which is the honest
+    // record of a request that produced no answer.
+    const db = await database();
+    await admit(db, ID);
+
+    const rows = await gate(db, ID);
+    expect(at(rows, 2)?.actual).toBe("started");
+    expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
+  });
+
+  it("never says live AI is answering for the wrong provider", async () => {
+    /*
+     * `evidence-only` is what the deployment reports when no key is
+     * configured. A row naming it as the provider while crediting a model is
+     * describing something that did not happen.
+     */
+    const db = await database();
+    await admit(db, ID);
+    await db.exec("set role service_role");
+    await db.query(
+      `select public.complete_ai_request($1, 'answered', 'model', 'evidence-only', 'gpt-5.6-sol',
+         true, true, 'gpt-5.6-sol', null, '{summarize_showroom_period}', 1, 900, 120, 4300)`,
+      [ID],
+    );
+    await db.exec("reset role");
+
+    const rows = await gate(db, ID);
+    expect(at(rows, 9)?.actual).toBe("evidence-only");
+    expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
   });
 
   it("FAILS a refusal or a failure, not only a composer answer", async () => {
@@ -201,7 +301,7 @@ describe("the gate refuses to guess", () => {
     });
 
     const rows = await gate(db, ID);
-    expect(at(rows, 11)?.actual).toBe("no answer at all — failure");
+    expect(at(rows, 11)?.actual).toBe("Live AI is not proven — see the failed checks");
     expect(failed(rows)).toContain(3);
   });
 

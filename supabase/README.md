@@ -192,17 +192,32 @@ rounds, and the answer was different for each of them:
 
 A signature that resolves says nothing about a deployment that refuses every
 question before reaching it. Nothing in this release may describe `3f298a6` as
-currently answering questions until the fourth row has been demonstrated against
-a deployment carrying a valid pepper — and, because Vercel applies
-environment-variable changes only to new deployments, that means a **fresh
-redeploy of the same SHA**, never the existing URL. See `docs/18-deployment.md`.
+currently answering questions until the fourth row has been demonstrated.
+
+**And UNKNOWN is not ABSENT.** What is proven is that the existing deployment
+retains the environment snapshot captured when it was built, and that later
+project-level changes do not alter it — Vercel applies them only to new
+deployments. What is _not_ known is whether that snapshot contains the variable
+at all. That deployment may answer or may return 503; neither has been observed.
+
+It is excluded from the controlled legacy proof because its configuration is
+**unverified**, not because it has been shown to fail. A **fresh redeploy of the
+same SHA**, built after the pepper state is settled, is the required controlled
+target either way. See `docs/18-deployment.md`.
 
 ## Verifiers
 
 Version-controlled under `supabase/verifiers/`, because a verifier with a bug in
-it is worse than no verifier — it reports PASS — and these two are complicated
-enough to have one. Both are read-only, and both are executed by the test suite
-against a real Postgres.
+it is worse than no verifier — it reports PASS. All four are read-only, and
+three of them are executed by the test suite against a real Postgres.
+
+- `observer-contract-readiness.sql` — the pre-contract report, and it can never
+  say READY. Its external gate now covers TWO capabilities, not one: a
+  deployment must be deleted or genuinely protected if it can call a legacy
+  façade **or** if it can omit the scoped pseudonym arguments and write
+  `pseudonym_version = 1`. The second is every `3f298a6` build, the fresh proof
+  deployment included — migration 3 keeps the thirteen-argument call working
+  through defaults and the contract migration does not disable it.
 
 - `observer-ai-readiness.sql` — 11 checks, and a different question from the one
   above. The compatibility proof accepts `deterministic_composer` as a complete

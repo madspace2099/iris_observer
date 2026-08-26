@@ -1,7 +1,8 @@
 -- IRIS Observer — deterministic proof that a DEPLOYED build writes the audit
 -- row it is supposed to write. Reads only.
 --
--- ROLLOUT STEPS 4-5 (the deployed legacy build) and STEP 9 (the new build).
+-- LEGACY COMPATIBILITY PHASE (the redeployed 3f298a6 Preview), and
+-- SCOPED COMPATIBILITY PHASE (the new build, after the push).
 -- One file, four modes, no predicate editing and no inverted PASS/FAIL.
 --
 -- ============================================================================
@@ -171,8 +172,10 @@ with params as (
     133::bigint                               as audit_rows_before,
 
     /* --- which build answered ----------------------------------------- */
-    -- 'legacy' = the deployed 3f298a6 Preview (rollout steps 4-5)
-    -- 'scoped' = the new build after step 8    (rollout step 9)
+    -- 'legacy' = the freshly redeployed 3f298a6 Preview
+    --            (legacy compatibility phase)
+    -- 'scoped' = the new build, after the push
+    --            (scoped compatibility phase)
     'legacy'::text                            as expected_build,
 
     /* --- which mode you ran ------------------------------------------- */
