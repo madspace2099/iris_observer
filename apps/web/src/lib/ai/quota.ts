@@ -3,7 +3,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { resolveServerSupabase } from "@/lib/supabase-env";
 import type { FallbackReason } from "./agent";
-import { pseudonymKey, type PseudonymVersion } from "./identity";
+import { pseudonymKey, type CurrentPseudonymVersion } from "./identity";
 import { LIMITS } from "./limits";
 
 /**
@@ -52,12 +52,28 @@ export function clientFingerprint(request: Request): string {
  * tenant-scoped value cannot do it. It lives only in `ai_rate_buckets`, never
  * in the durable audit.
  *
- * That table is bounded — but it was not, and the difference matters enough to
- * record. The documentation said for several rounds that it "is pruned", while
- * `prune_ai_rate_buckets` existed and *nothing called it*: not the ceiling, not
- * admission, no `pg_cron` job, no trigger. Retention was a property of a
- * function nobody invoked. Migration `20260826140000` wires it into admission,
- * bounded to at most one prune an hour and never blocking.
+ * How long it lives there is an operational property, and it is worth stating
+ * precisely because two earlier versions of this comment got it wrong.
+ *
+ * The first said the table "is pruned". `prune_ai_rate_buckets` existed and
+ * *nothing called it*: not the ceiling, not admission, no `pg_cron` job, no
+ * trigger. Retention was a property of a function nobody invoked.
+ *
+ * The second said the table was "bounded" because admission had been made to
+ * prune. That is opportunistic cleanup, not retention: with no traffic nothing
+ * runs, and a fingerprint written on Friday is still there on Monday. Once an
+ * hour bounds how often a delete may happen, not how old a row may get.
+ *
+ * What migration `20260826140000` actually establishes, once applied:
+ *
+ *   deletion threshold        48 hours
+ *   scheduled frequency       hourly, via one `pg_cron` job
+ *   expected maximum age      ~49 hours WHILE THE SCHEDULER IS HEALTHY
+ *   monitoring                separate, and required
+ *   guarantee                 none — a stopped scheduler stops deleting
+ *
+ * Nothing in this module depends on any of it. Cleanup is not in the request
+ * path, so an answer's latency and availability are independent of it.
  *
  * This one goes in `ai_requests`, which is durable. A global value there would
  * let anybody holding the table follow one browser between customers — the same
@@ -211,8 +227,17 @@ export interface Admission {
   readonly clientHash: string;
   /** Tenant-scoped. This is the one the durable row keeps. */
   readonly auditClientHash: string;
-  /** Which derivation produced the subject and the scoped hash. */
-  readonly pseudonymVersion: PseudonymVersion;
+  /**
+   * Which derivation produced the subject and the scoped hash.
+   *
+   * `typeof PSEUDONYM_VERSION` — the literal `2`, not `PseudonymVersion`.
+   * Version 1 is a fact about rows the database already holds and about the
+   * deployed build that keeps writing them; it is not something code written
+   * now may emit. Widening this field to `1 | 2` would let a future caller
+   * admit under the superseded, cross-tenant linkable derivation and find out
+   * at the audit table rather than at the keyboard.
+   */
+  readonly pseudonymVersion: CurrentPseudonymVersion;
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly viewerRole: string;

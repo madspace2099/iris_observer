@@ -190,8 +190,16 @@ $$;
 --
 -- `p_audit_client_hash` is TENANT-SCOPED and is what the durable row stores.
 -- The global value never reaches `ai_requests`, so the audit cannot be used to
--- follow a browser between customers, while the rate limiter — which holds
--- nothing for longer than a day and is pruned — still can.
+-- follow a browser between customers, while the rate limiter still can.
+--
+-- The global value therefore lives only in `ai_rate_buckets`. Earlier drafts of
+-- this comment added "which holds nothing for longer than a day and is pruned".
+-- That was false when written: nothing called the pruning function at all. How
+-- long a bucket actually lives is settled by `20260826140000` — a 48-hour
+-- deletion threshold applied by an hourly `pg_cron` job, so roughly 49 hours
+-- while that scheduler is healthy, and indefinitely if it is not. It is a
+-- monitored operational property, not a guarantee, and no claim about it
+-- belongs in this file.
 --
 -- Both new parameters carry defaults so a caller built before this migration
 -- keeps working. Such a caller supplies no scoped hash and no scheme, so its

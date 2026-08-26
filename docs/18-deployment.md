@@ -362,16 +362,45 @@ session-scoped ceilings restart and the two that bound cost and abuse do not.
 
 ### Rate-bucket retention
 
-The table is bounded by `observer.prune_if_due`, called from admission: at most
-one prune an hour, guarded by a non-blocking advisory lock, keeping 48 hours —
-a full day beyond the longest window in use, so a bucket is never removed while
-it could still be counted.
+Two claims were made here before this one, and both were false. They are worth
+keeping because the second is the more instructive mistake.
 
-It was not bounded before. The documentation said the table "is pruned" while
-`prune_ai_rate_buckets` existed and nothing called it: not the ceiling, not
-admission, no `pg_cron` job, no trigger. Read-only inspection of the live
-database found 78 buckets with the oldest 37 hours old — inside the 48 only
-because the deployment is young. Migration `20260826140000` wires it up.
+The first said the table "is pruned". `prune_ai_rate_buckets` existed and
+nothing called it: not the ceiling, not admission, no `pg_cron` job, no trigger.
+Read-only inspection found 78 buckets with the oldest 37 hours old — inside the
+48 the function would have enforced, but only because the deployment is young.
+Retention was a property of a function nobody invoked.
+
+The second said the table was "bounded" because admission had been made to
+prune. That is **opportunistic garbage collection, not retention**. If no Ask
+Observer request arrives, nothing runs: a global browser fingerprint written on
+Friday afternoon is still there on Monday. "At most once per hour" limits how
+often a delete _may_ execute; it does not limit how old a row can get. It also
+put a `delete` in the interactive path, so an answer's latency and availability
+depended on housekeeping.
+
+Migration `20260826140000` replaces it with a scheduled job, and these five
+lines are the whole claim:
+
+|                          |                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| deletion threshold       | 48 hours                                                                      |
+| scheduled frequency      | hourly, on the hour, one `pg_cron` job named `observer-prune-ai-rate-buckets` |
+| expected maximum row age | **~49 hours while the scheduler is healthy**                                  |
+| monitoring               | separate, and required — `observer-cron-health.sql`                           |
+| guarantee                | none                                                                          |
+
+The last row is not modesty. A stopped `pg_cron` worker stops deleting and
+nothing in the database notices on its own, which is why the health verifier
+reports **unhealthy** when the most recent successful run is more than two hours
+old. Legal retention remains a pre-production review gate; a migration cannot
+settle it.
+
+`pg_cron` is **not installed on this project** and this milestone did not
+install it. It is available at 1.6.4. Enabling it is rollout step 1 —
+`supabase/prerequisites/observer-cron-prerequisite.sql`, or Integrations → Cron
+in the dashboard — and the migration refuses to apply without it rather than
+creating a cleanup function with nothing to run it.
 
 ### Rotation is a maintenance operation
 

@@ -6,7 +6,8 @@ import { VIEWERS } from "@observer/synthetic";
 import { fakeModel, type ScriptedTurn } from "../src/lib/ai/fake-provider";
 import type * as ProviderModule from "../src/lib/ai/provider";
 import type { ModelResolution, ObserverModel } from "../src/lib/ai/provider";
-import type { TerminalResult } from "../src/lib/ai/quota";
+import type { Admission, TerminalResult } from "../src/lib/ai/quota";
+import type { CurrentPseudonymVersion, PseudonymVersion } from "../src/lib/ai/identity";
 import { resetLimits } from "../src/lib/ai/limits";
 
 /**
@@ -828,6 +829,71 @@ describe("a durable pseudonym is scoped to one tenant", () => {
     expect(PSEUDONYM_VERSION).toBe(2);
     const quota = readFileSync(join(process.cwd(), "apps/web", "src/lib/ai/quota.ts"), "utf8");
     expect(quota).toContain("p_pseudonym_version: admission.pseudonymVersion");
+  });
+
+  /*
+   * The rest of this block is checked by `tsc`, not by vitest.
+   *
+   * `PSEUDONYM_VERSION` was declared `export const PSEUDONYM_VERSION:
+   * PseudonymVersion = 2`, and an independent review pointed out that the
+   * annotation *widens* it: its type was `1 | 2`, not `2`, and a report that
+   * called it a literal was wrong. `expect(PSEUDONYM_VERSION).toBe(2)` above
+   * cannot see the difference — it checks a value, and the value was always 2.
+   * The defect was in what the type permitted, so the guard has to be a type.
+   */
+
+  /** True only when two types are identical, assignability in both directions. */
+  type Identical<A, B> =
+    (<G>() => G extends A ? 1 : 2) extends <G>() => G extends B ? 1 : 2 ? true : false;
+  type Assert<T extends true> = T;
+
+  // What code written now may emit: the literal 2, and nothing else.
+  type _EmitterIsLiteralTwo = Assert<Identical<CurrentPseudonymVersion, 2>>;
+  type _AdmissionIsLiteralTwo = Assert<Identical<Admission["pseudonymVersion"], 2>>;
+
+  // What rows may carry: both, because the database holds version-1 rows and
+  // the deployed 3f298a6 build keeps writing them. Narrowing this would be a
+  // different lie — that history is what we wish it were.
+  type _RowsCarryBoth = Assert<Identical<PseudonymVersion, 1 | 2>>;
+
+  it("cannot be constructed under the superseded derivation", () => {
+    /*
+     * Consuming the three aliases at a value position. `Assert<T extends true>`
+     * already rejects a mismatch at declaration; this makes the failure land
+     * here as well, and stops `noUnusedLocals` from deleting the guard for us.
+     */
+    const contract: [_EmitterIsLiteralTwo, _AdmissionIsLiteralTwo, _RowsCarryBoth] = [
+      true,
+      true,
+      true,
+    ];
+    expect(contract).toEqual([true, true, true]);
+
+    const base = {
+      requestId: "11111111-1111-4111-8111-111111111111",
+      keyId: "0123456789abcdef",
+      session: "s",
+      clientHash: "global",
+      auditClientHash: "scoped",
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      viewerRole: "developer",
+      questionChars: 42,
+    };
+
+    const current: Admission = { ...base, pseudonymVersion: PSEUDONYM_VERSION };
+    expect(current.pseudonymVersion).toBe(2);
+
+    const superseded: Admission = {
+      ...base,
+      // @ts-expect-error version 1 is cross-tenant linkable: a fact about rows
+      // that already exist, never something this code may newly write.
+      pseudonymVersion: 1,
+    };
+    // The assertion that matters is the line above. If the field is ever
+    // widened back to `1 | 2`, the directive stops suppressing anything and
+    // `pnpm typecheck:tests` fails on an unused @ts-expect-error.
+    expect(superseded.pseudonymVersion).toBe(1);
   });
 });
 

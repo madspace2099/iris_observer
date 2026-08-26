@@ -44,7 +44,7 @@ function sql(file: string): string {
  * database without them would silently skip the half of this schema that is
  * access control.
  */
-async function database(stopBefore?: string): Promise<PGlite> {
+async function database(stopBefore: string = RETENTION): Promise<PGlite> {
   const db = await new PGlite();
   await db.exec(`
     create role anon nologin;
@@ -56,6 +56,73 @@ async function database(stopBefore?: string): Promise<PGlite> {
     if (file === CONTRACT) continue;
     await db.exec(sql(file));
   }
+  return db;
+}
+
+/**
+ * A stand-in for `pg_cron`, and the label is load-bearing.
+ *
+ * PGlite cannot run `pg_cron`: it is a background worker in a shared library,
+ * and there is no postmaster here to preload it. Pretending otherwise and
+ * reporting green would reinstate exactly the class of defect this round is
+ * fixing — a retention claim resting on something that never runs.
+ *
+ * So this creates the two documented surfaces the migration *writes to* — the
+ * `cron.job` table and `cron.schedule` / `cron.unschedule` — and nothing else.
+ * It has no scheduler and no clock. What the tests below can therefore prove is
+ * that the migration converges on one correct job row; what they cannot prove
+ * is that anything ever executes it. That is a live check, and it is why
+ * `observer-cron-health.sql` exists.
+ *
+ * Note what is deliberately absent: `cron.schedule` here does NOT overwrite by
+ * name. Supabase documents that it does, and the migration does not rely on it
+ * — it unschedules every matching job first. Leaving the upsert out of the
+ * stand-in means the convergence test fails if that dependency is ever
+ * reintroduced, instead of passing because the stand-in was generous.
+ */
+async function installCronStandIn(db: PGlite): Promise<void> {
+  await db.exec(`
+    -- The migration's precondition reads pg_catalog, not the cron schema, so
+    -- the stand-in has to satisfy it there. PGlite runs as a superuser and
+    -- permits the write; a real deployment gets this row from CREATE EXTENSION.
+    set allow_system_table_mods = on;
+    insert into pg_extension (oid, extname, extowner, extnamespace, extrelocatable, extversion)
+    values (99999, 'pg_cron', 10, 'pg_catalog'::regnamespace, false, '1.6.4');
+    reset allow_system_table_mods;
+
+    create schema cron;
+
+    create table cron.job (
+      jobid    bigserial primary key,
+      schedule text    not null,
+      command  text    not null,
+      nodename text    not null default 'localhost',
+      nodeport integer not null default 5432,
+      database text    not null default current_database(),
+      username text    not null default current_user,
+      active   boolean not null default true,
+      jobname  text
+    );
+
+    create function cron.schedule(p_name text, p_schedule text, p_command text)
+    returns bigint language sql as $fn$
+      insert into cron.job (schedule, command, jobname)
+      values (p_schedule, p_command, p_name)
+      returning jobid;
+    $fn$;
+
+    create function cron.unschedule(p_jobid bigint)
+    returns boolean language sql as $fn$
+      delete from cron.job where jobid = p_jobid returning true;
+    $fn$;
+  `);
+}
+
+/** Migrations through retention, behind the stand-in above. */
+async function databaseWithRetention(): Promise<PGlite> {
+  const db = await database();
+  await installCronStandIn(db);
+  await db.exec(sql(RETENTION));
   return db;
 }
 
@@ -1056,16 +1123,84 @@ describe("applying the forward migration twice changes nothing", () => {
   });
 });
 
-/* --- 11. retention actually runs ------------------------------------------- */
+/* --- 11. retention is scheduled, not opportunistic -------------------------- */
 
-describe("rate buckets are pruned, not merely prunable", () => {
-  /*
-   * The documentation said the table "is pruned". Read-only inspection of the
-   * live database found `prune_ai_rate_buckets` present and nothing calling it:
-   * consume did not, admit did not, pg_cron was not installed, and there was no
-   * trigger. A retention claim resting on a function nobody invokes is a claim
-   * about a function.
-   */
+/*
+ * Three kinds of claim live in this file, and they are kept apart deliberately.
+ *
+ *   RUN    — executed against a real Postgres (PGlite). The delete, the
+ *            threshold, the record of the run, the privileges, and the fact
+ *            that the migration refuses to install without its scheduler.
+ *   TEXT   — statically verified. The exact job name, schedule and command; the
+ *            absence of cleanup from the interactive path; the absence of a
+ *            browser-callable retention RPC.
+ *   STAND-IN — run against `installCronStandIn`, which is a table and two
+ *            functions. It proves the migration converges on one correct job
+ *            ROW. It proves nothing about whether pg_cron ever executes it.
+ *
+ * What none of them can prove: that the scheduler runs. There is no clock here.
+ * That is a live check — `observer-cron-health.sql`, rollout step 6 — and no
+ * amount of local green may be read as covering it.
+ */
+
+/**
+ * A migration with its commentary removed.
+ *
+ * These files explain themselves at length, and several of the explanations
+ * quote SQL that must NOT execute — the documented `create extension` line, the
+ * signature a previous draft had. A text assertion that cannot tell a statement
+ * from a sentence about a statement fails on the prose and proves nothing.
+ */
+function statementsOnly(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
+}
+
+const JOB_NAME = "observer-prune-ai-rate-buckets";
+const JOB_SCHEDULE = "0 * * * *";
+const JOB_COMMAND = "select observer.run_rate_bucket_retention(48);";
+
+describe("retention: the precondition [RUN]", () => {
+  it("refuses to install when pg_cron is absent, rather than reporting success", async () => {
+    /*
+     * The whole point of the correction. A migration that creates a cleanup
+     * function and no scheduler, and then reports success, recreates the
+     * original defect exactly: a retention claim resting on something nobody
+     * runs. So it aborts, and says which file fixes it.
+     */
+    const d = await database();
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow(/pg_cron, which is not installed/);
+  });
+
+  it("leaves nothing behind when it refuses", async () => {
+    const d = await database();
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow();
+
+    // No half-installed retention: no function, no table.
+    const left = await d.query<{ n: number }>(
+      `select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'observer' and p.proname = 'run_rate_bucket_retention'`,
+    );
+    expect(left.rows[0]?.n).toBe(0);
+    expect((await d.query(`select to_regclass('observer.maintenance') as t`)).rows[0]).toEqual({
+      t: null,
+    });
+  });
+
+  it("names the documented remedy in its hint", () => {
+    const text = sql(RETENTION);
+    expect(text).toContain("observer-cron-prerequisite.sql");
+    /*
+     * It must not install the extension itself: that lifecycle is the
+     * operator's, and `drop extension pg_cron` deletes every job in the
+     * project. Comments are stripped first — the file quotes the documented
+     * install SQL so a reader knows what the precondition is, and matching that
+     * quotation would be a test of prose rather than of behaviour.
+     */
+    expect(statementsOnly(text)).not.toMatch(/create\s+extension/i);
+  });
+});
+
+describe("retention: the cleanup itself [RUN]", () => {
   const seed = async (d: PGlite) => {
     await d.exec(`
       insert into observer.ai_rate_buckets (scope, subject, window_kind, window_start, count)
@@ -1076,10 +1211,12 @@ describe("rate buckets are pruned, not merely prunable", () => {
   };
 
   it("removes what has expired and keeps what has not", async () => {
-    const d = await database();
+    const d = await databaseWithRetention();
     await seed(d);
 
-    const removed = await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`);
+    const removed = await d.query<{ n: number }>(
+      `select observer.run_rate_bucket_retention(48)::int as n`,
+    );
     expect(removed.rows[0]?.n).toBe(2);
 
     const left = await d.query<{ subject: string }>(
@@ -1088,26 +1225,54 @@ describe("rate buckets are pruned, not merely prunable", () => {
     expect(left.rows.map((r) => r.subject)).toEqual(["recent"]);
   });
 
-  it("runs at most once an hour, however many requests arrive", async () => {
-    const d = await database();
+  it("honours the threshold it is given", async () => {
+    const d = await databaseWithRetention();
     await seed(d);
 
+    // At six hours, everything but the two-hour bucket is expired.
     expect(
-      (await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`)).rows[0]?.n,
-    ).toBe(2);
-    // A second call inside the window declines rather than re-scanning.
-    expect(
-      (await d.query<{ n: number }>(`select observer.prune_if_due()::int as n`)).rows[0]?.n,
-    ).toBe(0);
+      (await d.query<{ n: number }>(`select observer.run_rate_bucket_retention(6)::int as n`))
+        .rows[0]?.n,
+    ).toBe(3);
   });
 
-  it("is wired into admission, and admission still counts correctly", async () => {
-    const d = await database();
+  it("records the run where an operator can see it", async () => {
+    const d = await databaseWithRetention();
+    await seed(d);
+
+    // Nothing has run yet: no row at all, which is itself the honest answer.
+    expect(
+      (await d.query<{ n: number }>(`select count(*)::int as n from observer.maintenance`)).rows[0]
+        ?.n,
+    ).toBe(0);
+
+    await d.exec(`select observer.run_rate_bucket_retention(48)`);
+
+    const row = await d.query<{ removed: number; keep: number; fresh: boolean }>(
+      `select last_removed as removed, keep_hours as keep,
+              last_pruned_at > now() - interval '1 minute' as fresh
+         from observer.maintenance where id = 1`,
+    );
+    expect(row.rows[0]).toEqual({ removed: 2, keep: 48, fresh: true });
+  });
+
+  it("refuses a threshold that would delete live windows", async () => {
+    const d = await databaseWithRetention();
+    await expect(d.query(`select observer.run_rate_bucket_retention(0)`)).rejects.toThrow(
+      /at least 1 hour/,
+    );
+  });
+
+  it("leaves the ceiling counting exactly as it did", async () => {
+    /*
+     * Retention moved out of admission, so the thing to prove is that nothing
+     * about admission changed with it: ten requests against a ceiling of three
+     * still admit three.
+     */
+    const d = await databaseWithRetention();
     await seed(d);
     await d.exec("set role service_role");
 
-    // Ten admissions against a ceiling of three: the ceiling still holds, and
-    // the ancient buckets are gone by the end of it.
     let allowed = 0;
     for (let i = 0; i < 10; i += 1) {
       const r = await d.query<{ allowed: boolean }>(
@@ -1121,14 +1286,17 @@ describe("rate buckets are pruned, not merely prunable", () => {
     expect(allowed).toBe(3);
 
     await d.exec("reset role");
+    // And nothing pruned along the way, because nothing in that path prunes.
     const ancient = await d.query<{ n: number }>(
       `select count(*)::int as n from observer.ai_rate_buckets where subject = 'ancient'`,
     );
-    expect(ancient.rows[0]?.n).toBe(0);
+    expect(ancient.rows[0]?.n).toBe(2);
   });
+});
 
+describe("retention stays private [RUN]", () => {
   it("keeps the maintenance row away from every browser role", async () => {
-    const d = await database();
+    const d = await databaseWithRetention();
     for (const role of ["anon", "authenticated"]) {
       const r = await d.query<{ allowed: boolean }>(
         `select has_table_privilege($1, 'observer.maintenance', 'SELECT') as allowed`,
@@ -1136,5 +1304,204 @@ describe("rate buckets are pruned, not merely prunable", () => {
       );
       expect(r.rows[0]?.allowed).toBe(false);
     }
+  });
+
+  it("keeps both retention functions unexecutable by every browser role", async () => {
+    const d = await databaseWithRetention();
+    for (const fn of [
+      "observer.run_rate_bucket_retention(integer)",
+      "observer.prune_ai_rate_buckets(integer)",
+    ]) {
+      for (const role of ["anon", "authenticated"]) {
+        const r = await d.query<{ allowed: boolean }>(
+          `select has_function_privilege($1, $2, 'EXECUTE') as allowed`,
+          [role, fn],
+        );
+        expect(r.rows[0]?.allowed).toBe(false);
+      }
+    }
+  });
+
+  it("exposes no retention RPC through PostgREST", async () => {
+    /*
+     * `public` is the only Observer schema PostgREST is allowed to see. A
+     * retention façade there would be callable by anything holding a key, and
+     * housekeeping is not an API.
+     */
+    const d = await databaseWithRetention();
+    const r = await d.query<{ names: string | null }>(
+      `select string_agg(p.proname, ', ' order by p.proname) as names
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and (p.proname like '%prune%' or p.proname like '%retention%'
+               or p.proname like '%maintenance%')`,
+    );
+    expect(r.rows[0]?.names).toBeNull();
+  });
+
+  it("runs as a definer with a fixed search_path", async () => {
+    const d = await databaseWithRetention();
+    const r = await d.query<{ secdef: boolean; config: string[] | null }>(
+      `select p.prosecdef as secdef, p.proconfig as config
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'observer' and p.proname = 'run_rate_bucket_retention'`,
+    );
+    expect(r.rows[0]?.secdef).toBe(true);
+    expect(r.rows[0]?.config).toContain("search_path=observer, pg_catalog");
+  });
+});
+
+describe("retention is out of the interactive path [RUN + TEXT]", () => {
+  it("is absent from the admission function the database actually holds", async () => {
+    /*
+     * Read from `pg_proc.prosrc` rather than from the migration text, so this
+     * is a fact about the installed function and not about a file.
+     */
+    const d = await databaseWithRetention();
+    const r = await d.query<{ src: string }>(
+      `select pg_get_functiondef(p.oid) as src
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'observer' and p.proname = 'admit_ai_request'`,
+    );
+    const src = r.rows[0]?.src ?? "";
+    expect(src).not.toMatch(/prune/i);
+    expect(src).not.toMatch(/retention/i);
+    expect(src).not.toMatch(/maintenance/i);
+  });
+
+  it("is absent from the quota function too", async () => {
+    const d = await databaseWithRetention();
+    const r = await d.query<{ src: string }>(
+      `select pg_get_functiondef(p.oid) as src
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'observer' and p.proname = 'consume_ai_quota'`,
+    );
+    expect(r.rows[0]?.src ?? "").not.toMatch(/prune|retention|maintenance/i);
+  });
+
+  it("does not redefine admission in the retention migration", () => {
+    /*
+     * The review asked for this explicitly: copying the whole of
+     * `admit_ai_request` into the retention migration to add one line is how
+     * two files come to disagree about one function.
+     */
+    const text = sql(RETENTION);
+    expect(statementsOnly(text)).not.toMatch(
+      /create\s+(or\s+replace\s+)?function\s+\S*admit_ai_request/i,
+    );
+    // The old traffic-driven cleanup is removed, not left as a second answer.
+    expect(text).toContain("drop function if exists observer.prune_if_due(integer)");
+  });
+});
+
+describe("the scheduled job [TEXT + STAND-IN]", () => {
+  it("names one job, one schedule and one command, exactly", () => {
+    const text = sql(RETENTION);
+    expect(text).toContain(`'${JOB_NAME}'`);
+    expect(text).toContain(`'${JOB_SCHEDULE}'`);
+    expect(text).toContain(`'${JOB_COMMAND}'`);
+  });
+
+  it("schedules exactly that job [STAND-IN]", async () => {
+    const d = await databaseWithRetention();
+    const r = await d.query<{
+      jobname: string;
+      schedule: string;
+      command: string;
+      active: boolean;
+    }>(`select jobname, schedule, command, active from cron.job`);
+
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toEqual({
+      jobname: JOB_NAME,
+      schedule: JOB_SCHEDULE,
+      command: JOB_COMMAND,
+      active: true,
+    });
+  });
+
+  it("still holds exactly one job after being applied twice [STAND-IN]", async () => {
+    /*
+     * The stand-in's `cron.schedule` deliberately does NOT upsert by name, so
+     * this passes only because the migration unschedules every matching job
+     * first. If somebody replaces that with a bare `cron.schedule` on the
+     * grounds that Supabase documents an upsert, this test fails.
+     */
+    const d = await databaseWithRetention();
+    await d.exec(sql(RETENTION));
+    await d.exec(sql(RETENTION));
+
+    const r = await d.query<{ n: number }>(`select count(*)::int as n from cron.job`);
+    expect(r.rows[0]?.n).toBe(1);
+  });
+
+  it("absorbs a duplicate scheduled under another name [STAND-IN]", async () => {
+    const d = await databaseWithRetention();
+    await d.exec(
+      `select cron.schedule('someones-own-cleanup', '*/5 * * * *',
+         'select observer.prune_ai_rate_buckets(12)')`,
+    );
+    expect(
+      (await d.query<{ n: number }>(`select count(*)::int as n from cron.job`)).rows[0]?.n,
+    ).toBe(2);
+
+    await d.exec(sql(RETENTION));
+
+    const r = await d.query<{ jobname: string; command: string }>(
+      `select jobname, command from cron.job`,
+    );
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]?.jobname).toBe(JOB_NAME);
+    expect(r.rows[0]?.command).toBe(JOB_COMMAND);
+  });
+
+  it("aborts if the job did not end up as intended [STAND-IN]", async () => {
+    /*
+     * The migration asserts its own postcondition against `cron.job` inside the
+     * transaction. Break the scheduling primitive and it must refuse, not
+     * quietly leave a database with a cleanup function and no cleanup.
+     */
+    const d = await database();
+    await installCronStandIn(d);
+    await d.exec(`
+      create or replace function cron.schedule(p_name text, p_schedule text, p_command text)
+      returns bigint language sql as $fn$ select 0::bigint $fn$;
+    `);
+
+    await expect(d.exec(sql(RETENTION))).rejects.toThrow(/exactly one active job/);
+    expect(
+      (
+        await d.query<{ n: number }>(
+          `select count(*)::int as n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'observer' and p.proname = 'run_rate_bucket_retention'`,
+        )
+      ).rows[0]?.n,
+    ).toBe(0);
+  });
+
+  it("the command calls the private function with the 48-hour threshold", async () => {
+    /*
+     * Not a string check: the command is executed and its effect measured.
+     * A command that named the wrong function, or the wrong number, would
+     * delete the wrong rows here.
+     */
+    const d = await databaseWithRetention();
+    await d.exec(`
+      insert into observer.ai_rate_buckets (scope, subject, window_kind, window_start, count)
+      values ('client', 'just-inside', 'hour', now() - interval '47 hours', 1),
+             ('client', 'just-outside','hour', now() - interval '49 hours', 1)`);
+
+    const command = (
+      await d.query<{ command: string }>(`select command from cron.job where jobname = $1`, [
+        JOB_NAME,
+      ])
+    ).rows[0]?.command;
+    expect(command).toBe(JOB_COMMAND);
+    await d.exec(command ?? "");
+
+    const left = await d.query<{ subject: string }>(
+      `select subject from observer.ai_rate_buckets order by subject`,
+    );
+    expect(left.rows.map((r) => r.subject)).toEqual(["just-inside"]);
   });
 });

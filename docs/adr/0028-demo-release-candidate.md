@@ -429,7 +429,12 @@ chooses the scoping input chooses not to be scoped.
 
 The per-client hourly ceiling keeps a _global_ fingerprint, because catching one
 browser across two tenants is that ceiling's entire purpose. It lives only in
-`ai_rate_buckets`, which is pruned. The durable row keeps the scoped one.
+`ai_rate_buckets`; the durable row keeps the scoped one. How long it survives
+there is a monitored operational property rather than a guarantee — a 48-hour
+deletion threshold applied hourly by one `pg_cron` job, so roughly 49 hours
+while that scheduler is healthy and indefinitely if it stops. Two earlier
+versions of this sentence said "which is pruned" and "which is bounded"; neither
+was true. See `docs/18-deployment.md`.
 
 **`key_id` named the secret, not the derivation.** Tenant-scoping changed every
 pseudonym while leaving the pepper untouched, so two rows could carry one key id

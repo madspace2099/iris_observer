@@ -47,7 +47,9 @@ Only what a public demonstration needs to protect itself:
 - `admit_ai_request()` — the gate plus the audit row, in one transaction, and
   a repeated request id consumes nothing;
 - `complete_ai_request()` — the terminal result, written once;
-- `prune_ai_rate_buckets()` — housekeeping.
+- `prune_ai_rate_buckets()` — the delete itself;
+- `run_rate_bucket_retention()` — what the scheduled job calls: the delete plus
+  a record of the run in `maintenance`. Private, and never in a request path.
 
 Reachable through PostgREST, every one a `security definer` façade in `public`
 granted to `service_role` alone: `admit_ai_request`, `complete_ai_request`, and
@@ -141,14 +143,33 @@ demonstration, including across tenants, so its bucket key is a **global**
 fingerprint. That value lives only in `ai_rate_buckets` and never reaches the
 durable audit.
 
-**Retention was claimed before it existed.** This paragraph used to end "and is
-pruned". `prune_ai_rate_buckets` was there; nothing called it — not the ceiling,
-not admission, no `pg_cron` job, no trigger — so buckets accumulated
-indefinitely and the retention promise rested on a function nobody invoked.
-Migration `20260826140000` adds `observer.prune_if_due` and calls it from
-admission: at most one prune an hour, guarded by a non-blocking advisory lock,
-keeping 48 hours — a full day beyond the longest window in use, so a bucket is
-never removed while it could still be counted.
+**Retention was claimed twice before it existed.** This paragraph used to end
+"and is pruned". `prune_ai_rate_buckets` was there; nothing called it — not the
+ceiling, not admission, no `pg_cron` job, no trigger — so buckets accumulated
+indefinitely and the promise rested on a function nobody invoked.
+
+The correction was worse in an interesting way: it called the pruning function
+from `admit_ai_request` and called the result "bounded". Cleanup driven by
+traffic is opportunistic garbage collection. With no requests nothing runs, so
+row age is unbounded no matter how often the delete is _permitted_ to happen —
+and it put a `delete` in the path an answer waits on.
+
+Migration `20260826140000` schedules it instead. One `pg_cron` job,
+`observer-prune-ai-rate-buckets`, hourly on the hour, running
+`select observer.run_rate_bucket_retention(48);`. Nothing in the request path.
+State it precisely and it is defensible:
+
+|                          |                                                    |
+| ------------------------ | -------------------------------------------------- |
+| deletion threshold       | 48 hours                                           |
+| scheduled frequency      | hourly                                             |
+| expected maximum row age | ~49 hours **while the scheduler is healthy**       |
+| monitoring               | separate and required (`observer-cron-health.sql`) |
+| guarantee                | none — a stopped scheduler stops deleting          |
+
+`pg_cron` is **not installed on this project**. Enabling it is an explicit
+operator precondition — `supabase/prerequisites/observer-cron-prerequisite.sql`
+— and the migration aborts rather than reporting success without it.
 
 `ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
 one there would let anybody holding the durable table follow a browser between

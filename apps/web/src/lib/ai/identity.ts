@@ -219,16 +219,37 @@ export function safetyIdentifier(userId: string, tenantSlug: string): string {
  * a row carrying only a key id could not say whether its subject was comparable
  * with the row above it.
  *
- * 1 — viewer only. Cross-tenant linkable. Superseded.
- * 2 — tenant-scoped.
+ * ## Two types, and the difference is the point
  *
- * A literal type rather than `number`. The database refuses a row whose scheme
- * and hash disagree, and the type refuses to describe one: a widened `number`
- * would let a future caller pass 3, or pass 2 beside no scoped hash, and find
- * out at the database instead of at the keyboard.
+ * `PseudonymVersion` is `1 | 2` because *rows* carry both: the live database
+ * holds version-1 rows and will keep receiving them from the deployed build for
+ * as long as it is reachable. Anything reading the audit must be able to say
+ * "one or the other".
+ *
+ * `PSEUDONYM_VERSION` is the narrower thing — what code written *now* emits —
+ * so it is declared `as const` and its type is the literal `2`.
+ *
+ * The previous line read `export const PSEUDONYM_VERSION: PseudonymVersion = 2`,
+ * and an independent review caught what that actually says: the annotation
+ * *widens* the constant back to `1 | 2`. A report claimed it was a literal `2`;
+ * it was not, and `pseudonymVersion: PSEUDONYM_VERSION` would have accepted a 1
+ * from anywhere. The emitter's field is typed `typeof PSEUDONYM_VERSION`, so
+ * new application code that tries to admit under the superseded, cross-tenant
+ * linkable derivation fails to compile.
+ *
+ * This changes nothing at the database. The deployed `3f298a6` build sends
+ * thirteen arguments and never mentions a scheme at all; its rows still resolve
+ * to version 1 through the migration's defaults, honestly labelled.
+ *
+ * 1 — viewer only. Cross-tenant linkable. Superseded, still readable, still
+ *     arriving from a build that predates the scoping work.
+ * 2 — tenant-scoped. What this code emits, and the only thing it can emit.
  */
 export type PseudonymVersion = 1 | 2;
-export const PSEUDONYM_VERSION: PseudonymVersion = 2;
+export const PSEUDONYM_VERSION = 2 as const;
+
+/** The one version current code may emit. Narrower than `PseudonymVersion`. */
+export type CurrentPseudonymVersion = typeof PSEUDONYM_VERSION;
 
 /**
  * A short, non-reversible tag for telemetry, the rate buckets and the audit.
