@@ -194,12 +194,12 @@ against a real Postgres.
   4–5 (the deployed legacy build) and step 9 (the new one). One file, four
   modes, chosen by parameter rather than by editing predicates:
 
-  | | `pseudonym_version` | cross-tenant hashes | audit delta |
-  | --- | --- | --- | --- |
-  | `legacy`, one tenant | 1 | — | 1 |
-  | `legacy`, two tenants | 1 | **equal** | 2 |
-  | `scoped`, one tenant | 2 | — | 1 |
-  | `scoped`, two tenants | 2 | **different** | 2 |
+  |                       | `pseudonym_version` | cross-tenant hashes | audit delta |
+  | --------------------- | ------------------- | ------------------- | ----------- |
+  | `legacy`, one tenant  | 1                   | —                   | 1           |
+  | `legacy`, two tenants | 1                   | **equal**           | 2           |
+  | `scoped`, one tenant  | 2                   | —                   | 1           |
+  | `scoped`, two tenants | 2                   | **different**       | 2           |
 
   Both hash expectations are correct behaviour for their build — version 1
   stores the tenant-blind global fingerprint, version 2 a per-tenant one — and
@@ -207,12 +207,23 @@ against a real Postgres.
 
   **What each mode actually proves is different, and the file says so.** The
   deployed `3f298a6` build returns its request id nowhere, so its mode is a
-  time-bounded controlled correlation: exactly one row matching five properties
+  time-bounded controlled correlation: exactly one row matching four properties
   you chose, with every other row in the window named and failed. That is not
-  the same claim as *this row came from that request*. The new build returns
-  `X-Observer-Request-Id`, so its mode selects by primary key — and the file
-  refuses to run in `scoped` mode without it, rather than quietly falling back
-  to the weaker proof.
+  the same claim as _this row came from that request_.
+
+  For the new build, **exact** means all six of these together, per request —
+  never a request id on its own:
+
+  ```
+  request id + time floor + tenant + project + viewer role + question length
+  ```
+
+  The controlled properties are required in every mode; a supplied request id is
+  an additional constraint on top of them, never a replacement for them. Any
+  valid UUID identifies _some_ row, and a row found by the wrong id — or by the
+  sibling request's id — is not the request the operator made. Two-tenant scoped
+  mode requires **both** ids and they must differ; legacy mode takes none at
+  all. Row 1 refuses every other combination before anything else can read PASS.
 
 `ai_requests.client_hash` is a **tenant-scoped** fingerprint instead. A global
 one there would let anybody holding the durable table follow a browser between

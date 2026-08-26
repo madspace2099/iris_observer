@@ -207,13 +207,13 @@ It carries **the same UUID admission wrote to `observer.ai_requests.request_id`*
 has just asked a question can find that exact audit row by primary key instead of guessing at the
 newest one.
 
-| | |
-| --- | --- |
-| where | every response produced **after successful admission** — `/api/ask`, `/api/ask/stream`, both voice routes, model-authored and deterministic-fallback outcomes alike |
-| never | on a request refused **before** admission (401, 429, malformed body, misconfigured pepper). Nothing was written, so there is no row to name |
-| value | a v4 UUID from `randomUUID()`. Not derived from the viewer, the tenant, the pepper or any key; not a session token; grants nothing |
-| caller control | none — admission mints it, so the response tells the caller only which row its own request created |
-| body | unchanged. The id is a header and a test asserts it never appears in the payload |
+|                |                                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| where          | every response produced **after successful admission** — `/api/ask`, `/api/ask/stream`, both voice routes, model-authored and deterministic-fallback outcomes alike |
+| never          | on a request refused **before** admission (401, 429, malformed body, misconfigured pepper). Nothing was written, so there is no row to name                         |
+| value          | a v4 UUID from `randomUUID()`. Not derived from the viewer, the tenant, the pepper or any key; not a session token; grants nothing                                  |
+| caller control | none — admission mints it, so the response tells the caller only which row its own request created                                                                  |
+| body           | unchanged. The id is a header and a test asserts it never appears in the payload                                                                                    |
 
 It is defined once, as `REQUEST_ID_HEADER` in `apps/web/src/lib/ai/gate.ts`, and attached only
 through `admittedHeaders(admitted)` — which takes the whole admission rather than a string, so the
@@ -223,8 +223,20 @@ type refuses to produce the header for a response that has no admission behind i
 not in a header, not on a log line. Verifying that build therefore has to correlate on a time window
 plus properties the operator controlled, which establishes "exactly one matching row exists and
 nothing else was written in that window" — a weaker claim than identification. Every build from here
-on can be verified exactly. `apps/web/test/request-id-header.test.ts` proves the header and the
-database write carry the same id.
+on can be verified exactly. `apps/web/test/request-id-header.test.ts` drives all four handlers and
+proves the header and the database write carry the same id.
+
+**A request id alone is not exactness.** Any valid UUID identifies _some_ row. The verifier therefore
+requires all six of these together, per request, and the controlled properties are required in every
+mode — the id is an additional constraint on top of them, never a replacement:
+
+```
+request id + time floor + tenant + project + viewer role + question length
+```
+
+A row found by the wrong id, or by the sibling request's id, or in the wrong tenant, project or
+viewer role, is not the request that was made — and it is counted as interference rather than
+quietly exempted because its id was supplied.
 
 ---
 

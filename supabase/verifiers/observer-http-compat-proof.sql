@@ -5,7 +5,7 @@
 -- One file, four modes, no predicate editing and no inverted PASS/FAIL.
 --
 -- ============================================================================
--- CANONICAL_QUESTION: How did Northgate showroom perform today?
+-- CANONICAL_QUESTION: How did this showroom perform this month?
 -- CANONICAL_LENGTH:   41
 -- ============================================================================
 --
@@ -14,10 +14,51 @@
 -- `supabase/test/http-proof.test.ts` are all checked against them; the test
 -- derives the length from the literal rather than trusting either number.
 --
--- The previous version of this file declared a 39-character question to be 41
--- characters. Nobody counted it, and a proof whose correlation key is wrong
--- matches nothing — the operator would have read "0 - proof void" and had no
--- idea why.
+-- The question is deliberately PROJECT-NEUTRAL. An earlier version named
+-- Northgate and was then submitted from beta/kingsford in two-tenant mode,
+-- which asked one project about another. The version before that declared a
+-- 39-character question to be 41, and nobody counted it.
+--
+--
+-- ## The four modes, and exactly what each one requires
+--
+--   legacy, one tenant    no request ids at all. The primary row is found by
+--                         bounded controlled-property correlation.
+--   legacy, two tenants   no request ids at all. Both rows by correlation.
+--   scoped, one tenant    primary_request_id REQUIRED. No property-only
+--                         fallback.
+--   scoped, two tenants   primary_request_id AND sibling_request_id REQUIRED,
+--                         and they must differ. No property-only fallback for
+--                         either row.
+--
+-- Row 1 refuses every other combination before any of the rest can read PASS.
+--
+--
+-- ## What "exact" means here, precisely
+--
+-- A request id on its own proves nothing. Any valid UUID identifies SOME row,
+-- and a row identified by the wrong id — or by an id belonging to the sibling
+-- request, or to a different tenant, project, viewer role or question length —
+-- is not the request the operator made.
+--
+-- So EXACT means all six of these together, per request:
+--
+--     request id = the supplied id
+--     occurred_at >= floor_ts
+--     tenant_slug   = the expected tenant
+--     project_slug  = the expected project
+--     viewer_role   = the controlled role
+--     question_chars = the canonical question length
+--
+-- The controlled properties are required in EVERY mode. The request id is an
+-- additional constraint on top of them, never a replacement for them. An
+-- earlier version wrote `id matches OR properties match`, which meant a
+-- supplied id skipped the property checks entirely and a UUID from another
+-- request could be accepted as the controlled one.
+--
+-- A row that fails any of the six is not quietly discarded either: it lands in
+-- the interference count (row 12) with its tenant and project named, exactly
+-- like any other unaccounted row.
 --
 --
 -- ## What each mode actually proves
@@ -30,19 +71,16 @@
 --
 --           So this mode is a TIME-BOUNDED CONTROLLED CORRELATION, and that is
 --           weaker than identification. It establishes that exactly one row
---           exists in a window you opened, carrying five properties you chose,
+--           exists in a window you opened, carrying four properties you chose,
 --           with no other row written in that window. It does NOT prove by
 --           construction that the row is the one your HTTP request produced.
---           Row 12 is what closes most of that gap: any unaccounted row in the
---           window fails the whole proof rather than being ignored.
 --
---   SCOPED  the new build, which returns `X-Observer-Request-Id`. That header
---           carries the same UUID the admission wrote, so the row is selected
---           by primary key. This IS exact identification, and rows 2 and 13
---           say which of the two you got.
+--   SCOPED  the new build, which returns `X-Observer-Request-Id`. Selection is
+--           by primary key AND every controlled property. Rows 2, 3 and 13 say
+--           which of the two you got.
 --
--- The mode also decides two expectations that used to be described in prose and
--- left for the operator to invert by hand:
+-- The mode also decides two expectations that used to be described in prose
+-- and left for the operator to invert by hand:
 --
 --   pseudonym_version        legacy 1        scoped 2
 --   cross-tenant hashes      legacy equal    scoped different
@@ -53,10 +91,12 @@
 -- legitimate mode can return all-PASS.
 --
 --
--- ## Nothing here prints a fingerprint, a subject or a key
+-- ## Nothing here prints an identifier
 --
--- Every identifier is compared, never selected. The only values this file can
--- emit are booleans, counts, versions, slugs and the words below.
+-- No request id, no client hash, no subject, no key id, no question text. Every
+-- identifier is compared, never selected. The only values this file emits are
+-- counts, versions, booleans, tenant and project slugs, and the fixed words
+-- below.
 
 
 /* ========================================================================== */
@@ -90,9 +130,10 @@ select clock_timestamp()                          as floor_ts,
  * The sibling project slug is not the same as the primary one and must be
  * named explicitly. There is no `beta/northgate`.
  *
- * Ask exactly this, character for character, from ONE browser tab:
+ * Ask exactly this, character for character, from ONE browser tab. It names no
+ * project, so it is the same question in both:
  *
- *     How did Northgate showroom perform today?
+ *     How did this showroom perform this month?
  *
  * ONE-TENANT MODE: ask it once, in alpha/northgate. Set cross_tenant_done to
  * false below.
@@ -102,13 +143,15 @@ select clock_timestamp()                          as floor_ts,
  * cross_tenant_done to true.
  *
  * Do not retry, refresh or open a second tab. A retry mints a second request id
- * and writes a second row, and rows 2, 11 and 12 are built to fail on that
+ * and writes a second row, and rows 2, 3, 11 and 12 are built to fail on that
  * rather than pick one.
  *
- * SCOPED BUILD ONLY: read `X-Observer-Request-Id` from each response (browser
+ * SCOPED BUILD ONLY: read `X-Observer-Request-Id` from EACH response (browser
  * devtools -> Network -> the /api/ask request -> Response Headers) and paste
- * the UUIDs below. For the legacy build there is no such header; leave them
- * null and the file falls back to correlation, saying so in row 13.
+ * the UUIDs below — the primary one always, and the sibling one too in
+ * two-tenant mode. If either required id is missing, STOP: row 1 fails and no
+ * property-only fallback is offered. For the legacy build there is no such
+ * header; leave both null.
  */
 
 
@@ -139,6 +182,7 @@ with params as (
     41                                        as question_chars,
 
     /* --- exact correlation, scoped build only ------------------------- */
+    -- Required in scoped mode; must be NULL in legacy mode.
     null::uuid                                as primary_request_id,
     null::uuid                                as sibling_request_id
 ),
@@ -149,33 +193,44 @@ mode as (
          case when p.expected_build = 'scoped' then 2 else 1 end   as want_version,
          case when p.cross_tenant_done then 2 else 1 end           as want_delta,
          (p.expected_build in ('legacy', 'scoped'))                as build_known,
-         -- The new build must be identified exactly. Falling back to question
-         -- length for a build that hands you its request id would be choosing
-         -- the weaker proof when the stronger one is on the wire.
-         (p.expected_build <> 'scoped' or p.primary_request_id is not null)
-                                                                   as exactness_ok
+         /*
+          * The mode definition, enforced rather than described.
+          *
+          * scoped one tenant   primary id required
+          * scoped two tenants  BOTH ids required, and distinct — swapping or
+          *                     repeating one would let a single row satisfy
+          *                     both halves of a two-request proof
+          * legacy either       no ids at all; supplying one would claim an
+          *                     exactness the deployed build cannot provide
+          */
+         case
+           when p.expected_build = 'scoped' then
+             p.primary_request_id is not null
+             and (not p.cross_tenant_done
+                  or (p.sibling_request_id is not null
+                      and p.sibling_request_id is distinct from p.primary_request_id))
+           else
+             p.primary_request_id is null and p.sibling_request_id is null
+         end                                                       as ids_ok
     from params p
 ),
 
 /*
  * The controlled rows.
  *
- * By request id when one was supplied — that is a primary-key lookup and
- * nothing else can satisfy it. Otherwise by the floor plus five properties the
- * operator chose. Never by an ordering, never with a LIMIT.
+ * Every controlled property is required in every mode. The request id, when
+ * supplied, is an ADDITIONAL conjunct — never an alternative to the properties.
+ * Never an ordering, never a LIMIT.
  */
 primary_row as (
   select r.*
     from observer.ai_requests r, mode m
-   where r.occurred_at >= m.floor_ts
-     and (
-       (m.primary_request_id is not null and r.request_id = m.primary_request_id)
-       or (m.primary_request_id is null
-           and r.tenant_slug    = m.primary_tenant
-           and r.project_slug   = m.primary_project
-           and r.viewer_role    = m.viewer_role
-           and r.question_chars = m.question_chars)
-     )
+   where r.occurred_at    >= m.floor_ts
+     and r.tenant_slug     = m.primary_tenant
+     and r.project_slug    = m.primary_project
+     and r.viewer_role     = m.viewer_role
+     and r.question_chars  = m.question_chars
+     and (m.primary_request_id is null or r.request_id = m.primary_request_id)
 ),
 
 /*
@@ -187,19 +242,18 @@ sibling_row as (
   select r.*
     from observer.ai_requests r, mode m
    where m.cross_tenant_done
-     and r.occurred_at >= m.floor_ts
-     and (
-       (m.sibling_request_id is not null and r.request_id = m.sibling_request_id)
-       or (m.sibling_request_id is null
-           and r.tenant_slug    = m.sibling_tenant
-           and r.project_slug   = m.sibling_project
-           and r.viewer_role    = m.viewer_role
-           and r.question_chars = m.question_chars)
-     )
+     and r.occurred_at    >= m.floor_ts
+     and r.tenant_slug     = m.sibling_tenant
+     and r.project_slug    = m.sibling_project
+     and r.viewer_role     = m.viewer_role
+     and r.question_chars  = m.question_chars
+     and (m.sibling_request_id is null or r.request_id = m.sibling_request_id)
 ),
 
 /*
- * Anything else written in the window.
+ * Anything else written in the window — including a row whose request id was
+ * supplied but whose tenant, project, role or question length did not match.
+ * Supplying an id does not grant a row an exemption from being counted.
  *
  * Matched on the table's own primary key rather than on `request_id`, because a
  * legacy façade write carries a NULL request id and `not in` over a set
@@ -223,8 +277,16 @@ checks as (
          (select case
             when not m.build_known
               then 'expected_build must be legacy or scoped, got ' || quote_literal(m.expected_build)
-            when not m.exactness_ok
-              then 'scoped build requires primary_request_id from X-Observer-Request-Id'
+            when m.scoped and m.primary_request_id is null
+              then 'scoped mode requires primary_request_id from X-Observer-Request-Id'
+            when m.scoped and m.cross_tenant_done and m.sibling_request_id is null
+              then 'scoped two-tenant mode requires sibling_request_id as well'
+            when m.scoped and m.cross_tenant_done
+                 and m.sibling_request_id is not distinct from m.primary_request_id
+              then 'the two request ids must differ — one row cannot be both requests'
+            when not m.scoped and (m.primary_request_id is not null
+                                   or m.sibling_request_id is not null)
+              then 'legacy mode takes no request ids; the deployed build returns none'
             else 'ok' end
           from mode m) as actual
 
@@ -247,11 +309,13 @@ checks as (
            else (select count(*)::text from sibling_row) || ' — proof void' end
      end)
 
-  union all select 13, 'how the primary row was identified',
-    (select case when m.scoped then 'request_id (exact)'
+  union all select 13, 'how the controlled rows were identified',
+    (select case when m.scoped then 'request id + every controlled property'
                  else 'time + controlled properties (correlation)' end from mode m),
-    (select case when m.primary_request_id is not null then 'request_id (exact)'
-                 else 'time + controlled properties (correlation)' end from mode m)
+    (select case
+       when not m.ids_ok then 'invalid — see row 1'
+       when m.scoped then 'request id + every controlled property'
+       else 'time + controlled properties (correlation)' end from mode m)
 
   /* --- what the row says ---------------------------------------------- */
 
@@ -314,9 +378,8 @@ checks as (
     (select ((select count(*) from observer.ai_requests) - m.audit_rows_before)::text from mode m)
 
   -- Interference is named, not tolerated. An unrelated row in the window can
-  -- never stand in for the controlled request: rows 2 and 3 select the
-  -- controlled ones by identity or by property, and anything left over fails
-  -- here with its tenant and project shown.
+  -- never stand in for the controlled request, and a row whose id was supplied
+  -- but whose properties disagree is unrelated by definition.
   union all select 12, 'unaccounted rows in the window', '(none)',
     (select coalesce(
        string_agg(distinct i.tenant_slug || '/' || i.project_slug, ', '), '(none)')

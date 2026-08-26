@@ -9,31 +9,26 @@ import { describe, expect, it } from "vitest";
  * `observer-http-compat-proof.sql` is what an operator runs at rollout steps
  * 4-5 (the deployed legacy build) and step 9 (the new build). The HTTP half
  * cannot be simulated here — there is no PostgREST and no deployment — but the
- * SQL half can, and every defect this round fixed was in the SQL half.
+ * SQL half can, and every defect found so far was in the SQL half.
  *
- * Three of them are worth naming, because each would have produced a confident
- * wrong answer:
+ * The two this round closes are both FALSE-PASS paths, which is the worst kind
+ * of defect a verifier can have:
  *
- *  - THE QUESTION WAS THE WRONG LENGTH. The file declared "How did the
- *    northgate showroom perform?" to be 41 characters. It is 39. The
- *    correlation key would have matched nothing and the operator would have
- *    read "0 — proof void" with no idea why. Nobody counted it, so the length
- *    is now derived from the literal, here, by machine.
+ *  - A REQUEST ID REPLACED THE CONTROLLED PROPERTIES. Selection read
+ *    `id matches OR properties match`, so supplying an id skipped the tenant,
+ *    project, role and length checks entirely. Any valid UUID identifies SOME
+ *    row; one belonging to a different request would have been accepted as the
+ *    controlled one, and in two-tenant mode the primary and sibling ids could
+ *    be swapped without anything noticing.
  *
- *  - TWO MODES WERE DOCUMENTED AND ONE WAS IMPLEMENTED. The prose told the
- *    operator to set `cross_tenant_done` — a parameter that did not exist — and
- *    said that after the new deployment two expectations were "inverted", while
- *    the executable SQL still expected `pseudonym_version = 1` and equal
- *    hashes. A verifier that requires its reader to mentally invert PASS and
- *    FAIL is a verifier that will be read wrong at three in the morning.
+ *  - SCOPED MODE STILL FELL BACK. `exactness_ok` required only the primary id,
+ *    so the two-tenant scoped mode ran happily with no sibling id and
+ *    correlated the sibling by timestamp and properties — while the file
+ *    claimed scoped mode refuses fallback.
  *
- *  - THE ROW ACCOUNTING CONTRADICTED ITSELF. Doing the optional second-tenant
- *    request made row 8 pass and row 9 fail, because row 9 always expected
- *    exactly one audit row. The legitimate two-tenant mode could not return
- *    all-PASS.
- *
- * All four modes must now be able to read all-PASS, and every way of being
- * wrong is asserted over the COMPLETE failed-row set rather than one row.
+ * Both are fixed by the same rule, asserted throughout below: the controlled
+ * properties are required in EVERY mode, and a supplied request id is an
+ * additional conjunct on top of them, never an alternative to them.
  */
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
@@ -53,8 +48,8 @@ const PROOF_SQL = readFileSync(PROOF, "utf8");
  * Read out of the operator's own file, so the prose the operator types, the
  * default parameter the SQL carries and the fixture below cannot drift apart.
  * The expected length is DERIVED from the literal — never asserted as a number
- * somebody counted by hand, which is exactly how 39 came to be documented as
- * 41.
+ * somebody counted, which is how a 39-character question came to be documented
+ * as 41.
  */
 function canonicalQuestion(): string {
   const m = PROOF_SQL.match(/^-- CANONICAL_QUESTION: (.+)$/m);
@@ -243,7 +238,7 @@ describe("the fixed question is one value, checked three ways", () => {
     const declared = PROOF_SQL.match(/^-- CANONICAL_LENGTH:\s+(\d+)$/m)?.[1];
     expect(declared).toBeDefined();
     // The number in the file must equal the length of the literal in the file.
-    // Neither is trusted on its own; the previous version failed exactly here.
+    // Neither is trusted on its own; an earlier version failed exactly here.
     expect(Number(declared)).toBe(QUESTION.length);
     expect(QUESTION.length).toBe(41);
   });
@@ -251,6 +246,19 @@ describe("the fixed question is one value, checked three ways", () => {
   it("is ASCII only, so no encoding changes the count", () => {
     expect(QUESTION).toMatch(/^[\x20-\x7e]+$/);
     expect(Buffer.byteLength(QUESTION, "utf8")).toBe(QUESTION.length);
+  });
+
+  it("names no project, because it is asked in two of them", () => {
+    /*
+     * The previous question named Northgate and was then submitted from
+     * beta/kingsford in two-tenant mode — one project asked about another. The
+     * question has to be true in both places or the operator is being told to
+     * type something incoherent.
+     */
+    expect(QUESTION.toLowerCase()).not.toContain("northgate");
+    expect(QUESTION.toLowerCase()).not.toContain("kingsford");
+    expect(QUESTION.toLowerCase()).not.toContain("alpha");
+    expect(QUESTION.toLowerCase()).not.toContain("beta");
   });
 
   it("is the same text the instructions tell the operator to type", () => {
@@ -262,16 +270,12 @@ describe("the fixed question is one value, checked three ways", () => {
     const def = PROOF_SQL.match(/^\s+(\d+)\s+as question_chars,$/m)?.[1];
     expect(Number(def)).toBe(QUESTION.length);
   });
-
-  it("is not the length the previous version claimed", () => {
-    expect("How did the northgate showroom perform?".length).toBe(39);
-  });
 });
 
 /* --- 2. every legitimate mode can read all-PASS --------------------------- */
 
 describe("all four modes return a complete pass", () => {
-  it("legacy build, one tenant", async () => {
+  it("legacy, one tenant — no request ids, honest correlation", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary });
 
@@ -282,12 +286,13 @@ describe("all four modes return a complete pass", () => {
       crossTenantDone: false,
     });
     expect(failed(rows)).toEqual([]);
+    expect(rows).toHaveLength(13);
     expect(at(rows, 5)?.actual).toBe("1");
     expect(at(rows, 11)?.actual).toBe("1");
     expect(at(rows, 13)?.actual).toBe("time + controlled properties (correlation)");
   });
 
-  it("legacy build, two tenants — the same browser, so the hashes match", async () => {
+  it("legacy, two tenants — the same browser, so the hashes match", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary, globalHash: "one-browser" });
     await ask(db, {
@@ -305,10 +310,11 @@ describe("all four modes return a complete pass", () => {
     });
     expect(failed(rows)).toEqual([]);
     expect(at(rows, 10)?.actual).toBe("equal (global)");
+    // Exactly two newly written audit rows, one per named tenant.
     expect(at(rows, 11)?.actual).toBe("2");
   });
 
-  it("scoped build, one tenant, selected by request id", async () => {
+  it("scoped, one tenant — id plus every controlled property", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
 
@@ -322,10 +328,10 @@ describe("all four modes return a complete pass", () => {
     expect(failed(rows)).toEqual([]);
     expect(at(rows, 5)?.actual).toBe("2");
     expect(at(rows, 11)?.actual).toBe("1");
-    expect(at(rows, 13)?.actual).toBe("request_id (exact)");
+    expect(at(rows, 13)?.actual).toBe("request id + every controlled property");
   });
 
-  it("scoped build, two tenants — tenant-scoped, so the hashes differ", async () => {
+  it("scoped, two tenants — both ids, tenant-scoped hashes differ", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
     await ask(db, {
@@ -349,12 +355,303 @@ describe("all four modes return a complete pass", () => {
   });
 });
 
-/* --- 3. every way of being wrong, over the complete failed set ------------ */
+/* --- 3. scoped mode never falls back ------------------------------------- */
 
-describe("the correlation refuses to guess", () => {
+describe("scoped mode refuses every property-only fallback", () => {
+  /*
+   * Each of these would previously have produced a confident all-PASS by
+   * correlating on timestamp and properties while the file claimed exactness.
+   */
+
+  it("FAILS scoped one-tenant with no primary id", async () => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: false,
+      primaryRequestId: null,
+    });
+    expect(failed(rows)).toEqual([1, 13]);
+    expect(at(rows, 1)?.actual).toContain("requires primary_request_id");
+    expect(at(rows, 13)?.actual).toBe("invalid — see row 1");
+  });
+
+  it("FAILS scoped two-tenant with no primary id", async () => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    await ask(db, {
+      id: ID.sibling,
+      tenant: "beta",
+      project: "kingsford",
+      scopedHash: "beta-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: true,
+      primaryRequestId: null,
+      siblingRequestId: ID.sibling,
+    });
+    expect(failed(rows)).toEqual([1, 13]);
+    expect(at(rows, 1)?.actual).toContain("requires primary_request_id");
+  });
+
+  it("FAILS scoped two-tenant with no sibling id — the defect this closes", async () => {
+    /*
+     * The exact false PASS. `exactness_ok` required only the primary id, so
+     * this combination ran, correlated the sibling by timestamp and properties,
+     * and returned 13/13 while row 13 claimed exactness.
+     */
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    await ask(db, {
+      id: ID.sibling,
+      tenant: "beta",
+      project: "kingsford",
+      scopedHash: "beta-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: true,
+      primaryRequestId: ID.primary,
+      siblingRequestId: null,
+    });
+    expect(failed(rows)).toEqual([1, 13]);
+    expect(at(rows, 1)?.actual).toContain("requires sibling_request_id");
+  });
+
+  it("FAILS scoped two-tenant when both ids are the same", async () => {
+    // One row cannot be two requests, however well it matches.
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    await ask(db, {
+      id: ID.sibling,
+      tenant: "beta",
+      project: "kingsford",
+      scopedHash: "beta-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: true,
+      primaryRequestId: ID.primary,
+      siblingRequestId: ID.primary,
+    });
+    /*
+     * Five failures, not two, and the extra three are the point. Row 1 rejects
+     * the configuration; rows 3, 10 and 12 then show what it would have meant —
+     * the sibling selector wants tenant beta AND the primary's id, matches
+     * nothing, and the real beta row falls into interference. A misconfigured
+     * proof fails loudly at every level rather than only at the gate.
+     */
+    expect(failed(rows)).toEqual([1, 3, 10, 12, 13]);
+    expect(at(rows, 1)?.actual).toContain("must differ");
+    expect(at(rows, 3)?.actual).toBe("0 — proof void");
+    expect(at(rows, 12)?.actual).toBe("beta/kingsford");
+  });
+
+  it("FAILS legacy mode if a request id is supplied at all", async () => {
+    // The deployed build returns none, so having one means the operator is
+    // describing a different build than the one they tested.
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "legacy",
+      crossTenantDone: false,
+      primaryRequestId: ID.primary,
+    });
+    expect(failed(rows)).toEqual([1, 13]);
+    expect(at(rows, 1)?.actual).toContain("legacy mode takes no request ids");
+  });
+
+  it("FAILS an undefined build name", async () => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "whatever",
+      crossTenantDone: false,
+    });
+    expect(failed(rows)).toContain(1);
+    expect(at(rows, 1)?.actual).toContain("expected_build must be legacy or scoped");
+  });
+});
+
+/* --- 4. an id proves identity only with the properties -------------------- */
+
+describe("a request id never replaces the controlled properties", () => {
+  /*
+   * The second false-PASS path. Selection read `id matches OR properties
+   * match`, so a supplied id skipped every dimension check. Each case below
+   * supplies a perfectly valid UUID belonging to the wrong row.
+   */
+
+  const wrongDimension = async (seed: Ask) => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, seed);
+    return {
+      rows: await proof(db, {
+        floorTs,
+        auditRowsBefore: before,
+        expectedBuild: "scoped",
+        crossTenantDone: false,
+        primaryRequestId: seed.id,
+      }),
+    };
+  };
+
+  it("FAILS when the id belongs to a row in the wrong tenant", async () => {
+    const { rows } = await wrongDimension({
+      id: ID.primary,
+      tenant: "beta",
+      project: "northgate",
+      scopedHash: "s",
+    });
+    expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
+    expect(at(rows, 2)?.actual).toBe("0 — proof void");
+    // And it is counted, not exempted, because its id was supplied.
+    expect(at(rows, 12)?.actual).toBe("beta/northgate");
+  });
+
+  it("FAILS when the id belongs to a row in the wrong project", async () => {
+    const { rows } = await wrongDimension({
+      id: ID.primary,
+      tenant: "alpha",
+      project: "riverside",
+      scopedHash: "s",
+    });
+    expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
+    expect(at(rows, 12)?.actual).toBe("alpha/riverside");
+  });
+
+  it("FAILS when the id belongs to a row with the wrong viewer role", async () => {
+    const { rows } = await wrongDimension({ id: ID.primary, role: "developer", scopedHash: "s" });
+    expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
+    expect(at(rows, 12)?.actual).toBe("alpha/northgate");
+  });
+
+  it("FAILS when the id belongs to a row with the wrong question length", async () => {
+    const { rows } = await wrongDimension({ id: ID.primary, chars: 12, scopedHash: "s" });
+    expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
+  });
+
+  it("FAILS when the sibling id belongs to the wrong tenant and project", async () => {
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    // A third tenant entirely, whose id the operator pasted by mistake.
+    await ask(db, {
+      id: ID.sibling,
+      tenant: "gamma",
+      project: "elsewhere",
+      scopedHash: "gamma-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: true,
+      primaryRequestId: ID.primary,
+      siblingRequestId: ID.sibling,
+    });
+    expect(failed(rows)).toEqual([3, 10, 12]);
+    expect(at(rows, 3)?.actual).toBe("0 — proof void");
+    expect(at(rows, 12)?.actual).toBe("gamma/elsewhere");
+  });
+
+  it("FAILS when the primary and sibling ids are swapped", async () => {
+    /*
+     * Both ids are real, both rows exist, both are the operator's own requests
+     * — and each is attributed to the wrong tenant. Under the old `OR` this
+     * read as a complete pass.
+     */
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    await ask(db, {
+      id: ID.sibling,
+      tenant: "beta",
+      project: "kingsford",
+      scopedHash: "beta-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: true,
+      primaryRequestId: ID.sibling,
+      siblingRequestId: ID.primary,
+    });
+    expect(failed(rows)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 10, 12]);
+    expect(at(rows, 12)?.actual).toBe("alpha/northgate, beta/kingsford");
+  });
+
+  it("FAILS a wrong id even while a perfectly matching row exists", async () => {
+    /*
+     * The controlled request IS there and would satisfy every property. The
+     * operator pasted somebody else's id. The verifier must report a void
+     * proof rather than quietly finding the row it was not asked for.
+     */
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: false,
+      primaryRequestId: ID.other,
+    });
+    expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
+    expect(at(rows, 2)?.actual).toBe("0 — proof void");
+    // The real row is unaccounted, not invisible.
+    expect(at(rows, 12)?.actual).toBe("alpha/northgate");
+  });
+
+  it("does not exempt a wrong-id row from the interference count", async () => {
+    // Two rows: one matching every property, one whose id was supplied but
+    // whose tenant is wrong. Both must be counted.
+    const { db, floorTs, before } = await opened();
+    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
+    await ask(db, {
+      id: ID.other,
+      tenant: "gamma",
+      project: "elsewhere",
+      scopedHash: "gamma-scoped",
+    });
+
+    const rows = await proof(db, {
+      floorTs,
+      auditRowsBefore: before,
+      expectedBuild: "scoped",
+      crossTenantDone: false,
+      primaryRequestId: ID.other,
+    });
+    expect(at(rows, 12)?.actual).toBe("alpha/northgate, gamma/elsewhere");
+    expect(at(rows, 11)?.actual).toBe("2");
+  });
+});
+
+/* --- 5. the legacy correlation still behaves ----------------------------- */
+
+describe("the legacy correlation is honest and still strict", () => {
   it("FAILS on a missing primary row", async () => {
     const { db, floorTs, before } = await opened();
-    // Asked at a different length: nothing the operator controlled matches.
     await ask(db, { id: ID.primary, chars: 12 });
 
     const rows = await proof(db, {
@@ -363,8 +660,6 @@ describe("the correlation refuses to guess", () => {
       expectedBuild: "legacy",
       crossTenantDone: false,
     });
-    // 2 no primary; 4-9 have no row to read; 11 the delta is 1 but the row is
-    // unaccounted, so 12 names it.
     expect(failed(rows)).toEqual([2, 4, 5, 6, 7, 8, 9, 12]);
     expect(at(rows, 2)?.actual).toBe("0 — proof void");
   });
@@ -410,7 +705,6 @@ describe("the correlation refuses to guess", () => {
       crossTenantDone: true,
     });
     expect(failed(rows)).toEqual([3, 10, 11]);
-    expect(at(rows, 3)?.actual).toBe("0 — proof void");
   });
 
   it("FAILS when cross_tenant_done is true and several sibling rows exist", async () => {
@@ -430,12 +724,6 @@ describe("the correlation refuses to guess", () => {
   });
 
   it("does not accept a sibling from a third tenant or a different project", async () => {
-    /*
-     * The sibling is an exact tenant AND project pair. Defined by inequality —
-     * "anything where tenant_slug <> alpha" — a row from an unrelated tenant
-     * would have satisfied it, and the project slug the operator named would
-     * never have been checked. There is no `beta/northgate` in the registry.
-     */
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary });
     await ask(db, { id: ID.sibling, tenant: "gamma", project: "elsewhere" });
@@ -470,7 +758,6 @@ describe("the mode decides the expectation, not the operator", () => {
     });
     expect(failed(rows)).toEqual([10]);
     expect(at(rows, 10)?.expected).toBe("equal (global)");
-    expect(at(rows, 10)?.actual).toBe("different (tenant-scoped)");
   });
 
   it("FAILS a scoped cross-tenant run whose hashes are equal", async () => {
@@ -497,7 +784,6 @@ describe("the mode decides the expectation, not the operator", () => {
 
   it("FAILS the wrong pseudonym version for the selected mode", async () => {
     const { db, floorTs, before } = await opened();
-    // A legacy row, checked as though the new build had answered.
     await ask(db, { id: ID.primary });
 
     const rows = await proof(db, {
@@ -510,41 +796,6 @@ describe("the mode decides the expectation, not the operator", () => {
     expect(failed(rows)).toEqual([5]);
     expect(at(rows, 5)?.expected).toBe("2");
     expect(at(rows, 5)?.actual).toBe("1");
-  });
-
-  it("FAILS an undefined build name", async () => {
-    const { db, floorTs, before } = await opened();
-    await ask(db, { id: ID.primary });
-
-    const rows = await proof(db, {
-      floorTs,
-      auditRowsBefore: before,
-      expectedBuild: "whatever",
-      crossTenantDone: false,
-    });
-    expect(failed(rows)).toContain(1);
-    expect(at(rows, 1)?.actual).toContain("expected_build must be legacy or scoped");
-  });
-
-  it("FAILS a scoped run that falls back to correlation", async () => {
-    /*
-     * The new build hands the operator its request id. Verifying it by question
-     * length instead would be choosing the weaker proof while the stronger one
-     * is sitting in the response headers.
-     */
-    const { db, floorTs, before } = await opened();
-    await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
-
-    const rows = await proof(db, {
-      floorTs,
-      auditRowsBefore: before,
-      expectedBuild: "scoped",
-      crossTenantDone: false,
-      primaryRequestId: null,
-    });
-    expect(failed(rows)).toContain(1);
-    expect(at(rows, 1)?.actual).toContain("requires primary_request_id");
-    expect(at(rows, 13)?.verdict).toBe("FAIL");
   });
 });
 
@@ -562,11 +813,9 @@ describe("unrelated traffic cannot produce a false pass", () => {
     });
     expect(failed(rows)).toEqual([11, 12]);
     expect(at(rows, 11)?.actual).toBe("2");
-    expect(at(rows, 12)?.actual).toBe("gamma/elsewhere");
   });
 
   it("never lets an unrelated row substitute for the controlled request", async () => {
-    // The controlled request was never made. Only somebody else's row exists.
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.other, tenant: "gamma", project: "elsewhere" });
 
@@ -577,7 +826,6 @@ describe("unrelated traffic cannot produce a false pass", () => {
       crossTenantDone: false,
     });
     expect(at(rows, 2)?.actual).toBe("0 — proof void");
-    expect(at(rows, 12)?.actual).toBe("gamma/elsewhere");
   });
 
   it("ignores a row that existed before the floor, however recent", async () => {
@@ -595,43 +843,42 @@ describe("unrelated traffic cannot produce a false pass", () => {
     });
     expect(failed(rows)).toEqual([]);
   });
-});
 
-describe("exact identification, when the build offers it", () => {
-  it("selects by request id even when two rows share every property", async () => {
+  it("an invalid correlation can never read 13/13", async () => {
     /*
-     * The property-based correlation cannot tell these apart — that is the
-     * limit of what the legacy mode can claim. The request id can, and this is
-     * the difference the header buys.
+     * The summary property. Six invalid configurations against a database that
+     * holds a perfectly good controlled row: not one of them may pass.
      */
     const { db, floorTs, before } = await opened();
     await ask(db, { id: ID.primary, scopedHash: "alpha-scoped" });
-    await ask(db, { id: ID.primary2, scopedHash: "alpha-scoped" });
+    const base = { floorTs, auditRowsBefore: before } as const;
 
-    const correlated = await proof(db, {
-      floorTs,
-      auditRowsBefore: before,
-      expectedBuild: "legacy",
-      crossTenantDone: false,
-    });
-    expect(at(correlated, 2)?.actual).toBe("2 — proof void");
+    const invalid: Params[] = [
+      { ...base, expectedBuild: "scoped", crossTenantDone: false, primaryRequestId: null },
+      { ...base, expectedBuild: "scoped", crossTenantDone: true, primaryRequestId: ID.primary },
+      {
+        ...base,
+        expectedBuild: "scoped",
+        crossTenantDone: true,
+        primaryRequestId: ID.primary,
+        siblingRequestId: ID.primary,
+      },
+      { ...base, expectedBuild: "legacy", crossTenantDone: false, primaryRequestId: ID.primary },
+      { ...base, expectedBuild: "nonsense", crossTenantDone: false },
+      { ...base, expectedBuild: "scoped", crossTenantDone: false, primaryRequestId: ID.other },
+    ];
 
-    const exact = await proof(db, {
-      floorTs,
-      auditRowsBefore: before,
-      expectedBuild: "scoped",
-      crossTenantDone: false,
-      primaryRequestId: ID.primary,
-    });
-    expect(at(exact, 2)?.actual).toBe("exactly 1");
-    expect(at(exact, 13)?.actual).toBe("request_id (exact)");
-    // The second row is still counted: it is unaccounted traffic, not invisible.
-    expect(at(exact, 12)?.actual).toBe("alpha/northgate");
+    for (const params of invalid) {
+      const rows = await proof(db, params);
+      expect(failed(rows).length).toBeGreaterThan(0);
+    }
   });
 });
 
+/* --- 6. the verifier prints nothing identifying -------------------------- */
+
 describe("the verifier prints nothing identifying", () => {
-  it("emits no fingerprint, subject or key identifier", async () => {
+  it("emits no fingerprint, subject, key identifier or request id", async () => {
     const { db, floorTs, before } = await opened();
     await ask(db, {
       id: ID.primary,
@@ -652,12 +899,12 @@ describe("the verifier prints nothing identifying", () => {
     expect(rendered).not.toContain("another-secret-looking-value");
     expect(rendered).not.toContain("subject-x");
     expect(rendered).not.toContain(KEY_ID);
+    // Not even the id the operator supplied — it is a parameter, not output.
+    expect(rendered).not.toContain(ID.primary);
   });
 
-  it("selects no identifier column anywhere in the file", () => {
-    // Every identifier is compared, never projected. `client_hash` appears only
-    // inside an equality test.
-    const projections = PROOF_SQL.match(/select\s+(client_hash|subject|key_id)\b/gi);
+  it("projects no identifier column anywhere in the file", () => {
+    const projections = PROOF_SQL.match(/select\s+(client_hash|subject|key_id|request_id)\b/gi);
     expect(projections).toBeNull();
   });
 });
