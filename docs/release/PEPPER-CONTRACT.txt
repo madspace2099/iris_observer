@@ -287,11 +287,32 @@ a secret.
 
   ONE MORE STATE, AND IT IS NOT A MAPPING. `apps/web/src/lib/supabase-env.ts`
   resolves the destination from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]`
-  IN THAT ORDER, first set-and-usable wins. So an ABSENT `SUPABASE_URL` does not
-  mean "no destination": the server silently falls back to the public variable.
-  Record that as A FALLBACK IN EFFECT, not as a mapping, and treat it as a
-  finding — a server-side write path resolving through a browser-exposed
-  variable is a configuration nobody chose on purpose.
+  IN THAT ORDER, first set-and-usable wins. So an ABSENT or BLANK `SUPABASE_URL`
+  does not mean "no destination": the server silently falls back to the public
+  variable. That is `FALLBACK_IN_EFFECT`, and it is a STOP.
+
+  Calling it "a finding" was not enough. A finding is not a decision, and the
+  same contract three paragraphs above says the public variable must never
+  substitute for the authoritative server mapping — so an operator told to note
+  it and continue is being told two incompatible things. EVERY STATE NOW
+  CARRIES A VERDICT, and there is no state whose instruction is "record it and
+  proceed":
+
+{{PROJECT_MAPPING_TABLE}}
+
+  A PUBLIC URL NAMING THE APPROVED PROJECT DOES NOT CONVERT
+  `FALLBACK_IN_EFFECT` INTO A PASS. It is the most tempting way past this gate
+  — the value looks right, so the mapping looks proved — and it is exactly the
+  substitution the rule exists to forbid. The server writes would be resolving
+  through a browser-exposed variable, and no runtime check anywhere notices.
+
+  ON ANY NON-PASS STATE: the operator DECIDES explicitly, CORRECTS the Vercel
+  configuration, and RESTARTS PREFLIGHT STEP 1 from the beginning. Step 2 is
+  not reachable until step 1 returns PASS for every relevant environment.
+
+  The table above is rendered from `scripts/release/preflight.ts`, which is the
+  same module `supabase/test/supabase-resolver.test.ts` executes. The rule this
+  document states and the rule the tests run are one object.
 
   WHAT IS AND IS NOT PUBLIC, stated exactly, because the previous edition of
   this file got it backwards:
@@ -301,11 +322,23 @@ a secret.
     * the SERVER-SIDE `SUPABASE_URL` IS AUTHORITATIVE for where the Observer
       route writes. It is marked "Server-only. Never NEXT_PUBLIC_, never
       logged" in `.env.example` and in the environment schema;
-    * ONLY THE SEPARATELY NAMED `NEXT_PUBLIC_SUPABASE_URL` IS CLIENT-EXPOSED.
-      Next.js inlines a variable into the browser bundle if and only if its
-      name begins with `NEXT_PUBLIC_`; `SUPABASE_URL` therefore is NOT
-      compiled into the browser bundle, and the earlier claim that it was is
-      simply false;
+    * ONLY THE SEPARATELY NAMED `NEXT_PUBLIC_SUPABASE_URL` IS CLIENT-EXPOSED
+      IN THIS REPOSITORY. The `NEXT_PUBLIC_` prefix is the automatic route into
+      the client bundle, but it is not the only one: Next.js also honours an
+      explicit `env` map in `next.config.*`, which can bundle ANY name. So
+      "if and only if its name begins with `NEXT_PUBLIC_`" is a claim about
+      the framework that this repository is not entitled to make, and the
+      earlier edition made it.
+
+      WHAT IS PROVEN HERE INSTEAD: `apps/web/next.config.ts` declares NO `env`
+      map, no `publicRuntimeConfig`, no `serverRuntimeConfig` and no
+      `DefinePlugin`, so nothing in this repository explicitly maps
+      `SUPABASE_URL` into the client bundle — asserted by
+      `supabase/test/project-mapping.test.ts` against the file itself, and
+      checked empirically by `pnpm audit:secrets`, which scans the BUILT
+      browser bundle. `SUPABASE_URL` is therefore not browser-bundled here.
+      If such a mapping is ever added, that test fails and this claim stops
+      being true;
     * CLIENT EXPOSURE DOES NOT ESTABLISH THE SERVER TARGET. What the browser
       was built to call and what the route handler writes to are two facts,
       and only the second one is what this step exists to prove.

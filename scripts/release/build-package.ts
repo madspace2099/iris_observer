@@ -43,6 +43,7 @@ import {
   execSha,
   fileShaAt,
   baselineCommit,
+  snapshotRefreshed,
   MIGRATIONS_DIR,
 } from "./facts";
 import { walk, writeZip } from "./zip";
@@ -250,6 +251,32 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
       all.includes(INVENTORY_UNCHANGED_IN[INVENTORY_UNCHANGED_IN.length - 1] ?? ""),
     "no artefact names the bundle the deployment inventory was last enumerated for",
   );
+
+  /*
+   * SNAPSHOT FRESHNESS, derived rather than believed.
+   *
+   * The previous package asserted "no Supabase query was made this round",
+   * "verified by one live query, the only external access this milestone made",
+   * "re-read this round" and "the oldest bucket is now N hours" — four claims
+   * that cannot all hold. Freshness language is only permitted when
+   * `live-snapshot.ts` actually changed since the last delivered bundle. A
+   * document may still QUOTE the wording it is retracting; it may not assert it.
+   */
+  if (!snapshotRefreshed(baselineCommit())) {
+    const FRESH =
+      /re-read this round|read this round|the only external access this milestone made|still rising|is now \d+ hours|oldest bucket is now/gi;
+    for (const { name, text } of rendered) {
+      for (const m of text.matchAll(FRESH)) {
+        const around = text.slice(Math.max(0, (m.index ?? 0) - 400), (m.index ?? 0) + 200);
+        const retracting =
+          /cannot all be true|asserted|earlier edition|an earlier|those cannot/i.test(around);
+        require_(
+          retracting,
+          `${name} claims freshness ("${m[0]}") for a snapshot that was carried forward, not re-read`,
+        );
+      }
+    }
+  }
 
   /* Executable SQL: the claim and the computed hashes must agree. */
   const contractPath = `${MIGRATIONS_DIR}/20260826090000_observer_audit_facade_cleanup.sql`;

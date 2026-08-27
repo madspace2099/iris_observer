@@ -24,6 +24,7 @@ import {
   INVENTORY_UNCHANGED_IN,
   DELIVERED_ARCHIVES,
 } from "./live-snapshot";
+import { renderMappingTable } from "./preflight";
 
 export const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
@@ -176,6 +177,114 @@ function gateBlock(): string {
     ...Object.entries(r.gates)
       .filter(([g]) => g !== "pnpm test")
       .map(([g, v]) => `  ${g.padEnd(30)} ${v}`),
+  ].join("\n");
+}
+
+interface RepeatRun {
+  readonly status: number | null;
+  readonly signal: string | null;
+  readonly errorCode: string | null;
+  readonly reportSuccess: boolean | null;
+  readonly reportedFailedTests: number | null;
+  readonly countedFailedTests: number | null;
+  readonly reasons: readonly string[];
+}
+
+/**
+ * The bounded repeated gate diagnostic, if `pnpm release:gates:repeat` has run.
+ *
+ * Reported whether or not the fault recurred. A run of green results is not
+ * evidence that an intermittent failure was fixed, and saying so is the whole
+ * point of printing the count rather than a verdict.
+ */
+function gateRepeatBlock(): string {
+  const path = join(REPO_ROOT, ".release", "gate-repeat.json");
+  if (!existsSync(path)) {
+    return [
+      "THE REPEATED DIAGNOSTIC WAS NOT RUN in this package. Run",
+      "`pnpm release:gates:repeat` and this paragraph is replaced by what it",
+      "measured.",
+    ].join("\n");
+  }
+  const data = JSON.parse(readFileSync(path, "utf8")) as {
+    head: string;
+    runs: readonly RepeatRun[];
+  };
+  const dirty = data.runs.filter((r) => r.reasons.length > 0);
+  const head = data.head.slice(0, 7);
+  const lines = data.runs.map(
+    (r, i) =>
+      `    run ${i + 1}  status=${String(r.status)} signal=${String(r.signal)} ` +
+      `errorCode=${String(r.errorCode)} reportSuccess=${String(r.reportSuccess)} ` +
+      `reportedFailed=${String(r.reportedFailedTests)} countedFailed=${String(r.countedFailedTests)}`,
+  );
+  const verdict =
+    dirty.length === 0
+      ? [
+          `  IT DID NOT RECUR in ${data.runs.length} runs at ${head}. THAT IS NOT A FIX.`,
+          "  An intermittent fault that did not appear in a bounded sample has not been",
+          "  explained, and this package does not claim it was. It remains open, and the",
+          "  runner now keeps the evidence that would identify it next time.",
+        ]
+      : [
+          `  IT RECURRED in ${dirty.length} of ${data.runs.length} runs at ${head}:`,
+          ...dirty.map((r) => `    ${r.reasons.join("; ")}`),
+        ];
+
+  return [
+    `THE BOUNDED REPEATED DIAGNOSTIC — ${data.runs.length} runs of the test gate at ${head}:`,
+    "",
+    ...lines,
+    "",
+    ...verdict,
+  ].join("\n");
+}
+
+export const SNAPSHOT_FILE = "scripts/release/live-snapshot.ts";
+
+/**
+ * Was the recorded observation actually re-read this round, or carried forward?
+ *
+ * DERIVED, never asserted. The previous package said "no Supabase query was
+ * made this round" in one file and "verified by one live query, the only
+ * external access this milestone made" in another, with "re-read this round"
+ * and "the oldest bucket is now 49 hours" in two more. Those cannot all be
+ * true, and no amount of careful prose prevents the next one: a freshness claim
+ * is a sentence, and sentences get carried forward.
+ *
+ * `live-snapshot.ts` is the only place a live reading may be recorded, so
+ * comparing its bytes with the last delivered bundle answers the question
+ * mechanically. A package cannot claim a carried-forward snapshot was read
+ * during the current milestone, because the claim is computed from whether the
+ * file changed.
+ */
+export function snapshotRefreshed(baseline: string): boolean {
+  try {
+    return fileShaAt(baseline, SNAPSHOT_FILE) !== sha256(SNAPSHOT_FILE);
+  } catch {
+    /* No baseline copy: the file is new, so this is its first recording. */
+    return true;
+  }
+}
+
+function snapshotProvenance(baseline: string, headShort: string, parentShort: string): string {
+  const refreshed = snapshotRefreshed(baseline);
+  if (refreshed) {
+    return [
+      `OBSERVED AT ${LIVE.observedAt}, and RE-READ IN THIS MILESTONE:`,
+      `${SNAPSHOT_FILE} differs from its copy at ${parentShort}.`,
+    ].join("\n");
+  }
+  return [
+    `OBSERVED AT ${LIVE.observedAt}. CARRIED FORWARD UNCHANGED — NOT RE-READ AT`,
+    `${headShort}. ${SNAPSHOT_FILE} is byte-identical to its copy at`,
+    `${parentShort}, which is what establishes that no query was made this round.`,
+    "",
+    "WHAT IS AND IS NOT PROVEN. It is proven that a read-only snapshot was taken",
+    `at ${LIVE.observedAt} and contained the values below, and that those values`,
+    "reached this package unaltered. It is NOT proven that they still hold. The",
+    "current live state is UNKNOWN until the authorised rollout preflight reads",
+    "it again; every number here describes one timestamped observation, not now.",
   ].join("\n");
 }
 
@@ -350,6 +459,8 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     ].join("\n"),
 
     OBSERVED_AT: LIVE.observedAt,
+    SNAPSHOT_PROVENANCE: snapshotProvenance(parent, headShort, parentShort),
+    PROJECT_MAPPING_TABLE: renderMappingTable(),
     BUCKETS: String(LIVE.buckets),
     OLDEST_H: String(LIVE.oldestBucketHours),
     NEWEST_H: String(LIVE.newestBucketHours),
@@ -383,6 +494,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     ).join("\n"),
 
     GATE_BLOCK: gateBlock(),
+    GATE_REPEAT_BLOCK: gateRepeatBlock(),
     ARCHIVE_ENTRIES: String(shape.stagedFiles + 1),
     MANIFEST_FILES: String(shape.stagedFiles),
   };

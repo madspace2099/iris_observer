@@ -26,7 +26,8 @@
     "release:wrappers": "tsx scripts/release/wrap-migration.ts",
     "release:gates": "tsx scripts/release/run-gates.ts",
     "release:package": "tsx scripts/release/build-package.ts",
-    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit"
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
+    "release:gates:repeat": "tsx scripts/release/run-gates.ts --repeat=5"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

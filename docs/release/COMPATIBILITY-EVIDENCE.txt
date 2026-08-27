@@ -79,6 +79,8 @@ Vercel. No value, no scope and no presence claim: presence is item 3 above.
   ------------------------------------  ----------------------------  ---------
   OBSERVER_SUBJECT_PEPPER               ANY answer at all                 yes
   SUPABASE_URL                          ceiling and durable audit         no
+                                        FIRST-CHOICE SERVER SOURCE, and
+                                        MANDATORY under the rollout contract
   SUPABASE_SECRET_KEY                   the same, server-side only        yes
   OPENAI_API_KEY                        a MODEL-authored answer           yes
   OBSERVER_AI_ENABLED                   the model path; default true      no
@@ -89,12 +91,35 @@ Vercel. No value, no scope and no presence claim: presence is item 3 above.
   OBSERVER_VOICE_ENABLED                the voice routes                  no
   OBSERVER_DATA_SOURCE                  pinned to `synthetic`             no
   OBSERVER_ENVIRONMENT                  labelling                         no
-  NEXT_PUBLIC_SUPABASE_URL              optional; browser diagnostics     no
+  NEXT_PUBLIC_SUPABASE_URL              browser-exposed, AND a current     no
+                                        SERVER FALLBACK — see below
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  optional; browser diagnostics     no
   DEVICE_CREDENTIAL_PEPPER              OpenAI safety id; optional        yes
 
   `OBSERVER_ALLOWED_MODELS` is NOT a variable this code reads — the model
   allowlist is compile-time. Named because it was asked about.
+
+  THE TWO SUPABASE URLS, DESCRIBED SEPARATELY. An earlier edition of this table
+  called `NEXT_PUBLIC_SUPABASE_URL` "optional; browser diagnostics", which
+  contradicts the resolver in the same repository.
+
+    `SUPABASE_URL`             the FIRST-CHOICE SERVER SOURCE, used whenever it
+                              is present and usable, and MANDATORY under the
+                              release rollout contract.
+
+    `NEXT_PUBLIC_SUPABASE_URL` a BROWSER-EXPOSED value, AND — as the code
+                              currently stands — A SERVER FALLBACK: when
+                              `SUPABASE_URL` is absent or blank,
+                              `apps/web/src/lib/supabase-env.ts` resolves the
+                              server's destination from it.
+                              THAT FALLBACK IS REJECTED BY THE ROLLOUT
+                              CONTRACT. Runtime permits it; the preflight does
+                              not, and stops.
+
+  So the honest statement is NOT "only `SUPABASE_URL` can ever be used by the
+  runtime". It is: `SUPABASE_URL` is what the runtime uses WHEN VALID AND
+  PRESENT, and the resolver as written contains the fallback above. The rollout
+  closes the gap by refusing to advance while the fallback is what is in effect.
 
   The preflight reads the real names and scopes from the Vercel dashboard or
   CLI, never the values, and classifies the pepper as ABSENT, UNIFORM or
@@ -190,7 +215,7 @@ that explicitly includes EVERY `3f298a6` deployment. The `3515402` `main` builds
 may remain ONLY because they contain no quota module at all — evidence recorded
 here, not assumed.
 
-  Live database, re-read this round:
+  Live database — ONE TIMESTAMPED OBSERVATION, not a reading taken now:
     public.admit_ai_request(13)  complete_ai_request(14)  consume_ai_quota(7)
     observer_whoami(0)           record_ai_request(13)
     pg_cron 0 · no cron schema · observer.maintenance absent

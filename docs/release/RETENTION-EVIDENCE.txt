@@ -19,9 +19,10 @@ file names a hash the package cannot account for.
 1. THE LIVE DATABASE — ONE READ-ONLY QUERY, ONE TIMESTAMP
 ================================================================================
 
-Observed at {{OBSERVED_AT}} by a single read-only query. No write was issued.
-Nothing below exposes a subject, a fingerprint, a key or the contents of any
-row.
+{{SNAPSHOT_PROVENANCE}}
+
+A single read-only query produced it. No write was issued. Nothing below
+exposes a subject, a fingerprint, a key or the contents of any row.
 
   rate buckets present                                     {{BUCKETS}}
   oldest bucket, by window_start                           {{OLDEST_H}} hours
@@ -33,11 +34,12 @@ row.
   pg_cron installed                                        {{PG_CRON}}
   observer.run_rate_bucket_retention exists                {{RETENTION_FN}}   (migration 4 unapplied)
 
-THE OLDEST BUCKET IS PAST THE THRESHOLD. Recorded at {{BUCKET_HISTORY}} hours
-across successive rounds. {{THRESHOLD_H}} is the deletion threshold migration 4
-will enforce, and nothing removed the row when it got there — because nothing
-prunes. The claim this evidence exists to support is not hypothetical: the table
-is holding data past the age the documentation promises.
+AT THAT OBSERVATION THE OLDEST BUCKET WAS PAST THE THRESHOLD. Recorded at
+{{BUCKET_HISTORY}} hours across successive rounds. {{THRESHOLD_H}} is the
+deletion threshold migration 4 will enforce, and nothing had removed the row
+when it got there — because nothing prunes. The claim this evidence exists to
+support was not hypothetical at {{OBSERVED_AT}}: the table was holding data past
+the age the documentation promises. Whether it still is, is UNKNOWN here.
 
 THIS IS THE ONLY PLACE THE LIVE NUMBERS ARE STATED IN FULL. Every other file in
 this package renders the same fields from the same snapshot object and refers
@@ -133,8 +135,9 @@ Once applied and while the scheduler is healthy:
   legal retention             a pre-production review gate, unresolved
 
 NOT an unconditional guarantee. A stopped pg_cron worker stops deleting and
-nothing in the database notices on its own. Section 1 is what that looks like in
-practice: {{OLDEST_H}} hours and rising, with the threshold already behind it.
+nothing in the database notices on its own. Section 1 is what that looked like
+in practice at {{OBSERVED_AT}}: {{OLDEST_H}} hours, with the threshold already
+behind it.
 
 
 ================================================================================

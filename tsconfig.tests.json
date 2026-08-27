@@ -40,6 +40,8 @@
     "supabase/test/artefact-consistency.test.ts",
     "supabase/test/package-generation.test.ts",
     "supabase/test/project-mapping.test.ts",
+    "supabase/test/supabase-resolver.test.ts",
+    "supabase/test/gate-runner.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }

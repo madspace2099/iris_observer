@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
+import { PROJECT_MAPPING_STATES, renderMappingTable } from "../../scripts/release/preflight";
 
 /**
  * Which Supabase project a deployment writes to, proved from the right variable.
@@ -13,11 +14,17 @@ import { describe, expect, it } from "vitest";
  * `SUPABASE_URL` is the server-side variable the durable audit and quota path
  * writes through — "Server-only. Never NEXT_PUBLIC_, never logged" in both
  * `.env.example` and the environment schema. `NEXT_PUBLIC_SUPABASE_URL` is a
- * separately named, optional, browser-exposed variable. Next.js inlines a
- * variable into the client bundle if and only if its name begins with
- * `NEXT_PUBLIC_`, so the server variable is NOT browser-bundled — and an
+ * separately named, browser-exposed variable — and, as the resolver currently
+ * stands, a server FALLBACK when the server variable is absent or blank. An
  * operator entitled to read "either" could have found the approved ref in the
  * public one and recorded the mapping as proved while the route wrote elsewhere.
+ *
+ * Nothing in this repository maps `SUPABASE_URL` into the client bundle:
+ * `apps/web/next.config.ts` declares no `env` map, no runtime config and no
+ * `DefinePlugin`. That is asserted below against the file itself, rather than
+ * assumed from the framework — Next.js CAN bundle an arbitrary name through an
+ * explicit `env` map, so "if and only if it begins with NEXT_PUBLIC_" is a
+ * claim this repository is not entitled to make.
  *
  * ## Why every assertion here is standalone rather than loose
  *
@@ -29,6 +36,15 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
+
+/**
+ * The evidence files are TEMPLATES, and the state table arrives through a
+ * placeholder. Asserting on the raw template would test the placeholder rather
+ * than what an operator reads, so the one placeholder these assertions depend
+ * on is resolved from the same module the packager uses.
+ */
+const readRendered = (p: string): string =>
+  read(p).split("{{PROJECT_MAPPING_TABLE}}").join(renderMappingTable());
 
 const PEPPER = "docs/release/PEPPER-CONTRACT.txt";
 const RUNBOOK = "docs/18-deployment.md";
@@ -238,5 +254,121 @@ describe("the project-mapping rule names the right variable", () => {
       }
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+/**
+ * The preflight states, as the documents state them.
+ *
+ * The behavioural half lives in `supabase-resolver.test.ts`, which executes
+ * `classifyProjectMapping`. This half asserts that the documents an operator
+ * actually reads carry the same verdicts — because the defect being corrected
+ * was not a wrong rule, it was a rule stated in one place and contradicted in
+ * another.
+ */
+describe("every project-mapping state has a documented verdict", () => {
+  const COMPAT = "docs/release/COMPATIBILITY-EVIDENCE.txt";
+
+  it.each(ARTEFACTS)("%s names every state and its verdict", (_label, path) => {
+    const text = readRendered(path);
+    for (const state of PROJECT_MAPPING_STATES) {
+      expect(text, state.name).toContain(state.name);
+    }
+    /* And the verdicts themselves, so a state cannot be named without one. */
+    for (const verdict of ["PASS", "STOP", "PAUSE"]) {
+      expect(text, verdict).toContain(verdict);
+    }
+  });
+
+  it.each(ARTEFACTS)("%s makes an absent or blank server URL a STOP", (_label, path) => {
+    const text = readRendered(path);
+    expect(text).toMatch(/SERVER_URL_ABSENT/);
+    expect(text).toMatch(phrase("absent, empty or whitespace"));
+    /* The state and the verdict must sit together, not in different sections. */
+    const at = text.indexOf("SERVER_URL_ABSENT");
+    expect(text.slice(at, at + 400)).toMatch(/STOP/);
+  });
+
+  it.each(ARTEFACTS)("%s says the fallback is never a proved mapping", (_label, path) => {
+    const text = readRendered(path);
+    expect(text).toMatch(phrase("does not convert"));
+    expect(text).toMatch(/approved project/i);
+    expect(text).toMatch(phrase("most tempting way past this gate"));
+  });
+
+  it.each(ARTEFACTS)("%s requires every correction to restart step 1", (_label, path) => {
+    const text = readRendered(path);
+    const restarts = text.match(/restart\s+(of\s+)?preflight\s+step\s+1/gi) ?? [];
+    /*
+     * One per STOP state at least. A single mention at the bottom of a section
+     * is how a reader finishes the table and carries on.
+     */
+    const stops = PROJECT_MAPPING_STATES.filter((s) => s.verdict === "STOP").length;
+    expect(
+      restarts.length,
+      `${restarts.length} restart instructions for ${stops} STOP states`,
+    ).toBeGreaterThanOrEqual(stops);
+  });
+
+  it("the compatibility table records the fallback rather than calling it diagnostics", () => {
+    const text = read(COMPAT);
+    expect(text).toMatch(phrase("SERVER FALLBACK"));
+    expect(text).toMatch(phrase("REJECTED BY THE ROLLOUT CONTRACT"));
+    expect(text).toMatch(phrase("FIRST-CHOICE SERVER SOURCE"));
+    /* The contradicted description must not survive as an unqualified claim. */
+    expect(text).not.toMatch(/NEXT_PUBLIC_SUPABASE_URL\s+optional; browser diagnostics/);
+  });
+
+  it("no artefact claims only the server variable can ever be used", () => {
+    const CLAIM = /only\s+`?SUPABASE_URL`?\s+(can|is)\s+(ever\s+)?(be\s+)?used/gi;
+    for (const path of [...ARTEFACTS.map(([, p]) => p), COMPAT]) {
+      const text = read(path);
+      for (const m of text.matchAll(CLAIM)) {
+        /*
+         * Allowed only where the document is explicitly saying this is NOT the
+         * honest statement. A retraction has to be able to quote what it
+         * retracts; an unqualified assertion may not stand.
+         */
+        const before = text.slice(Math.max(0, (m.index ?? 0) - 80), m.index ?? 0);
+        expect(before, `${path}: unqualified — "${m[0]}"`).toMatch(/\bNOT\b|never|rather than/i);
+      }
+    }
+    /* And the qualified statement is present where the contradiction was. */
+    expect(read(COMPAT)).toMatch(phrase("WHEN VALID AND PRESENT"));
+  });
+
+  it("the numbered rollout cannot reach approval without a proved mapping", () => {
+    const runbook = read(RUNBOOK);
+    expect(runbook).toMatch(phrase("Must return"));
+    expect(runbook).toMatch(/MAPPED/);
+    expect(runbook).toMatch(phrase("Unreachable until step 1 returns PASS"));
+  });
+
+  it("no artefact makes the framework-wide bundling claim", () => {
+    /*
+     * `next.config.*` can bundle an arbitrary name through its `env` map, so
+     * "if and only if its name begins with NEXT_PUBLIC_" is a claim about
+     * Next.js that this repository is not entitled to make.
+     */
+    for (const path of [...ARTEFACTS.map(([, p]) => p), COMPAT]) {
+      const text = read(path);
+      const at = text.search(/if and only if its name begins with/i);
+      if (at === -1) continue;
+      const around = text.slice(Math.max(0, at - 400), at + 400);
+      expect(around, `${path} states it without retracting it`).toMatch(
+        /not entitled|overstate|earlier edition|also honours|is not the only one/i,
+      );
+    }
+  });
+
+  it("the application-specific fact is proven against the config file", () => {
+    /*
+     * The replacement claim, checked here rather than believed: no explicit
+     * client-bundle mapping of any kind exists in this repository.
+     */
+    const config = read("apps/web/next.config.ts");
+    expect(config).not.toMatch(/^\s*env\s*:/m);
+    expect(config).not.toMatch(/publicRuntimeConfig|serverRuntimeConfig|DefinePlugin/);
+    expect(config).not.toMatch(/(?<![A-Z0-9_])SUPABASE_URL\b/);
   });
 });

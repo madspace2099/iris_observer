@@ -4,15 +4,18 @@ Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
 THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
 been reviewed.
 
-Scope: one defect, in documentation and tests only. The preflight rule for
-proving WHICH SUPABASE PROJECT a deployment writes to treated
-`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_URL` as interchangeable, and claimed
-the server-side variable was compiled into the browser bundle. Neither is true.
+Scope: the evidence contract and the release gate. The preflight recorded the
+server-variable fallback as a "finding" and gave no verdict; the compatibility
+table still called the browser-exposed variable "browser diagnostics" while the
+resolver uses it as a server fallback; four documents made freshness claims
+about a snapshot nobody re-read; and the intermittent test-gate failure was
+recorded as the single word FAILED, discarding the only evidence that could
+explain it.
 
-NOTHING ELSE MOVED. No application runtime code, no executable migration SQL, no
-SQL verifier, no migration source. The recorded live snapshot was NOT refreshed —
-no Supabase query was made this round, and the hour count is the one observed
-last round, deliberately unchanged.
+NOTHING ELSE MOVED. No application runtime code, no executable migration SQL,
+no migration source, no SQL verifier, no SQL prerequisite. NO EXTERNAL ACCESS
+OF ANY KIND OCCURRED — no Supabase query, no Vercel read, no HTTP request. Git
+state was read from the local repository only.
 
 Sections 1 to 8 below carry the whole cumulative record for this release
 candidate, not just this round's change; section 1 opens with what this round
@@ -34,8 +37,9 @@ reading one bundle should not have to reconstruct the others.
   local HEAD now                    {{HEAD}}
   behind / ahead                    {{BEHIND}} / {{AHEAD}}
 
-MIGRATIONS — verified by ONE read-only catalogue query against the live
-database, the only external access this milestone made:
+MIGRATIONS — as recorded by the catalogue query in the carried-forward
+snapshot. NOT re-read at {{HEAD_SHORT}}; see the provenance line in
+RETENTION-EVIDENCE.txt section 1:
 
   APPLIED
     20260825121909  observer_ai_rate_limiting
@@ -49,7 +53,7 @@ database, the only external access this milestone made:
     20260826140000  observer_bucket_retention                  ("migration 4")
     20260826090000  observer_audit_facade_cleanup   (the CONTRACT migration)
 
-  The evidence, every field from the same query:
+  The evidence, every field from that one query, at {{OBSERVED_AT}}:
     public.admit_ai_request has {{ADMIT_ARGS}} arguments, not 15  -> migration 3 unapplied
     observer.ai_requests.pseudonym_version columns: {{PSEUDONYM_COL}}  -> migration 3 unapplied
     observer.run_rate_bucket_retention: {{RETENTION_FN}}           -> migration 4 unapplied
@@ -77,6 +81,112 @@ NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 1. WHAT THIS ROUND FIXED
 ================================================================================
 
+THIS ROUND, A — a recorded state with no decision attached.
+
+The preceding round established the fact and stopped there: an absent or blank
+`SUPABASE_URL` activates the resolver's fallback to the browser-exposed
+variable, and the preflight was told to "record that as a fallback in effect
+… and treat it as a finding". A finding is not a decision. The same document
+says three paragraphs earlier that the public variable must never substitute for
+the authoritative server mapping, so the operator was being told the mapping was
+unproved and given no instruction that stopped them.
+
+EVERY STATE NOW CARRIES A VERDICT, and none of them says "note it and continue":
+
+  TOOLING_CANNOT_ISOLATE   PAUSE   Matthew reads it in the dashboard
+  SERVER_URL_ABSENT        STOP    the fallback is in effect; correct and restart
+  SERVER_URL_MALFORMED     STOP    no fallback happens; there is no destination
+  SERVER_PROJECT_WRONG     STOP    a different ref is a different database
+  PROJECTS_DISAGREE        STOP    browser and server are on two databases
+  MAPPED                   PASS    record the ref; step 2 may be reached
+
+A PUBLIC URL NAMING THE APPROVED PROJECT DOES NOT CONVERT THE FALLBACK INTO A
+PASS. It is the most tempting way past this gate and precisely the substitution
+the rule forbids. Every non-PASS state requires an explicit operator decision, a
+configuration correction, and a RESTART OF PREFLIGHT STEP 1; the numbered
+rollout now says step 2 is unreachable until step 1 returns PASS for every
+relevant environment.
+
+The table lives in `scripts/release/preflight.ts` and is RENDERED into the
+pepper contract, so the rule the documents state is the rule
+`supabase/test/supabase-resolver.test.ts` executes.
+
+THIS ROUND, B — the compatibility table still contradicted the resolver.
+
+It listed `NEXT_PUBLIC_SUPABASE_URL` as "optional; browser diagnostics", which
+is not what the code does with it. The two are now described separately:
+`SUPABASE_URL` is the first-choice server source and mandatory under the rollout
+contract; `NEXT_PUBLIC_SUPABASE_URL` is browser-exposed AND a current server
+fallback that the rollout contract rejects. The unqualified claim that only the
+server variable can ever be used by the runtime is gone — it is used WHEN VALID
+AND PRESENT, and the resolver as written contains the fallback.
+
+THIS ROUND, C — a framework claim this repository could not make.
+
+"Next.js inlines a variable into the client bundle if and only if its name
+begins with `NEXT_PUBLIC_`" is false as stated: `next.config.*` also honours an
+explicit `env` map that can bundle any name. Replaced with a proven,
+application-specific fact — `apps/web/next.config.ts` declares no `env` map, no
+`publicRuntimeConfig`, no `serverRuntimeConfig` and no `DefinePlugin`, so nothing
+here maps `SUPABASE_URL` into the client bundle. Asserted against the file, and
+checked empirically by `pnpm audit:secrets`, which scans the BUILT bundle. NO
+SUCH MAPPING EXISTS; had one been found this milestone would have stopped and
+reported it.
+
+THIS ROUND, D — the resolver test did not execute the resolver.
+
+It asserted that `URL_NAMES` was a particular array literal. The array could
+have stayed exactly as written while `read()` stopped honouring its order, and
+every document built on "in that order" would still have read as proved.
+`supabase/test/supabase-resolver.test.ts` now drives the exported
+`resolveServerSupabase` and `diagnoseServerSupabase` through seven behaviours —
+server preferred over public, absent falls back, blank falls back, malformed
+refuses rather than falling back, mismatched projects still select the server at
+runtime while the preflight STOPs, server-only, and nothing usable — with
+synthetic URLs and one fixed synthetic credential. No generator, no print.
+
+THIS ROUND, E — four documents claimed a freshness nobody had.
+
+The package asserted "no Supabase query was made this round", "verified by one
+live query, the only external access this milestone made", "Live database,
+re-read this round" and "the oldest bucket is now N hours". Those cannot all be
+true. What is proven is narrower and is now stated that way: a read-only
+snapshot was observed at {{OBSERVED_AT}}, it contained the recorded values, and
+it reached this package unaltered. The current live state is UNKNOWN.
+
+Freshness is now DERIVED, not asserted. `live-snapshot.ts` is the only place a
+reading may be recorded, so comparing its bytes with the last delivered bundle
+answers the question mechanically — see section 3a, which is rendered from that
+comparison. A package cannot claim a carried-forward snapshot was read during
+the current milestone, and the packager refuses to build one that tries. NO NEW
+QUERY WAS RUN TO MAKE THE OLD WORDING TRUE.
+
+THIS ROUND, F — the intermittent gate failure left no evidence.
+
+The test gate exited non-zero twice in five runs while Vitest's JSON report
+declared every test passing. The runner stored `FAILED`, printed a transient
+tail, and discarded the exit status, the terminating signal and the spawn error
+code — the only three facts that separate a runner-level exit from a suite
+result.
+
+It uses `spawnSync` now and keeps a typed result: `ok`, `status`, `signal`,
+`errorCode`, `reportSuccess`, `reportedFailedTests`, `countedFailedTests`. The
+gate is fail-closed on each independently — non-zero status, missing or
+unparseable report, `success !== true`, and either count of failed tests — and
+there is no retry anywhere in it, because re-running until the answer is green
+is how an intermittent fault becomes an invisible one. Two counts of failed
+tests are kept because a summary field and the assertion results are two claims.
+
+NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
+a production build; either could print an environment value some future code
+path logs, and `.release/gate-results.json` is a file somebody zips and hands to
+a reviewer. Only sanitized process metadata reaches disk; a bounded tail reaches
+the local console and nothing else. `supabase/test/gate-runner.test.ts` drives
+real child processes for a clean exit, a known non-zero code, a spawn failure
+and — on POSIX — a signal, and asserts the persisted record has no output field.
+
+{{GATE_REPEAT_BLOCK}}
+
 THIS ROUND — a preflight step could have proved the wrong database.
 
 Step 1 of the rollout exists to establish which Supabase project each Vercel
@@ -97,10 +207,11 @@ following the "or" would have been entitled to read the public one, find the
 approved ref, and record the mapping as proved — while the route wrote somewhere
 else entirely.
 
-`SUPABASE_URL` IS NOT IN THE BROWSER BUNDLE. Next.js inlines a variable into
-the client bundle if and only if its name begins with `NEXT_PUBLIC_`. The
-sentence justified reading either variable by a property only one of them has,
-which is exactly how a reader concludes the two are equivalent.
+`SUPABASE_URL` IS NOT IN THE BROWSER BUNDLE. The sentence justified reading
+either variable by a property only one of them has, which is exactly how a
+reader concludes the two are equivalent. (The replacement wording said "if and
+only if its name begins with `NEXT_PUBLIC_`", which overstated the framework;
+see THIS ROUND above for the application-specific fact that replaced it.)
 
 THE RULE IS NOW EXACT: inspect the standalone `SUPABASE_URL` for every relevant
 environment, extract and record ONLY the project reference, require it to equal
@@ -115,10 +226,11 @@ from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]` IN THAT ORDER, first
 set-and-usable wins. So `NEXT_PUBLIC_SUPABASE_URL` is not merely browser
 diagnostics: when `SUPABASE_URL` is unset or blank, the SERVER falls back to it.
 That makes the rule tighter rather than looser — an absent `SUPABASE_URL` is not
-"no destination", it is a silent fallback through a browser-exposed variable,
-and the preflight now records it as a finding rather than as a mapping. (A
-MALFORMED `SUPABASE_URL` does not fall back at all: the resolver stops at the
-first name that is set, and reports it unusable.)
+"no destination", it is a silent fallback through a browser-exposed variable.
+That round recorded it as a FINDING, which was not enough; see THIS ROUND above
+for the verdict it now carries. (A MALFORMED `SUPABASE_URL` does not fall back
+at all: the resolver stops at the first name that is set, and reports it
+unusable.)
 
 The regression tests reject both orderings of the substitution wording, assert
 against a STANDALONE variable name rather than a loose match — `SUPABASE_URL` is
@@ -307,16 +419,44 @@ Executed here, reproducible with `pnpm test` and `pnpm release:package`:
     row 3 — preserved, not mocked;
   * `observer-behaviour-2.sql` reads 21/21 and rolls back to 0 rows, 0 units.
 
-Read-only against the live database, one query at {{OBSERVED_AT}}:
+From the carried-forward observation at {{OBSERVED_AT}} — not re-read here:
 
   * {{BUCKETS}} buckets, oldest {{OLDEST_H}} hours, newest {{NEWEST_H}};
   * {{AUDIT_ROWS}} audit rows, all at `audit_version = 1`;
   * `pseudonym_version` column absent; pg_cron absent; retention function
     absent; both legacy façades still present.
 
-THE OLDEST BUCKET IS NOW {{OLDEST_H}} HOURS, PAST THE {{THRESHOLD_H}}-HOUR
-THRESHOLD migration 4 will enforce. Recorded at {{BUCKET_HISTORY}} across
-successive rounds. Nothing removed it, because nothing prunes.
+AT {{OBSERVED_AT}} THE OLDEST BUCKET WAS {{OLDEST_H}} HOURS, PAST THE
+{{THRESHOLD_H}}-HOUR THRESHOLD migration 4 will enforce. Recorded at
+{{BUCKET_HISTORY}} across successive rounds. Nothing had removed it, because
+nothing prunes. WHETHER THAT IS STILL TRUE IS UNKNOWN — see section 3a.
+
+
+================================================================================
+3a. WHAT IS UNKNOWN AT {{HEAD_SHORT}}
+================================================================================
+
+{{SNAPSHOT_PROVENANCE}}
+
+Consequently, and stated plainly rather than left to be inferred:
+
+  * THE CURRENT LIVE DATABASE STATE IS UNKNOWN. Bucket count, oldest bucket age,
+    audit-row count, whether pg_cron has appeared, whether any migration has been
+    applied — all of it describes {{OBSERVED_AT}} and nothing later.
+  * THE CURRENT DEPLOYMENT INVENTORY IS UNKNOWN. It was last enumerated against
+    Vercel for the f1dbffd bundle and has been carried forward since. No
+    deployment was enumerated, created, redeployed, protected, promoted or
+    deleted in this milestone.
+  * THE CURRENT VERCEL ENVIRONMENT CONFIGURATION IS UNKNOWN. No variable was
+    read, and presence, scope and value of every one of them remain what
+    section 4 says they are: matters for the authorised preflight.
+
+An earlier edition of this package asserted all of "no Supabase query was made
+this round", "verified by one live query, the only external access this
+milestone made", "re-read this round" and "the oldest bucket is now N hours".
+Those cannot all be true. They are now rendered from one computed provenance
+field rather than written four times, and a generation-time check refuses any
+package whose evidence claims freshness the file history does not support.
 
 
 ================================================================================
@@ -357,7 +497,8 @@ successive rounds. Nothing removed it, because nothing prunes.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:
      steps 7, 12 and 13 — the last requiring a real hourly wait.
-  f. THAT ROW AGE FALLS. It is still rising: {{OLDEST_H}} hours.
+  f. THAT ROW AGE FALLS. At the observation it was {{OLDEST_H}} hours and had
+     risen every round; its value now is unknown.
   g. THAT NO FOREIGN CRON JOB EXISTS. There is no `cron` schema to inspect yet.
   h. THAT THE RESPONSE HEADER REACHES A BROWSER through Vercel's proxy.
      Settled by: step 15.
