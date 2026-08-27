@@ -317,8 +317,12 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
   }
   return [
     `OBSERVED AT ${LIVE.observedAt}. CARRIED FORWARD UNCHANGED — NOT RE-READ AT`,
-    `${headShort}. ${SNAPSHOT_FILE} is byte-identical to its copy at`,
-    `${parentShort}, which is what establishes that no query was made this round.`,
+    `${headShort}. The LIVE reading in ${SNAPSHOT_FILE} is byte-identical to`,
+    `its copy at ${parentShort}, which is what establishes that no query was made`,
+    "this round. The comparison is deliberately over the reading and not over the",
+    "whole file, which also carries bookkeeping that changes without anything",
+    "being re-read — comparing the file reported a refresh on a round that made",
+    "no query, which is the fail-open this check exists to prevent.",
     "",
     "WHAT IS AND IS NOT PROVEN. It is proven that a read-only snapshot was taken",
     `at ${LIVE.observedAt} and contained the values below, and that those values`,
