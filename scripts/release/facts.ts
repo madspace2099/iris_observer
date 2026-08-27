@@ -258,18 +258,58 @@ export const SNAPSHOT_FILE = "scripts/release/live-snapshot.ts";
  * during the current milestone, because the claim is computed from whether the
  * file changed.
  */
-export function snapshotRefreshed(baseline: string): boolean {
+export type SnapshotProvenanceState = "refreshed" | "carried-forward" | "unknown";
+
+/**
+ * Just the LIVE object literal, not the whole file.
+ *
+ *  also carries bookkeeping — the delivered-archive hashes,
+ * the inventory provenance — that changes every milestone without anything
+ * being re-read. Comparing the whole file therefore reported "refreshed" on a
+ * round where no query was made, which is the exact fail-open this check
+ * exists to prevent. The reading is the object; the rest is not.
+ */
+function liveBlock(text: string): string {
+  const start = text.indexOf("export const LIVE: LiveSnapshot = {");
+  if (start < 0) throw new Error("no LIVE literal in " + SNAPSHOT_FILE);
+  const end = text.indexOf("};", start);
+  if (end < 0) throw new Error("unterminated LIVE literal in " + SNAPSHOT_FILE);
+  return text.slice(start, end + 2);
+}
+
+export function snapshotState(baseline: string): SnapshotProvenanceState {
   try {
-    return fileShaAt(baseline, SNAPSHOT_FILE) !== sha256(SNAPSHOT_FILE);
+    const then = liveBlock(gitShowBytes(baseline, SNAPSHOT_FILE).toString("utf8"));
+    const now = liveBlock(readFileSync(join(REPO_ROOT, SNAPSHOT_FILE), "utf8"));
+    return then === now ? "carried-forward" : "refreshed";
   } catch {
-    /* No baseline copy: the file is new, so this is its first recording. */
-    return true;
+    /*
+     * The baseline has no copy of the file, so the comparison cannot be made.
+     * That is UNKNOWN, not "new and therefore refreshed": answering the second
+     * way would silently license every freshness claim in the package. It also
+     * means DELIVERED_ARCHIVES is stale, which the provenance text says.
+     */
+    return "unknown";
   }
 }
 
+/** Freshness may only be claimed when the reading demonstrably changed. */
+export function snapshotRefreshed(baseline: string): boolean {
+  return snapshotState(baseline) === "refreshed";
+}
+
 function snapshotProvenance(baseline: string, headShort: string, parentShort: string): string {
-  const refreshed = snapshotRefreshed(baseline);
-  if (refreshed) {
+  const state = snapshotState(baseline);
+  if (state === "unknown") {
+    return [
+      `OBSERVED AT ${LIVE.observedAt}. PROVENANCE UNPROVEN: ${SNAPSHOT_FILE} has no`,
+      `copy at ${parentShort}, so no comparison could be made. That also means the`,
+      "declared list of delivered bundles is stale. Treat the reading as neither",
+      "confirmed fresh nor confirmed carried forward; the current live state is",
+      "UNKNOWN either way.",
+    ].join("\n");
+  }
+  if (state === "refreshed") {
     return [
       `OBSERVED AT ${LIVE.observedAt}, and RE-READ IN THIS MILESTONE:`,
       `${SNAPSHOT_FILE} differs from its copy at ${parentShort}.`,

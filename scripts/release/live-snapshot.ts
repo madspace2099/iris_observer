@@ -98,6 +98,8 @@ export const INVENTORY_UNCHANGED_IN: readonly string[] = [
   "ee954b8",
   "c6fdc73",
   "f1dbffd",
+  "6889aa0",
+  "e18f860",
 ];
 
 /**
@@ -123,6 +125,8 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
   { bundle: "ee954b8", sha256: "cf60c7ca8313a296a64721920d9508fbc20051a6a1a0ef5575e7673241948c43" },
   { bundle: "c6fdc73", sha256: "a5c9b29d9e1fa52cd85b2fe1f15bd0e90e1df9c1e05fe88d7bdbd9d39fc77fa6" },
   { bundle: "f1dbffd", sha256: "7b36f149ffa9bd0a54e84c2ce956c5cadb15fff3e09900c07adac6649e36858d" },
+  { bundle: "6889aa0", sha256: "f9830ad79249367fc0f3df1b25ca4df942261c9857e4bb6972191d1da8f3b7c5" },
+  { bundle: "e18f860", sha256: "29abdb4168763caa93b976e2ac7018ba2f2d61e8fb5a03f9599ef03f964a5896" },
 ];
 
 export interface Deployment {
