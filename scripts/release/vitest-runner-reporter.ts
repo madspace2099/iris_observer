@@ -45,9 +45,11 @@
  * not get shortened or escaped; it is replaced outright.
  */
 
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { freemem, totalmem } from "node:os";
+import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
+import { join } from "node:path";
 
 /** Longest stored identity. Beyond this the value is refused, not truncated. */
 const MAX_IDENTITY = 40;
@@ -166,6 +168,30 @@ export interface RunnerDiagnostics {
   readonly minFreeMemMb: number | null;
   readonly totalMemMb: number;
   readonly memorySamples: number;
+  /**
+   * How late the PARENT's event loop ran, in milliseconds.
+   *
+   * This is the measurement the diagnosis needed and did not have. A worker's
+   * `onTaskUpdate` RPC is answered on this loop; if the loop is blocked past the
+   * RPC deadline the call times out, and Vitest records that as an unhandled
+   * error. Free memory was only ever a proxy for this — one that saturated at
+   * a megabyte in runs that failed AND in runs that were clean, and therefore
+   * could not discriminate. Loop delay is the thing itself.
+   */
+  readonly loopDelayP95Ms: number | null;
+  readonly loopDelayMaxMs: number | null;
+  readonly loopDelayMeanMs: number | null;
+  /** Peak modules executing at once — one per worker, so the real concurrency. */
+  readonly peakConcurrentModules: number;
+  /** Configured bound, as Vitest resolved it. */
+  readonly configuredMaxWorkers: number | null;
+  readonly configuredMinWorkers: number | null;
+  /** Summed from every worker's own count. Must balance on a completed run. */
+  readonly pgliteCreated: number | null;
+  readonly pgliteClosed: number | null;
+  /** The largest number alive at one moment in any single worker. */
+  readonly pglitePeakOpen: number | null;
+  readonly pgliteFilesReporting: number | null;
   /** Proof this file was written by the run it claims to describe. */
   readonly completed: true;
 }
@@ -236,13 +262,69 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
  * Opt-in by environment rather than always-on, so an ordinary `pnpm test` is
  * unchanged and nothing appears on disk unless a caller asked for it.
  */
+/** What one worker recorded about its own PGlite instances. */
+interface PgliteStats {
+  readonly created?: unknown;
+  readonly closed?: unknown;
+  readonly peakOpen?: unknown;
+}
+
+const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+/**
+ * Collect what the workers wrote, then remove it.
+ *
+ * Each worker writes its own file, so nothing depends on concurrent appends
+ * being atomic. The files carry three integers each — no name, no path, no
+ * output — and are deleted once summed.
+ */
+function collectPgliteStats(dir: string): {
+  created: number;
+  closed: number;
+  peakOpen: number;
+  files: number;
+} | null {
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return null;
+  }
+  let created = 0;
+  let closed = 0;
+  let peakOpen = 0;
+  let files = 0;
+  for (const name of entries) {
+    if (!name.endsWith(".json")) continue;
+    try {
+      const s = JSON.parse(readFileSync(join(dir, name), "utf8")) as PgliteStats;
+      created += count(s.created);
+      closed += count(s.closed);
+      peakOpen = Math.max(peakOpen, count(s.peakOpen));
+      files += 1;
+    } catch {
+      /* A malformed file is not evidence; it is also not a reason to stop. */
+    }
+  }
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch {
+    /* Diagnostic scratch. Failing to remove it must not fail the run. */
+  }
+  return { created, closed, peakOpen, files };
+}
+
 export default class RunnerDiagnosticsReporter {
   private start = Date.now();
   private pool = "unknown";
   private maxWorkers: number | null = null;
+  private minWorkers: number | null = null;
   private minFree: number | null = null;
   private samples = 0;
   private sampler: NodeJS.Timeout | null = null;
+  private loop: IntervalHistogram | null = null;
+  private running = 0;
+  private peakModules = 0;
 
   onInit(ctx: unknown): void {
     this.start = Date.now();
@@ -251,8 +333,18 @@ export default class RunnerDiagnosticsReporter {
     if (typeof pool === "string") this.pool = pool;
     const workers = config?.["maxWorkers"];
     if (typeof workers === "number") this.maxWorkers = workers;
+    const least = config?.["minWorkers"];
+    if (typeof least === "number") this.minWorkers = least;
 
     if (process.env["OBSERVER_RUNNER_DIAGNOSTICS"] === undefined) return;
+
+    /*
+     * 10 ms resolution: the RPC deadline is measured in seconds, so anything
+     * finer would be recording scheduler noise rather than the stalls that
+     * miss it.
+     */
+    this.loop = monitorEventLoopDelay({ resolution: 10 });
+    this.loop.enable();
     /*
      * `unref`ed, so sampling can never be the reason a process stays alive —
      * measuring a lifecycle problem must not create one.
@@ -265,12 +357,31 @@ export default class RunnerDiagnosticsReporter {
     this.sampler.unref();
   }
 
+  /*
+   * One module runs per worker at a time, so the peak number executing at once
+   * IS the peak worker count. Vitest exposes no other way to observe what the
+   * pool actually did, as opposed to what it was configured to do.
+   */
+  onTestModuleStart(): void {
+    this.running += 1;
+    this.peakModules = Math.max(this.peakModules, this.running);
+  }
+
+  onTestModuleEnd(): void {
+    this.running = Math.max(0, this.running - 1);
+  }
+
   onTestRunEnd(
     testModules: readonly unknown[],
     unhandledErrors: readonly unknown[],
     reason: unknown,
   ): void {
     if (this.sampler !== null) clearInterval(this.sampler);
+    const loop = this.loop;
+    if (loop !== null) loop.disable();
+    const ms = (n: number): number => Math.round((n / 1_000_000) * 100) / 100;
+    const statsDir = process.env["OBSERVER_PGLITE_STATS"];
+    const stats = statsDir === undefined ? null : collectPgliteStats(statsDir);
     const out = process.env["OBSERVER_RUNNER_DIAGNOSTICS"];
     if (out === undefined || out === "") return;
 
@@ -290,6 +401,16 @@ export default class RunnerDiagnosticsReporter {
       minFreeMemMb: this.minFree,
       totalMemMb: Math.round(totalmem() / 1_048_576),
       memorySamples: this.samples,
+      loopDelayP95Ms: loop === null ? null : ms(loop.percentile(95)),
+      loopDelayMaxMs: loop === null ? null : ms(loop.max),
+      loopDelayMeanMs: loop === null ? null : ms(loop.mean),
+      peakConcurrentModules: this.peakModules,
+      configuredMaxWorkers: this.maxWorkers,
+      configuredMinWorkers: this.minWorkers,
+      pgliteCreated: stats?.created ?? null,
+      pgliteClosed: stats?.closed ?? null,
+      pglitePeakOpen: stats?.peakOpen ?? null,
+      pgliteFilesReporting: stats?.files ?? null,
       completed: true,
     };
     writeFileSync(out, `${JSON.stringify(diagnostics, null, 2)}\n`, "utf8");

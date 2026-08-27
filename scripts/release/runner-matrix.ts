@@ -157,6 +157,17 @@ export interface CaseResult {
   readonly minFreeMemMb: number | null;
   readonly totalMemMb: number | null;
   readonly memorySamples: number | null;
+  readonly loopDelayP95Ms: number | null;
+  readonly loopDelayMaxMs: number | null;
+  readonly loopDelayMeanMs: number | null;
+  readonly peakConcurrentModules: number | null;
+  readonly configuredMaxWorkers: number | null;
+  readonly pgliteCreated: number | null;
+  readonly pgliteClosed: number | null;
+  readonly pglitePeakOpen: number | null;
+  readonly pgliteFilesReporting: number | null;
+  /** What this run was asked to use. Null means the Vitest default. */
+  readonly requestedWorkers: number | null;
   readonly pool: string | null;
   readonly maxWorkers: number | null;
   readonly durationMs: number | null;
@@ -194,7 +205,7 @@ export function classifyShape(r: {
   return "GREEN PROCESS, RED REPORT";
 }
 
-function runOneCase(c: MatrixCase, pass: number): CaseResult {
+function runOneCase(c: MatrixCase, pass: number, workers: number | null): CaseResult {
   const before = c.before.map((s) => ({
     label: s.label,
     result: sanitize(runProcess(s.command, s.args, { cwd: REPO_ROOT, shell: s.shell })),
@@ -203,6 +214,7 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
   const stamp = `${String(process.pid)}-${String(Date.now())}`;
   const reportFile = join(tmpdir(), `observer-matrix-report-${stamp}.json`);
   const diagFile = join(tmpdir(), `observer-matrix-diag-${stamp}.json`);
+  const statsDir = join(tmpdir(), `observer-matrix-pglite-${stamp}`);
 
   const args = [
     "run",
@@ -210,7 +222,15 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
     `--outputFile.json=${reportFile}`,
     `--reporter=${REPORTER}`,
     ...(c.poolOverride === undefined ? [] : [`--pool=${c.poolOverride}`]),
-    ...(c.maxWorkers === undefined ? [] : [`--maxWorkers=${c.maxWorkers}`]),
+    /*
+     * BOTH bounds, and this is not belt-and-braces. The forks pool keeps
+     * minWorkers processes alive independently of maxWorkers; setting only the
+     * maximum leaves the floor at the default, and the pool then holds more
+     * processes than the bound suggests.
+     */
+    ...(workers === null
+      ? []
+      : [`--maxWorkers=${String(workers)}`, `--minWorkers=${String(workers)}`]),
   ];
 
   const spawned =
@@ -218,12 +238,20 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
       ? runProcess("pnpm", ["exec", "vitest", ...args], {
           cwd: REPO_ROOT,
           shell: NEEDS_SHELL,
-          env: { ...process.env, OBSERVER_RUNNER_DIAGNOSTICS: diagFile },
+          env: {
+            ...process.env,
+            OBSERVER_RUNNER_DIAGNOSTICS: diagFile,
+            OBSERVER_PGLITE_STATS: statsDir,
+          },
         })
       : runProcess(process.execPath, [VITEST_BIN, ...args], {
           cwd: REPO_ROOT,
           shell: false,
-          env: { ...process.env, OBSERVER_RUNNER_DIAGNOSTICS: diagFile },
+          env: {
+            ...process.env,
+            OBSERVER_RUNNER_DIAGNOSTICS: diagFile,
+            OBSERVER_PGLITE_STATS: statsDir,
+          },
         });
 
   const reportWritten = existsSync(reportFile);
@@ -261,6 +289,7 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
 
   rmSync(reportFile, { force: true });
   rmSync(diagFile, { force: true });
+  rmSync(statsDir, { recursive: true, force: true });
 
   const partial = {
     processStatus: spawned.status,
@@ -297,6 +326,16 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
     minFreeMemMb: diag?.minFreeMemMb ?? null,
     totalMemMb: diag?.totalMemMb ?? null,
     memorySamples: diag?.memorySamples ?? null,
+    loopDelayP95Ms: diag?.loopDelayP95Ms ?? null,
+    loopDelayMaxMs: diag?.loopDelayMaxMs ?? null,
+    loopDelayMeanMs: diag?.loopDelayMeanMs ?? null,
+    peakConcurrentModules: diag?.peakConcurrentModules ?? null,
+    configuredMaxWorkers: diag?.configuredMaxWorkers ?? null,
+    pgliteCreated: diag?.pgliteCreated ?? null,
+    pgliteClosed: diag?.pgliteClosed ?? null,
+    pglitePeakOpen: diag?.pglitePeakOpen ?? null,
+    pgliteFilesReporting: diag?.pgliteFilesReporting ?? null,
+    requestedWorkers: workers,
     pool: diag?.pool ?? null,
     maxWorkers: diag?.maxWorkers ?? null,
     durationMs: diag?.durationMs ?? null,
@@ -309,26 +348,53 @@ function line(r: CaseResult): string {
   const unhandled = r.reportedUnhandledErrors === null ? "?" : String(r.reportedUnhandledErrors);
   const ids = [
     ...r.sanitizedUnhandledErrorNames,
-    ...r.sanitizedUnhandledErrorCodes,
     ...r.sanitizedUnhandledErrorSubsystems,
     ...r.sanitizedUnhandledErrorOperations,
   ]
-    .filter((s) => s !== "(none)")
+    .filter((x) => x !== "(none)")
     .join("/");
-  return (
-    `  ${r.id}.${String(r.pass)}  status=${String(r.processStatus)} ` +
-    `success=${String(r.reportSuccess)} failed=${String(r.failedTests)} ` +
-    `suites=${String(r.failedSuites)} unhandled=${unhandled}` +
-    `${ids === "" ? "" : ` [${ids}]`} minFree=${String(r.minFreeMemMb)}MB  ${r.shape}`
-  );
+  const w = r.requestedWorkers === null ? "default" : String(r.requestedWorkers);
+  const tag = ids === "" ? "" : ` [${ids}]`;
+  return [
+    `  ${r.id}.${String(r.pass)}`,
+    `w=${w.padEnd(7)}`,
+    `status=${String(r.processStatus)}`,
+    `success=${String(r.reportSuccess)}`,
+    `failed=${String(r.failedTests)}/${String(r.failedSuites)}`,
+    `unhandled=${unhandled}${tag}`,
+    `peakMod=${String(r.peakConcurrentModules)}`,
+    `pgPeak=${String(r.pglitePeakOpen)}`,
+    `pg=${String(r.pgliteCreated)}/${String(r.pgliteClosed)}`,
+    `loopP95=${String(r.loopDelayP95Ms)}ms`,
+    `loopMax=${String(r.loopDelayMaxMs)}ms`,
+    `minFree=${String(r.minFreeMemMb)}MB`,
+    `tests=${String(r.totalTests)}/${String(r.skippedTests)}`,
+    `${String(Math.round((r.durationMs ?? 0) / 1000))}s`,
+    ` ${r.shape}`,
+  ].join(" ");
 }
 
 function main(): void {
   const runsArg = process.argv.find((a) => a.startsWith("--runs="));
   const onlyArg = process.argv.find((a) => a.startsWith("--only="));
-  const runs = runsArg === undefined ? 1 : Math.max(1, Math.min(5, Number(runsArg.split("=")[1])));
+  const workersArg = process.argv.find((a) => a.startsWith("--workers="));
+  const outArg = process.argv.find((a) => a.startsWith("--out="));
+  const runs = runsArg === undefined ? 1 : Math.max(1, Math.min(12, Number(runsArg.split("=")[1])));
   const only = onlyArg?.split("=")[1];
   const cases = only === undefined ? CASES : CASES.filter((c) => c.id === only);
+  /*
+   * --workers=default,8,4,2,1 sweeps concurrency with everything else held
+   * fixed. "default" means whatever Vitest chooses, which is the setting the
+   * failures were observed under and therefore the one every candidate is
+   * compared against.
+   */
+  const sweep: (number | null)[] =
+    workersArg === undefined
+      ? [null]
+      : (workersArg.split("=")[1] ?? "")
+          .split(",")
+          .filter((v) => v !== "")
+          .map((v) => (v === "default" ? null : Number(v)));
 
   const head = git("rev-parse", "HEAD");
   console.log(
@@ -340,11 +406,14 @@ function main(): void {
   const results: CaseResult[] = [];
   for (let pass = 1; pass <= runs; pass += 1) {
     for (const c of cases) {
-      process.stdout.write(`  ${c.id}.${String(pass)}  ${c.what} … `);
-      const r = runOneCase(c, pass);
-      results.push(r);
-      console.log("");
-      console.log(line(r));
+      for (const workers of sweep) {
+        const w = workers === null ? "default" : String(workers);
+        process.stdout.write(`  ${c.id}.${String(pass)} w=${w}  ${c.what} … `);
+        const r = runOneCase(c, pass, workers);
+        results.push(r);
+        console.log("");
+        console.log(line(r));
+      }
     }
   }
 
@@ -355,14 +424,30 @@ function main(): void {
   );
   for (const r of runnerLevel) console.log(line(r));
 
-  mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
-  writeFileSync(
-    join(REPO_ROOT, ".release", "runner-matrix.json"),
-    `${JSON.stringify({ head, results }, null, 2)}\n`,
-    "utf8",
-  );
+  /* Per worker count, because that is the variable under test. */
+  const avg = (xs: number[]): number =>
+    xs.length === 0 ? 0 : Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
   console.log("");
-  console.log("  recorded to .release/runner-matrix.json");
+  console.log("  by worker count — runner-level exits / runs:");
+  for (const workers of sweep) {
+    const mine = results.filter((r) => r.requestedWorkers === workers);
+    if (mine.length === 0) continue;
+    const bad = mine.filter((r) => r.shape.startsWith("RUNNER-LEVEL")).length;
+    console.log(
+      `    w=${(workers === null ? "default" : String(workers)).padEnd(7)} ` +
+        `${String(bad)}/${String(mine.length)}   ` +
+        `loopP95 avg ${String(avg(mine.map((r) => r.loopDelayP95Ms ?? 0)))}ms   ` +
+        `loopMax avg ${String(avg(mine.map((r) => r.loopDelayMaxMs ?? 0)))}ms   ` +
+        `pglite peak avg ${String(avg(mine.map((r) => r.pglitePeakOpen ?? 0)))}   ` +
+        `duration avg ${String(avg(mine.map((r) => Math.round((r.durationMs ?? 0) / 1000))))}s`,
+    );
+  }
+
+  mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
+  const out = outArg?.split("=")[1] ?? join(REPO_ROOT, ".release", "runner-matrix.json");
+  writeFileSync(out, `${JSON.stringify({ head, results }, null, 2)}\n`, "utf8");
+  console.log("");
+  console.log(`  recorded to ${out}`);
 }
 
 if (process.argv[1] !== undefined && process.argv[1].includes("runner-matrix")) main();

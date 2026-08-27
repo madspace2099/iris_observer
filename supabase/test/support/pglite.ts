@@ -1,4 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 /**
  * Who owns a WASM Postgres, and who closes it.
@@ -41,6 +44,14 @@ const owned: Record<DatabaseScope, Owned[]> = { test: [], suite: [] };
 let created = 0;
 let closed = 0;
 let failedCloses = 0;
+/**
+ * The most alive at any one moment in THIS worker.
+ *
+ * The count that matters for concurrency is not how many a file opens over its
+ * lifetime but how many exist at once, because that is what occupies memory
+ * while the parent is trying to answer this worker's RPC inside its deadline.
+ */
+let peakOpen = 0;
 
 /**
  * A database this file will close.
@@ -52,6 +63,7 @@ export async function openDatabase(scope: DatabaseScope = "test"): Promise<PGlit
   const db = await new PGlite();
   owned[scope].push({ db, closed: false });
   created += 1;
+  peakOpen = Math.max(peakOpen, owned.test.length + owned.suite.length);
   return db;
 }
 
@@ -98,6 +110,30 @@ export async function closeSuiteDatabases(): Promise<void> {
     );
   }
   if (failedCloses > 0) problems.push(`${String(failedCloses)} database(s) failed to close`);
+
+  /*
+   * The worker's own three integers, for a diagnostic run that asked for them.
+   *
+   * Written BEFORE the accounting throws, because a run that leaked is exactly
+   * the run whose numbers are worth having. One file per worker, so nothing
+   * depends on concurrent appends being atomic, and three integers is all it
+   * holds — no suite name, no path, no output.
+   */
+  const dir = process.env["OBSERVER_PGLITE_STATS"];
+  if (dir !== undefined && dir !== "") {
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(
+        join(dir, `${randomBytes(8).toString("hex")}.json`),
+        `${JSON.stringify({ created, closed, peakOpen })}
+`,
+        "utf8",
+      );
+    } catch {
+      /* Diagnostics must not be able to fail a test run. */
+    }
+  }
+
   if (problems.length > 0) throw new Error(problems.join("; "));
 }
 
@@ -107,6 +143,7 @@ export interface DatabaseLifecycle {
   readonly failedCloses: number;
   readonly openTest: number;
   readonly openSuite: number;
+  readonly peakOpen: number;
 }
 
 /** The counters, for the lifecycle tests and for nothing else. */
@@ -116,6 +153,7 @@ export const databaseLifecycle = (): DatabaseLifecycle => ({
   failedCloses,
   openTest: owned.test.length,
   openSuite: owned.suite.length,
+  peakOpen,
 });
 
 /** Test-only. Vitest isolates modules per file, so this affects one file. */
@@ -125,4 +163,5 @@ export function resetDatabaseLifecycle(): void {
   created = 0;
   closed = 0;
   failedCloses = 0;
+  peakOpen = 0;
 }
