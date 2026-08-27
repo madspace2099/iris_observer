@@ -355,3 +355,127 @@ describe("the deployment inventory's provenance", () => {
     expect(checked, "no delivered archive was available to check").toBeGreaterThan(0);
   });
 });
+
+/**
+ * The prose corrections, asserted so they cannot drift back.
+ *
+ * Every one of these was a real contradiction in a delivered archive: a
+ * document that said no history was rewritten and then described rewriting two
+ * commits, a fault called unresolved after it had been diagnosed and corrected,
+ * a summary counting five `main` builds beside a table listing seven, and a
+ * carried-forward enumeration described as gathered for the current commit.
+ *
+ * Read from the AUTHORED templates, because that is where the words live; the
+ * rendered-output checks elsewhere in this file confirm they survive rendering.
+ */
+describe("the evidence prose says what is true at this commit", () => {
+  const review = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
+  const compat = readFileSync(join(ROOT, "docs/release/COMPATIBILITY-EVIDENCE.txt"), "utf8");
+
+  it("does not claim no history was ever rewritten", () => {
+    /*
+     * It said "no history was rewritten" in the operator declaration and then
+     * described the authorised rewrite of two local-only commits in section 1.
+     * Both are true of DIFFERENT milestones, and only saying one of them reads
+     * as a contradiction of the other.
+     */
+    expect(review).not.toMatch(/^no history was rewritten\.$/m);
+    expect(review).toMatch(/NO HISTORY WAS REWRITTEN IN THIS ROUND/);
+    expect(review).toMatch(/ONE EARLIER ROUND DID REWRITE TWO\s+COMMITS/);
+  });
+
+  it("no longer calls the runner-level exit open, unreproduced or unexplained", () => {
+    expect(review).not.toMatch(/A SECOND FAULT REMAINS OPEN/);
+    expect(review).not.toMatch(/IT IS UNRESOLVED/);
+    expect(review).not.toMatch(/It has not been reproduced on demand and is not explained/);
+  });
+
+  it("records what the fault actually was, and where the reporter failed", () => {
+    expect(review).toMatch(/takes the\s+unhandled-error list as .?_errors.? and DISCARDS/);
+    expect(review).toMatch(/vitest-worker/);
+    expect(review).toMatch(/onTaskUpdate/);
+    expect(review).toMatch(/RPC response timeout DURING TEST EXECUTION/);
+  });
+
+  it("does not present the historical IPC observation as the identified cause", () => {
+    /*
+     * `ERR_IPC_CHANNEL_CLOSED` was a conjecture about a different shape. It may
+     * be mentioned; it may not be promoted to the cause of the later failure.
+     */
+    expect(review).toMatch(/THIS IS NOT THE EARLIER/);
+    expect(review).toMatch(/ERR_IPC_CHANNEL_CLOSED. OBSERVATION/);
+    expect(review).toMatch(/it is retired rather than promoted/);
+  });
+
+  it("records the lifecycle correction and that it was not sufficient alone", () => {
+    expect(review).toMatch(/PGLITE LIFETIME/);
+    expect(review).toMatch(/162\/162/);
+    expect(review).toMatch(/THIS ALONE DID NOT REMOVE THE FAULT/);
+  });
+
+  it("records the measured concurrency reduction and the matrix result", () => {
+    expect(review).toMatch(/from 18\s*\n?\s*to 12/);
+    expect(review).toMatch(/1 runner-level exit in 3/);
+    expect(review).toMatch(/0 in 3, then 0 in 6 more/);
+  });
+
+  it("says plainly that 0/9 is not proof of impossibility", () => {
+    expect(review).toMatch(/NOT STATISTICAL PROOF THAT\s+RECURRENCE IS IMPOSSIBLE/);
+  });
+
+  it("records that the gate now measures unhandled errors and fails closed", () => {
+    expect(review).toMatch(/measures unhandled errors\s+directly and fails closed/);
+    expect(review).toMatch(/so\s+does an ABSENT count/);
+  });
+
+  it("records the authoritative run as green on its first attempt", () => {
+    expect(review).toMatch(/AUTHORITATIVE RUN AT .aa579a4. WAS GREEN ON ITS FIRST ATTEMPT/);
+  });
+
+  it("counts seven main builds, matching the inventory it prints", () => {
+    /*
+     * DERIVED from the recorded inventory rather than restated: the summary
+     * said five while the table beneath it listed seven, and a hand-written
+     * number is exactly how that happens.
+     */
+    const rows = DEPLOYMENTS.length;
+    const main = DEPLOYMENTS.filter((d) => d.ref === "main").length;
+    const release = rows - main;
+    expect(rows).toBe(20);
+    expect(main).toBe(7);
+    expect(release).toBe(13);
+    expect(review).toMatch(/and seven of .main./);
+    expect(review).not.toMatch(/and five of .main./);
+  });
+
+  it("does not say the compatibility evidence was gathered for this commit", () => {
+    /*
+     * It said "Gathered <date> for commit <head>" while the inventory had last
+     * been enumerated several bundles earlier. Rendered for, from a timestamped
+     * carried-forward observation — which is a different claim.
+     */
+    expect(compat).not.toMatch(/^Gathered .* for commit/m);
+    expect(compat).toMatch(/Rendered for commit/);
+    expect(compat).toMatch(/carried-forward enumeration/);
+    expect(compat).toMatch(/NOT re-gathered for this commit/);
+    expect(compat).toMatch(/\{\{LAST_ENUMERATION\}\}/);
+  });
+
+  it("dates the manual observation honestly and marks it carried forward", () => {
+    expect(review).toMatch(/OBSERVED BY MATTHEW ON 2026-08-27; EXACT TIME NOT RECORDED/);
+    expect(review).toMatch(/carried-forward manual reading, not a current live one/);
+  });
+
+  it("keeps the three claims about external access distinct", () => {
+    /*
+     * "No external access in this milestone", "observed manually at some earlier
+     * point", and "the current state, which nobody re-read" are three different
+     * statements, and collapsing them is how a stale reading becomes a claim
+     * about now.
+     */
+    expect(review).toMatch(/NO EXTERNAL MUTATION OCCURRED/);
+    expect(review).toMatch(/carried-forward manual reading/);
+    expect(review).toMatch(/NOT been re-observed since/);
+    expect(review).toMatch(/Neither was re-observed in this milestone/);
+  });
+});

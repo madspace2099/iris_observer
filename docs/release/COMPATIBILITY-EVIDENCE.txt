@@ -1,5 +1,8 @@
 IRIS OBSERVER — DEPLOYMENT COMPATIBILITY EVIDENCE
-Gathered {{GATHERED_DATE}} for commit {{HEAD_SHORT}}.
+Rendered for commit {{HEAD_SHORT}} from the carried-forward enumeration
+observed at {{OBSERVED_AT}}. NOT re-gathered for this commit: the deployment
+inventory was last enumerated against Vercel for {{LAST_ENUMERATION}}, and
+every figure below describes that observation and nothing later.
 
 Every SHA below was read from the Vercel deployment record. Every RPC call was
 read from that SHA's own source in git. Nothing is inferred from a commit name

@@ -40,6 +40,20 @@ export interface SyntheticOptions {
   readonly scannedFiles?: number;
 }
 
+/**
+ * Per-file counts that add up.
+ *
+ * The contract now checks the arithmetic — entries equal files, values sum to
+ * the total — so a fixture with an empty map beside a count of 43 is no longer
+ * something a green record can say.
+ */
+function perFile(files: number, total: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let i = 1; i < files; i += 1) out[`suite-${String(i).padStart(2, "0")}.test.ts`] = 1;
+  out[`suite-${String(files).padStart(2, "0")}.test.ts`] = total - (files - 1);
+  return out;
+}
+
 /** A green record naming `head`, as the runner would have written it. */
 export function greenGateRecord(head: string, options: SyntheticOptions = {}): GateRecord {
   const scannedFiles = options.scannedFiles ?? 333;
@@ -55,7 +69,7 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
   return {
     head,
     controlCharacterScan: { scannedFiles, foundCharacters: 0, affectedFiles: [] },
-    tests: { passed: 1200, skipped: 1, failed: 0, files: 43, perFile: {} },
+    tests: { passed: 1200, skipped: 1, failed: 0, files: 43, perFile: perFile(43, 1201) },
     testGate: {
       ...cleanProcess,
       reportSuccess: true,
@@ -65,7 +79,7 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       runtimeErrorSuites: 0,
       failedSuiteNames: [],
       failedTests: [],
-      skippedTests: [],
+      skippedTests: [{ suite: "platform.test.ts", title: "skipped on this platform" }],
       phase: "test",
       reportWritten: true,
       reportParsed: true,
@@ -79,7 +93,7 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       durationMs: 164_000,
       runner: "vitest 3.2.7",
       workerPool: "forks",
-      workerCount: null,
+      workerCount: 4,
       reasons: [],
     },
     processes,

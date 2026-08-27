@@ -3,6 +3,9 @@ import { resolveServerSupabase, diagnoseServerSupabase, type EnvSource } from "@
 import {
   classifyProjectMapping,
   confirmManualMapping,
+  PUBLIC_ABSENT,
+  PUBLIC_UNOBSERVED,
+  publicPresent,
   projectRef,
   PROJECT_MAPPING_STATES,
 } from "../../scripts/release/preflight";
@@ -351,19 +354,26 @@ describe("PAUSE leads somewhere, and only one way", () => {
     });
   });
 
-  it("a matching manual observation is the only thing that turns it into a PASS", () => {
+  it("a matching pair of manual observations is what turns it into a PASS", () => {
     for (const observation of [OK, `${OK}/`, REF]) {
-      expect(confirmManualMapping({ observedServer: observation, approvedRef: REF })).toEqual({
-        state: "MAPPED",
-        verdict: "PASS",
-        ref: REF,
-        via: "manual",
-      });
+      expect(
+        confirmManualMapping({
+          observedServer: observation,
+          approvedRef: REF,
+          observedPublic: PUBLIC_ABSENT,
+        }),
+      ).toEqual({ state: "MAPPED", verdict: "PASS", ref: REF, via: "manual" });
     }
   });
 
   it("marks a manual PASS as manual, so it is distinguishable from a tooled one", () => {
-    expect(confirmManualMapping({ observedServer: OK, approvedRef: REF }).via).toBe("manual");
+    expect(
+      confirmManualMapping({
+        observedServer: OK,
+        approvedRef: REF,
+        observedPublic: PUBLIC_ABSENT,
+      }).via,
+    ).toBe("manual");
     expect(
       classifyProjectMapping({ serverUrl: OK, publicUrl: undefined, approvedRef: REF }).via,
     ).toBe("tooling");
@@ -374,7 +384,31 @@ describe("PAUSE leads somewhere, and only one way", () => {
     ["empty", ""],
     ["whitespace", "   "],
   ])("STOPs when the manual observation is %s", (_why, observation) => {
-    expect(confirmManualMapping({ observedServer: observation, approvedRef: REF })).toEqual({
+    expect(
+      confirmManualMapping({
+        observedServer: observation,
+        approvedRef: REF,
+        observedPublic: PUBLIC_ABSENT,
+      }),
+    ).toEqual({ state: "MANUAL_OBSERVATION_ABSENT", verdict: "STOP", ref: null, via: null });
+  });
+
+  it.each([
+    ["a canonical public origin", publicPresent(OK)],
+    ["an absent public row", PUBLIC_ABSENT],
+    ["an unobserved public row", PUBLIC_UNOBSERVED],
+  ])("no public observation rescues a missing server observation: %s", (_why, observedPublic) => {
+    /*
+     * The ORDER is the rule. A public value must never be consulted in a run
+     * where the authoritative server value was not read, so every public state
+     * has to reach the same STOP.
+     */
+    const out = confirmManualMapping({
+      observedServer: undefined,
+      approvedRef: REF,
+      observedPublic,
+    });
+    expect(out).toEqual({
       state: "MANUAL_OBSERVATION_ABSENT",
       verdict: "STOP",
       ref: null,
@@ -382,22 +416,16 @@ describe("PAUSE leads somewhere, and only one way", () => {
     });
   });
 
-  it("no public URL can rescue a missing manual server observation", () => {
-    const out = confirmManualMapping({
-      observedServer: undefined,
-      approvedRef: REF,
-      publicUrl: OK,
-    });
-    expect(out.verdict).toBe("STOP");
-    expect(out.ref).toBeNull();
-  });
-
   it.each([`https://${REF}.example.com`, "not a ref at all!", "https://example.com"])(
     "STOPs on an unusable manual observation: %s",
     (observation) => {
-      expect(confirmManualMapping({ observedServer: observation, approvedRef: REF }).state).toBe(
-        "MANUAL_OBSERVATION_MALFORMED",
-      );
+      expect(
+        confirmManualMapping({
+          observedServer: observation,
+          approvedRef: REF,
+          observedPublic: PUBLIC_ABSENT,
+        }).state,
+      ).toBe("MANUAL_OBSERVATION_MALFORMED");
     },
   );
 
@@ -405,6 +433,7 @@ describe("PAUSE leads somewhere, and only one way", () => {
     const out = confirmManualMapping({
       observedServer: "https://otherref00000000.supabase.co",
       approvedRef: REF,
+      observedPublic: PUBLIC_ABSENT,
     });
     expect(out).toMatchObject({ state: "MANUAL_PROJECT_WRONG", verdict: "STOP" });
     const state = PROJECT_MAPPING_STATES.find((s) => s.name === "MANUAL_PROJECT_WRONG");
@@ -421,5 +450,136 @@ describe("PAUSE leads somewhere, and only one way", () => {
     for (const state of PROJECT_MAPPING_STATES.filter((s) => s.verdict === "STOP")) {
       expect(state.remedy, state.name).toMatch(/RESTART PREFLIGHT STEP 1|re-enter MANUAL/);
     }
+  });
+});
+
+/**
+ * The half of the manual comparison that used to be accepted and ignored.
+ *
+ * `confirmManualMapping` took a `publicUrl`, documented it as "present only so
+ * the rule can refuse it", and then returned `MAPPED/PASS` from the server
+ * observation alone. But MAPPED's own condition is not "the server names the
+ * approved project" — it is that AND "NEXT_PUBLIC_SUPABASE_URL is absent or
+ * names the same project". So on exactly the path a human takes when the
+ * tooling could not help, a malformed or mismatched public value passed.
+ *
+ * The parameter is now a three-state observation, because an optional string
+ * cannot tell "I did not look" from "I looked and it was not there", and those
+ * are different facts. One of them satisfies MAPPED's condition; the other is
+ * an unasked question.
+ */
+describe("the manual path checks the public variable too", () => {
+  const REF = "tfcchobwobpadenampyh";
+  const OK = `https://${REF}.supabase.co`;
+  const server = { observedServer: OK, approvedRef: REF };
+
+  it("PAUSEs when nobody looked at the public row", () => {
+    expect(confirmManualMapping({ ...server, observedPublic: PUBLIC_UNOBSERVED })).toEqual({
+      state: "MANUAL_PUBLIC_UNOBSERVED",
+      verdict: "PAUSE",
+      ref: null,
+      via: null,
+    });
+  });
+
+  it("PASSes when the public row was observed to be absent", () => {
+    expect(confirmManualMapping({ ...server, observedPublic: PUBLIC_ABSENT })).toEqual({
+      state: "MAPPED",
+      verdict: "PASS",
+      ref: REF,
+      via: "manual",
+    });
+  });
+
+  it("PASSes when the public row names the same project", () => {
+    expect(confirmManualMapping({ ...server, observedPublic: publicPresent(OK) })).toEqual({
+      state: "MAPPED",
+      verdict: "PASS",
+      ref: REF,
+      via: "manual",
+    });
+  });
+
+  it.each([
+    ["a foreign origin", `https://${REF}.example.com`],
+    ["suffix confusion", `https://${REF}.supabase.co.evil.test`],
+    ["not a URL at all", "not a url"],
+    ["http rather than https", `http://${REF}.supabase.co`],
+    ["credentials in the origin", `https://user:pw@${REF}.supabase.co`],
+    ["a port", `https://${REF}.supabase.co:8443`],
+    ["a path", `https://${REF}.supabase.co/rest/v1`],
+    ["a query", `https://${REF}.supabase.co/?x=1`],
+    ["a bare ref, which is not a URL", REF],
+    ["empty", ""],
+    ["whitespace", "   "],
+  ])("STOPs on a malformed public observation: %s", (_why, value) => {
+    /*
+     * A bare ref is deliberately refused here even though the SERVER
+     * observation accepts one. The rule for the public variable is about a
+     * URL that a browser would be handed, and `projectRef` is the only thing
+     * that decides what counts as one.
+     */
+    expect(confirmManualMapping({ ...server, observedPublic: publicPresent(value) })).toEqual({
+      state: "PUBLIC_URL_MALFORMED",
+      verdict: "STOP",
+      ref: null,
+      via: null,
+    });
+  });
+
+  it("STOPs when the public row names a different project", () => {
+    expect(
+      confirmManualMapping({
+        ...server,
+        observedPublic: publicPresent("https://otherref00000000.supabase.co"),
+      }),
+    ).toEqual({ state: "PROJECTS_DISAGREE", verdict: "STOP", ref: null, via: null });
+  });
+
+  it("reaches the public check only after the server one has been accepted", () => {
+    /*
+     * A malformed server observation and a perfect public one must report the
+     * SERVER problem: the public value cannot be what a reader is sent to fix.
+     */
+    expect(
+      confirmManualMapping({
+        observedServer: "not a ref at all!",
+        approvedRef: REF,
+        observedPublic: publicPresent(OK),
+      }).state,
+    ).toBe("MANUAL_OBSERVATION_MALFORMED");
+
+    expect(
+      confirmManualMapping({
+        observedServer: "https://otherref00000000.supabase.co",
+        approvedRef: REF,
+        observedPublic: publicPresent(OK),
+      }).state,
+    ).toBe("MANUAL_PROJECT_WRONG");
+  });
+
+  it("never yields a ref or a via on anything that is not a PASS", () => {
+    const notPass = [
+      confirmManualMapping({ ...server, observedPublic: PUBLIC_UNOBSERVED }),
+      confirmManualMapping({ ...server, observedPublic: publicPresent("not a url") }),
+      confirmManualMapping({
+        ...server,
+        observedPublic: publicPresent("https://otherref00000000.supabase.co"),
+      }),
+    ];
+    for (const out of notPass) {
+      expect(out.ref).toBeNull();
+      expect(out.via).toBeNull();
+      expect(out.verdict).not.toBe("PASS");
+    }
+  });
+
+  it("says why a search box returning nothing is not an observed absence", () => {
+    const state = PROJECT_MAPPING_STATES.find((s) => s.name === "MANUAL_PUBLIC_UNOBSERVED");
+    expect(state?.verdict).toBe("PAUSE");
+    expect(state?.remedy).toMatch(/search box/i);
+    expect(state?.remedy).toMatch(/not an observation/i);
+    /* PAUSE means incomplete, not wrong — it must not send anyone to step 1. */
+    expect(state?.remedy).not.toMatch(/RESTART PREFLIGHT STEP 1/);
   });
 });

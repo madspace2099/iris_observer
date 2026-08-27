@@ -564,7 +564,12 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     REMOTE_MAIN: git("rev-parse", "origin/main"),
     BEHIND: behind,
     AHEAD: ahead,
-    GATHERED_DATE: git("show", "-s", "--format=%cs", "HEAD"),
+    /*
+     * The bundle the inventory was actually enumerated for. Rendered beside the
+     * observation timestamp so "rendered for this commit" cannot be read as
+     * "gathered for this commit" — the enumeration is older than both.
+     */
+    LAST_ENUMERATION: LAST_VERCEL_ENUMERATION,
 
     LOCAL_ONLY_SENTENCE: wrap(
       localOnlyShorts,

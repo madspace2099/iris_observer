@@ -78,8 +78,16 @@ PRESENCE, SCOPE AND VALUE REMAIN UNAVAILABLE FROM HERE.
 NO EXTERNAL MUTATION OCCURRED. No Vercel environment variable was changed. No
 deployment was created, redeployed, promoted, protected or deleted. No Ask
 Observer HTTP request was made. pg_cron was not enabled. Supabase was not
-written to. No migration was applied. Nothing was pushed, merged or tagged, and
-no history was rewritten.
+written to. No migration was applied. Nothing was pushed, merged or tagged.
+
+NO HISTORY WAS REWRITTEN IN THIS ROUND, AND ONE EARLIER ROUND DID REWRITE TWO
+COMMITS. Both are true and they are about different milestones, so stating only
+one of them reads as a contradiction of the other. The authorised rewrite
+replaced the two local-only commits above `7ac84fa` to remove a secret-shaped
+fixture from reachable history; it is recorded in section 1 with the tree and
+diff hashes that prove it changed no content, and it had never left this
+machine. Every round since — the runner-level diagnosis, the concurrency bound,
+and this evidence correction — has left history untouched.
 
 NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 
@@ -544,32 +552,84 @@ hook now has its own 240-second budget, and consecutive full-suite runs under
 load report `status=0 success=true failedSuites=0 failedTests=0`. It accounted
 for every `reportSuccess=false` observation.
 
-A SECOND FAULT REMAINS OPEN, and the fix did not remove it. A later gate run
-recorded a third shape:
+A SECOND FAULT WAS THEN DIAGNOSED AND CORRECTED. It is described here as it
+finally stood, because earlier editions of this file called it open,
+unreproduced and unexplained and that is no longer true.
+
+THE SHAPE. A later gate run recorded a third one:
 
     status=1  signal=null  errorCode=null  reportSuccess=true
     reportedFailedTests=0  countedFailedTests=0
     reasons: exit status 1
 
   the process exits non-zero while the report declares complete success and
-  names no failing test or suite. This is the runner-level exit the independent
-  review originally described, and it is NOT the hook timeout: the timeout
-  always produced `reportSuccess=false`.
+  names no failing test or suite. NOT the hook timeout, which always produced
+  `reportSuccess=false`. That record is preserved as `failed-gate-7d941ba.json`.
 
-WHAT IS KNOWN ABOUT IT. It has only ever been seen under the gate runner, where
-the test gate follows format-check, type-check and lint back to back on the
-same machine. Three consecutive standalone runs of the identical command
-immediately afterwards exited 0. The one `ERR_IPC_CHANNEL_CLOSED` capture — an
-unhandled error from a worker-thread MessagePort during teardown — is the
-plausible mechanism, since Vitest exits non-zero on an unhandled error while
-still reporting the suite as successful. THAT IS A CONJECTURE, recorded as one.
-It has not been reproduced on demand and is not explained.
+WHY NOTHING COULD EXPLAIN IT. Vitest 3.2.7's JSON reporter takes the
+unhandled-error list as `_errors` and DISCARDS it, computes `success` from
+failed tests and suites alone, and writes an object with no field for it — while
+Vitest sets `process.exitCode = 1` whenever that list is non-empty. An unhandled
+error is the only condition that produces exit 1 beside a written, green report;
+every other path either implies a failed test or suite, which `success` would
+report, or aborts before a report naming every file could exist. The gate was
+reading the one artefact that structurally cannot express what it needed.
 
-IT IS UNRESOLVED, and this package says so rather than pointing at a run of
-green results. What can be said is bounded: no assertion fails in any observed
-shape, 1042 cases pass on every run that completes, and the gate refuses on a
-non-zero status regardless of what the report claims — so the fault costs a
-rerun and has never produced a false clean result.
+WHAT IT ACTUALLY WAS. A diagnostic reporter, added to record what the JSON one
+discards, reproduced and identified it:
+
+    Error   subsystem vitest-worker   operation onTaskUpdate   no machine code
+
+a worker-to-parent RPC response timeout DURING TEST EXECUTION. The absence of a
+machine code is recorded as an absence. THIS IS NOT THE EARLIER
+`ERR_IPC_CHANNEL_CLOSED` OBSERVATION, and that historical capture is not the
+identified cause of this failure — it was a conjecture about a different shape,
+and it is retired rather than promoted.
+
+WHAT WAS CORRECTED, IN TWO PARTS.
+
+  1. PGLITE LIFETIME. The suite created about 145 WASM Postgres instances per
+     run across six files and closed none of them. Dropping the reference does
+     not release the heap — measured: 1,169 MB still retained after four forced
+     collections — and only `close()` does. Ownership is now declared where an
+     instance is created: per-test databases close in `afterEach`, the two
+     suite-scoped ones in `afterAll`, and the accounting refuses unless every
+     instance opened is accounted for. Created and closed balance at 162/162 in
+     every measured run. THIS ALONE DID NOT REMOVE THE FAULT: it recurred
+     afterwards with the same fingerprint.
+
+  2. CONCURRENCY. The forks pool sizes itself from the CPU count, which put
+     thirteen workers to work and eighteen WASM Postgres instances alive at
+     once. A bounded matrix ran the reproducing sequence three times at each of
+     default, 8, 4, 2 and 1, measuring the parent's worst event-loop stall:
+
+         default   527ms, 643ms, 656ms     1 runner-level exit in 3
+         8         251ms, 728ms, 238ms     0 in 3
+         4          75ms,  84ms, 112ms     0 in 3, then 0 in 6 more
+         2          51ms,  37ms,  59ms     0 in 3, 45% slower
+         1         359ms, 127ms,  40ms     0 in 3, 2.5x slower
+
+     Eight is the highest count with no failures and is not the answer: one of
+     its runs stalled 728ms, worse than every default run. Four is the highest
+     bound where every run sits far below every default run, and it is the
+     fastest configuration measured. Measured concurrent instances fall from 18
+     to 12; parent stalls fall about fourfold.
+
+WHAT IS AND IS NOT CLAIMED. The comparative matrix observed ONE default failure
+and 0/9 at four workers. The fault is rare, so 0/9 IS NOT STATISTICAL PROOF THAT
+RECURRENCE IS IMPOSSIBLE, and this package does not say otherwise. What is
+established is the mechanism, the identity, and a measured reduction in the
+conditions that produce it.
+
+AND THE GATE NO LONGER DEPENDS ON THAT. It now measures unhandled errors
+directly and fails closed on any recurrence: a non-zero count refuses, and so
+does an ABSENT count, because "not measured" and "measured as none" are
+different facts. The record also has to prove the run was bounded — phase,
+pool and worker count are acceptance conditions, so a record from an unbounded
+run cannot be packaged as evidence for a bounded one.
+
+THE AUTHORITATIVE RUN AT `aa579a4` WAS GREEN ON ITS FIRST ATTEMPT, with four
+workers, zero unhandled errors, and no retry.
 
 THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
 report declaring failure are each a failure condition in their own right, so
@@ -858,6 +918,10 @@ THE ONE PREFLIGHT RESULT THAT IS CARRIED FORWARD, unchanged:
                                 tfcchobwobpadenampyh
   Production    SUPABASE_URL    SERVER_URL_ABSENT   STOP     manual
 
+  OBSERVED BY MATTHEW ON 2026-08-27; EXACT TIME NOT RECORDED. This is a
+  carried-forward manual reading, not a current live one — nothing in this
+  milestone re-read it, and the environment may have changed since.
+
   The Preview value was read by Matthew in the Vercel dashboard, character for
   character, as the exact non-secret origin `https://tfcchobwobpadenampyh` +
   `.supabase.co` — Type: Config, Environment: Preview. It classifies MAPPED,
@@ -944,8 +1008,10 @@ package whose evidence claims freshness the file history does not support.
     …through 3f298a6, the remote branch head.
 
   DEPLOYED
-    3f298a6, plus twelve older builds of that branch and five of `main` at
-    3515402.
+    3f298a6, plus twelve older builds of that branch and seven of `main` at
+    3515402 — twenty in total, thirteen on the release branch and seven on
+    `main`. Counted from the recorded inventory rather than from memory; the
+    summary said five until this round, while the table beneath it listed seven.
 
 
 ================================================================================

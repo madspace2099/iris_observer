@@ -49,6 +49,16 @@ import { syntheticGateRecord } from "./support/synthetic-gate-record";
  * archive.
  */
 
+/**
+ * Per-file counts that add up, because the contract now checks the arithmetic.
+ */
+function evenPerFile(files: number, total: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let i = 1; i < files; i += 1) out[`suite-${String(i).padStart(2, "0")}.test.ts`] = 1;
+  out[`suite-${String(files).padStart(2, "0")}.test.ts`] = total - (files - 1);
+  return out;
+}
+
 const ROOT = join(import.meta.dirname, "..", "..");
 const BS = String.fromCharCode(8);
 const HEAD_FIXTURE = "1111111111111111111111111111111111111111";
@@ -161,7 +171,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
     gates[CONTROL_CHARACTER_GATE] = "0 in 300 files";
     return {
       head: HEAD_FIXTURE,
-      tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: {} },
+      tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: evenPerFile(40, 1002) },
       controlCharacterScan: { scannedFiles: 300, foundCharacters: 0, affectedFiles: [] },
       testGate: {
         ...cleanProcess,
@@ -172,7 +182,10 @@ describe("the gate contract refuses on the scan, structurally", () => {
         runtimeErrorSuites: 0,
         failedSuiteNames: [],
         failedTests: [],
-        skippedTests: [],
+        skippedTests: [
+          { suite: "platform.test.ts", title: "skipped on this platform" },
+          { suite: "platform.test.ts", title: "also skipped here" },
+        ],
         phase: "test",
         reportWritten: true,
         reportParsed: true,
@@ -186,7 +199,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
         durationMs: 164_000,
         runner: "vitest 3.2.7",
         workerPool: "forks",
-        workerCount: null,
+        workerCount: 4,
         reasons: [],
       },
       processes,

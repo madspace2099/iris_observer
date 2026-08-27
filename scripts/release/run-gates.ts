@@ -22,7 +22,7 @@
  * reaches the disk. See `gate-run.ts`.
  */
 
-import { writeFileSync, mkdirSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, rmSync, renameSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { REPO_ROOT, git } from "./facts";
@@ -41,7 +41,7 @@ import {
   type RunnerEvidence,
 } from "./gate-run";
 import type { RunnerDiagnostics } from "./vitest-runner-reporter";
-import { REQUIRED_GATES } from "./gate-contract";
+import { REQUIRED_GATES, GATE_IN_PROGRESS, GATE_RECORD_PATH } from "./gate-contract";
 import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
 
 /**
@@ -56,6 +56,25 @@ import { scanFiles, describeScan, type ControlCharacterScan } from "./control-ch
  */
 const pnpm = "pnpm";
 const NEEDS_SHELL = process.platform === "win32";
+
+const RECORD_PATH = join(REPO_ROOT, GATE_RECORD_PATH);
+const PENDING_PATH = `${RECORD_PATH}.pending`;
+
+/**
+ * Mark the canonical result invalid for the duration of this attempt.
+ *
+ * Written synchronously, before the first gate, and carrying the HEAD it was
+ * started at so a reader can tell which attempt abandoned it.
+ */
+function beginAttempt(head: string): void {
+  mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
+  rmSync(PENDING_PATH, { force: true });
+  writeFileSync(
+    RECORD_PATH,
+    `${JSON.stringify({ status: GATE_IN_PROGRESS, head, startedAt: new Date().toISOString() }, null, 2)}\n`,
+    "utf8",
+  );
+}
 
 /** Tail length for the local console. Never written to disk. */
 const TAIL = 40;
@@ -261,6 +280,16 @@ function main(): void {
   const head = git("rev-parse", "HEAD");
   console.log(`running the gates at ${head.slice(0, 7)}`);
 
+  /*
+   * INVALIDATE FIRST, SYNCHRONOUSLY, BEFORE ANY GATE RUNS.
+   *
+   * The previous result stops being the answer the moment a new attempt begins.
+   * Writing this marker before the first gate means an attempt that crashes, is
+   * killed, or is interrupted cannot leave an older green record at the same
+   * HEAD sitting there packageable.
+   */
+  beginAttempt(head);
+
   const gates: Record<string, string> = {};
   const processes: Record<string, ProcessResult> = {};
   let failed = 0;
@@ -327,7 +356,7 @@ function main(): void {
 
   mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
   writeFileSync(
-    join(REPO_ROOT, ".release", "gate-results.json"),
+    PENDING_PATH,
     `${JSON.stringify(
       {
         head,
@@ -393,6 +422,13 @@ function main(): void {
     )}\n`,
     "utf8",
   );
+
+  /*
+   * ATOMIC. Every result is in hand, the file is complete on disk, and only
+   * now does it become the canonical record — one rename, which either happens
+   * or does not.
+   */
+  renameSync(PENDING_PATH, RECORD_PATH);
 
   const missing = REQUIRED_GATES.filter(
     (g) => processes[g] === undefined && gates[g] === undefined,

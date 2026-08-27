@@ -125,6 +125,14 @@ export const PROJECT_MAPPING_STATES: readonly MappingState[] = [
       "This one IS a configuration fault, unlike the PAUSE that preceded it. Point the environment at the approved project, then RESTART PREFLIGHT STEP 1 from the beginning rather than re-entering manual confirmation.",
   },
   {
+    name: "MANUAL_PUBLIC_UNOBSERVED",
+    condition:
+      "the manual server observation is canonical and names the approved project, but whether NEXT_PUBLIC_SUPABASE_URL exists was never observed",
+    verdict: "PAUSE",
+    remedy:
+      "Have Matthew look for the exact NEXT_PUBLIC_SUPABASE_URL row and record one of two things: that the row is ABSENT, or its exact value. A search box that returns nothing for a typed name is not an observation that the row is absent — prefixed names may be filtered, matched loosely, or paginated, and none of that is documented. Until one of the two is recorded, this is server-ref established and manual confirmation INCOMPLETE, not PASS.",
+  },
+  {
     name: "MAPPED",
     condition:
       "the server origin is canonical, names the approved project, and NEXT_PUBLIC_SUPABASE_URL is either absent or names the same project — established by tooling, or by a successful manual comparison",
@@ -288,6 +296,25 @@ export function classifyProjectMapping(input: MappingInput): MappingOutcome {
   return outcome("MAPPED", serverRef, "tooling");
 }
 
+/**
+ * What was observed about NEXT_PUBLIC_SUPABASE_URL, as three distinct facts.
+ *
+ * "Not looked at" and "looked at and absent" are different observations, and
+ * the previous signature could not tell them apart: it took an optional string,
+ * so `undefined` meant both. That is the whole defect — MAPPED requires the
+ * public variable to be absent OR to name the same project, and a parameter
+ * that conflates "unobserved" with "absent" lets an unasked question satisfy a
+ * condition that asks it.
+ */
+export type PublicObservation =
+  | { readonly kind: "unobserved" }
+  | { readonly kind: "absent" }
+  | { readonly kind: "present"; readonly value: string };
+
+export const PUBLIC_UNOBSERVED: PublicObservation = { kind: "unobserved" };
+export const PUBLIC_ABSENT: PublicObservation = { kind: "absent" };
+export const publicPresent = (value: string): PublicObservation => ({ kind: "present", value });
+
 export interface ManualConfirmationInput {
   /**
    * Exactly what Matthew read in the dashboard: the canonical origin or the
@@ -296,11 +323,14 @@ export interface ManualConfirmationInput {
   readonly observedServer: string | undefined;
   readonly approvedRef: string;
   /**
-   * Present only so the rule can refuse it. A public value cannot stand in for
-   * a missing manual server observation, and saying so in the signature is
-   * clearer than leaving it unmentioned.
+   * The public half of the same comparison.
+   *
+   * REQUIRED, and not optional: an omitted argument used to be indistinguishable
+   * from an observed absence, and the function then returned PASS without ever
+   * consulting it. The type now makes "I did not look" a value you have to
+   * write down.
    */
-  readonly publicUrl?: string | undefined;
+  readonly observedPublic: PublicObservation;
 }
 
 /**
@@ -316,11 +346,40 @@ export interface ManualConfirmationInput {
  * routes to a STOP whose remedy restarts step 1 from the beginning.
  */
 export function confirmManualMapping(input: ManualConfirmationInput): MappingOutcome {
+  /*
+   * THE SERVER OBSERVATION FIRST, AND THE ORDER IS THE RULE.
+   *
+   * Evaluating the public value before the server one would let a well-formed
+   * public URL be consulted in a run where the authoritative server value was
+   * never read. It cannot rescue the server observation and it must not be
+   * reached before the server observation has been accepted.
+   */
   if (!isSet(input.observedServer)) return outcome("MANUAL_OBSERVATION_ABSENT");
   const ref = manualObservationRef(input.observedServer);
   if (ref === null) return outcome("MANUAL_OBSERVATION_MALFORMED");
   if (ref !== input.approvedRef) return outcome("MANUAL_PROJECT_WRONG");
-  return outcome("MAPPED", ref, "manual");
+
+  /*
+   * THEN THE PUBLIC ONE, WHICH THIS FUNCTION USED TO ACCEPT AND IGNORE.
+   *
+   * MAPPED's condition is not "the server names the approved project". It is
+   * that AND "the public variable is absent or names the same project". The
+   * manual path took a `publicUrl` argument, never read it, and returned PASS —
+   * so a malformed or mismatched public value went through unchallenged on
+   * exactly the route a human takes when the tooling could not help.
+   */
+  switch (input.observedPublic.kind) {
+    case "unobserved":
+      return outcome("MANUAL_PUBLIC_UNOBSERVED");
+    case "absent":
+      return outcome("MAPPED", ref, "manual");
+    case "present": {
+      const publicRef = projectRef(input.observedPublic.value);
+      if (publicRef === null) return outcome("PUBLIC_URL_MALFORMED");
+      if (publicRef !== ref) return outcome("PROJECTS_DISAGREE");
+      return outcome("MAPPED", ref, "manual");
+    }
+  }
 }
 
 /** The table as the documents render it. */

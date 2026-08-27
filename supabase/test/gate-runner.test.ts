@@ -256,7 +256,15 @@ describe("nothing that could carry a secret is persisted", () => {
    */
   const persistedLiteral = (): string => {
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
-    const literal = /gate-results\.json"\),[\s\S]*?\n {4}"utf8",\n {2}\);/.exec(source)?.[0];
+    /*
+     * Anchored on PENDING_PATH, because the finished record is written to a
+     * temporary file and RENAMED into place — an attempt that dies mid-write
+     * must not be able to leave a truncated file where the canonical record
+     * belongs.
+     */
+    const literal = /writeFileSync\(\n {4}PENDING_PATH,[\s\S]*?\n {4}"utf8",\n {2}\);/.exec(
+      source,
+    )?.[0];
     expect(literal, "the persisted object literal was not found in run-gates.ts").toBeDefined();
     /*
      * Comments stripped: the literal carries one that says "Never stdout,
