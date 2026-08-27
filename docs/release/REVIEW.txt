@@ -217,15 +217,37 @@ failures in five runs when the suite was smaller, then every run once the suite
 had grown past 1000 cases. That is a budget being crossed, not a race being
 lost.
 
-FIXED, and stated as fixed only because it was verified: that hook now has its
-own 240-second budget, and two consecutive full-suite runs under load report
-`status=0 success=true failedSuites=0 failedTests=0`. The bounded diagnostic
-below is the record of the runs that led here.
+THAT ONE IS FIXED, and is stated as fixed only because it was verified: the
+hook now has its own 240-second budget, and consecutive full-suite runs under
+load report `status=0 success=true failedSuites=0 failedTests=0`. It accounted
+for every `reportSuccess=false` observation.
 
-The `ERR_IPC_CHANNEL_CLOSED` sighting is PLAUSIBLY the same timeout killing a
-worker before the reporter flushed, and that is a conjecture rather than a
-finding — it was observed once and has not recurred. It is recorded rather than
-explained.
+A SECOND FAULT REMAINS OPEN, and the fix did not remove it. A later gate run
+recorded a third shape:
+
+    status=1  signal=null  errorCode=null  reportSuccess=true
+    reportedFailedTests=0  countedFailedTests=0
+    reasons: exit status 1
+
+  the process exits non-zero while the report declares complete success and
+  names no failing test or suite. This is the runner-level exit the independent
+  review originally described, and it is NOT the hook timeout: the timeout
+  always produced `reportSuccess=false`.
+
+WHAT IS KNOWN ABOUT IT. It has only ever been seen under the gate runner, where
+the test gate follows format-check, type-check and lint back to back on the
+same machine. Three consecutive standalone runs of the identical command
+immediately afterwards exited 0. The one `ERR_IPC_CHANNEL_CLOSED` capture — an
+unhandled error from a worker-thread MessagePort during teardown — is the
+plausible mechanism, since Vitest exits non-zero on an unhandled error while
+still reporting the suite as successful. THAT IS A CONJECTURE, recorded as one.
+It has not been reproduced on demand and is not explained.
+
+IT IS UNRESOLVED, and this package says so rather than pointing at a run of
+green results. What can be said is bounded: no assertion fails in any observed
+shape, 1042 cases pass on every run that completes, and the gate refuses on a
+non-zero status regardless of what the report claims — so the fault costs a
+rerun and has never produced a false clean result.
 
 THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
 report declaring failure are each a failure condition in their own right, so
