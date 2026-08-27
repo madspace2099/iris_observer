@@ -27,7 +27,8 @@
     "release:gates": "tsx scripts/release/run-gates.ts",
     "release:package": "tsx scripts/release/build-package.ts",
     "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit",
-    "release:gates:repeat": "tsx scripts/release/run-gates.ts --repeat=5"
+    "release:gates:repeat": "tsx scripts/release/run-gates.ts --repeat=5",
+    "release:diagnose": "tsx scripts/release/runner-matrix.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
