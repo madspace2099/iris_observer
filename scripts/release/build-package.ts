@@ -46,11 +46,13 @@ import {
   snapshotRefreshed,
   MIGRATIONS_DIR,
 } from "./facts";
-import { walk, writeZip } from "./zip";
+import { walk, writeZip, scanArchive } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
 import { readGateRecord, gateRecordProblems, sanitizedRecord } from "./gate-contract";
+import { scanDirectory, describeScan, type ControlCharacterScan } from "./control-chars";
+import { isDeclaredHistorical, transportSafeNote } from "./transport-safe";
 
 const sha256File = (path: string): string =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -124,6 +126,8 @@ function stage(dir: string): void {
     },
   );
 
+  encodeDeclaredPatches(join(dir, "patches"));
+
   const copyAll = (from: string, to: string, filter: (f: string) => boolean): void => {
     for (const f of readdirSync(join(REPO_ROOT, from)).sort()) {
       if (filter(f)) copyFileSync(join(REPO_ROOT, from, f), join(dir, to, f));
@@ -152,6 +156,33 @@ function stage(dir: string): void {
     `${JSON.stringify(sanitizedRecord(record), null, 2)}\n`,
     "utf8",
   );
+}
+
+/**
+ * Replace the DECLARED historical patches with byte-exact base64 sidecars.
+ *
+ * Only the commits named in `transport-safe.ts`. A control character in any
+ * other patch — or anywhere else in the package — is a failure, not something
+ * to encode away, which is why this is keyed on the commit rather than on
+ * "whatever happens to contain one".
+ */
+function encodeDeclaredPatches(patchDir: string): void {
+  const encoded: string[] = [];
+  for (const file of readdirSync(patchDir).sort()) {
+    if (!file.endsWith(".patch")) continue;
+    const path = join(patchDir, file);
+    const bytes = readFileSync(path);
+    if (!isDeclaredHistorical(bytes.toString("utf8"))) continue;
+
+    /* Wrapped, so the sidecar is ordinary text rather than one enormous line. */
+    const body = bytes.toString("base64").replace(/(.{76})/g, "$1\n");
+    writeFileSync(`${path}.base64`, `${body}\n`, "utf8");
+    rmSync(path);
+    encoded.push(`${file}.base64`);
+  }
+  if (encoded.length > 0) {
+    writeFileSync(join(patchDir, "TRANSPORT-SAFE.txt"), transportSafeNote(encoded), "utf8");
+  }
 }
 
 /* -------------------------------------------------------------------------
@@ -450,6 +481,10 @@ export function build(outDir: string): {
   sha: string;
   entries: number;
   manifest: number;
+  /** The finished-directory scan, so a caller can report it separately. */
+  staged: ControlCharacterScan;
+  /** The same measurement taken from the written archive, inflated. */
+  inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
 } {
   const { head, short } = requireCleanHead();
   say(`building the ${short} package`);
@@ -482,12 +517,61 @@ export function build(outDir: string): {
   }
   say("  semantic, hash, recipe and wrapper checks all pass");
 
+  /*
+   * THE PACKAGE-LEVEL SCAN, and it runs before anything is hashed or written.
+   *
+   * The tracked-file gate cannot see this: it runs over the working tree,
+   * while patches, rendered evidence and the staged gate record are all
+   * produced here. That gap is exactly how an archive shipped eight backspace
+   * bytes under the heading "control-char scan 0".
+   */
+  const staged = scanDirectory(dir);
+  say(`  staged scan              ${describeScan(staged)}`);
+  if (staged.foundCharacters > 0) {
+    throw new Refusal(
+      `the staged package contains ${String(staged.foundCharacters)} control character(s) in:\n` +
+        staged.affectedFiles.map((f) => `  ${f}`).join("\n"),
+    );
+  }
+
   const manifest = writeManifest(dir, head);
+  /*
+   * Again, with `hashes.txt` present. The manifest is generated text like any
+   * other, and a scan that stopped before it would be a scan with a hole in it
+   * the size of the last file written.
+   */
+  const finished = scanDirectory(dir);
+  if (finished.foundCharacters > 0) {
+    throw new Refusal(
+      `the finished package contains ${String(finished.foundCharacters)} control character(s) in:\n` +
+        finished.affectedFiles.map((f) => `  ${f}`).join("\n"),
+    );
+  }
+
   const archive = join(outDir, `IRIS-Observer-${short}-review.zip`);
   const when = new Date(git("show", "-s", "--format=%cI", "HEAD"));
   const entries = writeZip(dir, archive, when).length;
 
-  return { archive, sha: sha256File(archive), entries, manifest };
+  /*
+   * And once more from the ARCHIVE, inflated. The staged directory and the
+   * archive hold the same bytes, so this is almost the same measurement — and
+   * "almost" is what shipped eight backspaces last time. A number reported for
+   * the archive is now a measurement of the archive.
+   */
+  const inArchive = scanArchive(archive);
+  say(
+    `  archive scan             ${inArchive.foundCharacters === 0 ? `0 in ${String(inArchive.entries)} entries` : `${String(inArchive.foundCharacters)} FOUND`}`,
+  );
+  if (inArchive.foundCharacters > 0) {
+    /* Delete it: an archive that failed its own check must not be deliverable. */
+    rmSync(archive, { force: true });
+    const where = inArchive.affectedFiles.map((f) => `  ${f}`).join("\n");
+    throw new Refusal(
+      `the written archive contains ${String(inArchive.foundCharacters)} control character(s) in:\n${where}`,
+    );
+  }
+
+  return { archive, sha: sha256File(archive), entries, manifest, staged: finished, inArchive };
 }
 
 function main(): void {
@@ -499,6 +583,7 @@ function main(): void {
     say("");
     say(`  archive   ${relative(REPO_ROOT, first.archive).split(sep).join("/")}`);
     say(`  entries   ${first.entries} (${first.manifest} in the manifest, plus hashes.txt)`);
+    say(`  staged    ${describeScan(first.staged)} control characters`);
     say(`  SHA-256   ${first.sha}`);
 
     if (verify) {

@@ -37,6 +37,7 @@ import {
   type TestGateResult,
 } from "./gate-run";
 import { REQUIRED_GATES } from "./gate-contract";
+import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
 
 interface VitestFile {
   readonly name: string;
@@ -248,36 +249,24 @@ function main(): void {
   record("secret audit", "secret audit", ["audit:secrets"]);
 
   /*
-   * Every C0 control character, not only NUL.
+   * Every C0 control character, over every TRACKED file — and the result is
+   * structured, not prose.
    *
-   * The scan looked for 0x00 alone until a shell-escaping slip injected literal
-   * BACKSPACE bytes into two regular expressions in this repository — twice,
-   * in one milestone. `/\x08FAILED\x08/` looks exactly like `/FAILED/` in an
-   * editor and matches nothing, so a gate check was silently disabled and the
-   * NUL scan reported clean. Tab, newline and carriage return are the only
-   * control characters a source file has any business containing.
+   * This gate is one of three. It covers the working tree; the packager scans
+   * the finished staging directory and the archive it is about to write, and
+   * all three are reported separately. Summarising them as one number is how
+   * a package came to say "control-char scan 0" while shipping eight backspace
+   * bytes in its own patch files.
    */
-  const nul = git("ls-files", "-z")
-    .split("\0")
-    .filter((f) => f.length > 0)
-    .filter((f) => {
-      try {
-        const bytes = readFileSync(join(REPO_ROOT, f));
-        for (let code = 0; code < 32; code += 1) {
-          if (code === 9 || code === 10 || code === 13) continue;
-          if (bytes.includes(code)) return true;
-        }
-        return false;
-      } catch {
-        return false;
-      }
-    });
-  console.log(
-    `  ${"control-char scan".padEnd(24)}${nul.length === 0 ? "0 control characters in any tracked file" : `${nul.length} FOUND`}`,
+  const controlScan = scanFiles(
+    REPO_ROOT,
+    git("ls-files", "-z")
+      .split("\0")
+      .filter((f) => f.length > 0),
   );
-  gates["raw-NUL scan"] =
-    nul.length === 0 ? "0 control characters in any tracked file" : `${nul.length} FOUND`;
-  if (nul.length > 0) failed += 1;
+  console.log(`  ${"control-char scan".padEnd(24)}${describeScan(controlScan)}`);
+  gates["raw-NUL scan"] = describeScan(controlScan);
+  if (controlScan.foundCharacters > 0) failed += 1;
 
   /* The wrappers must still match their sources. */
   const wrappers = run("wrappers match source", process.execPath, [
@@ -318,6 +307,12 @@ function main(): void {
           failedSuiteNames: gate.failedSuiteNames,
           reasons: gate.reasons,
         },
+        /*
+         * Structured, so the gate contract reads numbers rather than guessing
+         * which prose means clean. "8 FOUND" contains no word a string check
+         * was looking for.
+         */
+        controlCharacterScan: controlScan satisfies ControlCharacterScan,
         processes,
         gates,
       },

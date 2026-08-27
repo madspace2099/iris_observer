@@ -4,7 +4,7 @@ Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
 THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
 been reviewed.
 
-Scope: the release apparatus — preflight, evidence provenance and packaging. The preflight recorded the
+Scope: the control-character gate and the gate contract. The preflight recorded the
 server-variable fallback as a "finding" and gave no verdict; the compatibility
 table still called the browser-exposed variable "browser diagnostics" while the
 resolver uses it as a server fallback; four documents made freshness claims
@@ -87,6 +87,71 @@ NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 ================================================================================
 1. WHAT THIS ROUND FIXED
 ================================================================================
+
+A — THE CONTROL-CHARACTER GATE WAS A SENTENCE, NOT A MEASUREMENT.
+
+The gate contract accepted any verdict text for the scan unless it contained the
+uppercase word FAILED. Two strings that permitted packaging:
+
+    "raw-NUL scan": "8 FOUND"
+    "raw-NUL scan": "BROKEN"
+
+Neither contains the word, so neither was rejected. A gate whose result is a
+COUNT cannot be checked by reading prose about it.
+
+The record now carries structured evidence — `scannedFiles`, `foundCharacters`,
+`affectedFiles` — and the contract checks it as data. Every field must be
+present and correctly typed; the count must be exactly zero; the file list must
+be empty; the two halves must agree with each other; the scan must have looked
+at something; and the recorded verdict string must be the one that describes
+THAT scan, so a clean-looking sentence beside a non-zero count is itself a
+refusal. Absent, malformed, negative, fractional and non-zero values all refuse.
+
+B — THE SCAN RAN IN THE WRONG PLACE, AND THE ARCHIVE PROVED IT.
+
+The delivered `1b8b912` archive contained EIGHT literal BACKSPACE bytes — two in
+patch 0034, four in 0035, two in 0036 — under the heading "control-char scan 0".
+Both halves of that are explicable and neither is acceptable:
+
+  * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history: they
+    are the REMOVED lines of the three commits that removed them. A diff
+    without them would be a wrong diff.
+  * THE SCAN NEVER SAW THEM. It ran over tracked files, before `format-patch`
+    had written a single patch. Its number was true about the working tree and
+    silent about everything the packager produces.
+
+There are three scans now, and they are reported as three:
+
+    tracked working tree     the gate, over every tracked file
+    staged package           after staging and rendering, before the manifest
+    written archive          every entry inflated back out of the ZIP
+
+The second and third refuse the build outright, and a failing archive is
+DELETED rather than left on disk. None of them is summarised into the others.
+
+C — HOW THE HISTORICAL PATCHES TRAVEL.
+
+History is not rewritten and the patches are not excluded from the scan. Each
+patch from a DECLARED commit — three of them, named by full SHA with a reason
+each in `scripts/release/transport-safe.ts` — ships base64-encoded instead of
+raw, with `patches/TRANSPORT-SAFE.txt` beside them.
+
+THOSE FILES ARE NOT DIRECTLY `git am` APPLICABLE. They decode to bytes identical
+to what `git format-patch` produces, so the recovered patch is applicable and
+its hash is the patch's hash — but the shipped bytes are base64 and the document
+says so rather than implying mail-patch applicability. Every other patch is raw
+and directly applicable, and the manifest lists what is actually present.
+
+The list is keyed on the COMMIT, not on "whatever contains a control character".
+Encoding by content would turn the package scan into a formatting step: an
+accidental byte in a new patch would be quietly encoded away instead of
+refused. A control character in any other patch still fails the build, and the
+tests inject one into a patch, a rendered evidence file, the staged gate record,
+a staged generator and the manifest to prove each refuses.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
 
 A — A FOREIGN ORIGIN COULD PASS AS THE APPROVED PROJECT.
 
@@ -772,6 +837,10 @@ Not executed. Steps 1-2 are read-only. Guarded by
 ================================================================================
 
 {{GATE_BLOCK}}
+
+  CONTROL CHARACTERS, all three results, never summarised into one:
+
+{{CONTROL_CHAR_BLOCK}}
 
   observer-verify-2.sql          27/27 in all four combinations of migration 3
                                  and migration 4 applied once and twice

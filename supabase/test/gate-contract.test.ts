@@ -39,9 +39,10 @@ function greenRecord(): GateRecord {
     processes[gate] = { ...cleanProcess };
   }
   gates["pnpm test"] = "1000 passed, 2 skipped, 0 failed / 40 files";
-  gates["raw-NUL scan"] = "0 in any tracked file";
+  gates["raw-NUL scan"] = "0 in 300 files";
   return {
     head: HEAD,
+    controlCharacterScan: { scannedFiles: 300, foundCharacters: 0, affectedFiles: [] },
     tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: {} },
     testGate: {
       ...cleanProcess,

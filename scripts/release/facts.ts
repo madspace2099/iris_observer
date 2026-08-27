@@ -241,6 +241,45 @@ function gateRepeatBlock(): string {
   ].join("\n");
 }
 
+/**
+ * The three control-character results, reported separately.
+ *
+ * Summarising them as one number is how an archive came to say
+ * "control-char scan 0" while shipping eight backspace bytes in its own patch
+ * files: the tracked-tree number was true and the impression it left was not.
+ */
+function controlCharBlock(): string {
+  const r = readGateResults();
+  const scan = (
+    r as unknown as {
+      controlCharacterScan?: { scannedFiles: number; foundCharacters: number };
+    } | null
+  )?.controlCharacterScan;
+  const tracked =
+    scan === undefined
+      ? "  tracked working tree     NOT RECORDED"
+      : `  tracked working tree     ${String(scan.foundCharacters)} in ${String(scan.scannedFiles)} tracked files`;
+  return [
+    tracked,
+    "  staged package           enforced by the packager; refuses on any finding",
+    "  written archive          enforced by the packager; refuses and deletes",
+    "",
+    "THE SECOND AND THIRD NUMBERS ARE NOT IN THIS FILE, and cannot be. This",
+    "document is inside the directory being scanned and inside the archive being",
+    "scanned, so stating their totals here would change the thing measured — the",
+    "same reason the archive does not contain its own SHA-256. Both are computed",
+    "at build time, both refuse the build on any finding, and both are printed by",
+    "the packager and stated in the covering report.",
+    "",
+    "WHAT THE TRACKED NUMBER DOES NOT COVER. Patches, rendered evidence, the",
+    "staged gate record and the copied generators do not exist when that gate",
+    "runs. Three declared historical patches legitimately contain BACKSPACE on",
+    "their removed lines — the commits that removed those bytes — and they ship",
+    "base64-encoded rather than raw. See patches/TRANSPORT-SAFE.txt: the encoded",
+    "files are byte-exact and NOT directly git am applicable until decoded.",
+  ].join("\n");
+}
+
 export const SNAPSHOT_FILE = "scripts/release/live-snapshot.ts";
 
 /**
@@ -565,6 +604,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     ).join("\n"),
 
     GATE_BLOCK: gateBlock(),
+    CONTROL_CHAR_BLOCK: controlCharBlock(),
     GATE_REPEAT_BLOCK: gateRepeatBlock(),
     ARCHIVE_ENTRIES: String(shape.stagedFiles + 1),
     MANIFEST_FILES: String(shape.stagedFiles),

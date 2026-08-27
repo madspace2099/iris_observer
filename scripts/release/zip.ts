@@ -20,7 +20,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { deflateRawSync, crc32 } from "node:zlib";
+import { deflateRawSync, inflateRawSync, crc32 } from "node:zlib";
 
 /** Every file under `dir`, sorted, so entry order never depends on the OS. */
 export function walk(dir: string): readonly string[] {
@@ -114,4 +114,70 @@ export function writeZip(dir: string, out: string, when: Date): readonly string[
 
   writeFileSync(out, Buffer.concat([...local, cd, eocd]));
   return names;
+}
+
+/**
+ * Read an archive back and report its control characters.
+ *
+ * The staged directory and the archive hold the same bytes, so scanning the
+ * directory is *almost* the same measurement — but "almost" is what produced
+ * the last defect. This inflates every entry from the file that was actually
+ * written, so the number reported for the archive is a measurement of the
+ * archive.
+ *
+ * Reads the central directory rather than walking local headers: the central
+ * directory is the authoritative index, and an entry a reader would never see
+ * is not part of what was shipped.
+ */
+export function scanArchive(path: string): {
+  entries: number;
+  foundCharacters: number;
+  affectedFiles: string[];
+} {
+  const buf = readFileSync(path);
+
+  /* The end-of-central-directory record, found from the back. */
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i -= 1) {
+    if (buf.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error(`no end-of-central-directory record in ${path}`);
+
+  const count = buf.readUInt16LE(eocd + 10);
+  let offset = buf.readUInt32LE(eocd + 16);
+
+  const affected: string[] = [];
+  let found = 0;
+
+  for (let i = 0; i < count; i += 1) {
+    if (buf.readUInt32LE(offset) !== 0x02014b50) throw new Error("malformed central directory");
+    const method = buf.readUInt16LE(offset + 10);
+    const compressed = buf.readUInt32LE(offset + 20);
+    const nameLength = buf.readUInt16LE(offset + 28);
+    const extraLength = buf.readUInt16LE(offset + 30);
+    const commentLength = buf.readUInt16LE(offset + 32);
+    const localOffset = buf.readUInt32LE(offset + 42);
+    const name = buf.toString("utf8", offset + 46, offset + 46 + nameLength);
+
+    /* The local header repeats the name and extra lengths; skip past both. */
+    const localNameLength = buf.readUInt16LE(localOffset + 26);
+    const localExtraLength = buf.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+    const stored = buf.subarray(dataStart, dataStart + compressed);
+    const bytes = method === 8 ? inflateRawSync(stored) : stored;
+
+    let here = 0;
+    for (const byte of bytes) if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) here += 1;
+    if (here > 0) {
+      found += here;
+      affected.push(name);
+    }
+
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+
+  return { entries: count, foundCharacters: found, affectedFiles: affected.sort() };
 }

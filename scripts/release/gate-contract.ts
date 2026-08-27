@@ -16,6 +16,15 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { scanProblems, describeScan, type ControlCharacterScan } from "./control-chars";
+
+/**
+ * The gate whose result is a measurement rather than a verdict.
+ *
+ * It has no child process of its own — the runner scans in-process — so it is
+ * exempt from the process checks and subject to the structured ones instead.
+ */
+export const CONTROL_CHARACTER_GATE = "raw-NUL scan";
 
 /**
  * Every gate that must have run, under the key the runner records it as.
@@ -54,6 +63,14 @@ export interface RecordedTestGate extends RecordedProcess {
 
 export interface GateRecord {
   readonly head?: string;
+  /**
+   * Structured control-character evidence, over the tracked working tree.
+   *
+   * Required. The previous contract read only the free-text verdict, so both
+   * `"8 FOUND"` and `"BROKEN"` permitted packaging: neither contains the word
+   * the string check looked for. Numbers cannot be misread that way.
+   */
+  readonly controlCharacterScan?: ControlCharacterScan;
   readonly tests?: {
     readonly passed?: number;
     readonly skipped?: number;
@@ -107,11 +124,17 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
      * Case-SENSITIVE, and deliberately. The runner writes the literal word
      * FAILED for a failure, while a clean test gate reads "… 0 failed / 40
      * files" — a case-insensitive match rejected every green record it saw.
+     *
+     * IT IS ALSO NOT ENOUGH ON ITS OWN. A string check can only reject prose it
+     * recognises: `"8 FOUND"` and `"BROKEN"` both passed it, because neither
+     * contains the word it looks for. Gates whose result is a measurement carry
+     * STRUCTURED evidence as well, checked below, and the string is then only a
+     * label that has to match what the structure says.
      */
     if (/FAILED/.test(outcome)) problems.push(`${gate}: ${outcome}`);
 
     /* The scan gates have no process of their own; the rest must have one. */
-    if (gate === "raw-NUL scan") continue;
+    if (gate === CONTROL_CHARACTER_GATE) continue;
     const p = record.processes?.[gate];
     if (p === undefined) {
       problems.push(`${gate}: no process metadata recorded`);
@@ -121,6 +144,31 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
     if (p.signal !== null && p.signal !== undefined) problems.push(`${gate}: signal ${p.signal}`);
     if (p.errorCode !== null && p.errorCode !== undefined) {
       problems.push(`${gate}: spawn error ${p.errorCode}`);
+    }
+  }
+
+  /*
+   * The control-character gate, structurally.
+   *
+   * Every field present and correctly typed, zero characters, an empty file
+   * list, the two halves agreeing with each other, and a recorded verdict that
+   * matches what the structure says. Absent, malformed, negative, non-integer
+   * or non-zero all refuse.
+   */
+  problems.push(...scanProblems(record.controlCharacterScan, "controlCharacterScan"));
+  const scan = record.controlCharacterScan;
+  if (scan !== undefined && typeof scan.scannedFiles === "number") {
+    /*
+     * The verdict must describe THIS scan, not merely look clean. Comparing
+     * against the clean form alone let a dirty scan sit beside a clean
+     * sentence without the mismatch being reported.
+     */
+    const expected = describeScan(scan);
+    const recorded = record.gates?.[CONTROL_CHARACTER_GATE];
+    if (recorded !== expected) {
+      problems.push(
+        `${CONTROL_CHARACTER_GATE}: verdict ${JSON.stringify(recorded)} does not match the structured evidence (expected ${JSON.stringify(expected)})`,
+      );
     }
   }
 
@@ -164,6 +212,8 @@ export function sanitizedRecord(record: GateRecord): unknown {
     head: record.head,
     tests: record.tests,
     testGate: record.testGate,
+    /* Counts and paths. A path locates a file; its contents are unbounded. */
+    controlCharacterScan: record.controlCharacterScan,
     processes: record.processes,
     gates: record.gates,
   };
