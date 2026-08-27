@@ -268,7 +268,9 @@ crediting a model it did not attempt.
 ================================================================================
 
 Every artefact in this package, re-hashed at generation time and compared with
-the same path at the previous release commit. An earlier edition of this section
+the same path in the LAST DELIVERED BUNDLE — not the immediate parent, because
+a milestone is several commits and a reviewer is holding the previous ZIP. An
+earlier edition of this section
 was a TYPED LIST of hashes: it named 444b01d9 for the contract migration after
 that file had changed, which is precisely why this block is rendered now.
 

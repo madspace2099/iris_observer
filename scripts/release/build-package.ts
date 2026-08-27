@@ -34,7 +34,17 @@ import { join, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { facts, render, git, REPO_ROOT, strip, execSha, fileShaAt, MIGRATIONS_DIR } from "./facts";
+import {
+  facts,
+  render,
+  git,
+  REPO_ROOT,
+  strip,
+  execSha,
+  fileShaAt,
+  baselineCommit,
+  MIGRATIONS_DIR,
+} from "./facts";
 import { walk, writeZip } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
@@ -158,7 +168,7 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
   const problems: string[] = [];
   const head = git("rev-parse", "HEAD");
   const short = head.slice(0, 7);
-  const parentShort = git("rev-parse", "HEAD~1").slice(0, 7);
+  const parentShort = baselineCommit().slice(0, 7);
   const find = (name: string): string => rendered.find((r) => r.name === name)?.text ?? "";
 
   const compat = find("COMPATIBILITY-EVIDENCE.txt");

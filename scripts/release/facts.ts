@@ -50,6 +50,22 @@ export const gitShowBytes = (commit: string, path: string): Buffer =>
 export const fileShaAt = (commit: string, path: string): string =>
   createHash("sha256").update(gitShowBytes(commit, path)).digest("hex");
 
+/**
+ * What "unchanged" is measured against: the commit of the last DELIVERED
+ * bundle, not `HEAD~1`.
+ *
+ * A milestone is several commits. Comparing with the immediate parent reports
+ * "unchanged" for a file this milestone edited two commits ago, which is true
+ * of the last commit and useless to a reviewer — who is holding the previous
+ * ZIP and wants to know what moved since THAT. Falls back to the parent only
+ * if no bundle has been delivered yet.
+ */
+export function baselineCommit(): string {
+  const last = DELIVERED_ARCHIVES[DELIVERED_ARCHIVES.length - 1]?.bundle;
+  if (last === undefined) return git("rev-parse", "HEAD~1");
+  return git("rev-parse", last);
+}
+
 const sha256 = (path: string): string =>
   createHash("sha256")
     .update(readFileSync(join(REPO_ROOT, path)))
@@ -160,7 +176,8 @@ function gateBlock(): string {
 export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   const head = git("rev-parse", "HEAD");
   const headShort = head.slice(0, 7);
-  const parent = git("rev-parse", "HEAD~1");
+  /* The last delivered bundle, so "unchanged" spans the whole milestone. */
+  const parent = baselineCommit();
   const parentShort = parent.slice(0, 7);
   const [behind = "0", ahead = "0"] = git(
     "rev-list",

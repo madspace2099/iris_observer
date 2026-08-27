@@ -64,7 +64,7 @@ package rather than from memory:
 
   {{CRON_HEALTH_VERDICT}}
 
-EVERY MIGRATION SOURCE, compared against the previous release commit:
+EVERY MIGRATION SOURCE, compared against the last delivered bundle:
 
 {{MIGRATIONS_BLOCK}}
 
