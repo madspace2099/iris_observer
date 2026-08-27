@@ -183,6 +183,14 @@ export interface RunnerDiagnostics {
   readonly loopDelayMeanMs: number | null;
   /** Peak modules executing at once — one per worker, so the real concurrency. */
   readonly peakConcurrentModules: number;
+  /**
+   * Peak PGlite-heavy modules executing at once.
+   *
+   * Multiplied by {@link RunnerDiagnostics.pglitePeakOpen} this is the peak
+   * number of WASM Postgres instances alive across the whole run — the figure
+   * a worker bound actually changes, and the one a per-worker peak cannot show.
+   */
+  readonly peakConcurrentPgliteModules: number;
   /** Configured bound, as Vitest resolved it. */
   readonly configuredMaxWorkers: number | null;
   readonly configuredMinWorkers: number | null;
@@ -262,6 +270,32 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
  * Opt-in by environment rather than always-on, so an ordinary `pnpm test` is
  * unchanged and nothing appears on disk unless a caller asked for it.
  */
+/**
+ * The suites that boot a WASM Postgres, by BASENAME.
+ *
+ * A basename, never a path: the same rule every other identity in this file
+ * follows. It is a list rather than a heuristic because "does this file import
+ * PGlite" is not something a reporter can ask, and a wrong guess here would
+ * silently mis-state the concurrency the whole comparison turns on.
+ * `pglite-lifecycle.test.ts` is included — it opens real instances too.
+ */
+export const PGLITE_SUITES: readonly string[] = [
+  "ai-readiness.test.ts",
+  "audit-contract.test.ts",
+  "contract-readiness.test.ts",
+  "cron-health.test.ts",
+  "http-proof.test.ts",
+  "pglite-lifecycle.test.ts",
+];
+
+/** True when a Vitest module is one of {@link PGLITE_SUITES}. */
+export function isPgliteModule(module: unknown): boolean {
+  const id = (module as { moduleId?: unknown } | undefined)?.moduleId;
+  if (typeof id !== "string") return false;
+  const base = id.split(/[\\/]/).pop() ?? "";
+  return PGLITE_SUITES.includes(base);
+}
+
 /** What one worker recorded about its own PGlite instances. */
 interface PgliteStats {
   readonly created?: unknown;
@@ -325,6 +359,8 @@ export default class RunnerDiagnosticsReporter {
   private loop: IntervalHistogram | null = null;
   private running = 0;
   private peakModules = 0;
+  private runningPglite = 0;
+  private peakPgliteModules = 0;
 
   onInit(ctx: unknown): void {
     this.start = Date.now();
@@ -361,14 +397,25 @@ export default class RunnerDiagnosticsReporter {
    * One module runs per worker at a time, so the peak number executing at once
    * IS the peak worker count. Vitest exposes no other way to observe what the
    * pool actually did, as opposed to what it was configured to do.
+   *
+   * The PGlite-heavy modules are counted separately, because the concurrency
+   * that matters is not how many workers exist but how many are each holding a
+   * WASM Postgres. A per-worker peak cannot show that: it reads 3 at every
+   * setting, since the bound changes how many workers there are and not what
+   * one of them does.
    */
-  onTestModuleStart(): void {
+  onTestModuleStart(module: unknown): void {
     this.running += 1;
     this.peakModules = Math.max(this.peakModules, this.running);
+    if (isPgliteModule(module)) {
+      this.runningPglite += 1;
+      this.peakPgliteModules = Math.max(this.peakPgliteModules, this.runningPglite);
+    }
   }
 
-  onTestModuleEnd(): void {
+  onTestModuleEnd(module: unknown): void {
     this.running = Math.max(0, this.running - 1);
+    if (isPgliteModule(module)) this.runningPglite = Math.max(0, this.runningPglite - 1);
   }
 
   onTestRunEnd(
@@ -405,6 +452,7 @@ export default class RunnerDiagnosticsReporter {
       loopDelayMaxMs: loop === null ? null : ms(loop.max),
       loopDelayMeanMs: loop === null ? null : ms(loop.mean),
       peakConcurrentModules: this.peakModules,
+      peakConcurrentPgliteModules: this.peakPgliteModules,
       configuredMaxWorkers: this.maxWorkers,
       configuredMinWorkers: this.minWorkers,
       pgliteCreated: stats?.created ?? null,

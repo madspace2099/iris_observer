@@ -161,6 +161,7 @@ export interface CaseResult {
   readonly loopDelayMaxMs: number | null;
   readonly loopDelayMeanMs: number | null;
   readonly peakConcurrentModules: number | null;
+  readonly peakConcurrentPgliteModules: number | null;
   readonly configuredMaxWorkers: number | null;
   readonly pgliteCreated: number | null;
   readonly pgliteClosed: number | null;
@@ -330,6 +331,7 @@ function runOneCase(c: MatrixCase, pass: number, workers: number | null): CaseRe
     loopDelayMaxMs: diag?.loopDelayMaxMs ?? null,
     loopDelayMeanMs: diag?.loopDelayMeanMs ?? null,
     peakConcurrentModules: diag?.peakConcurrentModules ?? null,
+    peakConcurrentPgliteModules: diag?.peakConcurrentPgliteModules ?? null,
     configuredMaxWorkers: diag?.configuredMaxWorkers ?? null,
     pgliteCreated: diag?.pgliteCreated ?? null,
     pgliteClosed: diag?.pgliteClosed ?? null,
@@ -363,7 +365,9 @@ function line(r: CaseResult): string {
     `failed=${String(r.failedTests)}/${String(r.failedSuites)}`,
     `unhandled=${unhandled}${tag}`,
     `peakMod=${String(r.peakConcurrentModules)}`,
+    `pgMods=${String(r.peakConcurrentPgliteModules)}`,
     `pgPeak=${String(r.pglitePeakOpen)}`,
+    `pgLive=${String((r.peakConcurrentPgliteModules ?? 0) * (r.pglitePeakOpen ?? 0))}`,
     `pg=${String(r.pgliteCreated)}/${String(r.pgliteClosed)}`,
     `loopP95=${String(r.loopDelayP95Ms)}ms`,
     `loopMax=${String(r.loopDelayMaxMs)}ms`,
@@ -438,7 +442,7 @@ function main(): void {
         `${String(bad)}/${String(mine.length)}   ` +
         `loopP95 avg ${String(avg(mine.map((r) => r.loopDelayP95Ms ?? 0)))}ms   ` +
         `loopMax avg ${String(avg(mine.map((r) => r.loopDelayMaxMs ?? 0)))}ms   ` +
-        `pglite peak avg ${String(avg(mine.map((r) => r.pglitePeakOpen ?? 0)))}   ` +
+        `pglite live peak avg ${String(avg(mine.map((r) => (r.peakConcurrentPgliteModules ?? 0) * (r.pglitePeakOpen ?? 0))))}   ` +
         `duration avg ${String(avg(mine.map((r) => Math.round((r.durationMs ?? 0) / 1000))))}s`,
     );
   }
