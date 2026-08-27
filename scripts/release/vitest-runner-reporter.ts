@@ -46,6 +46,8 @@
  */
 
 import { writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { freemem, totalmem } from "node:os";
 
 /** Longest stored identity. Beyond this the value is refused, not truncated. */
 const MAX_IDENTITY = 64;
@@ -77,13 +79,46 @@ export function boundedIdentities(all: readonly string[]): readonly string[] {
       ];
 }
 
+/**
+ * The one message shape this file is allowed to read anything out of.
+ *
+ * Vitest's RPC layer throws `[vitest-worker]: Timeout calling "onTaskUpdate"` —
+ * an entirely machine-generated sentence with no user content in it, and the
+ * two things worth keeping are the subsystem and the method. An ALLOW-LIST
+ * rather than a parse: a message that does not match this exact shape yields
+ * nothing at all, so there is no extraction step for another message to be
+ * dragged through. The method name is additionally re-checked by
+ * {@link safeIdentity} before it is stored.
+ */
+const RPC_TIMEOUT =
+  /^\[(vitest-worker|vitest-pool|vitest-browser)\]: Timeout calling "([A-Za-z]{1,40})"$/;
+
+/** A stable handle for "this error again", carrying none of the error. */
+function fingerprint(subsystem: string, operation: string, name: string, code: string): string {
+  return createHash("sha256")
+    .update([subsystem, operation, name, code].join("|"))
+    .digest("hex")
+    .slice(0, 12);
+}
+
 export interface RunnerDiagnostics {
   /** How many unhandled errors Vitest collected. The exit code follows this. */
   readonly reportedUnhandledErrors: number;
   /** Bounded class names — `Error`, `TypeError`, `AggregateError`. */
   readonly sanitizedUnhandledErrorNames: readonly string[];
-  /** Bounded machine codes — `ERR_IPC_CHANNEL_CLOSED`, `EPIPE`. */
+  /** Bounded machine codes — `ERR_IPC_CHANNEL_CLOSED`, `EPIPE`, or `(none)`. */
   readonly sanitizedUnhandledErrorCodes: readonly string[];
+  /**
+   * Owning subsystem, from Vitest's own vocabulary — `vitest-worker`.
+   *
+   * Established without a path: the value is one of three literals this file
+   * allow-lists, never a module location.
+   */
+  readonly sanitizedUnhandledErrorSubsystems: readonly string[];
+  /** The RPC method that timed out — `onTaskUpdate`. Says which phase it was. */
+  readonly sanitizedUnhandledErrorOperations: readonly string[];
+  /** Stable handle for "this error again". Carries none of the error. */
+  readonly unhandledErrorFingerprints: readonly string[];
   /** Vitest's own end-of-run state: `passed`, `failed` or `interrupted`. */
   readonly runState: string;
   /** How many test modules the run ended with. */
@@ -94,6 +129,18 @@ export interface RunnerDiagnostics {
   readonly pool: string;
   /** Resolved concurrency bound, where Vitest exposes one. */
   readonly maxWorkers: number | null;
+  /**
+   * Least free memory sampled while the run was in progress, in MB.
+   *
+   * Sampled in the VITEST PARENT, which is the process that has to answer a
+   * worker's RPC inside its timeout — so a low reading here and an RPC timeout
+   * are two readings of one condition. It under-samples exactly when the loop
+   * is starved, which makes it a floor and not an exact minimum, and that is
+   * the direction that keeps it honest.
+   */
+  readonly minFreeMemMb: number | null;
+  readonly totalMemMb: number;
+  readonly memorySamples: number;
   /** Proof this file was written by the run it claims to describe. */
   readonly completed: true;
 }
@@ -101,23 +148,55 @@ export interface RunnerDiagnostics {
 interface ErrorLike {
   readonly name?: unknown;
   readonly code?: unknown;
+  /** Read ONLY through {@link RPC_TIMEOUT}, and never stored. */
+  readonly message?: unknown;
   readonly constructor?: { readonly name?: unknown };
 }
 
+export interface UnhandledSummary {
+  readonly names: readonly string[];
+  readonly codes: readonly string[];
+  readonly subsystems: readonly string[];
+  readonly operations: readonly string[];
+  readonly fingerprints: readonly string[];
+}
+
 /** Reduce Vitest's error list to identities. Exported so a fixture can drive it. */
-export function summarizeUnhandled(errors: readonly unknown[]): {
-  names: readonly string[];
-  codes: readonly string[];
-} {
+export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary {
   const names: string[] = [];
   const codes: string[] = [];
+  const subsystems: string[] = [];
+  const operations: string[] = [];
+  const fingerprints: string[] = [];
+
   for (const raw of errors) {
     const e = (raw ?? {}) as ErrorLike;
-    const name = typeof e.name === "string" ? e.name : e.constructor?.name;
-    names.push(safeIdentity(name));
-    codes.push(safeIdentity(e.code));
+    const name = safeIdentity(typeof e.name === "string" ? e.name : e.constructor?.name);
+    const code = safeIdentity(e.code);
+
+    /*
+     * The ONLY thing read out of a message, and only when the whole message is
+     * one exact machine-generated shape. Anything else contributes `(none)`,
+     * so a message that is not this one is not parsed at all.
+     */
+    const matched = typeof e.message === "string" ? RPC_TIMEOUT.exec(e.message) : null;
+    const subsystem = matched === null ? "(none)" : safeIdentity(matched[1]);
+    const operation = matched === null ? "(none)" : safeIdentity(matched[2]);
+
+    names.push(name);
+    codes.push(code);
+    subsystems.push(subsystem);
+    operations.push(operation);
+    fingerprints.push(fingerprint(subsystem, operation, name, code));
   }
-  return { names: boundedIdentities(names), codes: boundedIdentities(codes) };
+
+  return {
+    names: boundedIdentities(names),
+    codes: boundedIdentities(codes),
+    subsystems: boundedIdentities(subsystems),
+    operations: boundedIdentities(operations),
+    fingerprints: boundedIdentities(fingerprints),
+  };
 }
 
 /**
@@ -130,6 +209,9 @@ export default class RunnerDiagnosticsReporter {
   private start = Date.now();
   private pool = "unknown";
   private maxWorkers: number | null = null;
+  private minFree: number | null = null;
+  private samples = 0;
+  private sampler: NodeJS.Timeout | null = null;
 
   onInit(ctx: unknown): void {
     this.start = Date.now();
@@ -138,6 +220,18 @@ export default class RunnerDiagnosticsReporter {
     if (typeof pool === "string") this.pool = pool;
     const workers = config?.["maxWorkers"];
     if (typeof workers === "number") this.maxWorkers = workers;
+
+    if (process.env["OBSERVER_RUNNER_DIAGNOSTICS"] === undefined) return;
+    /*
+     * `unref`ed, so sampling can never be the reason a process stays alive —
+     * measuring a lifecycle problem must not create one.
+     */
+    this.sampler = setInterval(() => {
+      const free = Math.round(freemem() / 1_048_576);
+      this.minFree = this.minFree === null ? free : Math.min(this.minFree, free);
+      this.samples += 1;
+    }, 250);
+    this.sampler.unref();
   }
 
   onTestRunEnd(
@@ -145,19 +239,26 @@ export default class RunnerDiagnosticsReporter {
     unhandledErrors: readonly unknown[],
     reason: unknown,
   ): void {
+    if (this.sampler !== null) clearInterval(this.sampler);
     const out = process.env["OBSERVER_RUNNER_DIAGNOSTICS"];
     if (out === undefined || out === "") return;
 
-    const { names, codes } = summarizeUnhandled(unhandledErrors);
+    const summary = summarizeUnhandled(unhandledErrors);
     const diagnostics: RunnerDiagnostics = {
       reportedUnhandledErrors: unhandledErrors.length,
-      sanitizedUnhandledErrorNames: names,
-      sanitizedUnhandledErrorCodes: codes,
+      sanitizedUnhandledErrorNames: summary.names,
+      sanitizedUnhandledErrorCodes: summary.codes,
+      sanitizedUnhandledErrorSubsystems: summary.subsystems,
+      sanitizedUnhandledErrorOperations: summary.operations,
+      unhandledErrorFingerprints: summary.fingerprints,
       runState: safeIdentity(reason),
       moduleCount: testModules.length,
       durationMs: Date.now() - this.start,
       pool: this.pool,
       maxWorkers: this.maxWorkers,
+      minFreeMemMb: this.minFree,
+      totalMemMb: Math.round(totalmem() / 1_048_576),
+      memorySamples: this.samples,
       completed: true,
     };
     writeFileSync(out, `${JSON.stringify(diagnostics, null, 2)}\n`, "utf8");
