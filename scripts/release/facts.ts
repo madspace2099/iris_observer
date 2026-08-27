@@ -168,7 +168,10 @@ function gateBlock(): string {
   return [
     `${stale}  pnpm test                      ${r.tests.total} passed / ${r.tests.files} files / 0 failed`,
     ...perFile,
-    ...Object.entries(r.gates).map(([g, v]) => `  ${g.padEnd(30)} ${v}`),
+    /* pnpm test is the header line above; do not print it twice. */
+    ...Object.entries(r.gates)
+      .filter(([g]) => g !== "pnpm test")
+      .map(([g, v]) => `  ${g.padEnd(30)} ${v}`),
   ].join("\n");
 }
 
@@ -336,6 +339,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     NOT_DEPLOYED_BLOCK: wrap(notDeployed, "  NOT DEPLOYED: ", "  "),
 
     INVENTORY_UNCHANGED_SENTENCE: [
+      "",
       `The same twenty deployments are recorded in all ${bundles} delivered bundles,`,
       "which is consistency rather than freshness: the inventory was last enumerated",
       `against Vercel for ${lastEnumerated}.`,

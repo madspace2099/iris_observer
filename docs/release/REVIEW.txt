@@ -413,9 +413,10 @@ that a HASH matches its bytes. They cannot verify that a SENTENCE is true.
 "Comment-only", "unchanged", "byte-identical" are claims, which is why the
 evidence prints the comparison rather than asserting the conclusion.
 
-DETERMINISM. Entry names use forward slashes — every archive before {{HEAD_SHORT}}
-stored Windows separators, which APPNOTE 4.4.17.1 forbids and `unzip` warns
-about. Entries are sorted. The timestamp is the commit date read through UTC
+DETERMINISM. Entry names use forward slashes — every archive up to and including
+the ee954b8 bundle stored Windows separators, which APPNOTE 4.4.17.1 forbids and
+`unzip` warns about; the f1dbffd bundle was the first written by a conforming
+writer. Entries are sorted. The timestamp is the commit date read through UTC
 accessors, so the bytes do not depend on the builder's zone; this is asserted by
 building under three different `TZ` settings and comparing.
 
