@@ -151,6 +151,12 @@ export interface CaseResult {
   readonly reportedUnhandledErrors: number | null;
   readonly sanitizedUnhandledErrorNames: readonly string[];
   readonly sanitizedUnhandledErrorCodes: readonly string[];
+  readonly sanitizedUnhandledErrorSubsystems: readonly string[];
+  readonly sanitizedUnhandledErrorOperations: readonly string[];
+  readonly unhandledErrorFingerprints: readonly string[];
+  readonly minFreeMemMb: number | null;
+  readonly totalMemMb: number | null;
+  readonly memorySamples: number | null;
   readonly pool: string | null;
   readonly maxWorkers: number | null;
   readonly durationMs: number | null;
@@ -285,6 +291,12 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
     reportedUnhandledErrors: diag?.reportedUnhandledErrors ?? null,
     sanitizedUnhandledErrorNames: diag?.sanitizedUnhandledErrorNames ?? [],
     sanitizedUnhandledErrorCodes: diag?.sanitizedUnhandledErrorCodes ?? [],
+    sanitizedUnhandledErrorSubsystems: diag?.sanitizedUnhandledErrorSubsystems ?? [],
+    sanitizedUnhandledErrorOperations: diag?.sanitizedUnhandledErrorOperations ?? [],
+    unhandledErrorFingerprints: diag?.unhandledErrorFingerprints ?? [],
+    minFreeMemMb: diag?.minFreeMemMb ?? null,
+    totalMemMb: diag?.totalMemMb ?? null,
+    memorySamples: diag?.memorySamples ?? null,
     pool: diag?.pool ?? null,
     maxWorkers: diag?.maxWorkers ?? null,
     durationMs: diag?.durationMs ?? null,
@@ -295,14 +307,19 @@ function runOneCase(c: MatrixCase, pass: number): CaseResult {
 
 function line(r: CaseResult): string {
   const unhandled = r.reportedUnhandledErrors === null ? "?" : String(r.reportedUnhandledErrors);
-  const ids = [...r.sanitizedUnhandledErrorNames, ...r.sanitizedUnhandledErrorCodes]
+  const ids = [
+    ...r.sanitizedUnhandledErrorNames,
+    ...r.sanitizedUnhandledErrorCodes,
+    ...r.sanitizedUnhandledErrorSubsystems,
+    ...r.sanitizedUnhandledErrorOperations,
+  ]
     .filter((s) => s !== "(none)")
     .join("/");
   return (
     `  ${r.id}.${String(r.pass)}  status=${String(r.processStatus)} ` +
     `success=${String(r.reportSuccess)} failed=${String(r.failedTests)} ` +
     `suites=${String(r.failedSuites)} unhandled=${unhandled}` +
-    `${ids === "" ? "" : ` [${ids}]`}  ${r.shape}`
+    `${ids === "" ? "" : ` [${ids}]`} minFree=${String(r.minFreeMemMb)}MB  ${r.shape}`
   );
 }
 
