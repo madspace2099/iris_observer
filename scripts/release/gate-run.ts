@@ -272,7 +272,97 @@ export function summarizeReport(report: VitestReport): ReportSummary {
   };
 }
 
-export interface TestGateResult extends ProcessResult, ReportSummary {
+/**
+ * What the JSON report structurally cannot say about the run.
+ *
+ * Vitest 3.2.7's JSON reporter takes the unhandled-error list as `_errors` and
+ * discards it, computes `success` without reference to it, and writes an object
+ * with no field for it — while Vitest sets `process.exitCode = 1` whenever that
+ * list is non-empty. So the one condition capable of producing `status=1` beside
+ * `reportSuccess=true, failedTests=0, failedSuites=0` was invisible to the only
+ * artefact the gate read, and the gate could record the failure without being
+ * able to name it. This is what closes that gap.
+ *
+ * Every field is IDENTITY OR MEASUREMENT. Names and codes come from the
+ * allow-listed sanitizer in `vitest-runner-reporter.ts`; nothing here can carry
+ * a message, a stack, a path or any output.
+ */
+export interface RunnerEvidence {
+  /** Which phase this describes. One gate, one phase, named rather than assumed. */
+  readonly phase: string;
+  /** The report file existed after the run. */
+  readonly reportWritten: boolean;
+  /** It parsed as JSON. */
+  readonly reportParsed: boolean;
+  /** The diagnostics reporter reached `onTestRunEnd` and wrote its sidecar. */
+  readonly reportCompleted: boolean;
+  /** How many unhandled errors Vitest collected. The exit code follows this. */
+  readonly reportedUnhandledErrors: number | null;
+  /** Bounded class names — `Error`, `TypeError`. */
+  readonly sanitizedUnhandledErrorNames: readonly string[];
+  /** Bounded machine codes — `ERR_IPC_CHANNEL_CLOSED`, `EPIPE`. */
+  readonly sanitizedUnhandledErrorCodes: readonly string[];
+  /** The same three process facts, under the names the diagnosis asked for. */
+  readonly processStatus: number | null;
+  readonly processSignal: string | null;
+  readonly processErrorCode: string | null;
+  /** Wall time the runner itself measured. */
+  readonly durationMs: number | null;
+  /** `vitest <version>`, read from the installed package. */
+  readonly runner: string | null;
+  /** The pool Vitest resolved — `forks`, `threads`, `vmThreads`. */
+  readonly workerPool: string | null;
+  /** The concurrency bound, where Vitest exposes one. */
+  readonly workerCount: number | null;
+}
+
+/** Evidence for a run that produced no runner diagnostics at all. */
+export const NO_RUNNER_EVIDENCE: RunnerEvidence = {
+  phase: "test",
+  reportWritten: false,
+  reportParsed: false,
+  reportCompleted: false,
+  reportedUnhandledErrors: null,
+  sanitizedUnhandledErrorNames: [],
+  sanitizedUnhandledErrorCodes: [],
+  processStatus: null,
+  processSignal: null,
+  processErrorCode: null,
+  durationMs: null,
+  runner: null,
+  workerPool: null,
+  workerCount: null,
+};
+
+/**
+ * Every reason the runner evidence refuses the gate, independently.
+ *
+ * ABSENT IS NOT CLEAN. `reportedUnhandledErrors: null` means the run was not
+ * measured for the condition that produced this milestone's failure, and a gate
+ * that treated "not measured" as "none" would be the same blindness with an
+ * extra field.
+ */
+export function runnerEvidenceReasons(e: RunnerEvidence): readonly string[] {
+  const reasons: string[] = [];
+  if (!e.reportWritten) reasons.push("no JSON report file was written");
+  if (!e.reportParsed) reasons.push("the JSON report did not parse");
+  if (!e.reportCompleted) {
+    reasons.push("the runner diagnostics reporter did not complete — unhandled errors unmeasured");
+  }
+  if (e.reportedUnhandledErrors === null) {
+    reasons.push("unhandled runner errors were not measured");
+  } else if (e.reportedUnhandledErrors > 0) {
+    const ids = [...e.sanitizedUnhandledErrorNames, ...e.sanitizedUnhandledErrorCodes]
+      .filter((s) => s !== "(none)")
+      .join(", ");
+    reasons.push(
+      `${String(e.reportedUnhandledErrors)} unhandled runner error(s)${ids === "" ? "" : `: ${ids}`}`,
+    );
+  }
+  return reasons;
+}
+
+export interface TestGateResult extends ProcessResult, ReportSummary, RunnerEvidence {
   /** Every reason this gate is not clean. Empty means clean. */
   readonly reasons: readonly string[];
 }
@@ -289,7 +379,11 @@ export interface TestGateResult extends ProcessResult, ReportSummary {
  * There is no retry. A run that failed stays failed: re-running until the
  * answer is green is how an intermittent fault becomes an invisible one.
  */
-export function classifyTestGate(process_: ProcessResult, report: ReportSummary): TestGateResult {
+export function classifyTestGate(
+  process_: ProcessResult,
+  report: ReportSummary,
+  runner: RunnerEvidence,
+): TestGateResult {
   const reasons: string[] = [];
 
   if (process_.errorCode !== null) reasons.push(`process error ${process_.errorCode}`);
@@ -324,7 +418,17 @@ export function classifyTestGate(process_: ProcessResult, report: ReportSummary)
     reasons.push(`failed: ${t.suite} > ${t.title}`);
   }
 
-  return { ...process_, ...report, reasons };
+  /*
+   * RUNNER-LEVEL EVIDENCE, INDEPENDENTLY, and this is the whole correction.
+   *
+   * An unhandled error sets Vitest's exit code and leaves `success` true and
+   * both failure counts at zero. Every condition above would therefore say the
+   * run was clean, and only `exit status 1` would say otherwise — which is
+   * exactly the record that could not be explained. These reasons name it.
+   */
+  reasons.push(...runnerEvidenceReasons(runner));
+
+  return { ...process_, ...report, ...runner, reasons };
 }
 
 /** A report summary for a run that produced nothing readable. */
@@ -351,6 +455,8 @@ export function describe(result: TestGateResult): string {
     `reportedFailedSuites=${String(result.reportedFailedSuites)}`,
     `runtimeErrorSuites=${String(result.runtimeErrorSuites)}`,
     `failedSuites=[${result.failedSuiteNames.join(",")}]`,
+    `unhandledErrors=${String(result.reportedUnhandledErrors)}`,
+    `pool=${String(result.workerPool)}`,
   ];
   return bits.join(" ");
 }

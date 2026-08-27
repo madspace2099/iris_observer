@@ -38,7 +38,9 @@ import {
   type ProcessResult,
   type ReportSummary,
   type TestGateResult,
+  type RunnerEvidence,
 } from "./gate-run";
+import type { RunnerDiagnostics } from "./vitest-runner-reporter";
 import { REQUIRED_GATES } from "./gate-contract";
 import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
 
@@ -63,12 +65,74 @@ const run = (
   command: string,
   args: readonly string[],
   shell = false,
+  env?: NodeJS.ProcessEnv,
 ): { result: ProcessResult; output: string } => {
   process.stdout.write(`  ${label.padEnd(24)}`);
-  const r = runProcess(command, args, { cwd: REPO_ROOT, shell });
+  const r = runProcess(command, args, {
+    cwd: REPO_ROOT,
+    shell,
+    ...(env === undefined ? {} : { env }),
+  });
   console.log(r.ok ? "clean" : "FAILED");
   return { result: sanitize(r), output: r.output };
 };
+
+/*
+ * POSIX-relative, because Vite resolves a reporter SPECIFIER and a Windows
+ * absolute path with backslashes is not one.
+ */
+const RUNNER_REPORTER = "./scripts/release/vitest-runner-reporter.ts";
+
+/** `vitest <version>`, read rather than assumed. */
+const RUNNER_VERSION = ((): string | null => {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(join(REPO_ROOT, "node_modules", "vitest", "package.json"), "utf8"),
+    ) as { version?: string };
+    return `vitest ${pkg.version ?? "unknown"}`;
+  } catch {
+    return null;
+  }
+})();
+
+/**
+ * The sidecar the diagnostics reporter wrote, or an absence that fails closed.
+ *
+ * Absence is not cleanliness: a run whose unhandled-error count was never
+ * measured is a run that could exit 1 for the one reason the JSON report cannot
+ * express, which is precisely the record this milestone had to explain.
+ */
+function readRunnerEvidence(
+  path: string,
+  process_: ProcessResult,
+  reportWritten: boolean,
+  reportParsed: boolean,
+): RunnerEvidence {
+  let d: RunnerDiagnostics | null = null;
+  if (existsSync(path)) {
+    try {
+      d = JSON.parse(readFileSync(path, "utf8")) as RunnerDiagnostics;
+    } catch {
+      d = null;
+    }
+  }
+  return {
+    phase: "test",
+    reportWritten,
+    reportParsed,
+    reportCompleted: d?.completed ?? false,
+    reportedUnhandledErrors: d?.reportedUnhandledErrors ?? null,
+    sanitizedUnhandledErrorNames: d?.sanitizedUnhandledErrorNames ?? [],
+    sanitizedUnhandledErrorCodes: d?.sanitizedUnhandledErrorCodes ?? [],
+    processStatus: process_.status,
+    processSignal: process_.signal,
+    processErrorCode: process_.errorCode,
+    durationMs: d?.durationMs ?? null,
+    runner: RUNNER_VERSION,
+    workerPool: d?.pool ?? null,
+    workerCount: d?.maxWorkers ?? null,
+  };
+}
 
 /**
  * Read the JSON report, if the reporter managed to write one.
@@ -93,16 +157,33 @@ function runTestGate(): {
   output: string;
   report: VitestReport | null;
 } {
-  const reportFile = join(tmpdir(), `observer-vitest-${process.pid}-${Date.now()}.json`);
+  const stamp = `${String(process.pid)}-${String(Date.now())}`;
+  const reportFile = join(tmpdir(), `observer-vitest-${stamp}.json`);
+  const diagFile = join(tmpdir(), `observer-runner-${stamp}.json`);
   const spawned = run(
     "pnpm test",
     pnpm,
-    ["exec", "vitest", "run", "--reporter=json", `--outputFile=${reportFile}`],
+    [
+      "exec",
+      "vitest",
+      "run",
+      "--reporter=json",
+      `--outputFile.json=${reportFile}`,
+      `--reporter=${RUNNER_REPORTER}`,
+    ],
     NEEDS_SHELL,
+    { ...process.env, OBSERVER_RUNNER_DIAGNOSTICS: diagFile },
   );
+  const reportWritten = existsSync(reportFile);
   const { report, summary } = readReport(reportFile);
+  const runner = readRunnerEvidence(diagFile, spawned.result, reportWritten, report !== null);
   rmSync(reportFile, { force: true });
-  return { gate: classifyTestGate(spawned.result, summary), output: spawned.output, report };
+  rmSync(diagFile, { force: true });
+  return {
+    gate: classifyTestGate(spawned.result, summary, runner),
+    output: spawned.output,
+    report,
+  };
 }
 
 function counts(report: VitestReport | null): {
@@ -274,6 +355,28 @@ function main(): void {
           /* Identity only: basename plus bounded, sanitized title. */
           failedTests: gate.failedTests,
           skippedTests: gate.skippedTests,
+          /*
+           * RUNNER-LEVEL EVIDENCE. Vitest's JSON reporter discards the
+           * unhandled-error list and computes `success` without it, while
+           * Vitest sets exit code 1 whenever that list is non-empty — so
+           * without these fields a record can say the run failed and be unable
+           * to say why. Identities only: allow-listed class names and machine
+           * codes, never a message, a stack or a path.
+           */
+          phase: gate.phase,
+          reportWritten: gate.reportWritten,
+          reportParsed: gate.reportParsed,
+          reportCompleted: gate.reportCompleted,
+          reportedUnhandledErrors: gate.reportedUnhandledErrors,
+          sanitizedUnhandledErrorNames: gate.sanitizedUnhandledErrorNames,
+          sanitizedUnhandledErrorCodes: gate.sanitizedUnhandledErrorCodes,
+          processStatus: gate.processStatus,
+          processSignal: gate.processSignal,
+          processErrorCode: gate.processErrorCode,
+          durationMs: gate.durationMs,
+          runner: gate.runner,
+          workerPool: gate.workerPool,
+          workerCount: gate.workerCount,
           reasons: gate.reasons,
         },
         /*

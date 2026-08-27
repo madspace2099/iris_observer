@@ -66,6 +66,30 @@ export interface RecordedTestGate extends RecordedProcess {
    * a platform-specific test is correct behaviour.
    */
   readonly skippedTests?: readonly { readonly suite: string; readonly title: string }[];
+  /*
+   * RUNNER-LEVEL EVIDENCE, required.
+   *
+   * Vitest 3.2.7 sets exit code 1 when its unhandled-error list is non-empty,
+   * and its JSON reporter discards that list and computes `success` without
+   * it. Every field above can therefore say the run was clean while the
+   * process says it failed — which is the record this contract could not
+   * explain at `7d941ba`. Absent is a refusal, because "not measured" and
+   * "measured as none" are different facts and only one is evidence.
+   */
+  readonly reportedUnhandledErrors?: number | null;
+  readonly sanitizedUnhandledErrorNames?: readonly string[];
+  readonly sanitizedUnhandledErrorCodes?: readonly string[];
+  readonly reportWritten?: boolean;
+  readonly reportParsed?: boolean;
+  readonly reportCompleted?: boolean;
+  readonly processStatus?: number | null;
+  readonly processSignal?: string | null;
+  readonly processErrorCode?: string | null;
+  readonly phase?: string;
+  readonly durationMs?: number | null;
+  readonly runner?: string | null;
+  readonly workerPool?: string | null;
+  readonly workerCount?: number | null;
   readonly reasons?: readonly string[];
 }
 
@@ -111,6 +135,74 @@ export function readGateRecord(root: string): GateRecord | null {
  * "the runner did not record it" and "the runner recorded it as fine" are
  * different facts and only one of them is evidence.
  */
+/**
+ * The runner-level half of the test gate, checked as data.
+ *
+ * Separated from {@link gateRecordProblems} because it is a different KIND of
+ * claim: everything else there is about tests, and this is about the process
+ * that ran them. A run can be clean on every test-level field and still have
+ * exited 1, and for three milestones the record had no way to say so.
+ */
+export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
+  const problems: string[] = [];
+
+  if (t.reportedUnhandledErrors === undefined || t.reportedUnhandledErrors === null) {
+    problems.push("unhandled runner errors were not measured — rerun `pnpm release:gates`");
+  } else if (!Number.isInteger(t.reportedUnhandledErrors) || t.reportedUnhandledErrors < 0) {
+    problems.push(
+      `reportedUnhandledErrors is not a count: ${JSON.stringify(t.reportedUnhandledErrors)}`,
+    );
+  } else if (t.reportedUnhandledErrors > 0) {
+    const ids = [
+      ...(t.sanitizedUnhandledErrorNames ?? []),
+      ...(t.sanitizedUnhandledErrorCodes ?? []),
+    ]
+      .filter((s) => s !== "(none)")
+      .join(", ");
+    problems.push(
+      `${String(t.reportedUnhandledErrors)} unhandled runner error(s)${ids === "" ? "" : `: ${ids}`}`,
+    );
+  }
+
+  for (const [field, value] of [
+    ["reportWritten", t.reportWritten],
+    ["reportParsed", t.reportParsed],
+    ["reportCompleted", t.reportCompleted],
+  ] as const) {
+    if (value === undefined) problems.push(`${field} not recorded`);
+    else if (value !== true) problems.push(`${field} is false`);
+  }
+
+  if (!Array.isArray(t.sanitizedUnhandledErrorNames)) {
+    problems.push("sanitizedUnhandledErrorNames not recorded");
+  }
+  if (!Array.isArray(t.sanitizedUnhandledErrorCodes)) {
+    problems.push("sanitizedUnhandledErrorCodes not recorded");
+  }
+
+  /*
+   * The three process facts under their explicit names, cross-checked against
+   * the ones already recorded. A record that disagrees with itself is not
+   * evidence, whichever half is right.
+   */
+  if (t.processStatus === undefined) problems.push("processStatus not recorded");
+  else if (t.processStatus !== t.status) {
+    problems.push(
+      `processStatus ${String(t.processStatus)} disagrees with status ${String(t.status)}`,
+    );
+  }
+  if (t.processSignal === undefined) problems.push("processSignal not recorded");
+  else if (t.processSignal !== (t.signal ?? null)) {
+    problems.push("processSignal disagrees with signal");
+  }
+  if (t.processErrorCode === undefined) problems.push("processErrorCode not recorded");
+  else if (t.processErrorCode !== (t.errorCode ?? null)) {
+    problems.push("processErrorCode disagrees with errorCode");
+  }
+
+  return problems;
+}
+
 export function gateRecordProblems(record: GateRecord | null, head: string): readonly string[] {
   if (record === null)
     return [`${GATE_RECORD_PATH} is missing or unreadable — run \`pnpm release:gates\``];
@@ -210,6 +302,7 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
     if (t.skippedTests === undefined) {
       problems.push("no skipped-test identities recorded — rerun `pnpm release:gates`");
     }
+    problems.push(...runnerEvidenceProblems(t));
     if ((t.reasons ?? ["unrecorded"]).length !== 0) {
       problems.push(`test gate not clean: ${(t.reasons ?? []).join("; ")}`);
     }

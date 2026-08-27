@@ -50,7 +50,29 @@ import { createHash } from "node:crypto";
 import { freemem, totalmem } from "node:os";
 
 /** Longest stored identity. Beyond this the value is refused, not truncated. */
-const MAX_IDENTITY = 64;
+const MAX_IDENTITY = 40;
+
+/**
+ * A name or code, in the shape real ones have.
+ *
+ * NO HYPHEN, and this is the correction the suite's own fixture forced. The
+ * first version of this allowed `[A-Za-z0-9_.$-]{1,64}`, which admits
+ * `sk-proj-…` in full — an allow-list wide enough to pass a credential is not
+ * an allow-list. Node's error codes and V8's class names are words joined by
+ * underscores or nothing at all: `Error`, `TypeError`, `AggregateError`,
+ * `ERR_IPC_CHANNEL_CLOSED`, `ENOENT`, `EPIPE`.
+ */
+const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_.$]{0,39}$/;
+
+/**
+ * And no long unbroken run, which is the shape a token has and a name does not.
+ *
+ * `sb_secret_…` would satisfy the identifier rule — underscores and letters —
+ * so shape alone is not enough. Every real code and class name here is words
+ * with separators: the longest run in `ERR_IPC_CHANNEL_CLOSED` is seven, and
+ * `AggregateError` is fourteen. A credential is one continuous run.
+ */
+const TOKEN_RUN = /[A-Za-z0-9]{16,}/;
 /** Most distinct identities stored. A longer list is a different problem. */
 const MAX_IDENTITIES = 10;
 
@@ -65,7 +87,10 @@ const MAX_IDENTITIES = 10;
  */
 export function safeIdentity(raw: unknown): string {
   if (typeof raw !== "string") return "(none)";
-  return /^[A-Za-z0-9_.$-]{1,64}$/.test(raw) && raw.length <= MAX_IDENTITY ? raw : "(unnamed)";
+  if (raw.length > MAX_IDENTITY) return "(unnamed)";
+  if (!IDENTIFIER.test(raw)) return "(unnamed)";
+  if (TOKEN_RUN.test(raw)) return "(unnamed)";
+  return raw;
 }
 
 /** Sorted, de-duplicated and bounded, so the field cannot grow without limit. */
@@ -180,7 +205,13 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
      * so a message that is not this one is not parsed at all.
      */
     const matched = typeof e.message === "string" ? RPC_TIMEOUT.exec(e.message) : null;
-    const subsystem = matched === null ? "(none)" : safeIdentity(matched[1]);
+    /*
+     * The subsystem is NOT re-checked by `safeIdentity`: it contains a hyphen,
+     * which that rule now refuses, and it does not need checking — the regex
+     * admits three exact literals and nothing else. The operation is re-checked,
+     * because `[A-Za-z]{1,40}` is a shape rather than a fixed set.
+     */
+    const subsystem = matched?.[1] ?? "(none)";
     const operation = matched === null ? "(none)" : safeIdentity(matched[2]);
 
     names.push(name);
