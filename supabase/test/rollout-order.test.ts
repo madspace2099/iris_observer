@@ -85,7 +85,7 @@ function stepOf(pattern: RegExp): number {
 const PEPPER = /Reuse, create or explicitly rotate the pepper/i;
 const REDEPLOY = /redeploy exact SHA `?3f298a6/i;
 const SMOKE = /pre-migration HTTP smoke/i;
-const ISOLATE = /protect the original unverified `?3f298a6/i;
+const ISOLATE = /DELETE the original unverified `?3f298a6/i;
 const MIGRATION_3 = /Apply Migration 3/i;
 const LEGACY_PROOF = /legacy 13\/13/i;
 const PUSH = /\*\*Push\*\* the corrected release branch/i;
@@ -106,7 +106,7 @@ describe("the rollout table is intact", () => {
       ["pepper", PEPPER],
       ["redeploy 3f298a6", REDEPLOY],
       ["pre-migration smoke", SMOKE],
-      ["isolate the original", ISOLATE],
+      ["delete the original", ISOLATE],
       ["migration 3", MIGRATION_3],
       ["legacy proof", LEGACY_PROOF],
       ["push", PUSH],
@@ -130,7 +130,8 @@ describe("the sequence protects what it is meant to protect", () => {
     expect(stepOf(SMOKE)).toBeLessThan(stepOf(MIGRATION_3));
   });
 
-  it("isolates the original unverified deployment once the fresh one answers", () => {
+  it("deletes the original unverified deployment once the fresh one answers", () => {
+    // Deleted, not protected — the deletion-policy test below says why.
     expect(stepOf(SMOKE)).toBeLessThanOrEqual(stepOf(ISOLATE));
     expect(stepOf(ISOLATE)).toBeLessThan(stepOf(MIGRATION_3));
   });
@@ -153,9 +154,18 @@ describe("the sequence protects what it is meant to protect", () => {
     expect(stepOf(CONTRACT)).toBe(19);
   });
 
-  it("names both 3f298a6 deployments in the retirement step", () => {
+  it("names each 3f298a6 deployment in the row that removes it", () => {
+    /*
+     * The original is deleted at step 5, as soon as the fresh one has answered,
+     * so only the fresh proof Preview remains for step 18. Both are named — in
+     * the rows that actually remove them, rather than both in one row that
+     * removes one.
+     */
     const retire = STEPS.find((s) => RETIRE.test(s.text))?.text ?? "";
-    expect(retire).toMatch(/fresh and original `?3f298a6/i);
+    expect(retire).toMatch(/fresh `?3f298a6`? proof Preview included/i);
+
+    const five = STEPS.find((s) => s.n === 5)?.text ?? "";
+    expect(five).toMatch(/original unverified `?3f298a6/i);
   });
 });
 
@@ -204,6 +214,98 @@ describe("the runbook does not over-read UNKNOWN", () => {
   it("does not promise live AI on a deterministic answer", () => {
     expect(TEXT).toContain("Observer application works, but live AI is not yet enabled.");
     expect(TEXT).toContain("Live AI is not proven — see the failed checks");
+  });
+
+  it("proves the Supabase project mapping from a non-secret value, not from names", () => {
+    /*
+     * The previous edition said project mapping came "from environment-variable
+     * names and scopes only". Names and scopes cannot prove which project a
+     * deployment targets — every environment has a SUPABASE_URL, and which
+     * project it points at is in the value. That particular value is not a
+     * secret; the key beside it is.
+     */
+    expect(TEXT).toMatch(/Names and scopes cannot prove which Supabase project/i);
+    expect(TEXT).toMatch(/inspect \*\*`SUPABASE_URL`\*\*/i);
+    expect(TEXT).toMatch(/never\*\* read or print `SUPABASE_SECRET_KEY`/i);
+    // And the pepper half stays metadata-only.
+    expect(TEXT).toMatch(/Nothing in \(ii\) reads a value/i);
+  });
+
+  it("requires DELETION of version-1-capable deployments, not protection", () => {
+    /*
+     * Protection means "cannot serve an anonymous request". Vercel
+     * Authentication still admits authorised users, bypass mechanisms exist,
+     * and the contract migration does not close the thirteen-argument door — so
+     * a protected 3f298a6 can still write a cross-tenant-linkable row.
+     */
+    expect(TEXT).toMatch(/\*\*DELETE\. Protection is not a substitute\.\*\*/);
+    expect(TEXT).toMatch(/protection-bypass\*\* mechanisms/i);
+    expect(TEXT).toMatch(/stop and ask\s+Matthew/i);
+
+    // Step 5 deletes the original rather than protecting it.
+    const five = STEPS.find((x) => x.n === 5)?.text ?? "";
+    expect(five).toMatch(/DELETE the original unverified `?3f298a6/i);
+    expect(five).not.toMatch(/then protect the original/i);
+
+    // Step 18 deletes every version-1-capable build.
+    const eighteen = STEPS.find((x) => x.n === 18)?.text ?? "";
+    expect(eighteen).toMatch(/DELETE every version-1-capable deployment/i);
+  });
+
+  it("distinguishes the two capabilities and gives them different remedies", () => {
+    expect(TEXT).toMatch(/delete \*\*or\*\* protect/i);
+    expect(TEXT).toMatch(/The contract migration genuinely removes those functions/i);
+  });
+
+  it("requires pagination to exhaustion and a re-enumeration after deletion", () => {
+    expect(TEXT).toMatch(/--next/);
+    expect(TEXT).toMatch(/to exhaustion\*\*/i);
+    expect(TEXT).toMatch(/re-run the complete inventory after deletion/i);
+    expect(TEXT).toMatch(/no READY version-1-capable deployment remains/i);
+    // A single page is not an inventory, and the reason is stated.
+    expect(TEXT).toMatch(/A single page is not an inventory/i);
+
+    const one = STEPS.find((x) => x.n === 1)?.text ?? "";
+    expect(one).toMatch(/to exhaustion/i);
+    const eighteen = STEPS.find((x) => x.n === 18)?.text ?? "";
+    expect(eighteen).toMatch(/re-enumerate to exhaustion/i);
+  });
+
+  it("records a retirement floor and checks both version axes against it", () => {
+    const eighteen = STEPS.find((x) => x.n === 18)?.text ?? "";
+    expect(eighteen).toMatch(/retirement_floor_ts/);
+    const nineteen = STEPS.find((x) => x.n === 19)?.text ?? "";
+    expect(nineteen).toMatch(/both version axes/i);
+    expect(nineteen).toMatch(/INCONCLUSIVE/);
+  });
+
+  it("does not classify 1ee5d2d as a legacy-facade caller", () => {
+    /*
+     * It calls admit_ai_request, complete_ai_request and observer_whoami —
+     * neither façade — with twelve arguments, which the expand migration
+     * already took out of resolution. It writes nothing at all.
+     */
+    expect(TEXT).toMatch(/`1ee5d2d` calls `admit_ai_request`/);
+    expect(TEXT).toMatch(/\*\*neither legacy façade\*\*/);
+    expect(TEXT).toMatch(/It writes nothing at all/i);
+  });
+
+  it("gives no command that prints a generated secret", () => {
+    /*
+     * A generator PAIRED WITH A PRINT on one line — that pairing is what makes
+     * a recipe. Naming `randomUUID()` as the source of the request id is a fact
+     * about a value that is not a secret, and banning the word outright would
+     * have deleted that sentence too. `no-secret-recipes.test.ts` applies the
+     * same rule to every tracked operator file.
+     */
+    const recipes = TEXT.split("\n").filter(
+      (line) =>
+        /randomBytes|randomUUID|openssl\s+rand|\/dev\/urandom/i.test(line) &&
+        /console\.log|\becho\b|Write-Host|printf|process\.stdout/i.test(line),
+    );
+    expect(recipes).toEqual([]);
+    expect(TEXT).toMatch(/deliberately no command/i);
+    expect(TEXT).toMatch(/password manager/i);
   });
 
   it("refuses to overwrite an existing pepper automatically", () => {

@@ -288,12 +288,30 @@ it is required whether or not the old one happens to work.
 
 #### Deciding the pepper state, without touching a secret
 
-The preflight determines, **through metadata only**, four things:
+The preflight answers two **separate** questions, and conflating them was a mistake in the previous
+edition: it said project mapping was established "from environment-variable names and scopes only".
+Names and scopes cannot prove which Supabase project a deployment targets. A variable called
+`SUPABASE_URL` exists in every environment; which project it points at is in its **value** — and that
+particular value is not a secret.
 
-1. which Vercel environments target the Observer Supabase project;
-2. whether `OBSERVER_SUBJECT_PEPPER` exists in each relevant scope;
-3. whether **one** sensitive variable record covers all relevant scopes;
-4. whether the configuration is therefore **absent**, **uniform** or **ambiguous**.
+**(i) Supabase project mapping — read the non-secret value.**
+
+- inspect **`SUPABASE_URL`** (or the project reference it contains) and nothing else;
+- record only the expected **project ref**, e.g. `tfcchobwobpadenampyh`;
+- **never** read or print `SUPABASE_SECRET_KEY`, `OBSERVER_SUBJECT_PEPPER` or `OPENAI_API_KEY`.
+
+If the available tool cannot retrieve that one non-secret project ref without also exposing a secret,
+**pause** and let Matthew read it in the dashboard.
+
+**(ii) Pepper state — metadata only, never a value.**
+
+1. whether `OBSERVER_SUBJECT_PEPPER` **exists** in each relevant scope;
+2. its **type** — is it marked Sensitive/Secret;
+3. its **scope** — Preview, Production, or both;
+4. whether **one** sensitive record covers all relevant scopes;
+5. whether the configuration is therefore **absent**, **uniform** or **ambiguous**.
+
+Nothing in (ii) reads a value. The classification is made entirely from presence, type and scope.
 
 The rollout then branches, and two of the three branches do not create anything:
 
@@ -329,45 +347,88 @@ compatibility path. So protecting "deployments that can call the old façades" i
 leaves both the original and the freshly redeployed `3f298a6` URLs able to keep writing
 cross-tenant-linkable version-1 pseudonyms into the durable audit indefinitely.
 
-The gate before the contract migration is therefore broader. Delete or genuinely protect every
-deployment capable of **either**:
+The gate before the contract migration is therefore broader, and the two capabilities do **not** get
+the same remedy:
 
-- calling `consume_ai_quota` or `record_ai_request`; **or**
-- omitting the scoped pseudonym arguments and writing `pseudonym_version = 1`.
+| Capability                                                                                         | Remedy                                      | Why                                                                                                          |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **(a)** can call `consume_ai_quota` or `record_ai_request`                                         | delete **or** protect                       | The contract migration genuinely removes those functions. Their RPC stops existing, whoever reaches the URL. |
+| **(b)** can reach `admit_ai_request` with **thirteen** arguments and write `pseudonym_version = 1` | **DELETE. Protection is not a substitute.** | Nothing removes that path. See below.                                                                        |
 
-That explicitly includes **every** `3f298a6` deployment — the original and the fresh proof one. A
-deployment proven to contain no Observer RPC path at all, such as the `3515402` `main` builds, may
-remain **only with that evidence recorded**.
+**Why (b) must be deleted rather than protected.** "Protected" in the previous edition meant "cannot
+serve an anonymous request", and that is not enough here:
 
-`observer-contract-readiness.sql` reports on this and still cannot say READY: the database cannot
-see which deployments exist. It remains honestly INCONCLUSIVE, and the external gate is a person's
-enumeration.
+- Vercel Authentication still admits **authorised** users — the team, and anyone they share with;
+- Vercel supports explicit **protection-bypass** mechanisms;
+- the contract migration does **not** disable the thirteen-argument admission path.
+
+So a protected `3f298a6` deployment can still write a cross-tenant-linkable version-1 row after the
+contract migration. The only remedy that ends the capability is deletion.
+
+That is why the original unverified `3f298a6` deployment is **deleted** at step 5, once the fresh one
+has answered — not merely protected — and why the fresh proof deployment is deleted at step 18,
+after it has served the legacy compatibility phase.
+
+If deleting every version-1-capable deployment is operationally unacceptable, **stop and ask
+Matthew.** The requirement is not to be quietly weakened back to protection.
+
+A deployment proven to contain no Observer RPC path at all, such as the `3515402` `main` builds, may
+remain **only with that evidence recorded**. And a build whose admission signature no longer resolves
+is not version-1-capable either: `1ee5d2d` calls `admit_ai_request`, `complete_ai_request` and
+`observer_whoami` — **neither legacy façade** — with **twelve** arguments, which the expand migration
+already took out of resolution. It writes nothing at all, and classifying it as a legacy-façade
+caller for the sake of conservative retirement was simply wrong.
+
+#### Enumerate to pagination exhaustion, then again after deletion
+
+`vercel ls` is paginated: it returns roughly the newest twenty and takes `--next <timestamp>` to
+continue. A single page is not an inventory, and this project already has twenty READY deployments —
+exactly the page size, which is the shape of a list that looks complete and is not.
+
+```bash
+vercel ls iris-observer
+vercel ls iris-observer --next <timestamp printed by the previous page>
+# …until no further page is returned
+```
+
+The retirement gate must:
+
+1. follow pagination **to exhaustion**;
+2. record every **immutable deployment URL**, its state and its source SHA;
+3. classify capability **from that SHA's own source**, never from an alias or a branch name;
+4. include the freshly created proof deployment, which is younger than any earlier listing;
+5. **re-run the complete inventory after deletion**;
+6. prove that **no READY version-1-capable deployment remains**.
+
+`observer-contract-readiness.sql` reports on the database side and still cannot say READY: it sees
+what was written, never what can be written. It remains honestly INCONCLUSIVE, and the external gate
+is a person's enumeration.
 
 #### The sequence
 
 Steps 1–2 are read-only; nothing external is mutated before explicit operator approval.
 
-| #   | Step                                                                                                                                                                                                                                                              | Mutates                              |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| 1   | Read-only preflight: Git, Supabase catalogue, deployment inventory, and environment metadata — **names and scopes only** — including which environments map to the Observer Supabase project                                                                      | no                                   |
-| 2   | Explicit operator approval, and the pepper-state decision from the table above                                                                                                                                                                                    | no                                   |
-| 3   | Reuse, create or explicitly rotate the pepper according to that decision                                                                                                                                                                                          | Vercel, only if creating or rotating |
-| 4   | Redeploy exact SHA `3f298a6` as a fresh Preview. Do **not** push the local commits to achieve this                                                                                                                                                                | Vercel                               |
-| 5   | Confirm READY and source SHA exactly `3f298a6`; run the **pre-migration HTTP smoke** and confirm it answers rather than returning 503; **then protect the original unverified `3f298a6` deployment**, so two unknown pepper snapshots cannot stay active together | 1 audit row, Vercel                  |
-| 6   | Enable Supabase Cron (`observer-cron-prerequisite.sql`)                                                                                                                                                                                                           | Supabase                             |
-| 7   | Verify `pg_cron` is installed and the scheduler process is alive                                                                                                                                                                                                  | no                                   |
-| 8   | Apply Migration 3                                                                                                                                                                                                                                                 | Supabase                             |
-| 9   | Apply Migration 4                                                                                                                                                                                                                                                 | Supabase                             |
-| 10  | Run **Part A**, then the controlled request through the fresh legacy Preview — in that order, so the step-5 smoke cannot contaminate the proof window                                                                                                             | 1–2 audit rows                       |
-| 11  | Require **legacy 13/13** with `pseudonym_version = 1`, both request ids NULL                                                                                                                                                                                      | no                                   |
-| 12  | Schema, Cron-health and rollback-protected behavioural verification                                                                                                                                                                                               | no                                   |
-| 13  | Wait through the scheduled hourly run and require **Cron-health 26/26**                                                                                                                                                                                           | no                                   |
-| 14  | **Push** the corrected release branch                                                                                                                                                                                                                             | Git                                  |
-| 15  | Capture the scoped Preview's exact `X-Observer-Request-Id` from the response                                                                                                                                                                                      | 1–2 audit rows                       |
-| 16  | Require **scoped 13/13** with `pseudonym_version = 2`                                                                                                                                                                                                             | no                                   |
-| 17  | Separately run the corrected **live-model readiness** proof                                                                                                                                                                                                       | no                                   |
-| 18  | Delete or genuinely protect every legacy-façade **or version-1-capable** deployment, **including the fresh and original `3f298a6` deployments**                                                                                                                   | Vercel                               |
-| 19  | Apply the **contract migration** last                                                                                                                                                                                                                             | Supabase                             |
+| #   | Step                                                                                                                                                                                                                                                                                                                                                                                         | Mutates                              |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | Read-only preflight, in two separable parts: (i) Git, Supabase catalogue and a deployment inventory paginated **to exhaustion**; (ii) environment checks — pepper **presence, type and scope as metadata only**, and Supabase project mapping read from the **non-secret** `SUPABASE_URL` or project ref. Names and scopes cannot prove which project a deployment targets; only the URL can | no                                   |
+| 2   | Explicit operator approval, and the pepper-state decision from the table above                                                                                                                                                                                                                                                                                                               | no                                   |
+| 3   | Reuse, create or explicitly rotate the pepper according to that decision                                                                                                                                                                                                                                                                                                                     | Vercel, only if creating or rotating |
+| 4   | Redeploy exact SHA `3f298a6` as a fresh Preview. Do **not** push the local commits to achieve this                                                                                                                                                                                                                                                                                           | Vercel                               |
+| 5   | Confirm READY and source SHA exactly `3f298a6`; run the **pre-migration HTTP smoke** and confirm it answers rather than returning 503; **then DELETE the original unverified `3f298a6` deployment** — protection is not enough, see below                                                                                                                                                    | 1 audit row, Vercel                  |
+| 6   | Enable Supabase Cron (`observer-cron-prerequisite.sql`)                                                                                                                                                                                                                                                                                                                                      | Supabase                             |
+| 7   | Verify `pg_cron` is installed and the scheduler process is alive                                                                                                                                                                                                                                                                                                                             | no                                   |
+| 8   | Apply Migration 3                                                                                                                                                                                                                                                                                                                                                                            | Supabase                             |
+| 9   | Apply Migration 4                                                                                                                                                                                                                                                                                                                                                                            | Supabase                             |
+| 10  | Run **Part A**, then the controlled request through the fresh legacy Preview — in that order, so the step-5 smoke cannot contaminate the proof window                                                                                                                                                                                                                                        | 1–2 audit rows                       |
+| 11  | Require **legacy 13/13** with `pseudonym_version = 1`, both request ids NULL                                                                                                                                                                                                                                                                                                                 | no                                   |
+| 12  | Schema, Cron-health and rollback-protected behavioural verification                                                                                                                                                                                                                                                                                                                          | no                                   |
+| 13  | Wait through the scheduled hourly run and require **Cron-health 26/26**                                                                                                                                                                                                                                                                                                                      | no                                   |
+| 14  | **Push** the corrected release branch                                                                                                                                                                                                                                                                                                                                                        | Git                                  |
+| 15  | Capture the scoped Preview's exact `X-Observer-Request-Id` from the response                                                                                                                                                                                                                                                                                                                 | 1–2 audit rows                       |
+| 16  | Require **scoped 13/13** with `pseudonym_version = 2`                                                                                                                                                                                                                                                                                                                                        | no                                   |
+| 17  | Separately run the corrected **live-model readiness** proof                                                                                                                                                                                                                                                                                                                                  | no                                   |
+| 18  | Record `retirement_floor_ts`; **DELETE every version-1-capable deployment** — the fresh `3f298a6` proof Preview included; delete **or** protect legacy-façade-only builds; then **re-enumerate to exhaustion** and prove no READY version-1-capable deployment remains                                                                                                                       | Vercel                               |
+| 19  | Run `observer-contract-readiness.sql` with that floor — it must show **0 on both version axes** and read INCONCLUSIVE — then apply the **contract migration** last                                                                                                                                                                                                                           | Supabase                             |
 
 **No Production promotion is part of this sequence.**
 
@@ -497,11 +558,24 @@ reason in the boot line.
 
 ### The contract
 
-At least **32 bytes of cryptographically random material**:
+At least **32 bytes of cryptographically random material**.
 
-```
-node -e "console.log(crypto.randomBytes(32).toString('hex'))"
-```
+**There is deliberately no command here.** This section used to carry a one-liner that prints the
+value to stdout, and that contradicted the promise made everywhere else in this release: the pepper
+never travels through shell output, terminal history, a captured log or an assistant's context. A
+command that echoes a secret puts it in all four at once, and a scrollback buffer is not a secret
+store.
+
+The procedure instead:
+
+1. generate the value in a **trusted password manager's secret generator**;
+2. paste it **directly into Vercel's Sensitive/Secret field** for every environment that shares the
+   Supabase project;
+3. never pass it through an assistant, a shell command, a clipboard-logging tool, generated evidence
+   or any file in this repository.
+
+Nothing in this repository, this runbook or any review bundle may print, echo or generate a pepper.
+`supabase/test/no-secret-recipes.test.ts` fails if an operator-facing tracked file starts to.
 
 Rejected, each with its own message: absent, empty or whitespace, shorter than
 32 bytes, wrapped in quotes or brackets, padded with whitespace, an obvious

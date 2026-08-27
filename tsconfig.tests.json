@@ -34,6 +34,8 @@
     "supabase/test/http-proof.test.ts",
     "supabase/test/ai-readiness.test.ts",
     "supabase/test/rollout-order.test.ts",
+    "supabase/test/contract-readiness.test.ts",
+    "supabase/test/no-secret-recipes.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }
