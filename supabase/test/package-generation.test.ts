@@ -43,10 +43,28 @@ describe.runIf(clean)("package generation", () => {
    */
   let first!: ReturnType<typeof build>;
   let second!: ReturnType<typeof build>;
+
+  /*
+   * Its own budget, and this is the whole explanation of the "intermittent"
+   * gate failure.
+   *
+   * Two complete package builds run here — `git format-patch` over the full
+   * chain, every file staged, rendered, checked and deflated, twice, because
+   * proving determinism needs two. Alone that takes about sixteen seconds.
+   * Under the full suite, sharing CPU with eleven PGlite fixtures, it takes
+   * longer than the global 30s `hookTimeout` that was set for those fixtures.
+   *
+   * A hook timeout fails the SUITE, not a test. Vitest then exits non-zero with
+   * `numFailedTests: 0` — which is exactly the shape the gate kept recording,
+   * and exactly why it looked like a runner-level fault rather than a test one.
+   * It appeared intermittently when the suite was smaller and reliably once it
+   * had grown, which is the signature of a budget being crossed rather than a
+   * race being lost.
+   */
   beforeAll(() => {
     first = build(join(scratch, "a"));
     second = build(join(scratch, "b"));
-  });
+  }, 240_000);
 
   it("produces byte-identical archives from a clean staging state, twice", () => {
     expect(second.sha).toBe(first.sha);

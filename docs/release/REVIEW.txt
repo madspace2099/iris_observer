@@ -177,40 +177,59 @@ there is no retry anywhere in it, because re-running until the answer is green
 is how an intermittent fault becomes an invisible one. Two counts of failed
 tests are kept because a summary field and the assertion results are two claims.
 
-IT NAMED ITSELF ON THE FIRST RUN AFTER THE REFACTOR, and it is a real fault
-rather than a reporting artefact. Two distinct shapes have now been recorded:
+IT NAMED ITSELF ON THE FIRST RUN AFTER THE REFACTOR, AND THEN IT WAS FOUND.
+The keeping of evidence is what found it: the previous runner reported the word
+FAILED, and the word FAILED cannot be investigated.
+
+Two shapes were recorded:
 
     status=1  signal=null  errorCode=null  reportSuccess=null
     reasons: exit status 1; no readable JSON report
 
-  with Vitest printing an unhandled `ERR_IPC_CHANNEL_CLOSED` from a
-  worker-thread MessagePort during teardown. THE JSON REPORT IS NOT WRITTEN AT
-  ALL in this shape — which is why the earlier instrumentation showed a report
-  saying nothing rather than a report saying zero failures. "The suite passed"
-  was never established on those runs; the suite had run and the reporter had
-  not finished.
+  seen once, with Vitest printing an unhandled `ERR_IPC_CHANNEL_CLOSED` from a
+  worker-thread MessagePort. No report was written at all, which is why the
+  earlier instrumentation showed a report saying nothing rather than a report
+  saying zero failures.
 
     status=1  signal=null  errorCode=null  reportSuccess=false
     reportedFailedTests=0  countedFailedTests=0
     reasons: exit status 1; report declares failure
 
-  the report IS written, declares failure, and names ZERO failing tests —
-  Vitest's summary for an unhandled error rather than an assertion. Same cause,
-  later in the teardown.
+  seen seven times. The report IS written, declares failure, and names ZERO
+  failing tests. Reading it rather than only its summary gave the answer:
+  `numFailedTestSuites` was non-zero and the named file was
+  `package-generation.test.ts`.
 
-IT IS LOAD-DEPENDENT, which is the one useful thing the bounded diagnostic
-established. Five suites back to back failed five times out of five; the same
-suite run once, immediately afterwards, exits 0 with every test passing. It is
-not a failing test and not a defect in this repository's code: no assertion
-fails in either shape, and 1029 cases pass on the runs that complete.
+THE CAUSE IS A HOOK TIMEOUT IN THIS REPOSITORY'S OWN TEST, not a fault in the
+test runner and not a fault in the release tooling.
 
-THIS IS NOT FIXED, and this package does not claim it is. What changed is that
-it identifies itself instead of appearing as the single word FAILED. The gate
-refuses correctly in both shapes — a missing report and a report declaring
-failure are each a failure condition in their own right — so the fault costs a
-rerun and never a false clean result. Its cause sits in the test runner's worker
-teardown rather than in this repository, and chasing it further is outside a
-documentation-and-gate milestone. It remains OPEN.
+`package-generation.test.ts` builds the complete package TWICE in `beforeAll` —
+`git format-patch` over the whole chain, every file staged, rendered, checked
+and deflated, twice, because proving determinism needs two. Alone that takes
+about sixteen seconds. Under the full suite, sharing a machine with eleven
+PGlite fixtures, it exceeds the global 30-second `hookTimeout` that was set for
+those fixtures.
+
+A HOOK TIMEOUT FAILS THE SUITE, NOT A TEST. Vitest exits non-zero with
+`numFailedTests: 0` — precisely the shape that made this look like a
+runner-level fault. And it explains the original observation exactly: two
+failures in five runs when the suite was smaller, then every run once the suite
+had grown past 1000 cases. That is a budget being crossed, not a race being
+lost.
+
+FIXED, and stated as fixed only because it was verified: that hook now has its
+own 240-second budget, and two consecutive full-suite runs under load report
+`status=0 success=true failedSuites=0 failedTests=0`. The bounded diagnostic
+below is the record of the runs that led here.
+
+The `ERR_IPC_CHANNEL_CLOSED` sighting is PLAUSIBLY the same timeout killing a
+worker before the reporter flushed, and that is a conjecture rather than a
+finding — it was observed once and has not recurred. It is recorded rather than
+explained.
+
+THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
+report declaring failure are each a failure condition in their own right, so
+the fault cost reruns and never produced a false clean result.
 
 NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
 a production build; either could print an environment value some future code

@@ -221,10 +221,10 @@ function gateRepeatBlock(): string {
   const verdict =
     dirty.length === 0
       ? [
-          `  IT DID NOT RECUR in ${data.runs.length} runs at ${head}. THAT IS NOT A FIX.`,
-          "  An intermittent fault that did not appear in a bounded sample has not been",
-          "  explained, and this package does not claim it was. It remains open, and the",
-          "  runner now keeps the evidence that would identify it next time.",
+          `  IT DID NOT RECUR in ${data.runs.length} runs at ${head}. THAT ALONE IS NOT A FIX:`,
+          "  a fault absent from a bounded sample has not been explained. Where this",
+          "  package claims one was fixed, the claim rests on the cause being found and",
+          "  the fix verified, never on a run of green results.",
         ]
       : [
           `  IT RECURRED in ${dirty.length} of ${data.runs.length} runs at ${head}:`,
