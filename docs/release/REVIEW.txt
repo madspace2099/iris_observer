@@ -177,6 +177,41 @@ there is no retry anywhere in it, because re-running until the answer is green
 is how an intermittent fault becomes an invisible one. Two counts of failed
 tests are kept because a summary field and the assertion results are two claims.
 
+IT NAMED ITSELF ON THE FIRST RUN AFTER THE REFACTOR, and it is a real fault
+rather than a reporting artefact. Two distinct shapes have now been recorded:
+
+    status=1  signal=null  errorCode=null  reportSuccess=null
+    reasons: exit status 1; no readable JSON report
+
+  with Vitest printing an unhandled `ERR_IPC_CHANNEL_CLOSED` from a
+  worker-thread MessagePort during teardown. THE JSON REPORT IS NOT WRITTEN AT
+  ALL in this shape — which is why the earlier instrumentation showed a report
+  saying nothing rather than a report saying zero failures. "The suite passed"
+  was never established on those runs; the suite had run and the reporter had
+  not finished.
+
+    status=1  signal=null  errorCode=null  reportSuccess=false
+    reportedFailedTests=0  countedFailedTests=0
+    reasons: exit status 1; report declares failure
+
+  the report IS written, declares failure, and names ZERO failing tests —
+  Vitest's summary for an unhandled error rather than an assertion. Same cause,
+  later in the teardown.
+
+IT IS LOAD-DEPENDENT, which is the one useful thing the bounded diagnostic
+established. Five suites back to back failed five times out of five; the same
+suite run once, immediately afterwards, exits 0 with every test passing. It is
+not a failing test and not a defect in this repository's code: no assertion
+fails in either shape, and 1029 cases pass on the runs that complete.
+
+THIS IS NOT FIXED, and this package does not claim it is. What changed is that
+it identifies itself instead of appearing as the single word FAILED. The gate
+refuses correctly in both shapes — a missing report and a report declaring
+failure are each a failure condition in their own right — so the fault costs a
+rerun and never a false clean result. Its cause sits in the test runner's worker
+teardown rather than in this repository, and chasing it further is outside a
+documentation-and-gate milestone. It remains OPEN.
+
 NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
 a production build; either could print an environment value some future code
 path logs, and `.release/gate-results.json` is a file somebody zips and hands to
