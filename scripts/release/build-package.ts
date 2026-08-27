@@ -34,7 +34,7 @@ import { join, relative, sep } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { facts, render, git, REPO_ROOT, strip, execSha, MIGRATIONS_DIR } from "./facts";
+import { facts, render, git, REPO_ROOT, strip, execSha, fileShaAt, MIGRATIONS_DIR } from "./facts";
 import { walk, writeZip } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
@@ -272,11 +272,7 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
   for (const c of ["HEAD", "HEAD~1", "bb574b6", "7e3c00a", "ee954b8", "c6fdc73", "f1dbffd"]) {
     for (const path of [m4, contract]) {
       allowed.add(execSha(c, path));
-      allowed.add(
-        createHash("sha256")
-          .update(git("show", `${c}:${path}`))
-          .digest("hex"),
-      );
+      allowed.add(fileShaAt(c, path));
     }
   }
   for (const line of git("rev-list", "1ee5d2d^..HEAD").split("\n")) allowed.add(line.trim());

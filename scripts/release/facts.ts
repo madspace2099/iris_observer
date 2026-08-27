@@ -30,6 +30,26 @@ export const REPO_ROOT = join(import.meta.dirname, "..", "..");
 export const git = (...args: readonly string[]): string =>
   execFileSync("git", [...args], { cwd: REPO_ROOT, encoding: "utf8" }).trim();
 
+/**
+ * A file's exact bytes at a commit — untrimmed, unlike {@link git}.
+ *
+ * `git()` trims, which is right for a SHA or a branch name and silently wrong
+ * for a file: the missing trailing newline changes the digest, so every
+ * historical file hash came out different from the hash of the same file on
+ * disk and every artefact looked "changed". Use this whenever the result is
+ * going into a hash.
+ */
+export const gitShowBytes = (commit: string, path: string): Buffer =>
+  execFileSync("git", ["show", `${commit}:${path}`], {
+    cwd: REPO_ROOT,
+    encoding: "buffer",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+
+/** SHA-256 of a file exactly as it stood at a commit. */
+export const fileShaAt = (commit: string, path: string): string =>
+  createHash("sha256").update(gitShowBytes(commit, path)).digest("hex");
+
 const sha256 = (path: string): string =>
   createHash("sha256")
     .update(readFileSync(join(REPO_ROOT, path)))
@@ -165,9 +185,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     .map((f) => {
       const path = `${MIGRATIONS_DIR}/${f}`;
       const nowFile = sha256(path);
-      const thenFile = createHash("sha256")
-        .update(git("show", `${parent}:${path}`))
-        .digest("hex");
+      const thenFile = fileShaAt(parent, path);
       const nowExec = createHash("sha256")
         .update(strip(readFileSync(join(REPO_ROOT, path), "utf8")))
         .digest("hex");
@@ -264,9 +282,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     const now = sha256(path);
     let then: string | null = null;
     try {
-      then = createHash("sha256")
-        .update(git("show", `${parent}:${path}`))
-        .digest("hex");
+      then = fileShaAt(parent, path);
     } catch {
       then = null; /* new in this commit */
     }
