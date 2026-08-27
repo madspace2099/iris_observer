@@ -104,7 +104,15 @@ function main(): void {
     rmSync(reportFile, { force: true });
   }
   gates["pnpm test"] = tests.ok ? `${total} passed / ${files} files` : "FAILED";
-  if (!tests.ok) failed += 1;
+  if (!tests.ok) {
+    failed += 1;
+    /*
+     * Every other gate prints its output on failure; this one did not, so a
+     * failing suite reported the single word "FAILED" and nothing else — the
+     * one gate whose failure a reader most needs to see.
+     */
+    console.log(tests.out.split("\n").slice(-40).join("\n"));
+  }
 
   record("pnpm build", "pnpm build", ["build"]);
   record("secret audit", "secret audit", ["audit:secrets"]);
