@@ -684,11 +684,14 @@ evidence a reviewer can open. It is described that way here rather than as
 "preserved".
 
 What survives is the commit message of `c1b80f0` in this repository's history,
-which states the failure and its cause, and three tracked regression assertions
-in `supabase/test/artefact-consistency.test.ts` that reproduce the defect on
-demand — the marker, the missing totals, the unparseable file. That is a weaker
-form of evidence than a preserved artefact and it is named as the weaker thing
-rather than described as preservation.
+which states the failure and its cause, and the tracked regression assertions in
+`supabase/test/gate-contract.test.ts` that reproduce the defect on demand: the
+marker, a record with no totals, a file that does not parse, no record at all,
+and a well-formed one still read back, so the guards are not blanket refusal.
+Each writes its shape into a temporary root and reads the answer, rather than
+matching patterns in the reader's source. That is a weaker form of evidence than
+a preserved artefact and it is named as the weaker thing rather than described
+as preservation.
 
 AND WORK CONTINUED PAST THE STOP. The instruction was to stop at the red
 observation. Instead the cause was diagnosed, fixed, committed as `c1b80f0` and

@@ -42,6 +42,10 @@ import {
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
+/** Built, not written: a literal backtick inside a template is a parse hazard. */
+const BACKTICK = String.fromCharCode(96);
+/** Prose wraps, so a citation may sit across a line break. */
+const WS = String.fromCharCode(92) + "s+";
 
 const README = "supabase/README.md";
 const RUNBOOK = "docs/18-deployment.md";
@@ -460,7 +464,25 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(review).not.toMatch(/preserved as .failed-gate/);
     expect(review).toMatch(/THAT RECORD IS NOT IN THIS ARCHIVE/);
     expect(review).toMatch(/RED RECORD ITSELF NO LONGER EXISTS/);
-    expect(review).toMatch(/three tracked regression assertions/);
+    /*
+     * AND THE CITATION HAS TO BE RIGHT. The first edition of this paragraph
+     * named the wrong file — in the very passage about naming only what a
+     * reviewer can check — so the file it points at is verified here.
+     */
+    expect(review).toMatch(/tracked regression assertions/);
+    const cited = new RegExp(
+      "in" +
+        WS +
+        BACKTICK +
+        "(supabase/test/[a-z-]+[.]test[.]ts)" +
+        BACKTICK +
+        WS +
+        "that reproduce",
+    ).exec(review);
+    expect(cited?.[1]).toBeTruthy();
+    const source = read(cited?.[1] ?? "");
+    expect(source).toContain("GATE_IN_PROGRESS");
+    expect(source).toContain("readGateResultsFromDisk");
   });
 
   it("records the procedural deviation rather than only the correction", () => {
