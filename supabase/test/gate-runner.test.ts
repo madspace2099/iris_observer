@@ -6,6 +6,7 @@ import {
   sanitize,
   classifyTestGate,
   describe as describeGate,
+  NO_REPORT,
   type ProcessResult,
   type ReportSummary,
 } from "../../scripts/release/gate-run";
@@ -30,9 +31,12 @@ const node = process.execPath;
 
 const clean: ProcessResult = { ok: true, status: 0, signal: null, errorCode: null };
 const passing: ReportSummary = {
+  ...NO_REPORT,
   reportSuccess: true,
   reportedFailedTests: 0,
   countedFailedTests: 0,
+  reportedFailedSuites: 0,
+  runtimeErrorSuites: 0,
 };
 
 describe("runProcess reports what happened to the child", () => {
@@ -98,11 +102,7 @@ describe("classifyTestGate fails closed", () => {
   });
 
   it("fails when no readable report was produced", () => {
-    const r = classifyTestGate(clean, {
-      reportSuccess: null,
-      reportedFailedTests: null,
-      countedFailedTests: null,
-    });
+    const r = classifyTestGate(clean, NO_REPORT);
     expect(r.reasons).toContain("no readable JSON report");
   });
 
@@ -129,7 +129,7 @@ describe("classifyTestGate fails closed", () => {
   it("reports every reason, not the first", () => {
     const r = classifyTestGate(
       { ok: false, status: 7, signal: null, errorCode: null },
-      { reportSuccess: false, reportedFailedTests: 4, countedFailedTests: 4 },
+      { ...passing, reportSuccess: false, reportedFailedTests: 4, countedFailedTests: 4 },
     );
     expect(r.reasons).toHaveLength(4);
   });
@@ -199,5 +199,100 @@ describe("nothing that could carry a secret is persisted", () => {
      */
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
     expect((source.match(/\} = runTestGate\(\)/g) ?? []).length).toBe(2);
+  });
+});
+
+/**
+ * Suite-level evidence, kept because discarding it cost a diagnosis.
+ *
+ * A hook timeout fails the SUITE and records no failed assertion. For as long
+ * as the runner kept only `reportSuccess` and the failed-TEST counts, that shape
+ * — exit 1, `success: false`, zero failed tests — looked like a runner-level
+ * fault, and it took a milestone to find out it was a 30-second budget in one
+ * of this repository's own tests.
+ */
+describe("suite-level failures are their own evidence", () => {
+  it("fails on a failed suite that recorded no failed assertion", () => {
+    const r = classifyTestGate(clean, {
+      ...passing,
+      reportedFailedSuites: 1,
+      runtimeErrorSuites: 1,
+    });
+    expect(r.reasons).toContain("report names 1 failed suite(s)");
+    expect(r.reasons).toContain(
+      "1 suite(s) failed with no failed assertion — hook, collection or timeout",
+    );
+  });
+
+  it("fails on a runtime-error suite alone", () => {
+    const r = classifyTestGate(clean, { ...passing, runtimeErrorSuites: 2 });
+    expect(r.reasons.join(" ")).toMatch(/2 suite\(s\) failed with no failed assertion/);
+  });
+
+  it("fails on a non-zero failed-suite count even when the report claims success", () => {
+    /*
+     * Independent of `reportSuccess`, and deliberately: the summary can say the
+     * run succeeded while a suite did not, and only one of those is worth
+     * trusting.
+     */
+    const r = classifyTestGate(clean, { ...passing, reportSuccess: true, reportedFailedSuites: 1 });
+    expect(r.reasons).not.toEqual([]);
+  });
+
+  it("names the failing suites, by basename only", () => {
+    const r = classifyTestGate(clean, {
+      ...passing,
+      failedSuiteNames: ["package-generation.test.ts"],
+    });
+    expect(r.reasons.join(" ")).toContain("package-generation.test.ts");
+    /* A basename, never a path — a path is machine-identifying detail. */
+    expect(r.reasons.join(" ")).not.toMatch(/[\/]/);
+  });
+
+  it("still fails on a non-zero exit with a wholly successful report", () => {
+    /* The observation that remains unresolved. It must not read as clean. */
+    const r = classifyTestGate({ ...clean, ok: false, status: 1 }, passing);
+    expect(r.reasons).toEqual(["exit status 1"]);
+  });
+
+  it("carries the suite fields into the one-line summary", () => {
+    const line = describeGate(
+      classifyTestGate(clean, {
+        ...passing,
+        reportedFailedSuites: 1,
+        failedSuiteNames: ["a.test.ts"],
+      }),
+    );
+    expect(line).toContain("reportedFailedSuites=1");
+    expect(line).toContain("runtimeErrorSuites=0");
+    expect(line).toContain("failedSuites=[a.test.ts]");
+  });
+
+  it("persists no message, output, URL or environment value with a failure", () => {
+    const r = classifyTestGate(
+      { ok: false, status: 1, signal: null, errorCode: null },
+      {
+        ...passing,
+        reportSuccess: false,
+        reportedFailedSuites: 1,
+        failedSuiteNames: ["b.test.ts"],
+      },
+    );
+    const persisted = JSON.stringify({
+      ok: r.reasons.length === 0,
+      status: r.status,
+      signal: r.signal,
+      errorCode: r.errorCode,
+      reportSuccess: r.reportSuccess,
+      reportedFailedTests: r.reportedFailedTests,
+      countedFailedTests: r.countedFailedTests,
+      reportedFailedSuites: r.reportedFailedSuites,
+      runtimeErrorSuites: r.runtimeErrorSuites,
+      failedSuiteNames: r.failedSuiteNames,
+      reasons: r.reasons,
+    });
+    for (const forbidden of ["stdout", "stderr", "output", "https://", "SUPABASE", "OPENAI"]) {
+      expect(persisted, forbidden).not.toContain(forbidden);
+    }
   });
 });

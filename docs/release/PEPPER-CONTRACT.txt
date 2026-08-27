@@ -1,5 +1,7 @@
 OBSERVER_SUBJECT_PEPPER — CONFIGURATION CONTRACT
-Commit f1dbffd, release/observer-demo-rc1.
+Rendered for commit {{HEAD_SHORT}} on release/observer-demo-rc1.
+Introduced at f1dbffd; its contents have changed in later milestones, and the
+heading used to keep naming the introduction commit as though they had not.
 
 
 ================================================================================

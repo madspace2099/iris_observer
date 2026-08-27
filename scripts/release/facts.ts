@@ -21,7 +21,8 @@ import {
   DEPLOYMENTS,
   RETENTION_THRESHOLD_HOURS,
   OLDEST_BUCKET_HISTORY,
-  INVENTORY_UNCHANGED_IN,
+  INVENTORY_RECORDED_IN,
+  LAST_VERCEL_ENUMERATION,
   DELIVERED_ARCHIVES,
 } from "./live-snapshot";
 import { renderMappingTable } from "./preflight";
@@ -198,12 +199,12 @@ interface RepeatRun {
  * point of printing the count rather than a verdict.
  */
 function gateRepeatBlock(): string {
-  const path = join(REPO_ROOT, ".release", "gate-repeat.json");
+  const path = join(REPO_ROOT, "docs", "release", "gate-repeat-evidence.json");
   if (!existsSync(path)) {
     return [
-      "THE REPEATED DIAGNOSTIC WAS NOT RUN in this package. Run",
-      "`pnpm release:gates:repeat` and this paragraph is replaced by what it",
-      "measured.",
+      "NO REPEATED-DIAGNOSTIC EVIDENCE IS TRACKED. docs/release/gate-repeat-evidence.json",
+      "is the only source this paragraph reads; an untracked local file is never",
+      "consulted, because a package must not depend on an input nobody declared.",
     ].join("\n");
   }
   const data = JSON.parse(readFileSync(path, "utf8")) as {
@@ -311,24 +312,40 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
   }
   if (state === "refreshed") {
     return [
-      `OBSERVED AT ${LIVE.observedAt}, and RE-READ IN THIS MILESTONE:`,
-      `${SNAPSHOT_FILE} differs from its copy at ${parentShort}.`,
+      `OBSERVED AT ${LIVE.observedAt}.`,
+      "",
+      `RECORD CHANGED since ${parentShort}: the LIVE reading in ${SNAPSHOT_FILE}`,
+      "differs from its copy there. THAT ALONE DOES NOT PROVE A LIVE RE-READ — a",
+      "changed constant is equally consistent with somebody editing it. Whether a",
+      "query was executed is an operator declaration, stated in REVIEW.txt.",
     ].join("\n");
   }
   return [
-    `OBSERVED AT ${LIVE.observedAt}. CARRIED FORWARD UNCHANGED — NOT RE-READ AT`,
-    `${headShort}. The LIVE reading in ${SNAPSHOT_FILE} is byte-identical to`,
-    `its copy at ${parentShort}, which is what establishes that no query was made`,
-    "this round. The comparison is deliberately over the reading and not over the",
-    "whole file, which also carries bookkeeping that changes without anything",
-    "being re-read — comparing the file reported a refresh on a round that made",
-    "no query, which is the fail-open this check exists to prevent.",
+    `OBSERVED AT ${LIVE.observedAt}.`,
     "",
-    "WHAT IS AND IS NOT PROVEN. It is proven that a read-only snapshot was taken",
-    `at ${LIVE.observedAt} and contained the values below, and that those values`,
-    "reached this package unaltered. It is NOT proven that they still hold. The",
-    "current live state is UNKNOWN until the authorised rollout preflight reads",
-    "it again; every number here describes one timestamped observation, not now.",
+    `RECORD UNCHANGED since ${parentShort}: the LIVE reading in ${SNAPSHOT_FILE}`,
+    `is byte-identical to its copy there, so the values in this package at`,
+    `${headShort} are the ones that were observed at that timestamp and have not`,
+    "been edited since. The comparison is over the reading rather than the whole",
+    "file, which also carries bookkeeping that changes without anything being",
+    "re-read.",
+    "",
+    "WHAT THAT COMPARISON DOES AND DOES NOT ESTABLISH. It has exactly three",
+    "outcomes — RECORD UNCHANGED, RECORD CHANGED, COMPARISON UNAVAILABLE — and",
+    "all three are about the recorded bytes. IT CANNOT ESTABLISH WHETHER A QUERY",
+    "WAS EXECUTED. An unchanged record is consistent with no query having been",
+    "run and equally with one having been run and returned the same values; a",
+    "changed record is consistent with a live re-read and equally with somebody",
+    "editing the constant. Git history is evidence about a file, never about",
+    "whether a network call happened.",
+    "",
+    "That this milestone made no external access is therefore an OPERATOR",
+    "DECLARATION, stated as one in REVIEW.txt, and not something derived here.",
+    "",
+    "WHAT IS PROVEN. A read-only snapshot was taken at",
+    `${LIVE.observedAt}, it contained the values below, and those values reached`,
+    "this package unaltered. It is NOT proven that they still hold: the current",
+    "live state is UNKNOWN until the authorised rollout preflight reads it again.",
   ].join("\n");
 }
 
@@ -469,8 +486,9 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
 
   const cronHealth = sha256("supabase/verifiers/observer-cron-health.sql");
   const cronHealthWrapper = sha256("_sql-to-paste/observer-cron-health.sql");
-  const bundles = word(INVENTORY_UNCHANGED_IN.length).toLowerCase();
-  const lastEnumerated = INVENTORY_UNCHANGED_IN[INVENTORY_UNCHANGED_IN.length - 1] ?? "?";
+  /* Prior deliveries, excluding the candidate this package will become. */
+  const priorBundles = INVENTORY_RECORDED_IN.filter((b) => b !== headShort);
+  const bundles = word(priorBundles.length).toLowerCase();
 
   return {
     HEAD: head,
@@ -497,9 +515,18 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
 
     INVENTORY_UNCHANGED_SENTENCE: [
       "",
-      `The same twenty deployments are recorded in all ${bundles} delivered bundles,`,
-      "which is consistency rather than freshness: the inventory was last enumerated",
-      `against Vercel for ${lastEnumerated}.`,
+      `RECORDED IDENTICALLY in ${bundles} previously delivered bundles, and again`,
+      "in this candidate package — which is consistency, not freshness. Those are",
+      "three separate facts and only the first two are established here:",
+      "",
+      `  recorded in           ${bundles} prior bundles + this candidate`,
+      `  last ENUMERATED for   ${LAST_VERCEL_ENUMERATION}, and not since`,
+      "  currently accurate    UNKNOWN — no Vercel enumeration in this milestone",
+      "",
+      "An earlier edition derived the enumeration point from the last entry of the",
+      "recorded-in list, which grows every milestone while the enumeration stays",
+      "where it was. It therefore claimed the inventory had been enumerated for a",
+      "bundle three deliveries after the last time anybody looked.",
     ].join("\n"),
 
     OBSERVED_AT: LIVE.observedAt,

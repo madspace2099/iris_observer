@@ -306,7 +306,12 @@ what the durable audit and quota path writes through.
 1. **inspect the non-secret value of `SUPABASE_URL`** for every relevant Vercel environment — the
    standalone server-side variable, not a public one that happens to end with the same characters;
 2. **extract and record only its Supabase project reference**, e.g. `tfcchobwobpadenampyh`. Not the
-   whole URL, not a key;
+   whole URL, not a key. The value must be the **canonical hosted origin**
+   `https://<project-ref>.supabase.co`, with at most a trailing slash — no other domain, no extra
+   label before or after `supabase.co`, no `http`, no userinfo, no port, no path, no query, no
+   fragment. **Reading one label of a hostname is not checking the hostname**: a rule that did so
+   accepted `https://<approved-ref>.example.com` and `https://<approved-ref>.supabase.co.evil.test`
+   as the approved project. The public URL is validated the same way;
 3. **require that reference to equal the approved Observer project.** A different ref is a different
    database, and every claim in this release about rows, buckets and versions is about the approved
    one;
@@ -348,25 +353,47 @@ operator told to record it and continue was being told two incompatible things.
 
 #### Every state, and what it means for the rollout
 
-| State                    | Condition                                                                     | Verdict   | Then                                                                                                               |
-| ------------------------ | ----------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
-| `TOOLING_CANNOT_ISOLATE` | the tooling cannot show the non-secret server URL without exposing a secret   | **PAUSE** | Matthew reads it in the dashboard and records only the ref. Do not widen the read.                                 |
-| `SERVER_URL_ABSENT`      | `SUPABASE_URL` absent, empty or whitespace — the public fallback is in effect | **STOP**  | Set it to the approved project, then **restart preflight step 1**.                                                 |
-| `SERVER_URL_MALFORMED`   | `SUPABASE_URL` set but not a bare https/http origin                           | **STOP**  | Correct the value — origin only — then **restart preflight step 1**. No fallback happens; there is no destination. |
-| `SERVER_PROJECT_WRONG`   | valid, but its ref is not the approved Observer project                       | **STOP**  | Point it at the approved project, then **restart preflight step 1**.                                               |
-| `PROJECTS_DISAGREE`      | server and public URLs name different projects                                | **STOP**  | Reconcile them, then **restart preflight step 1**.                                                                 |
-| `MAPPED`                 | valid, approved, and the public URL is absent or names the same project       | **PASS**  | Record the project ref. Step 2 may be reached.                                                                     |
+| State                          | Condition                                                                                                                                                                                          | Verdict   | Then                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TOOLING_CANNOT_ISOLATE`       | the tooling cannot expose the non-secret server URL or project ref without also exposing a secret                                                                                                  | **PAUSE** | PAUSE. This says nothing about whether the configuration is correct, so do NOT rotate, replace or edit anything on the strength of it. Matthew reads ONLY the exact non-secret server origin or project ref in the Vercel dashboard, and that observation is then carried through the MANUAL CONFIRMATION path below. Step 2 is not reachable from PAUSE itself. |
+| `SERVER_URL_ABSENT`            | SUPABASE_URL is absent, empty or whitespace                                                                                                                                                        | **STOP**  | Set SUPABASE_URL for that environment to the approved project, then RESTART PREFLIGHT STEP 1. The resolver would otherwise fall back to NEXT_PUBLIC_SUPABASE_URL, and a browser-exposed variable is not an authoritative server mapping however good its value looks.                                                                                            |
+| `SERVER_URL_MALFORMED`         | SUPABASE_URL is set but is not the canonical hosted origin https://<project-ref>.supabase.co                                                                                                       | **STOP**  | Correct the value to the canonical origin — https, the .supabase.co host, no userinfo, no port, no path beyond a single slash, no query, no fragment — then RESTART PREFLIGHT STEP 1. The resolver does NOT fall back here: it stops at the first name that is set and reports it unusable, so the deployment has no destination at all.                         |
+| `SERVER_PROJECT_WRONG`         | SUPABASE_URL is a canonical origin but its project ref is not the approved one                                                                                                                     | **STOP**  | Point the environment at the approved project, then RESTART PREFLIGHT STEP 1. Every claim in this release about rows, buckets and versions is about the approved database.                                                                                                                                                                                       |
+| `PUBLIC_URL_MALFORMED`         | NEXT_PUBLIC_SUPABASE_URL is set but is not a canonical hosted origin                                                                                                                               | **STOP**  | Correct or remove it, then RESTART PREFLIGHT STEP 1. A value that cannot be parsed cannot be compared, and an uncomparable public URL is not the same thing as an absent one.                                                                                                                                                                                    |
+| `PROJECTS_DISAGREE`            | SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL name different projects                                                                                                                                  | **STOP**  | Reconcile the two, then RESTART PREFLIGHT STEP 1. The browser and the server are otherwise talking to two databases, and nothing downstream is safe to reason about.                                                                                                                                                                                             |
+| `MANUAL_OBSERVATION_ABSENT`    | the manual confirmation path was entered with no dashboard observation recorded                                                                                                                    | **STOP**  | Record the exact non-secret server origin or project ref Matthew read, then re-enter MANUAL CONFIRMATION. NO PUBLIC URL CAN RESCUE A MISSING SERVER OBSERVATION — the public variable is not the authoritative mapping in the manual path either.                                                                                                                |
+| `MANUAL_OBSERVATION_MALFORMED` | the recorded dashboard observation is neither a canonical origin nor a project ref                                                                                                                 | **STOP**  | Record it exactly as the dashboard shows it — the whole https://<project-ref>.supabase.co origin, or the project ref alone — then re-enter MANUAL CONFIRMATION.                                                                                                                                                                                                  |
+| `MANUAL_PROJECT_WRONG`         | the manual observation names a project that is not the approved one                                                                                                                                | **STOP**  | This one IS a configuration fault, unlike the PAUSE that preceded it. Point the environment at the approved project, then RESTART PREFLIGHT STEP 1 from the beginning rather than re-entering manual confirmation.                                                                                                                                               |
+| `MAPPED`                       | the server origin is canonical, names the approved project, and NEXT_PUBLIC_SUPABASE_URL is either absent or names the same project — established by tooling, or by a successful manual comparison | **PASS**  | Record the project ref. Step 2 may be reached.                                                                                                                                                                                                                                                                                                                   |
 
 **A public URL naming the approved project does not convert `SERVER_URL_ABSENT` into a PASS.** It is
 the most tempting way past this gate — the value looks right, so the mapping looks proved — and it is
 exactly the substitution this rule exists to forbid. The server's writes would be resolving through a
 browser-exposed variable, and nothing in the deployed code notices.
 
-**Every non-PASS state requires an explicit operator decision, a configuration correction, and a
-restart of preflight step 1 from the beginning.** Step 2 is not reachable until step 1 returns PASS
-for every relevant environment. The table is generated from `scripts/release/preflight.ts`, which is
-the module `supabase/test/supabase-resolver.test.ts` executes, so the rule stated here and the rule
-under test are one object.
+**Every STOP state requires an explicit operator decision, a configuration correction, and a restart
+of preflight step 1 from the beginning.** Step 2 is not reachable until step 1 returns PASS for every
+relevant environment.
+
+#### Manual confirmation — the only route from PAUSE to a proved mapping
+
+PAUSE is **not** a STOP and is **not** a configuration fault: it says the tooling could not isolate
+the non-secret value. It has its own path, and step 2 is not reachable from PAUSE itself.
+
+1. Matthew reads **only** the exact non-secret server origin or project ref in the Vercel dashboard —
+   never a key, never anything else on the page;
+2. that observation is recorded and compared with the approved ref through the separately identified
+   manual-confirmation path;
+3. a successful comparison yields `MAPPED`/**PASS**, marked as established **manually** rather than
+   by tooling, so a reader can tell the two apart;
+4. **no public URL can rescue a missing manual server observation** — `MANUAL_OBSERVATION_ABSENT`
+   STOPs, and the browser-exposed variable is not the authoritative mapping in this path either;
+5. an observation that is neither a canonical origin nor a bare project ref STOPs
+   (`MANUAL_OBSERVATION_MALFORMED`);
+6. a **mismatch** STOPs (`MANUAL_PROJECT_WRONG`) — and that one _is_ a configuration fault, so it
+   restarts preflight step 1 from the beginning rather than re-entering manual confirmation. The table is generated from `scripts/release/preflight.ts`, which is
+   the module `supabase/test/supabase-resolver.test.ts` executes, so the rule stated here and the rule
+   under test are one object.
 
 **(ii) Pepper state — metadata only, never a value.**
 

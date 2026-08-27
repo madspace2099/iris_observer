@@ -298,7 +298,14 @@ describe("every project-mapping state has a documented verdict", () => {
 
   it.each(ARTEFACTS)("%s requires every correction to restart step 1", (_label, path) => {
     const text = readRendered(path);
-    const restarts = text.match(/restart\s+(of\s+)?preflight\s+step\s+1/gi) ?? [];
+    /*
+     * "Restart step 1" OR "re-enter manual confirmation": the two manual
+     * observation states are STOPs whose correct remedy is to record the
+     * observation again, not to go back to the beginning. Requiring the first
+     * wording everywhere would force the document to give wrong advice.
+     */
+    const restarts =
+      text.match(/restart\s+(of\s+)?preflight\s+step\s+1|re-enter\s+MANUAL\s+CONFIRMATION/gi) ?? [];
     /*
      * One per STOP state at least. A single mention at the bottom of a section
      * is how a reader finishes the table and carries on.

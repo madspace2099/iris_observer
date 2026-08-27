@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveServerSupabase, diagnoseServerSupabase, type EnvSource } from "@/lib/supabase-env";
 import {
   classifyProjectMapping,
+  confirmManualMapping,
   projectRef,
   PROJECT_MAPPING_STATES,
 } from "../../scripts/release/preflight";
@@ -148,7 +149,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
         publicUrl: undefined,
         approvedRef: APPROVED,
       }),
-    ).toEqual({ state: "MAPPED", verdict: "PASS", ref: APPROVED });
+    ).toEqual({ state: "MAPPED", verdict: "PASS", ref: APPROVED, via: "tooling" });
   });
 
   it("PASSes when the public URL names the same project", () => {
@@ -171,7 +172,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
       publicUrl: APPROVED_URL,
       approvedRef: APPROVED,
     });
-    expect(outcome).toEqual({ state: "SERVER_URL_ABSENT", verdict: "STOP", ref: null });
+    expect(outcome).toEqual({ state: "SERVER_URL_ABSENT", verdict: "STOP", ref: null, via: null });
   });
 
   it("a public URL naming the approved project does not rescue the fallback", () => {
@@ -239,7 +240,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
         expect(state.remedy, state.name).toMatch(/Matthew/);
         continue;
       }
-      expect(state.remedy, state.name).toMatch(/RESTART PREFLIGHT STEP 1/);
+      expect(state.remedy, state.name).toMatch(/RESTART PREFLIGHT STEP 1|re-enter MANUAL/);
     }
   });
 
@@ -249,5 +250,176 @@ describe("the preflight decision, which is stricter than the runtime", () => {
     expect(projectRef(`${APPROVED_URL}/rest/v1`)).toBeNull();
     expect(projectRef("   ")).toBeNull();
     expect(projectRef(undefined)).toBeNull();
+  });
+});
+
+/**
+ * The origin rule, and the only route from PAUSE to a proved mapping.
+ *
+ * `projectRef` used to return the first hostname label of any URL. Both of
+ * these therefore produced MAPPED/PASS for the approved project:
+ *
+ *     https://<approved-ref>.example.com            — a foreign origin
+ *     https://<approved-ref>.supabase.co.evil.test  — suffix confusion
+ *
+ * Neither is the Observer database, and the failure is silent: the operator
+ * sees the ref they expected and records the mapping as proved.
+ */
+describe("only the canonical hosted origin can produce a PASS", () => {
+  const REF = "tfcchobwobpadenampyh";
+  const OK = `https://${REF}.supabase.co`;
+
+  const INVALID_ORIGINS: readonly (readonly [string, string])[] = [
+    ["a foreign domain whose first label is the approved ref", `https://${REF}.example.com`],
+    ["suffix confusion after supabase.co", `https://${REF}.supabase.co.evil.test`],
+    ["an extra label before the ref", `https://a.${REF}.supabase.co`],
+    ["a lookalike registrable domain", `https://${REF}.supabase.com`],
+    ["a lookalike host label", `https://${REF}.supabase-co.net`],
+    ["plain http", `http://${REF}.supabase.co`],
+    ["userinfo", `https://user@${REF}.supabase.co`],
+    ["userinfo with a password", `https://user:pw@${REF}.supabase.co`],
+    ["an explicit default port", `https://${REF}.supabase.co:443`],
+    ["a non-default port", `https://${REF}.supabase.co:8443`],
+    ["a path", `https://${REF}.supabase.co/rest/v1`],
+    ["a deeper path", `https://${REF}.supabase.co/a/b`],
+    ["a query string", `https://${REF}.supabase.co/?x=1`],
+    ["a fragment", `https://${REF}.supabase.co/#f`],
+    ["a trailing dot on the host", `https://${REF}.supabase.co.`],
+    ["a bare ref with no scheme", REF],
+    ["the host with no scheme", `${REF}.supabase.co`],
+    ["a scheme that is not http(s)", `ftp://${REF}.supabase.co`],
+    ["an entirely different service", "https://example.com"],
+    ["nonsense", "not-a-url"],
+  ];
+
+  it.each(INVALID_ORIGINS)("rejects %s", (_why, url) => {
+    expect(projectRef(url), url).toBeNull();
+  });
+
+  it.each(INVALID_ORIGINS)("never reaches MAPPED/PASS from %s", (_why, url) => {
+    const out = classifyProjectMapping({ serverUrl: url, publicUrl: undefined, approvedRef: REF });
+    expect(out.verdict, url).toBe("STOP");
+    expect(out.state, url).toBe("SERVER_URL_MALFORMED");
+    expect(out.ref, url).toBeNull();
+  });
+
+  it.each(INVALID_ORIGINS)("never reaches MAPPED/PASS with %s as the public URL", (_why, url) => {
+    const out = classifyProjectMapping({ serverUrl: OK, publicUrl: url, approvedRef: REF });
+    expect(out.verdict, url).toBe("STOP");
+    expect(out.state, url).toBe("PUBLIC_URL_MALFORMED");
+  });
+
+  it.each([
+    ["the canonical origin", OK],
+    ["with a trailing slash", `${OK}/`],
+    ["with surrounding whitespace", `  ${OK}  `],
+  ])("accepts %s", (_why, url) => {
+    expect(projectRef(url)).toBe(REF);
+    expect(
+      classifyProjectMapping({ serverUrl: url, publicUrl: undefined, approvedRef: REF }),
+    ).toEqual({ state: "MAPPED", verdict: "PASS", ref: REF, via: "tooling" });
+  });
+
+  it("compares the ref conjunctively rather than by containment", () => {
+    for (const near of [`${REF}x`, `x${REF}`, REF.slice(0, -1)]) {
+      const out = classifyProjectMapping({
+        serverUrl: `https://${near}.supabase.co`,
+        publicUrl: undefined,
+        approvedRef: REF,
+      });
+      expect(out.state, near).toBe("SERVER_PROJECT_WRONG");
+    }
+  });
+});
+
+describe("PAUSE leads somewhere, and only one way", () => {
+  const REF = "tfcchobwobpadenampyh";
+  const OK = `https://${REF}.supabase.co`;
+
+  it("PAUSE itself never yields a ref or a PASS", () => {
+    const out = classifyProjectMapping({
+      serverUrl: OK,
+      publicUrl: undefined,
+      approvedRef: REF,
+      toolingCannotIsolate: true,
+    });
+    expect(out).toEqual({
+      state: "TOOLING_CANNOT_ISOLATE",
+      verdict: "PAUSE",
+      ref: null,
+      via: null,
+    });
+  });
+
+  it("a matching manual observation is the only thing that turns it into a PASS", () => {
+    for (const observation of [OK, `${OK}/`, REF]) {
+      expect(confirmManualMapping({ observedServer: observation, approvedRef: REF })).toEqual({
+        state: "MAPPED",
+        verdict: "PASS",
+        ref: REF,
+        via: "manual",
+      });
+    }
+  });
+
+  it("marks a manual PASS as manual, so it is distinguishable from a tooled one", () => {
+    expect(confirmManualMapping({ observedServer: OK, approvedRef: REF }).via).toBe("manual");
+    expect(
+      classifyProjectMapping({ serverUrl: OK, publicUrl: undefined, approvedRef: REF }).via,
+    ).toBe("tooling");
+  });
+
+  it.each([
+    ["absent", undefined],
+    ["empty", ""],
+    ["whitespace", "   "],
+  ])("STOPs when the manual observation is %s", (_why, observation) => {
+    expect(confirmManualMapping({ observedServer: observation, approvedRef: REF })).toEqual({
+      state: "MANUAL_OBSERVATION_ABSENT",
+      verdict: "STOP",
+      ref: null,
+      via: null,
+    });
+  });
+
+  it("no public URL can rescue a missing manual server observation", () => {
+    const out = confirmManualMapping({
+      observedServer: undefined,
+      approvedRef: REF,
+      publicUrl: OK,
+    });
+    expect(out.verdict).toBe("STOP");
+    expect(out.ref).toBeNull();
+  });
+
+  it.each([`https://${REF}.example.com`, "not a ref at all!", "https://example.com"])(
+    "STOPs on an unusable manual observation: %s",
+    (observation) => {
+      expect(confirmManualMapping({ observedServer: observation, approvedRef: REF }).state).toBe(
+        "MANUAL_OBSERVATION_MALFORMED",
+      );
+    },
+  );
+
+  it("STOPs on a manual mismatch, and routes it to a restart rather than a re-entry", () => {
+    const out = confirmManualMapping({
+      observedServer: "https://otherref00000000.supabase.co",
+      approvedRef: REF,
+    });
+    expect(out).toMatchObject({ state: "MANUAL_PROJECT_WRONG", verdict: "STOP" });
+    const state = PROJECT_MAPPING_STATES.find((s) => s.name === "MANUAL_PROJECT_WRONG");
+    expect(state?.remedy).toMatch(/RESTART PREFLIGHT STEP 1/);
+  });
+
+  it("keeps PAUSE and STOP remediation semantically distinct", () => {
+    const pause = PROJECT_MAPPING_STATES.find((s) => s.name === "TOOLING_CANNOT_ISOLATE");
+    expect(pause?.verdict).toBe("PAUSE");
+    expect(pause?.remedy).not.toMatch(/RESTART PREFLIGHT STEP 1/);
+    expect(pause?.remedy).toMatch(/do NOT rotate, replace or edit/i);
+    expect(pause?.remedy).toMatch(/MANUAL CONFIRMATION/i);
+
+    for (const state of PROJECT_MAPPING_STATES.filter((s) => s.verdict === "STOP")) {
+      expect(state.remedy, state.name).toMatch(/RESTART PREFLIGHT STEP 1|re-enter MANUAL/);
+    }
   });
 });

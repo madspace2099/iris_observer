@@ -80,16 +80,29 @@ export const RETENTION_THRESHOLD_HOURS = 48;
 export const OLDEST_BUCKET_HISTORY: readonly number[] = [37, 38, 39, 44, 45, 47, 48, 49];
 
 /**
- * Review bundles whose COMPATIBILITY-EVIDENCE.txt records this exact inventory.
+ * THREE DIFFERENT FACTS, and the previous edition ran two of them together.
  *
- * Consistency, not freshness: it says the twenty deployments have been reported
- * identically every time, not that Vercel was re-enumerated every time. The
- * last entry is the bundle whose enumeration this list is anchored to.
+ *   1. which bundles RECORD this inventory — {@link INVENTORY_RECORDED_IN};
+ *   2. which bundle Vercel was last actually ENUMERATED for —
+ *      {@link LAST_VERCEL_ENUMERATION};
+ *   3. whether the inventory is CURRENT — unknowable from here, and stated as
+ *      unknown wherever it matters.
+ *
+ * (1) and (2) were being conflated by taking the last entry of the list as the
+ * enumeration point. That is wrong by construction: every bundle after an
+ * enumeration also records the inventory, so the list grows every milestone
+ * while the enumeration stays where it was. The package went on to say the
+ * inventory was "last enumerated against Vercel for e18f860" when the last
+ * enumeration was three bundles earlier.
+ *
+ * Bundles that carry the recording forward. NOT evidence of freshness:
+ * consistency across bundles says the twenty deployments have been reported
+ * identically, not that anybody looked again.
  * supabase/test/artefact-consistency.test.ts re-derives it from the delivered
  * archives when they are present, and skips when they are not — packaging must
  * never depend on an archive nobody declared.
  */
-export const INVENTORY_UNCHANGED_IN: readonly string[] = [
+export const INVENTORY_RECORDED_IN: readonly string[] = [
   "1571178",
   "bb574b6",
   "7e3c00a",
@@ -101,6 +114,16 @@ export const INVENTORY_UNCHANGED_IN: readonly string[] = [
   "6889aa0",
   "e18f860",
 ];
+
+/**
+ * The bundle Vercel was last ACTUALLY enumerated for.
+ *
+ * An explicit constant, never derived from the tail of the list above. Moving
+ * it requires a real enumeration — which is a Vercel access, and therefore a
+ * deliberate act with its own authorisation, not a side effect of shipping
+ * another bundle.
+ */
+export const LAST_VERCEL_ENUMERATION = "f1dbffd";
 
 /**
  * The record of what has actually been handed over, bundle by bundle.

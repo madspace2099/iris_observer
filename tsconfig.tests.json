@@ -42,6 +42,7 @@
     "supabase/test/project-mapping.test.ts",
     "supabase/test/supabase-resolver.test.ts",
     "supabase/test/gate-runner.test.ts",
+    "supabase/test/gate-contract.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }

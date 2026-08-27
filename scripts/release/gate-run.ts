@@ -91,12 +91,33 @@ export const sanitize = (run: ProcessRun): ProcessResult => ({
   errorCode: run.errorCode,
 });
 
-/** What a Vitest JSON report says about itself. */
+/**
+ * What a Vitest JSON report says about itself.
+ *
+ * SUITE-LEVEL evidence is here because discarding it cost a diagnosis. A hook
+ * timeout fails the SUITE and records no failed assertion, so a summary of
+ * `reportSuccess=false, failedTests=0` looked like a runner-level fault for as
+ * long as nobody kept `numFailedTestSuites` and the name of the file. Keeping
+ * both turned an unexplained intermittent exit into a one-line answer.
+ */
 export interface ReportSummary {
   readonly reportSuccess: boolean | null;
   readonly reportedFailedTests: number | null;
   /** Failures counted from the assertion results, independently of the summary. */
   readonly countedFailedTests: number | null;
+  /** `numFailedTestSuites`, which a hook failure moves and a test failure does not. */
+  readonly reportedFailedSuites: number | null;
+  /**
+   * Suites that failed while recording NO failed assertion — a hook error, a
+   * collection error, a timeout. Derived, because Vitest has no field for it.
+   */
+  readonly runtimeErrorSuites: number | null;
+  /**
+   * BASENAMES ONLY of the failing suites. No path, no message, no output: the
+   * name identifies the file to look in, and everything else a failure carries
+   * is exactly what must not reach a file somebody zips and hands over.
+   */
+  readonly failedSuiteNames: readonly string[];
 }
 
 export interface TestGateResult extends ProcessResult, ReportSummary {
@@ -130,9 +151,36 @@ export function classifyTestGate(process_: ProcessResult, report: ReportSummary)
   if ((report.countedFailedTests ?? 0) > 0) {
     reasons.push(`${String(report.countedFailedTests)} failed test(s) counted from results`);
   }
+  /*
+   * Suite-level counts fail INDEPENDENTLY, and deliberately so — including when
+   * `reportSuccess` is true. A hook timeout moves these and moves nothing else,
+   * so a rule that only consulted the summary would keep missing exactly the
+   * fault that took a milestone to find.
+   */
+  if ((report.reportedFailedSuites ?? 0) > 0) {
+    reasons.push(`report names ${String(report.reportedFailedSuites)} failed suite(s)`);
+  }
+  if ((report.runtimeErrorSuites ?? 0) > 0) {
+    reasons.push(
+      `${String(report.runtimeErrorSuites)} suite(s) failed with no failed assertion — hook, collection or timeout`,
+    );
+  }
+  if (report.failedSuiteNames.length > 0) {
+    reasons.push(`failing suite(s): ${report.failedSuiteNames.join(", ")}`);
+  }
 
   return { ...process_, ...report, reasons };
 }
+
+/** A report summary for a run that produced nothing readable. */
+export const NO_REPORT: ReportSummary = {
+  reportSuccess: null,
+  reportedFailedTests: null,
+  countedFailedTests: null,
+  reportedFailedSuites: null,
+  runtimeErrorSuites: null,
+  failedSuiteNames: [],
+};
 
 /** A one-line summary for the console and for the persisted record. */
 export function describe(result: TestGateResult): string {
@@ -143,6 +191,9 @@ export function describe(result: TestGateResult): string {
     `reportSuccess=${String(result.reportSuccess)}`,
     `reportedFailedTests=${String(result.reportedFailedTests)}`,
     `countedFailedTests=${String(result.countedFailedTests)}`,
+    `reportedFailedSuites=${String(result.reportedFailedSuites)}`,
+    `runtimeErrorSuites=${String(result.runtimeErrorSuites)}`,
+    `failedSuites=[${result.failedSuiteNames.join(",")}]`,
   ];
   return bits.join(" ");
 }

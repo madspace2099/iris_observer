@@ -31,13 +31,16 @@ import {
   sanitize,
   classifyTestGate,
   describe as describeGate,
+  NO_REPORT,
   type ProcessResult,
   type ReportSummary,
   type TestGateResult,
 } from "./gate-run";
+import { REQUIRED_GATES } from "./gate-contract";
 
 interface VitestFile {
   readonly name: string;
+  readonly status?: string;
   readonly assertionResults: readonly { readonly status: string }[];
 }
 
@@ -45,7 +48,11 @@ interface VitestReport {
   readonly testResults: readonly VitestFile[];
   readonly success?: boolean;
   readonly numFailedTests?: number;
+  readonly numFailedTestSuites?: number;
 }
+
+/** Basename only — never a path, a message or any of the child's output. */
+const safeSuiteName = (name: string): string => basename(name);
 
 /**
  * `shell` is per-call, and both settings are load-bearing on Windows.
@@ -77,17 +84,25 @@ const run = (
 
 /** Read the JSON report, if the reporter managed to write one. */
 function readReport(path: string): { report: VitestReport | null; summary: ReportSummary } {
-  if (!existsSync(path)) {
-    return {
-      report: null,
-      summary: { reportSuccess: null, reportedFailedTests: null, countedFailedTests: null },
-    };
-  }
+  if (!existsSync(path)) return { report: null, summary: NO_REPORT };
   try {
     const report = JSON.parse(readFileSync(path, "utf8")) as VitestReport;
     let counted = 0;
+    let runtimeErrors = 0;
+    const failedSuites: string[] = [];
     for (const f of report.testResults) {
-      for (const a of f.assertionResults) if (a.status === "failed") counted += 1;
+      const failedHere = f.assertionResults.filter((a) => a.status === "failed").length;
+      counted += failedHere;
+      if (f.status === "failed") {
+        failedSuites.push(safeSuiteName(f.name));
+        /*
+         * A suite that failed while recording no failed assertion is a hook
+         * error, a collection error or a timeout. Vitest has no field for it,
+         * and not deriving it is what made the hook timeout look like a
+         * runner-level fault for a whole milestone.
+         */
+        if (failedHere === 0) runtimeErrors += 1;
+      }
     }
     return {
       report,
@@ -95,13 +110,13 @@ function readReport(path: string): { report: VitestReport | null; summary: Repor
         reportSuccess: report.success ?? null,
         reportedFailedTests: report.numFailedTests ?? null,
         countedFailedTests: counted,
+        reportedFailedSuites: report.numFailedTestSuites ?? null,
+        runtimeErrorSuites: runtimeErrors,
+        failedSuiteNames: failedSuites.sort(),
       },
     };
   } catch {
-    return {
-      report: null,
-      summary: { reportSuccess: null, reportedFailedTests: null, countedFailedTests: null },
-    };
+    return { report: null, summary: NO_REPORT };
   }
 }
 
@@ -282,6 +297,10 @@ function main(): void {
           reportSuccess: gate.reportSuccess,
           reportedFailedTests: gate.reportedFailedTests,
           countedFailedTests: gate.countedFailedTests,
+          /* Suite-level evidence. Basenames only; see gate-run.ts. */
+          reportedFailedSuites: gate.reportedFailedSuites,
+          runtimeErrorSuites: gate.runtimeErrorSuites,
+          failedSuiteNames: gate.failedSuiteNames,
           reasons: gate.reasons,
         },
         processes,
@@ -292,6 +311,14 @@ function main(): void {
     )}\n`,
     "utf8",
   );
+
+  const missing = REQUIRED_GATES.filter(
+    (g) => processes[g] === undefined && gates[g] === undefined,
+  );
+  if (missing.length > 0) {
+    console.log(`  RECORDED NO RESULT FOR: ${missing.join(", ")}`);
+    failed += 1;
+  }
 
   console.log("");
   console.log(`  recorded to .release/gate-results.json at ${head.slice(0, 7)}`);

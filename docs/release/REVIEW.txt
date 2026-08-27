@@ -4,7 +4,7 @@ Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
 THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
 been reviewed.
 
-Scope: the evidence contract and the release gate. The preflight recorded the
+Scope: the release apparatus — preflight, evidence provenance and packaging. The preflight recorded the
 server-variable fallback as a "finding" and gave no verdict; the compatibility
 table still called the browser-exposed variable "browser diagnostics" while the
 resolver uses it as a server fallback; four documents made freshness claims
@@ -13,9 +13,16 @@ recorded as the single word FAILED, discarding the only evidence that could
 explain it.
 
 NOTHING ELSE MOVED. No application runtime code, no executable migration SQL,
-no migration source, no SQL verifier, no SQL prerequisite. NO EXTERNAL ACCESS
-OF ANY KIND OCCURRED — no Supabase query, no Vercel read, no HTTP request. Git
-state was read from the local repository only.
+no migration source, no SQL verifier, no SQL prerequisite. Git state was read
+from the local repository only.
+
+OPERATOR DECLARATION, and labelled as one: no external access of any kind
+occurred in this milestone — no Supabase query, no Vercel read, no HTTP
+request. THIS IS NOT DERIVED FROM ANYTHING. Git history is evidence about
+files; it cannot show whether a network call was made, and an unchanged
+snapshot record is equally consistent with no query and with a query that
+returned the same values. An earlier edition presented the byte comparison as
+establishing that no query was made, which it never could.
 
 Sections 1 to 8 below carry the whole cumulative record for this release
 candidate, not just this round's change; section 1 opens with what this round
@@ -80,6 +87,119 @@ NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 ================================================================================
 1. WHAT THIS ROUND FIXED
 ================================================================================
+
+A — A FOREIGN ORIGIN COULD PASS AS THE APPROVED PROJECT.
+
+`projectRef()` parsed the URL and returned `hostname.split(".")[0]`. That is
+the first label of ANY host, so both of these resolved to the approved ref and
+produced `MAPPED`/PASS:
+
+    https://<approved-ref>.example.com             — a foreign origin
+    https://<approved-ref>.supabase.co.evil.test   — suffix confusion
+
+Neither is the Observer database, and the failure is silent in the worst way:
+the operator sees exactly the ref they expected and records the mapping as
+proved. A rule that reads one label of a hostname is not checking the hostname.
+
+Only the canonical hosted origin is accepted now —
+`https://<project-ref>.supabase.co`, at most one trailing slash — as an
+anchored whole-string pattern plus an independent URL parse that must agree with
+it. That rejects by construction, not by enumeration: every foreign domain,
+every extra label before or after `supabase.co`, `http`, userinfo, an explicit
+port including the `:443` that WHATWG parsing silently normalises away, any
+path beyond `/`, query strings, fragments and a trailing dot. The public URL is
+validated identically, and an unparseable public value is its own STOP rather
+than being folded into "the two disagree" — one of them names nothing at all,
+which is a different fact. Twenty invalid origins are asserted to reach STOP and
+never PASS, in both positions.
+
+SCOPE, stated rather than assumed: this release targets HOSTED Supabase. A
+self-hosted deployment has a different origin shape and does not get one here,
+because accepting a shape this project does not use is how the hole appeared.
+
+B — PAUSE LED NOWHERE.
+
+`TOOLING_CANNOT_ISOLATE` paused and stopped there. The surrounding prose then
+told the operator — as it told every non-PASS state — to correct the
+configuration and restart, which is wrong advice: PAUSE says the TOOLING could
+not show the value, not that the value is bad. So the operator was left holding
+a dashboard observation with no defined way to turn it into a decision, and an
+instruction to change something on no evidence.
+
+There is a MANUAL CONFIRMATION path now, and it is the only route from PAUSE to
+a proved mapping. PAUSE never permits step 2. Matthew reads only the exact
+non-secret origin or project ref; that observation is compared with the approved
+ref through a separately identified path; only a successful comparison yields
+`MAPPED`/PASS, marked `via: "manual"` so a hand-read mapping is distinguishable
+from a tool-read one. A missing observation STOPs and NO PUBLIC URL CAN RESCUE
+IT. A malformed observation STOPs. A mismatch STOPs — and that one IS a
+configuration fault, so it restarts step 1 rather than re-entering manual
+confirmation. PAUSE's own remedy says explicitly not to rotate or replace
+anything.
+
+C — THE PACKAGER BUILT WITHOUT GATE EVIDENCE.
+
+It rendered section 7 from whatever `.release/gate-results.json` held, and built
+happily when it held nothing: a missing file produced "GATES NOT RECORDED", a
+file from another commit produced a "STALE" banner, and both went into an
+archive that otherwise looked complete. A reviewer then holds a package whose
+verification section says, in small print, that there is none.
+
+The record is a PRECONDITION now. It must exist, name the exact HEAD being
+packaged, and be clean on every required gate — process status, signal, spawn
+error, report verdict, failed tests, failed suites and runtime-error suites,
+each checked independently and each fail-closed on an absent field. The
+sanitized record is STAGED INTO THE ARCHIVE as `gate-results.json`, so the
+claims in section 7 can be checked against the machine-readable evidence they
+were rendered from.
+
+One defect surfaced while testing it, and it is worth naming because it is the
+same class as everything else here: the check for a failed gate used a
+case-INSENSITIVE match on "FAILED", which also matched the "0 failed / 40 files"
+in a perfectly clean test line. It rejected every green record. Case-sensitive
+now, with the reason written down.
+
+D — SUITE-LEVEL EVIDENCE WAS DISCARDED.
+
+The hook-timeout diagnosis depended on `numFailedTestSuites` and the name of the
+failing file, and the persisted record kept neither. It keeps
+`reportedFailedSuites`, a derived `runtimeErrorSuites` count — suites that failed
+while recording NO failed assertion, which is exactly what a hook error, a
+collection error or a timeout looks like — and the BASENAMES of the failing
+suites. Each fails the gate independently, including when `reportSuccess` is
+unexpectedly true. Basenames only: a path is machine-identifying detail and a
+message is unbounded text.
+
+E — PROVENANCE CONFLATED THREE DIFFERENT FACTS.
+
+"Recorded in these bundles", "last actually enumerated against Vercel" and
+"currently accurate" are three things, and the enumeration point was being
+DERIVED from the last entry of the recorded-in list. That is wrong by
+construction: the list grows every milestone while the enumeration stays where
+it was, so the package claimed the inventory had been enumerated for `e18f860`
+when the last enumeration was `f1dbffd`, three deliveries earlier. There is an
+explicit `LAST_VERCEL_ENUMERATION` constant now, never derived, and the count of
+prior bundles is distinguished from the current candidate.
+
+The snapshot comparison was also over-read. Comparing the `LIVE` literal has
+exactly three outcomes — RECORD UNCHANGED, RECORD CHANGED, COMPARISON
+UNAVAILABLE — and all three are about recorded bytes. IT CANNOT ESTABLISH
+WHETHER A QUERY WAS EXECUTED: an unchanged record is equally consistent with no
+query and with a query returning the same values; a changed record is equally
+consistent with a re-read and with somebody editing the constant. The claim that
+the comparison "establishes that no query was made" is gone, and so is its
+inverse. That this milestone made no external access is an OPERATOR DECLARATION,
+labelled as one.
+
+F — A HEADING NAMED THE WRONG COMMIT.
+
+`PEPPER-CONTRACT.txt` said "Commit f1dbffd" while its contents had changed in
+four later milestones. It renders the current HEAD and labels f1dbffd as the
+introduction commit.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
 
 THIS ROUND, A — a recorded state with no decision attached.
 
@@ -520,9 +640,10 @@ Consequently, and stated plainly rather than left to be inferred:
     audit-row count, whether pg_cron has appeared, whether any migration has been
     applied — all of it describes {{OBSERVED_AT}} and nothing later.
   * THE CURRENT DEPLOYMENT INVENTORY IS UNKNOWN. It was last enumerated against
-    Vercel for the f1dbffd bundle and has been carried forward since. No
-    deployment was enumerated, created, redeployed, protected, promoted or
-    deleted in this milestone.
+    Vercel for the f1dbffd bundle and has been carried forward since — an
+    explicit constant now, never derived from the tail of the list of bundles
+    that merely record it. No deployment was enumerated, created, redeployed,
+    protected, promoted or deleted in this milestone.
   * THE CURRENT VERCEL ENVIRONMENT CONFIGURATION IS UNKNOWN. No variable was
     read, and presence, scope and value of every one of them remain what
     section 4 says they are: matters for the authorised preflight.
@@ -656,9 +777,22 @@ Not executed. Steps 1-2 are read-only. Guarded by
 8. HOW THIS PACKAGE WAS GENERATED, AND HOW TO REBUILD IT
 ================================================================================
 
-One tracked entry point, outside the output directory:
+TWO COMMANDS, IN THIS ORDER, and the first is not optional:
 
-  pnpm release:package
+  pnpm release:gates
+  pnpm release:package --verify
+
+THE ARCHIVE IS NOT REPRODUCIBLE FROM TRACKED FILES ALONE, and this package does
+not claim it is. `pnpm release:gates` writes `.release/gate-results.json`, which
+is generated rather than tracked, names the commit it was recorded at, and is
+staged into the archive as `gate-results.json`. A clean checkout reproduces the
+same bytes only after running the gates at the same commit — which is the point:
+an archive whose verification evidence could be reproduced without running the
+verification would not be evidence.
+
+The packager REFUSES if that gate record is missing, stale, recorded for
+another commit, or not clean on every required gate. There is no
+"GATES NOT RECORDED" archive any more, and no "STALE" one either.
 
 It stages every input from a tracked source, so it can be run repeatedly from
 nothing:

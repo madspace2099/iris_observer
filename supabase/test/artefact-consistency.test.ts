@@ -8,7 +8,8 @@ import {
   LIVE,
   DEPLOYMENTS,
   CAPABILITY,
-  INVENTORY_UNCHANGED_IN,
+  INVENTORY_RECORDED_IN,
+  LAST_VERCEL_ENUMERATION,
   DELIVERED_ARCHIVES,
 } from "../../scripts/release/live-snapshot";
 
@@ -213,14 +214,58 @@ describe("the evidence templates carry no hand-copied changing value", () => {
   });
 });
 
+describe("headings and provenance name the right thing", () => {
+  it("the pepper contract renders the current commit, not the one it was introduced at", () => {
+    const text = read(PEPPER);
+    /* It said "Commit f1dbffd" through four milestones of edits. */
+    expect(text).not.toMatch(/^Commit f1dbffd,/m);
+    expect(text).toMatch(/{{HEAD_SHORT}}/);
+    expect(text).toMatch(/Introduced at f1dbffd/);
+  });
+
+  it("the enumeration point is an explicit constant, not the tail of a list", () => {
+    /*
+     * The list grows every milestone while the enumeration stays where it was,
+     * so deriving one from the other claimed an enumeration three deliveries
+     * after the last time anybody looked.
+     */
+    expect(LAST_VERCEL_ENUMERATION).toBe("f1dbffd");
+    expect(INVENTORY_RECORDED_IN.at(-1)).not.toBe(LAST_VERCEL_ENUMERATION);
+    const source = read("scripts/release/facts.ts");
+    expect(source).not.toContain("INVENTORY_RECORDED_IN[INVENTORY_RECORDED_IN.length - 1]");
+    expect(source).not.toContain("INVENTORY_RECORDED_IN.at(-1)");
+  });
+
+  it("the rendered sentence separates recording, enumeration and currency", () => {
+    const rendered = render(read("docs/release/REVIEW.txt"), facts({ stagedFiles: 0 })).out;
+    expect(rendered).toMatch(/last ENUMERATED for\s+f1dbffd/);
+    expect(rendered).toMatch(/currently accurate\s+UNKNOWN/);
+    expect(rendered).toContain("prior bundles + this candidate");
+  });
+
+  it("no artefact says a byte comparison establishes that no query was made", () => {
+    /*
+     * It cannot. An unchanged record is equally consistent with no query and
+     * with a query that returned the same values.
+     */
+    const rendered = render(
+      read("docs/release/RETENTION-EVIDENCE.txt"),
+      facts({ stagedFiles: 0 }),
+    ).out;
+    expect(rendered).not.toMatch(/establishes that no query was made/i);
+    expect(rendered).toMatch(/CANNOT ESTABLISH WHETHER A QUERY/i);
+    expect(rendered).toMatch(/OPERATOR/);
+  });
+});
+
 describe("the deployment inventory's provenance", () => {
   const archives = existsSync(join(ROOT, "_review"))
     ? readdirSync(join(ROOT, "_review")).filter((f) => f.endsWith(".zip"))
     : [];
 
   it("names the bundles it claims to be unchanged across", () => {
-    expect(INVENTORY_UNCHANGED_IN.length).toBeGreaterThan(0);
-    expect(INVENTORY_UNCHANGED_IN.at(-1)).toBeTruthy();
+    expect(INVENTORY_RECORDED_IN.length).toBeGreaterThan(0);
+    expect(INVENTORY_RECORDED_IN.at(-1)).toBeTruthy();
   });
 
   /*
@@ -234,7 +279,7 @@ describe("the deployment inventory's provenance", () => {
    * on an earlier ZIP nobody declared as an input — that was one of the reasons
    * the documented rebuild could not be run twice.
    */
-  const present = INVENTORY_UNCHANGED_IN.filter((b) =>
+  const present = INVENTORY_RECORDED_IN.filter((b) =>
     archives.includes(`IRIS-Observer-${b}-review.zip`),
   );
 
@@ -275,7 +320,7 @@ describe("the deployment inventory's provenance", () => {
   );
 
   it("declares an outer hash for every bundle it claims to have delivered", () => {
-    expect(DELIVERED_ARCHIVES.map((a) => a.bundle)).toEqual([...INVENTORY_UNCHANGED_IN]);
+    expect(DELIVERED_ARCHIVES.map((a) => a.bundle)).toEqual([...INVENTORY_RECORDED_IN]);
     for (const a of DELIVERED_ARCHIVES) expect(a.sha256, a.bundle).toMatch(/^[0-9a-f]{64}$/);
   });
 

@@ -49,7 +49,8 @@ import {
 import { walk, writeZip } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
-import { DEPLOYMENTS, LIVE, INVENTORY_UNCHANGED_IN, DELIVERED_ARCHIVES } from "./live-snapshot";
+import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
+import { readGateRecord, gateRecordProblems, sanitizedRecord } from "./gate-contract";
 
 const sha256File = (path: string): string =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -85,6 +86,23 @@ function requireCleanHead(): { head: string; short: string } {
         `contain what it ships:\n${dirty.map((l) => `  ${l}`).join("\n")}`,
     );
   }
+  /*
+   * CURRENT, GREEN GATE EVIDENCE, OR NO PACKAGE.
+   *
+   * The packager used to build from whatever the record held — including
+   * nothing, which rendered as "GATES NOT RECORDED" inside an archive that
+   * otherwise looked complete. A reviewer then holds a package whose
+   * verification section says, in small print, that there is none.
+   */
+  const problems = gateRecordProblems(readGateRecord(REPO_ROOT), head);
+  if (problems.length > 0) {
+    throw new Refusal(
+      `the gate record is not current and clean:\n${problems.map((p) => `  ${p}`).join("\n")}\n\n` +
+        `  Run:  pnpm release:gates\n` +
+        `  then: pnpm release:package --verify`,
+    );
+  }
+
   return { head, short: head.slice(0, 7) };
 }
 
@@ -119,6 +137,21 @@ function stage(dir: string): void {
   copyAll("supabase/prerequisites", "supabase-migrations", isSql);
   copyAll("scripts/release", "generators", (f) => f.endsWith(".ts"));
   copyAll("docs/release", "generators", (f) => f.endsWith(".txt"));
+  copyAll("docs/release", "generators", (f) => f.endsWith(".json"));
+
+  /*
+   * The sanitized gate record travels WITH the package, so the verification
+   * claims in REVIEW.txt section 7 can be checked against the machine-readable
+   * evidence they were rendered from rather than taken on the prose's word.
+   * Counts, verdicts, process metadata and suite basenames only.
+   */
+  const record = readGateRecord(REPO_ROOT);
+  if (record === null) throw new Refusal("no gate record to stage");
+  writeFileSync(
+    join(dir, "gate-results.json"),
+    `${JSON.stringify(sanitizedRecord(record), null, 2)}\n`,
+    "utf8",
+  );
 }
 
 /* -------------------------------------------------------------------------
@@ -245,11 +278,16 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
     }
   }
 
-  /* The inventory provenance must name the bundle it is anchored to. */
+  /*
+   * The inventory provenance must name the bundle Vercel was actually
+   * enumerated for — an explicit field, NOT the last entry of the list of
+   * bundles that merely carried the recording forward. Deriving one from the
+   * other is how "last enumerated for e18f860" got written about an
+   * enumeration that happened at f1dbffd.
+   */
   require_(
-    INVENTORY_UNCHANGED_IN.length > 0 &&
-      all.includes(INVENTORY_UNCHANGED_IN[INVENTORY_UNCHANGED_IN.length - 1] ?? ""),
-    "no artefact names the bundle the deployment inventory was last enumerated for",
+    all.includes(LAST_VERCEL_ENUMERATION),
+    `no artefact names ${LAST_VERCEL_ENUMERATION}, the bundle the inventory was last enumerated for`,
   );
 
   /*
