@@ -93,11 +93,22 @@ function main(): void {
   let passed = 0;
   let skipped = 0;
   let failedTests = 0;
+  let reportSaid = "no report file";
   const perFile: Record<string, number> = {};
   if (existsSync(reportFile)) {
     const report = JSON.parse(readFileSync(reportFile, "utf8")) as {
       testResults: readonly VitestFile[];
+      success?: boolean;
+      numFailedTests?: number;
     };
+    /*
+     * Kept so a non-zero exit with no failing test can be told apart from a
+     * real failure. This gate has exited non-zero intermittently on Windows
+     * while the report said every test passed — a runner-level exit, not a
+     * suite result — and "FAILED" with no evidence either way is the least
+     * useful thing a recorder can say.
+     */
+    reportSaid = `report: success=${report.success ?? "?"} failedTests=${report.numFailedTests ?? "?"}`;
     for (const f of report.testResults) {
       const n = f.assertionResults.length;
       perFile[basename(f.name).replace(/\.test\.ts$/, "")] = n;
@@ -127,6 +138,7 @@ function main(): void {
      * failing suite reported the single word "FAILED" and nothing else — the
      * one gate whose failure a reader most needs to see.
      */
+    console.log(`  ${reportSaid}`);
     console.log(tests.out.split("\n").slice(-40).join("\n"));
   }
 
