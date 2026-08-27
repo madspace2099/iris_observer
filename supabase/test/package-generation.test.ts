@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { build } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
+import { readGateRecord, gateRecordProblems } from "../../scripts/release/gate-contract";
 
 /**
  * Package generation must be repeatable, and the manifest must be usable.
@@ -25,6 +26,21 @@ import { walk } from "../../scripts/release/zip";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
+/*
+ * The packager now REFUSES without a current, green gate record, so the build
+ * fixtures below need one as well as a clean tree. Guarded rather than left to
+ * throw in a hook: a hook failure fails the suite with zero failed assertions,
+ * which is precisely the shape this milestone spent a round diagnosing.
+ */
+const gateRecordIsCurrent =
+  gateRecordProblems(
+    readGateRecord(join(import.meta.dirname, "..", "..")),
+    execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: join(import.meta.dirname, "..", ".."),
+      encoding: "utf8",
+    }).trim(),
+  ).length === 0;
+
 const clean =
   execFileSync("git", ["status", "--porcelain=v1"], { cwd: ROOT, encoding: "utf8" })
     .split("\n")
@@ -35,7 +51,7 @@ afterAll(() => {
   rmSync(scratch, { recursive: true, force: true });
 });
 
-describe.runIf(clean)("package generation", () => {
+describe.runIf(clean && gateRecordIsCurrent)("package generation", () => {
   /*
    * Built in a hook, not in the suite body: `describe.runIf` still evaluates
    * the callback in order to collect, so building here would run even when the

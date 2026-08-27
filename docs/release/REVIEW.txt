@@ -194,7 +194,7 @@ labelled as one.
 F — THE CONTROL-CHARACTER SCAN LOOKED FOR ONE BYTE.
 
 Twice in this milestone a shell-escaping slip injected literal BACKSPACE bytes
-into a regular expression in this repository. `/FAILED/` is
+into a regular expression in this repository. a pattern with a raw backspace byte on either side of FAILED is
 indistinguishable from `/FAILED/` in an editor and matches nothing, so a gate
 check was silently disabled — and the raw-NUL scan, which looked for 0x00 only,
 reported clean. It scans every C0 control character now, tab, newline and
