@@ -50,5 +50,48 @@ export default defineConfig({
      * fixture-cost limit rather than a defect.
      */
     hookTimeout: 30_000,
+    /*
+     * FOUR WORKERS, and this number was measured rather than chosen.
+     *
+     * ## What it fixes
+     *
+     * Vitest's forks pool sizes itself from `availableParallelism()` — sixteen
+     * here — and each worker running a PGlite suite holds a WASM Postgres of
+     * roughly a quarter of a gigabyte. Six such suites exist, so the default
+     * put eighteen of them alive at once and left the machine with a megabyte
+     * free. Every one of those workers reports progress to the parent over an
+     * RPC with a deadline, and when the parent could not answer inside it,
+     * Vitest recorded `[vitest-worker]: Timeout calling "onTaskUpdate"` as an
+     * UNHANDLED ERROR and exited 1 — beside a JSON report saying 1265 passed,
+     * because that reporter discards the unhandled-error list it is handed.
+     *
+     * ## Why four and not eight
+     *
+     * A bounded matrix ran the reproducing sequence three times at each of
+     * default, 8, 4, 2 and 1, measuring the parent's worst event-loop stall:
+     *
+     *     default   527ms, 643ms, 656ms      1 runner-level exit in 3
+     *     8         251ms, 728ms, 238ms      0 in 3
+     *     4          75ms,  84ms, 112ms      0 in 3, then 0 in 6 more
+     *     2          51ms,  37ms,  59ms      0 in 3, but 45% slower
+     *     1         359ms, 127ms,  40ms      0 in 3, and 2.5x slower
+     *
+     * Eight is the highest count with no failures, and it is NOT the answer:
+     * one of its three runs stalled for 728ms, worse than every default run.
+     * Four is the highest bound where every run is far below every default
+     * run, and it is also the FASTEST configuration measured — 132.8s against
+     * the default's 141.3s, because thirteen workers on sixteen cores spend
+     * more time contending than working.
+     *
+     * ## What it is not
+     *
+     * Not serialisation: four files still run at once. Not a suppressed error,
+     * not a retry, not a raised RPC timeout — the gate still fails on a single
+     * unhandled error, and `pglite-lifecycle.test.ts` still proves every
+     * database is closed. `minWorkers` is set too because the forks pool keeps
+     * that many processes alive independently of the maximum.
+     */
+    maxWorkers: 4,
+    minWorkers: 4,
   },
 });
