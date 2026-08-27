@@ -23,7 +23,7 @@
  */
 
 import { writeFileSync, mkdirSync, readFileSync, rmSync, existsSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { REPO_ROOT, git } from "./facts";
 import {
@@ -32,37 +32,15 @@ import {
   classifyTestGate,
   describe as describeGate,
   NO_REPORT,
-  safeTitle,
-  boundIdentities,
-  type TestIdentity,
+  summarizeReport,
+  safeSuiteName,
+  type VitestReport,
   type ProcessResult,
   type ReportSummary,
   type TestGateResult,
 } from "./gate-run";
 import { REQUIRED_GATES } from "./gate-contract";
 import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
-
-interface VitestAssertion {
-  readonly status: string;
-  readonly title?: string;
-  readonly fullName?: string;
-}
-
-interface VitestFile {
-  readonly name: string;
-  readonly status?: string;
-  readonly assertionResults: readonly VitestAssertion[];
-}
-
-interface VitestReport {
-  readonly testResults: readonly VitestFile[];
-  readonly success?: boolean;
-  readonly numFailedTests?: number;
-  readonly numFailedTestSuites?: number;
-}
-
-/** Basename only — never a path, a message or any of the child's output. */
-const safeSuiteName = (name: string): string => basename(name);
 
 /**
  * `shell` is per-call, and both settings are load-bearing on Windows.
@@ -92,54 +70,18 @@ const run = (
   return { result: sanitize(r), output: r.output };
 };
 
-/** Read the JSON report, if the reporter managed to write one. */
+/**
+ * Read the JSON report, if the reporter managed to write one.
+ *
+ * Reading only. Everything that decides what may be persisted lives in
+ * `summarizeReport`, which is pure and therefore testable against a report no
+ * real run would produce — including one whose failure carries a credential.
+ */
 function readReport(path: string): { report: VitestReport | null; summary: ReportSummary } {
   if (!existsSync(path)) return { report: null, summary: NO_REPORT };
   try {
     const report = JSON.parse(readFileSync(path, "utf8")) as VitestReport;
-    let counted = 0;
-    let runtimeErrors = 0;
-    const failedSuites: string[] = [];
-    /*
-     * Identity only, and built here rather than left in the report: the report
-     * is deleted as soon as the counts are out of it, and a record saying three
-     * tests failed without saying which three cannot be investigated.
-     */
-    const failedTests: TestIdentity[] = [];
-    const skippedTests: TestIdentity[] = [];
-    for (const f of report.testResults) {
-      const suite = safeSuiteName(f.name);
-      for (const a of f.assertionResults) {
-        const identity = { suite, title: safeTitle(a.fullName ?? a.title ?? "(untitled)") };
-        if (a.status === "failed") failedTests.push(identity);
-        else if (a.status !== "passed") skippedTests.push(identity);
-      }
-      const failedHere = f.assertionResults.filter((a) => a.status === "failed").length;
-      counted += failedHere;
-      if (f.status === "failed") {
-        failedSuites.push(safeSuiteName(f.name));
-        /*
-         * A suite that failed while recording no failed assertion is a hook
-         * error, a collection error or a timeout. Vitest has no field for it,
-         * and not deriving it is what made the hook timeout look like a
-         * runner-level fault for a whole milestone.
-         */
-        if (failedHere === 0) runtimeErrors += 1;
-      }
-    }
-    return {
-      report,
-      summary: {
-        reportSuccess: report.success ?? null,
-        reportedFailedTests: report.numFailedTests ?? null,
-        countedFailedTests: counted,
-        reportedFailedSuites: report.numFailedTestSuites ?? null,
-        runtimeErrorSuites: runtimeErrors,
-        failedSuiteNames: failedSuites.sort(),
-        failedTests: boundIdentities(failedTests),
-        skippedTests: boundIdentities(skippedTests),
-      },
-    };
+    return { report, summary: summarizeReport(report) };
   } catch {
     return { report: null, summary: NO_REPORT };
   }
@@ -178,7 +120,7 @@ function counts(report: VitestReport | null): {
   let failed = 0;
   let files = 0;
   for (const f of report?.testResults ?? []) {
-    perFile[basename(f.name).replace(/\.test\.ts$/, "")] = f.assertionResults.length;
+    perFile[safeSuiteName(f.name).replace(/\.test\.ts$/, "")] = f.assertionResults.length;
     total += f.assertionResults.length;
     files += 1;
     /*

@@ -54,6 +54,16 @@ import { readGateRecord, gateRecordProblems, sanitizedRecord } from "./gate-cont
 import { scanDirectory, describeScan, type ControlCharacterScan } from "./control-chars";
 import { isDeclaredHistorical, transportSafeNote } from "./transport-safe";
 
+/**
+ * The authorised local-history rewrite, declared rather than inferred.
+ *
+ * `base` is the last commit that was already pushed or deployed and therefore
+ * untouchable; `head` is the single commit the two local-only commits above it
+ * were rewritten into. Naming both is what lets the packager RECOMPUTE the
+ * equality REVIEW §1A claims, instead of accepting a hand-copied digest.
+ */
+const REWRITE = { base: "7ac84fa", head: "c16b94f" } as const;
+
 const sha256File = (path: string): string =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
 
@@ -67,27 +77,50 @@ class Refusal extends Error {}
    1. The package must describe a real, clean commit.
 ------------------------------------------------------------------------- */
 
-function requireCleanHead(): { head: string; short: string } {
+export interface PreconditionInput {
+  readonly head: string;
+  /** `RELEASE_EXPECT_HEAD`, when the caller pinned one. */
+  readonly expectedHead: string | undefined;
+  /** Porcelain status lines, already filtered of `.release/`. */
+  readonly dirty: readonly string[];
+  /** Whatever `gateRecordProblems` said about the record. */
+  readonly gateProblems: readonly string[];
+}
+
+/**
+ * Every reason this commit may not be packaged, from inputs rather than the
+ * world.
+ *
+ * Pure, and that is the point. When these three checks read `process.env`, the
+ * working tree and `.release/` directly, the only way to test them was to
+ * arrange the real repository into each state — so the tests that covered them
+ * were guarded on conditions like "a current green gate record exists", and
+ * skipped whenever it did not. That guard was circular: the record only exists
+ * after the gate completes, so a fresh commit's own gate run skipped the tests
+ * that verify its packager. Twenty-two tests, silently not run, on the commit
+ * whose package they were meant to check.
+ */
+export function packagingProblems(input: PreconditionInput): readonly string[] {
+  const problems: string[] = [];
+
   /*
    * The identity check first, and deliberately: it is the cheap one, and a
    * caller who named the wrong commit wants to hear THAT, not a list of
    * unrelated uncommitted files.
    */
-  const head = git("rev-parse", "HEAD");
-  const expected = process.env["RELEASE_EXPECT_HEAD"];
-  if (expected !== undefined && expected !== "" && !head.startsWith(expected)) {
-    throw new Refusal(`HEAD is ${head.slice(0, 7)}, not the expected ${expected}`);
+  if (input.expectedHead !== undefined && input.expectedHead !== "") {
+    if (!input.head.startsWith(input.expectedHead)) {
+      problems.push(`HEAD is ${input.head.slice(0, 7)}, not the expected ${input.expectedHead}`);
+    }
   }
 
-  const dirty = git("status", "--porcelain=v1")
-    .split("\n")
-    .filter((l) => l.trim().length > 0 && !l.includes(".release/"));
-  if (dirty.length > 0) {
-    throw new Refusal(
+  if (input.dirty.length > 0) {
+    problems.push(
       `the working tree is not clean, so the package would describe a commit that does not\n` +
-        `contain what it ships:\n${dirty.map((l) => `  ${l}`).join("\n")}`,
+        `contain what it ships:\n${input.dirty.map((l) => `  ${l}`).join("\n")}`,
     );
   }
+
   /*
    * CURRENT, GREEN GATE EVIDENCE, OR NO PACKAGE.
    *
@@ -96,14 +129,42 @@ function requireCleanHead(): { head: string; short: string } {
    * otherwise looked complete. A reviewer then holds a package whose
    * verification section says, in small print, that there is none.
    */
-  const problems = gateRecordProblems(readGateRecord(REPO_ROOT), head);
-  if (problems.length > 0) {
-    throw new Refusal(
-      `the gate record is not current and clean:\n${problems.map((p) => `  ${p}`).join("\n")}\n\n` +
+  if (input.gateProblems.length > 0) {
+    problems.push(
+      `the gate record is not current and clean:\n${input.gateProblems.map((p) => `  ${p}`).join("\n")}\n\n` +
         `  Run:  pnpm release:gates\n` +
         `  then: pnpm release:package --verify`,
     );
   }
+
+  return problems;
+}
+
+/**
+ * Where the gate record is read from.
+ *
+ * Production passes nothing and reads the real `.release/gate-results.json`. A
+ * test passes its own temporary root holding a synthetic record — which then
+ * goes through {@link gateRecordProblems} exactly as a real one does. There is
+ * no test-only path that skips validation; the only thing injected is WHERE the
+ * record is read, never WHETHER it is checked.
+ */
+export interface BuildOptions {
+  readonly gateRecordRoot?: string;
+}
+
+function requireCleanHead(options: BuildOptions = {}): { head: string; short: string } {
+  const head = git("rev-parse", "HEAD");
+  const root = options.gateRecordRoot ?? REPO_ROOT;
+  const problems = packagingProblems({
+    head,
+    expectedHead: process.env["RELEASE_EXPECT_HEAD"],
+    dirty: git("status", "--porcelain=v1")
+      .split("\n")
+      .filter((l) => l.trim().length > 0 && !l.includes(".release/")),
+    gateProblems: gateRecordProblems(readGateRecord(root), head),
+  });
+  if (problems.length > 0) throw new Refusal(problems.join("\n\n"));
 
   return { head, short: head.slice(0, 7) };
 }
@@ -112,7 +173,7 @@ function requireCleanHead(): { head: string; short: string } {
    2. Staging: every input from a tracked source.
 ------------------------------------------------------------------------- */
 
-function stage(dir: string): void {
+function stage(dir: string, options: BuildOptions = {}): void {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(join(dir, "patches"), { recursive: true });
   mkdirSync(join(dir, "supabase-migrations"), { recursive: true });
@@ -149,7 +210,7 @@ function stage(dir: string): void {
    * evidence they were rendered from rather than taken on the prose's word.
    * Counts, verdicts, process metadata and suite basenames only.
    */
-  const record = readGateRecord(REPO_ROOT);
+  const record = readGateRecord(options.gateRecordRoot ?? REPO_ROOT);
   if (record === null) throw new Refusal("no gate record to stage");
   writeFileSync(
     join(dir, "gate-results.json"),
@@ -381,7 +442,34 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
       allowed.add(fileShaAt(c, path));
     }
   }
-  for (const line of git("rev-list", "1ee5d2d^..HEAD").split("\n")) allowed.add(line.trim());
+  for (const line of git("rev-list", "1ee5d2d^..HEAD").split("\n")) {
+    const sha = line.trim();
+    if (sha.length === 0) continue;
+    allowed.add(sha);
+    /*
+     * And the TREE each commit points at. REVIEW §1A cites one to show that
+     * rewriting the two local-only commits changed no content: identical trees
+     * either side of the rewrite is a stronger claim than "the diff looked the
+     * same", and a citation nothing can account for should fail the build.
+     */
+    allowed.add(git("rev-parse", `${sha}^{tree}`));
+  }
+  /*
+   * The net diff across the authorised rewrite, hashed. COMPUTED, never copied:
+   * if the equality the review claims ever stopped holding, this token would
+   * become unaccounted for and refuse the package instead of ageing quietly
+   * into prose that nobody rechecks.
+   */
+  allowed.add(
+    createHash("sha256")
+      .update(
+        execFileSync("git", ["diff", `${REWRITE.base}..${REWRITE.head}`], {
+          cwd: REPO_ROOT,
+          maxBuffer: 64 * 1024 * 1024,
+        }),
+      )
+      .digest("hex"),
+  );
   for (const ref of ["origin/release/observer-demo-rc1", "origin/main"])
     allowed.add(git("rev-parse", ref));
   /* The migration-4 paste wrapper as verified in the previous review. */
@@ -476,7 +564,10 @@ function writeManifest(dir: string, head: string): number {
    5. Build.
 ------------------------------------------------------------------------- */
 
-export function build(outDir: string): {
+export function build(
+  outDir: string,
+  options: BuildOptions = {},
+): {
   archive: string;
   sha: string;
   entries: number;
@@ -486,11 +577,11 @@ export function build(outDir: string): {
   /** The same measurement taken from the written archive, inflated. */
   inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
 } {
-  const { head, short } = requireCleanHead();
+  const { head, short } = requireCleanHead(options);
   say(`building the ${short} package`);
 
   const dir = join(outDir, short);
-  stage(dir);
+  stage(dir, options);
   const copied = walk(dir).length;
   /* The evidence files are staged too; they are written by the render below. */
   const evidenceCount = readdirSync(join(REPO_ROOT, "docs/release")).filter((f) =>

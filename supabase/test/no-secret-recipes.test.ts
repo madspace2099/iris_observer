@@ -1,8 +1,11 @@
-import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { join, relative, sep } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanText, inScope, EXEMPT, EXEMPT_SUFFIX } from "../../scripts/release/secret-recipes";
+import { build } from "../../scripts/release/build-package";
+import { syntheticGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * No operator-facing artefact may hand somebody a command that makes a secret
@@ -143,34 +146,53 @@ describe("no tracked operator file carries a runnable secret recipe", () => {
 
 describe("the generated package carries no runnable secret recipe", () => {
   /*
-   * The packager runs this same check before it writes an archive, and refuses
-   * on a finding. This asserts the result over whatever package is currently
-   * staged, so a reviewer with the bundle on disk sees the same answer without
-   * rebuilding it.
+   * BUILT HERE, not found here.
+   *
+   * This used to scan `_review/<head>` and skip when that directory did not
+   * exist — which is to say it skipped on every machine that had not already
+   * packaged this exact commit, including the release gate that runs BEFORE
+   * packaging. The one run where the check mattered was the one where it never
+   * executed. The suite now generates its own package, into its own temporary
+   * directory, from its own synthetic gate evidence, and scans that.
+   *
+   * The packager runs this same check internally and refuses on a finding; this
+   * asserts it independently, so a regression in the packager's own check is
+   * still visible.
    */
-  const head = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-secret-pkg-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const fullHead = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: ROOT,
     encoding: "utf8",
   }).trim();
-  const dir = join(ROOT, "_review", head);
-  const present = existsSync(dir) && statSync(dir).isDirectory();
+  const short = fullHead.slice(0, 7);
+  let staged = "";
 
-  it.runIf(present)(`finds none in the staged ${head} package`, () => {
-    /*
-     * The CURRENT package only. `_review/` accumulates the staging directory of
-     * every bundle ever built, and an earlier one legitimately contains the
-     * recipe a later milestone removed — asserting over all of them would be
-     * asserting that history was rewritten.
-     */
-    for (const path of walk(dir)) {
-      const name = relative(dir, path).split(sep).join("/");
+  beforeAll(() => {
+    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
+    build(join(scratch, "out"), { gateRecordRoot: evidence });
+    staged = join(scratch, "out", short);
+  }, 240_000);
+
+  it("stages files to check in the first place", () => {
+    expect(
+      walk(staged).filter((p) => inScope(relative(staged, p).split(sep).join("/"))).length,
+    ).toBeGreaterThan(10);
+  });
+
+  it("finds no runnable recipe anywhere in the freshly generated package", () => {
+    const offences: string[] = [];
+    for (const path of walk(staged)) {
+      const name = relative(staged, path).split(sep).join("/");
       if (!inScope(name)) continue;
-      const offences = scanText(readFileSync(path, "utf8"));
-      expect(
-        offences.map((o) => `${name}:${o.line}`),
-        offences.map((o) => o.text).join(" | "),
-      ).toEqual([]);
+      for (const o of scanText(readFileSync(path, "utf8"))) {
+        offences.push(`${name}:${String(o.line)} (${o.kind})`);
+      }
     }
+    expect(offences).toEqual([]);
   });
 });
 

@@ -138,6 +138,18 @@ export interface GateResults {
     readonly files: number;
     readonly perFile: Readonly<Record<string, number>>;
   };
+  /**
+   * Identities, so a skipped COUNT is never printed without saying which test.
+   *
+   * The count moved from 24 to 23 between two runs of the same commit, and the
+   * record of the time could not say which case had moved — because the guards
+   * that produced most of those skips were conditioned on the state of an
+   * untracked directory rather than on the platform.
+   */
+  readonly testGate?: {
+    readonly failedTests?: readonly { readonly suite: string; readonly title: string }[];
+    readonly skippedTests?: readonly { readonly suite: string; readonly title: string }[];
+  };
   readonly gates: Readonly<Record<string, string>>;
 }
 
@@ -170,10 +182,26 @@ function gateBlock(): string {
   const perFile = Object.entries(r.tests.perFile)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([f, n]) => `                                 ${String(n).padStart(4)}  ${f}`);
+  /*
+   * WHICH tests were skipped, never just how many.
+   *
+   * The identities come from the record; the reason comes from the title,
+   * because the record stores a basename and a bounded title and nothing else,
+   * and a skip whose title does not say why leaves a reader with a number.
+   */
+  const skipped = r.testGate?.skippedTests ?? [];
+  const skippedLines =
+    r.tests.skipped === 0
+      ? ["                                       none"]
+      : skipped.length === 0
+        ? ["                                       NOT RECORDED — rerun `pnpm release:gates`"]
+        : skipped.map((s) => `                                       ${s.suite}  ${s.title}`);
   return [
     `${stale}  pnpm test                      ${r.tests.passed} passed, ${r.tests.skipped} skipped, ` +
       `${r.tests.failed} failed / ${r.tests.files} files`,
     ...perFile,
+    "                                 skipped, by identity:",
+    ...skippedLines,
     /* pnpm test is the header line above; do not print it twice. */
     ...Object.entries(r.gates)
       .filter(([g]) => g !== "pnpm test")

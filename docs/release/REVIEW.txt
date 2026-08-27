@@ -88,6 +88,134 @@ NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 1. WHAT THIS ROUND FIXED
 ================================================================================
 
+A — A SECRET-SHAPED LITERAL WAS IN REACHABLE HISTORY, IN THIS SUITE'S OWN
+    FIXTURE.
+
+The detector fixture that proves the no-secret-recipe scanner catches an API-key
+assignment contained one, written out in full. Deleting it from the working tree
+made the repository WORSE rather than better: the commit that added it and the
+commit that removed it both remain in history, so a scan over
+`origin/main..HEAD` found the literal twice instead of once, in diffs that
+cannot be edited without rewriting the commits that carry them.
+
+Two corrections, and both were needed:
+
+  * THE FIXTURE ASSEMBLES ITS VALUE AT RUN TIME. Fragments are joined into the
+    shape the auditor refuses; no tracked byte carries the assembled string. A
+    test asserts this directly, with `git grep -F` over tracked text for the
+    assembled value — so the fixture cannot quietly regress into a literal.
+    THIS IS NOT AN ALLOWLIST AND NOT AN OBFUSCATION: the scanner is unchanged,
+    has no exception for these files, and still refuses the assembled value.
+  * THE TWO LOCAL-ONLY COMMITS WERE REWRITTEN, under explicit authorisation and
+    only above `7ac84fa`. Nothing at or before `7ac84fa` was touched, nothing
+    pushed or deployed was touched, and nothing was force-pushed — the rewritten
+    commits had never left this machine. The result is verified by identity, not
+    by assertion: the new commit's TREE hash equals the old one's
+    (`cba383d0e0069df63967bc898f08b477cc50b4bb`), and `git diff` from
+    `7ac84fa` to each of the two heads hashes identically
+    (`b872d6e1afe3618a7b441d0c6987d53b50e7a698c61f501adac6a5a1da63042c`), so
+    the content is provably unchanged and only its packaging into commits
+    differs. The discarded commits are unreachable: reflogs expired, `git gc
+    --prune=now` run, no ref names them. The recovery patch written before the
+    rewrite was itself scanned clean and then removed.
+
+`node scripts/secret-audit.mjs` is now clean across all four of its passes —
+working tree, staged diff, `origin/main..HEAD` history, and the browser bundle.
+
+NO SECRET WAS INVOLVED AT ANY POINT. The fixture value never was a credential;
+it has the SHAPE the auditor looks for, which is the entire reason the fixture
+exists.
+
+B — THE TESTS THAT VERIFY THE PACKAGER WERE GUARDED ON THE PACKAGER'S OWN
+    PRECONDITION.
+
+The packager refuses without a current, green `.release/gate-results.json`, and
+that is right. But the suites that exercise it were guarded on the SAME
+condition — `describe.runIf(gateRecordIsCurrent)` — and one of them additionally
+on `_review/<head>` already existing.
+
+That is circular. The record is written at the END of the gate, so during a
+fresh commit's own authoritative run the guard was false and TWENTY-TWO TESTS
+DID NOT RUN — seven control-character package tests and fifteen
+package-generation tests — in the run whose output is the evidence that the
+package is sound. The staged-package secret scan made twenty-three, guarded on
+`_review/<head>` and therefore skipped everywhere the package had not already
+been built, which is every machine that had not already built it.
+
+The fix is not to relax the precondition, and there is no test-only bypass.
+`packagingProblems()` is now a pure function of its three inputs, and
+`build(out, { gateRecordRoot })` chooses WHERE the record is read — never
+WHETHER it is checked. Each suite writes its own structurally valid synthetic
+record into its own temporary root, and
+`supabase/test/support/synthetic-gate-record.ts` asserts that record satisfies
+the real `gateRecordProblems()` contract before returning it. A fixture that
+could not pass the real contract would make every test built on it meaningless.
+
+No test reads, writes or deletes the developer's real `.release/` directory any
+more, and no test requires an earlier bundle to be on disk.
+
+C — THE SKIPPED COUNT MEASURED THE DEVELOPER'S DISK.
+
+The skipped total moved between two runs of the same commit — 24, then 23 — and
+the record could not say which case had moved, because it stored a number and
+not an identity. The cause was the guards themselves: they were conditioned on
+untracked, gitignored state — whether `.release/gate-results.json` existed,
+whether `_review/` held two delivered archives, whether the working tree
+happened to be dirty — so the count tracked the contents of directories that are
+not in the repository.
+
+THE FOUR GUARDS AND WHAT EACH ONE COST, since a drifting total is only
+explicable once the parts are named:
+
+  7   control-character package tests   `.release/gate-results.json` is current
+  15  package-generation tests          the same record, plus a clean tree
+  1   staged-package secret scan        `_review/<head>` already on disk
+  2   archive-inventory comparisons     two delivered ZIPs in `_review/`
+  1   `spawnSync` signal reporting      the platform — the only legitimate one
+
+Every combination of the untracked ones is reachable, which is why 24 and 23
+were both observed at one commit and why neither could be explained from the
+record: it stored a total and no identities. THIS IS NOT A DIAGNOSIS OF WHICH
+RUN WAS WHICH — that evidence no longer exists — it is the reason no total was
+diagnosable.
+
+Every one of those guards is gone. The dirty-tree refusal is now asserted from a
+literal through `packagingProblems()` rather than by waiting for somebody to
+have uncommitted work; the archive-inventory checks compare each present archive
+against the recorded snapshot instead of pairwise, which needs no second
+archive; and the record-shape check reads the runner's source and a record it
+writes itself.
+
+ONE SKIP REMAINS, and it is inapplicable by PLATFORM rather than by state:
+`spawnSync` signal reporting, which Windows does not have. Its reason is in its
+TITLE — "(POSIX only; skipped on win32)" — because the record stores a suite
+basename and a bounded title and nothing else. Section 7 now prints the skipped
+tests BY IDENTITY, so a count is never reported without saying which case it is.
+
+D — A FAILURE MESSAGE COULD HAVE CARRIED ANYTHING INTO THE RECORD.
+
+`.release/gate-results.json` is staged into the archive. Vitest's JSON report
+carries `failureMessages` — the assertion's `expected` and `received` rendered
+as text — and this repository's own suites assert over environment names,
+resolver inputs and fixture values.
+
+The reduction from report to record was inside `run-gates.ts`, whose module
+executes the whole gate on import, so the claim "no message reaches the record"
+could not be tested at all. `summarizeReport()` now lives in `gate-run.ts`,
+is pure, and names every field of its result explicitly rather than copying an
+object through — so a field the reporter adds later reaches the record only if
+somebody puts it there deliberately.
+
+It is tested by driving a report whose failure message carries a secret-SHAPED
+value, assembled at run time, through `summarizeReport()` and
+`classifyTestGate()`, and asserting the auditor's own rule does not match the
+serialized result. The hostile case includes a NUL, backspaces and four thousand
+characters, and asserts the suite identity is a basename rather than a path.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
+
 A — THE CONTROL-CHARACTER GATE WAS A SENTENCE, NOT A MEASUREMENT.
 
 The gate contract accepted any verdict text for the scan unless it contained the
@@ -718,9 +846,35 @@ Consequently, and stated plainly rather than left to be inferred:
     explicit constant now, never derived from the tail of the list of bundles
     that merely record it. No deployment was enumerated, created, redeployed,
     protected, promoted or deleted in this milestone.
-  * THE CURRENT VERCEL ENVIRONMENT CONFIGURATION IS UNKNOWN. No variable was
-    read, and presence, scope and value of every one of them remain what
-    section 4 says they are: matters for the authorised preflight.
+  * NO VERCEL ENVIRONMENT VARIABLE WAS READ IN THIS MILESTONE, and none was
+    changed. Presence, scope and value of every one of them remain what section
+    4 says they are, except the two the authorised preflight already settled,
+    which are recorded immediately below and have NOT been re-observed since.
+
+THE ONE PREFLIGHT RESULT THAT IS CARRIED FORWARD, unchanged:
+
+  Environment   Variable        State               Verdict  Provenance
+  Preview       SUPABASE_URL    MAPPED              PASS     manual
+                                tfcchobwobpadenampyh
+  Production    SUPABASE_URL    SERVER_URL_ABSENT   STOP     manual
+
+  The Preview value was read by Matthew in the Vercel dashboard, character for
+  character, as the exact non-secret origin `https://tfcchobwobpadenampyh` +
+  `.supabase.co` — Type: Config, Environment: Preview. It classifies MAPPED,
+  and PASS is marked `via: "manual"` so a hand-read mapping stays
+  distinguishable from a tool-read one. No variable was edited; the editor was
+  exited without saving.
+
+  PRODUCTION HAS NO `SUPABASE_URL` AT ALL. That is SERVER_URL_ABSENT, whose
+  decision is STOP, and it is a STOP on its own terms rather than a missing
+  reading: an absent server variable activates the resolver's documented
+  fallback to the browser-exposed name, and the browser-exposed name may never
+  substitute for the authoritative server mapping.
+
+  PREVIEW DOES NOT RESCUE PRODUCTION. The two environments are separate
+  configuration scopes; a proved mapping in one says nothing about the other,
+  and inferring it would be exactly the suffix-and-scope confusion the preflight
+  rules were tightened to refuse. THE PRODUCTION PROJECT MAPPING REMAINS STOP.
 
 An earlier edition of this package asserted all of "no Supabase query was made
 this round", "verified by one live query, the only external access this
@@ -763,7 +917,9 @@ package whose evidence claims freshness the file history does not support.
   a. WHETHER `OBSERVER_SUBJECT_PEPPER` EXISTS, in which scopes, and whether one
      record covers them all.  Settled by: step 1, part two.
   b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
-     Settled by: step 1, part one.
+     Settled by: step 1, part one. PARTLY SETTLED ALREADY: Preview is MAPPED and
+     PASS by manual reading; Production is SERVER_URL_ABSENT and STOP. See
+     section 3a. Neither was re-observed in this milestone.
   c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:

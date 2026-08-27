@@ -32,7 +32,7 @@ import {
 } from "../../scripts/release/transport-safe";
 import { build } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { readGateRecord } from "../../scripts/release/gate-contract";
+import { syntheticGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * Invisible control characters, and the two places they got through.
@@ -353,21 +353,21 @@ describe("scanning a directory", () => {
  * cannot see a patch, a rendered evidence file, the staged gate record or a
  * copied generator, because none of them exists when it runs.
  */
-const treeClean =
-  execFileSync("git", ["status", "--porcelain=v1"], { cwd: ROOT, encoding: "utf8" })
-    .split("\n")
-    .filter((l) => l.trim().length > 0 && !l.includes(".release/")).length === 0;
-const gateRecordCurrent =
-  gateRecordProblems(
-    readGateRecord(ROOT),
-    execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim(),
-  ).length === 0;
-
-describe.runIf(treeClean && gateRecordCurrent)("the packager refuses an injected character", () => {
-  const shortHead = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+/*
+ * NO GUARD ON A REAL GATE RECORD.
+ *
+ * These used to be skipped unless a current green `.release/gate-results.json`
+ * already existed — which only happens after that commit's gate has finished,
+ * so a fresh commit's own gate skipped the tests that verify its packager. The
+ * suite owns its evidence now: a synthetic record in its own temporary root,
+ * checked by the same contract a real record goes through.
+ */
+describe("the packager refuses an injected character", () => {
+  const fullHead = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: ROOT,
     encoding: "utf8",
   }).trim();
+  const shortHead = fullHead.slice(0, 7);
 
   /**
    * ONE build, then a private copy per test.
@@ -390,8 +390,10 @@ describe.runIf(treeClean && gateRecordCurrent)("the packager refuses an injected
   const mine: string[] = [];
 
   beforeAll(() => {
+    /* The suite's own gate evidence, in the suite's own root. */
+    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
     const out = join(scratch, "pristine");
-    build(out);
+    build(out, { gateRecordRoot: evidence });
     pristine = join(out, shortHead);
   }, 240_000);
 

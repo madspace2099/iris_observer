@@ -1,5 +1,7 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
   runProcess,
@@ -9,11 +11,15 @@ import {
   NO_REPORT,
   safeTitle,
   boundIdentities,
+  summarizeReport,
+  type VitestAssertion,
+  type VitestReport,
   MAX_TITLE,
   MAX_IDENTITIES,
   type ProcessResult,
   type ReportSummary,
 } from "../../scripts/release/gate-run";
+import { syntheticGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * The gate runner keeps evidence, decides fail-closed, and persists no output.
@@ -32,6 +38,7 @@ import {
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const node = process.execPath;
+const HEAD_FIXTURE = "3333333333333333333333333333333333333333";
 
 const clean: ProcessResult = { ok: true, status: 0, signal: null, errorCode: null };
 const passing: ReportSummary = {
@@ -66,16 +73,27 @@ describe("runProcess reports what happened to the child", () => {
     expect(r.errorCode).toBe("ENOENT");
   });
 
-  it.runIf(process.platform !== "win32")("records termination by signal", () => {
-    /*
-     * POSIX only. Windows has no signal delivery in the sense `spawnSync`
-     * reports, so asserting it there would be asserting the harness rather than
-     * the runner — and this suite runs on Windows.
-     */
-    const r = runProcess(node, ["-e", "process.kill(process.pid, 'SIGTERM')"], { cwd: ROOT });
-    expect(r.ok).toBe(false);
-    expect(r.signal).toBe("SIGTERM");
-  });
+  /*
+   * The only skip left in this repository's suites, and the reason is IN THE
+   * TITLE on purpose: the persisted record carries a skipped test as a suite
+   * basename plus a bounded title and nothing else, so a title that does not
+   * say why leaves a reader with a count and no explanation. This one is
+   * inapplicable by platform rather than by repository state, so the skipped
+   * count is deterministic for a given platform.
+   */
+  it.runIf(process.platform !== "win32")(
+    "records termination by signal (POSIX only; skipped on win32)",
+    () => {
+      /*
+       * Windows has no signal delivery in the sense `spawnSync` reports, so
+       * asserting it there would be asserting the harness rather than the
+       * runner — and this suite runs on Windows.
+       */
+      const r = runProcess(node, ["-e", "process.kill(process.pid, 'SIGTERM')"], { cwd: ROOT });
+      expect(r.ok).toBe(false);
+      expect(r.signal).toBe("SIGTERM");
+    },
+  );
 
   it("keeps the child's output beside the result, not inside it", () => {
     const r = runProcess(node, ["-e", "console.log('observer-fixture-marker')"], { cwd: ROOT });
@@ -147,9 +165,23 @@ describe("classifyTestGate fails closed", () => {
   });
 });
 
-describe("nothing that could carry a secret is persisted", () => {
-  const path = join(ROOT, ".release", "gate-results.json");
+/** Every field the diagnosis needed, and that the runner must therefore keep. */
+const PERSISTED_METADATA = [
+  "ok",
+  "status",
+  "signal",
+  "errorCode",
+  "reportSuccess",
+  "reportedFailedTests",
+  "countedFailedTests",
+  "reportedFailedSuites",
+  "runtimeErrorSuites",
+  "failedSuiteNames",
+  "failedTests",
+  "skippedTests",
+] as const;
 
+describe("nothing that could carry a secret is persisted", () => {
   it("the sanitized shape has no output fields", () => {
     const r = runProcess(node, ["-e", "console.log('x')"], { cwd: ROOT });
     const persisted = JSON.stringify(sanitize(r));
@@ -158,30 +190,60 @@ describe("nothing that could carry a secret is persisted", () => {
     expect(persisted).not.toContain("output");
   });
 
-  it.runIf(existsSync(join(ROOT, ".release", "gate-results.json")))(
-    "the recorded gate results carry metadata and no child output",
-    () => {
-      const raw = readFileSync(path, "utf8");
+  /*
+   * READ FROM THE RUNNER, NOT FROM THE DEVELOPER'S `.release/`.
+   *
+   * This claim used to be checked by opening the real
+   * `.release/gate-results.json` and skipping when it was absent — so it ran on
+   * a machine that had already gated this commit and nowhere else, and it made
+   * the suite's skipped count depend on a gitignored file that a clone does not
+   * have. It also read state no test is supposed to touch.
+   *
+   * The claim has two halves and they are now checked where each one lives: the
+   * persisted SHAPE, in the runner's own source, and the no-output property,
+   * over a record in that shape written into a temporary root this test owns.
+   */
+  const persistedLiteral = (): string => {
+    const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
+    const literal = /gate-results\.json"\),[\s\S]*?\n {4}"utf8",\n {2}\);/.exec(source)?.[0];
+    expect(literal, "the persisted object literal was not found in run-gates.ts").toBeDefined();
+    /*
+     * Comments stripped: the literal carries one that says "Never stdout,
+     * stderr or an env value", and a prose promise not to persist a field is
+     * not the field. What is checked below is what is actually written.
+     */
+    return (literal ?? "").replace(/\/\*[\s\S]*?\*\//g, "");
+  };
+
+  it.each(PERSISTED_METADATA)("the runner persists %s", (field) => {
+    expect(persistedLiteral(), field).toContain(`${field}:`);
+  });
+
+  it("and persists nothing that could carry child output beside it", () => {
+    for (const forbidden of ["stdout", "stderr", "output"]) {
+      expect(persistedLiteral(), forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it("a record in that shape serializes with the metadata and without output", () => {
+    const root = mkdtempSync(join(tmpdir(), "observer-gate-record-"));
+    try {
+      syntheticGateRecord(root, HEAD_FIXTURE);
+      const raw = readFileSync(join(root, ".release", "gate-results.json"), "utf8");
       const parsed = JSON.parse(raw) as { testGate?: Record<string, unknown> };
       /* The evidence is there… */
       expect(parsed.testGate).toBeDefined();
-      for (const field of [
-        "ok",
-        "status",
-        "signal",
-        "errorCode",
-        "reportSuccess",
-        "reportedFailedTests",
-        "countedFailedTests",
-      ]) {
+      for (const field of PERSISTED_METADATA) {
         expect(parsed.testGate, field).toHaveProperty(field);
       }
       /* …and the output is not. */
       for (const forbidden of ["stdout", "stderr", "output"]) {
         expect(raw, forbidden).not.toContain(forbidden);
       }
-    },
-  );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 
   it("a failing gate stays failing however often it is classified", () => {
     /*
@@ -441,5 +503,138 @@ describe("what a failing test is allowed to leave behind", () => {
     expect(source).toMatch(/rmSync\(reportFile, \{ force: true \}\)/);
     /* And never persists the report itself. */
     expect(source).not.toMatch(/failureMessages/);
+  });
+});
+
+/**
+ * A failure message is untrusted text, and it never reaches the record.
+ *
+ * The persisted record is a file somebody zips and hands to a reviewer. A
+ * Vitest failure message is the assertion's `expected` and `received` rendered
+ * as prose — and this repository's own suites assert over environment names,
+ * resolver inputs and fixture values, so a failing test can put an arbitrary
+ * string into that field. `summarizeReport` is pure precisely so that claim can
+ * be driven with a report no real run would produce.
+ *
+ * ## Why the fixture is assembled rather than written
+ *
+ * A tracked file containing the complete literal would itself be a finding in
+ * this repository's secret audit — which is exactly what happened to an earlier
+ * fixture here and cost an authorised history rewrite to undo. The value below
+ * is built from fragments at run time: it has the shape the auditor looks for
+ * once assembled, and no tracked byte carries it. It is not, and never was, a
+ * credential.
+ */
+describe("a secret-shaped failure message cannot reach the persisted record", () => {
+  const secretShaped = (): string => ["sk", "proj", "A".repeat(20) + "b7Q".repeat(8)].join("-");
+
+  /** Proof the fixture is worth asserting about: it matches the auditor's rule. */
+  const AUDIT_RULE = /\bsk-(proj|svcacct|admin)-[A-Za-z0-9_-]{24,}/;
+
+  const reportCarrying = (message: string): VitestReport => ({
+    success: false,
+    numFailedTests: 1,
+    numFailedTestSuites: 1,
+    testResults: [
+      {
+        name: join(ROOT, "supabase", "test", "supabase-resolver.test.ts"),
+        status: "failed",
+        assertionResults: [
+          {
+            status: "failed",
+            title: "refuses a malformed origin",
+            fullName: "the resolver > refuses a malformed origin",
+            /* The field the reporter really emits, and the interface omits. */
+            failureMessages: [message],
+          } as VitestAssertion,
+        ],
+      },
+    ],
+  });
+
+  it("the fixture really does have the shape the auditor refuses", () => {
+    expect(AUDIT_RULE.test(secretShaped())).toBe(true);
+  });
+
+  it("no tracked file carries the assembled literal", () => {
+    /*
+     * The check that keeps this fixture honest. `git grep -I` over tracked text
+     * finds nothing, because the value exists only once the three fragments are
+     * joined at run time.
+     */
+    let out = "";
+    try {
+      out = execFileSync("git", ["grep", "-I", "-l", "-F", "-e", secretShaped()], {
+        cwd: ROOT,
+        encoding: "utf8",
+      });
+    } catch {
+      /* Exit 1 is git grep's "no match", which is the passing case. */
+      out = "";
+    }
+    expect(out.trim()).toBe("");
+  });
+
+  it("the summary carries no failure message at all", () => {
+    const persisted = JSON.stringify(summarizeReport(reportCarrying(secretShaped())));
+    expect(persisted).not.toContain(secretShaped());
+    expect(persisted).not.toContain("failureMessages");
+    expect(AUDIT_RULE.test(persisted)).toBe(false);
+  });
+
+  it("survives classification and the persisted testGate shape unchanged", () => {
+    /*
+     * End to end, through the same two calls the runner makes: a message that
+     * reached `classifyTestGate` and then the record would be in the archive.
+     */
+    const gate = classifyTestGate(
+      { ok: false, status: 1, signal: null, errorCode: null },
+      summarizeReport(reportCarrying(secretShaped())),
+    );
+    const persisted = JSON.stringify(gate);
+    expect(persisted).not.toContain(secretShaped());
+    expect(AUDIT_RULE.test(persisted)).toBe(false);
+    /* And the failure is still reported — silence is not sanitization. */
+    expect(gate.reasons.length).toBeGreaterThan(0);
+    expect(gate.failedTests).toHaveLength(1);
+  });
+
+  it("keeps the identity, and only the identity", () => {
+    const { failedTests } = summarizeReport(reportCarrying(secretShaped()));
+    expect(failedTests[0]).toEqual({
+      suite: "supabase-resolver.test.ts",
+      title: "the resolver > refuses a malformed origin",
+    });
+    /* A basename, so the record does not name anybody's home directory. */
+    expect(JSON.stringify(failedTests)).not.toContain(ROOT);
+  });
+
+  it("holds when the message is the whole of a very long, control-laden failure", () => {
+    const nasty = [
+      "expected ",
+      String.fromCharCode(0),
+      secretShaped(),
+      String.fromCharCode(8).repeat(4),
+      "x".repeat(4000),
+    ].join("");
+    const persisted = JSON.stringify(summarizeReport(reportCarrying(nasty)));
+    expect(persisted).not.toContain(secretShaped());
+    expect(persisted).not.toContain("xxxxxxxxxx");
+    for (const code of [0, 8]) {
+      expect(persisted.includes(String.fromCharCode(code))).toBe(false);
+    }
+  });
+
+  it("bounds a title too, since a title is the one thing it does keep", () => {
+    const long = summarizeReport({
+      testResults: [
+        {
+          name: "a.test.ts",
+          status: "failed",
+          assertionResults: [{ status: "failed", fullName: "t".repeat(500) }],
+        },
+      ],
+    });
+    expect((long.failedTests[0]?.title ?? "").length).toBeLessThanOrEqual(MAX_TITLE);
   });
 });

@@ -22,6 +22,7 @@
  */
 
 import { spawnSync } from "node:child_process";
+import { basename } from "node:path";
 
 /** Sanitized process metadata. No output, ever. */
 export interface ProcessResult {
@@ -176,6 +177,99 @@ export interface ReportSummary {
    * unexplained count is an unexplained result.
    */
   readonly skippedTests: readonly TestIdentity[];
+}
+
+/* -------------------------------------------------------------------------
+   The Vitest report, and the only four things taken out of it.
+------------------------------------------------------------------------- */
+
+/**
+ * Just enough of Vitest's JSON report to summarise it.
+ *
+ * `failureMessages` is deliberately ABSENT from this interface even though the
+ * reporter emits it. A failure message is the assertion's `expected` and
+ * `received` rendered as text, and this repository's own suites assert over
+ * environment names, resolver inputs and fixture values — so a failing test can
+ * put an arbitrary string into that field, and the record is a file somebody
+ * zips and hands to a reviewer. Not naming it is not enough on its own, which
+ * is why {@link summarizeReport} is built from named fields rather than by
+ * copying an object through, and why `gate-runner.test.ts` drives a report
+ * carrying a secret-shaped message through it and asserts the message is gone.
+ */
+export interface VitestAssertion {
+  readonly status: string;
+  readonly title?: string;
+  readonly fullName?: string;
+}
+
+export interface VitestFile {
+  readonly name: string;
+  readonly status?: string;
+  readonly assertionResults: readonly VitestAssertion[];
+}
+
+export interface VitestReport {
+  readonly testResults: readonly VitestFile[];
+  readonly success?: boolean;
+  readonly numFailedTests?: number;
+  readonly numFailedTestSuites?: number;
+}
+
+/** Basename only — never a path, a message or any of the child's output. */
+export const safeSuiteName = (name: string): string => basename(name);
+
+/**
+ * The report, reduced to what may be persisted.
+ *
+ * Pure, and separated from reading the file so it can be driven with a report
+ * that no run would produce: one whose failure carries something that looks
+ * like a credential. The construction below is the guarantee — every field of
+ * the result is named here, so a field added to the reporter later arrives in
+ * the record only if somebody adds it on purpose.
+ */
+export function summarizeReport(report: VitestReport): ReportSummary {
+  let counted = 0;
+  let runtimeErrors = 0;
+  const failedSuites: string[] = [];
+  /*
+   * Identity only, and built here rather than left in the report: the report is
+   * deleted as soon as the counts are out of it, and a record saying three
+   * tests failed without saying which three cannot be investigated.
+   */
+  const failedTests: TestIdentity[] = [];
+  const skippedTests: TestIdentity[] = [];
+
+  for (const f of report.testResults) {
+    const suite = safeSuiteName(f.name);
+    for (const a of f.assertionResults) {
+      const identity = { suite, title: safeTitle(a.fullName ?? a.title ?? "(untitled)") };
+      if (a.status === "failed") failedTests.push(identity);
+      else if (a.status !== "passed") skippedTests.push(identity);
+    }
+    const failedHere = f.assertionResults.filter((a) => a.status === "failed").length;
+    counted += failedHere;
+    if (f.status === "failed") {
+      failedSuites.push(suite);
+      /*
+       * A suite that failed while recording no failed assertion is a hook
+       * error, a collection error or a timeout. Vitest has no field for it, and
+       * not deriving it is what made the hook timeout look like a runner-level
+       * fault for a whole milestone.
+       */
+      if (failedHere === 0) runtimeErrors += 1;
+    }
+  }
+
+  return {
+    reportSuccess: report.success ?? null,
+    reportedFailedTests: report.numFailedTests ?? null,
+    countedFailedTests: counted,
+    reportedFailedSuites: report.numFailedTestSuites ?? null,
+    runtimeErrorSuites: runtimeErrors,
+    failedSuiteNames: failedSuites.sort(),
+    failedTests: boundIdentities(failedTests),
+    skippedTests: boundIdentities(skippedTests),
+  };
 }
 
 export interface TestGateResult extends ProcessResult, ReportSummary {

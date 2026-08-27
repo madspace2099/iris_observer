@@ -4,9 +4,13 @@ import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { build } from "../../scripts/release/build-package";
+import {
+  build,
+  packagingProblems,
+  type PreconditionInput,
+} from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { readGateRecord, gateRecordProblems } from "../../scripts/release/gate-contract";
+import { syntheticGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * Package generation must be repeatable, and the manifest must be usable.
@@ -26,32 +30,28 @@ import { readGateRecord, gateRecordProblems } from "../../scripts/release/gate-c
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
-/*
- * The packager now REFUSES without a current, green gate record, so the build
- * fixtures below need one as well as a clean tree. Guarded rather than left to
- * throw in a hook: a hook failure fails the suite with zero failed assertions,
- * which is precisely the shape this milestone spent a round diagnosing.
- */
-const gateRecordIsCurrent =
-  gateRecordProblems(
-    readGateRecord(join(import.meta.dirname, "..", "..")),
-    execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: join(import.meta.dirname, "..", ".."),
-      encoding: "utf8",
-    }).trim(),
-  ).length === 0;
-
-const clean =
-  execFileSync("git", ["status", "--porcelain=v1"], { cwd: ROOT, encoding: "utf8" })
-    .split("\n")
-    .filter((l) => l.trim().length > 0 && !l.includes(".release/")).length === 0;
+const HEAD_FIXTURE = "2222222222222222222222222222222222222222";
 
 const scratch = mkdtempSync(join(tmpdir(), "observer-package-"));
 afterAll(() => {
   rmSync(scratch, { recursive: true, force: true });
 });
 
-describe.runIf(clean && gateRecordIsCurrent)("package generation", () => {
+const fullHead = execFileSync("git", ["rev-parse", "HEAD"], {
+  cwd: ROOT,
+  encoding: "utf8",
+}).trim();
+
+/*
+ * NO GUARD ON A REAL GATE RECORD, and none on `_review/<head>` either.
+ *
+ * The old guard was circular: the packager refuses without a current green
+ * record, the record only exists after the gate completes, so a fresh commit's
+ * own gate skipped the fifteen tests that verify its packager. The suite owns
+ * its evidence now — a synthetic record in its own temporary root, checked by
+ * the same contract a real record goes through.
+ */
+describe("package generation", () => {
   /*
    * Built in a hook, not in the suite body: `describe.runIf` still evaluates
    * the callback in order to collect, so building here would run even when the
@@ -78,8 +78,9 @@ describe.runIf(clean && gateRecordIsCurrent)("package generation", () => {
    * race being lost.
    */
   beforeAll(() => {
-    first = build(join(scratch, "a"));
-    second = build(join(scratch, "b"));
+    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
+    first = build(join(scratch, "a"), { gateRecordRoot: evidence });
+    second = build(join(scratch, "b"), { gateRecordRoot: evidence });
   }, 240_000);
 
   it("produces byte-identical archives from a clean staging state, twice", () => {
@@ -225,8 +226,67 @@ describe("package generation refuses rather than lying", () => {
     }
   });
 
-  it.runIf(!clean)("refuses while the working tree is dirty", () => {
-    expect(() => build(join(scratch, "dirty"))).toThrow(/working tree is not clean/);
+  /*
+   * The dirty-tree and missing-evidence refusals, as data.
+   *
+   * These used to be `it.runIf(!clean)` — a test that ran only when the
+   * developer happened to have uncommitted work, which is to say never during a
+   * release gate, which is precisely when it mattered. The refusal logic is now
+   * a pure function over its three inputs, so each state is reachable from a
+   * literal instead of from the state of somebody's checkout.
+   */
+  describe("its preconditions, evaluated from inputs rather than from the world", () => {
+    const clean: PreconditionInput = {
+      head: HEAD_FIXTURE,
+      expectedHead: undefined,
+      dirty: [],
+      gateProblems: [],
+    };
+
+    it("permits packaging when all three hold", () => {
+      expect(packagingProblems(clean)).toEqual([]);
+    });
+
+    it("refuses while the working tree is dirty, naming the files", () => {
+      const problems = packagingProblems({
+        ...clean,
+        dirty: [" M supabase/test/package-generation.test.ts", "?? notes.txt"],
+      });
+      expect(problems.join("\n")).toMatch(/working tree is not clean/);
+      expect(problems.join("\n")).toMatch(/notes\.txt/);
+    });
+
+    it("refuses when HEAD is not the pinned commit", () => {
+      expect(packagingProblems({ ...clean, expectedHead: "0000000" }).join("\n")).toMatch(
+        /not the expected 0000000/,
+      );
+    });
+
+    it("accepts a pinned prefix of the real HEAD", () => {
+      expect(packagingProblems({ ...clean, expectedHead: HEAD_FIXTURE.slice(0, 7) })).toEqual([]);
+    });
+
+    it("treats an empty pin as no pin, not as a mismatch", () => {
+      expect(packagingProblems({ ...clean, expectedHead: "" })).toEqual([]);
+    });
+
+    it("refuses on gate problems, and says how to produce evidence", () => {
+      const problems = packagingProblems({ ...clean, gateProblems: ["no gate record"] });
+      expect(problems.join("\n")).toMatch(/gate record is not current and clean/);
+      expect(problems.join("\n")).toMatch(/pnpm release:gates/);
+    });
+
+    it("reports the wrong commit before the unrelated dirty files", () => {
+      /* A caller who named the wrong commit wants to hear THAT first. */
+      const problems = packagingProblems({
+        ...clean,
+        expectedHead: "0000000",
+        dirty: [" M a.txt"],
+        gateProblems: ["no gate record"],
+      });
+      expect(problems).toHaveLength(3);
+      expect(problems[0]).toMatch(/not the expected/);
+    });
   });
 
   it("uses the platform's temporary directory, not one machine's path", () => {
