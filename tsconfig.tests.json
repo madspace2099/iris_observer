@@ -36,6 +36,9 @@
     "supabase/test/rollout-order.test.ts",
     "supabase/test/contract-readiness.test.ts",
     "supabase/test/no-secret-recipes.test.ts",
+    "supabase/test/contract-policy.test.ts",
+    "supabase/test/artefact-consistency.test.ts",
+    "supabase/test/package-generation.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }

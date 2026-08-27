@@ -27,7 +27,7 @@ export default tseslint.config(
      * `console` and `process` are the whole point of a command-line tool, and
      * the base config's browser assumption reports both as undefined.
      */
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "scripts/**/*.ts"],
     languageOptions: {
       globals: {
         console: "readonly",

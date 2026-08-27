@@ -41,3 +41,6 @@ _sql-to-paste/
 
 # Independent-review bundles: generated from the repository, never part of it.
 _review/
+
+# Gate results, recorded by pnpm release:gates for the packager to render.
+.release/

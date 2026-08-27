@@ -1,0 +1,476 @@
+OBSERVER_SUBJECT_PEPPER — CONFIGURATION CONTRACT
+Commit f1dbffd, release/observer-demo-rc1.
+
+
+================================================================================
+WHAT IT IS
+================================================================================
+
+The key under which every rate-limit subject and every client fingerprint is
+computed. Both are HMACs; neither means anything without it.
+
+It is REQUIRED. There is no fallback, no derivation and no default.
+
+
+================================================================================
+WHAT IT MUST BE
+================================================================================
+
+At least 32 bytes of cryptographically random material.
+
+
+That produces 64 hex characters, which is 64 UTF-8 bytes — comfortably over the
+floor. Any random encoding is acceptable; the floor is on bytes, not on format.
+
+The SAME value must be set on every environment that shares a Supabase project.
+Two environments with different peppers write subjects that do not match, so the
+ceilings count one person as two and aggregate nothing.
+
+
+================================================================================
+WHAT IS REJECTED, AND WHAT THE OPERATOR IS TOLD
+================================================================================
+
+Each rejection names itself in the boot line. The value is never printed, in any
+of them.
+
+  condition                              message
+  -------------------------------------  ------------------------------------
+  variable absent                        is not set
+  empty, or only whitespace              is empty or whitespace
+  wrapped in " ' ` < > [ ] { } ( )       is wrapped in quotes or brackets
+  leading or trailing whitespace         has leading or trailing whitespace
+  whitespace anywhere inside             contains whitespace
+  a placeholder                          is a placeholder, not a secret
+  under 32 UTF-8 bytes                   is N bytes; at least 32 bytes of
+                                         random material are required
+  too few distinct characters            repeats too few distinct characters
+                                         to be random
+
+Placeholders are matched against the WHOLE value, so a genuinely random secret
+that happens to contain "test" is not rejected for it. The pattern covers
+<...>, [...], {...}, change-me*, replace-me*, your-*, example*, placeholder*,
+secret, password, todo*, xxxx..., and dots.
+
+The repeated-character rule is relaxed ONLY where VITEST or NODE_ENV=test is
+set. Neither is set on Preview or Production. This is what lets the suite use an
+obviously fake pepper while a deployment cannot.
+
+
+================================================================================
+WHAT HAPPENS WHEN IT IS MISSING OR INVALID
+================================================================================
+
+FAIL CLOSED. The gate refuses every Ask Observer request, and refuses it before
+anything is spent:
+
+  gate() step 1   authentication
+  gate() step 1b  the pepper           <-- refuses here, 503
+  gate() step 2   request shape
+  gate() step 3   tenant authorisation
+  gate() step 4   in-process allowance
+  gate() step 5   shared quota admission  (writes the audit row)
+  route           ask()                   (calls the model)
+
+So: no quota is consumed, no audit row is written, and no OpenAI request is
+made. The ordering is asserted by a test that reads the gate's source, because
+the claim is about sequence and a behavioural test that merely observes a
+refusal cannot tell whether something was spent on the way to it.
+
+The reader sees the ordinary unavailability sentence. Every measured figure on
+every screen is unaffected — none of them needs the network, which is what makes
+this state survivable rather than an outage.
+
+The operator sees the reason by name in the boot line:
+
+  Ask Observer is refusing every question: OBSERVER_SUBJECT_PEPPER is not set.
+  Set at least 32 bytes of random secret.
+
+
+================================================================================
+WHY IT IS NOT DERIVED FROM ANOTHER CREDENTIAL
+================================================================================
+
+An earlier draft derived it from SUPABASE_SECRET_KEY when no pepper was set, and
+fell back to a per-process random value when there was no Supabase either. Both
+are gone.
+
+Deriving from another credential couples two lifecycles. SUPABASE_SECRET_KEY is
+rotated for reasons that have nothing to do with this module — a leak, a policy,
+a new project — and every subject and client fingerprint changed with it,
+orphaning every rate-limit bucket and restarting all four ceilings from zero,
+mid-day, with nothing in any log. A key whose value is a function of another key
+is also a key whose compromise is a function of another key's compromise.
+
+The per-process fallback was worse in a quieter way: it WORKED. A deployment
+with nothing configured answered questions, protected the subject, and silently
+counted one viewer into one bucket per lambda. A distributed ceiling that was
+not one, with no symptom to notice.
+
+
+================================================================================
+THE KEY ID
+================================================================================
+
+  HMAC-SHA256(key = the pepper, msg = "observer.pseudonym.key-id.v1")
+  first 16 hex characters
+
+Preimage resistant. It reveals nothing of the key, identifies nothing but
+itself, and is different the instant the key is different.
+
+It appears in TWO places, deliberately:
+
+  1. the boot line —
+
+       Ask Observer subjects are keyed. Key id <sixteen hex characters> — if this
+       changes, every rate-limit bucket has reset.
+
+  2. `observer.ai_requests.key_id`, on EVERY version-2 row, enforced by
+     `ai_requests_v2_requires_key_id` (non-null and ^[0-9a-f]{16}$).
+
+The boot line is the fast signal. The column is the durable one: a startup log
+ages out of a platform's retention, and the question a rotation raises gets
+asked afterwards — sometimes months afterwards. A column answers it.
+
+  select key_id, min(occurred_at), max(occurred_at), count(*)
+    from observer.ai_requests where audit_version = 2
+   group by key_id order by 2;
+
+More than one row there is a rotation, with the date it happened.
+
+
+================================================================================
+ROTATION IS A MAINTENANCE OPERATION
+================================================================================
+
+Rotating the pepper CHANGES EVERY PSEUDONYMOUS IDENTIFIER and therefore RESETS
+SUBJECT-SCOPED QUOTA BUCKETS. That is not a bug to be worked around — it is what
+rotation means when identifiers are keyed — but it must be planned rather than
+discovered.
+
+  1. do it at a quiet hour, not mid-demonstration;
+  2. record the old and the new key id in the deployment log;
+  3. expect the per-minute, per-hour, per-client and per-day counters to start
+     again from zero;
+  4. set the same new value on every environment sharing the database, in one
+     pass. A half-rotated pair of environments is two populations of subjects.
+
+The audit itself is unaffected. Rows keep the subjects they were written with
+and the key_id that made them, which is precisely what lets somebody see
+afterwards that a rotation happened rather than infer it from a counter that
+looks wrong.
+
+Nothing refuses to start on a changed key id. That would turn a legitimate
+rotation into an outage, and the point is a record, not a guard.
+
+
+================================================================================
+WHERE IT MUST NEVER APPEAR
+================================================================================
+
+Not logged, not returned, not persisted, not committed.
+
+  - `pseudonymKey()` is the only function that returns it, it is `server-only`,
+    and its single caller chain is the gate;
+  - the boot line reports the key id or the rejection reason, never the value;
+  - `PepperMisconfiguredError` carries the problem, never the value;
+  - the audit stores the key id, never the value;
+  - `.env.example` carries `OBSERVER_SUBJECT_PEPPER=` with no example secret;
+  - `pnpm audit:secrets` scans the working tree, the staged diff, the history
+    since origin/main, and the built browser bundle.
+
+Asserted by tests: the raw value appears in no identifier, no key id, no error
+message, no stack, and nowhere in the serialised environment report.
+
+
+================================================================================
+CURRENT STATE — FOUR STATEMENTS, KEPT APART
+================================================================================
+
+An earlier edition said `Preview ABSENT / Production ABSENT`, justified as "by
+construction: the variable is introduced by this work and nothing has been
+deployed since". That justification stopped being true the moment `3f298a6` was
+pushed and Vercel built it.
+
+The edition after that corrected ABSENT to UNKNOWN and then, in the same bundle,
+concluded that the existing deployment "remains pepper-less", "keeps returning
+503 permanently" and that "only the fresh deployment has the variable". None of
+those follows from UNKNOWN either. This is the fourth attempt and it keeps the
+statements apart:
+
+  PROVEN        The existing `3f298a6` deployment retains the environment
+                snapshot captured when it was BUILT. Vercel applies
+                environment-variable changes only to NEW deployments; a later
+                project-level change does not alter an existing snapshot.
+
+  UNKNOWN       Whether that snapshot contains `OBSERVER_SUBJECT_PEPPER` at
+                all, and whether the value is valid. No tooling in this session
+                exposes Vercel environment-variable names, scopes or values, so
+                nothing here can say.
+
+  UNOBSERVED    How that deployment currently behaves. It may answer; it may
+                return 503. No HTTP request has ever been made to it from this
+                work, and neither behaviour has been seen.
+
+  REQUIRED      It is nonetheless INELIGIBLE for the controlled legacy proof,
+                because its configuration snapshot is UNVERIFIED. A proof whose
+                target's configuration is unknown proves nothing about
+                configuration. A fresh deployment of exact SHA `3f298a6`, built
+                after the pepper state is settled, is the required controlled
+                target — and it is required whether or not the old one happens
+                to work.
+
+The rule is about eligibility, not about a predicted failure.
+
+WHY IT MATTERS AT ALL. `3f298a6` IS the commit that made the pepper mandatory.
+Read from that commit, the check sits between step 1 (authentication) and step 2
+(shape) of the gate:
+
+    const pepper = describePepper();
+    if (!pepper.ok) { … return deny(503, …, 30); }
+
+So a deployment of that commit WITHOUT the variable answers nothing at all. That
+is why the presence question is a release blocker rather than a detail — and why
+"3f298a6 works now", which an earlier bundle asserted, was never established.
+
+FOUR PROPERTIES, FOUR ANSWERS. "Does it work?" collapsed them into one word:
+
+  1. database RPC signature compatibility   PROVEN
+  2. application runtime readiness          NOT PROVEN (depends on the pepper)
+  3. environment configuration              UNKNOWN FROM HERE
+  4. observed HTTP behaviour                NEVER ATTEMPTED
+
+
+================================================================================
+DECIDING THE PEPPER STATE WITHOUT TOUCHING A SECRET
+================================================================================
+
+The preflight has TWO PARTS, and they read different things. Collapsing them
+into one line that said "through metadata only" was wrong in a way that mattered:
+names and scopes cannot tell you which database a deployment talks to. Every
+environment has a `SUPABASE_URL`; the project is in its VALUE, and that value is
+not a secret.
+
+  PART ONE — PROJECT MAPPING, FROM A NON-SECRET VALUE
+
+    1. read `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL` for each Vercel
+       environment and extract the project ref;
+    2. record only whether it equals the expected ref for the Observer project.
+       The URL is public — it is compiled into the browser bundle — so reading
+       it exposes nothing. Record the REF, never a key.
+
+  PART TWO — PEPPER STATE, FROM METADATA ONLY
+
+    3. whether `OBSERVER_SUBJECT_PEPPER` EXISTS in each relevant scope;
+    4. whether its TYPE is sensitive/secret;
+    5. whether ONE record covers all relevant scopes;
+    6. whether the configuration is ABSENT, UNIFORM or AMBIGUOUS.
+
+  NEITHER PART READS A SECRET VALUE. Not `OBSERVER_SUBJECT_PEPPER`, not
+  `SUPABASE_SECRET_KEY`, not `OPENAI_API_KEY`. If the available tooling cannot
+  answer part two without decrypting a value, the step PAUSES for Matthew to
+  read it in the dashboard. It does not fall back to reading the secret.
+
+Two of the three branches create nothing:
+
+  ABSENT everywhere relevant
+      PAUSE. Matthew creates the value HIMSELF:
+        * generate it with a TRUSTED PASSWORD MANAGERS SECRET GENERATOR;
+        * paste it DIRECTLY into Vercels Sensitive/Secret field, for every
+          relevant environment, with the same value;
+        * never pass it through an assistant, a shell command, a
+          clipboard-logging tool, generated evidence or a repository file.
+
+      THIS FILE DELIBERATELY CONTAINS NO COMMAND. An earlier edition offered a
+      one-liner that printed 32 random bytes to stdout, and that contradicted
+      the promise three paragraphs below it: a command that echoes a secret puts
+      it in the shell history, the scrollback, any captured log and any
+      assistants context at once. Three tracked files carried it —
+      .env.example, docs/18-deployment.md and this contract — and a fourth,
+      printing a randomUUID for DEVICE_CREDENTIAL_PEPPER, was found by the test
+      written to ban them rather than by the audit. All four are gone, and
+      supabase/test/no-secret-recipes.test.ts fails if one returns.
+
+  ONE record covers every relevant scope
+      REUSE IT. Do not edit, do not rotate, do not overwrite. Redeploying picks
+      up the approved current configuration.
+
+  PARTIAL, SEPARATE or AMBIGUOUS
+      STOP. Nothing can read two separate sensitive variables to check they
+      hold the same value, so nothing may infer it and nothing may overwrite
+      them automatically. Matthew chooses between reconciling the existing
+      configuration securely, or EXPLICITLY AUTHORISING a coordinated rotation.
+
+A rotation is a real operation, and its consequences are stated before it is
+chosen rather than discovered afterwards. It:
+
+  * changes EVERY pseudonymous identifier;
+  * RESTARTS every subject-scoped quota;
+  * requires ONE value across all environments sharing the database;
+  * requires every deployment carrying the old or unknown snapshot to be made
+    unreachable.
+
+SECRET HANDLING. The pepper is never transported through shell output, terminal
+history, logs or a generated file. Nothing in this release prints, copies,
+echoes, generates, rotates or stores one. If the available tooling cannot
+inspect names and scopes, the step pauses for Matthew to check them in the
+Vercel dashboard. This milestone performed none of these steps and changed no
+environment variable.
+
+
+================================================================================
+ADDENDUM — 189f8d8: WHAT THE KEY DERIVES NOW
+================================================================================
+
+The contract above is unchanged: the pepper is still mandatory, still derived
+from nothing, still validated the same way, still absent from every identifier,
+error and log. What the key is used for has moved on.
+
+  telemetrySubject(userId, tenantId)              TENANT-SCOPED
+      HMAC(key, "subject" NUL "v2" NUL tenantId NUL userId)   first 16 hex
+
+  auditClientFingerprint(request, tenantId)       TENANT-SCOPED
+      HMAC(key, "audit" NUL "v2" NUL tenantId NUL addr NUL ua NUL lang)
+                                                              first 32 hex
+
+  clientFingerprint(request)                      GLOBAL
+      HMAC(key, "client" NUL addr NUL ua NUL lang)            first 32 hex
+
+  pseudonymKeyId()
+      HMAC(key, "observer.pseudonym.key-id.v1")               first 16 hex
+
+THE INVARIANT: no pseudonymous identifier stored in a tenant-owned audit record
+is stable across tenants. The global fingerprint keys the per-client hourly
+ceiling — catching one browser across two tenants is that ceiling's purpose —
+and never reaches the durable audit table.
+
+`tenantId` is the canonical id the repository returns AFTER authorising the
+viewer, never the slug from the request body.
+
+THE KEY ID DOES NOT CHANGE WHEN THIS BRANCH DEPLOYS. `pseudonymKeyId` is an HMAC
+of the pepper alone, so the same pepper gives the same id before and after —
+while every subject changes, because the derivation gained a tenant. That is the
+entire argument for storing `pseudonym_version` beside `key_id`: an operator
+watching only the key id would see nothing while every session bucket orphaned.
+
+WHICH BUCKETS SURVIVE THE DEPLOY. Not the blanket "all of them orphan" an
+earlier report claimed:
+
+  client / hour     keyed by the global fingerprint     SURVIVES
+  project / day     keyed by tenant/project             SURVIVES
+  session / minute  keyed by telemetrySubject           restarts
+  session / hour    keyed by telemetrySubject           restarts
+
+`clientFingerprint` is byte-for-byte what it was before its helper refactor, and
+a pinned regression vector asserts the digest so that stays true.
+
+GATE() NOW REQUIRES A REQUEST. The optional branch stored the literal "unknown"
+as the durable audit client hash — identical in every tenant, and therefore the
+exact linkable identifier this scoping removes. All four callers always passed
+one; only the type said otherwise.
+
+THE SCHEME AND THE HASH MUST AGREE. The database refuses an admission where they
+do not: a scoped version with no scoped hash, an empty or whitespace hash, a
+scoped hash identical to the global one, a legacy version carrying a scoped
+hash, or a scheme nobody defined. It fails closed before quota, before a row and
+before any model call.
+
+
+================================================================================
+ADDENDUM — 189f8d8: THE VERSION CONSTANT WAS NOT A LITERAL
+================================================================================
+
+The previous edition of this file ended with a sentence that was wrong, and the
+way it was wrong is worth recording because nothing in the test suite could have
+caught it.
+
+    "`PSEUDONYM_VERSION` is a literal `1 | 2`"
+
+A literal `1 | 2` is not a thing. What the code actually said was
+
+    export const PSEUDONYM_VERSION: PseudonymVersion = 2;
+
+and the annotation WIDENS the constant: its type was `1 | 2`, not `2`. So
+`Admission.pseudonymVersion`, typed `PseudonymVersion`, would have accepted a 1
+from anywhere in the application — the superseded, cross-tenant linkable
+derivation, emitted by new code, into the one table meant to hold nothing
+identifying.
+
+`expect(PSEUDONYM_VERSION).toBe(2)` passed throughout. It always would have: the
+VALUE was correct and the defect was in what the TYPE permitted.
+
+Now:
+
+    export type PseudonymVersion = 1 | 2;          // what ROWS may carry
+    export const PSEUDONYM_VERSION = 2 as const;   // what CODE may emit
+    export type CurrentPseudonymVersion = typeof PSEUDONYM_VERSION;
+
+`Admission.pseudonymVersion` is `CurrentPseudonymVersion`. `PseudonymVersion`
+stays `1 | 2` deliberately: the live database holds 133 version-1 rows and the
+deployed `3f298a6` build keeps writing them, so narrowing that would be a
+different falsehood — history rewritten as what we would prefer.
+
+The guard is a type, checked by `pnpm typecheck:tests`, and it was verified by
+putting each mistake back and reading what `tsc` says:
+
+  reinstating the annotation
+      gate.ts(327,5)            TS2322 Type 'PseudonymVersion' is not
+                                assignable to type '2'
+      ai-audit.test.ts(884,43)  TS2322, the same
+
+  widening Admission's field
+      quota.ts(6,29)            TS6133 'CurrentPseudonymVersion' is declared
+                                but its value is never read
+      ai-audit.test.ts(852,40)  TS2344 Type 'false' does not satisfy the
+                                constraint 'true'
+      ai-audit.test.ts(867,7)   TS2322 Type 'true' is not assignable to type
+                                'false'
+      ai-audit.test.ts(889,7)   TS2578 Unused '@ts-expect-error' directive
+
+NOTHING ABOUT THE DATABASE CHANGED. The deployed build sends thirteen arguments
+and never mentions a scheme; its rows still resolve to version 1 through the
+migration's defaults, labelled as what they are.
+
+
+================================================================================
+ADDENDUM — 189f8d8: AN EMPTY STRING IS NOT AN ABSENT VALUE
+================================================================================
+
+The pepper contract above is unchanged. What changed is what the database will
+accept as a pseudonym derived under it.
+
+`observer.admit_ai_request` asked one question — "is there a usable scoped
+hash?" — and treated ABSENT and BLANK as the same answer:
+
+    v_scoped := p_audit_client_hash is not null
+                and length(btrim(p_audit_client_hash)) > 0;
+
+    if not ((not v_scoped and v_version = 1) or ...
+
+So `p_audit_client_hash = ''` with version 1 was admitted, and its row was filed
+as LEGACY: a build made before the tenant-scoping scheme existed. That is a
+false label. A caller sending an empty string is a caller that intended to
+compute a fingerprint and computed nothing — a bug in the caller, not a build
+from last week — and the audit table's only value is that what it says is true.
+
+Three states now, not two:
+
+    v_absent  the parameter IS NULL
+    v_usable  non-null and non-blank after trimming
+    neither   blank, or whitespace only — malformed, refused
+
+and exactly two combinations are legal:
+
+    legacy    v_absent  and effective version 1
+    scoped    v_usable  and version 2 and distinct from the global hash
+
+Everything else returns `invalid_admission` before quota is consumed, before a
+row is written and before any model is called. Ten invalid combinations are
+asserted, each by counting `ai_rate_buckets` AND `ai_requests` either side of
+the attempt; four of them are the blank and whitespace cases this addendum is
+about.
+
+COMPATIBILITY IS UNTOUCHED, and it is tested through the real call rather than
+by passing NULL by hand: the deployed `3f298a6` build sends THIRTEEN arguments
+and never mentions either parameter, so both reach the function through their
+defaults as NULL and 1, and its row records version 1 with the global hash.

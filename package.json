@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "pnpm --filter @observer/web dev",
     "build": "pnpm --filter @observer/web build",
-    "typecheck": "pnpm -r --if-present --workspace-concurrency=1 typecheck && pnpm typecheck:tests",
+    "typecheck": "pnpm -r --if-present --workspace-concurrency=1 typecheck && pnpm typecheck:tests && pnpm typecheck:scripts",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -22,7 +22,11 @@
     "test:e2e": "playwright test",
     "audit:secrets": "node scripts/secret-audit.mjs",
     "smoke:openai": "node scripts/openai-smoke.mjs",
-    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit"
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
+    "release:wrappers": "tsx scripts/release/wrap-migration.ts",
+    "release:gates": "tsx scripts/release/run-gates.ts",
+    "release:package": "tsx scripts/release/build-package.ts",
+    "typecheck:scripts": "tsc -p tsconfig.scripts.json --noEmit"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

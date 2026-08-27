@@ -1,58 +1,99 @@
 -- Observer — contract. The superseded façades go.
 --
--- **Do not apply this until no deployment *can* call these names.**
+-- **Do not apply this until no deployment *can* call these names, and no
+-- deployment *can* write a version-1 pseudonym.**
 --
--- That is a stronger condition than the one this file first carried, and the
--- difference matters. The original said to check
+-- Absence of traffic is not permission. It is evidence about the past and says
+-- nothing about capability: a Preview deployment nobody has opened for a week
+-- is exactly as reachable as one opened a minute ago. Somebody following an old
+-- link, a bookmarked review URL or a stale Slack message brings it back. The
+-- condition is **capability**, not activity.
 --
---   select max(occurred_at) from observer.ai_requests where audit_version = 1;
+-- ## Two independent capabilities, classified separately
 --
--- and treat a quiet result as permission. It is not. Absence of traffic is
--- evidence about the past and says nothing about capability: a Preview
--- deployment that nobody has opened for a week is exactly as reachable as one
--- opened a minute ago. Somebody following an old link, a bookmarked review URL
--- or a stale Slack message brings it back, and it calls the function this
--- migration deleted. The ceiling then fails closed on a build that was working
--- an hour earlier, for a reason nobody changed.
+-- An earlier edition of this comment described one capability and one remedy.
+-- There are two, they are not the same shape, and this migration only closes
+-- one of them.
 --
--- The condition is **capability**, not activity.
+--   (a) LEGACY-FAÇADE CALLER — the build calls `public.consume_ai_quota` or
+--       `public.record_ai_request`. Those are the functions dropped below, so
+--       the drop genuinely removes the RPC. Such a deployment may be
+--       **deleted OR protected**; either is sufficient, because after this
+--       migration the name it calls does not exist.
 --
--- ## What must be true before this runs
+--   (b) VERSION-1-CAPABLE ADMISSION WRITER — the build reaches
+--       `public.admit_ai_request` with THIRTEEN arguments and therefore writes
+--       `pseudonym_version = 1`: a pseudonym derived without tenant scope, and
+--       so linkable across tenants. Such a deployment **MUST BE DELETED.**
 --
--- Every deployment carrying a build older than the admission/completion code
--- must be unable to serve a request. Vercel keeps every build it has ever made
--- reachable at its own URL, so one of these has to be true of each:
+-- ## Why (b) cannot be satisfied by protection
 --
---   1. **deleted** — `vercel remove <deployment-url>`, or the dashboard's
---      Delete on the deployment. Gone, not aliased away;
---   2. **protected** — Deployment Protection set so the URL cannot serve an
---      anonymous request (Standard Protection or password). A protected
---      deployment cannot reach this database because it cannot reach its own
---      route handler.
+-- **THIS MIGRATION DOES NOT DISABLE THIRTEEN-ARGUMENT ADMISSION.** It drops two
+-- façades and nothing else. The expand migration gave `admit_ai_request` two
+-- defaulted parameters precisely so the thirteen-key body keeps resolving, and
+-- that is still true after this file commits.
 --
--- Moving an alias is NOT a third option. It retires a name, never a
--- deployment: the immutable per-deployment URL survives any alias change, and
--- anybody holding it still reaches the old code. It may accompany (1) or (2),
--- and it can never substitute for either.
+-- Protection is therefore not a substitute for deletion here. Vercel
+-- Authentication still admits authorised users, protection-bypass mechanisms
+-- exist for automation, and neither this migration nor any other closes the
+-- path. A protected version-1-capable build that anybody can sign in to still
+-- writes a cross-tenant-linkable pseudonym.
 --
--- Enumerate them. Do not assume:
+-- Moving an alias is not a remedy at all. It retires a name, never a
+-- deployment: the immutable per-deployment URL survives any alias change.
 --
---   vercel ls iris-observer
+-- ## The inventory this actually applies to
 --
--- and check every READY deployment whose commit predates the one that
--- introduced `admit_ai_request`. At the time of writing there were twelve on
--- `release/observer-demo-rc1` alone, plus the Production build on `main` —
--- which is a special case: `3515402` contains no quota module at all and
--- therefore calls neither façade, whatever database it points at.
+-- Not "every build older than admission/completion". That was the wrong
+-- inventory: it selected on age, and capability does not follow age.
 --
--- ## The quiet-table query still has a use
+--   * EVERY `3f298a6` DEPLOYMENT IS VERSION-1-CAPABLE — case (b) — including
+--     the fresh proof Preview created during the rollout to prove the legacy
+--     path answers. That one is built from the same commit as the original, so
+--     it carries the same capability, and it must be deleted too.
+--   * `1ee5d2d` is NEITHER. It calls `admit_ai_request`, `complete_ai_request`
+--     and `observer_whoami` — so it is not a façade caller — and its
+--     TWELVE-ARGUMENT admission stopped resolving the moment the expand
+--     migration added `p_key_id`. It writes nothing. Classifying it as a
+--     façade caller "to be conservative" was simply wrong.
+--   * The twelve older `release/observer-demo-rc1` builds are case (a).
+--   * `3515402` on `main` contains no quota module at all and calls neither
+--     façade, whatever database it points at.
 --
--- Not as permission. As a *contradiction test*: a recent `audit_version = 1`
--- row proves something is still writing through the old door, so the answer is
--- no. A quiet table proves nothing either way and must never be read as yes.
+-- ## Enumerate to exhaustion, then enumerate again
 --
---   select max(occurred_at) as last_legacy_write, count(*) as legacy_rows
---     from observer.ai_requests where audit_version = 1;
+--   vercel ls iris-observer            # then follow --next until it is empty
+--
+-- `vercel ls` is PAGINATED. This project has exactly twenty READY deployments,
+-- which is the page size — the shape of a list that looks complete and is not.
+-- Follow `--next` to exhaustion, record every immutable URL, state and source
+-- SHA, and classify capability from the SOURCE rather than from the age.
+--
+-- **Repeat the whole enumeration after the deletions** and prove no
+-- version-1-capable deployment remains. A deletion you did not verify is a
+-- deletion you did not make.
+--
+-- ## What the database can and cannot tell you
+--
+-- Run `supabase/verifiers/observer-contract-readiness.sql` with the
+-- `retirement_floor_ts` recorded at the moment the last deletion completed. It
+-- checks BOTH version axes independently — `audit_version = 1` for the legacy
+-- façade shape, `pseudonym_version = 1` for the unscoped pseudonym — because a
+-- row can carry the second without the first, and the single-axis question
+-- returned a clean answer over exactly that row.
+--
+-- **THAT VERIFIER CAN RETURN ONLY NO-GO, UNUSABLE OR INCONCLUSIVE. IT CAN
+-- NEVER RETURN READY.**
+--
+--   NO-GO         a row at or after the floor on either axis. Something is
+--                 still writing through a door that should be shut.
+--   UNUSABLE      a null or future floor. A future floor makes every row
+--                 "before" it, which is the one way to turn a dirty database
+--                 clean by typing a date. It is refused, not answered.
+--   INCONCLUSIVE  the best result available. Necessary, never sufficient: a
+--                 quiet table proves nothing about capability, and capability
+--                 is the condition. Readiness is established by the deployment
+--                 inventory, not by this query.
 --
 -- ## Nothing here touches data
 --

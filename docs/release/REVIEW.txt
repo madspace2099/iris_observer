@@ -1,0 +1,429 @@
+IRIS OBSERVER — INDEPENDENT REVIEW BUNDLE
+Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
+
+THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
+been reviewed.
+
+Scope: artefact consistency. The contract migration's own instructions still
+described the superseded retirement policy; four operational artefacts
+disagreed with the corrected one; the no-secret-recipe guard did not do what its
+comment claimed; and the documented package-generation sequence could not be
+run twice. NO EXECUTABLE MIGRATION SQL CHANGED. The application code, the
+request-ID implementation, the HTTP verifier and the AI-readiness logic were not
+touched.
+
+
+================================================================================
+0. STATE, RECORDED BEFORE ANY CHANGE THIS ROUND
+================================================================================
+
+  branch                            release/observer-demo-rc1  (never left)
+  local HEAD at the start           f1dbffd4ba1725bcee50515702673bc2c4923214
+  remote release/observer-demo-rc1  {{REMOTE_RELEASE}}
+  remote main                       {{REMOTE_MAIN}}
+  working tree                      CLEAN
+  behind / ahead at the start       0 / 10
+
+  local HEAD now                    {{HEAD}}
+  behind / ahead                    {{BEHIND}} / {{AHEAD}}
+
+MIGRATIONS — verified by ONE read-only catalogue query against the live
+database, the only external access this milestone made:
+
+  APPLIED
+    20260825121909  observer_ai_rate_limiting
+    20260825121927  observer_ai_rate_bucket_pruning
+    20260825154900  observer_ai_public_facade
+    20260825173000  observer_whoami_diagnostic
+    20260825205000  observer_audit_provenance          (the EXPAND migration)
+
+  UNAPPLIED
+    20260826120000  observer_exact_retry_and_pseudonym_scope   ("migration 3")
+    20260826140000  observer_bucket_retention                  ("migration 4")
+    20260826090000  observer_audit_facade_cleanup   (the CONTRACT migration)
+
+  The evidence, every field from the same query:
+    public.admit_ai_request has {{ADMIT_ARGS}} arguments, not 15  -> migration 3 unapplied
+    observer.ai_requests.pseudonym_version columns: {{PSEUDONYM_COL}}  -> migration 3 unapplied
+    observer.run_rate_bucket_retention: {{RETENTION_FN}}           -> migration 4 unapplied
+    public.consume_ai_quota + record_ai_request: {{LEGACY_FACADES}}  -> contract unapplied
+    pg_cron installed: {{PG_CRON}}                             -> prerequisite not run
+
+DEPLOYMENT INVENTORY: twenty READY deployments over fourteen distinct SHAs.
+Newest is 3f298a6, built 2026-08-25. {{INVENTORY_UNCHANGED_SENTENCE}}
+
+{{NOT_DEPLOYED_BLOCK}}
+
+ENVIRONMENT METADATA: names and requirement in COMPATIBILITY-EVIDENCE.txt §3.
+PRESENCE, SCOPE AND VALUE REMAIN UNAVAILABLE FROM HERE.
+
+NO EXTERNAL MUTATION OCCURRED. No Vercel environment variable was changed. No
+deployment was created, redeployed, promoted, protected or deleted. No Ask
+Observer HTTP request was made. pg_cron was not enabled. Supabase was not
+written to. No migration was applied. Nothing was pushed, merged or tagged, and
+no history was rewritten.
+
+NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
+
+
+================================================================================
+1. WHAT THIS ROUND FIXED
+================================================================================
+
+FINDING 1 — the migration that performs the retirement told the operator the
+wrong retirement policy.
+
+`20260826090000_observer_audit_facade_cleanup.sql` is the file somebody opens at
+the moment they are about to close the door. Its comments still said:
+
+  * retire "every deployment carrying a build older than the
+    admission/completion code" — an inventory selected by AGE, when the property
+    that matters is CAPABILITY, and the two do not coincide;
+  * that a protected deployment "cannot reach this database because it cannot
+    reach its own route handler" — which is false for the case that matters;
+  * that `vercel ls iris-observer` enumerates the deployments — with no mention
+    that it is paginated;
+  * that a recent `audit_version = 1` row is THE contradiction test — one axis,
+    and not the one that catches the leak.
+
+Comments only, in both the migration source and its paste wrapper. They now say
+what the corrected rollout says: two capabilities, classified separately;
+version-1-capable admission builds DELETED; legacy-façade-only builds deleted OR
+protected, because this migration genuinely removes the function they call; that
+this migration does NOT disable thirteen-argument admission; that every
+`3f298a6` build including the fresh proof Preview is version-1-capable; that
+`1ee5d2d` is neither; that enumeration follows `--next` to exhaustion and is
+repeated after deletion; and that the database verifier reads both axes from
+`retirement_floor_ts` and can return only NO-GO, UNUSABLE or INCONCLUSIVE.
+
+{{EXECUTABLE_SQL_BLOCK}}
+
+FINDING 2 — the paste wrappers were maintained by hand.
+
+Each wrapper's header asserts "Everything between BEGIN and COMMIT is
+byte-identical to that file" and prints the source's sha256. Nothing enforced
+either claim; the wrapper was a copy somebody kept in step. That is exactly the
+failure mode this milestone exists to close, one level down.
+
+`scripts/release/wrap-migration.ts` now renders every wrapper from its source.
+The proof that it renders faithfully rather than merely plausibly is that,
+BEFORE the contract source was edited, it reproduced three of the four
+hand-written wrappers BYTE FOR BYTE — including migration 4's, whose hash
+`a2ec32264583f5d57b87d0db089d4a707de8b317786624084a4e4a2b61b1eef5` was
+independently verified in the previous review. Only the contract wrapper
+differs, and only because its source changed.
+
+FINDING 3 — four operational artefacts still carried the superseded policy.
+
+  * `supabase/README.md` said a deployment "must be deleted or genuinely
+    protected" if it can call a façade OR write `pseudonym_version = 1`. One
+    remedy for two capabilities. It is now a table, with the reason the remedies
+    differ attached.
+  * `PEPPER-CONTRACT.txt` said the preflight determines project mapping
+    "THROUGH METADATA ONLY". Names and scopes cannot prove which database a
+    deployment talks to — the project is in `SUPABASE_URL`'s VALUE, which is
+    compiled into the browser bundle and is not a secret. Split into part one
+    (mapping, from the non-secret URL) and part two (pepper presence, type and
+    scope, from metadata), with neither reading a secret value.
+  * `COMPATIBILITY-EVIDENCE.txt` used `c6fdc73` as the current candidate a
+    commit after it stopped being one, quoted an oldest-bucket age the snapshot
+    contradicted, claimed the inventory was unchanged across "seven
+    consecutive bundles" while a different paragraph implied eight, and omitted
+    the current HEAD from the not-deployed set.
+  * `docs/18-deployment.md` and the verifiers already agreed; a new test now
+    keeps all five in step.
+
+FINDING 4 — the no-secret-recipe guard did not do what its comment claimed.
+
+It required a generator pattern AND a SEPARATE print pattern on the same line,
+while its comment claimed it caught the OpenSSL random generator. It did not. A
+generator whose default destination is standard output needs no print statement
+to leak:
+
+  [removed command that generated random material and wrote it to stdout]
+  [removed command that returned a UUID, printed by the shell]
+  [removed pipeline that read the kernel random device and rendered it as hex]
+
+all pass a check that is looking for `console.log`. The detector now separates
+SELF-PRINTING commands, which are an offence on their own, from PAIRED ones,
+which need a generator plus an emitter — and still permits the runbook to say
+that `randomUUID()` is where the non-secret request id comes from.
+
+IT IMMEDIATELY FOUND ONE. The previous `REVIEW.txt` reproduced the removed
+one-liner as executable text, inside the very section explaining that the
+repository must not ship it. A description of a command is not a command; this
+file now carries the bracketed descriptions above, and the packager refuses to
+build an archive containing a runnable one.
+
+Two exemptions are deliberate and narrow: `patches/` and `*.patch`, because a
+patch that REMOVES a bad line necessarily contains it and rewriting history to
+satisfy a linter is worse than the linter being narrow; and the detector's own
+fixtures, because a test proving a recipe is caught has to contain one.
+
+One pattern was REMOVED from the detector after it fired wrongly: Ruby's `puts`
+is also an ordinary English verb, and it flagged the paragraph explaining that a
+command "puts it in the shell history" — the sentence that removed the recipe. A
+real Ruby one-liner is still caught, by its interpreter invocation.
+
+FINDING 5 — the documented generator sequence could not be run twice.
+
+`REVIEW.txt` §8 told a reviewer to run four scripts in order. The first,
+`bundle.mjs`, began by deleting `_review/f1dbffd` — the directory containing the
+other three, and the three hand-authored evidence files, none of which it
+recreated. The second command in the documented sequence no longer existed.
+
+Alongside that: a hard-coded `C:\Users\42191\AppData\Local\Temp\claude\...`
+path; a requirement that seven earlier review ZIPs be present; a ZIP timestamp
+built from `getHours()`, so the "deterministic" archive had different bytes
+under UTC, Europe/Budapest and America/New_York; a `hashes.txt` whose prose
+header made `sha256sum -c` emit warnings for every non-hash line; and a claim
+that the archive's own hash appeared in `REVIEW.txt`, which it did not and
+cannot.
+
+There is now ONE tracked entry point, `scripts/release/build-package.ts`, which
+lives outside the output directory, stages every input from tracked sources,
+and builds the package from nothing. It refuses to run unless HEAD is clean, and
+derives the package name, the headings and every commit-dependent fact FROM
+HEAD rather than from a constant. Temporary space comes from `os.tmpdir()`. The
+ZIP timestamp uses UTC accessors. `hashes.txt` prefixes every prose line with
+`#`, so a standard checker consumes it silently.
+
+THE OUTER ZIP HASH IS NOT IN THE ZIP. It cannot be: adding it would change the
+bytes it describes. It is printed by the packager and reported alongside the
+archive, and it must be distributed with the archive rather than looked for
+inside it.
+
+
+================================================================================
+2. INDEPENDENTLY REPRODUCIBLE FACTS
+================================================================================
+
+Executed here, reproducible with `pnpm test` and `pnpm release:package`:
+
+  * the contract migration's EXECUTABLE SQL is unchanged by this milestone —
+    comments stripped, whitespace collapsed, hashed either side of the edit;
+  * the same is true of all eight migration sources: no executable change;
+  * the wrapper generator reproduces three of four hand-written wrappers byte
+    for byte, and every wrapper's body equals its source exactly;
+  * every wrapper header's sha256 equals the hash of the file it names;
+  * the contract source and its wrapper both state the corrected policy, and a
+    regression test fails if the protection-substitutes-for-deletion wording or
+    the age-based inventory returns;
+  * README, runbook, pepper contract, contract verifier and contract migration
+    agree on the two capabilities and their two remedies;
+  * the evidence files agree with each other and with the recorded snapshot on
+    HEAD, the remote heads, the local-only commit set, the observation
+    timestamp, the bucket age and the current candidate SHA;
+  * the detector rejects self-printing generators and generator-plus-print
+    commands, and permits descriptive `randomUUID()`, proven by fixtures in both
+    directions;
+  * no tracked operator file and no file in the generated package contains a
+    runnable secret recipe;
+  * package generation from a clean staging state twice produces BYTE-IDENTICAL
+    archives;
+  * `hashes.txt` verifies with a standard checker and emits no warnings;
+  * the three row shapes remain distinct: a façade row is `audit_version 1 /
+    request_id null / pseudonym_version null`; a 13-argument admission is
+    `2 / not null / 1`; a scoped one is `2 / not null / 2`;
+  * the contract gate is NO-GO on either axis after the floor, INCONCLUSIVE
+    otherwise, UNUSABLE on a null or future floor, and never READY;
+  * the rollout table still has nineteen rows in the required order, deleting
+    the original 3f298a6 at step 5 and every version-1-capable deployment at
+    step 18;
+  * all four HTTP-proof modes read 13/13, and twenty-five failure modes produce
+    their exact failed-row sets;
+  * migrations 3 and 4 applied once and twice, in all four combinations, each
+    leaving `observer-verify-2.sql` at 27/27;
+  * `observer-cron-health.sql` reads 25/26 against the stand-in, failing only
+    row 3 — preserved, not mocked;
+  * `observer-behaviour-2.sql` reads 21/21 and rolls back to 0 rows, 0 units.
+
+Read-only against the live database, one query at {{OBSERVED_AT}}:
+
+  * {{BUCKETS}} buckets, oldest {{OLDEST_H}} hours, newest {{NEWEST_H}};
+  * {{AUDIT_ROWS}} audit rows, all at `audit_version = 1`;
+  * `pseudonym_version` column absent; pg_cron absent; retention function
+    absent; both legacy façades still present.
+
+THE OLDEST BUCKET IS NOW {{OLDEST_H}} HOURS, PAST THE {{THRESHOLD_H}}-HOUR
+THRESHOLD migration 4 will enforce. Recorded at {{BUCKET_HISTORY}} across
+successive rounds. Nothing removed it, because nothing prunes.
+
+
+================================================================================
+3. REMAINING ASSUMPTIONS
+================================================================================
+
+  1. PostgREST's name-based resolution of a 13-key body against a 15-parameter
+     function with two defaults.
+  2. `NOTIFY pgrst` is the reload channel Supabase's PostgREST listens on.
+  3. `cron.schedule` and `cron.unschedule` behave as Supabase documents.
+  4. Advisory-lock behaviour under real concurrency.
+  5. Which Vercel environments share the Observer Supabase project.
+  6. Entropy of the configured pepper, once it exists.
+  7. Cost of retention at scale, and `cron.job_run_details` growth.
+  8. That the `agencyManager` profile can reach both tenants through a
+     deployment.
+  9. That a legacy-mode PASS identifies the right row. It does not, strictly.
+ 10. That `X-Observer-Request-Id` survives Vercel's edge.
+ 11. That Vercel applies environment changes only to new deployments for this
+     project's Preview environment specifically.
+ 12. That `vercel ls --next` enumerates to exhaustion as documented. The
+     requirement is written from the documented flag; no listing has been
+     paginated from here.
+ 13. That the deployment inventory recorded in `scripts/release/live-snapshot.ts`
+     is still current. It has been identical in every delivered bundle, which is
+     consistency, not freshness.
+
+
+================================================================================
+4. CHECKS REQUIRING LIVE EXECUTION
+================================================================================
+
+  a. WHETHER `OBSERVER_SUBJECT_PEPPER` EXISTS, in which scopes, and whether one
+     record covers them all.  Settled by: step 1, part two.
+  b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
+     Settled by: step 1, part one.
+  c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
+  d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
+  e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:
+     steps 7, 12 and 13 — the last requiring a real hourly wait.
+  f. THAT ROW AGE FALLS. It is still rising: {{OLDEST_H}} hours.
+  g. THAT NO FOREIGN CRON JOB EXISTS. There is no `cron` schema to inspect yet.
+  h. THAT THE RESPONSE HEADER REACHES A BROWSER through Vercel's proxy.
+     Settled by: step 15.
+  i. WHETHER LIVE AI IS AVAILABLE AT ALL.  Settled by: step 17.
+  j. THE COMPLETE DEPLOYMENT INVENTORY, paginated to exhaustion, before and
+     after deletion.  Settled by: steps 1 and 18.
+
+
+================================================================================
+5. COMMITS
+================================================================================
+
+{{LOCAL_ONLY_BLOCK}}
+
+  PUSHED (and therefore built by Vercel)
+    …through 3f298a6, the remote branch head.
+
+  DEPLOYED
+    3f298a6, plus twelve older builds of that branch and five of `main` at
+    3515402.
+
+
+================================================================================
+6. THE EXACT ROLLOUT SEQUENCE
+================================================================================
+
+Not executed. Steps 1-2 are read-only. Guarded by
+`supabase/test/rollout-order.test.ts`, which parses the table in
+`docs/18-deployment.md`.
+
+   1. Read-only preflight in two separable parts: (i) Git, Supabase catalogue
+      and a deployment inventory paginated TO EXHAUSTION; (ii) pepper presence,
+      type and scope as METADATA ONLY, and Supabase project mapping from the
+      NON-SECRET `SUPABASE_URL`.
+   2. Explicit operator approval, and the pepper-state decision.
+   3. Reuse, create or explicitly rotate the pepper per the safe branch.
+   4. Redeploy exact SHA `3f298a6` as a fresh Preview, without pushing.
+   5. Confirm READY and exact SHA; run the pre-migration HTTP smoke; then
+      DELETE the original unverified `3f298a6` deployment.
+   6. Enable Supabase Cron.
+   7. Verify pg_cron and the scheduler process.
+   8. Apply Migration 3.
+   9. Apply Migration 4.
+  10. Run Part A, then the controlled request through the fresh legacy Preview.
+  11. Require legacy 13/13 with pseudonym version 1.
+  12. Schema, Cron-health and rollback-protected behavioural verification.
+  13. Wait through the scheduled run; require Cron-health 26/26.
+  14. Push the corrected release branch.
+  15. Capture the scoped Preview's exact `X-Observer-Request-Id`.
+  16. Require scoped 13/13 with pseudonym version 2.
+  17. Separately run the live-model readiness proof.
+  18. Record `retirement_floor_ts`; DELETE every version-1-capable deployment
+      including the fresh proof Preview; delete or protect legacy-façade-only
+      builds; RE-ENUMERATE to exhaustion and prove none remains.
+  19. Run `observer-contract-readiness.sql` with that floor — 0 on both axes,
+      INCONCLUSIVE — then apply the contract migration last.
+
+  NO PRODUCTION PROMOTION IS PART OF THIS SEQUENCE.
+
+
+================================================================================
+7. LOCAL RESULTS AT {{HEAD_SHORT}}
+================================================================================
+
+{{GATE_BLOCK}}
+
+  observer-verify-2.sql          27/27 in all four combinations of migration 3
+                                 and migration 4 applied once and twice
+  observer-cron-health.sql       25/26 — row 3 only, preserved, not mocked
+  observer-behaviour-2.sql       21/21, then audit 0->0, buckets 0->0
+  observer-contract-readiness    INCONCLUSIVE, 14 rows, two axes
+  observer-http-compat-proof.sql 13/13 in ALL FOUR MODES
+  observer-ai-readiness.sql      11/11 model · 5/11 composer · 8/11 mismatched
+
+
+================================================================================
+8. HOW THIS PACKAGE WAS GENERATED, AND HOW TO REBUILD IT
+================================================================================
+
+One tracked entry point, outside the output directory:
+
+  pnpm release:package
+
+It stages every input from a tracked source, so it can be run repeatedly from
+nothing:
+
+  scripts/release/live-snapshot.ts   the one recorded observation of the live
+                                     database and the deployment inventory.
+                                     Every artefact renders its live numbers
+                                     from here; none carries its own copy.
+  docs/release/*.txt                 the authored evidence, with doubled-brace
+                                     placeholders for everything that changes.
+  scripts/release/facts.ts           resolves those placeholders from git, the
+                                     snapshot and the files themselves.
+  scripts/release/wrap-migration.ts  renders the paste wrappers from the
+                                     migration sources.
+  scripts/release/secret-recipes.ts  the detector, shared with the test suite.
+  scripts/release/zip.ts             the deterministic writer.
+
+THE CHECKS THAT RUN BEFORE AN ARCHIVE IS WRITTEN, any of which refuses the
+build:
+
+  1. HEAD is the expected commit and the working tree is clean.
+  2. No placeholder is left unresolved, and none is defined but unused.
+  3. SEMANTIC CONSISTENCY. Every evidence file agrees with the snapshot and
+     with git on: the current HEAD, the remote and deployed heads, the
+     local-only commit set, the observation timestamp, the oldest bucket age,
+     and the current candidate SHA in the compatibility table. THIS IS THE
+     CHECK THE LAST PACKAGE NEEDED. Its hash-prefix validation passed on a file
+     that named `c6fdc73` as the current candidate one commit after it stopped
+     being one: the prose was stale and its file hash was perfectly correct.
+  4. HASH ACCOUNTING. Every hexadecimal token of eight or more characters in an
+     evidence file must be a prefix of a hash this package can account for — a
+     packaged file, a computed historical value, or a git commit in this chain.
+     Pure-decimal runs are migration timestamps and are skipped.
+  5. NO RUNNABLE SECRET RECIPE in any packaged file, using the same detector
+     the test suite uses.
+  6. Every wrapper body equals its migration source.
+
+WHAT THESE CHECKS CANNOT DO. They verify that a NUMBER matches its source and
+that a HASH matches its bytes. They cannot verify that a SENTENCE is true.
+"Comment-only", "unchanged", "byte-identical" are claims, which is why the
+evidence prints the comparison rather than asserting the conclusion.
+
+DETERMINISM. Entry names use forward slashes — every archive before {{HEAD_SHORT}}
+stored Windows separators, which APPNOTE 4.4.17.1 forbids and `unzip` warns
+about. Entries are sorted. The timestamp is the commit date read through UTC
+accessors, so the bytes do not depend on the builder's zone; this is asserted by
+building under three different `TZ` settings and comparing.
+
+  Archive          IRIS-Observer-{{HEAD_SHORT}}-review.zip
+  Entries          {{ARCHIVE_ENTRIES}} files, forward-slash separators, deterministic
+  Manifest         hashes.txt — {{MANIFEST_FILES}} files, `#`-prefixed prose, so
+                   `sha256sum -c hashes.txt` runs without warnings
+
+  THE ARCHIVE'S OWN SHA-256 IS NOT INSIDE THE ARCHIVE. Embedding it would change
+  the bytes it describes. The packager prints it and the covering report states
+  it; distribute it alongside the archive, and do not look for it within.

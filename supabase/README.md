@@ -212,12 +212,23 @@ it is worse than no verifier — it reports PASS. All four are read-only, and
 three of them are executed by the test suite against a real Postgres.
 
 - `observer-contract-readiness.sql` — the pre-contract report, and it can never
-  say READY. Its external gate now covers TWO capabilities, not one: a
-  deployment must be deleted or genuinely protected if it can call a legacy
-  façade **or** if it can omit the scoped pseudonym arguments and write
-  `pseudonym_version = 1`. The second is every `3f298a6` build, the fresh proof
-  deployment included — migration 3 keeps the thirteen-argument call working
-  through defaults and the contract migration does not disable it.
+  say READY. Its external gate covers TWO capabilities, and they take DIFFERENT
+  remedies:
+
+  | Capability                                                           | Remedy                    |
+  | -------------------------------------------------------------------- | ------------------------- |
+  | calls a legacy façade (`consume_ai_quota`, `record_ai_request`)      | **DELETE or PROTECT**     |
+  | reaches thirteen-argument admission, writing `pseudonym_version = 1` | **DELETE. Nothing else.** |
+
+  The remedies differ because the contract migration actually removes the
+  façade functions, so a protected build that calls them has nothing left to
+  call. It does **not** disable thirteen-argument admission — migration 3 keeps
+  that resolving through two defaulted parameters, deliberately — so protection
+  leaves the cross-tenant-linkable write reachable by anybody who can sign in.
+  That is every `3f298a6` build, the fresh proof deployment included.
+
+  `1ee5d2d` is neither: it calls no façade, and its twelve-argument admission
+  stopped resolving when the expand migration added `p_key_id`.
 
 - `observer-ai-readiness.sql` — 11 checks, and a different question from the one
   above. The compatibility proof accepts `deterministic_composer` as a complete

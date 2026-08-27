@@ -488,6 +488,22 @@ or delete the deployments that are.
 gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
 and those copies are generated from them.
 
+Generated, now, rather than kept in step by hand:
+
+```bash
+pnpm release:wrappers
+```
+
+`pnpm release:wrappers --check` fails instead of writing, which is what the test suite runs.
+Each wrapper's header asserts that everything between `begin;` and `commit;` is
+byte-identical to the migration it names, and prints that file's SHA-256. Nothing used to
+enforce either claim — the wrapper was a copy somebody remembered to update — so a migration
+whose comments changed could ship alongside a wrapper still carrying the old text under a
+header promising they matched. The generator splices the source in verbatim and computes the
+hash, so the promise is mechanical. It reproduced three of the four hand-written wrappers
+byte for byte before any of them was regenerated, which is what establishes it is faithful
+rather than merely self-consistent.
+
 ---
 
 ## 8. Promotion to Production
