@@ -1,7 +1,22 @@
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { openDatabase, closeTestDatabases, closeSuiteDatabases } from "./support/pglite";
+
+/*
+ * CLOSE WHAT THE FIXTURES OPEN.
+ *
+ * Each of these is a Postgres compiled to WASM, and this file opens one per
+ * case. Leaving them open leaves live handles in the forked worker, so the
+ * worker does not exit on its own and Vitest tears the pool down underneath
+ * it — and a message in flight on a closing IPC channel throws, which Vitest
+ * records as an UNHANDLED ERROR and turns into exit code 1 while its JSON
+ * report is already written and green. That is the whole of the runner-level
+ * exit this suite could not explain.
+ */
+afterEach(closeTestDatabases);
+afterAll(closeSuiteDatabases);
 
 /**
  * The deployed-build compatibility proof, executed against seeded rows.
@@ -124,7 +139,7 @@ function partB(p: Params): string {
 }
 
 async function database(): Promise<PGlite> {
-  const db = await new PGlite();
+  const db = await openDatabase();
   await db.exec(`
     create role anon nologin;
     create role authenticated nologin;

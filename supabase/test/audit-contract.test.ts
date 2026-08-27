@@ -1,7 +1,27 @@
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  openDatabase,
+  closeTestDatabases,
+  closeSuiteDatabases,
+  type DatabaseScope,
+} from "./support/pglite";
+
+/*
+ * CLOSE WHAT THE FIXTURES OPEN.
+ *
+ * Each of these is a Postgres compiled to WASM, and this file opens one per
+ * case. Leaving them open leaves live handles in the forked worker, so the
+ * worker does not exit on its own and Vitest tears the pool down underneath
+ * it — and a message in flight on a closing IPC channel throws, which Vitest
+ * records as an UNHANDLED ERROR and turns into exit code 1 while its JSON
+ * report is already written and green. That is the whole of the runner-level
+ * exit this suite could not explain.
+ */
+afterEach(closeTestDatabases);
+afterAll(closeSuiteDatabases);
 
 /**
  * The migrations, against a real Postgres.
@@ -44,8 +64,11 @@ function sql(file: string): string {
  * database without them would silently skip the half of this schema that is
  * access control.
  */
-async function database(stopBefore: string = RETENTION): Promise<PGlite> {
-  const db = await new PGlite();
+async function database(
+  stopBefore: string = RETENTION,
+  scope: DatabaseScope = "test",
+): Promise<PGlite> {
+  const db = await openDatabase(scope);
   await db.exec(`
     create role anon nologin;
     create role authenticated nologin;
@@ -142,7 +165,8 @@ describe("historical rows survive the migration as what they are", () => {
 
   beforeAll(async () => {
     // Everything up to, but not including, the migration under test.
-    db = await database(EXPAND);
+    /* SUITE-SCOPED: every test in this block reads it. */
+    db = await database(EXPAND, "suite");
 
     /*
      * Written the way they really were: through the façade the old code called.
@@ -468,7 +492,8 @@ describe("the database refuses an incoherent audit row", () => {
 
   let db: PGlite;
   beforeAll(async () => {
-    db = await database();
+    /* SUITE-SCOPED: every rejection case below reuses this one database. */
+    db = await database(RETENTION, "suite");
   });
 
   it("accepts the coherent shape it is derived from", async () => {
