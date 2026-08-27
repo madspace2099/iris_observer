@@ -246,7 +246,7 @@ describe("suite-level failures are their own evidence", () => {
     });
     expect(r.reasons.join(" ")).toContain("package-generation.test.ts");
     /* A basename, never a path — a path is machine-identifying detail. */
-    expect(r.reasons.join(" ")).not.toMatch(/[\/]/);
+    expect(r.reasons.join(" ")).not.toMatch(/[/\\]/);
   });
 
   it("still fails on a non-zero exit with a wholly successful report", () => {

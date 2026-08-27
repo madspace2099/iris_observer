@@ -218,7 +218,7 @@ describe("the documented sequence is honest about its inputs", () => {
      */
     for (const m of review.matchAll(/reproducible from tracked files alone/gi)) {
       const before = review.slice(Math.max(0, (m.index ?? 0) - 60), m.index ?? 0);
-      expect(before, `unqualified claim near index ${String(m.index)}`).toMatch(/NOT|not/i);
+      expect(before, `unqualified claim near index ${String(m.index)}`).toMatch(/NOT|not/i);
     }
     expect(review).toMatch(/gate record/i);
   });

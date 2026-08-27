@@ -247,21 +247,36 @@ function main(): void {
   record("pnpm build", "pnpm build", ["build"]);
   record("secret audit", "secret audit", ["audit:secrets"]);
 
-  /* Raw NUL bytes in a tracked file break tooling in ways that hide. */
+  /*
+   * Every C0 control character, not only NUL.
+   *
+   * The scan looked for 0x00 alone until a shell-escaping slip injected literal
+   * BACKSPACE bytes into two regular expressions in this repository — twice,
+   * in one milestone. `/\x08FAILED\x08/` looks exactly like `/FAILED/` in an
+   * editor and matches nothing, so a gate check was silently disabled and the
+   * NUL scan reported clean. Tab, newline and carriage return are the only
+   * control characters a source file has any business containing.
+   */
   const nul = git("ls-files", "-z")
     .split("\0")
     .filter((f) => f.length > 0)
     .filter((f) => {
       try {
-        return readFileSync(join(REPO_ROOT, f)).includes(0);
+        const bytes = readFileSync(join(REPO_ROOT, f));
+        for (let code = 0; code < 32; code += 1) {
+          if (code === 9 || code === 10 || code === 13) continue;
+          if (bytes.includes(code)) return true;
+        }
+        return false;
       } catch {
         return false;
       }
     });
   console.log(
-    `  ${"raw-NUL scan".padEnd(24)}${nul.length === 0 ? "0 in any tracked file" : `${nul.length} FOUND`}`,
+    `  ${"control-char scan".padEnd(24)}${nul.length === 0 ? "0 control characters in any tracked file" : `${nul.length} FOUND`}`,
   );
-  gates["raw-NUL scan"] = nul.length === 0 ? "0 in any tracked file" : `${nul.length} FOUND`;
+  gates["raw-NUL scan"] =
+    nul.length === 0 ? "0 control characters in any tracked file" : `${nul.length} FOUND`;
   if (nul.length > 0) failed += 1;
 
   /* The wrappers must still match their sources. */

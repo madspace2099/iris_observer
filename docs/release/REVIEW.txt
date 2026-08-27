@@ -191,7 +191,16 @@ the comparison "establishes that no query was made" is gone, and so is its
 inverse. That this milestone made no external access is an OPERATOR DECLARATION,
 labelled as one.
 
-F — A HEADING NAMED THE WRONG COMMIT.
+F — THE CONTROL-CHARACTER SCAN LOOKED FOR ONE BYTE.
+
+Twice in this milestone a shell-escaping slip injected literal BACKSPACE bytes
+into a regular expression in this repository. `/FAILED/` is
+indistinguishable from `/FAILED/` in an editor and matches nothing, so a gate
+check was silently disabled — and the raw-NUL scan, which looked for 0x00 only,
+reported clean. It scans every C0 control character now, tab, newline and
+carriage return excepted, and it found both occurrences.
+
+G — A HEADING NAMED THE WRONG COMMIT.
 
 `PEPPER-CONTRACT.txt` said "Commit f1dbffd" while its contents had changed in
 four later milestones. It renders the current HEAD and labels f1dbffd as the
