@@ -583,7 +583,12 @@ function main(): void {
     say("");
     say(`  archive   ${relative(REPO_ROOT, first.archive).split(sep).join("/")}`);
     say(`  entries   ${first.entries} (${first.manifest} in the manifest, plus hashes.txt)`);
-    say(`  staged    ${describeScan(first.staged)} control characters`);
+    /* Three results, three lines. Never one number standing for all of them. */
+    say(`  control   tracked tree: see the gate record`);
+    say(`            staged package: ${describeScan(first.staged)}`);
+    say(
+      `            written archive: ${String(first.inArchive.foundCharacters)} in ${String(first.inArchive.entries)} entries`,
+    );
     say(`  SHA-256   ${first.sha}`);
 
     if (verify) {
