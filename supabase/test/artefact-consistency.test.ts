@@ -124,8 +124,14 @@ describe("the pepper contract separates project mapping from pepper metadata", (
   const text = (): string => read(PEPPER);
 
   it("reads the Supabase project from the non-secret URL, not from metadata", () => {
-    expect(text()).toMatch(/PART ONE — PROJECT MAPPING, FROM A NON-SECRET VALUE/);
-    expect(text()).toMatch(/SUPABASE_URL/);
+    expect(text()).toMatch(/PART ONE — PROJECT MAPPING, FROM ONE NON-SECRET SERVER-SIDE VALUE/);
+    /*
+     * Standalone, not loose: `SUPABASE_URL` is a suffix of
+     * `NEXT_PUBLIC_SUPABASE_URL`, so a bare match passes on a document naming
+     * only the public variable. supabase/test/project-mapping.test.ts carries
+     * the full rule; this asserts the section exists and names the right one.
+     */
+    expect(text()).toMatch(/(?<![A-Z0-9_])SUPABASE_URL\b/);
     expect(text()).toMatch(/project ref/i);
   });
 

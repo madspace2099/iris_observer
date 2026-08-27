@@ -4,13 +4,20 @@ Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
 THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
 been reviewed.
 
-Scope: artefact consistency. The contract migration's own instructions still
-described the superseded retirement policy; four operational artefacts
-disagreed with the corrected one; the no-secret-recipe guard did not do what its
-comment claimed; and the documented package-generation sequence could not be
-run twice. NO EXECUTABLE MIGRATION SQL CHANGED. The application code, the
-request-ID implementation, the HTTP verifier and the AI-readiness logic were not
-touched.
+Scope: one defect, in documentation and tests only. The preflight rule for
+proving WHICH SUPABASE PROJECT a deployment writes to treated
+`NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_URL` as interchangeable, and claimed
+the server-side variable was compiled into the browser bundle. Neither is true.
+
+NOTHING ELSE MOVED. No application runtime code, no executable migration SQL, no
+SQL verifier, no migration source. The recorded live snapshot was NOT refreshed —
+no Supabase query was made this round, and the hour count is the one observed
+last round, deliberately unchanged.
+
+Sections 1 to 8 below carry the whole cumulative record for this release
+candidate, not just this round's change; section 1 opens with what this round
+corrected and then keeps the preceding rounds' findings, because a reviewer
+reading one bundle should not have to reconstruct the others.
 
 
 ================================================================================
@@ -70,6 +77,65 @@ NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
 1. WHAT THIS ROUND FIXED
 ================================================================================
 
+THIS ROUND — a preflight step could have proved the wrong database.
+
+Step 1 of the rollout exists to establish which Supabase project each Vercel
+environment writes to, because every claim in this package about rows, buckets
+and versions is about ONE database. The rule it gave was:
+
+    read `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL` … the URL is public —
+    it is compiled into the browser bundle — so reading it exposes nothing
+
+Two separate errors in one instruction, and the second one hides the first.
+
+THEY ARE NOT INTERCHANGEABLE. `SUPABASE_URL` is the server-side variable the
+durable audit and quota path writes through — "Server-only. Never NEXT_PUBLIC_,
+never logged" in both `.env.example` and the environment schema.
+`NEXT_PUBLIC_SUPABASE_URL` is a separately named, optional, browser-exposed
+variable. They can be absent, stale, or name DIFFERENT PROJECTS. An operator
+following the "or" would have been entitled to read the public one, find the
+approved ref, and record the mapping as proved — while the route wrote somewhere
+else entirely.
+
+`SUPABASE_URL` IS NOT IN THE BROWSER BUNDLE. Next.js inlines a variable into
+the client bundle if and only if its name begins with `NEXT_PUBLIC_`. The
+sentence justified reading either variable by a property only one of them has,
+which is exactly how a reader concludes the two are equivalent.
+
+THE RULE IS NOW EXACT: inspect the standalone `SUPABASE_URL` for every relevant
+environment, extract and record ONLY the project reference, require it to equal
+the approved Observer project, never substitute the public variable, use the
+public one only as a secondary consistency check, STOP if the two name different
+projects, PAUSE for Matthew if the tooling cannot show the non-secret value
+without also exposing a secret, and read no secret value.
+
+AND ONE STATE THE REVIEW DID NOT NAME, found by reading the resolver rather than
+the documentation. `apps/web/src/lib/supabase-env.ts` resolves the destination
+from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]` IN THAT ORDER, first
+set-and-usable wins. So `NEXT_PUBLIC_SUPABASE_URL` is not merely browser
+diagnostics: when `SUPABASE_URL` is unset or blank, the SERVER falls back to it.
+That makes the rule tighter rather than looser — an absent `SUPABASE_URL` is not
+"no destination", it is a silent fallback through a browser-exposed variable,
+and the preflight now records it as a finding rather than as a mapping. (A
+MALFORMED `SUPABASE_URL` does not fall back at all: the resolver stops at the
+first name that is set, and reports it unusable.)
+
+The regression tests reject both orderings of the substitution wording, assert
+against a STANDALONE variable name rather than a loose match — `SUPABASE_URL` is
+a suffix of `NEXT_PUBLIC_SUPABASE_URL`, so a naive check passes on a document
+that never mentions the server variable at all — and require every one of the
+eight rule points to be present in both the runbook and the pepper contract.
+
+WHAT DID NOT CHANGE, and was verified rather than assumed: all eight migration
+sources byte-identical to `6889aa0`, all executable migration SQL unchanged,
+every SQL verifier byte-identical, no application runtime code touched.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW, unchanged. They are the record of how
+  this release candidate reached its current state, and a reviewer holding only
+  this bundle needs them.
+  ---------------------------------------------------------------------------
+
 FINDING 1 — the migration that performs the retirement told the operator the
 wrong retirement policy.
 
@@ -121,10 +187,13 @@ FINDING 3 — four operational artefacts still carried the superseded policy.
     differ attached.
   * `PEPPER-CONTRACT.txt` said the preflight determines project mapping
     "THROUGH METADATA ONLY". Names and scopes cannot prove which database a
-    deployment talks to — the project is in `SUPABASE_URL`'s VALUE, which is
-    compiled into the browser bundle and is not a secret. Split into part one
-    (mapping, from the non-secret URL) and part two (pepper presence, type and
-    scope, from metadata), with neither reading a secret value.
+    deployment talks to — the project is in the VALUE of the server-side
+    `SUPABASE_URL`, and that value is not a secret. Split into part one
+    (mapping, from that non-secret value) and part two (pepper presence, type
+    and scope, from metadata), with neither reading a secret value. The split
+    itself was right; the replacement text was not, and the round after it
+    corrected the substitution and the browser-bundle claim — see the head of
+    this section.
   * `COMPATIBILITY-EVIDENCE.txt` used `c6fdc73` as the current candidate a
     commit after it stopped being one, quoted an oldest-bucket age the snapshot
     contradicted, claimed the inventory was unchanged across "seven
@@ -322,7 +391,9 @@ Not executed. Steps 1-2 are read-only. Guarded by
    1. Read-only preflight in two separable parts: (i) Git, Supabase catalogue
       and a deployment inventory paginated TO EXHAUSTION; (ii) pepper presence,
       type and scope as METADATA ONLY, and Supabase project mapping from the
-      NON-SECRET `SUPABASE_URL`.
+      project ref inside the NON-SECRET, SERVER-SIDE `SUPABASE_URL` — never
+      from `NEXT_PUBLIC_SUPABASE_URL`, which is a secondary consistency check
+      only and STOPS the rollout if it names a different project.
    2. Explicit operator approval, and the pepper-state decision.
    3. Reuse, create or explicitly rotate the pepper per the safe branch.
    4. Redeploy exact SHA `3f298a6` as a fresh Preview, without pushing.

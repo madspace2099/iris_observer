@@ -225,7 +225,17 @@ describe("the runbook does not over-read UNKNOWN", () => {
      * secret; the key beside it is.
      */
     expect(TEXT).toMatch(/Names and scopes cannot prove which Supabase project/i);
-    expect(TEXT).toMatch(/inspect \*\*`SUPABASE_URL`\*\*/i);
+    /*
+     * Anchored so the tail of NEXT_PUBLIC_SUPABASE_URL cannot satisfy it. The
+     * second edition of this rule said to read "NEXT_PUBLIC_SUPABASE_URL or
+     * SUPABASE_URL", which is not a smaller mistake than the first: they are
+     * separately named variables and only the server-side one is what the
+     * route writes through.
+     */
+    expect(TEXT).toMatch(/inspect the non-secret value of `(?<![A-Z0-9_])SUPABASE_URL`/i);
+    expect(TEXT).toMatch(/never use\*?\*? `NEXT_PUBLIC_SUPABASE_URL` as a substitute/i);
+    expect(TEXT).not.toContain("NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL");
+    expect(TEXT).not.toContain("SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL");
     expect(TEXT).toMatch(/never\*\* read or print `SUPABASE_SECRET_KEY`/i);
     // And the pepper half stays metadata-only.
     expect(TEXT).toMatch(/Nothing in \(ii\) reads a value/i);

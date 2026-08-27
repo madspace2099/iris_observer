@@ -247,17 +247,68 @@ DECIDING THE PEPPER STATE WITHOUT TOUCHING A SECRET
 
 The preflight has TWO PARTS, and they read different things. Collapsing them
 into one line that said "through metadata only" was wrong in a way that mattered:
-names and scopes cannot tell you which database a deployment talks to. Every
-environment has a `SUPABASE_URL`; the project is in its VALUE, and that value is
-not a secret.
+names and scopes cannot tell you which database a deployment talks to. The
+project is in the VALUE of the SERVER-SIDE `SUPABASE_URL`, and that value is not
+a secret.
 
-  PART ONE — PROJECT MAPPING, FROM A NON-SECRET VALUE
+  PART ONE — PROJECT MAPPING, FROM ONE NON-SECRET SERVER-SIDE VALUE
 
-    1. read `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL` for each Vercel
-       environment and extract the project ref;
-    2. record only whether it equals the expected ref for the Observer project.
-       The URL is public — it is compiled into the browser bundle — so reading
-       it exposes nothing. Record the REF, never a key.
+  THE TWO VARIABLES ARE NOT INTERCHANGEABLE. A previous edition of this file
+  offered the public one and the server one as alternatives, joined by "or", as
+  though either would answer the question. They are separately named variables
+  that can be absent, stale or point at DIFFERENT PROJECTS, and only one of them
+  is what the durable audit and quota path writes through. That wording is not
+  quoted here: an instruction an operator can skim and act on does not belong in
+  the file that replaces it.
+
+    1. INSPECT THE NON-SECRET VALUE OF `SUPABASE_URL` for every relevant Vercel
+       environment. Standalone: the server-side variable, not a public one that
+       happens to end with the same characters.
+    2. EXTRACT AND RECORD ONLY ITS SUPABASE PROJECT REFERENCE — for example
+       `tfcchobwobpadenampyh`. Not the whole URL, not a key, not a token.
+    3. REQUIRE THAT REFERENCE TO EQUAL THE APPROVED OBSERVER PROJECT. A
+       different ref is a different database, and every claim in this package
+       about rows, buckets and versions is about the approved one.
+    4. NEVER USE `NEXT_PUBLIC_SUPABASE_URL` AS A SUBSTITUTE. It cannot answer
+       the question: when `SUPABASE_URL` is set, the server uses that and
+       ignores the public one entirely, so the public value may be stale, may
+       name another project, and would still tell you nothing about where the
+       route writes.
+    5. IF `NEXT_PUBLIC_SUPABASE_URL` EXISTS, USE IT ONLY AS A SECONDARY
+       CONSISTENCY CHECK — never as the source of the answer.
+    6. IF THE PUBLIC AND SERVER URLS NAME DIFFERENT PROJECTS, STOP. The browser
+       and the server are then talking to two databases, and nothing downstream
+       in this rollout is safe to reason about until that is explained.
+    7. IF THE TOOLING CANNOT EXPOSE THE NON-SECRET `SUPABASE_URL` WITHOUT ALSO
+       EXPOSING A SECRET, PAUSE for Matthew to read it directly in the Vercel
+       dashboard. Do not widen the read to get the answer.
+    8. DO NOT READ `SUPABASE_SECRET_KEY`, `OBSERVER_SUBJECT_PEPPER`,
+       `OPENAI_API_KEY` or any other secret value.
+
+  ONE MORE STATE, AND IT IS NOT A MAPPING. `apps/web/src/lib/supabase-env.ts`
+  resolves the destination from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]`
+  IN THAT ORDER, first set-and-usable wins. So an ABSENT `SUPABASE_URL` does not
+  mean "no destination": the server silently falls back to the public variable.
+  Record that as A FALLBACK IN EFFECT, not as a mapping, and treat it as a
+  finding — a server-side write path resolving through a browser-exposed
+  variable is a configuration nobody chose on purpose.
+
+  WHAT IS AND IS NOT PUBLIC, stated exactly, because the previous edition of
+  this file got it backwards:
+
+    * the Supabase URL and the project reference it contains ARE NOT SECRET.
+      Reading either exposes nothing;
+    * the SERVER-SIDE `SUPABASE_URL` IS AUTHORITATIVE for where the Observer
+      route writes. It is marked "Server-only. Never NEXT_PUBLIC_, never
+      logged" in `.env.example` and in the environment schema;
+    * ONLY THE SEPARATELY NAMED `NEXT_PUBLIC_SUPABASE_URL` IS CLIENT-EXPOSED.
+      Next.js inlines a variable into the browser bundle if and only if its
+      name begins with `NEXT_PUBLIC_`; `SUPABASE_URL` therefore is NOT
+      compiled into the browser bundle, and the earlier claim that it was is
+      simply false;
+    * CLIENT EXPOSURE DOES NOT ESTABLISH THE SERVER TARGET. What the browser
+      was built to call and what the route handler writes to are two facts,
+      and only the second one is what this step exists to prove.
 
   PART TWO — PEPPER STATE, FROM METADATA ONLY
 

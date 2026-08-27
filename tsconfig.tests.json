@@ -39,6 +39,7 @@
     "supabase/test/contract-policy.test.ts",
     "supabase/test/artefact-consistency.test.ts",
     "supabase/test/package-generation.test.ts",
+    "supabase/test/project-mapping.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }
