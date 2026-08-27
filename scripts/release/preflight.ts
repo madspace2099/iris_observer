@@ -382,6 +382,112 @@ export function confirmManualMapping(input: ManualConfirmationInput): MappingOut
   }
 }
 
+/**
+ * THE recorded manual preflight observation. One object; every document renders
+ * from it.
+ *
+ * The delivered `c1b80f0` archive printed Preview as `MAPPED / PASS / via
+ * manual` in a hand-maintained table while the rule that decides that verdict
+ * had already been corrected to require the public row as well. Verdict text
+ * duplicated beside the rule is verdict text that can disagree with it, so the
+ * text is now derived: the observation is stated once, and
+ * {@link renderObservedMapping} runs it through the same classifier the tests
+ * exercise.
+ *
+ * WHAT WAS ACTUALLY OBSERVED. Matthew read the Preview `SUPABASE_URL` row in
+ * the Vercel dashboard, character for character, as the complete canonical
+ * origin. Nobody looked for the `NEXT_PUBLIC_SUPABASE_URL` row — so its state
+ * is `unobserved`, which is not `absent`, and Preview is therefore PAUSE.
+ */
+export interface RecordedEnvironmentObservation {
+  readonly environment: string;
+  /**
+   * THREE STATES, for the same reason the public row has three.
+   *
+   * `observedServer: string | undefined` could not tell "nobody looked" from
+   * "somebody looked and there was no row", and those reach different states:
+   * the first is MANUAL_OBSERVATION_ABSENT, an incomplete confirmation, and the
+   * second is SERVER_URL_ABSENT, a finding about the environment. Production is
+   * the second — Matthew looked, and Production has no `SUPABASE_URL` — and it
+   * was classifying as the first, so the rendered verdict named a state that
+   * misdescribed what had happened even though both are STOP.
+   */
+  readonly observedServer: PublicObservation;
+  readonly observedPublic: PublicObservation;
+  /** When it was read. Time of day was not recorded, and is not invented. */
+  readonly observedOn: string;
+}
+
+export const OBSERVED_MAPPINGS: readonly RecordedEnvironmentObservation[] = [
+  {
+    environment: "Preview",
+    /*
+     * The COMPLETE origin, not the bare ref. A bare ref cannot show that the
+     * configured value had the required origin shape — it is what survives
+     * extraction, not what was configured — so the full string is what is kept.
+     */
+    observedServer: publicPresent("https://tfcchobwobpadenampyh.supabase.co"),
+    observedPublic: PUBLIC_UNOBSERVED,
+    observedOn: "2026-08-27",
+  },
+  {
+    environment: "Production",
+    /* Looked for, and not there — which is a finding, not a gap in the record. */
+    observedServer: PUBLIC_ABSENT,
+    observedPublic: PUBLIC_UNOBSERVED,
+    observedOn: "2026-08-27",
+  },
+];
+
+/** The verdict for one recorded observation, from the classifier itself. */
+export function classifyObservation(
+  o: RecordedEnvironmentObservation,
+  approvedRef: string,
+): MappingOutcome {
+  switch (o.observedServer.kind) {
+    /* Nobody looked: the confirmation is incomplete, not a finding. */
+    case "unobserved":
+      return outcome("MANUAL_OBSERVATION_ABSENT");
+    /* Somebody looked and there was no row: a finding about the environment. */
+    case "absent":
+      return outcome("SERVER_URL_ABSENT");
+    case "present":
+      return confirmManualMapping({
+        observedServer: o.observedServer.value,
+        approvedRef,
+        observedPublic: o.observedPublic,
+      });
+  }
+}
+
+/** The carried-forward preflight result, rendered rather than restated. */
+export function renderObservedMapping(approvedRef: string, indent = "  "): string {
+  const rows = OBSERVED_MAPPINGS.map((o) => {
+    const out = classifyObservation(o, approvedRef);
+    const server =
+      o.observedServer.kind === "unobserved"
+        ? "NOT OBSERVED"
+        : o.observedServer.kind === "absent"
+          ? "observed absent"
+          : o.observedServer.value;
+    const pub =
+      o.observedPublic.kind === "unobserved"
+        ? "NOT OBSERVED"
+        : o.observedPublic.kind === "absent"
+          ? "observed absent"
+          : o.observedPublic.value;
+    return [
+      `${indent}${o.environment.padEnd(12)}${out.state.padEnd(26)}${out.verdict}`,
+      `${indent}    SUPABASE_URL              ${server}`,
+      `${indent}    NEXT_PUBLIC_SUPABASE_URL  ${pub}`,
+      `${indent}    ref recorded              ${out.ref ?? "(none — no mapping was proved)"}`,
+      `${indent}    established via           ${out.via ?? "(none — no mapping was proved)"}`,
+      `${indent}    observed on               ${o.observedOn}; exact time not recorded`,
+    ].join("\n");
+  });
+  return rows.join("\n\n");
+}
+
 /** The table as the documents render it. */
 export function renderMappingTable(indent = "  "): string {
   const rows = PROJECT_MAPPING_STATES.map((s) => {

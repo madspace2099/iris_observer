@@ -169,7 +169,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
     ["absent", undefined],
     ["empty", ""],
     ["whitespace", "   "],
-  ])("STOPs with FALLBACK_IN_EFFECT when the server URL is %s", (_why, value) => {
+  ])("STOPs with SERVER_URL_ABSENT when the server URL is %s", (_why, value) => {
     const outcome = classifyProjectMapping({
       serverUrl: value,
       publicUrl: APPROVED_URL,

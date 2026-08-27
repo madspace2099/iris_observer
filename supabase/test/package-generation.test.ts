@@ -241,9 +241,10 @@ describe("package generation refuses rather than lying", () => {
       expectedHead: undefined,
       dirty: [],
       gateProblems: [],
+      lockProblems: [],
     };
 
-    it("permits packaging when all three hold", () => {
+    it("permits packaging when every precondition holds", () => {
       expect(packagingProblems(clean)).toEqual([]);
     });
 

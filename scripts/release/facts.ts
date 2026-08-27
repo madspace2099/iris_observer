@@ -24,8 +24,9 @@ import {
   INVENTORY_RECORDED_IN,
   LAST_VERCEL_ENUMERATION,
   DELIVERED_ARCHIVES,
+  outcomeOf,
 } from "./live-snapshot";
-import { renderMappingTable } from "./preflight";
+import { renderMappingTable, renderObservedMapping, APPROVED_PROJECT_REF } from "./preflight";
 
 export const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
@@ -61,6 +62,14 @@ export const fileShaAt = (commit: string, path: string): string =>
  * of the last commit and useless to a reviewer — who is holding the previous
  * ZIP and wants to know what moved since THAT. Falls back to the parent only
  * if no bundle has been delivered yet.
+ *
+ * THE BASELINE IS ITS OWN FACT. It is the most recent archive HANDED OVER —
+ * not the most recent one accepted, and not the point Vercel was last
+ * enumerated for. Those three had drifted apart: five archives were delivered
+ * after `e18f860` without being declared here, so every "unchanged since"
+ * line in this package was measured against a baseline five deliveries stale
+ * while claiming to span the milestone. The list is the single input, so
+ * declaring a delivery moves the baseline and nothing else has to be edited.
  */
 export function baselineCommit(): string {
   const last = DELIVERED_ARCHIVES[DELIVERED_ARCHIVES.length - 1]?.bundle;
@@ -154,8 +163,39 @@ export interface GateResults {
 }
 
 /** Gate results written by `scripts/release/run-gates.ts`, if that has run. */
+/**
+ * The evidence THIS BUILD captured, if a build is in progress.
+ *
+ * Set once by the packager and read by the renderers, so the documents and the
+ * staged `gate-results.json` come from one object rather than two reads of a
+ * file that can change between them. Outside a build it is null and the
+ * renderers fall back to reading the record, which is right for the local
+ * console but never for an archive.
+ */
+let captured: GateResults | null = null;
+
+/** Install the captured projection for the duration of one build. */
+export function useCapturedGateResults(record: unknown): void {
+  captured = record as GateResults | null;
+}
+
 export function readGateResults(): GateResults | null {
-  const path = join(REPO_ROOT, ".release", "gate-results.json");
+  if (captured !== null) return captured;
+  return readGateResultsFromDisk();
+}
+
+/**
+ * Exported and rooted so the behaviour can be TESTED, not just described.
+ *
+ * The three conditions below were previously covered by assertions that read
+ * this function's source text and matched patterns in it. That proves the
+ * source says something; it does not prove the reader does it, and the defect
+ * these guard against cost an authoritative gate run. A root parameter lets a
+ * test build each shape in a temporary directory and observe the answer,
+ * without touching the working `.release/` a real gate writes to.
+ */
+export function readGateResultsFromDisk(root: string = REPO_ROOT): GateResults | null {
+  const path = join(root, ".release", "gate-results.json");
   if (!existsSync(path)) return null;
   let parsed: unknown;
   try {
@@ -581,6 +621,11 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   /* Prior deliveries, excluding the candidate this package will become. */
   const priorBundles = INVENTORY_RECORDED_IN.filter((b) => b !== headShort);
   const bundles = word(priorBundles.length).toLowerCase();
+  /* Rejections are the only outcome with evidence; nothing else is named. */
+  const rejected = DELIVERED_ARCHIVES.map((a) => a.bundle).filter(
+    (b) => outcomeOf(b) === "rejected",
+  );
+  const lastDelivered = `\`${DELIVERED_ARCHIVES.at(-1)?.bundle ?? "none"}\``;
 
   return {
     HEAD: head,
@@ -595,6 +640,11 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
      * "gathered for this commit" — the enumeration is older than both.
      */
     LAST_ENUMERATION: LAST_VERCEL_ENUMERATION,
+    /*
+     * Rendered from the one recorded observation through the real classifier,
+     * so a document cannot state a verdict the rule would not reach.
+     */
+    OBSERVED_MAPPING_BLOCK: renderObservedMapping(APPROVED_PROJECT_REF),
 
     LOCAL_ONLY_SENTENCE: wrap(
       localOnlyShorts,
@@ -610,14 +660,53 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     ].join("\n"),
     NOT_DEPLOYED_BLOCK: wrap(notDeployed, "  NOT DEPLOYED: ", "  "),
 
+    /*
+     * SIX FACTS, SEPARATED, AND EVERY COUNT DERIVED.
+     *
+     * One list was doing the work of all of them, and the words were used
+     * interchangeably: a package called itself the successor to ten
+     * DELIVERED bundles while its own most recent predecessor had been
+     * reviewed and REJECTED, and while the baseline it measured against was
+     * five deliveries stale. A typed count is a count that goes stale, so
+     * every number below is read from the declaration.
+     */
+    PROVENANCE_BLOCK: [
+      `  handed over          ${word(DELIVERED_ARCHIVES.length).toLowerCase()} archives, ${headShort} excluded — it does not`,
+      "                       exist until this one is built.",
+      `  independently        NONE recorded. ${word(rejected.length).toLowerCase()} ${rejected.length === 1 ? "is" : "are"} known to have been`,
+      `  accepted             REJECTED: ${rejected.map((b) => `\`${b}\``).join(", ")}${rejected.length > 0 ? `, the most recent of` : ""}`,
+      `                       them. The rest are UNREVIEWED, which is not`,
+      "                       acceptance — absence of a rejection is only",
+      "                       absence of a rejection.",
+      `  current candidate    ${headShort}. ${lastDelivered} is a PRIOR DELIVERED AND`,
+      "                       REJECTED candidate, not this one.",
+      "  byte-comparison      the most recent archive handed over. It follows",
+      `  baseline             the list, so declaring a delivery moves it: it is`,
+      `                       ${parentShort} here. It had been pinned to \`e18f860\``,
+      "                       while five later archives went out, so every",
+      '                       "unchanged since" line spanned the wrong interval.',
+      `  inventory recorded   ${word(priorBundles.length).toLowerCase()} bundles carry the same recorded Vercel`,
+      "  in                   inventory. Later identical tables prove the table",
+      "                       was carried forward, and nothing else.",
+      `  last ENUMERATED      \`${LAST_VERCEL_ENUMERATION}\`, and not since. An explicit constant.`,
+      "                       Moving it requires a real Vercel enumeration,",
+      "                       which is an external access with its own",
+      "                       authorisation.",
+    ].join("\n"),
+
     INVENTORY_UNCHANGED_SENTENCE: [
       "",
-      `RECORDED IDENTICALLY in ${bundles} previously delivered bundles, and again`,
-      "in this candidate package — which is consistency, not freshness. Those are",
-      "three separate facts and only the first two are established here:",
+      `RECORDED IDENTICALLY in ${bundles} archives handed over before this one, and`,
+      "again in this candidate — which is consistency, not freshness, and not",
+      "acceptance. These are separate facts and only some are established here:",
       "",
-      `  recorded in           ${bundles} prior bundles + this candidate`,
+      `  recorded in           ${bundles} prior archives + this candidate`,
+      `  handed over           ${String(DELIVERED_ARCHIVES.length)} archives, of which ` +
+        `${String(DELIVERED_ARCHIVES.filter((a) => outcomeOf(a.bundle) === "rejected").length)} were reviewed and REJECTED`,
+      "  independently accepted  NONE recorded — absence of a rejection is not",
+      "                        acceptance, so no archive is called accepted here",
       `  last ENUMERATED for   ${LAST_VERCEL_ENUMERATION}, and not since`,
+      `  byte-comparison base  ${parentShort}`,
       "  currently accurate    UNKNOWN — no Vercel enumeration in this milestone",
       "",
       "An earlier edition derived the enumeration point from the last entry of the",

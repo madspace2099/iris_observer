@@ -113,6 +113,11 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "f1dbffd",
   "6889aa0",
   "e18f860",
+  "166be98",
+  "1b8b912",
+  "7ac84fa",
+  "aa579a4",
+  "c1b80f0",
 ];
 
 /**
@@ -150,7 +155,42 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
   { bundle: "f1dbffd", sha256: "7b36f149ffa9bd0a54e84c2ce956c5cadb15fff3e09900c07adac6649e36858d" },
   { bundle: "6889aa0", sha256: "f9830ad79249367fc0f3df1b25ca4df942261c9857e4bb6972191d1da8f3b7c5" },
   { bundle: "e18f860", sha256: "29abdb4168763caa93b976e2ac7018ba2f2d61e8fb5a03f9599ef03f964a5896" },
+  { bundle: "166be98", sha256: "da4dd7917ea08bcfec114294c0891fe586955b972134047653f68c90e3ffdf9d" },
+  { bundle: "1b8b912", sha256: "009e9a835354dbbe1df944034d15617ac0076479d05b7a6e61096785adb59c9c" },
+  { bundle: "7ac84fa", sha256: "cab9eeaad0fc1936ecc05faf1c90e94f50d7dd59d817c24d49745f6e72c5200a" },
+  { bundle: "aa579a4", sha256: "e52e09fad3558e51b12decee13966cfd75d5edb2e225e237429d72c17ba2ba93" },
+  { bundle: "c1b80f0", sha256: "e6b8360f0653ea6a1371c5cc494323bc419a716b5ebfe6eaf11e0b71404133f8" },
 ];
+
+/**
+ * What happened to each delivered archive, which is not the same as delivering
+ * it.
+ *
+ * "Delivered" says an archive was handed over. It says nothing about whether
+ * anybody accepted it, and this repository has now shipped several that were
+ * independently reviewed and REJECTED — `c1b80f0` most recently, for staging a
+ * gate record its own contract refuses. Calling those "delivered bundles"
+ * without qualification reads as a record of accepted work.
+ *
+ * `unreviewed` is the honest default: absence of a rejection is not acceptance.
+ */
+export type ArchiveOutcome = "accepted" | "rejected" | "unreviewed";
+
+export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
+  /*
+   * Only outcomes with explicit evidence are named. Everything else stays
+   * `unreviewed` by omission rather than being promoted to accepted.
+   */
+  aa579a4: "rejected",
+  c1b80f0: "rejected",
+};
+
+export const outcomeOf = (bundle: string): ArchiveOutcome =>
+  ARCHIVE_OUTCOMES[bundle] ?? "unreviewed";
+
+/** Archives handed over that are not the current candidate. */
+export const priorDelivered = (candidate: string): readonly string[] =>
+  DELIVERED_ARCHIVES.map((a) => a.bundle).filter((b) => !candidate.startsWith(b));
 
 export interface Deployment {
   readonly target: "preview" | "production";

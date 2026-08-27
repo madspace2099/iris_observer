@@ -38,6 +38,7 @@ import {
   facts,
   render,
   git,
+  useCapturedGateResults,
   REPO_ROOT,
   strip,
   execSha,
@@ -50,7 +51,14 @@ import { walk, writeZip, scanArchive } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
-import { readGateRecord, gateRecordProblems, sanitizedRecord } from "./gate-contract";
+import {
+  readAttemptLock,
+  lockProblems,
+  readGateRecord,
+  gateRecordProblems,
+  captureEvidence,
+  type CapturedEvidence,
+} from "./gate-contract";
 import { scanDirectory, describeScan, type ControlCharacterScan } from "./control-chars";
 import { isDeclaredHistorical, transportSafeNote } from "./transport-safe";
 
@@ -85,13 +93,21 @@ export interface PreconditionInput {
   readonly dirty: readonly string[];
   /** Whatever `gateRecordProblems` said about the record. */
   readonly gateProblems: readonly string[];
+  /**
+   * Whatever {@link lockProblems} said about the attempt lock.
+   *
+   * REQUIRED, not optional. A caller who has not looked at the lock has not
+   * established that a gate run is not in flight, and an optional field would
+   * let "did not look" arrive here as "looked and it was free".
+   */
+  readonly lockProblems: readonly string[];
 }
 
 /**
  * Every reason this commit may not be packaged, from inputs rather than the
  * world.
  *
- * Pure, and that is the point. When these three checks read `process.env`, the
+ * Pure, and that is the point. When these checks read `process.env`, the
  * working tree and `.release/` directly, the only way to test them was to
  * arrange the real repository into each state — so the tests that covered them
  * were guarded on conditions like "a current green gate record exists", and
@@ -129,6 +145,21 @@ export function packagingProblems(input: PreconditionInput): readonly string[] {
    * otherwise looked complete. A reviewer then holds a package whose
    * verification section says, in small print, that there is none.
    */
+  /*
+   * A RUNNING ATTEMPT, BEFORE THE RECORD IT IS ABOUT TO REPLACE.
+   *
+   * Reported first because a caller who packages during a gate run wants to
+   * hear that, not a description of a record that is changing under them —
+   * and in the window before the new attempt writes its marker, the record on
+   * disk is still the PREVIOUS attempt's green one, which would package.
+   */
+  if (input.lockProblems.length > 0) {
+    problems.push(
+      `a gate attempt holds the gate, so nothing on disk may be packaged:\n` +
+        input.lockProblems.map((p) => `  ${p}`).join("\n"),
+    );
+  }
+
   if (input.gateProblems.length > 0) {
     problems.push(
       `the gate record is not current and clean:\n${input.gateProblems.map((p) => `  ${p}`).join("\n")}\n\n` +
@@ -153,27 +184,52 @@ export interface BuildOptions {
   readonly gateRecordRoot?: string;
 }
 
-function requireCleanHead(options: BuildOptions = {}): { head: string; short: string } {
+function requireCleanHead(options: BuildOptions = {}): {
+  head: string;
+  short: string;
+  evidence: CapturedEvidence;
+} {
   const head = git("rev-parse", "HEAD");
   const root = options.gateRecordRoot ?? REPO_ROOT;
+
+  /*
+   * READ ONCE. Everything after this point uses the captured projection, so no
+   * later step can see a different record than the one that was validated —
+   * and nothing re-reads `.release/gate-results.json` during the build.
+   */
+  const record = readGateRecord(root);
+
   const problems = packagingProblems({
     head,
     expectedHead: process.env["RELEASE_EXPECT_HEAD"],
     dirty: git("status", "--porcelain=v1")
       .split("\n")
       .filter((l) => l.trim().length > 0 && !l.includes(".release/")),
-    gateProblems: gateRecordProblems(readGateRecord(root), head),
+    gateProblems: gateRecordProblems(record, head),
+    lockProblems: lockProblems(readAttemptLock(root)),
   });
   if (problems.length > 0) throw new Refusal(problems.join("\n\n"));
 
-  return { head, short: head.slice(0, 7) };
+  /*
+   * The projection is validated by the SAME contract before anything may stage
+   * or render it. The delivered `c1b80f0` archive validated the source and
+   * shipped a projection that had silently lost its `pnpm test` verdict.
+   */
+  let evidence: CapturedEvidence;
+  try {
+    evidence = captureEvidence(record, head);
+  } catch (e) {
+    throw new Refusal((e as Error).message);
+  }
+
+  return { head, short: head.slice(0, 7), evidence };
 }
 
 /* -------------------------------------------------------------------------
    2. Staging: every input from a tracked source.
 ------------------------------------------------------------------------- */
 
-function stage(dir: string, options: BuildOptions = {}): void {
+function stage(dir: string, evidence: CapturedEvidence | null): void {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(join(dir, "patches"), { recursive: true });
   mkdirSync(join(dir, "supabase-migrations"), { recursive: true });
@@ -205,18 +261,15 @@ function stage(dir: string, options: BuildOptions = {}): void {
   copyAll("docs/release", "generators", (f) => f.endsWith(".json"));
 
   /*
-   * The sanitized gate record travels WITH the package, so the verification
-   * claims in REVIEW.txt section 7 can be checked against the machine-readable
-   * evidence they were rendered from rather than taken on the prose's word.
-   * Counts, verdicts, process metadata and suite basenames only.
+   * THE CAPTURED PROJECTION, WRITTEN VERBATIM.
+   *
+   * Not re-read, not re-projected, not re-serialised. The bytes staged here are
+   * the bytes the contract validated, and the same object rendered the
+   * documents — because the archive that shipped a staged record with no
+   * `pnpm test` gate got there by validating one object and staging another.
    */
-  const record = readGateRecord(options.gateRecordRoot ?? REPO_ROOT);
-  if (record === null) throw new Refusal("no gate record to stage");
-  writeFileSync(
-    join(dir, "gate-results.json"),
-    `${JSON.stringify(sanitizedRecord(record), null, 2)}\n`,
-    "utf8",
-  );
+  if (evidence === null) throw new Refusal("no captured evidence to stage");
+  writeFileSync(join(dir, "gate-results.json"), evidence.json, "utf8");
 }
 
 /**
@@ -577,11 +630,36 @@ export function build(
   /** The same measurement taken from the written archive, inflated. */
   inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
 } {
-  const { head, short } = requireCleanHead(options);
+  const { head, short, evidence } = requireCleanHead(options);
   say(`building the ${short} package`);
 
+  /*
+   * The documents render from the captured projection too, so section 7 and
+   * the staged `gate-results.json` cannot describe different runs.
+   */
+  useCapturedGateResults(evidence.staged);
+  try {
+    return buildFrom(outDir, short, head, evidence);
+  } finally {
+    useCapturedGateResults(null);
+  }
+}
+
+function buildFrom(
+  outDir: string,
+  short: string,
+  head: string,
+  evidence: CapturedEvidence,
+): {
+  archive: string;
+  sha: string;
+  entries: number;
+  manifest: number;
+  staged: ControlCharacterScan;
+  inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
+} {
   const dir = join(outDir, short);
-  stage(dir, options);
+  stage(dir, evidence);
   const copied = walk(dir).length;
   /* The evidence files are staged too; they are written by the render below. */
   const evidenceCount = readdirSync(join(REPO_ROOT, "docs/release")).filter((f) =>

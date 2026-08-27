@@ -1,8 +1,15 @@
-import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  acquireAttempt,
+  publishAttempt,
+  AttemptRefused,
+  readAttemptLock,
+  lockProblems,
+  isAttemptId,
+  GATE_LOCK_PATH,
   gateRecordProblems,
   sanitizedRecord,
   FORBIDDEN_STAGED_FIELDS,
@@ -14,7 +21,8 @@ import {
   type GateRecord,
 } from "../../scripts/release/gate-contract";
 import { packagingProblems } from "../../scripts/release/build-package";
-import { syntheticGateRecord } from "./support/synthetic-gate-record";
+import { readGateResultsFromDisk } from "../../scripts/release/facts";
+import { syntheticGateRecord, greenGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * A package may only be built from current, green gate evidence.
@@ -48,50 +56,33 @@ const OTHER = "2222222222222222222222222222222222222222";
 const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null };
 
 /** A record that should pass, so every failure case differs by one thing. */
+/**
+ * The green record these cases are calibrated against.
+ *
+ * STRUCTURE FROM THE SHARED BUILDER, numbers from here. Three files kept their
+ * own full copy of a green record, and every field the contract learned to
+ * require had to be added to all three; the ones that were missed failed as
+ * "the contract is broken" rather than "this fixture is stale". Only the counts
+ * this file actually asserts on are stated locally.
+ */
 function greenRecord(): GateRecord {
-  const gates: Record<string, string> = {};
-  const processes: Record<string, typeof cleanProcess> = {};
-  for (const gate of REQUIRED_GATES) {
-    gates[gate] = "clean";
-    processes[gate] = { ...cleanProcess };
-  }
-  gates["pnpm test"] = "1000 passed, 2 skipped, 0 failed / 40 files";
-  gates["raw-NUL scan"] = "0 in 300 files";
+  const base = greenGateRecord(HEAD);
   return {
-    head: HEAD,
+    ...base,
     controlCharacterScan: { scannedFiles: 300, foundCharacters: 0, affectedFiles: [] },
     tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: evenPerFile(40, 1002) },
     testGate: {
-      ...cleanProcess,
-      reportSuccess: true,
-      reportedFailedTests: 0,
-      countedFailedTests: 0,
-      reportedFailedSuites: 0,
-      runtimeErrorSuites: 0,
-      failedSuiteNames: [],
-      failedTests: [],
+      ...base.testGate,
       skippedTests: [
         { suite: "platform.test.ts", title: "skipped on this platform" },
         { suite: "platform.test.ts", title: "also skipped here" },
       ],
-      phase: "test",
-      reportWritten: true,
-      reportParsed: true,
-      reportCompleted: true,
-      reportedUnhandledErrors: 0,
-      sanitizedUnhandledErrorNames: [],
-      sanitizedUnhandledErrorCodes: [],
-      processStatus: 0,
-      processSignal: null,
-      processErrorCode: null,
-      durationMs: 164_000,
-      runner: "vitest 3.2.7",
-      workerPool: "forks",
-      workerCount: 4,
-      reasons: [],
     },
-    processes,
-    gates,
+    gates: {
+      ...base.gates,
+      "pnpm test": "1000 passed, 2 skipped, 0 failed / 40 files",
+      "raw-NUL scan": "0 in 300 files",
+    },
   };
 }
 
@@ -719,6 +710,7 @@ describe("an aborted attempt invalidates the record it replaced", () => {
       expectedHead: undefined,
       dirty: [],
       gateProblems: gateRecordProblems(readGateRecord(root), head),
+      lockProblems: [],
     });
     expect(problems.join(" ")).toMatch(/gate record is not current and clean/);
     expect(problems.join(" ")).toMatch(/started and did not finish/);
@@ -726,18 +718,37 @@ describe("an aborted attempt invalidates the record it replaced", () => {
 
   it("leaves no half-written record where the canonical one belongs", () => {
     /*
-     * The finished record is written to a pending path and RENAMED into place,
-     * so a process that dies mid-write cannot leave a truncated file that
-     * happens to parse.
+     * The finished record is built at a pending path and RENAMED into place, so
+     * a process that dies mid-write leaves a truncated file BESIDE the record
+     * rather than in place of it. Observed, not read off the source: the
+     * canonical path keeps the previous bytes until the rename happens.
      */
+    const root = mkdtempSync(join(tmpdir(), "observer-atomic-"));
+    const id = acquireAttempt(root, HEAD);
+    mkdirSync(join(root, ".release"), { recursive: true });
+    const canonical = join(root, GATE_RECORD_PATH);
+    writeFileSync(canonical, '{"before":true}', "utf8");
+    writeFileSync(`${canonical}.pending`, '{"truncated', "utf8");
+    expect(readFileSync(canonical, "utf8")).toBe('{"before":true}');
+    publishAttempt(root, id);
+    expect(readFileSync(canonical, "utf8")).toBe('{"truncated');
+    /* And a file that does not parse reads as no record at all. */
+    expect(readGateRecord(root)).toBeNull();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("invalidates the canonical record before the first gate, not after", () => {
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
-    expect(source).toMatch(/renameSync\(PENDING_PATH, RECORD_PATH\)/);
-    expect(source).toMatch(/writeFileSync\(\s*PENDING_PATH,/);
-    /* And the invalidation happens before any gate, not after. */
-    const begin = source.indexOf("beginAttempt(head)");
+    const acquire = source.indexOf("acquireAttempt(REPO_ROOT, head)");
+    const begin = source.indexOf("beginAttempt(head, attemptId)");
     const firstGate = source.indexOf('record("pnpm format:check"');
-    expect(begin).toBeGreaterThan(0);
+    expect(acquire).toBeGreaterThan(0);
+    /* Ownership first, so a runner that loses the race destroys nothing. */
+    expect(begin).toBeGreaterThan(acquire);
     expect(firstGate).toBeGreaterThan(begin);
+    /* And publication goes through the owner check, never a bare rename. */
+    expect(source).toContain("publishAttempt(REPO_ROOT, attemptId)");
+    expect(source).not.toMatch(/renameSync\(/);
   });
 
   it("does not erase separately preserved historical failure evidence", () => {
@@ -779,23 +790,239 @@ describe("the evidence renderer tolerates an attempt in progress", () => {
     rmSync(scratch, { recursive: true, force: true });
   });
 
+  /*
+   * BEHAVIOUR, NOT SOURCE TEXT. These used to grep this function's body for
+   * patterns, which proves what the source says and not what the reader does —
+   * and the defect they guard against cost an authoritative gate run. Each now
+   * writes the shape into a temporary root and reads the answer back.
+   */
+  const rootHolding = (body: string): string => {
+    const root = mkdtempSync(join(scratch, "root-"));
+    mkdirSync(join(root, ".release"), { recursive: true });
+    writeFileSync(join(root, ".release", "gate-results.json"), body, "utf8");
+    return root;
+  };
+
   it("treats the in-progress marker as no result rather than a broken one", () => {
-    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
-    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
-    expect(body).toContain("IN_PROGRESS");
-    expect(body).toMatch(/return null/);
+    const marker = { status: GATE_IN_PROGRESS, head: HEAD, startedAt: "2026-08-27T00:00:00.000Z" };
+    expect(readGateResultsFromDisk(rootHolding(JSON.stringify(marker)))).toBeNull();
   });
 
   it("treats a record with no totals as no result", () => {
-    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
-    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
-    expect(body).toMatch(/record\.tests === undefined/);
-    expect(body).toMatch(/perFile === undefined/);
+    expect(readGateResultsFromDisk(rootHolding(JSON.stringify({ head: HEAD })))).toBeNull();
+    const noPerFile = { head: HEAD, tests: { total: 1, passed: 1 } };
+    expect(readGateResultsFromDisk(rootHolding(JSON.stringify(noPerFile)))).toBeNull();
   });
 
   it("does not let a malformed file throw out of the reader", () => {
-    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
-    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
-    expect(body).toMatch(/catch\s*\{/);
+    expect(readGateResultsFromDisk(rootHolding("{ this is not json"))).toBeNull();
+    expect(readGateResultsFromDisk(rootHolding(""))).toBeNull();
+  });
+
+  it("answers null when there is no record at all, rather than throwing", () => {
+    expect(readGateResultsFromDisk(mkdtempSync(join(scratch, "empty-")))).toBeNull();
+  });
+
+  it("still returns a well-formed record, so the guards are not blanket refusal", () => {
+    const record = {
+      head: HEAD,
+      tests: { total: 3, passed: 3, skipped: 0, failed: 0, files: 1, perFile: { "a.test.ts": 3 } },
+    };
+    const read = readGateResultsFromDisk(rootHolding(JSON.stringify(record)));
+    expect(read).not.toBeNull();
+    expect(read?.tests.passed).toBe(3);
+  });
+});
+
+/**
+ * ONE ATTEMPT AT A TIME, AND ONLY THE OWNER PUBLISHES.
+ *
+ * The in-progress marker said an attempt was running and nothing about WHOSE.
+ * Two runners could each write it, each run the whole suite, and each rename
+ * its own result into place — the second publishing measurements of a tree the
+ * first had already measured differently, with nothing on disk to show that it
+ * had happened. The archive would carry whichever finished last.
+ *
+ * Every case below drives the real functions against a real temporary root.
+ * None of them touches this repository's own `.release/` directory.
+ */
+describe("the gate admits one attempt at a time", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-lock-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const freshRoot = (): string => mkdtempSync(join(scratch, "root-"));
+  const lockFile = (root: string): string => join(root, GATE_LOCK_PATH);
+  const pendingFile = (root: string): string => `${join(root, GATE_RECORD_PATH)}.pending`;
+
+  it("gives the gate to the first attempt and refuses the second", () => {
+    const root = freshRoot();
+    const first = acquireAttempt(root, HEAD);
+    expect(isAttemptId(first)).toBe(true);
+    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+  });
+
+  it("tells the refused attempt who holds the gate, and leaves the lock alone", () => {
+    const root = freshRoot();
+    const holder = acquireAttempt(root, HEAD);
+    let message = "";
+    try {
+      acquireAttempt(root, HEAD);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain(holder);
+    expect(message).toContain(GATE_LOCK_PATH);
+    /* The loser must not clear the winner lock on its way out. */
+    expect(readAttemptLock(root)?.attemptId).toBe(holder);
+  });
+
+  it("issues a different id to every attempt", () => {
+    const ids = new Set<string>();
+    for (let i = 0; i < 25; i += 1) ids.add(acquireAttempt(freshRoot(), HEAD));
+    expect(ids.size).toBe(25);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("refuses an attempt id that is not the bounded shape", () => {
+    for (const bad of ["", "short", "g".repeat(16), "0".repeat(17), "A".repeat(16)]) {
+      expect(() => acquireAttempt(freshRoot(), HEAD, bad)).toThrow(AttemptRefused);
+    }
+  });
+
+  it("treats an abruptly terminated attempt as still holding the gate", () => {
+    /*
+     * FAIL CLOSED. A killed runner leaves its lock behind, and there is no age
+     * at which this process may assume the other one is gone — it cannot see
+     * it. The next attempt refuses until a human decides and deletes the file.
+     */
+    const root = freshRoot();
+    acquireAttempt(root, HEAD);
+    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+    rmSync(lockFile(root), { force: true });
+    expect(isAttemptId(acquireAttempt(root, HEAD))).toBe(true);
+  });
+
+  it("treats an unreadable lock as held rather than absent", () => {
+    const root = freshRoot();
+    mkdirSync(join(root, ".release"), { recursive: true });
+    writeFileSync(lockFile(root), "{ half written", "utf8");
+    expect(lockProblems(readAttemptLock(root))).not.toEqual([]);
+    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+  });
+
+  it("reports a free gate as free", () => {
+    expect(lockProblems(readAttemptLock(freshRoot()))).toEqual([]);
+  });
+
+  it("refuses to package while an attempt holds the gate", () => {
+    const root = freshRoot();
+    syntheticGateRecord(root, HEAD);
+    /* Green, current and clean — and still not packageable, because of the lock. */
+    expect(gateRecordProblems(readGateRecord(root), HEAD)).toEqual([]);
+    acquireAttempt(root, HEAD);
+    const problems = packagingProblems({
+      head: HEAD,
+      expectedHead: undefined,
+      dirty: [],
+      gateProblems: gateRecordProblems(readGateRecord(root), HEAD),
+      lockProblems: lockProblems(readAttemptLock(root)),
+    });
+    expect(problems.join(" ")).toMatch(/holds the gate/);
+  });
+
+  it("packages again once the gate is free", () => {
+    const root = freshRoot();
+    syntheticGateRecord(root, HEAD);
+    acquireAttempt(root, HEAD);
+    rmSync(lockFile(root), { force: true });
+    expect(
+      packagingProblems({
+        head: HEAD,
+        expectedHead: undefined,
+        dirty: [],
+        gateProblems: gateRecordProblems(readGateRecord(root), HEAD),
+        lockProblems: lockProblems(readAttemptLock(root)),
+      }),
+    ).toEqual([]);
+  });
+
+  it("lets the owning attempt publish, and frees the gate afterwards", () => {
+    const root = freshRoot();
+    const id = acquireAttempt(root, HEAD);
+    mkdirSync(join(root, ".release"), { recursive: true });
+    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
+    publishAttempt(root, id);
+    expect((readGateRecord(root) as { attemptId?: string } | null)?.attemptId).toBe(id);
+    expect(existsSync(pendingFile(root))).toBe(false);
+    expect(readAttemptLock(root)).toBeNull();
+    /* And the gate is genuinely free, not merely reported free. */
+    expect(isAttemptId(acquireAttempt(root, HEAD))).toBe(true);
+  });
+
+  it("refuses a publication from an attempt that no longer holds the gate", () => {
+    /*
+     * A ran for minutes; somebody deleted its lock and started B. The result A
+     * is holding describes a tree B has since re-measured, so A discards it
+     * rather than renaming it over the gate B owns.
+     */
+    const root = freshRoot();
+    const a = acquireAttempt(root, HEAD);
+    rmSync(lockFile(root), { force: true });
+    const b = acquireAttempt(root, HEAD);
+    expect(b).not.toBe(a);
+    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: a, head: HEAD }), "utf8");
+    expect(() => publishAttempt(root, a)).toThrow(AttemptRefused);
+    /* Discarded, not left lying around for the next run to publish. */
+    expect(existsSync(pendingFile(root))).toBe(false);
+    expect(existsSync(join(root, GATE_RECORD_PATH))).toBe(false);
+    expect(readAttemptLock(root)?.attemptId).toBe(b);
+  });
+
+  it("refuses a publication when no attempt holds the gate at all", () => {
+    const root = freshRoot();
+    const id = acquireAttempt(root, HEAD);
+    rmSync(lockFile(root), { force: true });
+    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
+    expect(() => publishAttempt(root, id)).toThrow(AttemptRefused);
+  });
+
+  it("does not let an old green record survive beside a newer attempt", () => {
+    /*
+     * An old green record, a marker, and a newer `.pending` beside it is
+     * exactly what an interrupted attempt leaves. The pending file is not the
+     * record and nothing reads it; the marker is what the packager sees.
+     */
+    const root = freshRoot();
+    syntheticGateRecord(root, HEAD);
+    const id = acquireAttempt(root, HEAD);
+    writeFileSync(
+      join(root, GATE_RECORD_PATH),
+      `${JSON.stringify({ status: GATE_IN_PROGRESS, attemptId: id, head: HEAD })}\n`,
+      "utf8",
+    );
+    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
+    const problems = gateRecordProblems(readGateRecord(root), HEAD);
+    expect(problems.join(" ")).toMatch(/started and did not finish/);
+    expect(problems.join(" ")).toContain(id);
+  });
+
+  it("refuses a finished record that does not name its attempt", () => {
+    const anonymous = { ...greenRecord() } as Record<string, unknown>;
+    delete anonymous["attemptId"];
+    expect(gateRecordProblems(anonymous as GateRecord, HEAD).join(" ")).toMatch(
+      /does not name the attempt/,
+    );
+    for (const bad of ["", "nope", 16, null, {}]) {
+      const record = { ...greenRecord(), attemptId: bad } as unknown as GateRecord;
+      expect(gateRecordProblems(record, HEAD).join(" ")).toMatch(/does not name the attempt/);
+    }
+  });
+
+  it("carries the attempt id into the staged projection, which must pass too", () => {
+    const staged = sanitizedRecord(greenRecord()) as { attemptId?: unknown };
+    expect(staged.attemptId).toBe("00112233445566aa");
+    expect(gateRecordProblems(staged as GateRecord, HEAD)).toEqual([]);
   });
 });

@@ -291,7 +291,7 @@ a secret.
   resolves the destination from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]`
   IN THAT ORDER, first set-and-usable wins. So an ABSENT or BLANK `SUPABASE_URL`
   does not mean "no destination": the server silently falls back to the public
-  variable. That is `FALLBACK_IN_EFFECT`, and it is a STOP.
+  variable. That is `SERVER_URL_ABSENT`, and it is a STOP.
 
   Calling it "a finding" was not enough. A finding is not a decision, and the
   same contract three paragraphs above says the public variable must never
@@ -303,7 +303,7 @@ a secret.
 {{PROJECT_MAPPING_TABLE}}
 
   A PUBLIC URL NAMING THE APPROVED PROJECT DOES NOT CONVERT
-  `FALLBACK_IN_EFFECT` INTO A PASS. It is the most tempting way past this gate
+  `SERVER_URL_ABSENT` INTO A PASS. It is the most tempting way past this gate
   — the value looks right, so the mapping looks proved — and it is exactly the
   substitution the rule exists to forbid. The server writes would be resolving
   through a browser-exposed variable, and no runtime check anywhere notices.

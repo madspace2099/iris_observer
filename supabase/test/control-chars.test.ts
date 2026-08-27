@@ -21,7 +21,6 @@ import {
 } from "../../scripts/release/control-chars";
 import {
   gateRecordProblems,
-  REQUIRED_GATES,
   CONTROL_CHARACTER_GATE,
   type GateRecord,
 } from "../../scripts/release/gate-contract";
@@ -32,7 +31,7 @@ import {
 } from "../../scripts/release/transport-safe";
 import { build } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { syntheticGateRecord } from "./support/synthetic-gate-record";
+import { syntheticGateRecord, greenGateRecord } from "./support/synthetic-gate-record";
 
 /**
  * Invisible control characters, and the two places they got through.
@@ -48,16 +47,6 @@ import { syntheticGateRecord } from "./support/synthetic-gate-record";
  * 0" — a true statement about the working tree and a false impression about the
  * archive.
  */
-
-/**
- * Per-file counts that add up, because the contract now checks the arithmetic.
- */
-function evenPerFile(files: number, total: number): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (let i = 1; i < files; i += 1) out[`suite-${String(i).padStart(2, "0")}.test.ts`] = 1;
-  out[`suite-${String(files).padStart(2, "0")}.test.ts`] = total - (files - 1);
-  return out;
-}
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const BS = String.fromCharCode(8);
@@ -158,55 +147,19 @@ describe("the structured scan is checked as data, not as prose", () => {
 });
 
 describe("the gate contract refuses on the scan, structurally", () => {
-  const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null };
-
-  function record(overrides: Partial<GateRecord> = {}): GateRecord {
-    const gates: Record<string, string> = {};
-    const processes: Record<string, typeof cleanProcess> = {};
-    for (const gate of REQUIRED_GATES) {
-      gates[gate] = "clean";
-      processes[gate] = { ...cleanProcess };
-    }
-    gates["pnpm test"] = "1000 passed, 2 skipped, 0 failed / 40 files";
-    gates[CONTROL_CHARACTER_GATE] = "0 in 300 files";
-    return {
-      head: HEAD_FIXTURE,
-      tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: evenPerFile(40, 1002) },
-      controlCharacterScan: { scannedFiles: 300, foundCharacters: 0, affectedFiles: [] },
-      testGate: {
-        ...cleanProcess,
-        reportSuccess: true,
-        reportedFailedTests: 0,
-        countedFailedTests: 0,
-        reportedFailedSuites: 0,
-        runtimeErrorSuites: 0,
-        failedSuiteNames: [],
-        failedTests: [],
-        skippedTests: [
-          { suite: "platform.test.ts", title: "skipped on this platform" },
-          { suite: "platform.test.ts", title: "also skipped here" },
-        ],
-        phase: "test",
-        reportWritten: true,
-        reportParsed: true,
-        reportCompleted: true,
-        reportedUnhandledErrors: 0,
-        sanitizedUnhandledErrorNames: [],
-        sanitizedUnhandledErrorCodes: [],
-        processStatus: 0,
-        processSignal: null,
-        processErrorCode: null,
-        durationMs: 164_000,
-        runner: "vitest 3.2.7",
-        workerPool: "forks",
-        workerCount: 4,
-        reasons: [],
-      },
-      processes,
-      gates,
-      ...overrides,
-    };
-  }
+  /*
+   * ONE FIXTURE, SHARED. This file kept its own copy of a green record, and so
+   * did two others. Every field the contract learns to require has to be added
+   * to all of them, and the ones that are missed fail as "the contract is
+   * broken" rather than "this fixture is stale" — which is exactly what
+   * happened when canonical verdicts, the worker bounds and the attempt id
+   * landed. The shared builder is the only place a green record is described.
+   */
+  const record = (overrides: Partial<GateRecord> = {}): GateRecord =>
+    greenGateRecord(HEAD_FIXTURE, {
+      scannedFiles: 300,
+      ...(Object.keys(overrides).length > 0 ? { overrides } : {}),
+    });
 
   it("accepts a clean, well-formed record", () => {
     expect(gateRecordProblems(record(), HEAD_FIXTURE)).toEqual([]);

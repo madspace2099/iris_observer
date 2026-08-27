@@ -11,7 +11,17 @@ import {
   INVENTORY_RECORDED_IN,
   LAST_VERCEL_ENUMERATION,
   DELIVERED_ARCHIVES,
+  ARCHIVE_OUTCOMES,
+  outcomeOf,
+  priorDelivered,
 } from "../../scripts/release/live-snapshot";
+import { baselineCommit } from "../../scripts/release/facts";
+import {
+  OBSERVED_MAPPINGS,
+  classifyObservation,
+  renderObservedMapping,
+  APPROVED_PROJECT_REF,
+} from "../../scripts/release/preflight";
 
 /**
  * Five artefacts describe the same retirement policy to five different
@@ -240,7 +250,7 @@ describe("headings and provenance name the right thing", () => {
     const rendered = render(read("docs/release/REVIEW.txt"), facts({ stagedFiles: 0 })).out;
     expect(rendered).toMatch(/last ENUMERATED for\s+f1dbffd/);
     expect(rendered).toMatch(/currently accurate\s+UNKNOWN/);
-    expect(rendered).toContain("prior bundles + this candidate");
+    expect(rendered).toContain("prior archives + this candidate");
   });
 
   it("no artefact says a byte comparison establishes that no query was made", () => {
@@ -428,8 +438,34 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(review).toMatch(/so\s+does an ABSENT count/);
   });
 
-  it("records the authoritative run as green on its first attempt", () => {
-    expect(review).toMatch(/AUTHORITATIVE RUN AT .aa579a4. WAS GREEN ON ITS FIRST ATTEMPT/);
+  it("lists every authoritative run, including the red one", () => {
+    /*
+     * A history that names only the green runs reports a gate that never
+     * refused. The red run at `7b18141` was a defect this repository
+     * introduced, and the green run at the NEXT commit does not retract it —
+     * that commit was never re-run.
+     */
+    expect(review).toMatch(/aa579a4\s+GREEN on its first attempt/);
+    expect(review).toMatch(/7b18141\s+RED/);
+    expect(review).toMatch(/c1b80f0\s+GREEN on its first attempt/);
+    expect(review).toMatch(/THE RED RUN WAS NOT RETRIED AT ITS OWN COMMIT/);
+    expect(review).toMatch(/A later green result at a later commit is not a retraction/);
+  });
+
+  it("does not claim to have preserved a record it cannot produce", () => {
+    /*
+     * Two earlier claims of preservation pointed at an untracked working
+     * directory. Nothing a reviewer holds can be opened to check either.
+     */
+    expect(review).not.toMatch(/preserved as .failed-gate/);
+    expect(review).toMatch(/THAT RECORD IS NOT IN THIS ARCHIVE/);
+    expect(review).toMatch(/RED RECORD ITSELF NO LONGER EXISTS/);
+    expect(review).toMatch(/three tracked regression assertions/);
+  });
+
+  it("records the procedural deviation rather than only the correction", () => {
+    expect(review).toMatch(/AND WORK CONTINUED PAST THE STOP/);
+    expect(review).toMatch(/the sequence was not the\s+authorised one/);
   });
 
   it("counts seven main builds, matching the inventory it prints", () => {
@@ -476,6 +512,115 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(review).toMatch(/NO EXTERNAL MUTATION OCCURRED/);
     expect(review).toMatch(/carried-forward manual reading/);
     expect(review).toMatch(/NOT been re-observed since/);
-    expect(review).toMatch(/Neither was re-observed in this milestone/);
+    expect(review).toMatch(/Neither was re-observed in this\s+milestone/);
+  });
+});
+
+/**
+ * DELIVERY IS NOT ACCEPTANCE, AND NEITHER IS ENUMERATION.
+ *
+ * One list was doing the work of six different facts: which archives were
+ * handed over, which of those anybody accepted, which bundles carry the
+ * recorded Vercel inventory, when Vercel was last actually enumerated, which
+ * bundle is the current candidate, and which archive the byte comparisons are
+ * measured against. Conflating them produced "ten previously delivered
+ * bundles" beside a baseline five deliveries stale, in a package whose most
+ * recent predecessor had been reviewed and REJECTED.
+ */
+describe("delivery is not acceptance", () => {
+  it("declares every archive that was handed over, including the rejected ones", () => {
+    const bundles = DELIVERED_ARCHIVES.map((a) => a.bundle);
+    for (const later of ["166be98", "1b8b912", "7ac84fa", "aa579a4", "c1b80f0"]) {
+      expect(bundles).toContain(later);
+    }
+  });
+
+  it("records the rejected candidates as rejected, and claims no acceptance", () => {
+    expect(outcomeOf("c1b80f0")).toBe("rejected");
+    expect(outcomeOf("aa579a4")).toBe("rejected");
+    /*
+     * ABSENCE OF A REJECTION IS NOT ACCEPTANCE. Nothing here may be called
+     * accepted without explicit evidence, and there is none to cite.
+     */
+    expect(Object.values(ARCHIVE_OUTCOMES)).not.toContain("accepted");
+    for (const a of DELIVERED_ARCHIVES) {
+      expect(["rejected", "unreviewed"]).toContain(outcomeOf(a.bundle));
+    }
+  });
+
+  it("measures byte comparisons against the most recent archive handed over", () => {
+    /*
+     * The baseline follows the list, so declaring a delivery moves it. It had
+     * been pinned to `e18f860` while five later archives went out, which meant
+     * every "unchanged since" line spanned the wrong interval.
+     */
+    const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
+    expect(last).toBe("c1b80f0");
+    expect(baselineCommit().startsWith(last)).toBe(true);
+  });
+
+  it("keeps the enumeration point where somebody actually looked", () => {
+    expect(LAST_VERCEL_ENUMERATION).toBe("f1dbffd");
+    expect(INVENTORY_RECORDED_IN.at(-1)).not.toBe(LAST_VERCEL_ENUMERATION);
+  });
+
+  it("excludes the current candidate from the prior deliveries", () => {
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    expect(priorDelivered(head)).not.toContain(head.slice(0, 7));
+    expect(priorDelivered("c1b80f0")).not.toContain("c1b80f0");
+    expect(priorDelivered("c1b80f0")).toContain("f1dbffd");
+  });
+
+  it("derives its counts instead of typing them, and drops the stale phrase", () => {
+    const review = render(read("docs/release/REVIEW.txt"), facts({ stagedFiles: 0 })).out;
+    expect(review).not.toContain("ten previously delivered bundles");
+    expect(review).toContain("archives handed over before this one");
+    expect(review).toContain("were reviewed and REJECTED");
+    expect(review).toContain(`last ENUMERATED for   ${LAST_VERCEL_ENUMERATION}`);
+  });
+});
+
+/**
+ * THE PREFLIGHT VERDICT IS RENDERED, NOT RESTATED.
+ *
+ * The delivered `c1b80f0` archive printed Preview as `MAPPED / PASS / via
+ * manual` in a hand-maintained table, beside a rule that had already been
+ * corrected to require the public row as well. Verdict text duplicated next to
+ * a rule is verdict text that can disagree with it.
+ */
+describe("the carried-forward mapping is derived from the classifier", () => {
+  const outcomes = OBSERVED_MAPPINGS.map((o) => ({
+    environment: o.environment,
+    ...classifyObservation(o, APPROVED_PROJECT_REF),
+  }));
+
+  it("reaches PAUSE for Preview, because nobody looked at the public row", () => {
+    const preview = outcomes.find((o) => o.environment === "Preview");
+    expect(preview?.state).toBe("MANUAL_PUBLIC_UNOBSERVED");
+    expect(preview?.verdict).toBe("PAUSE");
+    expect(preview?.ref).toBeNull();
+  });
+
+  it("reaches STOP for Production, on the server observation alone", () => {
+    const production = outcomes.find((o) => o.environment === "Production");
+    expect(production?.state).toBe("SERVER_URL_ABSENT");
+    expect(production?.verdict).toBe("STOP");
+  });
+
+  it("claims no PASS anywhere, in the rendering or in the document", () => {
+    const block = renderObservedMapping(APPROVED_PROJECT_REF);
+    expect(block).not.toContain("PASS");
+    expect(block).toContain("MANUAL_PUBLIC_UNOBSERVED");
+    expect(block).toContain("SERVER_URL_ABSENT");
+    /* And the complete origin is kept, not reduced to a bare ref. */
+    expect(block).toContain("https://tfcchobwobpadenampyh.supabase.co");
+  });
+
+  it("renders into the evidence rather than being typed beside it", () => {
+    const source = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
+    expect(source).toContain("{{OBSERVED_MAPPING_BLOCK}}");
+    const review = render(source, facts({ stagedFiles: 0 })).out;
+    expect(review).toContain("MANUAL_PUBLIC_UNOBSERVED");
+    expect(review).not.toMatch(/Preview\s+SUPABASE_URL\s+MAPPED/);
   });
 });

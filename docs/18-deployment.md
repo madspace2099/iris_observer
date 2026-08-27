@@ -343,7 +343,7 @@ the config file, and `pnpm audit:secrets` checks it empirically by scanning the 
 **One more state, and it is not a mapping.** `apps/web/src/lib/supabase-env.ts` resolves the
 destination from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]` **in that order**, first
 set-and-usable wins. An **absent or blank** `SUPABASE_URL` therefore does not mean "no destination" —
-the server silently falls back to the browser-exposed variable. That is `FALLBACK_IN_EFFECT`, and it
+the server silently falls back to the browser-exposed variable. That is `SERVER_URL_ABSENT`, and it
 is a **STOP**. (A **malformed** `SUPABASE_URL` does not fall back at all: the resolver stops at the
 first name that is set and reports it unusable.)
 

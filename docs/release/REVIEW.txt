@@ -72,6 +72,14 @@ Newest is 3f298a6, built 2026-08-25. {{INVENTORY_UNCHANGED_SENTENCE}}
 
 {{NOT_DEPLOYED_BLOCK}}
 
+WHAT THIS CANDIDATE IS, AND WHAT ITS PREDECESSORS WERE.
+
+Six different facts were being carried by one list, and the words for them
+were used interchangeably. They are separated here, and every count is read
+from the declaration rather than typed:
+
+{{PROVENANCE_BLOCK}}
+
 ENVIRONMENT METADATA: names and requirement in COMPATIBILITY-EVIDENCE.txt §3.
 PRESENCE, SCOPE AND VALUE REMAIN UNAVAILABLE FROM HERE.
 
@@ -564,7 +572,15 @@ THE SHAPE. A later gate run recorded a third one:
 
   the process exits non-zero while the report declares complete success and
   names no failing test or suite. NOT the hook timeout, which always produced
-  `reportSuccess=false`. That record is preserved as `failed-gate-7d941ba.json`.
+  `reportSuccess=false`.
+
+  THAT RECORD IS NOT IN THIS ARCHIVE. An earlier edition said it was "preserved
+  as `failed-gate-7d941ba.json`", which was a claim about a working directory:
+  `.release/` is untracked, it is not packaged, and the gate writes its record
+  to one path that each later run overwrites. Nothing a reviewer holds can be
+  opened to check the shape above. What CAN be checked is in this repository's
+  history — the patches that follow `7d941ba` quote it — and the fields are
+  reproduced verbatim here rather than summarised.
 
 WHY NOTHING COULD EXPLAIN IT. Vitest 3.2.7's JSON reporter takes the
 unhandled-error list as `_errors` and DISCARDS it, computes `success` from
@@ -575,8 +591,11 @@ every other path either implies a failed test or suite, which `success` would
 report, or aborts before a report naming every file could exist. The gate was
 reading the one artefact that structurally cannot express what it needed.
 
-WHAT IT ACTUALLY WAS. A diagnostic reporter, added to record what the JSON one
-discards, reproduced and identified it:
+WHAT IT ACTUALLY WAS — AND WHERE. The shape above was observed at `7d941ba`,
+where nothing could name it: the reporter that records what the JSON one
+discards did not exist yet. It was added at `61dad2f`, and the identity below
+comes from a LATER run under that reporter, not from the `7d941ba` record.
+Those are two observations of one fault, and the second is what named it:
 
     Error   subsystem vitest-worker   operation onTaskUpdate   no machine code
 
@@ -628,12 +647,107 @@ different facts. The record also has to prove the run was bounded — phase,
 pool and worker count are acceptance conditions, so a record from an unbounded
 run cannot be packaged as evidence for a bounded one.
 
-THE AUTHORITATIVE RUN AT `aa579a4` WAS GREEN ON ITS FIRST ATTEMPT, with four
-workers, zero unhandled errors, and no retry.
+EVERY AUTHORITATIVE RUN SINCE, INCLUDING THE RED ONE.
+
+  aa579a4   GREEN on its first attempt — four workers, zero unhandled errors,
+            no retry. This is the run the four-worker bound was accepted on.
+
+  7b18141   RED. Not a flake, not the runner fault, and not an environment
+            problem: a defect introduced in that same milestone. The atomic
+            gate lifecycle invalidates the canonical record before the first
+            gate, so while the TEST gate runs the file holds the IN_PROGRESS
+            marker — and the test gate is exactly when the suites that render
+            this evidence execute. The reader returned the marker as though it
+            were a result and every rendering threw on its missing `tests`.
+            Four failed assertions, three runtime-error suites.
+
+  c1b80f0   GREEN on its first attempt, with the reader corrected.
+
+  {{HEAD_SHORT}}   this candidate — see THE GATE, below.
+
+THE RED RUN WAS NOT RETRIED AT ITS OWN COMMIT, and the green run listed after
+it does not replace it. `c1b80f0` is a DIFFERENT COMMIT with the defect
+fixed; it establishes that the fix works and establishes nothing whatever about
+`7b18141`, which remains a red observation at a commit that was never re-run.
+A later green result at a later commit is not a retraction of an earlier red one.
+
+WHAT PRESERVATION MEANS HERE, EXACTLY. The instruction for that milestone was to
+preserve the sanitized record and STOP. The record was preserved only in the
+sense that the file sat in an untracked working directory, and the next gate run
+overwrote it: `.release/gate-results.json` now holds the `c1b80f0` result. THE
+RED RECORD ITSELF NO LONGER EXISTS anywhere a reviewer or the author can read.
+A FAILING RUN NOW COPIES ITS RECORD ASIDE, under the commit and attempt it
+belongs to, so a later run cannot overwrite it the way this one was overwritten.
+That copy still lives in `.release/`, which is untracked and is NOT packaged: it
+preserves the record for whoever holds the working directory, and it is not
+evidence a reviewer can open. It is described that way here rather than as
+"preserved".
+
+What survives is the commit message of `c1b80f0` in this repository's history,
+which states the failure and its cause, and three tracked regression assertions
+in `supabase/test/artefact-consistency.test.ts` that reproduce the defect on
+demand — the marker, the missing totals, the unparseable file. That is a weaker
+form of evidence than a preserved artefact and it is named as the weaker thing
+rather than described as preservation.
+
+AND WORK CONTINUED PAST THE STOP. The instruction was to stop at the red
+observation. Instead the cause was diagnosed, fixed, committed as `c1b80f0` and
+gated again. The outcome was the right correction; the sequence was not the
+authorised one, and it is recorded here because a milestone that reports its own
+deviations is the only kind whose silence means anything.
 
 THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
 report declaring failure are each a failure condition in their own right, so
 the fault cost reruns and never produced a false clean result.
+
+ONE ATTEMPT AT A TIME, AND ONLY THE OWNER PUBLISHES.
+
+The in-progress marker introduced last milestone says an attempt is running and
+nothing about WHOSE. Two runners could each write it, each run the whole suite
+for minutes, and each rename its own result into place — the second publishing
+measurements of a tree the first had already measured differently, with nothing
+on disk to show it had happened. The archive would carry whichever finished
+last, and it would look perfect.
+
+  THE LOCK.  `.release/gate-attempt.lock` is created with the `wx` flag: the
+             filesystem creates it or fails, atomically, so the filesystem
+             decides the winner. A read-then-write can interleave between the
+             read and the write; this cannot. It carries a 16-hex attempt id.
+
+  OWNERSHIP  Acquired BEFORE the record is invalidated. A runner that loses the
+  FIRST.     race then refuses without having destroyed the record the winner
+             is about to replace.
+
+  IDENTITY.  Every marker and every finished record names its attempt, and a
+             finished record that does not is refused by the contract. An
+             anonymous record cannot be connected to the run that measured it.
+
+  PUBLICATION Before the rename, the attempt re-reads the lock and confirms it
+  IS CHECKED. still holds the gate. If somebody deleted the lock and started
+             another attempt, this one DISCARDS its complete result rather than
+             renaming stale measurements over a newer run. The lock is released
+             only AFTER the rename, so there is no window in which the gate is
+             free and the record is still the old one.
+
+  PACKAGING  A held lock refuses packaging outright, and it is reported before
+  REFUSES.   the record is described: in the window before a new attempt writes
+             its marker, the record on disk is still the previous attempt's
+             green one, which would otherwise package.
+
+NO LOCK IS EVER TAKEN OVER, AT ANY AGE. A killed runner leaves its lock behind
+and this process cannot see whether that one is alive, so every timeout is a
+guess and guessing wrong is exactly the failure the lock exists to prevent. An
+abruptly terminated attempt therefore blocks the next one until a human deletes
+the file, having decided the other attempt is really gone. An unreadable lock —
+what a process killed mid-write leaves — reads as HELD, not as absent.
+
+`supabase/test/gate-contract.test.ts` drives all of it against real temporary
+directories: a second attempt refusing while the first holds the gate, the
+refusal naming the holder and leaving the lock intact, packaging refused during
+an active attempt and permitted once it ends, an abruptly terminated attempt
+blocking the next, an unreadable lock treated as held, the owner publishing and
+freeing the gate, a non-owner refused and its pending result discarded, and a
+finished record without an attempt id refused by the contract.
 
 NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
 a production build; either could print an environment value some future code
@@ -911,29 +1025,46 @@ Consequently, and stated plainly rather than left to be inferred:
     4 says they are, except the two the authorised preflight already settled,
     which are recorded immediately below and have NOT been re-observed since.
 
-THE ONE PREFLIGHT RESULT THAT IS CARRIED FORWARD, unchanged:
+THE CARRIED-FORWARD PREFLIGHT RESULT, rendered from the one recorded
+observation through the same classifier the tests exercise:
 
-  Environment   Variable        State               Verdict  Provenance
-  Preview       SUPABASE_URL    MAPPED              PASS     manual
-                                tfcchobwobpadenampyh
-  Production    SUPABASE_URL    SERVER_URL_ABSENT   STOP     manual
+{{OBSERVED_MAPPING_BLOCK}}
 
   OBSERVED BY MATTHEW ON 2026-08-27; EXACT TIME NOT RECORDED. This is a
   carried-forward manual reading, not a current live one — nothing in this
   milestone re-read it, and the environment may have changed since.
 
-  The Preview value was read by Matthew in the Vercel dashboard, character for
-  character, as the exact non-secret origin `https://tfcchobwobpadenampyh` +
-  `.supabase.co` — Type: Config, Environment: Preview. It classifies MAPPED,
-  and PASS is marked `via: "manual"` so a hand-read mapping stays
-  distinguishable from a tool-read one. No variable was edited; the editor was
-  exited without saving.
+  NEITHER ENVIRONMENT IS A PASS, and an earlier edition of this package said
+  Preview was. That table was hand-maintained beside a rule that had already
+  been corrected to require the public row as well, so it stated a verdict the
+  rule would not reach. The block above is derived, not restated.
+
+  WHAT WAS ACTUALLY OBSERVED, AND WHAT WAS NOT. Matthew read the Preview
+  `SUPABASE_URL` row in the Vercel dashboard, character for character, as the
+  complete canonical origin `https://tfcchobwobpadenampyh` + `.supabase.co` —
+  Type: Config, Environment: Preview. That establishes the Preview SERVER ref.
+  NOBODY LOOKED FOR THE `NEXT_PUBLIC_SUPABASE_URL` ROW. Its state is therefore
+  unobserved, which is not the same as absent, and `MAPPED` requires the public
+  variable to be absent or to name the same project. Preview is
+  MANUAL_PUBLIC_UNOBSERVED/PAUSE: server ref established, manual confirmation
+  INCOMPLETE.
+
+  PAUSE IS NOT A FINDING THAT THE CONFIGURATION IS WRONG. It asserts nothing
+  about the public row's value. It asks for one observation — the exact
+  non-secret row, absent or present — and it does not license rotating,
+  replacing or editing anything. Neither PAUSE nor STOP permits step 2.
 
   PRODUCTION HAS NO `SUPABASE_URL` AT ALL. That is SERVER_URL_ABSENT, whose
   decision is STOP, and it is a STOP on its own terms rather than a missing
-  reading: an absent server variable activates the resolver's documented
-  fallback to the browser-exposed name, and the browser-exposed name may never
-  substitute for the authoritative server mapping.
+  reading: an absent server variable would leave the SERVER resolving through
+  the browser-exposed name, which may never substitute for the authoritative
+  server mapping. The server observation is evaluated FIRST, so no public value
+  could rescue it even if one had been recorded.
+
+  The complete origin is retained rather than the bare ref: a bare ref is what
+  survives extraction, not what was configured, so it cannot by itself show
+  that the configured value had the required origin shape. No variable was
+  edited; the editor was exited without saving.
 
   PREVIEW DOES NOT RESCUE PRODUCTION. The two environments are separate
   configuration scopes; a proved mapping in one says nothing about the other,
@@ -981,9 +1112,11 @@ package whose evidence claims freshness the file history does not support.
   a. WHETHER `OBSERVER_SUBJECT_PEPPER` EXISTS, in which scopes, and whether one
      record covers them all.  Settled by: step 1, part two.
   b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
-     Settled by: step 1, part one. PARTLY SETTLED ALREADY: Preview is MAPPED and
-     PASS by manual reading; Production is SERVER_URL_ABSENT and STOP. See
-     section 3a. Neither was re-observed in this milestone.
+     Settled by: step 1, part one. NOT SETTLED FOR EITHER ENVIRONMENT. Preview
+     has its SERVER ref established by manual reading but its public row was
+     never observed, so it is MANUAL_PUBLIC_UNOBSERVED and PAUSE; Production is
+     SERVER_URL_ABSENT and STOP. See section 3a. Neither was re-observed in this
+     milestone, and neither permits step 2.
   c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:

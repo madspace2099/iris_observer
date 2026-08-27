@@ -22,7 +22,7 @@
  * reaches the disk. See `gate-run.ts`.
  */
 
-import { writeFileSync, mkdirSync, readFileSync, rmSync, renameSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { REPO_ROOT, git } from "./facts";
@@ -41,7 +41,15 @@ import {
   type RunnerEvidence,
 } from "./gate-run";
 import type { RunnerDiagnostics } from "./vitest-runner-reporter";
-import { REQUIRED_GATES, GATE_IN_PROGRESS, GATE_RECORD_PATH } from "./gate-contract";
+import {
+  REQUIRED_GATES,
+  GATE_IN_PROGRESS,
+  GATE_RECORD_PATH,
+  renderTestVerdict,
+  acquireAttempt,
+  publishAttempt,
+  AttemptRefused,
+} from "./gate-contract";
 import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
 
 /**
@@ -63,15 +71,16 @@ const PENDING_PATH = `${RECORD_PATH}.pending`;
 /**
  * Mark the canonical result invalid for the duration of this attempt.
  *
- * Written synchronously, before the first gate, and carrying the HEAD it was
- * started at so a reader can tell which attempt abandoned it.
+ * Written synchronously, before the first gate, and carrying the attempt id
+ * and the HEAD it was started at, so a reader of an abandoned marker can tell
+ * WHICH attempt abandoned it rather than only that one did.
  */
-function beginAttempt(head: string): void {
+function beginAttempt(head: string, attemptId: string): void {
   mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
   rmSync(PENDING_PATH, { force: true });
   writeFileSync(
     RECORD_PATH,
-    `${JSON.stringify({ status: GATE_IN_PROGRESS, head, startedAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({ status: GATE_IN_PROGRESS, attemptId, head, startedAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
   );
 }
@@ -150,6 +159,8 @@ function readRunnerEvidence(
     runner: RUNNER_VERSION,
     workerPool: d?.pool ?? null,
     workerCount: d?.maxWorkers ?? null,
+    configuredMinWorkers: d?.configuredMinWorkers ?? null,
+    configuredMaxWorkers: d?.configuredMaxWorkers ?? null,
   };
 }
 
@@ -288,7 +299,21 @@ function main(): void {
    * killed, or is interrupted cannot leave an older green record at the same
    * HEAD sitting there packageable.
    */
-  beginAttempt(head);
+  /*
+   * OWNERSHIP BEFORE INVALIDATION. Acquiring first means a runner that loses
+   * the race refuses without having destroyed the record the winner is
+   * about to replace — and without having destroyed a green record that
+   * belongs to nobody's attempt at all.
+   */
+  let attemptId: string;
+  try {
+    attemptId = acquireAttempt(REPO_ROOT, head);
+  } catch (e) {
+    console.log("");
+    console.log(`  ${(e as Error).message}`);
+    process.exit(1);
+  }
+  beginAttempt(head, attemptId);
 
   const gates: Record<string, string> = {};
   const processes: Record<string, ProcessResult> = {};
@@ -311,10 +336,13 @@ function main(): void {
   const { gate, output, report } = runTestGate();
   const c = counts(report);
   processes["pnpm test"] = sanitize({ ...gate, output: "" });
+  /*
+   * RENDERED BY THE CONTRACT, not by a template beside it. The contract parses
+   * this exact shape and compares it against the structured totals, and two
+   * independent renderings of one format are two places it can drift.
+   */
   gates["pnpm test"] =
-    gate.reasons.length === 0
-      ? `${c.passed} passed, ${c.skipped} skipped, ${c.failed} failed / ${c.files} files`
-      : `FAILED — ${gate.reasons.join("; ")}`;
+    gate.reasons.length === 0 ? renderTestVerdict(c) : `FAILED — ${gate.reasons.join("; ")}`;
   if (gate.reasons.length > 0) {
     failed += 1;
     console.log(`  ${describeGate(gate)}`);
@@ -359,6 +387,7 @@ function main(): void {
     PENDING_PATH,
     `${JSON.stringify(
       {
+        attemptId,
         head,
         tests: {
           total: c.total,
@@ -405,7 +434,14 @@ function main(): void {
           durationMs: gate.durationMs,
           runner: gate.runner,
           workerPool: gate.workerPool,
+          /*
+           * CONFIGURATION, NOT AN OBSERVED PEAK. These are the bounds the pool
+           * was given. No reliable measurement of actual peak concurrency is
+           * persisted, so none is claimed.
+           */
           workerCount: gate.workerCount,
+          configuredMinWorkers: gate.configuredMinWorkers,
+          configuredMaxWorkers: gate.configuredMaxWorkers,
           reasons: gate.reasons,
         },
         /*
@@ -423,12 +459,14 @@ function main(): void {
     "utf8",
   );
 
-  /*
-   * ATOMIC. Every result is in hand, the file is complete on disk, and only
-   * now does it become the canonical record — one rename, which either happens
-   * or does not.
-   */
-  renameSync(PENDING_PATH, RECORD_PATH);
+  try {
+    publishAttempt(REPO_ROOT, attemptId);
+  } catch (e) {
+    if (!(e instanceof AttemptRefused)) throw e;
+    console.log("");
+    console.log(`  ${e.message}`);
+    process.exit(1);
+  }
 
   const missing = REQUIRED_GATES.filter(
     (g) => processes[g] === undefined && gates[g] === undefined,
@@ -441,7 +479,28 @@ function main(): void {
   console.log("");
   console.log(`  recorded to .release/gate-results.json at ${head.slice(0, 7)}`);
   if (failed > 0) {
+    /*
+     * PRESERVE THE FAILURE BEFORE ANYTHING CAN OVERWRITE IT.
+     *
+     * The canonical path holds exactly one result and the next attempt replaces
+     * it. A red run at `7b18141` was described as "preserved" on the strength
+     * of that file existing at the time; the next gate run overwrote it, and by
+     * the time anybody looked for the red record it was gone. A copy under the
+     * commit and attempt it belongs to cannot be overwritten by a later run.
+     *
+     * It still lives in `.release/`, which is untracked and is NOT packaged, so
+     * this preserves the record for whoever has the working directory — not for
+     * a reviewer holding the archive. Nothing here should be described to a
+     * reviewer as evidence they can open.
+     */
+    const preserved = join(
+      REPO_ROOT,
+      ".release",
+      `gate-results-FAILED-${head.slice(0, 7)}-${attemptId}.json`,
+    );
+    writeFileSync(preserved, readFileSync(RECORD_PATH, "utf8"), "utf8");
     console.log(`  ${failed} GATE(S) FAILED`);
+    console.log(`  the failing record is copied to ${preserved.slice(REPO_ROOT.length + 1)}`);
     process.exit(1);
   }
 }

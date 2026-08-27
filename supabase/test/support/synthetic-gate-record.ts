@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   gateRecordProblems,
   REQUIRED_GATES,
+  CANONICAL_VERDICTS,
   type GateRecord,
 } from "../../../scripts/release/gate-contract";
 
@@ -38,6 +39,8 @@ export interface SyntheticOptions {
   readonly overrides?: Partial<GateRecord>;
   /** How many files the control-character scan claims to have looked at. */
   readonly scannedFiles?: number;
+  /** The attempt this record claims to come from. */
+  readonly attemptId?: string;
 }
 
 /**
@@ -60,13 +63,22 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
   const gates: Record<string, string> = {};
   const processes: Record<string, typeof cleanProcess> = {};
   for (const gate of REQUIRED_GATES) {
-    gates[gate] = "clean";
+    /*
+     * THE CANONICAL VERDICT, from the contract itself. A fixture that wrote
+     * "clean" for every gate was asserting a shape the contract no longer
+     * accepts, and reading the table here means the fixture cannot drift from
+     * it again.
+     */
+    const canonical = CANONICAL_VERDICTS[gate];
+    if (canonical !== undefined) gates[gate] = canonical;
     processes[gate] = { ...cleanProcess };
   }
   gates["pnpm test"] = "1200 passed, 1 skipped, 0 failed / 43 files";
   gates["raw-NUL scan"] = `0 in ${String(scannedFiles)} files`;
 
   return {
+    /* A record names the attempt that produced it, so the fixture does too. */
+    attemptId: options.attemptId ?? "00112233445566aa",
     head,
     controlCharacterScan: { scannedFiles, foundCharacters: 0, affectedFiles: [] },
     tests: { passed: 1200, skipped: 1, failed: 0, files: 43, perFile: perFile(43, 1201) },
@@ -94,6 +106,8 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       runner: "vitest 3.2.7",
       workerPool: "forks",
       workerCount: 4,
+      configuredMinWorkers: 4,
+      configuredMaxWorkers: 4,
       reasons: [],
     },
     processes,

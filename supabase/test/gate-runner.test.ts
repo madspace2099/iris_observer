@@ -69,6 +69,8 @@ const cleanRunner: RunnerEvidence = {
   runner: "vitest 3.2.7",
   workerPool: "forks",
   workerCount: null,
+  configuredMinWorkers: null,
+  configuredMaxWorkers: null,
 };
 
 /** Holds the runner axis clean unless a case says otherwise. */
@@ -556,6 +558,8 @@ describe("what a failing test is allowed to leave behind", () => {
       reasons: [],
     }).sort();
     expect(keys).toEqual([
+      "configuredMaxWorkers",
+      "configuredMinWorkers",
       "countedFailedTests",
       "durationMs",
       "errorCode",

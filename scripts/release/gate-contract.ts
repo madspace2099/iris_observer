@@ -14,7 +14,8 @@
  * suites and runtime-error suites, each checked independently.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { scanProblems, describeScan, type ControlCharacterScan } from "./control-chars";
 
@@ -35,6 +36,64 @@ export const CONTROL_CHARACTER_GATE = "raw-NUL scan";
  * the numbers here means a record from an unbounded run cannot be packaged as
  * evidence for a bounded one.
  */
+/**
+ * The one canonical rendering of the test totals.
+ *
+ * A renderer AND a parser, because the verdict has to survive sanitization and
+ * the sanitizer refuses arbitrary slash-containing strings — for good reason,
+ * since a path is slash-shaped. The delivered `c1b80f0` archive lost its
+ * `pnpm test` verdict to exactly that rule: the canonical form ends
+ * "/ 45 files", the generic text filter dropped it, the key vanished from the
+ * staged record, and nothing re-validated the projection. So this shape is
+ * recognised explicitly rather than being let through a widened filter.
+ */
+export function renderTestVerdict(t: {
+  passed: number;
+  skipped: number;
+  failed: number;
+  files: number;
+}): string {
+  return `${String(t.passed)} passed, ${String(t.skipped)} skipped, ${String(t.failed)} failed / ${String(t.files)} files`;
+}
+
+const TEST_VERDICT = /^(\d{1,7}) passed, (\d{1,7}) skipped, (\d{1,7}) failed \/ (\d{1,5}) files$/;
+
+/** The four numbers a canonical test verdict states, or nothing. */
+export function parseTestVerdict(
+  value: unknown,
+): { passed: number; skipped: number; failed: number; files: number } | null {
+  if (typeof value !== "string") return null;
+  const m = TEST_VERDICT.exec(value);
+  if (m === null) return null;
+  const [, passed, skipped, failed, files] = m;
+  return {
+    passed: Number(passed),
+    skipped: Number(skipped),
+    failed: Number(failed),
+    files: Number(files),
+  };
+}
+
+/**
+ * What each gate's verdict must say when it is clean.
+ *
+ * Prose is DERIVED from the measurement, never accepted as one. The old rule
+ * only refused a verdict containing the word FAILED, so "BROKEN" beside green
+ * process metadata passed — a sentence nobody wrote on purpose, accepted
+ * because it did not contain the one word being looked for.
+ *
+ * `pnpm test` and `raw-NUL scan` are absent here: both are rendered from
+ * structured counts and checked against them separately.
+ */
+export const CANONICAL_VERDICTS: Readonly<Record<string, string>> = {
+  "pnpm format:check": "clean",
+  "pnpm typecheck": "0 errors",
+  "pnpm lint": "clean",
+  "pnpm build": "clean",
+  "secret audit": "clean",
+  "wrappers vs sources": "every body byte-identical",
+};
+
 export const REQUIRED_PHASE = "test";
 export const REQUIRED_POOL = "forks";
 export const REQUIRED_WORKERS = 4;
@@ -106,10 +165,16 @@ export interface RecordedTestGate extends RecordedProcess {
   readonly runner?: string | null;
   readonly workerPool?: string | null;
   readonly workerCount?: number | null;
+  readonly configuredMinWorkers?: number | null;
+  readonly configuredMaxWorkers?: number | null;
+  /** Only if something reliably measured it. Absent means unmeasured. */
+  readonly observedPeakWorkers?: number | null;
   readonly reasons?: readonly string[];
 }
 
 export interface GateRecord {
+  /** Which attempt produced this record. Required for a finished one. */
+  readonly attemptId?: string;
   readonly head?: string;
   /**
    * Structured control-character evidence, over the tracked working tree.
@@ -152,6 +217,143 @@ export const GATE_IN_PROGRESS = "IN_PROGRESS";
 /** Is this file the in-progress marker rather than a result? */
 export function isInProgress(record: GateRecord | null): boolean {
   return (record as { status?: unknown } | null)?.status === GATE_IN_PROGRESS;
+}
+
+/**
+ * The file that says an attempt owns the gate right now.
+ *
+ * The marker alone was not enough. It says "an attempt is in progress" and
+ * nothing about WHOSE, so two runners could each write it, each run the whole
+ * suite, and each rename its own result over the other's — the second one
+ * publishing a record for a tree the first had already measured differently.
+ * Neither would notice, and the archive would carry whichever finished last.
+ *
+ * The lock is created EXCLUSIVELY (`wx`): the filesystem decides the winner,
+ * not a read-then-write that can interleave. It carries the attempt's own id,
+ * so publication can check that the attempt about to rename its result still
+ * holds the gate.
+ */
+export const GATE_LOCK_PATH = ".release/gate-attempt.lock";
+
+/** A bounded attempt id: exactly 16 lowercase hex characters. */
+const ATTEMPT_ID = /^[0-9a-f]{16}$/;
+
+export function isAttemptId(value: unknown): value is string {
+  return typeof value === "string" && ATTEMPT_ID.test(value);
+}
+
+export interface AttemptLock {
+  readonly attemptId: string;
+  readonly head: string;
+  readonly startedAt: string;
+}
+
+/** The lock as it sits on disk, or null when there is none. */
+export function readAttemptLock(root: string): AttemptLock | null {
+  const path = join(root, GATE_LOCK_PATH);
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as AttemptLock;
+  } catch {
+    /*
+     * FAIL CLOSED. An unreadable lock is not an absent one — a half-written
+     * file is exactly what an attempt killed mid-write leaves behind. It is
+     * reported as a held lock whose owner cannot be identified, which refuses
+     * everything, rather than as free.
+     */
+    return Object.freeze({ attemptId: "", head: "", startedAt: "" });
+  }
+}
+
+/**
+ * Why this lock forbids proceeding. Empty means the gate is free.
+ *
+ * A lock that exists at all forbids it. There is deliberately no age at which
+ * a lock becomes ignorable: "stale" is a guess about a process this one cannot
+ * see, and guessing wrong means two runners publishing over each other. A
+ * human deletes the file, having decided the other attempt is really gone.
+ */
+export function lockProblems(lock: AttemptLock | null): readonly string[] {
+  if (lock === null) return [];
+  const who = isAttemptId(lock.attemptId)
+    ? `attempt ${lock.attemptId}`
+    : "an attempt whose id is missing or malformed";
+  const when =
+    typeof lock.startedAt === "string" && lock.startedAt !== ""
+      ? lock.startedAt
+      : "an unrecorded time";
+  const at =
+    typeof lock.head === "string" && lock.head.length >= 7
+      ? lock.head.slice(0, 7)
+      : "an unrecorded commit";
+  return [
+    `the gate is held by ${who}, started at ${when} on ${at}. Only one attempt may ` +
+      `run at a time. If that attempt is really gone, delete ${GATE_LOCK_PATH} — ` +
+      `this is never done automatically, because an age is a guess about a ` +
+      `process this one cannot see.`,
+  ];
+}
+
+/** A gate attempt may not proceed. Carries only the reason, never a path secret. */
+export class AttemptRefused extends Error {}
+
+/**
+ * Take exclusive ownership of the gate, or refuse.
+ *
+ * `wx` is the whole mechanism: the filesystem creates the file or fails, and it
+ * decides the winner. A read-then-write can interleave between the read and
+ * the write, and then two runners each believe they own the gate, each run the
+ * whole suite, and each rename its own result over the other's.
+ *
+ * An existing lock is NEVER taken over, at any age. This process cannot see
+ * whether the other one is alive, so every timeout is a guess, and guessing
+ * wrong is exactly the failure the lock exists to prevent. The refusal names
+ * the file and leaves the decision to a human.
+ */
+export function acquireAttempt(root: string, head: string, id?: string): string {
+  const attemptId = id ?? randomBytes(8).toString("hex");
+  if (!isAttemptId(attemptId)) throw new AttemptRefused("the attempt id is not well formed");
+  mkdirSync(join(root, ".release"), { recursive: true });
+  try {
+    writeFileSync(
+      join(root, GATE_LOCK_PATH),
+      `${JSON.stringify({ attemptId, head, startedAt: new Date().toISOString() }, null, 2)}\n`,
+      { encoding: "utf8", flag: "wx" },
+    );
+  } catch {
+    const held = lockProblems(readAttemptLock(root));
+    throw new AttemptRefused(
+      held.length > 0 ? held.join(" ") : "the gate is held and the lock could not be read",
+    );
+  }
+  return attemptId;
+}
+
+/**
+ * Publish this attempt's finished result, if this attempt still holds the gate.
+ *
+ * Not ceremony. Between acquiring the lock and finishing a suite that takes
+ * minutes, somebody may have deleted the lock by hand and started another
+ * attempt. That attempt owns the record now, and this one must discard its
+ * measurements rather than rename them over a newer run's.
+ *
+ * The rename is the atomic step, and the lock is released only AFTER it: a
+ * window where the gate is free and the record is still the old one would let
+ * a packager read a result this attempt had already superseded.
+ */
+export function publishAttempt(root: string, attemptId: string): void {
+  const recordPath = join(root, GATE_RECORD_PATH);
+  const pendingPath = `${recordPath}.pending`;
+  const lock = readAttemptLock(root);
+  if (lock === null || lock.attemptId !== attemptId) {
+    rmSync(pendingPath, { force: true });
+    throw new AttemptRefused(
+      "this attempt no longer holds the gate: it measured a complete result and is " +
+        "discarding it rather than publishing over whatever owns the record now",
+    );
+  }
+  renameSync(pendingPath, recordPath);
+  rmSync(join(root, GATE_LOCK_PATH), { force: true });
 }
 
 /** The record as it sits on disk, or null when there is none to read. */
@@ -380,11 +582,36 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
     else if (value !== true) problems.push(`${field} is false`);
   }
 
-  if (!Array.isArray(t.sanitizedUnhandledErrorNames)) {
-    problems.push("sanitizedUnhandledErrorNames not recorded");
+  /*
+   * TYPES BEFORE VALUES. A string has a `length`, so a field that should be an
+   * array and is not would otherwise be read for one — and a sanitizer that
+   * turned a malformed field into an empty array would make "not recorded" and
+   * "recorded as none" indistinguishable all over again.
+   */
+  for (const [field, value] of [
+    ["sanitizedUnhandledErrorNames", t.sanitizedUnhandledErrorNames],
+    ["sanitizedUnhandledErrorCodes", t.sanitizedUnhandledErrorCodes],
+    ["failedSuiteNames", t.failedSuiteNames],
+    ["failedTests", t.failedTests],
+    ["skippedTests", t.skippedTests],
+    ["reasons", t.reasons],
+  ] as const) {
+    if (!Array.isArray(value)) problems.push(`${field} is not an array`);
   }
-  if (!Array.isArray(t.sanitizedUnhandledErrorCodes)) {
-    problems.push("sanitizedUnhandledErrorCodes not recorded");
+
+  /* Zero unhandled errors and a non-empty identity list cannot both be true. */
+  const unhandled = t.reportedUnhandledErrors;
+  const names = Array.isArray(t.sanitizedUnhandledErrorNames) ? t.sanitizedUnhandledErrorNames : [];
+  const codes = Array.isArray(t.sanitizedUnhandledErrorCodes) ? t.sanitizedUnhandledErrorCodes : [];
+  const identified =
+    names.filter((n) => n !== "(none)").length + codes.filter((c) => c !== "(none)").length;
+  if (unhandled === 0 && identified > 0) {
+    problems.push("reportedUnhandledErrors is 0 but unhandled-error identities were recorded");
+  }
+  if (isCount(unhandled) && unhandled > 0 && identified === 0) {
+    problems.push(
+      `reportedUnhandledErrors is ${String(unhandled)} but no identity was recorded for any of them`,
+    );
   }
 
   /*
@@ -430,13 +657,41 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
     problems.push(`workerPool is ${JSON.stringify(t.workerPool)}, not ${REQUIRED_POOL}`);
   }
 
-  if (t.workerCount === undefined || t.workerCount === null) {
-    problems.push("workerCount not recorded — the run may have been unbounded");
-  } else if (t.workerCount !== REQUIRED_WORKERS) {
-    problems.push(
-      `workerCount is ${String(t.workerCount)}, not ${String(REQUIRED_WORKERS)} — ` +
-        `this record did not come from a run bounded the way the release claims`,
-    );
+  /*
+   * BOTH BOUNDS, AND THEY ARE CONFIGURATION.
+   *
+   * The forks pool keeps `minWorkers` processes alive independently of
+   * `maxWorkers`, so a ceiling alone does not describe the pool. Recording both
+   * proves what the pool was TOLD. It is not an observed peak, nothing here
+   * measures one, and this contract does not pretend otherwise.
+   */
+  for (const [field, value] of [
+    ["workerCount", t.workerCount],
+    ["configuredMinWorkers", t.configuredMinWorkers],
+    ["configuredMaxWorkers", t.configuredMaxWorkers],
+  ] as const) {
+    if (value === undefined || value === null) {
+      problems.push(`${field} not recorded — the run may have been unbounded`);
+    } else if (value !== REQUIRED_WORKERS) {
+      problems.push(
+        `${field} is ${String(value)}, not ${String(REQUIRED_WORKERS)} — ` +
+          `this record did not come from a run bounded the way the release claims`,
+      );
+    }
+  }
+
+  /*
+   * If an observed peak is ever recorded it must not exceed the bound. Absent
+   * is fine: the evidence then proves configuration only, and says so.
+   */
+  if (t.observedPeakWorkers !== undefined && t.observedPeakWorkers !== null) {
+    if (!isCount(t.observedPeakWorkers)) {
+      problems.push("observedPeakWorkers is not a count");
+    } else if (t.observedPeakWorkers > REQUIRED_WORKERS) {
+      problems.push(
+        `observedPeakWorkers is ${String(t.observedPeakWorkers)}, above the bound of ${String(REQUIRED_WORKERS)}`,
+      );
+    }
   }
 
   /*
@@ -458,13 +713,29 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
     return [`${GATE_RECORD_PATH} is missing or unreadable — run \`pnpm release:gates\``];
 
   if (isInProgress(record)) {
+    const id = (record as { attemptId?: unknown }).attemptId;
+    const owner = isAttemptId(id)
+      ? ` (attempt ${id})`
+      : " (by an attempt that did not identify itself)";
     return [
-      "a gate attempt was started and did not finish. The previous result was " +
-        "invalidated when it began, and nothing has replaced it — run `pnpm release:gates` again.",
+      `a gate attempt was started and did not finish${owner}. The previous result ` +
+        "was invalidated when it began, and nothing has replaced it — run " +
+        "`pnpm release:gates` again.",
     ];
   }
 
   const problems: string[] = [];
+  /*
+   * WHICH ATTEMPT PRODUCED THIS. Without it a record is anonymous: nothing
+   * connects the bytes on disk to the run that measured them, and a record
+   * left by an attempt that lost the gate is indistinguishable from one left
+   * by the attempt that held it.
+   */
+  if (!isAttemptId((record as { attemptId?: unknown }).attemptId)) {
+    problems.push(
+      "the record does not name the attempt that produced it — rerun `pnpm release:gates`",
+    );
+  }
   if (record.head !== head) {
     problems.push(
       `recorded at ${String(record.head).slice(0, 7) || "nothing"}, not at ${head.slice(0, 7)} — rerun \`pnpm release:gates\``,
@@ -489,6 +760,17 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
      * label that has to match what the structure says.
      */
     if (/FAILED/.test(outcome)) problems.push(`${gate}: ${outcome}`);
+
+    /*
+     * AND the verdict must be the canonical one, not merely free of the word
+     * FAILED. "BROKEN" contains no such word and used to pass.
+     */
+    const canonical = CANONICAL_VERDICTS[gate];
+    if (canonical !== undefined && outcome !== canonical) {
+      problems.push(
+        `${gate}: verdict ${JSON.stringify(outcome)} is not the canonical ${JSON.stringify(canonical)}`,
+      );
+    }
 
     /* The scan gates have no process of their own; the rest must have one. */
     if (gate === CONTROL_CHARACTER_GATE) continue;
@@ -623,6 +905,9 @@ function bounded(value: unknown, max: number): string | null {
 }
 
 /** Anything that looks like a location, a message or an environment value. */
+/** `0 in 339 files` or `8 FOUND in 3 file(s)` — the scan's own two shapes. */
+const SCAN_VERDICT = /^(\d{1,7} in \d{1,7} files|\d{1,7} FOUND in \d{1,7} file\(s\))$/;
+
 const FORBIDDEN_SHAPE =
   /(^|[^A-Za-z])([A-Za-z]:[\\/]|\.\.[\\/]|\/\/|https?:|file:|postgres(ql)?:|[A-Z][A-Z0-9_]{4,}=)/;
 
@@ -713,13 +998,42 @@ export function sanitizedRecord(record: GateRecord): unknown {
 
   const gates: Record<string, string> = {};
   for (const gate of [...REQUIRED_GATES].sort()) {
-    const verdict = safeText(record.gates?.[gate], 120);
+    const raw = record.gates?.[gate];
+    /*
+     * THE DEFECT THIS EXISTS TO PREVENT.
+     *
+     * `safeText` refuses slash-containing strings because a path is
+     * slash-shaped, and the canonical test verdict ends "/ 45 files". So the
+     * key was dropped, silently, and the delivered `c1b80f0` archive shipped a
+     * staged record with no `pnpm test` gate at all — one its own contract
+     * would have rejected, had anything validated the projection.
+     *
+     * The fix is recognition, not permission: the two measurement-derived
+     * verdicts are matched against their exact canonical shapes, and everything
+     * else still goes through the generic filter unchanged.
+     */
+    if (gate === "pnpm test" && parseTestVerdict(raw) !== null) {
+      gates[gate] = raw as string;
+      continue;
+    }
+    if (gate === CONTROL_CHARACTER_GATE && typeof raw === "string" && SCAN_VERDICT.test(raw)) {
+      gates[gate] = raw;
+      continue;
+    }
+    const verdict = safeText(raw, 120);
     if (verdict !== null) gates[gate] = verdict;
   }
 
   const scan = record.controlCharacterScan;
 
   return {
+    /*
+     * THE ATTEMPT, CARRIED. The staged projection has to pass the same
+     * contract as the source record, and a record that does not name its
+     * attempt fails it — so dropping this field here would refuse every
+     * package rather than ship an anonymous one.
+     */
+    attemptId: isAttemptId(record.attemptId) ? record.attemptId : null,
     head: bounded(record.head, 40),
     tests: {
       passed: isCount(tests?.passed) ? tests.passed : null,
@@ -756,6 +1070,8 @@ export function sanitizedRecord(record: GateRecord): unknown {
       runner: safeText(t?.runner, 32),
       workerPool: safeText(t?.workerPool, 16),
       workerCount: isCount(t?.workerCount) ? t.workerCount : null,
+      configuredMinWorkers: isCount(t?.configuredMinWorkers) ? t.configuredMinWorkers : null,
+      configuredMaxWorkers: isCount(t?.configuredMaxWorkers) ? t.configuredMaxWorkers : null,
       reasons: stageStrings(t?.reasons, 160),
       /* durationMs is deliberately absent. See the note above. */
     },
@@ -767,6 +1083,109 @@ export function sanitizedRecord(record: GateRecord): unknown {
     processes,
     gates,
   };
+}
+
+/**
+ * The evidence a package is built from: validated, projected, validated again.
+ *
+ * ## Why capture exists
+ *
+ * The old flow read `.release/gate-results.json`, validated THAT object, and
+ * then separately called `sanitizedRecord` to produce what actually went into
+ * the archive. Two different objects, one validated and one shipped. When the
+ * projection dropped the `pnpm test` verdict, nothing noticed: the thing that
+ * passed the contract was not the thing that was staged.
+ *
+ * Now there is one object. It is read once, checked, projected, and the
+ * PROJECTION is checked by the same contract before anything may use it. What
+ * the documents render from and what the archive contains are the same bytes,
+ * and both have satisfied the release contract.
+ */
+export interface CapturedEvidence {
+  /** The sanitized projection — the only object a build may stage or render. */
+  readonly staged: StagedRecord;
+  /** Exactly the bytes written into the archive. */
+  readonly json: string;
+  readonly head: string;
+}
+
+/** The projection's shape, so callers cannot mistake it for the source. */
+export type StagedRecord = ReturnType<typeof sanitizedRecord>;
+
+export class EvidenceRefused extends Error {}
+
+/**
+ * Read once, validate, project, validate the projection, freeze.
+ *
+ * Both validations use the SAME contract. A projection that would be refused as
+ * a record is refused as a projection — which is the check the delivered
+ * archive did not have.
+ */
+/**
+ * The repository's own secret patterns, applied to the finished bytes.
+ *
+ * An allowlisted FIELD is not a licence for its VALUE. Every field in the
+ * projection is one somebody decided was safe to carry, and a decision about a
+ * field name says nothing about what ends up inside it — a suite basename, an
+ * error code, a verdict string are all attacker-influenced in principle and
+ * developer-influenced in practice. So the serialized result goes through the
+ * same detector the secret-audit gate runs, and a match refuses the build
+ * rather than reporting what matched.
+ *
+ * Kept in step with `scripts/secret-audit.mjs` by a test that reads both.
+ */
+const SECRET_PATTERNS: readonly { readonly name: string; readonly pattern: RegExp }[] = [
+  { name: "openai-key", pattern: /\bsk-(proj|svcacct|admin)-[A-Za-z0-9_-]{24,}/ },
+  { name: "openai-legacy-key", pattern: /\bsk-[A-Za-z0-9]{32,}\b/ },
+  { name: "fal-key", pattern: /\bfal-[A-Za-z0-9-]{20,}/ },
+  { name: "supabase-secret", pattern: /\bsb_secret_[A-Za-z0-9_-]{20,}/ },
+  { name: "aws-access-key", pattern: /\bAKIA[0-9A-Z]{16}\b/ },
+  { name: "private-key-block", pattern: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
+  {
+    name: "bearer-literal",
+    pattern: /Authorization["'\s:]+\s*(Bearer|Key)\s+[A-Za-z0-9._-]{20,}/,
+  },
+  { name: "assigned-secret", pattern: /[A-Z][A-Z0-9_]{4,}\s*[=:]\s*["']?[A-Za-z0-9/+_-]{20,}/ },
+];
+
+/** Which patterns match these bytes. Names only — never what matched. */
+export function secretPatternsIn(text: string): readonly string[] {
+  return SECRET_PATTERNS.filter((r) => r.pattern.test(text)).map((r) => r.name);
+}
+
+export function captureEvidence(record: GateRecord | null, head: string): CapturedEvidence {
+  const sourceProblems = gateRecordProblems(record, head);
+  if (sourceProblems.length > 0) {
+    throw new EvidenceRefused(
+      `the gate record is not current and clean:\n${sourceProblems.map((x) => `  ${x}`).join("\n")}`,
+    );
+  }
+
+  const staged = sanitizedRecord(record as GateRecord);
+  const stagedProblems = gateRecordProblems(staged as GateRecord, head);
+  if (stagedProblems.length > 0) {
+    throw new EvidenceRefused(
+      "the SANITIZED PROJECTION does not satisfy the release contract, so the archive would " +
+        "carry evidence the contract rejects:\n" +
+        stagedProblems.map((x) => `  ${x}`).join("\n"),
+    );
+  }
+
+  const json = `${JSON.stringify(staged, null, 2)}\n`;
+
+  /*
+   * LAST, OVER THE FINISHED BYTES. Not over the fields, and not over the
+   * source — over exactly what would be written into the archive.
+   */
+  const matched = secretPatternsIn(json);
+  if (matched.length > 0) {
+    throw new EvidenceRefused(
+      `the sanitized projection matches ${String(matched.length)} secret pattern(s): ${matched.join(", ")}. ` +
+        `The matching text is deliberately not reported.`,
+    );
+  }
+
+  return Object.freeze({ staged, json, head });
 }
 
 /**

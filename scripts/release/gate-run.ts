@@ -312,8 +312,17 @@ export interface RunnerEvidence {
   readonly runner: string | null;
   /** The pool Vitest resolved — `forks`, `threads`, `vmThreads`. */
   readonly workerPool: string | null;
-  /** The concurrency bound, where Vitest exposes one. */
+  /**
+   * The CONFIGURED bounds — what the pool was told, not what it did.
+   *
+   * `workerCount` was previously recorded alone and read as though it were
+   * measured concurrency. It is not: it is `maxWorkers` as Vitest resolved it.
+   * The forks pool honours a floor independently of a ceiling, so both are
+   * recorded, and neither is a claim about an observed peak.
+   */
   readonly workerCount: number | null;
+  readonly configuredMinWorkers: number | null;
+  readonly configuredMaxWorkers: number | null;
 }
 
 /** Evidence for a run that produced no runner diagnostics at all. */
@@ -332,6 +341,8 @@ export const NO_RUNNER_EVIDENCE: RunnerEvidence = {
   runner: null,
   workerPool: null,
   workerCount: null,
+  configuredMinWorkers: null,
+  configuredMaxWorkers: null,
 };
 
 /**
@@ -457,6 +468,7 @@ export function describe(result: TestGateResult): string {
     `failedSuites=[${result.failedSuiteNames.join(",")}]`,
     `unhandledErrors=${String(result.reportedUnhandledErrors)}`,
     `pool=${String(result.workerPool)}`,
+    `workers=${String(result.configuredMinWorkers)}..${String(result.configuredMaxWorkers)}`,
   ];
   return bits.join(" ");
 }
