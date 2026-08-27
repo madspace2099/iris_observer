@@ -267,33 +267,21 @@ crediting a model it did not attempt.
 8. THE AUDITED ARTEFACTS ARE UNTOUCHED
 ================================================================================
 
-The independent audit verified the ee954b8 bundle: outer SHA-256 matched, all 40
-manifest hashes matched, no entry missing or extra, and the frozen migration,
-Cron and behavioural artefacts matched the bundle before it. Seventeen re-hashed
-after this commit; seventeen identical:
+Every artefact in this package, re-hashed at generation time and compared with
+the same path at the previous release commit. An earlier edition of this section
+was a TYPED LIST of hashes: it named 444b01d9 for the contract migration after
+that file had changed, which is precisely why this block is rendered now.
 
-  91c0b195…  20260825121909_observer_ai_rate_limiting.sql
-  17ccecc2…  20260825121927_observer_ai_rate_bucket_pruning.sql
-  cf3ed188…  20260825154900_observer_ai_public_facade.sql
-  345f90ba…  20260825173000_observer_whoami_diagnostic.sql
-  b37945d6…  20260825205000_observer_audit_provenance.sql        (APPLIED)
-  444b01d9…  20260826090000_observer_audit_facade_cleanup.sql    (CONTRACT)
-  88f63be6…  20260826120000_observer_exact_retry_and_pseudonym_scope.sql
-  12c29313…  observer-cron-health.sql   (source and wrapper)
-  802d8e63…  observer-migration-2-contract.sql
-  c8895b06…  observer-migration-2-expand.sql
-  74696606…  observer-migration-3-forward.sql
-  906357c3…  observer-behaviour-2.sql
-  9b3d1b6c…  observer-verify-2.sql
-  ac8cbd2e…  IRIS-Observer-a326a87-review.zip
-  4892f365…  IRIS-Observer-189f8d8-review.zip
-  cf60c7ca…  IRIS-Observer-ee954b8-review.zip
+{{ARTEFACT_STATE_BLOCK}}
 
-CHANGED, and every one read-only or comment-only:
+THE ARCHIVES ALREADY DELIVERED, and their outer SHA-256. Declared in
+scripts/release/live-snapshot.ts rather than read back out of the files, so a
+fresh clone can rebuild this package without them:
 
-  observer-http-compat-proof.sql    phase names instead of step numbers
-  observer-ai-readiness.sql         one readiness definition for row 11
-  observer-contract-readiness.sql   the broader external gate; now version-
-                                    controlled under supabase/verifiers/
-  observer-cron-prerequisite.sql    phase name instead of "ROLLOUT STEP 1"
-  20260826140000 (+ its wrapper)    COMMENT ONLY — executable SQL identical
+{{DELIVERED_ARCHIVES_BLOCK}}
+
+  This package's own outer hash is not in that list and cannot be: it is not
+  known until the archive exists, and embedding it would change the bytes it
+  names. The packager prints it and the covering report states it.
+
+

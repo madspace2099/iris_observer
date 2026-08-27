@@ -22,6 +22,7 @@ import {
   RETENTION_THRESHOLD_HOURS,
   OLDEST_BUCKET_HISTORY,
   INVENTORY_UNCHANGED_IN,
+  DELIVERED_ARCHIVES,
 } from "./live-snapshot";
 
 export const REPO_ROOT = join(import.meta.dirname, "..", "..");
@@ -242,6 +243,37 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     "not contain is how an evidence file stops being evidence.",
   ].join("\n");
 
+  /*
+   * Every packaged artefact, compared with the same path at the previous
+   * release commit. This replaces a TYPED list of hashes that named 444b01d9
+   * for the contract migration after that file had changed — a hash that was
+   * correct on the day somebody wrote it and wrong by the next commit.
+   */
+  const artefactPaths = [
+    ...readdirSync(join(REPO_ROOT, MIGRATIONS_DIR))
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => `${MIGRATIONS_DIR}/${f}`),
+    ...readdirSync(join(REPO_ROOT, "supabase/verifiers"))
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => `supabase/verifiers/${f}`),
+    "supabase/prerequisites/observer-cron-prerequisite.sql",
+  ];
+  const artefactRows = artefactPaths.map((path) => {
+    const now = sha256(path);
+    let then: string | null = null;
+    try {
+      then = createHash("sha256")
+        .update(git("show", `${parent}:${path}`))
+        .digest("hex");
+    } catch {
+      then = null; /* new in this commit */
+    }
+    const state = then === null ? "NEW      " : then === now ? "unchanged" : "changed  ";
+    return `  ${state}  ${now.slice(0, 16)}…  ${path.split("/").pop() ?? path}`;
+  });
+
   const cronHealth = sha256("supabase/verifiers/observer-cron-health.sql");
   const cronHealthWrapper = sha256("_sql-to-paste/observer-cron-health.sql");
   const bundles = word(INVENTORY_UNCHANGED_IN.length).toLowerCase();
@@ -304,6 +336,10 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
         : "the two are DIFFERENT — the copy is not verbatim",
     MIGRATIONS_BLOCK: migrationsBlock,
     EXECUTABLE_SQL_BLOCK: executableSqlBlock,
+    ARTEFACT_STATE_BLOCK: artefactRows.join("\n"),
+    DELIVERED_ARCHIVES_BLOCK: DELIVERED_ARCHIVES.map(
+      (a) => `  ${a.sha256}  IRIS-Observer-${a.bundle}-review.zip`,
+    ).join("\n"),
 
     GATE_BLOCK: gateBlock(),
     ARCHIVE_ENTRIES: String(shape.stagedFiles + 1),

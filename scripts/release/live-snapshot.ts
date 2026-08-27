@@ -100,6 +100,31 @@ export const INVENTORY_UNCHANGED_IN: readonly string[] = [
   "f1dbffd",
 ];
 
+/**
+ * The record of what has actually been handed over, bundle by bundle.
+ *
+ * DECLARED, not read back. The previous packager recovered these by opening
+ * seven earlier archives, which meant a fresh clone could not rebuild the
+ * package at all — the generator depended on artefacts nobody had declared as
+ * inputs. They live here instead, so the outer hash of every delivered archive
+ * is quotable without the archive being present, and
+ * supabase/test/artefact-consistency.test.ts re-verifies each one against the
+ * file on disk when it happens to be there.
+ *
+ * The current bundle's own hash is deliberately absent: it cannot be known
+ * until the archive exists, and embedding it would change the bytes it names.
+ */
+export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sha256: string }[] = [
+  { bundle: "1571178", sha256: "6362606257f558af5e46c77c5b9acccd27237198e6a6a3baeec8399bbfa0534d" },
+  { bundle: "bb574b6", sha256: "8d1001a8b9758626e93ebbc5ae3dea23c9e1c9633d2a1ccf775ea2a7bf23b91e" },
+  { bundle: "7e3c00a", sha256: "c8122e324fffe800ffe8b49db5cd7805f9c7d036db86cca8607917a2bc3acc08" },
+  { bundle: "a326a87", sha256: "ac8cbd2e4ec8eb7c5ce0038b98bf8c4ad13880a56bbd6168a424c5db2134b393" },
+  { bundle: "189f8d8", sha256: "4892f365cc1ed03cec86f3564bc46fb3de32fa71044d187446c8909789c0d6cd" },
+  { bundle: "ee954b8", sha256: "cf60c7ca8313a296a64721920d9508fbc20051a6a1a0ef5575e7673241948c43" },
+  { bundle: "c6fdc73", sha256: "a5c9b29d9e1fa52cd85b2fe1f15bd0e90e1df9c1e05fe88d7bdbd9d39fc77fa6" },
+  { bundle: "f1dbffd", sha256: "7b36f149ffa9bd0a54e84c2ce956c5cadb15fff3e09900c07adac6649e36858d" },
+];
+
 export interface Deployment {
   readonly target: "preview" | "production";
   readonly sha: string;

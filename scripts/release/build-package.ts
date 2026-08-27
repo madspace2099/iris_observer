@@ -38,7 +38,7 @@ import { facts, render, git, REPO_ROOT, strip, execSha, MIGRATIONS_DIR } from ".
 import { walk, writeZip } from "./zip";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
-import { DEPLOYMENTS, LIVE, INVENTORY_UNCHANGED_IN } from "./live-snapshot";
+import { DEPLOYMENTS, LIVE, INVENTORY_UNCHANGED_IN, DELIVERED_ARCHIVES } from "./live-snapshot";
 
 const sha256File = (path: string): string =>
   createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -199,10 +199,18 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
       require_(block.includes(c), `${c} is not deployed but is missing from the NOT DEPLOYED set`);
     }
   }
-  require_(
-    !new RegExp(`NOT DEPLOYED:[\\s\\S]*?\\b(${[...deployed].join("|")})\\b`).test(compat),
-    "the NOT DEPLOYED set names a SHA that is deployed",
-  );
+  /*
+   * Bounded to the block itself. An unbounded lazy match ran on to the end of
+   * the document and found a deployed SHA in a later section, reporting a
+   * contradiction that was not there.
+   */
+  const notDeployedBlock = /NOT DEPLOYED:[^.]*\./.exec(compat)?.[0] ?? "";
+  for (const sha of deployed) {
+    require_(
+      !notDeployedBlock.includes(sha),
+      `the NOT DEPLOYED set names ${sha}, which is deployed`,
+    );
+  }
 
   /* The live observation: one timestamp, one bucket age, everywhere. */
   require_(
@@ -276,6 +284,12 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
     allowed.add(git("rev-parse", ref));
   /* The migration-4 paste wrapper as verified in the previous review. */
   allowed.add("a2ec32264583f5d57b87d0db089d4a707de8b317786624084a4e4a2b61b1eef5");
+  /*
+   * The archives already handed over. Declared in live-snapshot.ts rather than
+   * recovered by opening seven ZIPs, which is what made the previous packager
+   * unable to run in a fresh clone.
+   */
+  for (const a of DELIVERED_ARCHIVES) allowed.add(a.sha256);
 
   const problems: string[] = [];
   let checked = 0;
