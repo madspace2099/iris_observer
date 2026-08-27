@@ -52,6 +52,8 @@ function greenRecord(): GateRecord {
       reportedFailedSuites: 0,
       runtimeErrorSuites: 0,
       failedSuiteNames: [],
+      failedTests: [],
+      skippedTests: [],
       reasons: [],
     },
     processes,

@@ -100,6 +100,53 @@ export const sanitize = (run: ProcessRun): ProcessResult => ({
  * long as nobody kept `numFailedTestSuites` and the name of the file. Keeping
  * both turned an unexplained intermittent exit into a one-line answer.
  */
+/**
+ * The identity of one non-passing test. Identity ONLY.
+ *
+ * A gate that recorded counts and suite basenames could say three tests failed
+ * and not which three, so the failures could not be looked at afterwards — the
+ * JSON report is deleted once the counts are out of it. A title and a basename
+ * are enough to find the test again; everything else a failure carries is
+ * unbounded text from a run that may have touched anything.
+ */
+export interface TestIdentity {
+  /** Basename of the file. Never a path — a path identifies the machine. */
+  readonly suite: string;
+  /** The full title path, bounded and stripped of control characters. */
+  readonly title: string;
+}
+
+/** Longest stored title. Beyond this the tail is dropped, not wrapped. */
+export const MAX_TITLE = 160;
+/** Most identities stored per list. A longer list is a different problem. */
+export const MAX_IDENTITIES = 25;
+
+/**
+ * A title fit to persist.
+ *
+ * Control characters and line breaks collapse to single spaces — a stored
+ * title must not be able to carry an invisible byte into the record that the
+ * package-level scan then refuses, and a multi-line title would break every
+ * reader that assumes one line.
+ */
+export function safeTitle(raw: string): string {
+  const flattened = [...raw]
+    .map((ch) => ((ch.codePointAt(0) ?? 32) < 32 || ch === "\u007f" ? " " : ch))
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+  return flattened.length > MAX_TITLE ? `${flattened.slice(0, MAX_TITLE - 1)}…` : flattened;
+}
+
+/** Bound a list of identities, and say so in the record when it was cut. */
+export function boundIdentities(all: readonly TestIdentity[]): readonly TestIdentity[] {
+  if (all.length <= MAX_IDENTITIES) return all;
+  return [
+    ...all.slice(0, MAX_IDENTITIES - 1),
+    { suite: "…", title: `and ${String(all.length - (MAX_IDENTITIES - 1))} more` },
+  ];
+}
+
 export interface ReportSummary {
   readonly reportSuccess: boolean | null;
   readonly reportedFailedTests: number | null;
@@ -118,6 +165,17 @@ export interface ReportSummary {
    * is exactly what must not reach a file somebody zips and hands over.
    */
   readonly failedSuiteNames: readonly string[];
+  /**
+   * WHICH tests failed, by identity. Bounded, sanitized, no message, no
+   * expected or received value, no stack, no path, no output.
+   */
+  readonly failedTests: readonly TestIdentity[];
+  /**
+   * WHICH tests were skipped. Here because the skipped COUNT drifted between
+   * two runs of the same commit with no way to say which test moved, and an
+   * unexplained count is an unexplained result.
+   */
+  readonly skippedTests: readonly TestIdentity[];
 }
 
 export interface TestGateResult extends ProcessResult, ReportSummary {
@@ -168,6 +226,9 @@ export function classifyTestGate(process_: ProcessResult, report: ReportSummary)
   if (report.failedSuiteNames.length > 0) {
     reasons.push(`failing suite(s): ${report.failedSuiteNames.join(", ")}`);
   }
+  for (const t of report.failedTests) {
+    reasons.push(`failed: ${t.suite} > ${t.title}`);
+  }
 
   return { ...process_, ...report, reasons };
 }
@@ -180,6 +241,8 @@ export const NO_REPORT: ReportSummary = {
   reportedFailedSuites: null,
   runtimeErrorSuites: null,
   failedSuiteNames: [],
+  failedTests: [],
+  skippedTests: [],
 };
 
 /** A one-line summary for the console and for the persisted record. */

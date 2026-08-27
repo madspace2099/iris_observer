@@ -3,13 +3,14 @@ import {
   writeFileSync,
   mkdtempSync,
   mkdirSync,
+  cpSync,
   rmSync,
   appendFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   scanFiles,
   scanDirectory,
@@ -170,6 +171,8 @@ describe("the gate contract refuses on the scan, structurally", () => {
         reportedFailedSuites: 0,
         runtimeErrorSuites: 0,
         failedSuiteNames: [],
+        failedTests: [],
+        skippedTests: [],
         reasons: [],
       },
       processes,
@@ -367,16 +370,41 @@ describe.runIf(treeClean && gateRecordCurrent)("the packager refuses an injected
   }).trim();
 
   /**
-   * Build once into a scratch directory, then inject and rescan.
+   * ONE build, then a private copy per test.
    *
-   * `build()` is expensive and deterministic, so one build serves every case:
-   * each injects into a copy of the finished staging directory and asserts the
-   * scan the packager runs would have refused it.
+   * The comment here used to say "build once … one build serves every case"
+   * while `stagedDir()` called `build()` on every invocation — seven complete
+   * package builds in one file, each `git format-patch` over the whole chain
+   * plus staging, rendering, checking and deflating every file. Alone each
+   * takes 8 to 18 seconds; under the full suite the first one measured 49.5s
+   * against the 30-second `testTimeout` set for the PGlite fixtures, and the
+   * gate recorded three genuine failures. The comment described the intent and
+   * the code did the opposite, which is the drift this release keeps finding.
+   *
+   * So: build once in a hook with a budget that fits the work, and give every
+   * test its own temporary root copied from it. No test rebuilds, no two tests
+   * share a path, and each test's cleanup can only touch its own directory —
+   * so nothing a parallel worker does can delete or replace another's files.
    */
-  const stagedDir = (): string => {
-    const out = join(scratch, "pkg");
+  let pristine = "";
+  const mine: string[] = [];
+
+  beforeAll(() => {
+    const out = join(scratch, "pristine");
     build(out);
-    return join(out, shortHead);
+    pristine = join(out, shortHead);
+  }, 240_000);
+
+  afterAll(() => {
+    for (const dir of mine) rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** A private, writable copy of the staged package for one test. */
+  const stagedDir = (): string => {
+    const dir = mkdtempSync(join(scratch, "case-"));
+    cpSync(pristine, dir, { recursive: true });
+    mine.push(dir);
+    return dir;
   };
 
   it.each([

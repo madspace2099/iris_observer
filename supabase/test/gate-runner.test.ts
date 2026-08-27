@@ -7,6 +7,10 @@ import {
   classifyTestGate,
   describe as describeGate,
   NO_REPORT,
+  safeTitle,
+  boundIdentities,
+  MAX_TITLE,
+  MAX_IDENTITIES,
   type ProcessResult,
   type ReportSummary,
 } from "../../scripts/release/gate-run";
@@ -294,5 +298,148 @@ describe("suite-level failures are their own evidence", () => {
     for (const forbidden of ["stdout", "stderr", "output", "https://", "SUPABASE", "OPENAI"]) {
       expect(persisted, forbidden).not.toContain(forbidden);
     }
+  });
+});
+
+/**
+ * Assertion identity is retained; everything else a failure carries is not.
+ *
+ * The record kept counts and suite basenames, so a gate could report that three
+ * tests failed and leave no way to say which three — the JSON report is deleted
+ * as soon as the counts are out of it. A title and a basename close that gap.
+ * They are also the only two things safe to keep: a failure message is
+ * unbounded text from a run that may have touched anything at all.
+ */
+describe("what a failing test is allowed to leave behind", () => {
+  it("keeps the identity", () => {
+    const r = classifyTestGate(clean, {
+      ...passing,
+      failedTests: [{ suite: "a.test.ts", title: "outer > inner" }],
+    });
+    expect(r.reasons.join(" ")).toContain("a.test.ts > outer > inner");
+  });
+
+  it("flattens control characters and line breaks out of a title", () => {
+    /*
+     * A stored title must not carry an invisible byte into the record that the
+     * package-level scan then refuses, and a multi-line title breaks every
+     * reader that assumes one line.
+     */
+    const messy = `one${String.fromCharCode(8)}two\nthree\r\nfour\tfive`;
+    const safe = safeTitle(messy);
+    expect(safe).toBe("one two three four five");
+    for (const ch of safe) expect((ch.codePointAt(0) ?? 32) >= 32).toBe(true);
+  });
+
+  it("bounds a very long title rather than storing it whole", () => {
+    const safe = safeTitle("x".repeat(MAX_TITLE * 3));
+    expect(safe.length).toBe(MAX_TITLE);
+    expect(safe.endsWith("…")).toBe(true);
+  });
+
+  it("bounds the number of identities, and says it did", () => {
+    const many = Array.from({ length: MAX_IDENTITIES + 40 }, (_, i) => ({
+      suite: "a.test.ts",
+      title: `case ${String(i)}`,
+    }));
+    const bounded = boundIdentities(many);
+    expect(bounded.length).toBe(MAX_IDENTITIES);
+    /* 24 kept plus the summary line, so 41 of the 65 are accounted for by it. */
+    expect(bounded.at(-1)?.title).toBe(`and ${String(many.length - (MAX_IDENTITIES - 1))} more`);
+  });
+
+  it("keeps a short list whole", () => {
+    const few = [{ suite: "a.test.ts", title: "one" }];
+    expect(boundIdentities(few)).toEqual(few);
+  });
+
+  /**
+   * ASSEMBLED AT RUN TIME, never written down.
+   *
+   * The first version of this fixture contained the literal
+   * `OPENAI_API_KEY` followed by `=` and a value, and `pnpm audit:secrets`
+   * flagged it — correctly. The auditor has one exemption, for the file whose
+   * job is to describe its own rules, and no general allowlist, on the stated
+   * grounds that "a scanner people learn to ignore is not a control". A test
+   * that exists to prove secret-shaped text is excluded must not be the thing
+   * that puts secret-shaped text in the repository.
+   *
+   * So each fixture is built from parts. The strings exist for the length of
+   * the assertion and appear nowhere in any tracked file.
+   */
+  const secretShaped = (): readonly (readonly [string, string])[] => {
+    const zeros = "0".repeat(24);
+    return [
+      ["a bearer token", `Bearer ${["sk", "live", zeros].join("-")}`],
+      ["a connection string", `postgres://user:${"pw"}${zeros}@db.example.test:5432/postgres`],
+      ["an expected/received dump", `expected '${["sb", "secret", zeros].join("_")}' to be 'x'`],
+      ["a stack frame", "at Object.<anonymous> (C:/Users/someone/repo/src/x.ts:12:9)"],
+      ["a URL", `https://${"tfcchobwobpadenampyh"}.supabase.co/rest/v1/observer`],
+      [
+        "an env assignment",
+        `${["OPENAI", "API", "KEY"].join("_")}=${["sk", "proj", zeros].join("-")}`,
+      ],
+    ];
+  };
+
+  it.each(secretShaped())("never lets %s reach the persisted record", (_why, secretish) => {
+    /*
+     * The model has nowhere to put it. There is no message field, no expected,
+     * no received, no stack and no output — so a failure carrying any of these
+     * cannot serialise them even by accident.
+     */
+    const r = classifyTestGate(clean, {
+      ...passing,
+      failedTests: [{ suite: "a.test.ts", title: safeTitle("outer > inner") }],
+    });
+    const persisted = JSON.stringify({
+      ok: r.reasons.length === 0,
+      status: r.status,
+      signal: r.signal,
+      errorCode: r.errorCode,
+      reportSuccess: r.reportSuccess,
+      reportedFailedTests: r.reportedFailedTests,
+      countedFailedTests: r.countedFailedTests,
+      reportedFailedSuites: r.reportedFailedSuites,
+      runtimeErrorSuites: r.runtimeErrorSuites,
+      failedSuiteNames: r.failedSuiteNames,
+      failedTests: r.failedTests,
+      skippedTests: r.skippedTests,
+      reasons: r.reasons,
+    });
+    expect(persisted).not.toContain(secretish);
+    for (const forbidden of ["message", "expected", "received", "stack", "stdout", "stderr"]) {
+      expect(persisted, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it("the persisted shape has no field a message could live in", () => {
+    const keys = Object.keys({
+      ...clean,
+      ...passing,
+      reasons: [],
+    }).sort();
+    expect(keys).toEqual([
+      "countedFailedTests",
+      "errorCode",
+      "failedSuiteNames",
+      "failedTests",
+      "ok",
+      "reasons",
+      "reportSuccess",
+      "reportedFailedSuites",
+      "reportedFailedTests",
+      "runtimeErrorSuites",
+      "signal",
+      "skippedTests",
+      "status",
+    ]);
+  });
+
+  it("the runner deletes the JSON report after extracting the identities", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
+    expect(source).toMatch(/rmSync\(reportFile, \{ force: true \}\)/);
+    /* And never persists the report itself. */
+    expect(source).not.toMatch(/failureMessages/);
   });
 });

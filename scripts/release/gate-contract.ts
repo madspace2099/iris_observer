@@ -58,6 +58,14 @@ export interface RecordedTestGate extends RecordedProcess {
   readonly reportedFailedSuites?: number | null;
   readonly runtimeErrorSuites?: number | null;
   readonly failedSuiteNames?: readonly string[];
+  /** Identities of the failing tests. Must be present, and must be empty. */
+  readonly failedTests?: readonly { readonly suite: string; readonly title: string }[];
+  /**
+   * Identities of the skipped tests. Present so a changed skip COUNT can be
+   * explained rather than noticed; not required to be empty, because skipping
+   * a platform-specific test is correct behaviour.
+   */
+  readonly skippedTests?: readonly { readonly suite: string; readonly title: string }[];
   readonly reasons?: readonly string[];
 }
 
@@ -191,6 +199,16 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
     }
     if ((t.failedSuiteNames ?? ["unrecorded"]).length !== 0) {
       problems.push(`failing suite(s): ${(t.failedSuiteNames ?? []).join(", ")}`);
+    }
+    if (t.failedTests === undefined) {
+      problems.push("no failed-test identities recorded — rerun `pnpm release:gates`");
+    } else if (t.failedTests.length !== 0) {
+      problems.push(
+        `failing test(s): ${t.failedTests.map((f) => `${f.suite} > ${f.title}`).join("; ")}`,
+      );
+    }
+    if (t.skippedTests === undefined) {
+      problems.push("no skipped-test identities recorded — rerun `pnpm release:gates`");
     }
     if ((t.reasons ?? ["unrecorded"]).length !== 0) {
       problems.push(`test gate not clean: ${(t.reasons ?? []).join("; ")}`);
