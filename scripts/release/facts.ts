@@ -130,6 +130,9 @@ export interface GateResults {
   readonly head: string;
   readonly tests: {
     readonly total: number;
+    readonly passed: number;
+    readonly skipped: number;
+    readonly failed: number;
     readonly files: number;
     readonly perFile: Readonly<Record<string, number>>;
   };
@@ -166,7 +169,8 @@ function gateBlock(): string {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([f, n]) => `                                 ${String(n).padStart(4)}  ${f}`);
   return [
-    `${stale}  pnpm test                      ${r.tests.total} passed / ${r.tests.files} files / 0 failed`,
+    `${stale}  pnpm test                      ${r.tests.passed} passed, ${r.tests.skipped} skipped, ` +
+      `${r.tests.failed} failed / ${r.tests.files} files`,
     ...perFile,
     /* pnpm test is the header line above; do not print it twice. */
     ...Object.entries(r.gates)

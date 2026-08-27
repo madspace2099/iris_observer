@@ -90,6 +90,9 @@ function main(): void {
   );
   let total = 0;
   let files = 0;
+  let passed = 0;
+  let skipped = 0;
+  let failedTests = 0;
   const perFile: Record<string, number> = {};
   if (existsSync(reportFile)) {
     const report = JSON.parse(readFileSync(reportFile, "utf8")) as {
@@ -100,10 +103,23 @@ function main(): void {
       perFile[basename(f.name).replace(/\.test\.ts$/, "")] = n;
       total += n;
       files += 1;
+      /*
+       * Counted separately, because they are not the same claim. Reporting
+       * every collected case as "passed" overstated the suite by the number of
+       * guarded cases — small, and exactly the kind of number this release
+       * keeps correcting elsewhere.
+       */
+      for (const a of f.assertionResults) {
+        if (a.status === "passed") passed += 1;
+        else if (a.status === "failed") failedTests += 1;
+        else skipped += 1;
+      }
     }
     rmSync(reportFile, { force: true });
   }
-  gates["pnpm test"] = tests.ok ? `${total} passed / ${files} files` : "FAILED";
+  gates["pnpm test"] = tests.ok
+    ? `${passed} passed, ${skipped} skipped, ${failedTests} failed / ${files} files`
+    : "FAILED";
   if (!tests.ok) {
     failed += 1;
     /*
@@ -146,7 +162,7 @@ function main(): void {
   mkdirSync(join(REPO_ROOT, ".release"), { recursive: true });
   writeFileSync(
     join(REPO_ROOT, ".release", "gate-results.json"),
-    `${JSON.stringify({ head, tests: { total, files, perFile }, gates }, null, 2)}\n`,
+    `${JSON.stringify({ head, tests: { total, passed, skipped, failed: failedTests, files, perFile }, gates }, null, 2)}\n`,
     "utf8",
   );
 
