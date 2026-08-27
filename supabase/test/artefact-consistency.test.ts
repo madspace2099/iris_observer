@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
@@ -8,6 +9,7 @@ import {
   DEPLOYMENTS,
   CAPABILITY,
   INVENTORY_UNCHANGED_IN,
+  DELIVERED_ARCHIVES,
 } from "../../scripts/release/live-snapshot";
 
 /**
@@ -215,38 +217,76 @@ describe("the deployment inventory's provenance", () => {
     expect(INVENTORY_UNCHANGED_IN.at(-1)).toBeTruthy();
   });
 
-  it.runIf(archives.length > 0)("agrees with the archives actually on disk", () => {
-    /*
-     * Skipped rather than failed when the archives are absent. Packaging must
-     * never depend on an earlier ZIP nobody declared — that was one of the
-     * reasons the documented rebuild could not be run — so this is a check that
-     * strengthens the claim when the evidence is there, not a requirement.
-     */
-    const urls = (text: string): string =>
-      (text.match(/iris-observer-[a-z0-9]+-/g) ?? []).join(",");
-    const found: string[] = [];
-    let reference: string | null = null;
-    for (const zip of archives) {
-      let text = "";
-      try {
-        text = execFileSync(
-          "unzip",
-          ["-p", join(ROOT, "_review", zip), "COMPATIBILITY-EVIDENCE.txt"],
-          {
-            encoding: "utf8",
-            maxBuffer: 32 * 1024 * 1024,
-          },
-        );
-      } catch {
-        continue;
-      }
-      const inventory = urls(
-        /EVERY READY VERCEL DEPLOYMENT[\s\S]*?NOT DEPLOYED/.exec(text)?.[0] ?? "",
+  /*
+   * Checked over the DECLARED bundles only, and only those whose archive
+   * happens to be on this machine.
+   *
+   * Not over every `.zip` in `_review/`: that directory also accumulates the
+   * intermediate archives a packaging session writes on the way to the one that
+   * is actually handed over, and an unshipped build artefact is not a delivery.
+   * Absent archives skip rather than fail, because packaging must never depend
+   * on an earlier ZIP nobody declared as an input — that was one of the reasons
+   * the documented rebuild could not be run twice.
+   */
+  const present = INVENTORY_UNCHANGED_IN.filter((b) =>
+    archives.includes(`IRIS-Observer-${b}-review.zip`),
+  );
+
+  const inventoryOf = (bundle: string): string | null => {
+    let text = "";
+    try {
+      text = execFileSync(
+        "unzip",
+        [
+          "-p",
+          join(ROOT, "_review", `IRIS-Observer-${bundle}-review.zip`),
+          "COMPATIBILITY-EVIDENCE.txt",
+        ],
+        { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
       );
-      if (inventory === "") continue;
-      reference ??= inventory;
-      if (inventory === reference) found.push(zip.replace(/^IRIS-Observer-|-review\.zip$/g, ""));
+    } catch {
+      return null;
     }
-    expect(found.sort()).toEqual([...INVENTORY_UNCHANGED_IN].sort());
+    const section = /EVERY READY VERCEL DEPLOYMENT[\s\S]*?NOT DEPLOYED/.exec(text)?.[0] ?? "";
+    const urls = section.match(/iris-observer-[a-z0-9]+-/g) ?? [];
+    return urls.length > 0 ? urls.join(",") : null;
+  };
+
+  it.runIf(present.length > 1)("every declared bundle on disk records the same inventory", () => {
+    const reference = inventoryOf(present[0] ?? "");
+    expect(reference, `${present[0]} has no readable inventory`).toBeTruthy();
+    for (const bundle of present.slice(1)) {
+      expect(inventoryOf(bundle), bundle).toBe(reference);
+    }
+  });
+
+  it.runIf(present.length > 0)(
+    "counts twenty deployments, the page size that hides a second page",
+    () => {
+      expect((inventoryOf(present[0] ?? "") ?? "").split(",")).toHaveLength(DEPLOYMENTS.length);
+      expect(DEPLOYMENTS).toHaveLength(20);
+    },
+  );
+
+  it("declares an outer hash for every bundle it claims to have delivered", () => {
+    expect(DELIVERED_ARCHIVES.map((a) => a.bundle)).toEqual([...INVENTORY_UNCHANGED_IN]);
+    for (const a of DELIVERED_ARCHIVES) expect(a.sha256, a.bundle).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("those declared hashes match the archives that are on disk", () => {
+    /*
+     * The declaration is what packaging uses, so it must not drift from the
+     * files it names. Any archive that is missing is skipped, not assumed.
+     */
+    let checked = 0;
+    for (const a of DELIVERED_ARCHIVES) {
+      const path = join(ROOT, "_review", `IRIS-Observer-${a.bundle}-review.zip`);
+      if (!existsSync(path)) continue;
+      expect(createHash("sha256").update(readFileSync(path)).digest("hex"), a.bundle).toBe(
+        a.sha256,
+      );
+      checked += 1;
+    }
+    expect(checked, "no delivered archive was available to check").toBeGreaterThan(0);
   });
 });
