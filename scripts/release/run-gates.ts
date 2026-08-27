@@ -23,10 +23,21 @@ interface VitestFile {
   readonly assertionResults: readonly { readonly status: string }[];
 }
 
+/**
+ * `shell` is per-call, and both settings are load-bearing on Windows.
+ *
+ * Node refuses to spawn a `.cmd` shim directly — EINVAL, since the
+ * argument-injection hardening in Node 20 — so every `pnpm` gate came back
+ * "FAILED" with no output, which looks exactly like six real failures. Running
+ * those through a shell fixes it. Running an EXECUTABLE through a shell breaks
+ * it the other way: `process.execPath` is `C:\Program Files\nodejs\node.exe`,
+ * and the shell splits it at the space.
+ */
 const run = (
   label: string,
   command: string,
   args: readonly string[],
+  shell = false,
 ): { ok: boolean; out: string } => {
   process.stdout.write(`  ${label.padEnd(24)}`);
   try {
@@ -35,6 +46,7 @@ const run = (
       encoding: "utf8",
       stdio: "pipe",
       maxBuffer: 64 * 1024 * 1024,
+      shell,
     });
     console.log("clean");
     return { ok: true, out };
@@ -45,7 +57,9 @@ const run = (
   }
 };
 
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+/* pnpm is a .cmd shim on Windows and needs a shell; see run(). */
+const pnpm = "pnpm";
+const NEEDS_SHELL = process.platform === "win32";
 
 function main(): void {
   const head = git("rev-parse", "HEAD");
@@ -54,7 +68,7 @@ function main(): void {
   const gates: Record<string, string> = {};
   let failed = 0;
   const record = (label: string, key: string, args: readonly string[], pass = "clean"): void => {
-    const r = run(label, pnpm, args);
+    const r = run(label, pnpm, args, NEEDS_SHELL);
     gates[key] = r.ok ? pass : "FAILED";
     if (!r.ok) {
       failed += 1;
@@ -68,13 +82,12 @@ function main(): void {
 
   /* Tests, with per-file counts read from the reporter rather than counted. */
   const reportFile = join(tmpdir(), `observer-vitest-${process.pid}.json`);
-  const tests = run("pnpm test", pnpm, [
-    "exec",
-    "vitest",
-    "run",
-    "--reporter=json",
-    `--outputFile=${reportFile}`,
-  ]);
+  const tests = run(
+    "pnpm test",
+    pnpm,
+    ["exec", "vitest", "run", "--reporter=json", `--outputFile=${reportFile}`],
+    NEEDS_SHELL,
+  );
   let total = 0;
   let files = 0;
   const perFile: Record<string, number> = {};
