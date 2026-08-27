@@ -246,13 +246,13 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
       .split("; ")
       .map((s) => `    ${s}${s.endsWith(";") ? "" : ";"}`),
     "",
-    `${word(changedFiles.length)} migration file${changedFiles.length === 1 ? "" : "s"} changed this round` +
-      (changedFiles.length > 0
-        ? ` — ${changedFiles.map((r) => r.f).join(", ")} — and `
-        : ", and ") +
-      (changedExec.length === 0
-        ? "NO EXECUTABLE SQL CHANGED AT ALL."
-        : `${changedExec.length} changed EXECUTABLY, which this milestone forbids.`),
+    `${word(changedFiles.length)} migration file${changedFiles.length === 1 ? "" : "s"} changed since the last`,
+    "delivered bundle:",
+    ...(changedFiles.length > 0 ? changedFiles.map((r) => `  ${r.f}`) : ["  (none)"]),
+    "",
+    changedExec.length === 0
+      ? "NO EXECUTABLE SQL CHANGED AT ALL."
+      : `${changedExec.length} CHANGED EXECUTABLY, which this milestone forbids.`,
   ].join("\n");
 
   const m4ExecNow = createHash("sha256")
