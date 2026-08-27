@@ -109,7 +109,7 @@ describe("the resolver's runtime behaviour", () => {
     expect(
       classifyProjectMapping({
         serverUrl: APPROVED_URL,
-        publicUrl: OTHER_URL,
+        observedPublic: publicPresent(OTHER_URL),
         approvedRef: APPROVED,
       }),
     ).toMatchObject({ state: "PROJECTS_DISAGREE", verdict: "STOP" });
@@ -149,7 +149,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
     expect(
       classifyProjectMapping({
         serverUrl: APPROVED_URL,
-        publicUrl: undefined,
+        observedPublic: PUBLIC_ABSENT,
         approvedRef: APPROVED,
       }),
     ).toEqual({ state: "MAPPED", verdict: "PASS", ref: APPROVED, via: "tooling" });
@@ -159,7 +159,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
     expect(
       classifyProjectMapping({
         serverUrl: APPROVED_URL,
-        publicUrl: APPROVED_URL,
+        observedPublic: publicPresent(APPROVED_URL),
         approvedRef: APPROVED,
       }).verdict,
     ).toBe("PASS");
@@ -172,7 +172,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
   ])("STOPs with SERVER_URL_ABSENT when the server URL is %s", (_why, value) => {
     const outcome = classifyProjectMapping({
       serverUrl: value,
-      publicUrl: APPROVED_URL,
+      observedPublic: publicPresent(APPROVED_URL),
       approvedRef: APPROVED,
     });
     expect(outcome).toEqual({ state: "SERVER_URL_ABSENT", verdict: "STOP", ref: null, via: null });
@@ -187,7 +187,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
      */
     const outcome = classifyProjectMapping({
       serverUrl: undefined,
-      publicUrl: APPROVED_URL,
+      observedPublic: publicPresent(APPROVED_URL),
       approvedRef: APPROVED,
     });
     expect(outcome.verdict).toBe("STOP");
@@ -202,7 +202,11 @@ describe("the preflight decision, which is stricter than the runtime", () => {
       "ftp://x.y",
     ]) {
       expect(
-        classifyProjectMapping({ serverUrl: bad, publicUrl: undefined, approvedRef: APPROVED }),
+        classifyProjectMapping({
+          serverUrl: bad,
+          observedPublic: PUBLIC_ABSENT,
+          approvedRef: APPROVED,
+        }),
         bad,
       ).toMatchObject({ state: "SERVER_URL_MALFORMED", verdict: "STOP" });
     }
@@ -210,7 +214,11 @@ describe("the preflight decision, which is stricter than the runtime", () => {
 
   it("STOPs when the server URL names the wrong project", () => {
     expect(
-      classifyProjectMapping({ serverUrl: OTHER_URL, publicUrl: undefined, approvedRef: APPROVED }),
+      classifyProjectMapping({
+        serverUrl: OTHER_URL,
+        observedPublic: PUBLIC_ABSENT,
+        approvedRef: APPROVED,
+      }),
     ).toMatchObject({ state: "SERVER_PROJECT_WRONG", verdict: "STOP" });
   });
 
@@ -218,7 +226,7 @@ describe("the preflight decision, which is stricter than the runtime", () => {
     expect(
       classifyProjectMapping({
         serverUrl: APPROVED_URL,
-        publicUrl: undefined,
+        observedPublic: PUBLIC_ABSENT,
         approvedRef: APPROVED,
         toolingCannotIsolate: true,
       }),
@@ -231,8 +239,11 @@ describe("the preflight decision, which is stricter than the runtime", () => {
       expect(state.remedy, state.name).not.toBe("");
     }
     expect(
-      classifyProjectMapping({ serverUrl: OTHER_URL, publicUrl: undefined, approvedRef: APPROVED })
-        .ref,
+      classifyProjectMapping({
+        serverUrl: OTHER_URL,
+        observedPublic: PUBLIC_ABSENT,
+        approvedRef: APPROVED,
+      }).ref,
     ).toBeNull();
   });
 
@@ -300,14 +311,22 @@ describe("only the canonical hosted origin can produce a PASS", () => {
   });
 
   it.each(INVALID_ORIGINS)("never reaches MAPPED/PASS from %s", (_why, url) => {
-    const out = classifyProjectMapping({ serverUrl: url, publicUrl: undefined, approvedRef: REF });
+    const out = classifyProjectMapping({
+      serverUrl: url,
+      observedPublic: PUBLIC_ABSENT,
+      approvedRef: REF,
+    });
     expect(out.verdict, url).toBe("STOP");
     expect(out.state, url).toBe("SERVER_URL_MALFORMED");
     expect(out.ref, url).toBeNull();
   });
 
   it.each(INVALID_ORIGINS)("never reaches MAPPED/PASS with %s as the public URL", (_why, url) => {
-    const out = classifyProjectMapping({ serverUrl: OK, publicUrl: url, approvedRef: REF });
+    const out = classifyProjectMapping({
+      serverUrl: OK,
+      observedPublic: publicPresent(url),
+      approvedRef: REF,
+    });
     expect(out.verdict, url).toBe("STOP");
     expect(out.state, url).toBe("PUBLIC_URL_MALFORMED");
   });
@@ -315,19 +334,40 @@ describe("only the canonical hosted origin can produce a PASS", () => {
   it.each([
     ["the canonical origin", OK],
     ["with a trailing slash", `${OK}/`],
-    ["with surrounding whitespace", `  ${OK}  `],
   ])("accepts %s", (_why, url) => {
     expect(projectRef(url)).toBe(REF);
     expect(
-      classifyProjectMapping({ serverUrl: url, publicUrl: undefined, approvedRef: REF }),
+      classifyProjectMapping({ serverUrl: url, observedPublic: PUBLIC_ABSENT, approvedRef: REF }),
     ).toEqual({ state: "MAPPED", verdict: "PASS", ref: REF, via: "tooling" });
+  });
+
+  it.each([
+    ["a leading space", ` ${OK}`],
+    ["a trailing space", `${OK} `],
+    ["a trailing newline", `${OK}\n`],
+    ["a leading tab", `\t${OK}`],
+  ])("refuses the canonical origin with %s around it", (_why, url) => {
+    /*
+     * THE WHOLE STRING, NOT A TRIMMED ONE.
+     *
+     * `projectRef` used to trim before applying its anchored pattern, so a
+     * value with whitespace around it was accepted as the origin it resembles —
+     * while the prose said only the exact whole-string origin is valid. The
+     * whitespace is real: it is in the environment variable, it travels into
+     * the URL a client builds, and this was the only place that could see it.
+     */
+    expect(projectRef(url)).toBeNull();
+    expect(
+      classifyProjectMapping({ serverUrl: url, observedPublic: PUBLIC_ABSENT, approvedRef: REF })
+        .state,
+    ).toBe("SERVER_URL_MALFORMED");
   });
 
   it("compares the ref conjunctively rather than by containment", () => {
     for (const near of [`${REF}x`, `x${REF}`, REF.slice(0, -1)]) {
       const out = classifyProjectMapping({
         serverUrl: `https://${near}.supabase.co`,
-        publicUrl: undefined,
+        observedPublic: PUBLIC_ABSENT,
         approvedRef: REF,
       });
       expect(out.state, near).toBe("SERVER_PROJECT_WRONG");
@@ -342,7 +382,7 @@ describe("PAUSE leads somewhere, and only one way", () => {
   it("PAUSE itself never yields a ref or a PASS", () => {
     const out = classifyProjectMapping({
       serverUrl: OK,
-      publicUrl: undefined,
+      observedPublic: PUBLIC_ABSENT,
       approvedRef: REF,
       toolingCannotIsolate: true,
     });
@@ -355,7 +395,7 @@ describe("PAUSE leads somewhere, and only one way", () => {
   });
 
   it("a matching pair of manual observations is what turns it into a PASS", () => {
-    for (const observation of [OK, `${OK}/`, REF]) {
+    for (const observation of [OK, `${OK}/`]) {
       expect(
         confirmManualMapping({
           observedServer: observation,
@@ -364,6 +404,22 @@ describe("PAUSE leads somewhere, and only one way", () => {
         }),
       ).toEqual({ state: "MAPPED", verdict: "PASS", ref: REF, via: "manual" });
     }
+  });
+
+  it("PAUSEs on a bare project ref, which cannot prove the configured shape", () => {
+    /*
+     * REVIEW says a bare ref is what survives extraction rather than what was
+     * configured, and the classifier accepted one and returned PASS anyway. A
+     * ref alone cannot show https, the right host, no port, no path, no query
+     * and no credentials — six separate ways the mapping can be wrong.
+     */
+    expect(
+      confirmManualMapping({
+        observedServer: REF,
+        approvedRef: REF,
+        observedPublic: PUBLIC_ABSENT,
+      }),
+    ).toEqual({ state: "MANUAL_ORIGIN_SHAPE_UNPROVEN", verdict: "PAUSE", ref: null, via: null });
   });
 
   it("marks a manual PASS as manual, so it is distinguishable from a tooled one", () => {
@@ -375,7 +431,8 @@ describe("PAUSE leads somewhere, and only one way", () => {
       }).via,
     ).toBe("manual");
     expect(
-      classifyProjectMapping({ serverUrl: OK, publicUrl: undefined, approvedRef: REF }).via,
+      classifyProjectMapping({ serverUrl: OK, observedPublic: PUBLIC_ABSENT, approvedRef: REF })
+        .via,
     ).toBe("tooling");
   });
 

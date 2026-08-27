@@ -29,8 +29,9 @@ import {
   copyFileSync,
   readdirSync,
   existsSync,
+  renameSync,
 } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, relative, sep, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -48,16 +49,24 @@ import {
   MIGRATIONS_DIR,
 } from "./facts";
 import { walk, writeZip, scanArchive } from "./zip";
+import {
+  beginOperation,
+  adoptOperation,
+  assertOwner,
+  endOperation,
+  OperationRefused,
+  type Operation,
+} from "./release-operation";
+import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
 import {
-  readAttemptLock,
-  lockProblems,
   readGateRecord,
   gateRecordProblems,
   captureEvidence,
   type CapturedEvidence,
+  type GateRecord,
 } from "./gate-contract";
 import { scanDirectory, describeScan, type ControlCharacterScan } from "./control-chars";
 import { isDeclaredHistorical, transportSafeNote } from "./transport-safe";
@@ -94,13 +103,18 @@ export interface PreconditionInput {
   /** Whatever `gateRecordProblems` said about the record. */
   readonly gateProblems: readonly string[];
   /**
-   * Whatever {@link lockProblems} said about the attempt lock.
+   * Whether this packager OWNS the release mutex, and what is wrong if not.
    *
-   * REQUIRED, not optional. A caller who has not looked at the lock has not
-   * established that a gate run is not in flight, and an optional field would
-   * let "did not look" arrive here as "looked and it was free".
+   * REQUIRED, not optional, and no longer a point-in-time reading of the lock.
+   * Reading the lock, seeing it free, and then building holds nothing: a gate
+   * can start immediately afterwards, invalidate the record this packager
+   * already captured, fail, and leave the packager finishing an archive from a
+   * result that no longer exists. The packager holds the mutex for its whole
+   * life instead, and this field carries the reason it does not.
    */
   readonly lockProblems: readonly string[];
+  /** Every reason the tree is not the one the gate record describes. */
+  readonly treeProblems: readonly string[];
 }
 
 /**
@@ -155,8 +169,22 @@ export function packagingProblems(input: PreconditionInput): readonly string[] {
    */
   if (input.lockProblems.length > 0) {
     problems.push(
-      `a gate attempt holds the gate, so nothing on disk may be packaged:\n` +
+      `this packager does not own the release operation, so nothing on disk may be packaged:\n` +
         input.lockProblems.map((p) => `  ${p}`).join("\n"),
+    );
+  }
+
+  /*
+   * THE TREE THE RECORD DESCRIBES, NOT MERELY A CLEAN ONE.
+   *
+   * A clean tree at the right HEAD was accepted while the record had been
+   * produced from uncommitted edits that were reverted afterwards. The record
+   * carries the identity of what it measured, and this compares it.
+   */
+  if (input.treeProblems.length > 0) {
+    problems.push(
+      `the working tree is not the one the gate measured:\n` +
+        input.treeProblems.map((p) => `  ${p}`).join("\n"),
     );
   }
 
@@ -182,6 +210,20 @@ export function packagingProblems(input: PreconditionInput): readonly string[] {
  */
 export interface BuildOptions {
   readonly gateRecordRoot?: string;
+  /**
+   * The operation this build runs under.
+   *
+   * A build MUST own the release mutex. A test that supplies its own gate
+   * record root supplies its own operation too; the real packager begins one
+   * and the three time-zone children ADOPT the parent's rather than trying to
+   * become independent owners — which would refuse, correctly, since the
+   * parent holds it.
+   */
+  readonly operation?: Operation;
+  /** Where the archive is written. Defaults to `outDir`; a staging directory
+   * during a real package, so nothing lands at the distributable path until
+   * every check has passed. */
+  readonly archiveDir?: string;
 }
 
 function requireCleanHead(options: BuildOptions = {}): {
@@ -191,6 +233,7 @@ function requireCleanHead(options: BuildOptions = {}): {
 } {
   const head = git("rev-parse", "HEAD");
   const root = options.gateRecordRoot ?? REPO_ROOT;
+  const op = options.operation;
 
   /*
    * READ ONCE. Everything after this point uses the captured projection, so no
@@ -206,7 +249,17 @@ function requireCleanHead(options: BuildOptions = {}): {
       .split("\n")
       .filter((l) => l.trim().length > 0 && !l.includes(".release/")),
     gateProblems: gateRecordProblems(record, head),
-    lockProblems: lockProblems(readAttemptLock(root)),
+    /*
+     * OWNERSHIP, RE-ASSERTED. Not a reading of the lock: a demand that this
+     * process is still the owner at the moment the evidence is read.
+     */
+    lockProblems: ownershipProblems(root, op),
+    /*
+     * The tree must be the one the record measured. A synthetic record in a
+     * test root describes a tree nobody claims to have measured, so the
+     * comparison applies to the real repository only.
+     */
+    treeProblems: root === REPO_ROOT ? recordTreeProblems(record) : [],
   });
   if (problems.length > 0) throw new Refusal(problems.join("\n\n"));
 
@@ -223,6 +276,61 @@ function requireCleanHead(options: BuildOptions = {}): {
   }
 
   return { head, short: head.slice(0, 7), evidence };
+}
+
+/** Every reason this process may not act as the release operation's owner. */
+function ownershipProblems(root: string, op: Operation | undefined): readonly string[] {
+  if (op === undefined) {
+    return [
+      "no release operation was begun — a packager that does not hold the mutex is a " +
+        "packager whose evidence can be replaced under it while it builds",
+    ];
+  }
+  try {
+    assertOwner(root, op);
+    return [];
+  } catch (e) {
+    return [(e as Error).message];
+  }
+}
+
+/**
+ * Compare the record's recorded tree identity with the tree here and now.
+ *
+ * The gate records what it measured; this recomputes it. A record produced from
+ * uncommitted edits that were reverted afterwards has a different
+ * `inputsDigest` from the clean tree the packager sees, and that is the only
+ * signal that distinguishes it from an honest one.
+ */
+function recordTreeProblems(record: GateRecord | null): readonly string[] {
+  if (record === null) return [];
+  const now = treeIdentity(REPO_ROOT);
+  const problems = [
+    ...treeProblems(REPO_ROOT, {
+      branch: now.branch,
+      head: now.head,
+      treeId: now.treeId,
+      inputsDigest: now.inputsDigest,
+    }),
+  ];
+  if (record.treeId !== now.treeId) {
+    problems.push(
+      `the record was measured against tree ${String(record.treeId).slice(0, 12) || "nothing"}, and this tree is ${now.treeId.slice(0, 12)}`,
+    );
+  }
+  if (record.inputsDigest !== now.inputsDigest) {
+    problems.push(
+      "the record's tracked-inputs digest does not match this tree — the gate measured " +
+        "different bytes, and reverting them afterwards does not change what was measured",
+    );
+  }
+  if (record.suiteInventoryDigest !== now.suiteInventoryDigest) {
+    problems.push(
+      "the record's expected-suite inventory does not match this tree — suites were added " +
+        "or removed since the gate ran",
+    );
+  }
+  return problems;
 }
 
 /* -------------------------------------------------------------------------
@@ -632,6 +740,7 @@ export function build(
 } {
   const { head, short, evidence } = requireCleanHead(options);
   say(`building the ${short} package`);
+  const archiveDir = options.archiveDir ?? outDir;
 
   /*
    * The documents render from the captured projection too, so section 7 and
@@ -639,7 +748,7 @@ export function build(
    */
   useCapturedGateResults(evidence.staged);
   try {
-    return buildFrom(outDir, short, head, evidence);
+    return buildFrom(outDir, short, head, evidence, archiveDir);
   } finally {
     useCapturedGateResults(null);
   }
@@ -650,6 +759,7 @@ function buildFrom(
   short: string,
   head: string,
   evidence: CapturedEvidence,
+  archiveDir: string,
 ): {
   archive: string;
   sha: string;
@@ -717,7 +827,8 @@ function buildFrom(
     );
   }
 
-  const archive = join(outDir, `IRIS-Observer-${short}-review.zip`);
+  const archive = join(archiveDir, `IRIS-Observer-${short}-review.zip`);
+  mkdirSync(archiveDir, { recursive: true });
   const when = new Date(git("show", "-s", "--format=%cI", "HEAD"));
   const entries = writeZip(dir, archive, when).length;
 
@@ -747,10 +858,69 @@ function main(): void {
   const verify = process.argv.includes("--verify");
   const outDir = join(REPO_ROOT, "_review");
 
-  try {
-    const first = build(outDir);
+  /*
+   * THE TREE FIRST, THEN THE MUTEX, THEN ANYTHING ELSE.
+   *
+   * Refusing here costs nothing. Refusing after a full build costs a build, and
+   * the reason for refusing would be the same.
+   */
+  const identity = treeIdentity(REPO_ROOT);
+  const unclean = treeProblems(REPO_ROOT);
+  if (unclean.length > 0) {
     say("");
-    say(`  archive   ${relative(REPO_ROOT, first.archive).split(sep).join("/")}`);
+    say("PACKAGE GENERATION REFUSED — the tree is not the one any gate measured:");
+    for (const problem of unclean) say(`  ${problem}`);
+    process.exit(1);
+  }
+
+  let op: Operation;
+  try {
+    op = beginOperation(REPO_ROOT, "package", identity.head, identity.treeId);
+  } catch (e) {
+    say("");
+    say(`PACKAGE GENERATION REFUSED — ${(e as Error).message}`);
+    process.exit(1);
+  }
+
+  const binding = new TreeBinding(REPO_ROOT, {
+    branch: identity.branch,
+    head: identity.head,
+    treeId: identity.treeId,
+    inputsDigest: identity.inputsDigest,
+  });
+
+  /*
+   * NOTHING LANDS AT THE DISTRIBUTABLE PATH UNTIL EVERY CHECK HAS PASSED.
+   *
+   * The previous packager wrote `_review/IRIS-Observer-<short>-review.zip`
+   * first and verified afterwards, so a failed determinism check left a
+   * complete, plausible, unverified archive exactly where a person looks for
+   * one. It also compared only the three CHILD hashes with each other and never
+   * with the archive it had actually written — the one it reported and the one
+   * a reviewer receives.
+   */
+  const staging = join(outDir, `.staging-${op.operationId}`);
+  const short = identity.head.slice(0, 7);
+  const distributable = join(outDir, `IRIS-Observer-${short}-review.zip`);
+  let published = false;
+
+  const cleanUp = (): void => {
+    rmSync(staging, { recursive: true, force: true });
+    /*
+     * A same-HEAD archive at the distributable path after a refusal is the
+     * failure mode this exists to prevent: it is indistinguishable from a
+     * verified one, and it is the file somebody would hand over.
+     */
+    if (!published) rmSync(distributable, { force: true });
+  };
+
+  try {
+    binding.sample("before the build");
+    const first = build(outDir, { operation: op, archiveDir: staging });
+    say("");
+    say(
+      `  archive   ${relative(REPO_ROOT, distributable).split(sep).join("/")} (not yet published)`,
+    );
     say(`  entries   ${first.entries} (${first.manifest} in the manifest, plus hashes.txt)`);
     /* Three results, three lines. Never one number standing for all of them. */
     say(`  control   tracked tree: see the gate record`);
@@ -762,10 +932,13 @@ function main(): void {
 
     if (verify) {
       say("");
-      say("  rebuilding under three time zones to test the determinism claim:");
-      const scratch = join(tmpdir(), `observer-release-${process.pid}`);
-      const hashes: string[] = [];
+      say("  rebuilding under three time zones, and comparing all four hashes:");
+      const scratch = join(staging, "children");
+      const hashes: { readonly label: string; readonly sha: string }[] = [
+        { label: "written archive", sha: first.sha },
+      ];
       for (const tz of ["UTC", "Europe/Budapest", "America/New_York"]) {
+        assertOwner(REPO_ROOT, op);
         /* Through tsx: this file is TypeScript and bare node cannot load it. */
         const out = execFileSync(
           process.execPath,
@@ -774,33 +947,89 @@ function main(): void {
             process.argv[1] ?? "",
             "--child",
             scratch,
+            `--operation=${op.operationId}`,
           ],
           { cwd: REPO_ROOT, encoding: "utf8", env: { ...process.env, TZ: tz } },
         ).trim();
         const sha = out.split("\n").pop() ?? "";
-        hashes.push(sha);
-        say(`    TZ=${tz.padEnd(18)} ${sha}`);
+        hashes.push({ label: `TZ=${tz}`, sha });
       }
-      rmSync(scratch, { recursive: true, force: true });
-      const same = hashes.every((h) => h === hashes[0]);
-      say(`    identical across zones: ${same ? "YES" : "NO"}`);
-      if (!same) throw new Refusal("the archive is not reproducible across time zones");
+      for (const h of hashes) say(`    ${h.label.padEnd(22)} ${h.sha}`);
+      const same = hashes.every((h) => h.sha === first.sha && /^[0-9a-f]{64}$/.test(h.sha));
+      say(`    all four identical: ${same ? "YES" : "NO"}`);
+      if (!same) {
+        throw new Refusal(
+          "the archive that would be distributed is not the archive three independent " +
+            "rebuilds produce — the determinism claim is false for these bytes",
+        );
+      }
+
+      /*
+       * THE ARCHIVE'S OWN INTEGRITY, from the tools a reviewer would use.
+       */
+      execFileSync("unzip", ["-t", first.archive], { cwd: staging, stdio: "ignore" });
+      say("    unzip -t                passed");
+      const listing = `${first.sha}  ${basename(first.archive)}\n`;
+      const sumFile = join(staging, "SHA256SUMS");
+      writeFileSync(sumFile, listing, "utf8");
+      execFileSync("sha256sum", ["-c", "SHA256SUMS"], {
+        cwd: dirname(first.archive),
+        stdio: "ignore",
+      });
+      say("    sha256sum -c            passed");
     }
+
+    /* Last: the tree, ownership, and only then the atomic publication. */
+    binding.sample("before publication");
+    if (binding.everBroken.length > 0) {
+      throw new Refusal(
+        "tracked content changed while the package was being built:\n" +
+          binding.everBroken
+            .slice(0, 8)
+            .map((b) => `  ${b}`)
+            .join("\n"),
+      );
+    }
+    assertOwner(REPO_ROOT, op);
+    rmSync(distributable, { force: true });
+    renameSync(first.archive, distributable);
+    published = true;
+    say("");
+    say(`  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}`);
   } catch (e) {
-    if (e instanceof Refusal) {
+    cleanUp();
+    try {
+      endOperation(REPO_ROOT, op);
+    } catch {
+      /* Ownership already lost; the lock belongs to whoever holds it now. */
+    }
+    if (e instanceof Refusal || e instanceof OperationRefused) {
       say("");
       say(`PACKAGE GENERATION REFUSED — ${e.message}`);
       process.exit(1);
     }
     throw e;
   }
+
+  rmSync(staging, { recursive: true, force: true });
+  endOperation(REPO_ROOT, op);
 }
 
 /* A child run prints only its archive hash, so the parent can compare. */
 if (process.argv.includes("--child")) {
   const scratch = process.argv[process.argv.indexOf("--child") + 1] ?? tmpdir();
   mkdirSync(scratch, { recursive: true });
-  say(build(scratch).sha);
+  /*
+   * UNDER THE PARENT'S OWNERSHIP, never its own.
+   *
+   * The three time-zone rebuilds are part of ONE package operation. A child
+   * that tried to take the mutex would refuse — correctly, the parent holds it
+   * — so it verifies the parent's ownership instead, and never releases it.
+   */
+  const idArg = process.argv.find((a) => a.startsWith("--operation="));
+  const operationId = idArg === undefined ? "" : idArg.slice("--operation=".length);
+  const op = adoptOperation(REPO_ROOT, "package", operationId);
+  say(build(scratch, { operation: op }).sha);
 } else if (process.argv[1]?.endsWith("build-package.ts")) {
   main();
 }

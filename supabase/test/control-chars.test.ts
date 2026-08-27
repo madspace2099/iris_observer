@@ -31,7 +31,7 @@ import {
 } from "../../scripts/release/transport-safe";
 import { build } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { syntheticGateRecord, greenGateRecord } from "./support/synthetic-gate-record";
+import { syntheticGateRecord, greenGateRecord, cleanScan } from "./support/synthetic-gate-record";
 
 /**
  * Invisible control characters, and the two places they got through.
@@ -86,7 +86,7 @@ describe("what counts as a forbidden control character", () => {
 });
 
 describe("the structured scan is checked as data, not as prose", () => {
-  const clean = { scannedFiles: 12, foundCharacters: 0, affectedFiles: [] };
+  const clean = cleanScan(12);
 
   it("accepts well-formed clean evidence", () => {
     expect(scanProblems(clean, "scan")).toEqual([]);
@@ -140,9 +140,8 @@ describe("the structured scan is checked as data, not as prose", () => {
 
   it("describes a clean and a dirty scan differently", () => {
     expect(describeScan(clean)).toBe("0 in 12 files");
-    expect(describeScan({ scannedFiles: 12, foundCharacters: 8, affectedFiles: ["a", "b"] })).toBe(
-      "8 FOUND in 2 file(s)",
-    );
+    const dirty = { ...cleanScan(12), foundCharacters: 8, affectedFiles: ["a", "b"] };
+    expect(describeScan(dirty)).toBe("8 FOUND in 2 file(s)");
   });
 });
 
@@ -169,7 +168,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
     const gates = { ...record().gates, [CONTROL_CHARACTER_GATE]: "1 FOUND in 1 file(s)" };
     const problems = gateRecordProblems(
       record({
-        controlCharacterScan: { scannedFiles: 300, foundCharacters: 1, affectedFiles: ["a.patch"] },
+        controlCharacterScan: { ...cleanScan(300), foundCharacters: 1, affectedFiles: ["a.patch"] },
         gates,
       }),
       HEAD_FIXTURE,
@@ -219,7 +218,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
       gateRecordProblems(
         record({
           controlCharacterScan: {
-            scannedFiles: 300,
+            ...cleanScan(300),
             foundCharacters: value,
             affectedFiles: [],
           },
@@ -234,7 +233,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
       gateRecordProblems(
         record({
           controlCharacterScan: {
-            scannedFiles: 300,
+            ...cleanScan(300),
             foundCharacters: 0,
             affectedFiles: ["docs/release/REVIEW.txt"],
           },
@@ -251,7 +250,7 @@ describe("the gate contract refuses on the scan, structurally", () => {
      */
     const problems = gateRecordProblems(
       record({
-        controlCharacterScan: { scannedFiles: 300, foundCharacters: 8, affectedFiles: ["p.patch"] },
+        controlCharacterScan: { ...cleanScan(300), foundCharacters: 8, affectedFiles: ["p.patch"] },
       }),
       HEAD_FIXTURE,
     );

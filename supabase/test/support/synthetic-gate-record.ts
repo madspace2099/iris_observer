@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { ControlCharacterScan } from "../../../scripts/release/control-chars";
 import {
   gateRecordProblems,
   REQUIRED_GATES,
@@ -34,13 +35,29 @@ import {
 
 const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null } as const;
 
+/**
+ * A complete, clean control-character scan over `files` files.
+ *
+ * The scan now records what it was ASKED to read as well as what it read, so
+ * a fixture that states only the second is describing a scan the contract
+ * refuses. One builder, so the next field lands in one place.
+ */
+export const cleanScan = (files: number): ControlCharacterScan => ({
+  requestedFiles: files,
+  scannedFiles: files,
+  readFailures: 0,
+  unreadableFiles: [],
+  foundCharacters: 0,
+  affectedFiles: [],
+});
+
 export interface SyntheticOptions {
   /** Overrides merged over the green record, for the refusal cases. */
   readonly overrides?: Partial<GateRecord>;
   /** How many files the control-character scan claims to have looked at. */
   readonly scannedFiles?: number;
-  /** The attempt this record claims to come from. */
-  readonly attemptId?: string;
+  /** The operation this record claims to come from. */
+  readonly operationId?: string;
 }
 
 /**
@@ -78,9 +95,16 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
 
   return {
     /* A record names the attempt that produced it, so the fixture does too. */
-    attemptId: options.attemptId ?? "00112233445566aa",
+    /* A record names the operation that produced it, so the fixture does too. */
+    operationId: options.operationId ?? "00112233445566aa",
     head,
-    controlCharacterScan: { scannedFiles, foundCharacters: 0, affectedFiles: [] },
+    branch: "release/observer-demo-rc1",
+    /* The identity of the bytes the gate measured, not merely where. */
+    treeId: "1234567890abcdef1234567890abcdef12345678",
+    inputsDigest: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+    suiteInventoryDigest: "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+    expectedSuites: Object.keys(perFile(43, 1201)).sort(),
+    controlCharacterScan: cleanScan(scannedFiles),
     tests: { passed: 1200, skipped: 1, failed: 0, files: 43, perFile: perFile(43, 1201) },
     testGate: {
       ...cleanProcess,
@@ -106,6 +130,7 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       runner: "vitest 3.2.7",
       workerPool: "forks",
       workerCount: 4,
+      observedPeakWorkers: 4,
       configuredMinWorkers: 4,
       configuredMaxWorkers: 4,
       reasons: [],

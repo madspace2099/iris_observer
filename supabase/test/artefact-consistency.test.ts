@@ -348,8 +348,27 @@ describe("the deployment inventory's provenance", () => {
   });
 
   it("declares an outer hash for every bundle it claims to have delivered", () => {
-    expect(DELIVERED_ARCHIVES.map((a) => a.bundle)).toEqual([...INVENTORY_RECORDED_IN]);
     for (const a of DELIVERED_ARCHIVES) expect(a.sha256, a.bundle).toMatch(/^[0-9a-f]{64}$/);
+    const delivered = new Set(DELIVERED_ARCHIVES.map((a) => a.bundle));
+    expect(delivered.size).toBe(DELIVERED_ARCHIVES.length);
+  });
+
+  it("carries the inventory in a subset of what was delivered, not the same list", () => {
+    /*
+     * THEY ARE DIFFERENT FACTS, and forcing them to be equal hid two
+     * deliveries. `3f298a6` was handed over and PREDATES the deployment
+     * inventory table, so it belongs in one list and not the other. Every
+     * bundle that carries the table was of course delivered; the reverse does
+     * not follow, and asserting equality is what made the shorter list
+     * authoritative for both.
+     */
+    const delivered = new Set(DELIVERED_ARCHIVES.map((a) => a.bundle));
+    for (const bundle of INVENTORY_RECORDED_IN) {
+      expect(delivered.has(bundle), bundle).toBe(true);
+    }
+    expect(INVENTORY_RECORDED_IN.length).toBeLessThan(DELIVERED_ARCHIVES.length);
+    expect([...INVENTORY_RECORDED_IN]).not.toContain("3f298a6");
+    expect(delivered.has("3f298a6")).toBe(true);
   });
 
   it("those declared hashes match the archives that are on disk", () => {
@@ -442,20 +461,38 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(review).toMatch(/so\s+does an ABSENT count/);
   });
 
-  it("lists every authoritative run, including the red one", () => {
+  it("lists every authoritative attempt, including the red and aborted ones", () => {
     /*
-     * A history that names only the green runs reports a gate that never
-     * refused. The red run at `7b18141` was a defect this repository
-     * introduced, and the green run at the NEXT commit does not retract it —
-     * that commit was never re-run.
+     * A history that names only the runs that finished green reports a gate
+     * that never refused and never stopped. The red run at `7b18141` was a
+     * defect this repository introduced; the aborted attempt at `4549f76`
+     * produced no verdict at all and was stopped by hand.
      */
-    expect(review).toMatch(/aa579a4\s+GREEN on its first attempt/);
+    expect(review).toMatch(/aa579a4\s+GREEN/);
     expect(review).toMatch(/7b18141\s+RED/);
-    expect(review).toMatch(/c1b80f0\s+GREEN on its first attempt/);
+    expect(review).toMatch(/c1b80f0\s+GREEN/);
+    expect(review).toMatch(/ab98c7a\s+GREEN/);
+    expect(review).toMatch(/4549f76\s+ABORTED, OPERATOR-DECLARED/);
     expect(review).toMatch(/THE RED RUN WAS NOT RETRIED AT ITS OWN COMMIT/);
     expect(review).toMatch(/A later green result at a later commit is not a retraction/);
   });
 
+  it("labels first-attempt and no-retry as operator declarations", () => {
+    /*
+     * There is no append-only attempt ledger, so nothing in this repository
+     * can demonstrate that a run was the first attempt or that none followed.
+     * Those are statements by the person who ran them.
+     */
+    expect(review).toMatch(/no append-only attempt ledger/);
+    expect(review).toMatch(/OPERATOR DECLARATIONS/);
+    /* And no row states it as a measurement — only the paragraph that names it a declaration. */
+    expect(review).not.toMatch(/GREEN on its first attempt —/);
+    expect(review).not.toMatch(/GREEN on its first attempt,/);
+  });
+
+  it("records that the previous archive was delivered and rejected", () => {
+    expect(review).toMatch(/REJECTED by independent audit/);
+  });
   it("does not claim to have preserved a record it cannot produce", () => {
     /*
      * Two earlier claims of preservation pointed at an untracked working
@@ -558,8 +595,9 @@ describe("delivery is not acceptance", () => {
   });
 
   it("records the rejected candidates as rejected, and claims no acceptance", () => {
-    expect(outcomeOf("c1b80f0")).toBe("rejected");
-    expect(outcomeOf("aa579a4")).toBe("rejected");
+    for (const rejected of ["1b8b912", "aa579a4", "c1b80f0", "ab98c7a"]) {
+      expect(outcomeOf(rejected), rejected).toBe("rejected");
+    }
     /*
      * ABSENCE OF A REJECTION IS NOT ACCEPTANCE. Nothing here may be called
      * accepted without explicit evidence, and there is none to cite.
@@ -577,7 +615,7 @@ describe("delivery is not acceptance", () => {
      * every "unchanged since" line spanned the wrong interval.
      */
     const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
-    expect(last).toBe("c1b80f0");
+    expect(last).toBe("ab98c7a");
     expect(baselineCommit().startsWith(last)).toBe(true);
   });
 

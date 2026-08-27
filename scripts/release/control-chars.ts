@@ -32,7 +32,21 @@ import { join, relative, sep } from "node:path";
  * unbounded text from a file that might hold anything.
  */
 export interface ControlCharacterScan {
+  /**
+   * How many files the scan was ASKED to read.
+   *
+   * Separate from `scannedFiles` because they can differ, and the difference is
+   * the whole point: the scanner used to catch a read failure and continue,
+   * with a comment saying a file deleted between listing and reading was not
+   * this gate's problem. It is exactly this gate's problem. "I could not read
+   * eleven tracked files" and "I read every tracked file and found nothing"
+   * were reported by the same number.
+   */
+  readonly requestedFiles: number;
   readonly scannedFiles: number;
+  readonly readFailures: number;
+  /** Bounded identities of what could not be read. Basenames, never paths. */
+  readonly unreadableFiles: readonly string[];
   readonly foundCharacters: number;
   readonly affectedFiles: readonly string[];
 }
@@ -65,6 +79,7 @@ function walkRelative(dir: string): readonly string[] {
 /** Scan an explicit list of files, relative to a root. */
 export function scanFiles(root: string, files: readonly string[]): ControlCharacterScan {
   const affected: string[] = [];
+  const unreadable: string[] = [];
   let found = 0;
   let scanned = 0;
   for (const file of files) {
@@ -72,7 +87,15 @@ export function scanFiles(root: string, files: readonly string[]): ControlCharac
     try {
       bytes = readFileSync(join(root, file));
     } catch {
-      continue; /* deleted between listing and reading; not this gate's problem */
+      /*
+       * RECORDED, NOT SKIPPED. A tracked file that cannot be read is a file
+       * this scan did not check, and a gate that reports "clean" over a set it
+       * could not read is reporting the wrong thing. The basename is kept so
+       * the count can be acted on; the path is not, because a path is
+       * machine-identifying detail in evidence somebody zips up.
+       */
+      unreadable.push(file.split("/").pop() ?? "unnamed");
+      continue;
     }
     scanned += 1;
     const here = countControlCharacters(bytes);
@@ -81,7 +104,14 @@ export function scanFiles(root: string, files: readonly string[]): ControlCharac
       affected.push(file);
     }
   }
-  return { scannedFiles: scanned, foundCharacters: found, affectedFiles: affected.sort() };
+  return {
+    requestedFiles: files.length,
+    scannedFiles: scanned,
+    readFailures: unreadable.length,
+    unreadableFiles: unreadable.sort(),
+    foundCharacters: found,
+    affectedFiles: affected.sort(),
+  };
 }
 
 /** Scan every file in a directory tree — the staged package, for instance. */
@@ -112,7 +142,29 @@ export function scanProblems(scan: unknown, label: string): readonly string[] {
   };
 
   const scanned = wholeNumber(s.scannedFiles, "scannedFiles");
+  const requested = wholeNumber(s.requestedFiles, "requestedFiles");
+  const failures = wholeNumber(s.readFailures, "readFailures");
   const found = wholeNumber(s.foundCharacters, "foundCharacters");
+
+  /*
+   * COMPLETENESS, BEFORE CLEANLINESS. A scan that read fewer files than it was
+   * asked to has not established anything about the ones it missed.
+   */
+  if (requested !== null && scanned !== null && scanned !== requested) {
+    problems.push(
+      `${label}: read ${String(scanned)} of ${String(requested)} requested file(s) — the rest were not checked`,
+    );
+  }
+  if (failures !== null && failures !== 0) {
+    problems.push(`${label}: ${String(failures)} file(s) could not be read`);
+  }
+  if (!Array.isArray(s.unreadableFiles) || s.unreadableFiles.some((f) => typeof f !== "string")) {
+    problems.push(`${label}.unreadableFiles is not an array of strings`);
+  } else if (failures !== null && s.unreadableFiles.length !== failures) {
+    problems.push(
+      `${label}: ${String(failures)} read failure(s) but ${String(s.unreadableFiles.length)} named`,
+    );
+  }
 
   if (!Array.isArray(s.affectedFiles) || s.affectedFiles.some((f) => typeof f !== "string")) {
     problems.push(`${label}.affectedFiles is not an array of strings`);

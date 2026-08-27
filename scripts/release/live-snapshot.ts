@@ -103,6 +103,13 @@ export const OLDEST_BUCKET_HISTORY: readonly number[] = [37, 38, 39, 44, 45, 47,
  * never depend on an archive nobody declared.
  */
 export const INVENTORY_RECORDED_IN: readonly string[] = [
+  /*
+   * `8277b0a` carries the same byte-identical 20-row table and was missing.
+   * `3f298a6` is a delivery that PREDATES the table, so it belongs to
+   * DELIVERED_ARCHIVES and not here — which is the difference between "handed
+   * over" and "carries the recorded inventory".
+   */
+  "8277b0a",
   "1571178",
   "bb574b6",
   "7e3c00a",
@@ -118,6 +125,7 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "7ac84fa",
   "aa579a4",
   "c1b80f0",
+  "ab98c7a",
 ];
 
 /**
@@ -145,6 +153,16 @@ export const LAST_VERCEL_ENUMERATION = "f1dbffd";
  * until the archive exists, and embedding it would change the bytes it names.
  */
 export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sha256: string }[] = [
+  /*
+   * IN DELIVERY ORDER, AND COMPLETE.
+   *
+   * Two of these were handed over and never declared here — `3f298a6` and
+   * `8277b0a` — so every derived count was two short and the byte-comparison
+   * baseline pointed at the wrong archive. A list that is the single source of
+   * six different facts is a list that has to be complete to be worth anything.
+   */
+  { bundle: "3f298a6", sha256: "f364fc0e2876bb41f1df20de7d9b5af83af723bf671d5139f47ad30f0d347853" },
+  { bundle: "8277b0a", sha256: "30546e6f5873a15aabbff41404fa122bbfe2a01f963204250a69c2eeb02a82bb" },
   { bundle: "1571178", sha256: "6362606257f558af5e46c77c5b9acccd27237198e6a6a3baeec8399bbfa0534d" },
   { bundle: "bb574b6", sha256: "8d1001a8b9758626e93ebbc5ae3dea23c9e1c9633d2a1ccf775ea2a7bf23b91e" },
   { bundle: "7e3c00a", sha256: "c8122e324fffe800ffe8b49db5cd7805f9c7d036db86cca8607917a2bc3acc08" },
@@ -160,6 +178,7 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
   { bundle: "7ac84fa", sha256: "cab9eeaad0fc1936ecc05faf1c90e94f50d7dd59d817c24d49745f6e72c5200a" },
   { bundle: "aa579a4", sha256: "e52e09fad3558e51b12decee13966cfd75d5edb2e225e237429d72c17ba2ba93" },
   { bundle: "c1b80f0", sha256: "e6b8360f0653ea6a1371c5cc494323bc419a716b5ebfe6eaf11e0b71404133f8" },
+  { bundle: "ab98c7a", sha256: "789f6d0fb9546dec6f84f9003762c4357876301104a5bf7d8aec4cbc384fcc75" },
 ];
 
 /**
@@ -178,11 +197,22 @@ export type ArchiveOutcome = "accepted" | "rejected" | "unreviewed";
 
 export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
   /*
-   * Only outcomes with explicit evidence are named. Everything else stays
-   * `unreviewed` by omission rather than being promoted to accepted.
+   * Only outcomes with EXPLICIT EVIDENCE are named, and `accepted` has never
+   * been one of them. Everything else stays `unreviewed` by omission rather
+   * than being promoted.
    */
+
+  /*
+   * Rejected on its own evidence: the archive shipped eight forbidden control
+   * bytes in three patch files, independently verified, and REVIEW itself calls
+   * them unacceptable. An archive a package says is unacceptable is not an
+   * unreviewed one.
+   */
+  "1b8b912": "rejected",
   aa579a4: "rejected",
   c1b80f0: "rejected",
+  /* Rejected by the independent audit that opened this milestone. */
+  ab98c7a: "rejected",
 };
 
 export const outcomeOf = (bundle: string): ArchiveOutcome =>

@@ -673,7 +673,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     PROVENANCE_BLOCK: [
       `  handed over          ${word(DELIVERED_ARCHIVES.length).toLowerCase()} archives, ${headShort} excluded — it does not`,
       "                       exist until this one is built.",
-      `  independently        NONE recorded. ${word(rejected.length).toLowerCase()} ${rejected.length === 1 ? "is" : "are"} known to have been`,
+      `  independently        NONE recorded. ${word(rejected.length)} ${rejected.length === 1 ? "is" : "are"} known to have been`,
       `  accepted             REJECTED: ${rejected.map((b) => `\`${b}\``).join(", ")}${rejected.length > 0 ? `, the most recent of` : ""}`,
       `                       them. The rest are UNREVIEWED, which is not`,
       "                       acceptance — absence of a rejection is only",

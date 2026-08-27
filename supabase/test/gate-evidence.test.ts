@@ -4,6 +4,7 @@ import {
   EvidenceRefused,
   sanitizedRecord,
   gateRecordProblems,
+  stagedRecordProblems,
   secretPatternsIn,
   parseTestVerdict,
   renderTestVerdict,
@@ -92,7 +93,7 @@ describe("the staged projection is complete and independently valid", () => {
   });
 
   it("passes the same contract the source record had to pass", () => {
-    expect(gateRecordProblems(staged(green()) as GateRecord, HEAD)).toEqual([]);
+    expect(stagedRecordProblems(staged(green()) as GateRecord, HEAD)).toEqual([]);
   });
 
   it("carries no forbidden field at any depth", () => {
@@ -129,17 +130,40 @@ describe("captured evidence cannot change after it is validated", () => {
 
   it("is unaffected by a later mutation of the source record", () => {
     /*
-     * READ ONCE. The packager captures the projection and everything after
-     * that point uses the capture, so a record edited mid-build — by a gate
-     * run starting, or by hand — cannot reach the archive.
+     * READ ONCE. The packager captures the projection and everything after that
+     * point uses the capture, so a record edited mid-build — by a gate run
+     * starting, or by hand — cannot reach the archive.
      */
-    const record = greenGateRecord(HEAD) as { attemptId: string };
+    const record = greenGateRecord(HEAD) as { branch: string };
     const evidence = captureEvidence(record as GateRecord, HEAD);
     const before = evidence.json;
-    /* Still a valid record afterwards, so the difference is the capture, not a refusal. */
-    record.attemptId = "ffeeddccbbaa9988";
+    record.branch = "some-other-branch";
     expect(evidence.json).toBe(before);
     expect(captureEvidence(record as GateRecord, HEAD).json).not.toBe(before);
+  });
+
+  it("produces identical bytes for two runs that differ only in their operation id", () => {
+    /*
+     * THE REPRODUCIBILITY CLAIM, MADE TRUE.
+     *
+     * The projection used to carry the random 16-hex operation id, so two
+     * identical green runs at one commit produced different archive bytes while
+     * the package described itself as deterministic from tracked inputs. The id
+     * is operational state; it proves ownership and says nothing about what was
+     * measured.
+     */
+    const a = greenGateRecord(HEAD, { operationId: "00112233445566aa" });
+    const b = greenGateRecord(HEAD, { operationId: "ffeeddccbbaa9988" });
+    expect(a.operationId).not.toBe(b.operationId);
+    expect(captureEvidence(a, HEAD).json).toBe(captureEvidence(b, HEAD).json);
+    expect(captureEvidence(a, HEAD).json).not.toContain("00112233445566aa");
+  });
+
+  it("keeps every volatile field out of the staged bytes", () => {
+    const json = captureEvidence(green(), HEAD).json;
+    for (const volatile of ["operationId", "attemptId", "startedAt", "durationMs", "pid"]) {
+      expect(json, volatile).not.toContain(`"${volatile}"`);
+    }
   });
 
   it("refuses an in-progress marker, however green the previous record was", () => {

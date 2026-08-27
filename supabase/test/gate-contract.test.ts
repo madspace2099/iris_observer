@@ -1,16 +1,19 @@
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  existsSync,
+  symlinkSync,
+  renameSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
-  acquireAttempt,
-  publishAttempt,
-  AttemptRefused,
-  readAttemptLock,
-  lockProblems,
-  isAttemptId,
-  GATE_LOCK_PATH,
   gateRecordProblems,
+  isAbandoned,
   sanitizedRecord,
   FORBIDDEN_STAGED_FIELDS,
   GATE_IN_PROGRESS,
@@ -22,7 +25,25 @@ import {
 } from "../../scripts/release/gate-contract";
 import { packagingProblems } from "../../scripts/release/build-package";
 import { readGateResultsFromDisk } from "../../scripts/release/facts";
-import { syntheticGateRecord, greenGateRecord } from "./support/synthetic-gate-record";
+import {
+  beginOperation,
+  endOperation,
+  withOperation,
+  assertOwner,
+  stillOwner,
+  readOperationLock,
+  lockStateProblems,
+  releaseDirProblems,
+  evidenceFileProblems,
+  inspectPath,
+  recoverOperation,
+  quarantinePathFor,
+  isOperationId,
+  OperationRefused,
+  OPERATION_LOCK_PATH,
+  type Operation,
+} from "../../scripts/release/release-operation";
+import { syntheticGateRecord, greenGateRecord, cleanScan } from "./support/synthetic-gate-record";
 
 /**
  * A package may only be built from current, green gate evidence.
@@ -69,8 +90,10 @@ function greenRecord(): GateRecord {
   const base = greenGateRecord(HEAD);
   return {
     ...base,
-    controlCharacterScan: { scannedFiles: 300, foundCharacters: 0, affectedFiles: [] },
+    controlCharacterScan: cleanScan(300),
     tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: evenPerFile(40, 1002) },
+    /* The expected inventory has to describe the same suites the counts do. */
+    expectedSuites: Object.keys(evenPerFile(40, 1002)).sort(),
     testGate: {
       ...base.testGate,
       skippedTests: [
@@ -711,6 +734,7 @@ describe("an aborted attempt invalidates the record it replaced", () => {
       dirty: [],
       gateProblems: gateRecordProblems(readGateRecord(root), head),
       lockProblems: [],
+      treeProblems: [],
     });
     expect(problems.join(" ")).toMatch(/gate record is not current and clean/);
     expect(problems.join(" ")).toMatch(/started and did not finish/);
@@ -718,59 +742,57 @@ describe("an aborted attempt invalidates the record it replaced", () => {
 
   it("leaves no half-written record where the canonical one belongs", () => {
     /*
-     * The finished record is built at a pending path and RENAMED into place, so
-     * a process that dies mid-write leaves a truncated file BESIDE the record
-     * rather than in place of it. Observed, not read off the source: the
-     * canonical path keeps the previous bytes until the rename happens.
+     * The finished record is built at an ATTEMPT-SPECIFIC pending path and
+     * renamed into place, so a process that dies mid-write leaves a truncated
+     * file beside the record rather than in place of it — and no two
+     * operations can write the same pending file. Observed, not read off the
+     * source: the canonical path keeps the previous bytes until the rename.
      */
     const root = mkdtempSync(join(tmpdir(), "observer-atomic-"));
-    const id = acquireAttempt(root, HEAD);
+    const op = beginOperation(root, "gate", HEAD, "9".repeat(40));
     mkdirSync(join(root, ".release"), { recursive: true });
     const canonical = join(root, GATE_RECORD_PATH);
     writeFileSync(canonical, '{"before":true}', "utf8");
-    writeFileSync(`${canonical}.pending`, '{"truncated', "utf8");
+    writeFileSync(join(root, op.pendingPath), '{"truncated', "utf8");
     expect(readFileSync(canonical, "utf8")).toBe('{"before":true}');
-    publishAttempt(root, id);
+
+    assertOwner(root, op);
+    renameSync(join(root, op.pendingPath), canonical);
     expect(readFileSync(canonical, "utf8")).toBe('{"truncated');
     /* And a file that does not parse reads as no record at all. */
     expect(readGateRecord(root)).toBeNull();
+    endOperation(root, op);
     rmSync(root, { recursive: true, force: true });
   });
-
   it("invalidates the canonical record before the first gate, not after", () => {
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
-    const acquire = source.indexOf("acquireAttempt(REPO_ROOT, head)");
-    const begin = source.indexOf("beginAttempt(head, attemptId)");
+    const acquire = source.indexOf('beginOperation(REPO_ROOT, "gate", head, identity.treeId)');
+    const begin = source.indexOf("beginAttempt(op)");
     const firstGate = source.indexOf('record("pnpm format:check"');
     expect(acquire).toBeGreaterThan(0);
     /* Ownership first, so a runner that loses the race destroys nothing. */
     expect(begin).toBeGreaterThan(acquire);
     expect(firstGate).toBeGreaterThan(begin);
     /* And publication goes through the owner check, never a bare rename. */
-    expect(source).toContain("publishAttempt(REPO_ROOT, attemptId)");
-    expect(source).not.toMatch(/renameSync\(/);
+    /* Publication renames the attempt-specific pending file, under ownership. */
+    expect(source).toContain("assertOwner(REPO_ROOT, op)");
+    expect(source).toContain("renameSync(join(REPO_ROOT, op.pendingPath), RECORD_PATH)");
   });
 
   it("does not erase separately preserved historical failure evidence", () => {
     /*
      * Invalidating the CANONICAL result is not the same as destroying history.
-     * `beginAttempt` touches one path and the pending file beside it, and
-     * nothing that carries a preserved failure.
+     * `beginAttempt` writes one path and clears only the files belonging to the
+     * operation that is starting — never a preserved failure, never another
+     * operation's pending result, and never the directory itself.
      */
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
     const body = /function beginAttempt[\s\S]*?\n}/.exec(source)?.[0] ?? "";
     expect(body).toContain("RECORD_PATH");
-    expect(body).toMatch(/rmSync\(PENDING_PATH/);
-    /*
-     * No RECURSIVE removal — the only `recursive` in this function is the
-     * `mkdirSync` that creates the directory — and nothing aimed at the
-     * directory itself.
-     */
-    const removals = body.match(/rmSync\([^;]*\);/g) ?? [];
-    expect(removals).toHaveLength(1);
-    expect(removals[0]).toContain("PENDING_PATH");
-    expect(removals[0]).not.toContain("recursive");
-    expect(body).not.toMatch(/rmSync\(\s*join\(REPO_ROOT, "\.release"\)/);
+    expect(body).toContain("discardOwnFiles(REPO_ROOT, op)");
+    /* No removal of its own, recursive or otherwise. */
+    expect(body).not.toMatch(/rmSync\(/);
+    expect(body).not.toMatch(/recursive/);
   });
 });
 
@@ -835,194 +857,344 @@ describe("the evidence renderer tolerates an attempt in progress", () => {
 });
 
 /**
- * ONE ATTEMPT AT A TIME, AND ONLY THE OWNER PUBLISHES.
+ * ONE RELEASE OPERATION AT A TIME, IN BOTH DIRECTIONS.
  *
- * The in-progress marker said an attempt was running and nothing about WHOSE.
- * Two runners could each write it, each run the whole suite, and each rename
- * its own result into place — the second publishing measurements of a tree the
- * first had already measured differently, with nothing on disk to show that it
- * had happened. The archive would carry whichever finished last.
+ * The previous lock was taken by the gate alone, and the process that needed
+ * excluding was the packager: it read the record, read the lock, saw the gate
+ * free, and then built while holding nothing. A gate could start immediately
+ * after that reading, invalidate the record, fail, and the packager would still
+ * finish an archive from the green record it had already captured.
  *
- * Every case below drives the real functions against a real temporary root.
- * None of them touches this repository's own `.release/` directory.
+ * So gate and package are the same kind of thing — a release operation — and
+ * they take one mutex for their whole lifetime. Every case below drives the
+ * real functions against a real temporary root and never touches this
+ * repository's own `.release/` directory.
  */
-describe("the gate admits one attempt at a time", () => {
-  const scratch = mkdtempSync(join(tmpdir(), "observer-lock-"));
+describe("one release operation at a time", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-op-"));
   afterAll(() => {
     rmSync(scratch, { recursive: true, force: true });
   });
 
+  const TREE = "9".repeat(40);
   const freshRoot = (): string => mkdtempSync(join(scratch, "root-"));
-  const lockFile = (root: string): string => join(root, GATE_LOCK_PATH);
-  const pendingFile = (root: string): string => `${join(root, GATE_RECORD_PATH)}.pending`;
+  const lockFile = (root: string): string => join(root, OPERATION_LOCK_PATH);
+  const begin = (root: string, kind: "gate" | "package" = "gate"): Operation =>
+    beginOperation(root, kind, HEAD, TREE);
 
-  it("gives the gate to the first attempt and refuses the second", () => {
+  it("gives the mutex to the first operation and refuses the second", () => {
     const root = freshRoot();
-    const first = acquireAttempt(root, HEAD);
-    expect(isAttemptId(first)).toBe(true);
-    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+    const first = begin(root);
+    expect(isOperationId(first.operationId)).toBe(true);
+    expect(() => begin(root)).toThrow(OperationRefused);
   });
 
-  it("tells the refused attempt who holds the gate, and leaves the lock alone", () => {
+  it("refuses a package while a gate owns the operation", () => {
     const root = freshRoot();
-    const holder = acquireAttempt(root, HEAD);
-    let message = "";
-    try {
-      acquireAttempt(root, HEAD);
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).toContain(holder);
-    expect(message).toContain(GATE_LOCK_PATH);
-    /* The loser must not clear the winner lock on its way out. */
-    expect(readAttemptLock(root)?.attemptId).toBe(holder);
+    begin(root, "gate");
+    expect(() => begin(root, "package")).toThrow(/gate operation owns the release mutex/);
   });
 
-  it("issues a different id to every attempt", () => {
+  it("refuses a gate while packaging owns the operation", () => {
+    const root = freshRoot();
+    begin(root, "package");
+    expect(() => begin(root, "gate")).toThrow(/package operation owns the release mutex/);
+  });
+
+  it("issues a different id to every operation", () => {
     const ids = new Set<string>();
-    for (let i = 0; i < 25; i += 1) ids.add(acquireAttempt(freshRoot(), HEAD));
+    for (let i = 0; i < 25; i += 1) ids.add(begin(freshRoot()).operationId);
     expect(ids.size).toBe(25);
     for (const id of ids) expect(id).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it("refuses an attempt id that is not the bounded shape", () => {
+  it("refuses an operation id that is not the bounded shape", () => {
     for (const bad of ["", "short", "g".repeat(16), "0".repeat(17), "A".repeat(16)]) {
-      expect(() => acquireAttempt(freshRoot(), HEAD, bad)).toThrow(AttemptRefused);
+      expect(() => beginOperation(freshRoot(), "gate", HEAD, TREE, bad)).toThrow(OperationRefused);
     }
   });
 
-  it("treats an abruptly terminated attempt as still holding the gate", () => {
+  it("gives each operation its own pending path", () => {
+    const a = begin(freshRoot());
+    const b = begin(freshRoot());
+    expect(a.pendingPath).not.toBe(b.pendingPath);
+    expect(a.pendingPath).toContain(a.operationId);
     /*
-     * FAIL CLOSED. A killed runner leaves its lock behind, and there is no age
-     * at which this process may assume the other one is gone — it cannot see
-     * it. The next attempt refuses until a human decides and deletes the file.
+     * A single shared pending path meant an operation that had lost ownership
+     * deleted the finished-but-unpublished result belonging to the operation
+     * that had taken it.
+     */
+    expect(a.pendingPath).not.toContain("gate-results.json.pending");
+  });
+
+  it("treats an abruptly terminated operation as still holding the mutex", () => {
+    const root = freshRoot();
+    begin(root);
+    expect(() => begin(root)).toThrow(OperationRefused);
+  });
+
+  it("names an owner-bound recovery rather than telling anyone to delete a file", () => {
+    const root = freshRoot();
+    const op = begin(root);
+    const held = lockStateProblems(readOperationLock(root), "gate");
+    expect(held.join(" ")).toContain(op.operationId);
+    expect(held.join(" ")).toContain("pnpm release:recover");
+    expect(held.join(" ")).toContain("Deleting the lock by hand is not recovery");
+  });
+
+  it("keeps ownership through an assertion, and loses it when the file changes", () => {
+    const root = freshRoot();
+    const op = begin(root);
+    expect(stillOwner(root, op)).toBe(true);
+    /*
+     * A FORGED LOCK CARRYING THIS OPERATION'S ID IS NOT THIS OPERATION'S LOCK.
+     *
+     * Ownership is the file object — device, inode, birth time, size — captured
+     * when the exclusive create succeeded. Content can be written by anyone.
+     */
+    rmSync(lockFile(root), { force: true });
+    writeFileSync(
+      lockFile(root),
+      JSON.stringify({
+        kind: "gate",
+        operationId: op.operationId,
+        head: HEAD,
+        treeId: TREE,
+        startedAt: "2026-08-28T00:00:00.000Z",
+      }),
+      "utf8",
+    );
+    expect(stillOwner(root, op)).toBe(false);
+    expect(() => assertOwner(root, op)).toThrow(/different file object/);
+  });
+
+  it("never releases a lock this operation does not own", () => {
+    /*
+     * A ran for minutes; somebody removed its lock and started B. Under the old
+     * protocol A published and then deleted whatever was at that path, which
+     * was B's lock.
      */
     const root = freshRoot();
-    acquireAttempt(root, HEAD);
-    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+    const a = begin(root);
     rmSync(lockFile(root), { force: true });
-    expect(isAttemptId(acquireAttempt(root, HEAD))).toBe(true);
+    const b = begin(root);
+    expect(b.operationId).not.toBe(a.operationId);
+    expect(() => endOperation(root, a)).toThrow(OperationRefused);
+    const after = readOperationLock(root);
+    expect(after.kind).toBe("held");
+    expect(after.kind === "held" ? after.lock.operationId : "").toBe(b.operationId);
   });
 
-  it("treats an unreadable lock as held rather than absent", () => {
+  it("releases the mutex only for its own owner, and then it is free", () => {
     const root = freshRoot();
+    const op = begin(root);
+    endOperation(root, op);
+    expect(readOperationLock(root).kind).toBe("free");
+    expect(isOperationId(begin(root).operationId)).toBe(true);
+  });
+
+  it("removes only its own files when a body fails", () => {
+    const root = freshRoot();
+    const foreign = join(root, ".release", "pending-0000000000000000.json");
+    expect(() =>
+      withOperation(root, "gate", HEAD, TREE, (op) => {
+        mkdirSync(join(root, ".release"), { recursive: true });
+        writeFileSync(join(root, op.pendingPath), "{}", "utf8");
+        writeFileSync(foreign, "{}", "utf8");
+        throw new Error("the body failed");
+      }),
+    ).toThrow("the body failed");
+    /* Its own pending file is gone; another operation's is untouched. */
+    expect(existsSync(foreign)).toBe(true);
+    expect(readOperationLock(root).kind).toBe("free");
+  });
+});
+
+/**
+ * EVIDENCE PATHS ARE INSPECTED, NOT ASSUMED.
+ *
+ * `existsSync` follows links, so a dangling symbolic link read as ABSENT — and
+ * absent is the one state that means free to proceed. A lock whose content
+ * parsed to JSON `null` also read as absent, because the reader returned null
+ * for both. Four bytes on disk meant "the gate is free".
+ */
+describe("a present-but-invalid evidence path is held, not free", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-paths-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const rootWith = (write: (root: string) => void): string => {
+    const root = mkdtempSync(join(scratch, "root-"));
     mkdirSync(join(root, ".release"), { recursive: true });
-    writeFileSync(lockFile(root), "{ half written", "utf8");
-    expect(lockProblems(readAttemptLock(root))).not.toEqual([]);
-    expect(() => acquireAttempt(root, HEAD)).toThrow(AttemptRefused);
+    write(root);
+    return root;
+  };
+  const lockAt = (root: string): string => join(root, OPERATION_LOCK_PATH);
+
+  it("reads an absent lock as free, and only an absent one", () => {
+    expect(readOperationLock(mkdtempSync(join(scratch, "empty-"))).kind).toBe("free");
   });
 
-  it("reports a free gate as free", () => {
-    expect(lockProblems(readAttemptLock(freshRoot()))).toEqual([]);
+  it.each([
+    ["JSON null", "null"],
+    ["JSON false", "false"],
+    ["a JSON string", '"free"'],
+    ["a JSON array", "[]"],
+    ["an empty file", ""],
+    ["malformed JSON", "{ half written"],
+    ["an object with no operation", "{}"],
+    [
+      "an operation id of the wrong shape",
+      '{"kind":"gate","operationId":"nope","head":"x","treeId":"y","startedAt":"z"}',
+    ],
+  ])("reads %s as unsafe rather than free", (_why, body) => {
+    const root = rootWith((r) => {
+      writeFileSync(lockAt(r), body, "utf8");
+    });
+    const state = readOperationLock(root);
+    expect(state.kind).toBe("unsafe");
+    expect(lockStateProblems(state, "gate")).not.toEqual([]);
+    expect(() => beginOperation(root, "gate", HEAD, "9".repeat(40))).toThrow(OperationRefused);
   });
 
-  it("refuses to package while an attempt holds the gate", () => {
-    const root = freshRoot();
+  it("reads a directory where the lock belongs as unsafe", () => {
+    const root = rootWith((r) => {
+      mkdirSync(lockAt(r), { recursive: true });
+    });
+    expect(readOperationLock(root).kind).toBe("unsafe");
+  });
+
+  it("refuses a .release that is not a directory", () => {
+    const root = mkdtempSync(join(scratch, "notdir-"));
+    writeFileSync(join(root, ".release"), "not a directory", "utf8");
+    expect(releaseDirProblems(root)).not.toEqual([]);
+    expect(readOperationLock(root).kind).toBe("unsafe");
+  });
+
+  it("inspects with lstat, so a link is seen as a link", () => {
+    /*
+     * Symbolic links need a privilege Windows does not grant by default, so the
+     * link cases run only where they can be created. What always runs is the
+     * inspection contract they reduce to: every state that is not a plain
+     * regular file inside the repository is refused.
+     */
+    const root = rootWith((r) => {
+      mkdirSync(join(r, ".release", "dir-not-file"), { recursive: true });
+    });
+    expect(inspectPath(root, ".release/dir-not-file").kind).toBe("dir");
+    expect(inspectPath(root, ".release/nothing-here").kind).toBe("absent");
+    expect(evidenceFileProblems(root, ".release/dir-not-file")).not.toEqual([]);
+    expect(evidenceFileProblems(root, ".release/nothing-here")).toEqual([]);
+
+    let linked = false;
+    try {
+      symlinkSync(join(root, ".release", "dir-not-file"), join(root, ".release", "a-link"));
+      linked = true;
+    } catch {
+      linked = false;
+    }
+    if (linked) {
+      expect(inspectPath(root, ".release/a-link").kind).toBe("unsafe");
+      expect(evidenceFileProblems(root, ".release/a-link")).not.toEqual([]);
+    }
+
+    /* And a DANGLING link, which `existsSync` reports as absent. */
+    let dangling = false;
+    try {
+      symlinkSync(join(root, "no-such-target"), join(root, ".release", "dangling"));
+      dangling = true;
+    } catch {
+      dangling = false;
+    }
+    if (dangling) {
+      expect(existsSync(join(root, ".release", "dangling"))).toBe(false);
+      expect(inspectPath(root, ".release/dangling").kind).toBe("unsafe");
+    }
+  });
+});
+
+/**
+ * RECOVERY IS AN OPERATION, NOT AN INSTRUCTION TO DELETE A FILE.
+ *
+ * There is a gap between taking the mutex and writing the in-progress marker.
+ * An operation that dies inside it leaves the PREVIOUS green record in place,
+ * so removing only the lock — which is what the refusal used to advise — makes
+ * a superseded green record packageable again.
+ */
+describe("recovery is bound to the operation it recovers", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-recover-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const rootWithGreen = (): string => {
+    const root = mkdtempSync(join(scratch, "root-"));
     syntheticGateRecord(root, HEAD);
-    /* Green, current and clean — and still not packageable, because of the lock. */
+    return root;
+  };
+
+  it("refuses to recover an operation that does not own the mutex", () => {
+    const root = rootWithGreen();
+    beginOperation(root, "gate", HEAD, "9".repeat(40));
+    expect(() => recoverOperation(root, "0".repeat(16), GATE_RECORD_PATH)).toThrow(
+      /the mutex is owned by/,
+    );
+  });
+
+  it("refuses when nothing owns the mutex", () => {
+    expect(() => recoverOperation(rootWithGreen(), "0".repeat(16), GATE_RECORD_PATH)).toThrow(
+      /nothing to recover/,
+    );
+  });
+
+  it("tombstones the previous green record rather than leaving it packageable", () => {
+    /*
+     * THE GAP. The operation died after taking the mutex and before writing the
+     * marker, so the green record from the run before it is still there — and
+     * deleting only the lock would make it packageable again.
+     */
+    const root = rootWithGreen();
     expect(gateRecordProblems(readGateRecord(root), HEAD)).toEqual([]);
-    acquireAttempt(root, HEAD);
+    const op = beginOperation(root, "gate", HEAD, "9".repeat(40));
+
+    const done = recoverOperation(root, op.operationId, GATE_RECORD_PATH);
+    expect(done.join(" ")).toContain("tombstoned");
+
+    const after = readGateRecord(root);
+    expect(isAbandoned(after)).toBe(true);
+    expect(gateRecordProblems(after, HEAD).join(" ")).toMatch(/tombstoned by an explicit recovery/);
+    /* And the mutex is free again, so a new gate may run. */
+    expect(readOperationLock(root).kind).toBe("free");
+  });
+
+  it("quarantines only the recovered operation's pending result", () => {
+    const root = rootWithGreen();
+    const op = beginOperation(root, "gate", HEAD, "9".repeat(40));
+    writeFileSync(join(root, op.pendingPath), '{"mine":true}', "utf8");
+    const other = join(root, ".release", "pending-0000000000000000.json");
+    writeFileSync(other, '{"theirs":true}', "utf8");
+
+    recoverOperation(root, op.operationId, GATE_RECORD_PATH);
+
+    expect(existsSync(join(root, op.pendingPath))).toBe(false);
+    expect(existsSync(join(root, quarantinePathFor(op.operationId)))).toBe(true);
+    /* Another operation's pending result is not this recovery's business. */
+    expect(existsSync(other)).toBe(true);
+  });
+
+  it("leaves packaging refused until a new gate completes", () => {
+    const root = rootWithGreen();
+    const op = beginOperation(root, "gate", HEAD, "9".repeat(40));
+    recoverOperation(root, op.operationId, GATE_RECORD_PATH);
     const problems = packagingProblems({
       head: HEAD,
       expectedHead: undefined,
       dirty: [],
       gateProblems: gateRecordProblems(readGateRecord(root), HEAD),
-      lockProblems: lockProblems(readAttemptLock(root)),
+      lockProblems: [],
+      treeProblems: [],
     });
-    expect(problems.join(" ")).toMatch(/holds the gate/);
-  });
-
-  it("packages again once the gate is free", () => {
-    const root = freshRoot();
-    syntheticGateRecord(root, HEAD);
-    acquireAttempt(root, HEAD);
-    rmSync(lockFile(root), { force: true });
-    expect(
-      packagingProblems({
-        head: HEAD,
-        expectedHead: undefined,
-        dirty: [],
-        gateProblems: gateRecordProblems(readGateRecord(root), HEAD),
-        lockProblems: lockProblems(readAttemptLock(root)),
-      }),
-    ).toEqual([]);
-  });
-
-  it("lets the owning attempt publish, and frees the gate afterwards", () => {
-    const root = freshRoot();
-    const id = acquireAttempt(root, HEAD);
-    mkdirSync(join(root, ".release"), { recursive: true });
-    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
-    publishAttempt(root, id);
-    expect((readGateRecord(root) as { attemptId?: string } | null)?.attemptId).toBe(id);
-    expect(existsSync(pendingFile(root))).toBe(false);
-    expect(readAttemptLock(root)).toBeNull();
-    /* And the gate is genuinely free, not merely reported free. */
-    expect(isAttemptId(acquireAttempt(root, HEAD))).toBe(true);
-  });
-
-  it("refuses a publication from an attempt that no longer holds the gate", () => {
-    /*
-     * A ran for minutes; somebody deleted its lock and started B. The result A
-     * is holding describes a tree B has since re-measured, so A discards it
-     * rather than renaming it over the gate B owns.
-     */
-    const root = freshRoot();
-    const a = acquireAttempt(root, HEAD);
-    rmSync(lockFile(root), { force: true });
-    const b = acquireAttempt(root, HEAD);
-    expect(b).not.toBe(a);
-    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: a, head: HEAD }), "utf8");
-    expect(() => publishAttempt(root, a)).toThrow(AttemptRefused);
-    /* Discarded, not left lying around for the next run to publish. */
-    expect(existsSync(pendingFile(root))).toBe(false);
-    expect(existsSync(join(root, GATE_RECORD_PATH))).toBe(false);
-    expect(readAttemptLock(root)?.attemptId).toBe(b);
-  });
-
-  it("refuses a publication when no attempt holds the gate at all", () => {
-    const root = freshRoot();
-    const id = acquireAttempt(root, HEAD);
-    rmSync(lockFile(root), { force: true });
-    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
-    expect(() => publishAttempt(root, id)).toThrow(AttemptRefused);
-  });
-
-  it("does not let an old green record survive beside a newer attempt", () => {
-    /*
-     * An old green record, a marker, and a newer `.pending` beside it is
-     * exactly what an interrupted attempt leaves. The pending file is not the
-     * record and nothing reads it; the marker is what the packager sees.
-     */
-    const root = freshRoot();
-    syntheticGateRecord(root, HEAD);
-    const id = acquireAttempt(root, HEAD);
-    writeFileSync(
-      join(root, GATE_RECORD_PATH),
-      `${JSON.stringify({ status: GATE_IN_PROGRESS, attemptId: id, head: HEAD })}\n`,
-      "utf8",
-    );
-    writeFileSync(pendingFile(root), JSON.stringify({ attemptId: id, head: HEAD }), "utf8");
-    const problems = gateRecordProblems(readGateRecord(root), HEAD);
-    expect(problems.join(" ")).toMatch(/started and did not finish/);
-    expect(problems.join(" ")).toContain(id);
-  });
-
-  it("refuses a finished record that does not name its attempt", () => {
-    const anonymous = { ...greenRecord() } as Record<string, unknown>;
-    delete anonymous["attemptId"];
-    expect(gateRecordProblems(anonymous as GateRecord, HEAD).join(" ")).toMatch(
-      /does not name the attempt/,
-    );
-    for (const bad of ["", "nope", 16, null, {}]) {
-      const record = { ...greenRecord(), attemptId: bad } as unknown as GateRecord;
-      expect(gateRecordProblems(record, HEAD).join(" ")).toMatch(/does not name the attempt/);
-    }
-  });
-
-  it("carries the attempt id into the staged projection, which must pass too", () => {
-    const staged = sanitizedRecord(greenRecord()) as { attemptId?: unknown };
-    expect(staged.attemptId).toBe("00112233445566aa");
-    expect(gateRecordProblems(staged as GateRecord, HEAD)).toEqual([]);
+    expect(problems.join(" ")).toMatch(/tombstoned by an explicit recovery/);
   });
 });

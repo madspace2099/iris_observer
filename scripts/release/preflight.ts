@@ -62,17 +62,17 @@ export const PROJECT_MAPPING_STATES: readonly MappingState[] = [
   {
     name: "TOOLING_CANNOT_ISOLATE",
     condition:
-      "the tooling cannot expose the non-secret server URL or project ref without also exposing a secret",
+      "the tooling cannot expose the non-secret server URL or project ref at all, or cannot expose it without also exposing a secret",
     verdict: "PAUSE",
     remedy:
-      "PAUSE. This says nothing about whether the configuration is correct, so do NOT rotate, replace or edit anything on the strength of it. Matthew reads ONLY the exact non-secret server origin or project ref in the Vercel dashboard, and that observation is then carried through the MANUAL CONFIRMATION path below. Step 2 is not reachable from PAUSE itself.",
+      "PAUSE. This says nothing about whether the configuration is correct, so do NOT rotate, replace or edit anything on the strength of it. Matthew reads ONLY the exact non-secret server value in the Vercel dashboard — the COMPLETE https://<project-ref>.supabase.co origin, character for character, because a bare ref cannot show the shape of what is configured — and that observation is then carried through the MANUAL CONFIRMATION path below. Step 2 is not reachable from PAUSE itself.",
   },
   {
     name: "SERVER_URL_ABSENT",
     condition: "SUPABASE_URL is absent, empty or whitespace",
     verdict: "STOP",
     remedy:
-      "Set SUPABASE_URL for that environment to the approved project, then RESTART PREFLIGHT STEP 1. The resolver would otherwise fall back to NEXT_PUBLIC_SUPABASE_URL, and a browser-exposed variable is not an authoritative server mapping however good its value looks.",
+      "Set SUPABASE_URL for that environment to the approved project, then RESTART PREFLIGHT STEP 1. The resolver would otherwise consult NEXT_PUBLIC_SUPABASE_URL instead — whether that supplies any destination is a separate question nobody has answered — and a browser-exposed variable is not an authoritative server mapping however good its value looks.",
   },
   {
     name: "SERVER_URL_MALFORMED",
@@ -104,6 +104,22 @@ export const PROJECT_MAPPING_STATES: readonly MappingState[] = [
       "Reconcile the two, then RESTART PREFLIGHT STEP 1. The browser and the server are otherwise talking to two databases, and nothing downstream is safe to reason about.",
   },
   {
+    name: "PUBLIC_UNOBSERVED",
+    condition:
+      "the server URL names the approved project and NEXT_PUBLIC_SUPABASE_URL was never inspected",
+    verdict: "PAUSE",
+    remedy:
+      "PAUSE. Nothing here says the configuration is wrong, so do NOT rotate, replace or edit anything. MAPPED requires the public variable to be absent OR to name the same project, and an unasked question satisfies neither. Matthew reads the exact non-secret NEXT_PUBLIC_SUPABASE_URL row — observed absent, or its exact value — and that observation is re-entered into the comparison. Step 2 is not reachable from PAUSE.",
+  },
+  {
+    name: "MANUAL_ORIGIN_SHAPE_UNPROVEN",
+    condition:
+      "the manual observation is a bare project ref rather than the complete canonical origin",
+    verdict: "PAUSE",
+    remedy:
+      "PAUSE. The ref names the approved project and says nothing about the shape of what is configured: a bare ref is what survives extraction, not what was written down. Matthew reads the whole https://<project-ref>.supabase.co origin, character for character, and re-enters MANUAL CONFIRMATION with it. Do not change the variable to make it match.",
+  },
+  {
     name: "MANUAL_OBSERVATION_ABSENT",
     condition: "the manual confirmation path was entered with no dashboard observation recorded",
     verdict: "STOP",
@@ -115,7 +131,7 @@ export const PROJECT_MAPPING_STATES: readonly MappingState[] = [
     condition: "the recorded dashboard observation is neither a canonical origin nor a project ref",
     verdict: "STOP",
     remedy:
-      "Record it exactly as the dashboard shows it — the whole https://<project-ref>.supabase.co origin, or the project ref alone — then re-enter MANUAL CONFIRMATION.",
+      "Record it exactly as the dashboard shows it — the whole https://<project-ref>.supabase.co origin — then re-enter MANUAL CONFIRMATION. A bare project ref is parsed and identifies the project, but it cannot reach a PASS: see MANUAL_ORIGIN_SHAPE_UNPROVEN.",
   },
   {
     name: "MANUAL_PROJECT_WRONG",
@@ -144,8 +160,17 @@ export const PROJECT_MAPPING_STATES: readonly MappingState[] = [
 export interface MappingInput {
   /** Raw value of the server variable, as configured. */
   readonly serverUrl: string | undefined;
-  /** Raw value of the browser-exposed variable, as configured. */
-  readonly publicUrl: string | undefined;
+  /**
+   * What was observed about the browser-exposed variable.
+   *
+   * THE SAME THREE STATES THE MANUAL PATH USES. An optional string conflated
+   * four different facts — never inspected, observed absent, present but empty,
+   * present but whitespace — and `isSet` collapsed the last three into "not
+   * set", which is the one state that lets MAPPED be reached. The manual path
+   * was corrected and the tooling path was not, so the same false PASS survived
+   * on the other route.
+   */
+  readonly observedPublic: PublicObservation;
   /** The approved Observer project reference. */
   readonly approvedRef: string;
   /** True when the tooling could not show the server value without a secret. */
@@ -204,7 +229,15 @@ const BARE_REF = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
  */
 export function projectRef(url: string | undefined): string | null {
   if (url === undefined) return null;
-  const trimmed = url.trim();
+  /*
+   * NO TRIMMING. The prose says the value must be the exact whole-string
+   * canonical origin, and trimming first made that false: a configured value
+   * with a trailing space or newline was accepted as though it were the origin
+   * it resembles. Whitespace in an environment variable is a real configuration
+   * fault — it travels into the URL a client builds — and this is the only
+   * place that could notice it.
+   */
+  const trimmed = url;
   if (trimmed.length === 0) return null;
 
   const match = CANONICAL_ORIGIN.exec(trimmed);
@@ -282,18 +315,28 @@ export function classifyProjectMapping(input: MappingInput): MappingOutcome {
   if (serverRef === null) return outcome("SERVER_URL_MALFORMED");
   if (serverRef !== input.approvedRef) return outcome("SERVER_PROJECT_WRONG");
 
-  if (isSet(input.publicUrl)) {
-    const publicRef = projectRef(input.publicUrl);
-    /*
-     * A public value that cannot be parsed is its own state. Folding it into
-     * PROJECTS_DISAGREE would say the two name different projects, when what
-     * actually happened is that one of them names nothing at all.
-     */
-    if (publicRef === null) return outcome("PUBLIC_URL_MALFORMED");
-    if (publicRef !== serverRef) return outcome("PROJECTS_DISAGREE");
+  /*
+   * THE PUBLIC OBSERVATION, AS THREE FACTS.
+   *
+   * A public value that cannot be parsed is its own state: folding it into
+   * PROJECTS_DISAGREE would say the two name different projects, when what
+   * actually happened is that one of them names nothing at all. And an empty
+   * or whitespace-only value is PRESENT and malformed, not absent — a variable
+   * somebody set to nothing is a configuration fault, not a variable nobody
+   * set.
+   */
+  switch (input.observedPublic.kind) {
+    case "unobserved":
+      return outcome("PUBLIC_UNOBSERVED");
+    case "absent":
+      return outcome("MAPPED", serverRef, "tooling");
+    case "present": {
+      const publicRef = projectRef(input.observedPublic.value);
+      if (publicRef === null) return outcome("PUBLIC_URL_MALFORMED");
+      if (publicRef !== serverRef) return outcome("PROJECTS_DISAGREE");
+      return outcome("MAPPED", serverRef, "tooling");
+    }
   }
-
-  return outcome("MAPPED", serverRef, "tooling");
 }
 
 /**
@@ -358,6 +401,20 @@ export function confirmManualMapping(input: ManualConfirmationInput): MappingOut
   const ref = manualObservationRef(input.observedServer);
   if (ref === null) return outcome("MANUAL_OBSERVATION_MALFORMED");
   if (ref !== input.approvedRef) return outcome("MANUAL_PROJECT_WRONG");
+
+  /*
+   * A BARE REF NAMES THE PROJECT AND PROVES NOTHING ABOUT THE ORIGIN.
+   *
+   * REVIEW says so — a bare ref is what survives extraction, not what was
+   * configured — and the classifier accepted one and returned PASS anyway. The
+   * two disagreed, and the executable one is what a rollout follows. A ref
+   * alone cannot show that the configured value had https, the right host, no
+   * port, no path, no query and no credentials, and every one of those is a
+   * separate way the mapping can be wrong.
+   */
+  if (projectRef(input.observedServer) === null) {
+    return outcome("MANUAL_ORIGIN_SHAPE_UNPROVEN");
+  }
 
   /*
    * THEN THE PUBLIC ONE, WHICH THIS FUNCTION USED TO ACCEPT AND IGNORE.
@@ -491,7 +548,11 @@ export function renderObservedMapping(approvedRef: string, indent = "  "): strin
 /** The table as the documents render it. */
 export function renderMappingTable(indent = "  "): string {
   const rows = PROJECT_MAPPING_STATES.map((s) => {
-    const head = `${indent}${s.name.padEnd(28)}${s.verdict}`;
+    /*
+     * PADDED PAST THE LONGEST NAME. At 28 the longest state name exactly
+     * filled the column and the rendered row read MANUAL_OBSERVATION_MALFORMEDSTOP.
+     */
+    const head = `${indent}${s.name.padEnd(32)}${s.verdict}`;
     const condition = wrapAt(`${indent}    when: ${s.condition}`, 79, `${indent}          `);
     const remedy = wrapAt(`${indent}    then: ${s.remedy}`, 79, `${indent}          `);
     return [head, condition, remedy].join("\n");

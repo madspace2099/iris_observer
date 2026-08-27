@@ -242,6 +242,7 @@ describe("package generation refuses rather than lying", () => {
       dirty: [],
       gateProblems: [],
       lockProblems: [],
+      treeProblems: [],
     };
 
     it("permits packaging when every precondition holds", () => {
@@ -305,13 +306,23 @@ describe("package generation refuses rather than lying", () => {
 
   it("does not read an earlier review archive in order to run", () => {
     /*
-     * It writes one, obviously. The defect was that the previous packager READ
-     * seven of them — to recover a hash whose source was not tracked — so a
-     * fresh clone could not rebuild the package at all.
+     * It writes one, obviously — and now it also VERIFIES the one it wrote,
+     * with the tools a reviewer would use. That is not the defect this guards
+     * against. The defect was that the previous packager READ seven DELIVERED
+     * archives, to recover a hash whose source was not tracked, so a fresh
+     * clone could not rebuild the package at all.
+     *
+     * So the ban is on reading an archive as an INPUT: the only archive named
+     * anywhere in this file is the one this run just produced.
      */
     const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
-    expect(source).not.toMatch(/\bunzip\b/);
     expect(source).not.toMatch(/readFileSync\([^)]*\.zip/);
+    for (const [call] of source.matchAll(/execFileSync\("unzip",[^)]*\)/g)) {
+      expect(call).toContain("first.archive");
+    }
+    for (const [call] of source.matchAll(/execFileSync\("sha256sum",[^)]*\)/g)) {
+      expect(call).toContain("SHA256SUMS");
+    }
   });
 });
 

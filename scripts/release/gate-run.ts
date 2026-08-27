@@ -323,6 +323,15 @@ export interface RunnerEvidence {
   readonly workerCount: number | null;
   readonly configuredMinWorkers: number | null;
   readonly configuredMaxWorkers: number | null;
+  /**
+   * The largest number of modules executing at one moment: the OBSERVED peak.
+   *
+   * The reporter has measured this all along and the record threw it away,
+   * so the evidence could state only what the pool was TOLD. A configured
+   * bound and an observed peak are different facts, and a bound honoured is
+   * exactly the thing a bound cannot prove about itself.
+   */
+  readonly observedPeakWorkers: number | null;
 }
 
 /** Evidence for a run that produced no runner diagnostics at all. */
@@ -343,6 +352,7 @@ export const NO_RUNNER_EVIDENCE: RunnerEvidence = {
   workerCount: null,
   configuredMinWorkers: null,
   configuredMaxWorkers: null,
+  observedPeakWorkers: null,
 };
 
 /**
@@ -469,6 +479,7 @@ export function describe(result: TestGateResult): string {
     `unhandledErrors=${String(result.reportedUnhandledErrors)}`,
     `pool=${String(result.workerPool)}`,
     `workers=${String(result.configuredMinWorkers)}..${String(result.configuredMaxWorkers)}`,
+    `peak=${String(result.observedPeakWorkers)}`,
   ];
   return bits.join(" ");
 }

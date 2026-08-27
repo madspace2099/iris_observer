@@ -71,6 +71,7 @@ const cleanRunner: RunnerEvidence = {
   workerCount: null,
   configuredMinWorkers: null,
   configuredMaxWorkers: null,
+  observedPeakWorkers: null,
 };
 
 /** Holds the runner axis clean unless a case says otherwise. */
@@ -259,14 +260,13 @@ describe("nothing that could carry a secret is persisted", () => {
   const persistedLiteral = (): string => {
     const source = readFileSync(join(ROOT, "scripts/release/run-gates.ts"), "utf8");
     /*
-     * Anchored on PENDING_PATH, because the finished record is written to a
-     * temporary file and RENAMED into place — an attempt that dies mid-write
-     * must not be able to leave a truncated file where the canonical record
-     * belongs.
+     * Anchored on the record BUILT IN MEMORY, because that object is now the
+     * only source of both destinations: the attempt-specific pending file that
+     * is renamed into place, and the preserved copy a failing run writes. The
+     * preserved copy used to be made by re-reading the canonical path after
+     * release, so it could contain another operation's record.
      */
-    const literal = /writeFileSync\(\n {4}PENDING_PATH,[\s\S]*?\n {4}"utf8",\n {2}\);/.exec(
-      source,
-    )?.[0];
+    const literal = /const built: GateRecord = \{[\s\S]*?\n {2}\};/.exec(source)?.[0];
     expect(literal, "the persisted object literal was not found in run-gates.ts").toBeDefined();
     /*
      * Comments stripped: the literal carries one that says "Never stdout,
@@ -565,6 +565,7 @@ describe("what a failing test is allowed to leave behind", () => {
       "errorCode",
       "failedSuiteNames",
       "failedTests",
+      "observedPeakWorkers",
       "ok",
       "phase",
       "processErrorCode",

@@ -432,7 +432,9 @@ unproved and given no instruction that stopped them.
 EVERY STATE NOW CARRIES A VERDICT, and none of them says "note it and continue":
 
   TOOLING_CANNOT_ISOLATE   PAUSE   Matthew reads it in the dashboard
-  SERVER_URL_ABSENT        STOP    the fallback is in effect; correct and restart
+  SERVER_URL_ABSENT        STOP    the server variable is absent, so the resolver
+                                   would consult the public one; whether that
+                                   supplies any destination is UNKNOWN
   SERVER_URL_MALFORMED     STOP    no fallback happens; there is no destination
   SERVER_PROJECT_WRONG     STOP    a different ref is a different database
   PROJECTS_DISAGREE        STOP    browser and server are on two databases
@@ -492,12 +494,22 @@ true. What is proven is narrower and is now stated that way: a read-only
 snapshot was observed at {{OBSERVED_AT}}, it contained the recorded values, and
 it reached this package unaltered. The current live state is UNKNOWN.
 
-Freshness is now DERIVED, not asserted. `live-snapshot.ts` is the only place a
-reading may be recorded, so comparing its bytes with the last delivered bundle
-answers the question mechanically — see section 3a, which is rendered from that
-comparison. A package cannot claim a carried-forward snapshot was read during
-the current milestone, and the packager refuses to build one that tries. NO NEW
-QUERY WAS RUN TO MAKE THE OLD WORDING TRUE.
+WHAT THE BYTE COMPARISON DERIVES, WHICH IS LESS THAN FRESHNESS. An earlier
+edition of this paragraph said "freshness is now DERIVED". It is not, and cannot
+be: comparing `live-snapshot.ts` against its copy in the last archive handed
+over yields exactly three answers —
+
+  record unchanged        the same values are recorded as before
+  record changed          the recorded values differ from that archive's
+  comparison unavailable  there is no copy there to compare against
+
+— and NONE of them says whether a query was run, when it was run, or whether the
+live state matches. A CHANGED record is equally consistent with somebody editing
+the constant by hand. What the comparison does prevent is the specific lie the
+previous packages told: a document claiming a reading was taken this milestone
+while the file it came from had not moved since the last one. Section 3a is
+rendered from that comparison, so the claim cannot be typed by hand. NO NEW QUERY
+WAS RUN TO MAKE THE OLD WORDING TRUE.
 
 THIS ROUND, F — the intermittent gate failure left no evidence.
 
@@ -647,10 +659,19 @@ different facts. The record also has to prove the run was bounded — phase,
 pool and worker count are acceptance conditions, so a record from an unbounded
 run cannot be packaged as evidence for a bounded one.
 
-EVERY AUTHORITATIVE RUN SINCE, INCLUDING THE RED ONE.
+EVERY AUTHORITATIVE ATTEMPT SINCE, INCLUDING THE RED ONE AND THE ABORTED ONE.
 
-  aa579a4   GREEN on its first attempt — four workers, zero unhandled errors,
-            no retry. This is the run the four-worker bound was accepted on.
+WHAT THIS TABLE IS. There is no append-only attempt ledger in this repository:
+nothing records an attempt that was started and abandoned before it wrote
+anything. So "GREEN on its first attempt" and "no retry" are OPERATOR
+DECLARATIONS — statements by the person who ran them — and not facts this
+package can demonstrate. They are labelled that way below rather than presented
+as measurements. What IS demonstrable is each recorded result and the commit it
+names.
+
+  aa579a4   GREEN. Four workers, zero unhandled errors. First attempt and no
+            retry are OPERATOR DECLARATIONS. This is the run the four-worker
+            bound was accepted on.
 
   7b18141   RED. Not a flake, not the runner fault, and not an environment
             problem: a defect introduced in that same milestone. The atomic
@@ -661,7 +682,22 @@ EVERY AUTHORITATIVE RUN SINCE, INCLUDING THE RED ONE.
             were a result and every rendering threw on its missing `tests`.
             Four failed assertions, three runtime-error suites.
 
-  c1b80f0   GREEN on its first attempt, with the reader corrected.
+  c1b80f0   GREEN, with the reader corrected. First attempt: OPERATOR
+            DECLARATION.
+
+  4549f76   ABORTED, OPERATOR-DECLARED. Started, then stopped by hand a few
+            gates in, on noticing that the evidence prose cited the wrong file
+            for its own regression assertions. It produced NO VERDICT: it is
+            not a gate result, green or red, and it appears here because a
+            history that lists only the attempts that finished is a history
+            that hides the ones that did not. The operation lock and marker it
+            left behind were cleared, and that clearing is itself an operator
+            action rather than something the tooling did.
+
+  ab98c7a   GREEN. First attempt and no retry are OPERATOR DECLARATIONS. This
+            archive was then REJECTED by independent audit — not for its
+            measurements, which held, but for the false-accept paths around
+            them that the milestone after it closes.
 
   {{HEAD_SHORT}}   this candidate — see THE GATE, below.
 
@@ -703,54 +739,224 @@ THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
 report declaring failure are each a failure condition in their own right, so
 the fault cost reruns and never produced a false clean result.
 
-ONE ATTEMPT AT A TIME, AND ONLY THE OWNER PUBLISHES.
+ONE RELEASE OPERATION AT A TIME — AND THE PACKAGER TAKES IT TOO.
 
-The in-progress marker introduced last milestone says an attempt is running and
-nothing about WHOSE. Two runners could each write it, each run the whole suite
-for minutes, and each rename its own result into place — the second publishing
-measurements of a tree the first had already measured differently, with nothing
-on disk to show it had happened. The archive would carry whichever finished
-last, and it would look perfect.
+The lock introduced last milestone was taken by the GATE. The process that
+needed excluding was the PACKAGER, and it held nothing at all: it read the green
+record, read the lock, saw the gate free, and then built. Every one of those
+readings was true when it was taken, and this still produced a wrong archive:
 
-  THE LOCK.  `.release/gate-attempt.lock` is created with the `wx` flag: the
-             filesystem creates it or fails, atomically, so the filesystem
-             decides the winner. A read-then-write can interleave between the
-             read and the write; this cannot. It carries a 16-hex attempt id.
+  1. a green record exists at HEAD;
+  2. the packager reads it, and reads the lock as free;
+  3. a gate attempt takes the lock and invalidates the canonical record;
+  4. that attempt fails;
+  5. the packager finishes an archive from the record it captured at step 2.
 
-  OWNERSHIP  Acquired BEFORE the record is invalidated. A runner that loses the
-  FIRST.     race then refuses without having destroyed the record the winner
-             is about to replace.
+A second lock read does not close it. Any number of point-in-time readings
+leaves gaps between them, and the gap is where the other operation runs.
 
-  IDENTITY.  Every marker and every finished record names its attempt, and a
-             finished record that does not is refused by the contract. An
-             anonymous record cannot be connected to the run that measured it.
+  ONE MUTEX.  Gate and package are both RELEASE OPERATIONS and take the same
+              lock, so a gate refuses while packaging owns it and packaging
+              refuses while a gate owns it. Held for the whole lifetime — for
+              the packager that means through staging, rendering, the primary
+              archive, all three time-zone rebuilds and publication.
 
-  PUBLICATION Before the rename, the attempt re-reads the lock and confirms it
-  IS CHECKED. still holds the gate. If somebody deleted the lock and started
-             another attempt, this one DISCARDS its complete result rather than
-             renaming stale measurements over a newer run. The lock is released
-             only AFTER the rename, so there is no window in which the gate is
-             free and the record is still the old one.
+  OWNERSHIP   The lock is created with `wx`: the filesystem decides the winner,
+  IS A FILE   not a read-then-write that can interleave. Creation captures the
+  OBJECT.     lock file's IDENTITY — device, inode, birth time, size — in memory
+              and never on disk. Every later assertion compares that identity as
+              well as the recorded operation id, so a file forged with this
+              operation's id is still not this operation's lock.
 
-  PACKAGING  A held lock refuses packaging outright, and it is reported before
-  REFUSES.   the record is described: in the window before a new attempt writes
-             its marker, the record on disk is still the previous attempt's
-             green one, which would otherwise package.
+  CHILDREN    The three time-zone rebuilds ADOPT the parent's operation rather
+  ADOPT.      than trying to become owners. A child that took the mutex would
+              refuse — correctly, the parent holds it — and a child never
+              releases what it did not take.
 
-NO LOCK IS EVER TAKEN OVER, AT ANY AGE. A killed runner leaves its lock behind
-and this process cannot see whether that one is alive, so every timeout is a
-guess and guessing wrong is exactly the failure the lock exists to prevent. An
-abruptly terminated attempt therefore blocks the next one until a human deletes
-the file, having decided the other attempt is really gone. An unreadable lock —
-what a process killed mid-write leaves — reads as HELD, not as absent.
+  RELEASE     Never a blind delete. Under the old protocol A read the lock, saw
+  VERIFIES.   its own id and removed whatever was at that path; if a human had
+              replaced A's lock with B's, A removed B's. Release now asserts
+              identity first and leaves anything else alone.
 
-`supabase/test/gate-contract.test.ts` drives all of it against real temporary
-directories: a second attempt refusing while the first holds the gate, the
-refusal naming the holder and leaving the lock intact, packaging refused during
-an active attempt and permitted once it ends, an abruptly terminated attempt
-blocking the next, an unreadable lock treated as held, the owner publishing and
-freeing the gate, a non-owner refused and its pending result discarded, and a
-finished record without an attempt id refused by the contract.
+THE RESIDUAL WINDOW, NAMED RATHER THAN DENIED. Between the last identity check
+and the unlink that releases the lock there is a window of microseconds.
+Entering it requires a human to delete this operation's lock and another
+operation to create one inside that window, having not done so earlier. Node
+offers no portable compare-and-unlink, so the window cannot be closed with the
+primitives available here. It is stated because an unstated residual is
+indistinguishable from a claim that there is none.
+
+RECOVERY IS AN OPERATION, NOT AN INSTRUCTION TO DELETE A FILE.
+
+The refusal used to end "if that attempt is really gone, delete the lock". That
+advice is unsafe, and the reason is a gap of milliseconds: an operation takes
+the mutex BEFORE it writes the in-progress marker, so one that dies in between
+leaves the PREVIOUS green record untouched. Deleting only the lock makes a
+superseded record packageable again — at the right commit, with a clean tree,
+passing every check the packager makes.
+
+  pnpm release:recover                  says what holds the mutex
+  pnpm release:recover --operation=<id> recovers that operation, and only it
+
+It validates the exact active operation, TOMBSTONES the canonical result
+atomically, quarantines only that operation's pending file, and releases only
+that lock. Packaging then refuses until a new gate completes, because a
+tombstone is not a result. Naming the operation is load-bearing: a stale
+instruction cannot clear a live one.
+
+EVERY OPERATION WRITES TO ITS OWN PENDING PATH. The single shared
+`gate-results.json.pending` meant an operation that had lost ownership deleted
+the finished-but-unpublished result belonging to the operation that had taken
+it. Publication now validates the operation kind, the operation id, HEAD, the
+tree identity, the pending record's own id and HEAD, and the record's schema and
+verdicts — and an operation that finds it has lost the mutex discards its own
+result rather than renaming it over a newer run's.
+
+A PRESENT-BUT-INVALID EVIDENCE PATH IS HELD, NOT FREE.
+
+`readAttemptLock` returned null for an absent lock AND for a lock whose content
+parsed to JSON `null`: four bytes on disk meant "the gate is free". `existsSync`
+made it worse, because it follows links — a DANGLING symbolic link reads as
+absent, which is the one state that permits proceeding.
+
+There are three states now, not two: absent, present-and-valid, and
+present-but-invalid. Only genuinely absent is free. Every evidence read or write
+inspects with `lstat`, requires `.release` to be a real directory whose real path
+is inside this repository, refuses symbolic links, requires the lock, record and
+pending objects to be regular files, and does not follow a redirected directory
+or file.
+
+THE GATE IS BOUND TO THE BYTES IT MEASURED, NOT TO A COMMIT NAME.
+
+The runner recorded HEAD and never required a clean tree, so this worked: edit
+runtime code without committing, run the gates green at H, restore the tree,
+package at H. The packager saw a clean tree, a matching HEAD and a green record.
+All three were true. The record described different bytes.
+
+HEAD is not an identity for what ran — the gate reads the WORKING TREE, and the
+two coincide only while the tree is clean. Before the first gate and again
+before publication the runner requires the exact branch and HEAD, a clean index
+and working tree, no untracked inputs, the commit's tree hash and a digest over
+every tracked input; it records the last two, and the packager RECOMPUTES and
+compares them. A record produced from uncommitted edits has a different digest
+from the clean tree, and that is the only signal that separates it from an
+honest one.
+
+WHAT THE SAMPLING PROVES, AND WHAT IT DOES NOT. The tree is sampled before the
+first gate, around every gate step, and immediately before publication; a
+breach at ANY sample refuses publication even if the tree is restored
+afterwards. A modification made and undone entirely between two samples is not
+observed — no filesystem watch is involved — and that limit is stated rather
+than described away.
+
+THE GATE ALSO VALIDATES ITS OWN RESULT BEFORE IT EXITS. Both contracts run while
+the operation still owns the mutex: the operational one over the record about to
+be written, and the staged one over the projection that would go into an
+archive. `pnpm release:gates` no longer exits successfully with a record the
+packager will later reject.
+
+A FAILING RUN IS PRESERVED BY ITS OWNER, FROM ITS OWN BYTES. The record is built
+once, in memory. While the operation still owns the mutex it is validated, the
+preserved failure is written from those exact bytes, the canonical result is
+published, and only then is ownership released. The preserved copy is never made
+by re-reading the canonical path — that path belongs to whoever owns the mutex
+next, and reading it after release is how a preserved failure came to hold
+another operation's record.
+
+THE ARCHIVE IS PUBLISHED LAST, AND ALL FOUR HASHES ARE COMPARED.
+
+The verifier rebuilt under three time zones and compared the three CHILD hashes
+with each other. It never compared them with the archive it had actually
+written — the one it reported, and the one a reviewer receives. Three children
+agreeing while the distributed file differs is exactly what that check could not
+see.
+
+The primary archive is now built into an operation-specific staging directory
+and nothing lands at the distributable path until the semantic checks, the
+manifest verification, both control-character scans, all four hashes agreeing,
+`unzip -t` and `sha256sum -c` have passed. On any refusal, exception or child
+failure, every temporary artefact is removed and no same-HEAD archive is left
+behind — a failed determinism check used to leave a complete, plausible,
+unverified ZIP exactly where a person looks for one.
+
+THE STAGED RECORD IS DETERMINISTIC, WHICH IT WAS NOT.
+
+The projection carried the random 16-hex operation id, so two identical green
+runs at one commit produced different archive bytes — while the package
+described itself as reproducible. Ownership needs that id; measurement evidence
+does not. It stays in local operational state, and what the archive carries
+instead is the identity of the bytes that were measured, which is the same for
+every run of the same tree.
+
+  a package is deterministic from tracked inputs plus one exact validated
+  measurement projection;
+
+  a fresh gate run is a NEW measurement, and this package does not claim its
+  bytes would be identical unless that has actually been shown;
+
+  time, duration, random ids, process ids and temporary paths are not in the
+  staged bytes, and a test reads the finished bytes to confirm it.
+
+THE MEASUREMENTS THEMSELVES ARE STRICTER.
+
+  COLLECTED  `0 passed, 0 skipped, 0 failed / 0 files` beside an empty per-file
+  SOMETHING  map satisfied every arithmetic check and packaged. A run must now
+             have collected at least one suite and one test, and the collected
+             suite inventory must equal the inventory derived from the tracked
+             test files — recorded as a digest, so an accidentally filtered run
+             disagrees instead of looking small and clean.
+
+  EMPTY      `reportedUnhandledErrors = 0` now requires both identity arrays to
+  MEANS      be exactly empty. `["(none)"]` is a placeholder somebody wrote
+  EMPTY.     where a measurement belongs, and a count of zero beside a
+             non-empty list is evidence disagreeing with itself.
+
+  OBSERVED   The reporter has measured peak concurrent modules — one per worker,
+  PEAK.      so the real concurrency — all along, and the record discarded it.
+             It is required now, must be positive, and must not exceed four.
+             Configured bounds say what the pool was told; only this says what
+             happened, and a bound honoured is exactly what a bound cannot
+             prove about itself.
+
+  THE SCAN   `scanFiles` caught a read failure and continued, with a comment
+  IS         saying a file deleted between listing and reading was not this
+  COMPLETE.  gate's problem. It is exactly this gate's problem: "I could not
+             read eleven tracked files" and "I read every tracked file and found
+             nothing" were the same number. It now records what it was asked to
+             read, what it read, how many failed and their basenames, and the
+             gate refuses unless requested equals the git inventory, scanned
+             equals requested, and failures are zero.
+
+ONE DEFINITION OF WHAT A CREDENTIAL LOOKS LIKE. The staged-record detector kept
+its own copy of the audit patterns, under a test that asserted the two were
+synchronised and never read the auditor. They had already diverged. Both now
+load `scripts/release/secret-patterns.json`, so "in step" is a property of the
+code rather than a sentence in a comment.
+
+WHAT THE PREVIOUS ATTEMPT LOCK WAS, AND WHY IT WAS NOT ENOUGH.
+
+The section above describes what replaced it, and this is the shorter history so
+that a reader of an earlier archive can see what changed. The previous milestone
+added `.release/gate-attempt.lock`: created with `wx`, carrying a 16-hex attempt
+id, acquired before the record was invalidated, checked again before publication
+and released only after the rename. Every one of those properties survives.
+
+Three did not survive contact with the audit that followed:
+
+  IT WAS THE GATE'S LOCK. The packager read it and then built while holding
+  nothing, so the reading described a moment that had already passed.
+
+  RELEASE WAS A BLIND DELETE. The attempt confirmed its own id and then removed
+  whatever was at that path, which is not the same file if a human replaced it.
+
+  RECOVERY WAS "DELETE THE LOCK". Which leaves the previous green record
+  packageable, because the marker had not been written yet when the attempt
+  died.
+
+The lock is now a release-operation mutex at `.release/release-operation.lock`,
+ownership is a file identity rather than a name, and recovery is an owner-bound
+operation. `supabase/test/gate-contract.test.ts` drives all of it against real
+temporary directories.
 
 NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
 a production build; either could print an environment value some future code

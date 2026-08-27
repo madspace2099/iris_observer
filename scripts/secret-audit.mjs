@@ -23,36 +23,29 @@ const ROOT = resolve(import.meta.dirname, "..");
 /*
  * What a credential looks like.
  *
+ * LOADED, NOT RESTATED. These rules were written out here and again inside the
+ * release gate's staged-record detector, with a test that claimed the two were
+ * synchronised while reading only one of them. They had already diverged. The
+ * definitions now live in one file both systems read, so "in step" is a fact
+ * about the code rather than a claim in a comment.
+ *
  * Prefix-anchored wherever the vendor publishes a prefix. A generic "long
  * base64-ish string" rule fires on every lockfile hash, and a scanner people
  * learn to ignore is not a control.
  */
-const RULES = [
-  { name: "openai-key", pattern: /\bsk-(proj|svcacct|admin)-[A-Za-z0-9_-]{24,}/ },
-  { name: "openai-legacy-key", pattern: /\bsk-[A-Za-z0-9]{32,}\b/ },
-  { name: "fal-key", pattern: /\bfal-[A-Za-z0-9-]{20,}/ },
-  { name: "supabase-secret", pattern: /\bsb_secret_[A-Za-z0-9_-]{20,}/ },
-  { name: "aws-access-key", pattern: /\bAKIA[0-9A-Z]{16}\b/ },
-  { name: "private-key-block", pattern: /-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
-  { name: "bearer-literal", pattern: /Authorization["'\s:]+\s*(Bearer|Key)\s+[A-Za-z0-9._-]{20,}/ },
-  {
-    name: "assigned-secret",
-    /*
-     * An assignment that carries a value.
-     *
-     * `=` only, never `:`. `FAL_KEY: z.string()` is a schema declaring that the
-     * variable exists, not a place its value was written down, and a scanner
-     * that cannot tell those apart cries wolf on every environment module.
-     * `OPENAI_API_KEY=` with nothing after it is the correct contents of
-     * `.env.example` and must stay silent.
-     */
-    pattern:
-      /\b(OPENAI_API_KEY|FAL_KEY|SUPABASE_SECRET_KEY|DATABASE_URL|OBSERVER_SESSION_SECRET)\s*=\s*["']?[A-Za-z0-9_\-./:+]{8,}/,
-  },
-];
+export const PATTERNS_FILE = "scripts/release/secret-patterns.json";
+
+export function loadRules(scope) {
+  const doc = JSON.parse(readFileSync(resolve(ROOT, PATTERNS_FILE), "utf8"));
+  return doc.rules
+    .filter((r) => r.scopes.includes(scope))
+    .map((r) => ({ name: r.name, pattern: new RegExp(r.pattern) }));
+}
+
+const RULES = loadRules("audit");
 
 /** The file whose whole job is to describe the rules, and so matches them. */
-const SELF = new Set(["scripts/secret-audit.mjs"]);
+const SELF = new Set(["scripts/secret-audit.mjs", PATTERNS_FILE]);
 
 const SKIP_DIR =
   /(^|\/)(node_modules|\.git|\.next|dist|coverage|playwright-report|test-results)(\/|$)/;
