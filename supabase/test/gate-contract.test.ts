@@ -762,3 +762,40 @@ describe("an aborted attempt invalidates the record it replaced", () => {
     expect(body).not.toMatch(/rmSync\(\s*join\(REPO_ROOT, "\.release"\)/);
   });
 });
+
+/**
+ * Rendering must survive the runner's own invalidation window.
+ *
+ * The gate runner marks the canonical record invalid before its first gate, so
+ * while the TEST gate runs the file holds a marker rather than a record — and
+ * the test gate is exactly when the suites that render this evidence execute.
+ * Reading the marker as a result made every rendering throw on its missing
+ * `tests`, which is how one correction produced four failed assertions and
+ * three failed suites in an authoritative run.
+ */
+describe("the evidence renderer tolerates an attempt in progress", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-render-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it("treats the in-progress marker as no result rather than a broken one", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
+    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
+    expect(body).toContain("IN_PROGRESS");
+    expect(body).toMatch(/return null/);
+  });
+
+  it("treats a record with no totals as no result", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
+    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
+    expect(body).toMatch(/record\.tests === undefined/);
+    expect(body).toMatch(/perFile === undefined/);
+  });
+
+  it("does not let a malformed file throw out of the reader", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
+    const body = /export function readGateResults[\s\S]*?\n}/.exec(source)?.[0] ?? "";
+    expect(body).toMatch(/catch\s*\{/);
+  });
+});

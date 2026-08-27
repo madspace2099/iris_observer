@@ -157,7 +157,32 @@ export interface GateResults {
 export function readGateResults(): GateResults | null {
   const path = join(REPO_ROOT, ".release", "gate-results.json");
   if (!existsSync(path)) return null;
-  return JSON.parse(readFileSync(path, "utf8")) as GateResults;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+
+  /*
+   * AN ATTEMPT IN PROGRESS IS NOT A RESULT.
+   *
+   * The gate runner invalidates the canonical record synchronously before its
+   * first gate, so while the TEST gate is running this file holds the marker
+   * rather than a record — and the test gate is precisely when the suites that
+   * render this evidence execute. Reading the marker as a result made every
+   * rendering throw on its missing `tests`, which turned an evidence-freshness
+   * check into four failed assertions and three failed suites.
+   *
+   * Null is the honest answer: there is no current result, and `gateBlock`
+   * already knows how to say so.
+   */
+  if ((parsed as { status?: unknown } | null)?.status === "IN_PROGRESS") return null;
+
+  const record = parsed as GateResults;
+  /* A record without totals cannot be rendered, whatever else it contains. */
+  if (record.tests === undefined || record.tests.perFile === undefined) return null;
+  return record;
 }
 
 export interface PackageShape {
