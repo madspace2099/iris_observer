@@ -28,8 +28,17 @@
 /**
  * Commits whose patches legitimately contain C0 bytes, and why.
  *
- * Each removed a raw BACKSPACE that a shell-escaping slip had written into a
- * regular expression, so the removal shows the byte on a `-` line.
+ * NAMED INDIVIDUALLY, so a control character in any other patch still fails the
+ * build. This is not an exemption from the scan: the encoded sidecar is scanned
+ * like everything else and is clean, and the raw patch never reaches the
+ * archive. What is declared is that the byte is in git history and cannot be
+ * removed from it without rewriting the branch.
+ *
+ * AND THEY ARE NOT ALL REMOVALS. An earlier edition of this comment said each
+ * commit removed a backspace, so every byte sat on a `-` line. Measured, that
+ * is false: the first entry below adds two, and the pair at the end add and
+ * then remove two each. The note that ships with the patches is generated from
+ * the decoded files for exactly this reason.
  */
 export const HISTORICAL_CONTROL_CHAR_COMMITS: readonly { sha: string; why: string }[] = [
   {
@@ -43,6 +52,21 @@ export const HISTORICAL_CONTROL_CHAR_COMMITS: readonly { sha: string; why: strin
   {
     sha: "1b8b912f273c6b2a60114db7de4f5965bce786e6",
     why: "removes a backspace from the REVIEW paragraph describing backspaces",
+  },
+  {
+    /*
+     * A test that MEASURES where control bytes sit needed control bytes to
+     * measure, and three literal backspaces were written into it. The staged
+     * package scan refused the build immediately — the mechanism working, in
+     * the phase it is meant to work in — and the test now assembles them at
+     * runtime instead. The bytes are in this commit's diff permanently.
+     */
+    sha: "0b9d0fda032f5ad37d4ebb387ab419bb1175d3cc",
+    why: "adds three backspaces to a transport-safe test that measures them",
+  },
+  {
+    sha: "af8ff78b355550744ef2ca674f6773666a666c0b",
+    why: "removes those three backspaces, assembling them at runtime instead",
   },
 ];
 
