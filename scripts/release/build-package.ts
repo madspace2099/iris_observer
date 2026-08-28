@@ -506,13 +506,45 @@ export interface StagedOrigin {
   readonly staged: string;
 }
 
-export function stagedOriginProblems(
+/**
+ * The one staged directory whose sources are GENERATED and deliberately not
+ * tracked.
+ *
+ * `_sql-to-paste/` holds the paste-ready wrappers `wrap-migration.ts` writes
+ * from the tracked migration sources; `.gitignore` excludes it on purpose, so
+ * "must equal HEAD" is the wrong rule for it — there is nothing in HEAD to
+ * equal. It is not unchecked: the `wrappers vs sources` gate proves each
+ * wrapper is a verbatim copy of the tracked SQL it wraps, and the package
+ * re-checks that independently.
+ *
+ * NAMED, not inferred. A rule that skipped anything git happened not to know
+ * about would let an untracked file into the archive by being untracked, which
+ * is the smuggling case this whole check exists to refuse.
+ */
+const GENERATED_STAGED_DIRS: readonly string[] = ["_sql-to-paste"];
+
+/** Both halves of what the origin check found, so neither can hide the other. */
+export interface StagedOriginResult {
+  readonly problems: readonly string[];
+  /** Copies proved byte-identical to HEAD. */
+  readonly matchedHead: number;
+  /** Copies from a declared generated directory, checked by the wrapper gate. */
+  readonly generated: number;
+}
+
+export function stagedOriginResult(
   dir: string,
   origins: readonly StagedOrigin[] = stagedOrigins,
-): readonly string[] {
+): StagedOriginResult {
   const problems: string[] = [];
+  let matchedHead = 0;
+  let generated = 0;
   if (origins.length === 0) {
-    return ["no staged file recorded its tracked origin — the copies cannot be checked"];
+    return {
+      problems: ["no staged file recorded its tracked origin — the copies cannot be checked"],
+      matchedHead: 0,
+      generated: 0,
+    };
   }
   for (const { origin, staged } of origins) {
     const path = join(dir, ...staged.split("/"));
@@ -520,7 +552,7 @@ export function stagedOriginProblems(
       problems.push(`${staged} was recorded as staged and is not present`);
       continue;
     }
-    let committed: Buffer;
+    let committed: Buffer | null = null;
     try {
       committed = execFileSync("git", ["show", `HEAD:${origin}`], {
         cwd: REPO_ROOT,
@@ -528,6 +560,19 @@ export function stagedOriginProblems(
         encoding: "buffer",
       });
     } catch {
+      committed = null;
+    }
+    if (committed === null) {
+      /*
+       * NOT IN HEAD. Allowed only from a directory declared generated, and
+       * counted separately even then — a number that says "eleven files were
+       * not checked against a commit" is evidence; silence is not.
+       */
+      const dirName = origin.split("/")[0] ?? "";
+      if (GENERATED_STAGED_DIRS.includes(dirName)) {
+        generated += 1;
+        continue;
+      }
       problems.push(`${origin} is staged and is not in HEAD`);
       continue;
     }
@@ -536,9 +581,18 @@ export function stagedOriginProblems(
         `${staged} does not match HEAD:${origin} — the working tree changed between the ` +
           "gate and this staging, and restoring it afterwards does not change what was copied",
       );
+      continue;
     }
+    matchedHead += 1;
   }
-  return problems;
+  return { problems, matchedHead, generated };
+}
+
+export function stagedOriginProblems(
+  dir: string,
+  origins: readonly StagedOrigin[] = stagedOrigins,
+): readonly string[] {
+  return stagedOriginResult(dir, origins).problems;
 }
 
 /* -------------------------------------------------------------------------
@@ -1157,13 +1211,16 @@ function buildFrom(
    * BEFORE ANYTHING IS ARCHIVED. A staged copy that does not match the commit
    * means the package would carry bytes the gate never measured.
    */
-  const origins = stagedOriginProblems(dir);
-  if (origins.length > 0) {
+  const origins = stagedOriginResult(dir);
+  if (origins.problems.length > 0) {
     throw new Refusal(
-      `the staged copies do not match HEAD:\n${origins.map((x) => `  ${x}`).join("\n")}`,
+      `the staged copies do not match HEAD:\n${origins.problems.map((x) => `  ${x}`).join("\n")}`,
     );
   }
-  say(`  staged origins           ${String(stagedOrigins.length)} tracked files match HEAD`);
+  say(
+    `  staged origins           ${String(origins.matchedHead)} match HEAD, ` +
+      `${String(origins.generated)} generated (wrappers vs sources)`,
+  );
 
   const finished = scanDirectory(dir);
   if (finished.foundCharacters > 0) {
