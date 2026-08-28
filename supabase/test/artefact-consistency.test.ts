@@ -57,6 +57,35 @@ import {
  */
 
 const ROOT = join(import.meta.dirname, "..", "..");
+
+/**
+ * The resolved facts, computed ONCE for the whole file.
+ *
+ * ## Why this is not merely a speed-up
+ *
+ * `facts()` shells out to git dozens of times — HEAD, both remotes, the
+ * local-only log, a rev-list count over the patch chain, and a blob hash for
+ * every migration at two commits. This file called it nineteen times, and the
+ * suite took sixty-seven seconds in a single worker as a result.
+ *
+ * A Vitest worker answers the parent over an RPC with a deadline, and every one
+ * of those git calls is synchronous — so the worker's own event loop was held,
+ * over and over, for a minute. Vitest recorded `Timeout calling "onTaskUpdate"`
+ * as an UNHANDLED ERROR and exited 1 beside a report saying every test passed:
+ * the exact runner-level shape this repository spent a milestone diagnosing,
+ * reproduced by this file alone. The parent was fine throughout — its worst
+ * event-loop stall was 77ms.
+ *
+ * The facts are a pure function of HEAD and the working tree, and neither moves
+ * during a run, so computing them once is the same measurement. Memoised HERE
+ * and never in `facts.ts`: caching in the module would change what the packager
+ * does, and the packager is supposed to re-derive.
+ */
+let resolvedFacts: Readonly<Record<string, string>> | null = null;
+const allFacts = (): Readonly<Record<string, string>> => {
+  resolvedFacts ??= facts({ stagedFiles: 0 });
+  return resolvedFacts;
+};
 const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
 /** Built, not written: a literal backtick inside a template is a parse hazard. */
 const BACKTICK = String.fromCharCode(96);
@@ -214,7 +243,7 @@ describe("the evidence templates carry no hand-copied changing value", () => {
   });
 
   it("resolves every placeholder, and defines no fact nothing uses", () => {
-    const values = facts({ stagedFiles: 0 });
+    const values = allFacts();
     const used = new Set<string>();
     for (const file of templates) {
       const template = read(join("docs/release", file));
@@ -226,7 +255,7 @@ describe("the evidence templates carry no hand-copied changing value", () => {
   });
 
   it("renders the same oldest-bucket age into every file that mentions one", () => {
-    const values = facts({ stagedFiles: 0 });
+    const values = allFacts();
     for (const file of templates) {
       const out = render(read(join("docs/release", file)), values).out;
       for (const m of out.matchAll(/oldest bucket[^.\n]{0,40}?(\d+)\s*hours/gi)) {
@@ -267,7 +296,7 @@ describe("headings and provenance name the right thing", () => {
   });
 
   it("the rendered sentence separates recording, enumeration and currency", () => {
-    const rendered = render(read("docs/release/REVIEW.txt"), facts({ stagedFiles: 0 })).out;
+    const rendered = render(read("docs/release/REVIEW.txt"), allFacts()).out;
     expect(rendered).toMatch(/last ENUMERATED for\s+f1dbffd/);
     expect(rendered).toMatch(/currently accurate\s+UNKNOWN/);
     expect(rendered).toContain("prior archives + this candidate");
@@ -278,10 +307,7 @@ describe("headings and provenance name the right thing", () => {
      * It cannot. An unchanged record is equally consistent with no query and
      * with a query that returned the same values.
      */
-    const rendered = render(
-      read("docs/release/RETENTION-EVIDENCE.txt"),
-      facts({ stagedFiles: 0 }),
-    ).out;
+    const rendered = render(read("docs/release/RETENTION-EVIDENCE.txt"), allFacts()).out;
     expect(rendered).not.toMatch(/establishes that no query was made/i);
     expect(rendered).toMatch(/CANNOT ESTABLISH WHETHER A QUERY/i);
     expect(rendered).toMatch(/OPERATOR/);
@@ -429,7 +455,7 @@ describe("the evidence prose says what is true at this commit", () => {
    * Checking those against the authored file would only prove a placeholder
    * exists; checking them here proves the constant reaches the document.
    */
-  const rendered = render(review, facts({ stagedFiles: 0 })).out;
+  const rendered = render(review, allFacts()).out;
 
   it("does not claim no history was ever rewritten", () => {
     /*
@@ -769,7 +795,7 @@ describe("delivery is not acceptance", () => {
   });
 
   it("derives its counts instead of typing them, and drops the stale phrase", () => {
-    const review = render(read("docs/release/REVIEW.txt"), facts({ stagedFiles: 0 })).out;
+    const review = render(read("docs/release/REVIEW.txt"), allFacts()).out;
     expect(review).not.toContain("ten previously delivered bundles");
     expect(review).toContain("archives handed over before this one");
     expect(review).toContain("were reviewed and REJECTED");
@@ -878,7 +904,7 @@ describe("the carried-forward mapping is derived from the classifier", () => {
   it("renders into the evidence rather than being typed beside it", () => {
     const source = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
     expect(source).toContain("{{OBSERVED_MAPPING_BLOCK}}");
-    const review = render(source, facts({ stagedFiles: 0 })).out;
+    const review = render(source, allFacts()).out;
     /* Rendered, so the document cannot state a verdict the rule would not reach. */
     expect(review).toContain("MAPPED");
     expect(review).toContain("established via           manual");
@@ -998,7 +1024,7 @@ describe("every hash-shaped token in the evidence is accounted for", () => {
 describe("every declared state object is a rendering source", () => {
   const template = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
   const renderWith = (values: Readonly<Record<string, string>>): string =>
-    render(template, { ...facts({ stagedFiles: 0 }), ...values }).out;
+    render(template, { ...allFacts(), ...values }).out;
 
   /**
    * Each fact, the synthetic value put in its place, and a fragment of the real
@@ -1080,7 +1106,7 @@ describe("every declared state object is a rendering source", () => {
      * document; a fact nothing renders is the decorative constant this whole
      * block exists to refuse. Both are failures.
      */
-    const { out, missing } = render(template, facts({ stagedFiles: 0 }));
+    const { out, missing } = render(template, allFacts());
     expect(missing).toEqual([]);
     expect(out).not.toMatch(/\{\{[A-Z0-9_]+\}\}/);
   });
