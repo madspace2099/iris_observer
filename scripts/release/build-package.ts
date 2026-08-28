@@ -695,25 +695,25 @@ export interface StagedOrigin {
 export type GeneratedOrigin =
   /** A paste wrapper: header plus a body that must equal its tracked source. */
   | { readonly kind: "wrapper"; readonly spec: (typeof WRAPPERS)[number] }
-  /** A verbatim copy of a tracked verifier or prerequisite. */
-  | { readonly kind: "verbatim"; readonly source: string }
   /**
-   * A file with NO tracked source at all.
+   * A verbatim copy of a tracked source.
    *
-   * `observer-verify-2.sql` and `observer-behaviour-2.sql` exist only in this
-   * working directory: they are in no commit, no verifier directory holds them,
-   * and nothing in the repository generates them. The package has shipped them
-   * for many rounds, and the previous edition reported all eleven files here as
-   * "generated (wrappers vs sources)" — which was true of four, true in a
-   * different way of five, and simply false of these two.
+   * ## The kind this replaces
    *
-   * They are DECLARED rather than quietly accepted or silently dropped.
-   * Dropping them would change what the archive contains; accepting them by
-   * directory is what let an arbitrary file in. Declaring them means the count
-   * a reviewer reads distinguishes "checked against a commit" from "shipped
-   * with no source this repository can check it against".
+   * There used to be a third kind, `unsourced`, for two files that existed only
+   * in the gitignored working directory: they were in no commit, no verifier
+   * directory held them, and nothing generated them. Declaring them was better
+   * than accepting them by directory — the count a reviewer read distinguished
+   * "checked against a commit" from "shipped with nothing to check it against"
+   * — but it still meant ARBITRARY BYTES were accepted for two SQL files a
+   * reviewer is expected to paste into a database.
+   *
+   * Their exact current bytes are now tracked under `supabase/release-evidence/`
+   * and the staged copies are compared with `git show HEAD:<source>`, like
+   * every other verbatim copy. The kind is gone, and so is the possibility of
+   * a generated SQL input with no tracked origin.
    */
-  | { readonly kind: "unsourced"; readonly why: string };
+  | { readonly kind: "verbatim"; readonly source: string };
 
 export const GENERATED_ORIGINS: ReadonlyMap<string, GeneratedOrigin> = new Map<
   string,
@@ -740,19 +740,19 @@ export const GENERATED_ORIGINS: ReadonlyMap<string, GeneratedOrigin> = new Map<
     "_sql-to-paste/observer-cron-prerequisite.sql",
     { kind: "verbatim", source: "supabase/prerequisites/observer-cron-prerequisite.sql" },
   ],
+  /*
+   * TRACKED NOW, under a directory named for what it holds. These two are not
+   * verifiers and not prerequisites — they are release evidence a reviewer
+   * pastes — so they live beside neither, and their bytes are the exact bytes
+   * every previous archive shipped.
+   */
   [
     "_sql-to-paste/observer-verify-2.sql",
-    {
-      kind: "unsourced",
-      why: "no tracked source exists anywhere in the repository for this file",
-    },
+    { kind: "verbatim", source: "supabase/release-evidence/observer-verify-2.sql" },
   ],
   [
     "_sql-to-paste/observer-behaviour-2.sql",
-    {
-      kind: "unsourced",
-      why: "no tracked source exists anywhere in the repository for this file",
-    },
+    { kind: "verbatim", source: "supabase/release-evidence/observer-behaviour-2.sql" },
   ],
 ]);
 
@@ -815,10 +815,8 @@ export interface StagedOriginResult {
   readonly matchedHead: number;
   /** Paste wrappers whose staged bytes match renderWrapper and HEAD's source. */
   readonly wrappers: number;
-  /** Verbatim copies proved byte-identical to HEAD's verifier or prerequisite. */
+  /** Verbatim copies proved byte-identical to their tracked source in HEAD. */
   readonly verbatim: number;
-  /** Declared files with no tracked source. NOT verified, and never counted as such. */
-  readonly unsourced: number;
 }
 
 export function stagedOriginResult(
@@ -830,14 +828,12 @@ export function stagedOriginResult(
   let matchedHead = 0;
   let wrappers = 0;
   let verbatim = 0;
-  let unsourced = 0;
   if (origins.length === 0) {
     return {
       problems: ["no staged file recorded its tracked origin — the copies cannot be checked"],
       matchedHead: 0,
       wrappers: 0,
       verbatim: 0,
-      unsourced: 0,
     };
   }
 
@@ -893,12 +889,6 @@ export function stagedOriginResult(
           } else verbatim += 1;
           continue;
         }
-        /*
-         * DECLARED UNSOURCED. Counted separately and never counted as verified:
-         * the whole point of the field is that this package cannot check it.
-         */
-        unsourced += 1;
-        continue;
       }
       problems.push(`${origin} is staged and is not in HEAD`);
       continue;
@@ -912,7 +902,7 @@ export function stagedOriginResult(
     }
     matchedHead += 1;
   }
-  return { problems, matchedHead, wrappers, verbatim, unsourced };
+  return { problems, matchedHead, wrappers, verbatim };
 }
 
 export function stagedOriginProblems(
@@ -1847,8 +1837,7 @@ function buildFrom(
   }
   say(
     `  staged origins           ${String(origins.matchedHead)} match HEAD, ` +
-      `${String(origins.wrappers)} wrapper(s), ${String(origins.verbatim)} verbatim copy(ies), ` +
-      `${String(origins.unsourced)} declared unsourced`,
+      `${String(origins.wrappers)} wrapper(s), ${String(origins.verbatim)} verbatim copy(ies)`,
   );
 
   /*

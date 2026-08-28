@@ -1732,31 +1732,75 @@ describe("staged wrappers are verified as wrappers, from their staged bytes", ()
     expect(result.verbatim).toBe(
       [...GENERATED_ORIGINS.values()].filter((d) => d.kind === "verbatim").length,
     );
-    expect(result.unsourced).toBe(
-      [...GENERATED_ORIGINS.values()].filter((d) => d.kind === "unsourced").length,
-    );
-    expect(result.wrappers + result.verbatim + result.unsourced).toBe(GENERATED_ORIGINS.size);
+    expect(result.wrappers + result.verbatim).toBe(GENERATED_ORIGINS.size);
+    /*
+     * AND NOTHING IS UNSOURCED ANY MORE. Two files used to be accepted with no
+     * tracked origin at all — arbitrary bytes, for SQL a reviewer pastes into a
+     * database. Their exact bytes are tracked now, so every generated input is
+     * compared with a commit.
+     */
+    expect(
+      [...GENERATED_ORIGINS.values()].every((d) => d.kind === "wrapper" || d.kind === "verbatim"),
+    ).toBe(true);
   });
 
-  it("declares the unsourced files rather than accepting or dropping them", () => {
+  it("gives every generated SQL input a tracked origin, with no exceptions", () => {
     /*
-     * They are in no commit and nothing generates them, and the package has
-     * shipped them for many rounds. Declaring them is what makes the difference
-     * between "checked against a commit" and "shipped with no source" legible
-     * in the count a reviewer reads.
+     * TWO FILES USED TO HAVE NONE. `observer-verify-2.sql` and
+     * `observer-behaviour-2.sql` existed only in the gitignored working
+     * directory, so ARBITRARY BYTES were accepted for SQL a reviewer is
+     * expected to paste into a database. Declaring them as unsourced made that
+     * legible; it did not make it safe.
      */
-    const unsourced = [...GENERATED_ORIGINS.entries()].filter(([, d]) => d.kind === "unsourced");
-    expect(unsourced.map(([origin]) => origin).sort()).toEqual([
-      "_sql-to-paste/observer-behaviour-2.sql",
-      "_sql-to-paste/observer-verify-2.sql",
-    ]);
-    for (const [origin, declared] of unsourced) {
-      if (declared.kind !== "unsourced") throw new Error("narrowing");
-      expect(declared.why).toMatch(/no tracked source/);
-      /* And the claim is true: git does not know the file. */
+    /*
+     * THE TYPE ITSELF NO LONGER ADMITS AN UNSOURCED KIND, which is the real
+     * guarantee: a third kind cannot be added back without changing the union.
+     * What is checked here is the consequence — every declared origin names a
+     * source, and every source is genuinely in the commit.
+     */
+    for (const declared of GENERATED_ORIGINS.values()) {
+      const source = declared.kind === "wrapper" ? declared.spec.source : declared.source;
+      /* Every named source is genuinely in the commit. */
       expect(() =>
-        execFileSync("git", ["show", `HEAD:${origin}`], { cwd: ROOT, stdio: "pipe" }),
-      ).toThrow();
+        execFileSync("git", ["show", `HEAD:${source}`], { cwd: ROOT, stdio: "pipe" }),
+      ).not.toThrow();
+    }
+  });
+
+  it("keeps the formerly unsourced bytes exactly as every archive shipped them", () => {
+    /*
+     * The tracked sources were created from the working-tree files, byte for
+     * byte. Normalising formatting would have changed what a reviewer pastes,
+     * which is not a thing this correction is entitled to do.
+     */
+    const expected: Readonly<Record<string, string>> = {
+      "supabase/release-evidence/observer-verify-2.sql":
+        "9b3d1b6c0bbcfea88d088220cf2cb196223d39de0a2f72e255660f1005977409",
+      "supabase/release-evidence/observer-behaviour-2.sql":
+        "906357c31e34ff4659a55ac705d3ca43d9e4faf759c32bef153ad2411264d8a1",
+    };
+    for (const [path, sha] of Object.entries(expected)) {
+      const committed = execFileSync("git", ["show", `HEAD:${path}`], {
+        cwd: ROOT,
+        encoding: "buffer",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      expect(createHash("sha256").update(committed).digest("hex"), path).toBe(sha);
+    }
+  });
+
+  it("refuses arbitrary bytes for either formerly unsourced file", () => {
+    /*
+     * THE HOLE THIS CLOSES, driven directly. Replace the staged copy with
+     * anything at all and the origin check refuses, because there is now a
+     * commit to compare it with.
+     */
+    for (const name of ["observer-verify-2.sql", "observer-behaviour-2.sql"]) {
+      const dir = stageGenerated();
+      writeFileSync(join(dir, name), "drop schema observer cascade;\n", "utf8");
+      expect(stagedOriginProblems(dir, inventoryFor()).join(" "), name).toMatch(
+        /is not byte-identical to HEAD:supabase\/release-evidence\//,
+      );
     }
   });
 
