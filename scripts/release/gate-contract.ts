@@ -61,6 +61,84 @@ export function renderTestVerdict(t: {
 
 const TEST_VERDICT = /^(\d{1,7}) passed, (\d{1,7}) skipped, (\d{1,7}) failed \/ (\d{1,5}) files$/;
 
+/**
+ * What a RED test gate says, rendered from structured measurements.
+ *
+ * ## Why a red verdict needs a canonical form at all
+ *
+ * The runner used to write `FAILED — ` followed by whatever reasons it had
+ * collected: free prose, assembled from a list that grows. The sanitizer then
+ * refused it — correctly, by its own rules, since arbitrary text can carry a
+ * path or a message — and the staged projection lost the gate entirely. A red
+ * record therefore could not be projected at all, so the projection of a red
+ * record could never be structurally valid, so structural validation of a red
+ * attempt could never pass. The `ddefa50` gate demonstrated exactly that.
+ *
+ * The fix is the same one the green verdict got: RECOGNITION, NOT PERMISSION.
+ * A red verdict has one shape, rendered from numbers, and the sanitizer matches
+ * that shape rather than trusting prose.
+ *
+ * ## What it must convey
+ *
+ * Six measurements, in a fixed order, because a reader who sees only "FAILED"
+ * learns nothing and a reader who sees only "0 failed" is actively misled —
+ * zero failed ASSERTIONS beside six failed SUITES is the exact shape a hook
+ * timeout or a collection error makes.
+ */
+export function renderFailedVerdict(t: {
+  passed: number;
+  skipped: number;
+  failed: number;
+  files: number;
+  status: number | null;
+  reportSuccess: boolean;
+  failedSuites: number;
+  runtimeErrorSuites: number;
+}): string {
+  return (
+    `FAILED — ${String(t.passed)} passed, ${String(t.skipped)} skipped, ` +
+    `${String(t.failed)} failed assertions / ${String(t.files)} files; ` +
+    `exit status ${t.status === null ? "none" : String(t.status)}; ` +
+    `report ${t.reportSuccess ? "successful" : "unsuccessful"}; ` +
+    `${String(t.failedSuites)} failed suites; ` +
+    `${String(t.runtimeErrorSuites)} runtime-error suites`
+  );
+}
+
+const FAILED_VERDICT =
+  /^FAILED — (\d{1,7}) passed, (\d{1,7}) skipped, (\d{1,7}) failed assertions \/ (\d{1,5}) files; exit status (none|\d{1,5}); report (successful|unsuccessful); (\d{1,5}) failed suites; (\d{1,5}) runtime-error suites$/;
+
+/** The eight measurements a canonical red verdict states, or nothing. */
+export function parseFailedVerdict(value: unknown): {
+  passed: number;
+  skipped: number;
+  failed: number;
+  files: number;
+  status: number | null;
+  reportSuccess: boolean;
+  failedSuites: number;
+  runtimeErrorSuites: number;
+} | null {
+  if (typeof value !== "string") return null;
+  const m = FAILED_VERDICT.exec(value);
+  if (m === null) return null;
+  const [, passed, skipped, failed, files, status, report, suites, runtime] = m;
+  return {
+    passed: Number(passed),
+    skipped: Number(skipped),
+    failed: Number(failed),
+    files: Number(files),
+    status: status === "none" ? null : Number(status),
+    reportSuccess: report === "successful",
+    failedSuites: Number(suites),
+    runtimeErrorSuites: Number(runtime),
+  };
+}
+
+/** Is this the canonical form of either outcome? */
+export const isCanonicalTestVerdict = (value: unknown): boolean =>
+  parseTestVerdict(value) !== null || parseFailedVerdict(value) !== null;
+
 /** The four numbers a canonical test verdict states, or nothing. */
 export function parseTestVerdict(
   value: unknown,
@@ -377,6 +455,33 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
     problems.push(`tests.failed is ${String(failed)}`);
   }
 
+  /*
+   * ZERO FAILED ASSERTIONS IS NOT GLOBAL CLEANLINESS.
+   *
+   * This is the misreading the `ddefa50` gate exposed. Six failed SUITE
+   * results with three distinct basenames and zero failed assertions is a
+   * perfectly coherent record — it is what a hook timeout, a collection error
+   * or a refusal thrown from shared setup produces. Treating the assertion
+   * count as a verdict on the run made that shape look internally
+   * inconsistent, so a genuine failure was reported as a malformed record.
+   *
+   * They are separate measurements of separate things, and each is checked
+   * against the fields that actually duplicate it.
+   */
+  if (asks(check, "acceptance")) {
+    const t2 = record.testGate;
+    if ((t2?.reportedFailedSuites ?? 0) !== 0) {
+      problems.push(
+        `${String(t2?.reportedFailedSuites)} failed suite result(s) — separate from failed assertions`,
+      );
+    }
+    if ((t2?.runtimeErrorSuites ?? 0) !== 0) {
+      problems.push(
+        `${String(t2?.runtimeErrorSuites)} runtime-error suite(s) — a suite that failed with no failed assertion`,
+      );
+    }
+  }
+
   const structural: string[] = [];
 
   /*
@@ -495,20 +600,26 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
         seen.add(key);
       }
     }
-    const claims: [string, unknown][] = [
-      ["reportSuccess", gate.reportSuccess === true],
-      ["reportedFailedTests", gate.reportedFailedTests === 0],
-      ["countedFailedTests", gate.countedFailedTests === 0],
-      ["reportedFailedSuites", gate.reportedFailedSuites === 0],
-      ["runtimeErrorSuites", gate.runtimeErrorSuites === 0],
-      ["failedSuiteNames", (gate.failedSuiteNames ?? ["unrecorded"]).length === 0],
-      ["reportedUnhandledErrors", gate.reportedUnhandledErrors === 0],
-      ["processStatus", gate.processStatus === 0],
-    ];
-    const disagreeing = claims.filter(([, ok]) => ok !== true).map(([name]) => name);
-    if (failed === 0 && disagreeing.length > 0) {
+    /*
+     * SAME-SOURCE DUPLICATES ONLY.
+     *
+     * `tests.failed` and `countedFailedTests` count the same thing — failed
+     * ASSERTIONS — so they must agree, and a disagreement is a malformed
+     * record. Failed suite results, runtime-error suites, `reportSuccess` and
+     * the process status count different things, and requiring them to agree
+     * with the assertion count made every genuine suite-level failure look
+     * structurally broken. That is what happened at `ddefa50`.
+     */
+    const counted = gate.countedFailedTests;
+    if (isCount(counted) && counted !== failed) {
       structural.push(
-        `tests.failed is 0 but ${disagreeing.join(", ")} disagree${disagreeing.length === 1 ? "s" : ""}`,
+        `tests.failed is ${String(failed)} but countedFailedTests is ${String(counted)} — the same measurement recorded twice, differently`,
+      );
+    }
+    const reported = gate.reportedFailedTests;
+    if (isCount(reported) && reported !== failed) {
+      structural.push(
+        `tests.failed is ${String(failed)} but reportedFailedTests is ${String(reported)} — the same measurement recorded twice, differently`,
       );
     }
   }
@@ -521,27 +632,38 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
    * comparing it against the canonical rendering would fail every red record
    * for a reason that is not a structural fault.
    */
+  /*
+   * THE VERDICT IS A RENDERING OF THE NUMBERS BESIDE IT — IN EITHER OUTCOME.
+   *
+   * A green run renders one canonical shape and a red run renders another. Both
+   * are built from these same measurements, so both can be checked against
+   * them, and anything that is neither is prose that got into a field where a
+   * measurement belongs. "BROKEN" and "8 FOUND" both passed a check that only
+   * looked for the word FAILED.
+   *
+   * An earlier edition exempted anything beginning with FAILED, which meant a
+   * red verdict could say whatever it liked — including numbers that
+   * contradicted the record it sat in.
+   */
   const verdict = record.gates?.["pnpm test"];
-  const canonical = renderTestVerdict({ passed, skipped, failed, files });
+  const verdictGate = record.testGate;
+  const green = renderTestVerdict({ passed, skipped, failed, files });
+  const red = renderFailedVerdict({
+    passed,
+    skipped,
+    failed,
+    files,
+    status: verdictGate?.status ?? null,
+    reportSuccess: verdictGate?.reportSuccess === true,
+    failedSuites: verdictGate?.reportedFailedSuites ?? 0,
+    runtimeErrorSuites: verdictGate?.runtimeErrorSuites ?? 0,
+  });
   if (verdict === undefined) {
     structural.push("no pnpm test verdict recorded");
-  } else if (typeof verdict === "string" && verdict.startsWith("FAILED")) {
-    /*
-     * A STATED FAILURE IS NOT A BROKEN RENDERING. The runner writes
-     * `FAILED — <reasons>` when a gate genuinely fails, which is a correct
-     * account of what happened rather than a rendering of the totals.
-     * Comparing it against the canonical form would fail every red record for
-     * something that is not a structural fault.
-     */
-  } else if (verdict !== canonical) {
-    /*
-     * Everything else must BE the rendering of the numbers beside it. "BROKEN"
-     * and "8 FOUND" are neither a measurement nor a stated failure, and both
-     * used to pass a check that only looked for the word FAILED.
-     */
+  } else if (verdict !== green && verdict !== red) {
     structural.push(
       `the pnpm test verdict ${JSON.stringify(verdict)} is not the canonical rendering ` +
-        `of the structured results (expected ${JSON.stringify(canonical)})`,
+        `of the structured results (expected ${JSON.stringify(green)} or ${JSON.stringify(red)})`,
     );
   }
 
@@ -957,6 +1079,16 @@ function recordProblems(
         `${gate}: verdict ${JSON.stringify(outcome)} is not the canonical ${JSON.stringify(canonical)}`,
       );
     }
+    /*
+     * AND A RED TEST VERDICT IS AN ACCEPTANCE FAILURE ON ITS OWN.
+     *
+     * It is structurally valid — it says exactly what happened — and it must
+     * never be packaged. Without this, a canonical red verdict beside a record
+     * whose other fields were somehow clean would have nothing to refuse it.
+     */
+    if (gate === "pnpm test" && parseFailedVerdict(outcome) !== null) {
+      acceptance.push(`pnpm test: ${outcome}`);
+    }
 
     /* The scan gates have no process of their own; the rest must have one. */
     if (gate === CONTROL_CHARACTER_GATE) continue;
@@ -1238,7 +1370,18 @@ export function sanitizedRecord(record: GateRecord): unknown {
      * verdicts are matched against their exact canonical shapes, and everything
      * else still goes through the generic filter unchanged.
      */
-    if (gate === "pnpm test" && parseTestVerdict(raw) !== null) {
+    /*
+     * BOTH CANONICAL SHAPES. A green verdict ends "/ 45 files"; a red one is
+     * rendered from the same numbers plus the four facts that distinguish a
+     * suite-level failure from an assertion failure. Neither is prose, and
+     * neither can carry a path, a message or an environment value: every field
+     * in both is a number or a fixed word.
+     *
+     * A red record whose verdict cannot be projected has a projection that can
+     * never be structurally valid, which is how structural validation of a red
+     * attempt became impossible to pass.
+     */
+    if (gate === "pnpm test" && isCanonicalTestVerdict(raw)) {
       gates[gate] = raw as string;
       continue;
     }

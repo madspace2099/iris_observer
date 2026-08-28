@@ -969,6 +969,75 @@ synchronised and never read the auditor. They had already diverged. Both now
 load `scripts/release/secret-patterns.json`, so "in step" is a property of the
 code rather than a sentence in a comment.
 
+A RED RECORD IS EVIDENCE, AND THE CONTRACT WAS CALLING IT MALFORMED.
+
+The `ddefa50` gate recorded a genuine failure and the contract reported the
+RECORD as broken. Two defects did that, and both are corrected here without
+touching green acceptance.
+
+  THE RED     The runner wrote `FAILED — ` followed by whatever reasons the
+  VERDICT     classifier had collected: free prose, from a list that grows. The
+  COULD NOT   sanitizer refused it — correctly, by its own rules, since
+  BE          arbitrary text can carry a path, a message or an environment
+  PROJECTED.  value — so the staged projection of a red record lost its test
+              gate entirely. A projection missing a required gate is not
+              structurally valid, so the projection of a red record could NEVER
+              be valid, so structural validation of a red attempt could never
+              pass.
+
+              The fix is the one the green verdict already had: RECOGNITION,
+              NOT PERMISSION. A red verdict now has one canonical shape,
+              rendered from the numbers by the contract itself —
+
+                FAILED — <p> passed, <s> skipped, <f> failed assertions /
+                <n> files; exit status <x>; report <successful|unsuccessful>;
+                <k> failed suites; <r> runtime-error suites
+
+              — every field a number or a fixed word, nothing that can carry
+              text. The reasons still reach the local console; the RECORD
+              carries the measurements. The sanitizer matches the shape rather
+              than trusting prose, and a red projection is now structurally
+              valid and still unpackageable.
+
+  ZERO        Six failed SUITE results beside zero failed ASSERTIONS is exactly
+  FAILED      what a hook timeout, a collection error or a refusal thrown from
+  ASSERTIONS  shared setup produces. The contract cross-checked the assertion
+  READ AS     count against failed suites, `reportSuccess` and the process
+  CLEAN.      status as though all four counted the same thing, so that shape
+              read as a record contradicting itself.
+
+              They are different measurements. Only same-source duplicates are
+              cross-checked now — `tests.failed`, `countedFailedTests` and
+              `reportedFailedTests` all count failed assertions and must agree.
+              Failed suites and runtime-error suites are their own acceptance
+              failures, reported as themselves, and zero failed assertions is
+              never read as global cleanliness.
+
+WHAT DID NOT CHANGE. Green acceptance is exactly as strict as it was: ok, exit
+status, signal, error code, `reportSuccess`, failed assertions, failed suites,
+runtime-error suites, unhandled errors, every required gate, and the worker
+bounds — each still refuses on its own, and a test asserts that each one does.
+A structurally valid red record remains unpackageable.
+
+THE REMAINING CONTROL-CHARACTER ASSERTION DID NOT REPRODUCE.
+
+One assertion in `control-chars.test.ts` failed once at `d39e1b8` and has not
+failed since: not the named test alone, not its complete suite, not the exact
+pair of suites that produced it. Three attempts, all green, at the same commit
+with the same clean tree.
+
+It is therefore recorded as ONE NON-REPRODUCED OBSERVATION and nothing is
+claimed about its cause. No production behaviour was changed on the strength of
+it, and the assertion was not weakened to make it pass — it already passes.
+
+What was added is the evidence a recurrence would need. The failing assertion
+reported "expected 1 to be 0", which names no file, so the single observation
+could not be classified at all. It now reports the complete structured scan of
+the pristine staged copy — which file, how many requested, how many scanned,
+how many unreadable — and additionally requires the scan to be COMPLETE, since
+a scan that read fewer files than it was asked to has not established that
+anything is clean. A second occurrence will say what happened.
+
 WHY THE SECOND AUTHORITATIVE GATE WENT RED, WHICH WAS NOT THE RELEASE PROTOCOL.
 
 The gate at `ddefa50` failed the same three suites in the same shape as the one

@@ -46,6 +46,7 @@ import {
   GATE_IN_PROGRESS,
   GATE_RECORD_PATH,
   renderTestVerdict,
+  renderFailedVerdict,
   gateRecordProblems,
   stagedRecordProblems,
   structuralRecordProblems,
@@ -404,8 +405,29 @@ function main(): void {
    * this exact shape and compares it against the structured totals, and two
    * independent renderings of one format are two places it can drift.
    */
+  /*
+   * BOTH OUTCOMES RENDERED FROM THE NUMBERS, BY THE CONTRACT.
+   *
+   * The red verdict used to be `FAILED — ` followed by whatever reasons the
+   * classifier had collected — free prose, from a list that grows. The
+   * sanitizer refused it, correctly by its own rules, so the staged projection
+   * of a red record lost its test gate entirely and could never be structurally
+   * valid. The reasons still reach the local console; the RECORD carries the
+   * measurements, in one canonical order, and nothing else.
+   */
   gates["pnpm test"] =
-    gate.reasons.length === 0 ? renderTestVerdict(c) : `FAILED — ${gate.reasons.join("; ")}`;
+    gate.reasons.length === 0
+      ? renderTestVerdict(c)
+      : renderFailedVerdict({
+          passed: c.passed,
+          skipped: c.skipped,
+          failed: c.failed,
+          files: c.files,
+          status: gate.status,
+          reportSuccess: gate.reportSuccess === true,
+          failedSuites: gate.reportedFailedSuites ?? 0,
+          runtimeErrorSuites: gate.runtimeErrorSuites ?? 0,
+        });
   if (gate.reasons.length > 0) {
     failed += 1;
     console.log(`  ${describeGate(gate)}`);

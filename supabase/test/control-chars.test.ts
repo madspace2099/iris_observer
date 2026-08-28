@@ -399,11 +399,43 @@ describe("the packager refuses an injected character", () => {
     ["the manifest", "hashes.txt"],
   ])("refuses %s", (_why, relativePath) => {
     const dir = stagedDir();
-    expect(scanDirectory(dir).foundCharacters).toBe(0);
+
+    /*
+     * WHICH FILE, NOT MERELY HOW MANY.
+     *
+     * This assertion failed once, in one run, and never again — not in
+     * isolation, not in the full suite, not under the exact pair that produced
+     * it. What it reported was "expected 1 to be 0", which names no file and
+     * distinguishes nothing, so the one observation could not be classified.
+     *
+     * Nothing asserted here has changed. What is added is the evidence a
+     * recurrence would need: the complete structured scan of the pristine copy,
+     * so a second occurrence says which staged file carried the byte instead of
+     * only that one did.
+     */
+    const before = scanDirectory(dir);
+    expect(
+      before.foundCharacters,
+      `the pristine staged copy is not clean: ${JSON.stringify({
+        found: before.foundCharacters,
+        affected: before.affectedFiles,
+        requested: before.requestedFiles,
+        scanned: before.scannedFiles,
+        unreadable: before.unreadableFiles,
+        failures: before.readFailures,
+      })}`,
+    ).toBe(0);
+    /* The scan must also be COMPLETE, or "clean" means "did not look". */
+    expect(before.scannedFiles).toBe(before.requestedFiles);
+    expect(before.readFailures).toBe(0);
+
     appendFileSync(join(dir, relativePath), `${BS}\n`);
     const scan = scanDirectory(dir);
     expect(scan.foundCharacters).toBeGreaterThan(0);
     expect(scan.affectedFiles).toContain(relativePath);
+    /* And the injection did not make the scanner lose sight of anything. */
+    expect(scan.scannedFiles).toBe(scan.requestedFiles);
+    expect(scan.readFailures).toBe(0);
   });
 
   it("refuses a generated patch", () => {

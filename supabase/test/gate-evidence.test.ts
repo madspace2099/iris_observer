@@ -8,6 +8,9 @@ import {
   secretPatternsIn,
   parseTestVerdict,
   renderTestVerdict,
+  renderFailedVerdict,
+  parseFailedVerdict,
+  structuralRecordProblems,
   CANONICAL_VERDICTS,
   REQUIRED_GATES,
   FORBIDDEN_STAGED_FIELDS,
@@ -15,6 +18,7 @@ import {
   type GateRecord,
 } from "../../scripts/release/gate-contract";
 import { greenGateRecord } from "./support/synthetic-gate-record";
+import { packagingProblems } from "../../scripts/release/build-package";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -335,5 +339,363 @@ describe("one description of a green record", () => {
 
   it("proves the shared builder satisfies the contract it calibrates", () => {
     expect(gateRecordProblems(greenGateRecord(HEAD), HEAD)).toEqual([]);
+  });
+});
+
+/**
+ * A RED RECORD IS EVIDENCE, AND THE `ddefa50` GATE PROVED IT WAS NOT TREATED AS
+ * ONE.
+ *
+ * That attempt recorded a genuine failure — three suites refusing from shared
+ * setup, so six failed suite results with zero failed assertions — and the
+ * contract reported the record itself as malformed. Two defects did it:
+ *
+ *   1. the red verdict was free prose, which the sanitizer refused, so the
+ *      staged projection of a red record lost its test gate and could never be
+ *      structurally valid;
+ *
+ *   2. zero failed ASSERTIONS was cross-checked against failed SUITES,
+ *      `reportSuccess` and the process status as though all four counted the
+ *      same thing, so the exact shape of a hook timeout read as a contradiction.
+ *
+ * Both are corrected here, and neither correction touches green acceptance.
+ */
+describe("the ddefa50 red shape is evidence, not a malformed record", () => {
+  const head = "d".repeat(40);
+
+  /** The gate result exactly as `ddefa50` recorded it. */
+  const ddefa50 = (): GateRecord => {
+    const base = greenGateRecord(head);
+    const tests = {
+      total: 1578,
+      passed: 1554,
+      skipped: 24,
+      failed: 0,
+      files: 47,
+      perFile: base.tests?.perFile ?? {},
+    };
+    const testGate = {
+      ...base.testGate,
+      ok: false,
+      status: 1,
+      processStatus: 1,
+      reportSuccess: false,
+      reportedFailedTests: 0,
+      countedFailedTests: 0,
+      reportedFailedSuites: 6,
+      runtimeErrorSuites: 3,
+      failedSuiteNames: [
+        "control-chars.test.ts",
+        "no-secret-recipes.test.ts",
+        "package-generation.test.ts",
+      ],
+      observedPeakWorkers: 4,
+      reasons: ["exit status 1", "report declares failure"],
+    };
+    return {
+      ...base,
+      tests,
+      testGate,
+      processes: {
+        ...base.processes,
+        "pnpm test": { ok: false, status: 1, signal: null, errorCode: null },
+      },
+      gates: {
+        ...base.gates,
+        "pnpm test": renderFailedVerdict({
+          passed: 1554,
+          skipped: 24,
+          failed: 0,
+          files: 47,
+          status: 1,
+          reportSuccess: false,
+          failedSuites: 6,
+          runtimeErrorSuites: 3,
+        }),
+      },
+    } as GateRecord;
+  };
+
+  /**
+   * The same shape, with every count agreeing with every other count.
+   *
+   * A fixture that contradicts itself would be refused for being malformed —
+   * which is precisely the confusion these cases exist to remove, so the
+   * numbers here are derived rather than asserted.
+   */
+  const shaped = (): GateRecord => {
+    const r = ddefa50();
+    const FILES = 47;
+    const PASSED = 1554;
+    const SKIPPED = 24;
+    const perFile: Record<string, number> = {};
+    const each = Math.floor((PASSED + SKIPPED) / FILES);
+    for (let i = 1; i < FILES; i += 1)
+      perFile[`suite-${String(i).padStart(2, "0")}.test.ts`] = each;
+    perFile[`suite-${String(FILES).padStart(2, "0")}.test.ts`] =
+      PASSED + SKIPPED - each * (FILES - 1);
+    const skippedTests = Array.from({ length: SKIPPED }, (_, i) => ({
+      suite: "package-generation.test.ts",
+      title: `skipped because shared setup refused (${String(i + 1)})`,
+    }));
+    return {
+      ...r,
+      expectedSuites: Object.keys(perFile).sort(),
+      tests: {
+        total: PASSED + SKIPPED,
+        passed: PASSED,
+        skipped: SKIPPED,
+        failed: 0,
+        files: FILES,
+        perFile,
+      },
+      testGate: { ...r.testGate, skippedTests },
+      gates: {
+        ...r.gates,
+        "pnpm test": renderFailedVerdict({
+          passed: PASSED,
+          skipped: SKIPPED,
+          failed: 0,
+          files: FILES,
+          status: 1,
+          reportSuccess: false,
+          failedSuites: 6,
+          runtimeErrorSuites: 3,
+        }),
+      },
+    } as GateRecord;
+  };
+
+  it("renders the canonical red verdict the milestone specifies", () => {
+    expect(
+      renderFailedVerdict({
+        passed: 1554,
+        skipped: 24,
+        failed: 0,
+        files: 47,
+        status: 1,
+        reportSuccess: false,
+        failedSuites: 6,
+        runtimeErrorSuites: 3,
+      }),
+    ).toBe(
+      "FAILED — 1554 passed, 24 skipped, 0 failed assertions / 47 files; " +
+        "exit status 1; report unsuccessful; 6 failed suites; 3 runtime-error suites",
+    );
+  });
+
+  it("1. is structurally valid", () => {
+    const problems = structuralRecordProblems(shaped(), head);
+    expect(problems).toEqual([]);
+  });
+
+  it("2. keeps a structurally valid sanitized projection", () => {
+    const staged = sanitizedRecord(shaped()) as GateRecord;
+    expect(structuralRecordProblems(staged, head, "staged")).toEqual([]);
+    /* And the verdict itself survived, which is the defect this closes. */
+    const gates = (staged as unknown as { gates: Record<string, string> }).gates;
+    expect(parseFailedVerdict(gates["pnpm test"])).not.toBeNull();
+  });
+
+  it("3. is red on acceptance, for the reasons that are actually true", () => {
+    const problems = gateRecordProblems(shaped(), head).join(" ");
+    expect(problems).toMatch(/failed suite result/);
+    expect(problems).toMatch(/runtime-error suite/);
+    expect(problems).toMatch(/test report success=false/);
+    expect(problems).toMatch(/exit status 1/);
+  });
+
+  it("4. cannot be packaged", () => {
+    const refusal = packagingProblems({
+      head,
+      expectedHead: undefined,
+      dirty: [],
+      gateProblems: gateRecordProblems(shaped(), head),
+      lockProblems: [],
+      treeProblems: [],
+    });
+    expect(refusal.join(" ")).toMatch(/GATE RECORD:/);
+    expect(() => captureEvidence(shaped(), head)).toThrow(EvidenceRefused);
+  });
+
+  it("5. does not let zero failed assertions hide suite or runtime failures", () => {
+    /*
+     * The exact misreading. Zero is the CORRECT number of failed assertions for
+     * a suite that never ran its tests, and it must not read as cleanliness.
+     */
+    const r = shaped();
+    expect(r.tests?.failed).toBe(0);
+    expect(gateRecordProblems(r, head).join(" ")).toMatch(/6 failed suite result/);
+  });
+
+  it("6. accepts six failed suite results beside three distinct basenames", () => {
+    const r = shaped();
+    expect(r.testGate?.reportedFailedSuites).toBe(6);
+    expect(new Set(r.testGate?.failedSuiteNames ?? []).size).toBe(3);
+    expect(structuralRecordProblems(r, head)).toEqual([]);
+  });
+
+  it("7. refuses a missing red verdict", () => {
+    const r = shaped() as { gates: Record<string, string> };
+    const gates = { ...r.gates };
+    delete gates["pnpm test"];
+    expect(structuralRecordProblems({ ...r, gates } as GateRecord, head).join(" ")).toMatch(
+      /pnpm test: no result recorded/,
+    );
+  });
+
+  it("8. refuses a green-looking verdict beside red measurements", () => {
+    const r = shaped();
+    const green = {
+      ...r,
+      gates: {
+        ...r.gates,
+        "pnpm test": renderTestVerdict({
+          passed: 1554,
+          skipped: 24,
+          failed: 0,
+          files: r.tests?.files ?? 0,
+        }),
+      },
+    } as GateRecord;
+    /*
+     * Structurally it is one of the two canonical shapes and its numbers agree,
+     * so shape alone cannot refuse it — ACCEPTANCE does, on every field that
+     * actually recorded the failure.
+     */
+    expect(gateRecordProblems(green, head).join(" ")).toMatch(/failed suite result/);
+  });
+
+  it("9. refuses a plausible near-miss verdict", () => {
+    const r = shaped();
+    for (const near of [
+      "FAILED — 1554 passed, 24 skipped, 0 failed / 47 files; exit status 1; report unsuccessful; 6 failed suites; 3 runtime-error suites",
+      "FAILED — 1554 passed, 24 skipped, 0 failed assertions / 47 files; exit status 1; report unsuccessful; 6 failed suites",
+      "FAILED — exit status 1; report declares failure",
+      "FAILED",
+    ]) {
+      const record = { ...r, gates: { ...r.gates, "pnpm test": near } } as GateRecord;
+      expect(structuralRecordProblems(record, head).join(" "), near.slice(0, 40)).toMatch(
+        /not the canonical rendering/,
+      );
+    }
+  });
+
+  it("10. keeps assertion failure and suite-level failure separate", () => {
+    const r = shaped();
+    /* Same-source duplicates must agree; different measurements need not. */
+    const inconsistent = {
+      ...r,
+      testGate: { ...r.testGate, countedFailedTests: 3 },
+    } as GateRecord;
+    expect(structuralRecordProblems(inconsistent, head).join(" ")).toMatch(
+      /the same measurement recorded twice, differently/,
+    );
+    /* Whereas six failed suites beside zero failed assertions is fine. */
+    expect(structuralRecordProblems(r, head)).toEqual([]);
+  });
+
+  it("11. records status 1 with reportSuccess true and no failures, and refuses it", () => {
+    const r = shaped();
+    const odd = {
+      ...r,
+      testGate: {
+        ...r.testGate,
+        reportSuccess: true,
+        reportedFailedSuites: 0,
+        runtimeErrorSuites: 0,
+        failedSuiteNames: [],
+        reasons: [],
+      },
+      gates: {
+        ...r.gates,
+        "pnpm test": renderFailedVerdict({
+          passed: 1554,
+          skipped: 24,
+          failed: 0,
+          files: r.tests?.files ?? 0,
+          status: 1,
+          reportSuccess: true,
+          failedSuites: 0,
+          runtimeErrorSuites: 0,
+        }),
+      },
+    } as GateRecord;
+    /* Structurally recordable — this is the shape the runner-level exit made. */
+    expect(structuralRecordProblems(odd, head)).toEqual([]);
+    /* And never acceptable: the process said 1. */
+    expect(gateRecordProblems(odd, head).join(" ")).toMatch(/exit status 1/);
+  });
+
+  it("12. keeps observedPeakWorkers in the red projection", () => {
+    const staged = sanitizedRecord(shaped()) as { testGate?: { observedPeakWorkers?: unknown } };
+    expect(staged.testGate?.observedPeakWorkers).toBe(4);
+  });
+
+  it("13. lets nothing hostile survive sanitization", () => {
+    const r = shaped();
+    const hostile = {
+      ...r,
+      testGate: {
+        ...r.testGate,
+        failedSuiteNames: [
+          "C:/Users/someone/secret.txt",
+          "https://example.invalid/token",
+          "AKIA" + "ABCDEFGH".repeat(2),
+          "at Object.<anonymous> (/app/src/index.ts:12:9)",
+        ],
+      },
+    } as GateRecord;
+    /*
+     * TWO INDEPENDENT CONTROLS, AND THEY CATCH DIFFERENT THINGS.
+     *
+     * The sanitizer filters by SHAPE: a path, a URL, a stack frame and an
+     * assignment are all refused as forms. The secret detector runs over the
+     * FINISHED BYTES at capture, because an allowlisted field is not a licence
+     * for its value — and a bare vendor-prefixed key has no forbidden shape.
+     */
+    const staged = sanitizedRecord(hostile);
+    const json = JSON.stringify(staged);
+    expect(json).not.toContain("secret.txt");
+    expect(json).not.toContain("https://");
+    expect(json).not.toContain("at Object");
+
+    /* And the value the shape filter cannot see is refused at capture. */
+    expect(() => captureEvidence(hostile, head)).toThrow(EvidenceRefused);
+    expect(secretPatternsIn(json)).toContain("aws-access-key");
+  });
+
+  it("14. still reports a missing structural field on an already-red record", () => {
+    const r = shaped() as { testGate: Record<string, unknown> };
+    const gate = { ...r.testGate };
+    delete gate["observedPeakWorkers"];
+    const record = { ...r, testGate: gate } as unknown as GateRecord;
+    const structure = structuralRecordProblems(record, head).join(" ");
+    const acceptance = gateRecordProblems(record, head).join(" ");
+    expect(structure).toMatch(/observedPeakWorkers not recorded/);
+    /* And the genuine failure is still reported beside it. */
+    expect(acceptance).toMatch(/failed suite result/);
+  });
+
+  it("keeps green acceptance exactly as strict as it was", () => {
+    /* The clean record still passes both layers, unchanged. */
+    const clean = greenGateRecord(head);
+    expect(structuralRecordProblems(clean, head)).toEqual([]);
+    expect(gateRecordProblems(clean, head)).toEqual([]);
+    /* And every single acceptance condition still refuses on its own. */
+    const breaks: [string, Partial<Record<string, unknown>>][] = [
+      ["ok", { ok: false }],
+      ["status", { status: 1 }],
+      ["signal", { signal: "SIGTERM" }],
+      ["errorCode", { errorCode: "ENOENT" }],
+      ["reportSuccess", { reportSuccess: false }],
+      ["reportedFailedSuites", { reportedFailedSuites: 1 }],
+      ["runtimeErrorSuites", { runtimeErrorSuites: 1 }],
+      ["reportedUnhandledErrors", { reportedUnhandledErrors: 1 }],
+    ];
+    for (const [what, patch] of breaks) {
+      const broken = { ...clean, testGate: { ...clean.testGate, ...patch } } as GateRecord;
+      expect(gateRecordProblems(broken, head), what).not.toEqual([]);
+    }
   });
 });
