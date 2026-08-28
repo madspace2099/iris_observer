@@ -116,16 +116,53 @@ Vercel and something did add a variable to the Production scope. The complete
 chronology is in section 3a, and no sentence in this document scopes it more
 broadly than the row it rests on.
 
-NO HISTORY WAS REWRITTEN IN THIS ROUND, AND ONE EARLIER ROUND DID REWRITE TWO
-COMMITS. Both are true and they are about different milestones, so stating only
-one of them reads as a contradiction of the other. The authorised rewrite
-replaced the two local-only commits above `7ac84fa` to remove a secret-shaped
-fixture from reachable history; it is recorded in section 1 with the tree and
-diff hashes that prove it changed no content, and it had never left this
-machine. Every round since — the runner-level diagnosis, the concurrency bound,
-and this evidence correction — has left history untouched.
+HISTORY WAS REWRITTEN IN THIS ROUND, UNDER EXPLICIT AUTHORISATION, AND ONLY
+LOCALLY. What follows is the whole of it, including the two gate results that
+led to it. Neither result is retracted by the repair.
 
-NO SECRET WAS GENERATED, DISPLAYED OR HANDLED.
+  THE FIRST RED. An authoritative gate ran at {{RED_FIRST}} and the secret
+  audit refused it: a tracked test file carried a forbidden secret-shaped
+  assignment. The fixture was the adversarial list of SHAPES a failed-suite
+  identity may not take, one of which is an environment assignment; the value
+  was an ordinary English word and no credential of any kind was involved. The
+  auditor was right anyway — a tracked file holding that pattern is what it
+  exists to refuse. The record is preserved at
+  {{RED_FIRST_RECORD}}.
+
+  ONE AUTHORISED FIX-FORWARD CANDIDATE. The fixture was changed to assemble the
+  string at run time, and that produced {{RED_SECOND}}.
+
+  THE SECOND RED. The gate ran once at {{RED_SECOND}} and the same audit
+  refused it again — this time because the COMMIT MESSAGE describing the fix
+  reproduced the pattern it had removed. `git show` prints a message above its
+  diff, so one pass covers both. The record is preserved at
+  {{RED_SECOND_RECORD}}.
+
+  NEITHER COMMIT WAS RETRIED. The milestone authorised one fix-forward
+  candidate and it was spent, so that milestone ended with no archive.
+
+  THE OPERATOR THEN AUTHORISED A LOCAL-ONLY HISTORY REPAIR, and rejected the
+  alternative. The alternative was to declare the offending commits exempt from
+  the audit. One entry had already been added for the fixture commit, and the
+  message commit would have needed a second — a control being negotiated away
+  one case at a time. The declaration is removed and no exemption of any kind
+  remains: no allowlist, no path exception, no commit-message exception.
+
+  WHAT THE REPAIR CHANGED. Nine local-only commits above {{PROTECTED_BASE}}
+  were replaced by one, on the same base. Nothing at or before that commit was
+  touched. Every commit replaced was local-only and unreachable from any
+  remote-tracking ref, which was proved before anything was rewritten. The
+  superseded commits are no longer reachable from this branch or from any ref;
+  no claim is made here that their objects were physically pruned.
+
+  WHAT THE REPAIR DID NOT CHANGE. It does not retract either gate result. Both
+  red records remain byte-identical and are listed above. Neither {{RED_FIRST}}
+  nor {{RED_SECOND}} was ever delivered as an archive, so neither appears in
+  any delivery count.
+
+NO SECRET WAS GENERATED, DISPLAYED OR HANDLED. The pattern both gates refused
+was a test fixture describing a shape, and it is assembled at run time now so
+that no tracked file and no commit contains it.
 
 
 ================================================================================

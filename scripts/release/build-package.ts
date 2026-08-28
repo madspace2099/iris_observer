@@ -48,6 +48,8 @@ import {
   baselineCommit,
   snapshotRecordChanged,
   MIGRATIONS_DIR,
+  RED_GATE_ATTEMPTS,
+  HISTORY_REPAIR,
 } from "./facts";
 import { walk, writeZip, scanArchive } from "./zip";
 import {
@@ -1270,6 +1272,43 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
       }
     }
   }
+
+  /*
+   * A NAMED PRESERVED RECORD MUST EXIST.
+   *
+   * The evidence now names the two red gate attempts that preceded the
+   * authorised history repair, and points at the files holding their sanitized
+   * records. A document naming a record the repository does not hold is worse
+   * than one that says nothing — so the rendered text is read back and each
+   * named path is checked.
+   *
+   * The records are deliberately NOT packaged: they are local operational state
+   * for whoever holds this working directory, not evidence a reviewer can open.
+   * What is checked is that the claim about them is true here.
+   */
+  for (const attempt of RED_GATE_ATTEMPTS) {
+    require_(
+      review.includes(attempt.record),
+      `REVIEW.txt does not name the preserved record for ${attempt.commit}`,
+    );
+    require_(
+      existsSync(join(REPO_ROOT, attempt.record)),
+      `${attempt.record} is named in the evidence and is not in this repository`,
+    );
+    require_(
+      review.includes(attempt.commit),
+      `REVIEW.txt does not name the red gate attempt at ${attempt.commit}`,
+    );
+  }
+  /*
+   * AND THE REPAIR DOES NOT RETRACT THEM. Two red results and a history repair
+   * are different facts, and the document must not read as though the second
+   * undid the first.
+   */
+  require_(
+    !HISTORY_REPAIR.retractsGateResults && review.includes("does not retract either gate result"),
+    "REVIEW.txt does not say that the history repair leaves both gate results standing",
+  );
 
   /* Executable SQL: the claim and the computed hashes must agree. */
   const contractPath = `${MIGRATIONS_DIR}/20260826090000_observer_audit_facade_cleanup.sql`;

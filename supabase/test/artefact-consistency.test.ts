@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { facts, render } from "../../scripts/release/facts";
+import { facts, render, RED_GATE_ATTEMPTS, HISTORY_REPAIR } from "../../scripts/release/facts";
 import {
   hashTokens,
   accountableHashes,
@@ -472,16 +472,48 @@ describe("the evidence prose says what is true at this commit", () => {
    */
   const rendered = render(review, allFacts()).out;
 
-  it("does not claim no history was ever rewritten", () => {
+  it("states the history repair, and what it does not undo", () => {
     /*
-     * It said "no history was rewritten" in the operator declaration and then
-     * described the authorised rewrite of two local-only commits in section 1.
-     * Both are true of DIFFERENT milestones, and only saying one of them reads
-     * as a contradiction of the other.
+     * This round DID rewrite history, under explicit authorisation and only
+     * locally. The document has to say so plainly, say what it was authorised
+     * for, and say what it leaves standing — because a repair that removed the
+     * commits behind two red gate results could easily read as though it had
+     * removed the results.
      */
     expect(review).not.toMatch(/^no history was rewritten\.$/m);
-    expect(review).toMatch(/NO HISTORY WAS REWRITTEN IN THIS ROUND/);
-    expect(review).toMatch(/ONE EARLIER ROUND DID REWRITE TWO\s+COMMITS/);
+    expect(review).toMatch(/HISTORY WAS REWRITTEN IN THIS ROUND, UNDER EXPLICIT\s+AUTHORISATION/);
+    expect(review).toMatch(/ONLY\s+LOCALLY/);
+    expect(review).toMatch(/does not retract either gate result/);
+    expect(review).toMatch(/no claim is made here that their objects were physically pruned/);
+  });
+
+  it("records both red attempts, and that neither was retried or delivered", () => {
+    for (const attempt of RED_GATE_ATTEMPTS) {
+      /* RENDERED: these are values, and the template can only carry placeholders. */
+      expect(rendered, attempt.commit).toContain(attempt.commit);
+      expect(rendered, attempt.record).toContain(attempt.record);
+      /* The record it names is actually here. */
+      expect(existsSync(join(ROOT, attempt.record)), attempt.record).toBe(true);
+    }
+    expect(review).toMatch(/NEITHER COMMIT WAS RETRIED/);
+    expect(review).toMatch(/one fix-forward\s+candidate and it was spent/);
+    expect(review).toMatch(/neither appears in\s+any delivery count/);
+  });
+
+  it("says why an audit exemption was rejected, and carries none", () => {
+    expect(review).toMatch(/THE OPERATOR THEN AUTHORISED A LOCAL-ONLY HISTORY REPAIR/);
+    expect(review).toMatch(/a control being negotiated away\s+one case at a time/);
+    expect(review).toMatch(/no allowlist, no path exception, no commit-message exception/);
+    /* And the auditor itself declares nothing. */
+    const auditor = readFileSync(join(ROOT, "scripts", "secret-audit.mjs"), "utf8");
+    expect(auditor).not.toMatch(/[0-9a-f]{40}/);
+  });
+
+  it("names the protected base and does not claim to have touched it", () => {
+    expect(rendered).toContain(HISTORY_REPAIR.protectedBase);
+    expect(review).toMatch(/Nothing at or before that commit was\s+touched/);
+    expect(HISTORY_REPAIR.retractsGateResults).toBe(false);
+    expect(HISTORY_REPAIR.affectsDeliveryCounts).toBe(false);
   });
 
   it("no longer calls the runner-level exit open, unreproduced or unexplained", () => {

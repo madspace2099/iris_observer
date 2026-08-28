@@ -662,6 +662,53 @@ function deploymentInventoryLine(): string {
   ].join("\n    ");
 }
 
+/**
+ * The two gate results that preceded the authorised history repair.
+ *
+ * DECLARED, because a document naming a preserved record must name one that is
+ * actually there. `build-package.ts` re-reads the rendered text and refuses a
+ * package whose evidence names a record file the repository does not hold.
+ */
+export interface RedGateAttempt {
+  /** The commit the gate ran at. */
+  readonly commit: string;
+  /** Where its sanitized record is preserved, relative to the repository. */
+  readonly record: string;
+  /** Why it was refused, in one line, naming no pattern. */
+  readonly why: string;
+}
+
+export const RED_GATE_ATTEMPTS: readonly RedGateAttempt[] = [
+  {
+    commit: "abeca3a",
+    record: ".release/gate-results-FAILED-abeca3a-3064e88a1d30bd14.json",
+    why: "a tracked test file carried a forbidden secret-shaped assignment",
+  },
+  {
+    commit: "ebeb916",
+    record: ".release/gate-results-FAILED-ebeb916-94ad69855e655aaf.json",
+    why: "the commit message describing the fix reproduced the same shape",
+  },
+];
+
+/**
+ * The one authorised local-history repair, and what it was and was not.
+ *
+ * The alternative was an audit exemption, and the operator rejected it: one
+ * entry had already been added for the fixture commit and a second would have
+ * been needed for the message commit, which is a control being negotiated away
+ * one case at a time.
+ */
+export const HISTORY_REPAIR = Object.freeze({
+  protectedBase: "03f43a7",
+  replacedCommits: 9,
+  replacementCommits: 1,
+  /* Neither red result is retracted by the repair. */
+  retractsGateResults: false,
+  /* Neither red commit was ever handed over, so neither is a delivery. */
+  affectsDeliveryCounts: false,
+});
+
 export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   const head = git("rev-parse", "HEAD");
   const headShort = head.slice(0, 7);
@@ -943,6 +990,20 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     EXPECTED_MAX_H: String(RETENTION_THRESHOLD_HOURS + 1),
     BUCKET_HISTORY: OLDEST_BUCKET_HISTORY.join(", "),
     BUCKET_HISTORY_PROVENANCE: OLDEST_BUCKET_HISTORY_PROVENANCE,
+
+    /*
+     * THE TWO RED ATTEMPTS AND THE REPAIR THAT FOLLOWED THEM.
+     *
+     * Rendered from the declaration rather than typed into the document,
+     * because these are the identifiers of preserved records: a document that
+     * names a record file which is not there, or names the wrong commit, is
+     * worse than one that says nothing.
+     */
+    RED_FIRST: RED_GATE_ATTEMPTS[0]?.commit ?? "UNKNOWN",
+    RED_FIRST_RECORD: RED_GATE_ATTEMPTS[0]?.record ?? "UNKNOWN",
+    RED_SECOND: RED_GATE_ATTEMPTS[1]?.commit ?? "UNKNOWN",
+    RED_SECOND_RECORD: RED_GATE_ATTEMPTS[1]?.record ?? "UNKNOWN",
+    PROTECTED_BASE: HISTORY_REPAIR.protectedBase,
     PATCH_SUMMARY: patchSummary(),
 
     /* Rendered from the declared state, so neither can drift from the other. */
