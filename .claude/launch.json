@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "observer",
+      "name": "observer-ui",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@observer/web", "dev", "--port", "3210"],
-      "port": 3210
+      "runtimeArgs": [
+        "--filter",
+        "@observer/web",
+        "dev",
+        "--port",
+        "3410"
+      ],
+      "port": 3410
     }
   ]
 }
