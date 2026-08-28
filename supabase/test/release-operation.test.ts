@@ -1222,12 +1222,16 @@ describe("evidence does not attribute fields to a query that never selected them
  */
 describe("the transport-safe note reports where the bytes actually are", () => {
   it("counts added, removed and context separately", () => {
-    const added = controlByteDistribution("+const a = /xy/;\n");
-    expect(added).toEqual({ added: 1, removed: 0, context: 0 });
-    const removed = controlByteDistribution("-const a = /xy/;\n");
-    expect(removed).toEqual({ added: 0, removed: 1, context: 0 });
-    const context = controlByteDistribution(" const a = /xy/;\n");
-    expect(context).toEqual({ added: 0, removed: 0, context: 1 });
+    /*
+     * ASSEMBLED, NEVER WRITTEN. A literal backspace in this file is a literal
+     * backspace in the archive, and the staged package scan refuses it —
+     * which is exactly what it did when this test first carried three.
+     */
+    const BS = String.fromCharCode(8);
+    const line = (prefix: string): string => `${prefix}const a = /x${BS}y/;\n`;
+    expect(controlByteDistribution(line("+"))).toEqual({ added: 1, removed: 0, context: 0 });
+    expect(controlByteDistribution(line("-"))).toEqual({ added: 0, removed: 1, context: 0 });
+    expect(controlByteDistribution(line(" "))).toEqual({ added: 0, removed: 0, context: 1 });
   });
 
   it("measures the three declared patches and finds bytes on ADDED lines", () => {
