@@ -607,6 +607,7 @@ describe("what a failing test is allowed to leave behind", () => {
       "errorCode",
       "failedSuiteNames",
       "failedSuiteNamesOmitted",
+      "failedSuiteResultsAccounted",
       "failedTests",
       "failedTestsOmitted",
       "observedPeakWorkers",

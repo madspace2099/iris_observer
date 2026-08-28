@@ -29,6 +29,9 @@ import {
   verifyEmbeddedManifest,
   stagedOriginProblems,
   stagedOriginResult,
+  stagingInventoryOf,
+  stagingCoverageProblems,
+  GENERATED_ORIGINS,
   branchProblems,
 } from "../../scripts/release/build-package";
 import {
@@ -66,6 +69,7 @@ import {
   patchCommit,
 } from "../../scripts/release/transport-safe";
 import { facts, render } from "../../scripts/release/facts";
+import { WRAPPERS, renderWrapper } from "../../scripts/release/wrap-migration";
 
 /**
  * A GATE RESULT IS ABOUT BYTES, AND USED TO BE ABOUT A COMMIT NAME.
@@ -353,9 +357,33 @@ describe("the distributed archive is the one that was verified", () => {
     expect(text).not.toContain("renameSync(first.archive, distributable)");
     /* Publication comes after the checks, never before. */
     const verify = text.indexOf("all four identical");
-    const publish = text.indexOf("linkSync(first.archive, distributable)");
+    /* lastIndexOf: the first occurrence is the doc comment naming the defect. */
+    const publish = text.lastIndexOf("linkSync(first.archive, distributable)");
     expect(verify).toBeGreaterThan(0);
     expect(publish).toBeGreaterThan(verify);
+  });
+
+  it("holds one terminal phase from validation through endOperation", () => {
+    /*
+     * THE INTERLEAVING THIS ORDERING FORBIDS. Releasing the claim after the
+     * link but before completion let a recovery tombstone the gate record and
+     * release the mutex while the published archive stayed on disk — both sides
+     * partly succeeding, which neither may do.
+     */
+    const text = source();
+    const enter = text.indexOf('withTerminalPhase(REPO_ROOT, op, "publish"');
+    const revalidate = text.indexOf("const now = identifyFile(first.archive)");
+    /* lastIndexOf: the first occurrence is the doc comment naming the defect. */
+    const publish = text.lastIndexOf("linkSync(first.archive, distributable)");
+    const cleanup = text.indexOf("cleanUp();", publish);
+    const end = text.indexOf("endOperation(REPO_ROOT, op);", publish);
+    expect(enter).toBeGreaterThan(0);
+    expect(revalidate).toBeGreaterThan(enter);
+    expect(publish).toBeGreaterThan(revalidate);
+    expect(cleanup).toBeGreaterThan(publish);
+    expect(end).toBeGreaterThan(cleanup);
+    /* And the claim is not released by hand anywhere in between. */
+    expect(text).not.toContain("releaseTerminal()");
   });
 
   it("refuses rather than replacing an archive already at that path", () => {
@@ -370,29 +398,59 @@ describe("the distributed archive is the one that was verified", () => {
     const text = source();
     expect(text).toContain("rmSync(staging, { recursive: true, force: true })");
     /*
-     * AND NEVER THE DISTRIBUTABLE. Cleanup used to delete any archive at the
+     * AND NEVER A PREVIOUS ARCHIVE. Cleanup used to delete any archive at the
      * destination whenever the build did not publish — so a build that refused
-     * for any reason at all destroyed the previous, verified archive at the
-     * same HEAD. That deletion is gone.
+     * for any reason at all destroyed the previous, verified deliverable at the
+     * same HEAD. That deletion is gone from `cleanUp` entirely.
      */
     expect(text).not.toContain("if (!published) rmSync(distributable");
-    expect(text).not.toMatch(/rmSync\(distributable/);
+    const cleanUp = text.slice(text.indexOf("const cleanUp = ()"), text.indexOf("  try {"));
+    expect(cleanUp).not.toMatch(/rmSync\(distributable/);
+
+    /*
+     * The ONE remaining removal of the canonical path is the rollback of a link
+     * this operation created moments earlier in the same terminal hold, after
+     * the no-clobber check proved the path was empty. It cannot reach an
+     * archive this operation did not create.
+     */
+    const rollbacks = [...text.matchAll(/rmSync\(distributable/g)];
+    expect(rollbacks).toHaveLength(2);
+    for (const m of rollbacks) {
+      const before = text.slice(0, m.index ?? 0);
+      expect(before.lastIndexOf("linkSync(first.archive, distributable)")).toBeGreaterThan(
+        before.lastIndexOf("const cleanUp = ()"),
+      );
+    }
   });
 
-  it("claims the terminal phase before publishing, and releases it after", () => {
+  it("runs unzip -t and sha256sum -c before publishing, and again on what it published", () => {
     const text = source();
-    const claim = text.indexOf('claimTerminalPhase(REPO_ROOT, op, "publish")');
-    const publish = text.indexOf("linkSync(first.archive, distributable)");
-    const release = text.indexOf("releaseTerminal()");
-    expect(claim).toBeGreaterThan(0);
-    expect(publish).toBeGreaterThan(claim);
-    expect(release).toBeGreaterThan(publish);
+    /* One routine, applied to both candidates, so the two cannot drift. */
+    expect(text).toContain('execFileSync("unzip", ["-t", archive]');
+    expect(text).toContain('spawnSync("sha256sum", ["-c", "hashes.txt"]');
+    expect(text).toContain("verifyArchiveIntegrity(first.archive, staging, first.validated)");
+    expect(text).toContain("verifyArchiveIntegrity(distributable, staging, first.validated)");
+    const built = text.indexOf("verifyArchiveIntegrity(first.archive");
+    const published = text.indexOf("verifyArchiveIntegrity(distributable");
+    expect(built).toBeGreaterThan(0);
+    expect(published).toBeGreaterThan(built);
   });
 
-  it("runs unzip -t and sha256sum -c before publishing", () => {
+  it("binds the published bytes to the identity that was verified", () => {
+    /*
+     * The archive was hashed and then published BY PATHNAME. The staging path
+     * is derived from the operation id and is therefore predictable, so a local
+     * process could replace that file between the last verification and the
+     * link, and the canonical archive would hold bytes nobody checked under the
+     * SHA this build had already reported.
+     */
     const text = source();
-    expect(text).toContain('execFileSync("unzip", ["-t", first.archive]');
-    expect(text).toContain('execFileSync("sha256sum", ["-c", "SHA256SUMS"]');
+    expect(text).toContain("const verified = identifyFile(first.archive)");
+    expect(text).toContain("const now = identifyFile(first.archive)");
+    expect(text).toContain("const canonical = identifyFile(distributable)");
+    expect(text).toContain('identityProblems("the canonical archive", verified, canonical)');
+    /* And the limitation is stated rather than dressed up as a guarantee. */
+    expect(text).toMatch(/not something this code can assert away/);
   });
 
   it("agrees with itself about what a sha256 of a file is", () => {
@@ -791,6 +849,8 @@ describe("one failure does not suppress evidence about another", () => {
         reportedFailedSuites: 2,
         runtimeErrorSuites: 1,
         failedSuiteNames: ["a.test.ts", "b.test.ts"],
+        /* Two distinct files, two failing results, and the record says so. */
+        failedSuiteResultsAccounted: 2,
         reasons: ["exit status 1"],
       },
       processes: {
@@ -1137,13 +1197,13 @@ describe("packaging verifies what it publishes", () => {
 
   it("verifies the manifest inside the archive, from the archive", () => {
     expect(source).toContain("verifyEmbeddedManifest(inflated)");
-    expect(source).toMatch(/unzip", \["-q", first\.archive/);
+    expect(source).toMatch(/unzip", \["-q", archive/);
   });
 
   it("compares all four hashes before publishing", () => {
     expect(source).toContain('{ label: "written archive", sha: first.sha }');
     const compare = source.indexOf("hashes.every((h) => h.sha === first.sha");
-    const publish = source.indexOf("linkSync(first.archive, distributable)");
+    const publish = source.lastIndexOf("linkSync(first.archive, distributable)");
     expect(compare).toBeGreaterThan(0);
     expect(publish).toBeGreaterThan(compare);
   });
@@ -1394,7 +1454,10 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     }
   });
 
-  it("reconstructs the chain end to end with git am, when the base object is here", async () => {
+  /** Set only when the replay ran to completion. Exposed so a skip cannot pass. */
+  let replayed = false;
+
+  it("reconstructs the chain end to end with git am, requiring the base object", async () => {
     /*
      * THE CLAIM THE NOTE MAKES, EXECUTED. The note says a decoded sidecar is
      * byte-for-byte the original patch and therefore `git am` applicable. That
@@ -1406,13 +1469,17 @@ describe("the transport-safe note reports where the bytes actually are", () => {
      * on a legitimate checkout would be a test about the clone.
      */
     const base = "1ee5d2d";
-    let haveBase = true;
-    try {
-      await gitAsync(ROOT, "rev-parse", `${base}^{commit}`);
-    } catch {
-      haveBase = false;
-    }
-    if (!haveBase) return;
+    /*
+     * MISSING BASE IS A FAILURE, NOT A SILENT RETURN.
+     *
+     * This used to `return` when the base commit was absent, and a returning
+     * test is a PASSING test — so a checkout that could not perform the proof
+     * reported that it had. The archive does not contain the base object and
+     * does not claim to; this is a precondition on the REPOSITORY the gate runs
+     * in, and a precondition nobody checks is a precondition nobody has.
+     */
+    await gitAsync(ROOT, "rev-parse", `${base}^{commit}`);
+    replayed = false;
 
     const work = mkdtempSync(join(tmpdir(), "observer-am-"));
     const patches = join(work, "patches");
@@ -1470,9 +1537,12 @@ describe("the transport-safe note reports where the bytes actually are", () => {
       const rebuilt = (await gitAsync(repo, "rev-parse", "HEAD^{tree}")).trim();
       const original = (await gitAsync(ROOT, "rev-parse", "HEAD^{tree}")).trim();
       expect(rebuilt).toBe(original);
+      /* The case says whether the replay actually happened, rather than implying it. */
+      replayed = true;
     } finally {
       rmSync(work, { recursive: true, force: true });
     }
+    expect(replayed, "the replay did not run to completion").toBe(true);
   }, 180_000);
 
   it("does not claim every affected commit removes backspaces", () => {
@@ -1527,9 +1597,11 @@ describe("the staged copies are checked against the commit, not the tree", () =>
     return { dir, staged: "generators/secret-patterns.json" };
   };
 
+  const one = (origin: string, staged: string) => stagingInventoryOf([{ origin, staged }]);
+
   it("accepts a copy that is byte-identical to HEAD", () => {
     const { dir, staged } = stageFromHead();
-    expect(stagedOriginProblems(dir, [{ origin: ORIGIN, staged }])).toEqual([]);
+    expect(stagedOriginProblems(dir, one(ORIGIN, staged))).toEqual([]);
   });
 
   it("refuses a copy taken while the tracked file was modified, however briefly", () => {
@@ -1543,101 +1615,232 @@ describe("the staged copies are checked against the commit, not the tree", () =>
      */
     const { dir, staged } = stageFromHead();
     const path = join(dir, "generators", "secret-patterns.json");
-    const edited = `${readFileSync(path, "utf8")}\n`;
-    writeFileSync(path, edited, "utf8");
+    writeFileSync(path, `${readFileSync(path, "utf8")}\n`, "utf8");
 
-    /*
-     * THE ORIGIN FILE ITSELF WAS NEVER TOUCHED — only the copy holds the edit,
-     * which is exactly the state a mid-staging edit leaves behind once it has
-     * been restored. (This asserts the origin rather than the whole tree: the
-     * suite runs during development, when other files are legitimately being
-     * worked on, and a clean-tree assertion here would be about the milestone
-     * rather than about the rule.)
-     */
-    expect(
-      stagedOriginProblems(dir, [
-        { origin: ORIGIN, staged: "unmodified/secret-patterns.json" },
-      ]).join(" "),
-    ).toMatch(/is not present/);
-
-    const problems = stagedOriginProblems(dir, [{ origin: ORIGIN, staged }]).join(" ");
+    const problems = stagedOriginProblems(dir, one(ORIGIN, staged)).join(" ");
     expect(problems).toMatch(/does not match HEAD:/);
     expect(problems).toMatch(/restoring it afterwards does not change what was copied/);
   });
 
   it("refuses a staged file whose origin is not in HEAD at all", () => {
     const { dir, staged } = stageFromHead();
-    const problems = stagedOriginProblems(dir, [
-      { origin: "scripts/release/not-a-tracked-file.json", staged },
-    ]).join(" ");
+    const problems = stagedOriginProblems(
+      dir,
+      one("scripts/release/not-a-tracked-file.json", staged),
+    ).join(" ");
     expect(problems).toMatch(/is staged and is not in HEAD/);
   });
 
   it("refuses a recorded origin whose copy is missing", () => {
     const dir = mkdtempSync(join(scratch, "empty-"));
-    const problems = stagedOriginProblems(dir, [
-      { origin: ORIGIN, staged: "generators/secret-patterns.json" },
-    ]).join(" ");
+    const problems = stagedOriginProblems(dir, one(ORIGIN, "generators/secret-patterns.json")).join(
+      " ",
+    );
     expect(problems).toMatch(/was recorded as staged and is not present/);
   });
 
   it("refuses a staging that recorded no origins at all", () => {
     /* An empty list is not a clean result; it is the check never having run. */
     const dir = mkdtempSync(join(scratch, "none-"));
-    expect(stagedOriginProblems(dir, []).join(" ")).toMatch(/no staged file recorded/);
-  });
-
-  it("allows a generated directory's copies, and counts them separately", () => {
-    /*
-     * `_sql-to-paste/` is gitignored on purpose: it holds the paste-ready
-     * wrappers `wrap-migration.ts` writes from the tracked migration sources.
-     * "Must equal HEAD" is the wrong rule for a file no commit was ever meant
-     * to hold — and the `wrappers vs sources` gate proves each one is a
-     * verbatim copy of the tracked SQL it wraps.
-     *
-     * COUNTED, NOT WAVED THROUGH. A number saying how many copies were checked
-     * some other way is evidence; a silent skip is the absence of one.
-     */
-    const dir = mkdtempSync(join(scratch, "generated-"));
-    mkdirSync(join(dir, "gen"), { recursive: true });
-    writeFileSync(join(dir, "gen", "wrapper.sql"), "-- generated\n", "utf8");
-    const result = stagedOriginResult(dir, [
-      { origin: "_sql-to-paste/wrapper.sql", staged: "gen/wrapper.sql" },
-    ]);
-    expect(result.problems).toEqual([]);
-    expect(result.generated).toBe(1);
-    expect(result.matchedHead).toBe(0);
-  });
-
-  it("still refuses an untracked origin from any other directory", () => {
-    /*
-     * THE EXCEPTION IS BY NAME, NOT BY ABSENCE. A rule that skipped whatever
-     * git did not know about would let a file into the archive BY being
-     * untracked, which is the case this check exists to refuse.
-     */
-    const dir = mkdtempSync(join(scratch, "smuggled-"));
-    mkdirSync(join(dir, "generators"), { recursive: true });
-    writeFileSync(join(dir, "generators", "extra.ts"), "export const x = 1;\n", "utf8");
-    const result = stagedOriginResult(dir, [
-      { origin: "scripts/release/extra.ts", staged: "generators/extra.ts" },
-    ]);
-    expect(result.problems.join(" ")).toMatch(/is staged and is not in HEAD/);
-    expect(result.generated).toBe(0);
-  });
-
-  it("counts a matching tracked copy as matched, not as generated", () => {
-    const { dir, staged } = stageFromHead();
-    const result = stagedOriginResult(dir, [{ origin: ORIGIN, staged }]);
-    expect(result.matchedHead).toBe(1);
-    expect(result.generated).toBe(0);
+    expect(stagedOriginProblems(dir, stagingInventoryOf([])).join(" ")).toMatch(
+      /no staged file recorded/,
+    );
   });
 
   it("runs before anything is archived", () => {
     const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
-    const check = source.indexOf("const origins = stagedOriginResult(dir)");
+    const coverage = source.indexOf("const coverage = stagingCoverageProblems(dir, inventory)");
+    const check = source.indexOf("const origins = stagedOriginResult(dir, inventory)");
+    const snapshot = source.indexOf("const validated = byteMapOf(dir)");
     const scan = source.indexOf("const finished = scanDirectory(dir)");
-    expect(check).toBeGreaterThan(0);
-    expect(scan).toBeGreaterThan(check);
+    expect(coverage).toBeGreaterThan(0);
+    expect(check).toBeGreaterThan(coverage);
+    expect(snapshot).toBeGreaterThan(check);
+    expect(scan).toBeGreaterThan(snapshot);
+  });
+});
+
+/**
+ * A FILE IS NOT GENERATED EVIDENCE BECAUSE OF THE DIRECTORY IT SITS IN.
+ *
+ * The delivered rule accepted any origin whose first path component was
+ * `_sql-to-paste`. Independently proven, that accepted an arbitrary
+ * `_sql-to-paste/evil.sql` — a file in no commit, checked by nothing — and
+ * accepted deliberately wrong bytes under a legitimate wrapper name, because
+ * the only wrapper check in the packager reads the LIVE repository copy rather
+ * than the staged one.
+ */
+describe("staged wrappers are verified as wrappers, from their staged bytes", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-wrappers-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  const FIRST = WRAPPERS[0];
+
+  /**
+   * Stage EXACTLY the declared generated set, as the packager does.
+   *
+   * All three kinds: the four wrappers rendered from their sources, the five
+   * verbatim copies taken from HEAD's verifier and prerequisite files, and the
+   * two declared-unsourced files copied from the working tree, which is the
+   * only place they exist.
+   */
+  const stageGenerated = (): string => {
+    const dir = mkdtempSync(join(scratch, "w-"));
+    for (const [origin, declared] of GENERATED_ORIGINS) {
+      const out = origin.slice("_sql-to-paste/".length);
+      if (declared.kind === "wrapper") {
+        writeFileSync(join(dir, out), renderWrapper(declared.spec), "utf8");
+      } else if (declared.kind === "verbatim") {
+        writeFileSync(
+          join(dir, out),
+          execFileSync("git", ["show", `HEAD:${declared.source}`], {
+            cwd: ROOT,
+            maxBuffer: 64 * 1024 * 1024,
+            encoding: "buffer",
+          }),
+        );
+      } else {
+        writeFileSync(join(dir, out), readFileSync(join(ROOT, origin)));
+      }
+    }
+    return dir;
+  };
+
+  const inventoryFor = (extra: readonly { origin: string; staged: string }[] = []) =>
+    stagingInventoryOf([
+      ...[...GENERATED_ORIGINS.keys()].map((origin) => ({
+        origin,
+        staged: origin.slice("_sql-to-paste/".length),
+      })),
+      ...extra,
+    ]);
+
+  it("accepts the exact declared set, and counts each kind separately", () => {
+    const dir = stageGenerated();
+    const result = stagedOriginResult(dir, inventoryFor());
+    expect(result.problems).toEqual([]);
+    expect(stagingCoverageProblems(dir, inventoryFor())).toEqual([]);
+    /*
+     * THREE DIFFERENT CLAIMS, and one number could not carry them. Four
+     * wrappers checked against `renderWrapper` and HEAD's source; five verbatim
+     * copies checked against HEAD's verifier; and two files this repository has
+     * nothing to check against, counted as unverified and never as verified.
+     */
+    expect(result.wrappers).toBe(WRAPPERS.length);
+    expect(result.verbatim).toBe(
+      [...GENERATED_ORIGINS.values()].filter((d) => d.kind === "verbatim").length,
+    );
+    expect(result.unsourced).toBe(
+      [...GENERATED_ORIGINS.values()].filter((d) => d.kind === "unsourced").length,
+    );
+    expect(result.wrappers + result.verbatim + result.unsourced).toBe(GENERATED_ORIGINS.size);
+  });
+
+  it("declares the unsourced files rather than accepting or dropping them", () => {
+    /*
+     * They are in no commit and nothing generates them, and the package has
+     * shipped them for many rounds. Declaring them is what makes the difference
+     * between "checked against a commit" and "shipped with no source" legible
+     * in the count a reviewer reads.
+     */
+    const unsourced = [...GENERATED_ORIGINS.entries()].filter(([, d]) => d.kind === "unsourced");
+    expect(unsourced.map(([origin]) => origin).sort()).toEqual([
+      "_sql-to-paste/observer-behaviour-2.sql",
+      "_sql-to-paste/observer-verify-2.sql",
+    ]);
+    for (const [origin, declared] of unsourced) {
+      if (declared.kind !== "unsourced") throw new Error("narrowing");
+      expect(declared.why).toMatch(/no tracked source/);
+      /* And the claim is true: git does not know the file. */
+      expect(() =>
+        execFileSync("git", ["show", `HEAD:${origin}`], { cwd: ROOT, stdio: "pipe" }),
+      ).toThrow();
+    }
+  });
+
+  it("refuses an arbitrary extra file in the generated directory", () => {
+    const dir = stageGenerated();
+    writeFileSync(join(dir, "evil.sql"), "drop schema observer cascade;\n", "utf8");
+    const inventory = inventoryFor([{ origin: "_sql-to-paste/evil.sql", staged: "evil.sql" }]);
+    const coverage = stagingCoverageProblems(dir, inventory).join(" ");
+    expect(coverage).toMatch(/evil\.sql is not one of the \d+ declared generated files/);
+    /* And the per-entry check refuses it too, on its own. */
+    expect(stagedOriginProblems(dir, inventory).join(" ")).toMatch(/is staged and is not in HEAD/);
+  });
+
+  it("refuses deliberately wrong bytes under a legitimate wrapper name", () => {
+    const dir = stageGenerated();
+    if (FIRST === undefined) throw new Error("no wrappers declared");
+    writeFileSync(join(dir, FIRST.out), "-- not the wrapper at all\nbegin;\n\ncommit;\n", "utf8");
+    const problems = stagedOriginProblems(dir, inventoryFor()).join(" ");
+    expect(problems).toMatch(/is not what renderWrapper produces for its source/);
+    expect(problems).toMatch(/body is not byte-identical to HEAD:/);
+  });
+
+  it("refuses a wrapper whose body was altered but whose header still matches", () => {
+    /*
+     * The subtler case: the header names the right source and the right sha,
+     * and the SQL between begin; and commit; is not that source.
+     */
+    const dir = stageGenerated();
+    if (FIRST === undefined) throw new Error("no wrappers declared");
+    const honest = renderWrapper(FIRST);
+    const tampered = honest.replace("begin;\n", "begin;\nselect 1;\n");
+    expect(tampered).not.toBe(honest);
+    writeFileSync(join(dir, FIRST.out), tampered, "utf8");
+    expect(stagedOriginProblems(dir, inventoryFor()).join(" ")).toMatch(
+      /body is not byte-identical to HEAD:/,
+    );
+  });
+
+  it("refuses a missing wrapper", () => {
+    const dir = stageGenerated();
+    if (FIRST === undefined) throw new Error("no wrappers declared");
+    rmSync(join(dir, FIRST.out));
+    /* Absent from the inventory: coverage names it. */
+    const short = stagingInventoryOf(
+      WRAPPERS.filter((w) => w.out !== FIRST.out).map((spec) => ({
+        origin: `_sql-to-paste/${spec.out}`,
+        staged: spec.out,
+      })),
+    );
+    expect(stagingCoverageProblems(dir, short).join(" ")).toMatch(/is declared and was not staged/);
+    /* Present in the inventory and absent on disk: the byte check names it. */
+    expect(stagedOriginProblems(dir, inventoryFor()).join(" ")).toMatch(
+      /was recorded as staged and is not present/,
+    );
+  });
+
+  it("refuses a staged file that no inventory entry names", () => {
+    const dir = stageGenerated();
+    writeFileSync(join(dir, "smuggled.sql"), "select 1;\n", "utf8");
+    expect(stagingCoverageProblems(dir, inventoryFor()).join(" ")).toMatch(
+      /smuggled\.sql is staged and no inventory entry names it/,
+    );
+  });
+
+  it("refuses two inventory entries claiming one staged file", () => {
+    const dir = stageGenerated();
+    if (FIRST === undefined) throw new Error("no wrappers declared");
+    const doubled = inventoryFor([
+      { origin: "scripts/release/secret-patterns.json", staged: FIRST.out },
+    ]);
+    expect(stagingCoverageProblems(dir, doubled).join(" ")).toMatch(
+      /is claimed by more than one origin/,
+    );
+  });
+
+  it("does not read the live working tree in place of the staged bytes", () => {
+    /*
+     * `wrapperCheck()` reads `_sql-to-paste/` live and is a repository-hygiene
+     * check. It is not evidence about what was copied, and the packager says so
+     * rather than letting one stand in for the other.
+     */
+    const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
+    expect(source).toMatch(/deliberately NOT evidence about what\s+\* was staged/);
+    expect(source).toContain("stagedWrapperProblems");
   });
 });
 

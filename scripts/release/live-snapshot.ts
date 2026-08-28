@@ -71,19 +71,87 @@ export interface LiveSnapshot {
   readonly pgCron: number;
 }
 
-export const LIVE: LiveSnapshot = {
+/**
+ * EXACTLY WHAT `SNAPSHOT_QUERY` SELECTS, and nothing else.
+ *
+ * ## What was wrong with one object
+ *
+ * The query selects six columns: an observation time, a bucket count, the
+ * oldest and newest bucket ages, an audit-row count and a version-1 audit-row
+ * count. It does NOT select the pseudonym column state, the RPC argument list,
+ * whether the retention function exists, how many legacy façades remain, or
+ * whether pg_cron is installed.
+ *
+ * Those five values nonetheless sat in the same object and were described in
+ * three documents as fields of that observation — "as recorded by the catalogue
+ * query in the carried-forward snapshot". They came from somewhere else, at some
+ * other time, by some other means, and nothing recorded which. One object made
+ * six measured values and five unsourced ones indistinguishable.
+ *
+ * The split is the correction. This half is a query result and carries its
+ * timestamp honestly; the other half is {@link CATALOGUE_STATE}, where each
+ * value must name its own evidence or render as UNKNOWN.
+ */
+export const SNAPSHOT_RESULT = Object.freeze({
   observedAt: "2026-08-27 01:21:22.693002+00",
   buckets: 78,
   oldestBucketHours: 49,
   newestBucketHours: 29,
   auditRows: 133,
   auditVersion1Rows: 133,
-  pseudonymVersionColumn: 0,
-  admitArgs: 13,
-  retentionFunction: 0,
-  legacyFacades: 2,
-  pgCron: 0,
-};
+});
+
+/** One catalogue fact and whatever is actually known about where it came from. */
+export interface CatalogueFact {
+  /** The value last recorded, or null when nothing was ever recorded. */
+  readonly value: number | null;
+  /** The exact query that established it, or null when none is recorded. */
+  readonly query: string | null;
+  /** When it was established, or null. Never borrowed from another read. */
+  readonly observedAt: string | null;
+}
+
+/**
+ * The five values that were never in the snapshot query's result.
+ *
+ * NO QUERY IS RUN NOW to fill these in — this milestone makes no external
+ * access of any kind. Each is recorded with what is genuinely known about it,
+ * which for all five is: a value was carried forward, and nothing records which
+ * query produced it or when. They therefore render as UNKNOWN wherever a
+ * document would otherwise state them as observations, and the carried value is
+ * shown only where it is labelled as carried.
+ */
+export const CATALOGUE_STATE: Readonly<Record<string, CatalogueFact>> = Object.freeze({
+  pseudonymVersionColumn: Object.freeze({ value: 0, query: null, observedAt: null }),
+  admitArgs: Object.freeze({ value: 13, query: null, observedAt: null }),
+  retentionFunction: Object.freeze({ value: 0, query: null, observedAt: null }),
+  legacyFacades: Object.freeze({ value: 2, query: null, observedAt: null }),
+  pgCron: Object.freeze({ value: 0, query: null, observedAt: null }),
+});
+
+/**
+ * How a catalogue fact is rendered: the value only when its provenance exists.
+ *
+ * A number with no query and no timestamp is not an observation, and printing
+ * it beside five that are is what made all eleven read as one measurement.
+ */
+export function renderCatalogueFact(name: string): string {
+  const fact = CATALOGUE_STATE[name];
+  if (fact === undefined) return "UNKNOWN";
+  if (fact.query === null || fact.observedAt === null) {
+    return fact.value === null ? "UNKNOWN" : `UNKNOWN (last carried value ${String(fact.value)})`;
+  }
+  return String(fact.value);
+}
+
+/**
+ * The whole model, for the fields that legitimately come from one place.
+ *
+ * Kept so the six query fields have one name across the documents. The five
+ * catalogue fields are deliberately NOT here: reaching them requires naming
+ * them, and naming them goes through {@link renderCatalogueFact}.
+ */
+export const LIVE = SNAPSHOT_RESULT;
 
 /**
  * The threshold `observer.run_rate_bucket_retention` will enforce, in hours.
@@ -177,6 +245,7 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "ab98c7a",
   "20ff3e0",
   "3b746f4",
+  "03f43a7",
 ];
 
 /**
@@ -238,6 +307,12 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
    * milestone rather than the previous one.
    */
   { bundle: "3b746f4", sha256: "42627dd847629b09f6c86ba62a039203923dc7e957a484ff6c78aaf1bb2c5697" },
+  /*
+   * Delivered at the start of THIS milestone and rejected by the audit that
+   * opened it. Declaring it here moves the byte-comparison baseline to
+   * 03f43a7, so every "unchanged since" line spans this milestone.
+   */
+  { bundle: "03f43a7", sha256: "20c2f2ddebe046660ef66ac87d7586eec754214bdb20237be05b44e9cb9a2466" },
 ];
 
 /**
@@ -288,6 +363,16 @@ export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
    * that is not acceptance and is not read as any.
    */
   "3b746f4": "rejected",
+  /*
+   * Rejected by the eleven-item audit that opened this milestone. It passed
+   * every physical check again — outer hash, 124 entries, 123/123 manifest,
+   * unzip -t, zero control characters, coherent gate evidence, 69 patches, all
+   * 24 packaged SQL files unchanged — and was refused for a publication and
+   * recovery that could both partly succeed, a wrapper set accepted by
+   * directory, a test that deleted a tracked file, and provenance that
+   * attributed five values to a query that never selected them.
+   */
+  "03f43a7": "rejected",
 };
 
 export const outcomeOf = (bundle: string): ArchiveOutcome =>

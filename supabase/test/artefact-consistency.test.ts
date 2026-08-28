@@ -21,6 +21,8 @@ import {
   priorDelivered,
   DEPLOYMENT_INVENTORY_PROVENANCE,
   OLDEST_BUCKET_HISTORY_PROVENANCE,
+  CATALOGUE_STATE,
+  renderCatalogueFact,
 } from "../../scripts/release/live-snapshot";
 import { HISTORICAL_CONTROL_CHAR_COMMITS } from "../../scripts/release/transport-safe";
 import { baselineCommit } from "../../scripts/release/facts";
@@ -32,7 +34,8 @@ import {
   PRODUCTION_RUNTIME_STATE,
   OBSERVATION_MUTATION_STATUS,
   PRODUCTION_TRANSITION,
-  EXTERNAL_ACTIVITY_LOG,
+  KNOWN_EXTERNAL_ACTIVITY,
+  EXTERNAL_ACTIVITY_COMPLETENESS,
   THIS_MILESTONE_EXTERNAL_ACCESS,
   classifyObservation,
   renderObservedMapping,
@@ -267,9 +270,21 @@ describe("the evidence templates carry no hand-copied changing value", () => {
   it("the snapshot's own numbers are internally coherent", () => {
     expect(LIVE.auditVersion1Rows).toBeLessThanOrEqual(LIVE.auditRows);
     expect(LIVE.newestBucketHours).toBeLessThanOrEqual(LIVE.oldestBucketHours);
-    /* Migration 3 unapplied is why the column count and the arg count agree. */
-    if (LIVE.pseudonymVersionColumn === 0) expect(LIVE.admitArgs).toBe(13);
-    else expect(LIVE.admitArgs).toBe(15);
+    /*
+     * THE CATALOGUE VALUES ARE NOT SNAPSHOT FIELDS. They were carried forward
+     * with no query and no timestamp recorded, so they live in their own object
+     * and render as unknown. Their internal consistency is still worth checking
+     * — migration 3 unapplied is why the column count and the argument count
+     * agree — but it is a check on carried values, not on a measurement.
+     */
+    const carried = (name: string): number | null => CATALOGUE_STATE[name]?.value ?? null;
+    if (carried("pseudonymVersionColumn") === 0) expect(carried("admitArgs")).toBe(13);
+    else expect(carried("admitArgs")).toBe(15);
+    for (const name of Object.keys(CATALOGUE_STATE)) {
+      expect(CATALOGUE_STATE[name]?.query, name).toBeNull();
+      expect(CATALOGUE_STATE[name]?.observedAt, name).toBeNull();
+      expect(renderCatalogueFact(name)).toMatch(/^UNKNOWN/);
+    }
   });
 });
 
@@ -651,7 +666,7 @@ describe("the evidence prose says what is true at this commit", () => {
      */
     expect(review).toMatch(/AN AGENT HAS READ VERCEL/);
     expect(review).toMatch(
-      /Previous editions of this document said "NO AGENT HAS EVER READ VERCEL" and\s+that was false/,
+      /Previous editions of this document said "NO AGENT HAS EVER\s+READ VERCEL" and that was false/,
     );
     /*
      * The action itself is NOT restated in prose. It is a row of the rendered
@@ -663,9 +678,20 @@ describe("the evidence prose says what is true at this commit", () => {
 
   it("renders the whole external chronology rather than a per-milestone sentence", () => {
     /* Every declared row reaches the document, including the two UNKNOWN ones. */
-    for (const e of EXTERNAL_ACTIVITY_LOG) expect(rendered).toContain(e.action);
+    for (const e of KNOWN_EXTERNAL_ACTIVITY) expect(rendered).toContain(e.action);
     expect(rendered).toContain(THIS_MILESTONE_EXTERNAL_ACCESS.statement);
-    expect(rendered).toMatch(/recorded external interaction\(s\), of which \d+ changed something/);
+    /*
+     * KNOWN, not complete, and it says which. A four-row list rendered under
+     * "the complete chronology" omitted the Supabase snapshot query, the Vercel
+     * enumeration and every git fetch — and its type could not represent the
+     * third at all.
+     */
+    expect(rendered).toMatch(/\d+ KNOWN external interaction\(s\)/);
+    expect(rendered).toContain(`COMPLETENESS: ${EXTERNAL_ACTIVITY_COMPLETENESS}`);
+    expect(rendered).not.toMatch(/the complete chronology/);
+    /* Every system the list can now describe, including the one it could not. */
+    expect(KNOWN_EXTERNAL_ACTIVITY.map((e) => e.system)).toContain("Git");
+    expect(KNOWN_EXTERNAL_ACTIVITY.map((e) => e.system)).toContain("Supabase");
   });
 
   it("keeps the three claims about external access distinct", () => {
@@ -700,9 +726,14 @@ describe("the evidence prose says what is true at this commit", () => {
      * the sequence entirely. An earlier edition ran all three together as "the
      * pepper and Production runtime credentials still do [block step 2]".
      */
-    expect(review).toMatch(
-      /STEP 2 — explicit operator approval and the\s+pepper-state decision — IS NOW REACHABLE/,
-    );
+    /*
+     * ONLY THE SUB-GATE PASSED. Step 1 is a read-only preflight in two parts,
+     * and its catalogue and inventory reads have not been performed — so
+     * promoting one passing sub-gate into a reachable step 2 was wrong.
+     */
+    expect(review).toMatch(/PROJECT MAPPING NO LONGER BLOCKS STEP 1/);
+    expect(review).toMatch(/Step 1 is INCOMPLETE, not passed/);
+    expect(review).not.toMatch(/STEP 2 — explicit operator approval and the/);
     expect(review).toMatch(/THE PEPPER BLOCKS STEP 3/);
     expect(review).toMatch(/THE PRODUCTION RUNTIME CREDENTIALS BLOCK PROMOTION/);
     expect(review).not.toMatch(/the pepper and Production runtime credentials still do/);
@@ -716,7 +747,17 @@ describe("the evidence prose says what is true at this commit", () => {
      * reinstated exactly the advice section B removes.
      */
     expect(review).toMatch(/PAUSE AND STOP TAKE DIFFERENT REMEDIES/);
-    expect(review).toMatch(/PAUSE\s+NO configuration change and NO restart/);
+    /*
+     * The distinction is OBSERVATION, not severity: "nobody looked" and
+     * "somebody looked and there is nothing there" reach different states and
+     * different remedies, and collapsing them sent an operator to change
+     * configuration on no evidence.
+     */
+    expect(review).toMatch(/PAUSE\s+THE VALUE WAS NOT OBSERVED/);
+    expect(review).toMatch(/STOP\s+THE VALUE WAS OBSERVED AND IS WRONG, OR IS OBSERVED ABSENT/);
+    expect(review).toMatch(/NO configuration change and NO restart/);
+    /* And manual evidence retains the complete origin, not the extracted ref. */
+    expect(review).toMatch(/THE COMPLETE ORIGIN IS WHAT IS RECORDED, not the ref/);
     expect(review).not.toMatch(
       /Every non-PASS state requires an explicit operator decision, a\nconfiguration correction/,
     );
@@ -763,23 +804,23 @@ describe("delivery is not acceptance", () => {
      * every "unchanged since" line spanned the wrong interval.
      */
     const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
-    expect(last).toBe("3b746f4");
+    expect(last).toBe("03f43a7");
     expect(baselineCommit().startsWith(last)).toBe(true);
   });
 
-  it("counts twenty delivered, six rejected and none accepted", () => {
+  it("counts twenty-one delivered, seven rejected and none accepted", () => {
     /*
      * DERIVED, never written into prose. Each number is a different question —
      * how many went out, how many came back refused, how many anybody accepted
      * — and they were previously stated as sentences that went stale one at a
      * time.
      */
-    expect(DELIVERED_ARCHIVES).toHaveLength(20);
+    expect(DELIVERED_ARCHIVES).toHaveLength(21);
     const outcomes = DELIVERED_ARCHIVES.map((a) => outcomeOf(a.bundle));
-    expect(outcomes.filter((o) => o === "rejected")).toHaveLength(6);
+    expect(outcomes.filter((o) => o === "rejected")).toHaveLength(7);
     expect(outcomes.filter((o) => o === "accepted")).toHaveLength(0);
-    /* And the archive delivered at the start of this round is one of the six. */
-    expect(outcomeOf("3b746f4")).toBe("rejected");
+    /* And the archive delivered at the start of this round is one of the seven. */
+    expect(outcomeOf("03f43a7")).toBe("rejected");
   });
 
   it("keeps the enumeration point where somebody actually looked", () => {
@@ -881,7 +922,7 @@ describe("the carried-forward mapping is derived from the classifier", () => {
   });
 
   it("keeps an external-activity row for the agent read that did happen", () => {
-    const agentReads = EXTERNAL_ACTIVITY_LOG.filter((e) => e.actor === "an agent");
+    const agentReads = KNOWN_EXTERNAL_ACTIVITY.filter((e) => e.actor === "an agent");
     expect(agentReads).toHaveLength(1);
     expect(agentReads[0]?.action).toBe("get_project");
     expect(agentReads[0]?.mutation).toBe("none");
@@ -1065,7 +1106,7 @@ describe("every declared state object is a rendering source", () => {
     {
       key: "EXTERNAL_ACTIVITY_BLOCK",
       synthetic: "  SYNTHETIC EXTERNAL ACTIVITY, none recorded",
-      realFragment: EXTERNAL_ACTIVITY_LOG[0]?.action ?? "get_project",
+      realFragment: KNOWN_EXTERNAL_ACTIVITY[0]?.action ?? "get_project",
     },
     {
       key: "THIS_MILESTONE_EXTERNAL",

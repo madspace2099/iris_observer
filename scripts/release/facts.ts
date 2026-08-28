@@ -26,6 +26,7 @@ import {
   DELIVERED_ARCHIVES,
   outcomeOf,
   OLDEST_BUCKET_HISTORY_PROVENANCE,
+  renderCatalogueFact,
   DEPLOYMENT_INVENTORY_PROVENANCE,
 } from "./live-snapshot";
 import { HISTORICAL_CONTROL_CHAR_COMMITS } from "./transport-safe";
@@ -37,7 +38,8 @@ import {
   PRODUCTION_RUNTIME_STATE,
   OBSERVATION_MUTATION_STATUS,
   PRODUCTION_TRANSITION,
-  EXTERNAL_ACTIVITY_LOG,
+  KNOWN_EXTERNAL_ACTIVITY,
+  EXTERNAL_ACTIVITY_COMPLETENESS,
   THIS_MILESTONE_EXTERNAL_ACCESS,
 } from "./preflight";
 
@@ -454,12 +456,38 @@ export type SnapshotProvenanceState =
  * round where no query was made, which is the exact fail-open this check
  * exists to prevent. The reading is the object; the rest is not.
  */
+/**
+ * THE SIX RECORDED VALUES, not the text that spells them.
+ *
+ * ## Why this stopped being a substring
+ *
+ * It used to slice out the `LIVE` object literal and compare the characters.
+ * That works only while the literal keeps its name and its formatting — and the
+ * six query fields have just been split out of `LIVE` into `SNAPSHOT_RESULT`,
+ * away from five values the query never selected. Nothing was queried and no
+ * number changed, yet a text comparison reports COMPARISON UNAVAILABLE (the old
+ * name is gone) or RECORD CHANGED (the new text differs), and either would be a
+ * statement about a rename dressed as a statement about a reading.
+ *
+ * So the fields are read by name and compared as values. The comparison is
+ * still only about recorded bytes and still cannot say whether a query ran;
+ * what it no longer does is answer a question about formatting.
+ */
 function liveBlock(text: string): string {
-  const start = text.indexOf("export const LIVE: LiveSnapshot = {");
-  if (start < 0) throw new Error("no LIVE literal in " + SNAPSHOT_FILE);
-  const end = text.indexOf("};", start);
-  if (end < 0) throw new Error("unterminated LIVE literal in " + SNAPSHOT_FILE);
-  return text.slice(start, end + 2);
+  const FIELDS = [
+    "observedAt",
+    "buckets",
+    "oldestBucketHours",
+    "newestBucketHours",
+    "auditRows",
+    "auditVersion1Rows",
+  ] as const;
+  const values = FIELDS.map((field) => {
+    const m = new RegExp(`\\b${field}:\\s*("[^"]*"|[0-9]+)`).exec(text);
+    if (m === null) throw new Error(`no ${field} in ${SNAPSHOT_FILE}`);
+    return `${field}=${m[1] ?? ""}`;
+  });
+  return values.join("\n");
 }
 
 export function snapshotState(baseline: string): SnapshotProvenanceState {
@@ -507,8 +535,17 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
       "",
       `RECORD CHANGED since ${parentShort}: the LIVE reading in ${SNAPSHOT_FILE}`,
       "differs from its copy there. THAT ALONE DOES NOT PROVE A LIVE RE-READ — a",
-      "changed constant is equally consistent with somebody editing it. Whether a",
-      "query was executed is an operator declaration, stated in REVIEW.txt.",
+      "changed constant is equally consistent with somebody editing it, or with",
+      "the file being restructured around the same values.",
+      "",
+      "WHAT THAT COMPARISON DOES AND DOES NOT ESTABLISH. It has exactly three",
+      "outcomes — RECORD UNCHANGED, RECORD CHANGED, COMPARISON UNAVAILABLE — and",
+      "all three are about the recorded bytes. IT CANNOT ESTABLISH WHETHER A QUERY",
+      "WAS EXECUTED. Git history is evidence about a file, never about whether a",
+      "network call happened.",
+      "",
+      "That this milestone made no external access is therefore an OPERATOR",
+      "DECLARATION, stated as one in REVIEW.txt, and not something derived here.",
     ].join("\n");
   }
   return [
@@ -562,7 +599,7 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
  * its constant now stops the package.
  */
 function externalActivityBlock(): string {
-  const rows = EXTERNAL_ACTIVITY_LOG.map((e) => {
+  const rows = KNOWN_EXTERNAL_ACTIVITY.map((e) => {
     const when = e.when === "UNKNOWN" ? "date UNKNOWN" : e.when;
     return [
       `  ${when} — ${e.actor}, ${e.system}`,
@@ -570,10 +607,13 @@ function externalActivityBlock(): string {
       `      changed: ${e.mutation}`,
     ].join("\n");
   });
-  const reads = EXTERNAL_ACTIVITY_LOG.length;
-  const changed = EXTERNAL_ACTIVITY_LOG.filter((e) => e.mutation !== "none").length;
+  const reads = KNOWN_EXTERNAL_ACTIVITY.length;
+  const changed = KNOWN_EXTERNAL_ACTIVITY.filter((e) => e.mutation !== "none").length;
   return [
-    `${String(reads)} recorded external interaction(s), of which ${String(changed)} changed something:`,
+    `${String(reads)} KNOWN external interaction(s), of which ${String(changed)} changed`,
+    `something. COMPLETENESS: ${EXTERNAL_ACTIVITY_COMPLETENESS} — nothing in this`,
+    "repository can establish that no other external call was ever made, so this is",
+    "a partial list said to be partial rather than a complete one asserted to be:",
     "",
     ...rows,
   ].join("\n");
@@ -885,11 +925,20 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     AUDIT_ROWS: String(LIVE.auditRows),
     AUDIT_V1: String(LIVE.auditVersion1Rows),
     AUDIT_V2: String(LIVE.auditRows - LIVE.auditVersion1Rows),
-    PSEUDONYM_COL: String(LIVE.pseudonymVersionColumn),
-    ADMIT_ARGS: String(LIVE.admitArgs),
-    RETENTION_FN: String(LIVE.retentionFunction),
-    LEGACY_FACADES: String(LIVE.legacyFacades),
-    PG_CRON: String(LIVE.pgCron),
+    /*
+     * NOT FIELDS OF THE SNAPSHOT QUERY, and they never were.
+     *
+     * `SNAPSHOT_QUERY` selects six columns: the observation time, the bucket
+     * count, the oldest and newest bucket ages, and two audit-row counts. These
+     * five came from somewhere else, at some other time, by some other means,
+     * and nothing recorded which — so they render as UNKNOWN beside the carried
+     * value rather than as observations of that query.
+     */
+    PSEUDONYM_COL: renderCatalogueFact("pseudonymVersionColumn"),
+    ADMIT_ARGS: renderCatalogueFact("admitArgs"),
+    RETENTION_FN: renderCatalogueFact("retentionFunction"),
+    LEGACY_FACADES: renderCatalogueFact("legacyFacades"),
+    PG_CRON: renderCatalogueFact("pgCron"),
     THRESHOLD_H: String(RETENTION_THRESHOLD_HOURS),
     EXPECTED_MAX_H: String(RETENTION_THRESHOLD_HOURS + 1),
     BUCKET_HISTORY: OLDEST_BUCKET_HISTORY.join(", "),

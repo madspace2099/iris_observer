@@ -22,7 +22,7 @@
  * word FAILED — which "8 FOUND" does not contain.
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, lstatSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 /**
@@ -62,14 +62,28 @@ export function countControlCharacters(bytes: Buffer): number {
   return found;
 }
 
-/** Every file under `dir`, relative and slash-separated. */
+/**
+ * Every file under `dir`, relative and slash-separated.
+ *
+ * LSTAT, NEVER STAT. `statSync` follows a symbolic link, so a link to a
+ * directory was recursed into and everything beneath it was scanned as though
+ * it were part of the tree being described — while a link OUT of the tree meant
+ * the scan counted files this package does not ship. A link is refused rather
+ * than skipped, because a skip makes the scan silently incomplete and the whole
+ * point of this module is the difference between clean and unmeasured.
+ */
 function walkRelative(dir: string): readonly string[] {
   const out: string[] = [];
   const recurse = (current: string): void => {
     for (const entry of readdirSync(current).sort()) {
       const path = join(current, entry);
-      if (statSync(path).isDirectory()) recurse(path);
-      else out.push(relative(dir, path).split(sep).join("/"));
+      const st = lstatSync(path);
+      if (st.isSymbolicLink()) {
+        throw new Error(`${path} is a symbolic link; a scanned tree may not contain one`);
+      }
+      if (st.isDirectory()) recurse(path);
+      else if (st.isFile()) out.push(relative(dir, path).split(sep).join("/"));
+      else throw new Error(`${path} is not a regular file or directory`);
     }
   };
   recurse(dir);

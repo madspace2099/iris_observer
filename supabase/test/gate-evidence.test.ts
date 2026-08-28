@@ -408,6 +408,13 @@ describe("the ddefa50 red shape is evidence, not a malformed record", () => {
         "no-secret-recipes.test.ts",
         "package-generation.test.ts",
       ],
+      /*
+       * SIX RESULTS ACROSS THREE FILES — the shape ddefa50 actually had, and
+       * the reason distinct basenames and failing results have to be two
+       * numbers. One name for six failures satisfies "names <= results" and
+       * says nothing about the other five.
+       */
+      failedSuiteResultsAccounted: 6,
       observedPeakWorkers: 4,
       reasons: ["exit status 1", "report declares failure"],
     };
@@ -626,6 +633,7 @@ describe("the ddefa50 red shape is evidence, not a malformed record", () => {
         reportedFailedSuites: 0,
         runtimeErrorSuites: 0,
         failedSuiteNames: [],
+        failedSuiteResultsAccounted: 0,
         reasons: [],
       },
       gates: {
@@ -901,5 +909,209 @@ describe("bounded evidence is reconciled with what was measured", () => {
       testGate: { ...clean.testGate, skippedTestsOmitted: 4 },
     } as GateRecord;
     expect(gateRecordProblems(record, head).join(" ")).toMatch(/skipped test\(s\) on/);
+  });
+});
+
+/**
+ * A RED RECORD IS EVIDENCE, AND IS HELD TO THE SAME STRUCTURE.
+ *
+ * Green acceptance is unchanged by everything here. What these cases add is the
+ * structural half a failing record was getting away without: types that were
+ * never checked, a report state with three values rendered as two, suite names
+ * that could be paths or messages, and six failing results accounted for by
+ * three names with no field able to say so.
+ */
+describe("red records are refused for what they cannot say", () => {
+  const head = "03f43a783025420dc5641c004ff49edd21b40a21";
+
+  const gate = (patch: Record<string, unknown>): GateRecord => {
+    const clean = greenGateRecord(head);
+    return { ...clean, testGate: { ...clean.testGate, ...patch } } as GateRecord;
+  };
+  const problems = (patch: Record<string, unknown>): string =>
+    structuralRecordProblems(gate(patch), head).join(" ");
+
+  it.each([
+    ["ok", "yes"],
+    ["ok", 1],
+    ["ok", null],
+    ["status", "1"],
+    ["status", 1.5],
+    ["status", {}],
+    ["signal", 9],
+    ["signal", ["SIGKILL"]],
+    ["errorCode", 12],
+    ["errorCode", true],
+  ])("refuses %s recorded as %s", (field, value) => {
+    /*
+     * TYPE BEFORE VALUE, which was missing. `p.ok !== true` and `p.status !== 0`
+     * are satisfied by a string, an object or an array, so a record carrying
+     * `status: "1"` passed the structural check and was then compared as though
+     * it were a number.
+     */
+    expect(problems({ [field]: value }), `${field}=${JSON.stringify(value)}`).toMatch(
+      /is not a boolean|is not an integer or null|is not a string or null|not recorded/,
+    );
+  });
+
+  it("distinguishes a report that failed from a report that never existed", () => {
+    expect(problems({ reportSuccess: false })).not.toMatch(/UNKNOWN/);
+    expect(gateRecordProblems(gate({ reportSuccess: false }), head).join(" ")).toMatch(
+      /report success=false — the runner measured the run and it failed/,
+    );
+    expect(gateRecordProblems(gate({ reportSuccess: null }), head).join(" ")).toMatch(
+      /report state is UNKNOWN/,
+    );
+    /* And an absent field is neither: the record does not say. */
+    const clean = greenGateRecord(head);
+    const bare = { ...clean.testGate } as Record<string, unknown>;
+    delete bare.reportSuccess;
+    expect(
+      structuralRecordProblems({ ...clean, testGate: bare } as GateRecord, head).join(" "),
+    ).toMatch(/reportSuccess not recorded/);
+  });
+
+  it("refuses a report state that is neither a boolean nor null", () => {
+    for (const bad of ["true", 1, {}, []]) {
+      expect(problems({ reportSuccess: bad }), JSON.stringify(bad)).toMatch(
+        /not a boolean or null/,
+      );
+    }
+  });
+
+  it("refuses six failing results accounted for by three names and nothing else", () => {
+    /*
+     * THE EXACT GAP. Distinct basenames and failing results are different
+     * counts, so "names <= results" was the strongest rule available — and one
+     * name for six failures satisfies it while five failures go unexplained.
+     */
+    const record = gate({
+      reportedFailedSuites: 6,
+      failedSuiteNames: ["a.test.ts", "b.test.ts", "c.test.ts"],
+      failedSuiteNamesOmitted: 0,
+      failedSuiteResultsAccounted: 3,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /3 of 6 failing suite result\(s\) are unaccounted for by any recorded basename/,
+    );
+  });
+
+  it("accepts six results across three files when the record says so", () => {
+    const record = gate({
+      reportedFailedSuites: 6,
+      failedSuiteNames: ["a.test.ts", "b.test.ts", "c.test.ts"],
+      failedSuiteNamesOmitted: 0,
+      failedSuiteResultsAccounted: 6,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).not.toMatch(/unaccounted for/);
+  });
+
+  it("refuses names accounting for more results than were reported", () => {
+    expect(
+      problems({
+        reportedFailedSuites: 2,
+        failedSuiteNames: ["a.test.ts"],
+        failedSuiteNamesOmitted: 0,
+        failedSuiteResultsAccounted: 5,
+      }),
+    ).toMatch(/account for 5 failing result\(s\) and only 2 were reported/);
+  });
+
+  it("refuses an omitted accounted-count that is not a count", () => {
+    for (const bad of [-1, "6", null, 2.5]) {
+      expect(
+        problems({
+          reportedFailedSuites: 6,
+          failedSuiteNames: ["a.test.ts"],
+          failedSuiteNamesOmitted: 0,
+          failedSuiteResultsAccounted: bad,
+        }),
+        JSON.stringify(bad),
+      ).toMatch(/failedSuiteResultsAccounted is not a count/);
+    }
+  });
+
+  it("refuses duplicate basenames, which are not distinct names", () => {
+    expect(
+      problems({
+        reportedFailedSuites: 2,
+        failedSuiteNames: ["a.test.ts", "a.test.ts"],
+        failedSuiteNamesOmitted: 0,
+        failedSuiteResultsAccounted: 2,
+      }),
+    ).toMatch(/duplicate failed-suite basename: a\.test\.ts/);
+  });
+
+  it.each([
+    ["a POSIX path", "supabase/test/a.test.ts"],
+    ["a Windows path", "C:\\\\Users\\\\someone\\\\a.test.ts"],
+    ["a parent traversal", "../../etc/passwd"],
+    ["a URL", "https://example.invalid/a.test.ts"],
+    ["a message", "expected 1 to be 0 in a.test.ts"],
+    /*
+     * ASSEMBLED, NEVER WRITTEN. A tracked file holding this pattern is exactly
+     * what `pnpm audit:secrets` exists to refuse, and it refused this line when
+     * it was a literal — correctly, and in the phase it is meant to.
+     */
+    ["an environment value", `OPENAI_API_KEY${"="}redacted`],
+    ["an unbounded name", "a".repeat(300)],
+    ["an empty name", ""],
+    ["a non-string", 7],
+  ])("refuses %s as a failed-suite identity", (_what, name) => {
+    expect(
+      problems({
+        reportedFailedSuites: 1,
+        failedSuiteNames: [name],
+        failedSuiteNamesOmitted: 0,
+        failedSuiteResultsAccounted: 1,
+      }),
+      String(name).slice(0, 40),
+    ).toMatch(/is not a bounded basename/);
+  });
+
+  it("refuses a signal or error code that is not the machine's own shape", () => {
+    expect(problems({ signal: "killed by the runner because of a timeout" })).toMatch(
+      /signal is not a bounded signal name/,
+    );
+    expect(problems({ errorCode: "spawn /usr/bin/node ENOENT" })).toMatch(
+      /errorCode is not a bounded machine code/,
+    );
+    /* The real shapes are accepted. */
+    expect(problems({ signal: "SIGKILL" })).not.toMatch(/bounded signal/);
+    expect(problems({ errorCode: "ENOENT" })).not.toMatch(/bounded machine/);
+  });
+
+  it("carries no stack, message, output, URL or environment value through staging", () => {
+    /*
+     * The staged projection is what a reviewer receives. Nothing hostile put
+     * into a red record may survive into it.
+     */
+    const hostile = gate({
+      ok: false,
+      status: 1,
+      reportSuccess: false,
+      reportedFailedSuites: 1,
+      failedSuiteNames: ["a.test.ts"],
+      failedSuiteNamesOmitted: 0,
+      failedSuiteResultsAccounted: 1,
+      signal: "SIGKILL",
+      errorCode: "ENOENT",
+      reasons: [
+        "exit status 1",
+        "AssertionError: expected https://example.invalid to be sk-proj-" + "A1b2C3d4".repeat(4),
+        "    at Object.<anonymous> (/home/someone/repo/a.test.ts:12:9)",
+      ],
+    });
+    const staged = JSON.stringify(sanitizedRecord(hostile));
+    expect(staged).not.toContain("https://");
+    expect(staged).not.toContain("sk-proj-");
+    expect(staged).not.toContain("/home/someone");
+    expect(staged).not.toContain("at Object.");
+  });
+
+  it("keeps green acceptance exactly as strict as it was", () => {
+    const clean = greenGateRecord(head);
+    expect(structuralRecordProblems(clean, head)).toEqual([]);
+    expect(gateRecordProblems(clean, head)).toEqual([]);
   });
 });

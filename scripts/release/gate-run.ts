@@ -204,6 +204,15 @@ export interface ReportSummary {
   /** How many failing suite names the bound dropped. Never a fabricated name. */
   readonly failedSuiteNamesOmitted: number;
   /**
+   * How many failing suite RESULTS those distinct basenames account for.
+   *
+   * Distinct names and failing results are different counts: six results across
+   * three files is a real shape, and it is what `ddefa50` produced. Reporting
+   * only the names made "names ≤ results" the strongest rule available, which
+   * one name for six failures satisfies while saying nothing about five of them.
+   */
+  readonly failedSuiteResultsAccounted: number;
+  /**
    * WHICH tests failed, by identity. Bounded, sanitized, no message, no
    * expected or received value, no stack, no path, no output.
    */
@@ -314,8 +323,18 @@ export function summarizeReport(report: VitestReport): ReportSummary {
     countedFailedTests: counted,
     reportedFailedSuites: report.numFailedTestSuites ?? null,
     runtimeErrorSuites: runtimeErrors,
-    failedSuiteNames: boundNames(failedSuites.sort()).retained,
-    failedSuiteNamesOmitted: boundNames(failedSuites.sort()).omitted,
+    /*
+     * DISTINCT BASENAMES, and separately how many RESULTS they stand for.
+     *
+     * `failedSuites` collects one entry per failing suite RESULT, so a file
+     * that fails twice appears twice. The names field carries the distinct
+     * basenames — several results genuinely share one name — and the count
+     * beside it says how many results those names account for, which is the
+     * half a "names ≤ results" rule could never check.
+     */
+    failedSuiteNames: boundNames([...new Set(failedSuites)].sort()).retained,
+    failedSuiteNamesOmitted: boundNames([...new Set(failedSuites)].sort()).omitted,
+    failedSuiteResultsAccounted: failedSuites.length,
     failedTests: boundIdentities(failedTests).retained,
     failedTestsOmitted: boundIdentities(failedTests).omitted,
     skippedTests: boundIdentities(skippedTests).retained,
@@ -521,6 +540,7 @@ export const NO_REPORT: ReportSummary = {
   runtimeErrorSuites: null,
   failedSuiteNames: [],
   failedSuiteNamesOmitted: 0,
+  failedSuiteResultsAccounted: 0,
   failedTests: [],
   failedTestsOmitted: 0,
   skippedTests: [],

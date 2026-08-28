@@ -94,11 +94,39 @@ for (const rel of listed) findings.push(...scanFile(resolve(ROOT, rel)));
 /* 2. The staged diff, which is what a commit would actually carry. */
 findings.push(...scanText("<staged diff>", git(["diff", "--cached"])));
 
-/* 3. The history this branch added on top of the remote. */
+/*
+ * 3. The history this branch added on top of the remote, COMMIT BY COMMIT.
+ *
+ * ## Why one commit at a time
+ *
+ * The previous edition concatenated a single `git log -p` and reported a line
+ * number inside it — a number naming nothing a person could act on. Scanning
+ * each commit separately means a finding names the commit that introduced it,
+ * which is what somebody needs in order to fix it.
+ *
+ * ## Why there is no exemption here
+ *
+ * A commit whose diff or message carries a secret-shaped assignment fails, and
+ * there is no list of commits that may carry one. An earlier attempt at this
+ * milestone added exactly such a list — one entry, by full SHA, for a test
+ * fixture — and then needed a second entry for the commit message that
+ * described the first. That is the shape of a control being negotiated away one
+ * case at a time, and the operator refused it: the local history was repaired
+ * instead, and the commits carrying the pattern no longer exist on this branch.
+ *
+ * `git show` prints the commit message as well as the diff, so both are
+ * scanned by the same pass. Neither has an exception.
+ */
 const range = git(["rev-parse", "--verify", "--quiet", "origin/main"]).trim()
   ? "origin/main..HEAD"
   : "HEAD";
-findings.push(...scanText(`<history ${range}>`, git(["log", "-p", "--no-color", range])));
+const commits = git(["rev-list", range])
+  .split("\n")
+  .map((c) => c.trim())
+  .filter((c) => c.length > 0);
+for (const sha of commits) {
+  findings.push(...scanText(`<commit ${sha.slice(0, 7)}>`, git(["show", "--no-color", sha])));
+}
 
 /*
  * 4. The browser bundle.

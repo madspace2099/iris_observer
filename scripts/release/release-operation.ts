@@ -122,6 +122,106 @@ function contained(root: string, path: string): boolean {
 }
 
 /**
+ * Every reason a release-controlled path is not safe to write, ANCESTORS
+ * INCLUDED.
+ *
+ * ## What inspecting only the leaf could not see
+ *
+ * `inspectPath` lstats the final component and refuses a link there, and
+ * `contained` resolves the whole path — but `contained` returns FALSE for a
+ * path that does not exist yet, so every caller creating something new fell
+ * back to a lexical `resolve()` check. A lexical check cannot see through an
+ * ancestor: make `_review` a symlink to somewhere else and
+ * `_review/.staging-<id>/rebuild/utc` still resolves, lexically, to a path
+ * "beneath the repository" — while every byte written lands outside it.
+ *
+ * Recursive `mkdirSync` makes that worse, because it will happily traverse an
+ * existing ancestor link on its way to creating the leaf.
+ *
+ * So each component is walked from the root outwards and lstatted:
+ *
+ *   - a symlink anywhere in the chain is refused, target unexamined;
+ *   - an existing non-directory ancestor is refused;
+ *   - the deepest EXISTING ancestor must realpath-resolve inside the root, so
+ *     the part that does exist is proven to be this repository's;
+ *   - everything below the deepest existing ancestor does not exist yet and
+ *     therefore cannot redirect anything.
+ *
+ * A dangling symlink is caught by the first rule: `lstat` sees the link itself,
+ * where `existsSync` would report it absent and invite a create through it.
+ */
+export function pathContainmentProblems(root: string, rel: string): readonly string[] {
+  const parts = rel.split(/[\\/]+/).filter((x) => x.length > 0 && x !== ".");
+  if (parts.length === 0) return [`${JSON.stringify(rel)} names no path beneath the release root`];
+  if (parts.includes("..")) {
+    return [`${rel} contains a parent traversal, which a release path may never do`];
+  }
+
+  let realRoot: string;
+  try {
+    realRoot = realpathSync(resolve(root));
+  } catch {
+    return [`the release root ${root} cannot be resolved`];
+  }
+
+  let deepestExisting = realRoot;
+  let walked = resolve(root);
+  for (let i = 0; i < parts.length; i += 1) {
+    walked = join(walked, parts[i] ?? "");
+    const here = parts.slice(0, i + 1).join("/");
+    let st: Stats;
+    try {
+      st = lstatSync(walked);
+    } catch (e) {
+      const code = (e as NodeJS.ErrnoException).code;
+      /*
+       * ENOENT is the ordinary "not created yet". ENOTDIR means an ANCESTOR is
+       * a file, which is a refusal rather than an absence.
+       */
+      if (code === "ENOENT") break;
+      if (code === "ENOTDIR") return [`${here} sits beneath something that is not a directory`];
+      return [`${here} could not be inspected (${code ?? "unknown error"})`];
+    }
+    if (st.isSymbolicLink()) {
+      return [
+        `${here} is a symbolic link, and a release path may not pass through one — ` +
+          "its target is deliberately not examined, because examining it is how a link " +
+          "becomes a way in",
+      ];
+    }
+    if (i < parts.length - 1 && !st.isDirectory()) {
+      return [`${here} is not a directory, so nothing may be created beneath it`];
+    }
+    try {
+      deepestExisting = realpathSync(walked);
+    } catch {
+      return [`${here} exists but cannot be resolved`];
+    }
+  }
+
+  if (deepestExisting !== realRoot && !deepestExisting.startsWith(realRoot + sep)) {
+    return [`${rel} resolves outside the release root once links are followed`];
+  }
+  return [];
+}
+
+/**
+ * Create a directory, having proved every ancestor is safe first.
+ *
+ * `mkdirSync(..., { recursive: true })` traverses whatever ancestors already
+ * exist, links included. Checking afterwards is too late: the traversal is the
+ * thing that had to be prevented.
+ */
+export function safeMkdir(root: string, rel: string): void {
+  const problems = pathContainmentProblems(root, rel);
+  if (problems.length > 0) throw new OperationRefused(problems.join("; "));
+  mkdirSync(join(root, rel), { recursive: true });
+  /* And again, because the create itself is what a racing link would target. */
+  const after = pathContainmentProblems(root, rel);
+  if (after.length > 0) throw new OperationRefused(after.join("; "));
+}
+
+/**
  * Every reason `.release` may not be read or written. Empty means it may.
  *
  * An ABSENT directory is fine — no evidence has been recorded yet. A directory
@@ -129,6 +229,9 @@ function contained(root: string, path: string): boolean {
  * would be read from, and written to, somewhere this repository does not own.
  */
 export function releaseDirProblems(root: string): readonly string[] {
+  /* Ancestors first: `.release` is one component, but the root may not be. */
+  const chain = pathContainmentProblems(root, RELEASE_DIR);
+  if (chain.length > 0) return [`${chain[0] ?? ""} — evidence may not be read or written`];
   const state = inspectPath(root, RELEASE_DIR);
   if (state.kind === "absent") return [];
   if (state.kind === "unsafe") return [`${state.why} — evidence may not be read or written`];
@@ -148,6 +251,8 @@ export function releaseDirProblems(root: string): readonly string[] {
 export function evidenceFileProblems(root: string, rel: string): readonly string[] {
   const dir = releaseDirProblems(root);
   if (dir.length > 0) return dir;
+  const chain = pathContainmentProblems(root, rel);
+  if (chain.length > 0) return chain;
   const state = inspectPath(root, rel);
   if (state.kind === "absent" || state.kind === "file") {
     if (state.kind === "file" && !contained(root, join(root, rel))) {
@@ -492,72 +597,109 @@ export function withOperation<T>(
  * ------------------------------------------------------------------------ */
 
 /**
- * The single object that decides between publishing and recovering.
+ * THE TERMINAL PHASE: the one interval in which a canonical result may change.
  *
- * ## What repeated ownership checks could not do
+ * ## The interleaving this exists to make impossible
  *
- * Publication used to assert ownership and then remove and rename. Recovery
- * could tombstone the result and release the operation in the gap between the
- * check and the rename, and the recovered process would publish anyway. Adding
- * another `assertOwner` moves the gap; it does not close it, because every
- * check-then-act pair has one by construction.
+ * Publication used to hold a claim across the rename ALONE. Independently
+ * reproduced, that permitted:
  *
- * ## What closes it
+ *   1. the package operation takes the publish claim;
+ *   2. the archive is published;
+ *   3. the package releases the terminal claim;
+ *   4. RECOVERY acquires the terminal claim;
+ *   5. recovery tombstones the canonical gate record and releases the mutex;
+ *   6. the published archive remains;
+ *   7. the publisher's later `endOperation()` fails.
  *
- * Both actions must first CLAIM this file, created with `wx` — one atomic
- * filesystem operation with exactly one winner. The invariant follows directly:
+ * Both halves partly succeeded, and the result on disk — a canonical archive
+ * beside an ABANDONED gate record — is exactly the state neither is allowed to
+ * produce. The window was between step 3 and step 7: the publisher had let go
+ * of the terminal phase while it still had work that could fail.
  *
- *   either recovery holds the claim and publication cannot enter its critical
- *   section at all, or publication holds it and recovery refuses until the
- *   claim is released; both can never succeed.
- *
- * The claim is not an advisory flag anybody may ignore: it is the only door
- * into either critical section, and the loser is told who holds it.
+ * So the hold now spans FINAL VALIDATION, CANONICAL PUBLICATION, the
+ * operation's own cleanup, and `endOperation()`. The claim is released last.
+ * Recovery cannot enter the terminal phase until the publishing operation has
+ * completed or has been explicitly recovered — and "explicitly" is the whole of
+ * {@link recoverTerminalClaim}, because a process that dies holding the claim
+ * would otherwise make recovery impossible: recovery takes the same claim, with
+ * the same `wx` create, against a file that is already there.
  */
 export const TERMINAL_CLAIM_PATH = ".release/release-terminal.claim";
 
 export type TerminalAction = "publish" | "recover";
 
+/** Where a recovered terminal claim is kept. Recovery quarantines; it never deletes. */
+export function terminalQuarantinePathFor(operationId: string): string {
+  return `${RELEASE_DIR}/terminal-quarantine-${operationId}.claim`;
+}
+
 export interface TerminalClaim {
   readonly action: TerminalAction;
   readonly operationId: string;
   readonly claimedAt: string;
+  /**
+   * An unpredictable value written by whoever created this claim.
+   *
+   * The release callback used to delete the PATHNAME. A claim replaced between
+   * creation and release — by a recovery that quarantined it and a second
+   * operation that then created its own — would be deleted by the first
+   * operation, which never held it. Comparing this value and the file's
+   * identity is what makes "release the claim I created" a checkable statement
+   * rather than an assumption about a name.
+   */
+  readonly nonce: string;
 }
 
-/** Who holds the terminal phase, if anyone. Never throws. */
+/** What a process holds while it is inside the terminal phase. Never written down whole. */
+export interface TerminalHold {
+  readonly action: TerminalAction;
+  readonly operationId: string;
+  readonly nonce: string;
+  /** The claim file's identity when this hold created it. */
+  readonly token: OwnerToken;
+}
+
+const NONCE = /^[0-9a-f]{32}$/;
+
 export function readTerminalClaim(root: string): TerminalClaim | null {
   const state = inspectPath(root, TERMINAL_CLAIM_PATH);
   if (state.kind !== "file") return null;
   try {
     const parsed = JSON.parse(readFileSync(join(root, TERMINAL_CLAIM_PATH), "utf8")) as unknown;
     if (!isPlainObject(parsed)) return null;
-    const { action, operationId, claimedAt } = parsed;
+    const { action, operationId, claimedAt, nonce } = parsed;
     if (action !== "publish" && action !== "recover") return null;
     if (!isOperationId(operationId)) return null;
     if (typeof claimedAt !== "string") return null;
-    return Object.freeze({ action, operationId, claimedAt });
+    if (typeof nonce !== "string" || !NONCE.test(nonce)) return null;
+    return Object.freeze({ action, operationId, claimedAt, nonce });
   } catch {
     return null;
   }
 }
 
 /**
- * Take the terminal phase, or refuse. The caller MUST release it.
+ * Enter the terminal phase, or refuse.
  *
- * Ownership is asserted while the claim is held, not before taking it — so a
- * claim won by an operation that has since lost the mutex still refuses, and
- * refuses without having touched anything.
+ * The `wx` create is the arbitration. Everything after it proves the file the
+ * filesystem created is the one this call wrote.
  */
-export function claimTerminalPhase(
+export function enterTerminalPhase(
   root: string,
   op: Operation,
   action: TerminalAction,
-): () => void {
+): TerminalHold {
+  const safety = evidenceFileProblems(root, TERMINAL_CLAIM_PATH);
+  if (safety.length > 0) throw new OperationRefused(safety.join("; "));
+
   const path = join(root, TERMINAL_CLAIM_PATH);
+  const nonce = randomBytes(16).toString("hex");
   const claim: TerminalClaim = Object.freeze({
     action,
     operationId: op.operationId,
     claimedAt: new Date().toISOString(),
+    nonce,
   });
 
   try {
@@ -569,15 +711,23 @@ export function claimTerminalPhase(
     const held = readTerminalClaim(root);
     throw new OperationRefused(
       held === null
-        ? `the terminal phase is held and the claim could not be read; ${action} may not proceed`
+        ? `the terminal phase is held and the claim could not be read; ${action} may not proceed. ` +
+            TERMINAL_RECOVERY
         : `the terminal phase is held by ${held.action} for operation ${held.operationId} ` +
-            `(claimed ${held.claimedAt}); ${action} may not proceed`,
+            `(claimed ${held.claimedAt}); ${action} may not proceed. ${TERMINAL_RECOVERY}`,
     );
   }
 
   /* Read back, so a claim this call did not actually create is not acted on. */
   const readBack = readTerminalClaim(root);
-  if (readBack === null || readBack.operationId !== op.operationId || readBack.action !== action) {
+  const state = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (
+    readBack === null ||
+    readBack.operationId !== op.operationId ||
+    readBack.action !== action ||
+    readBack.nonce !== nonce ||
+    state.kind !== "file"
+  ) {
     throw new OperationRefused(
       "the terminal claim at that path is not the one this operation just created",
     );
@@ -588,16 +738,200 @@ export function claimTerminalPhase(
    * before reaching here releases the claim and refuses, having published or
    * recovered nothing.
    */
+  const hold: TerminalHold = Object.freeze({
+    action,
+    operationId: op.operationId,
+    nonce,
+    token: tokenOf(state.stat),
+  });
   try {
     assertOwner(root, op);
   } catch (e) {
-    rmSync(path, { force: true });
+    releaseTerminalPhase(root, hold);
     throw e;
   }
+  return hold;
+}
 
-  return () => {
-    rmSync(path, { force: true });
-  };
+const TERMINAL_RECOVERY = `If the holding process is gone, run \`pnpm release:recover --operation=<id>\`, which validates that the mutex and the terminal claim describe the same operation and quarantines the claim rather than deleting it. There is deliberately no age-based takeover: a slow publisher and a dead one look identical from here`;
+
+/**
+ * Every reason this hold may NOT release the claim it is holding.
+ *
+ * Empty means the file on disk is still the exact object this hold created, and
+ * only then is it removed. A replaced claim is left alone: deleting it would
+ * remove a claim belonging to somebody else, which is the failure mode this
+ * whole protocol exists to prevent.
+ */
+export function terminalReleaseProblems(root: string, hold: TerminalHold): readonly string[] {
+  const state = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (state.kind === "absent") {
+    return ["the terminal claim is already gone — this hold did not release it"];
+  }
+  if (state.kind !== "file") {
+    return [state.kind === "unsafe" ? state.why : `${TERMINAL_CLAIM_PATH} is a directory`];
+  }
+  if (!sameToken(tokenOf(state.stat), hold.token)) {
+    return [
+      "the terminal claim on disk is a different file object from the one this hold " +
+        "created — it has been replaced, and this hold will not delete somebody else's claim",
+    ];
+  }
+  const claim = readTerminalClaim(root);
+  if (claim === null) return ["the terminal claim is no longer readable"];
+  if (claim.nonce !== hold.nonce) {
+    return ["the terminal claim carries a different nonce — it is not the one this hold created"];
+  }
+  if (claim.operationId !== hold.operationId || claim.action !== hold.action) {
+    return ["the terminal claim describes a different operation or action"];
+  }
+  return [];
+}
+
+/** Release the claim this hold created, and only that one. */
+export function releaseTerminalPhase(root: string, hold: TerminalHold): readonly string[] {
+  const problems = terminalReleaseProblems(root, hold);
+  if (problems.length > 0) return problems;
+  rmSync(join(root, TERMINAL_CLAIM_PATH), { force: true });
+  return [];
+}
+
+/**
+ * Run the whole terminal phase under one hold, and release it last.
+ *
+ * The body is where final validation, canonical publication, private cleanup
+ * and `endOperation()` all belong. Nothing between them may run while the
+ * terminal phase is unheld.
+ */
+export function withTerminalPhase<T>(
+  root: string,
+  op: Operation,
+  action: TerminalAction,
+  body: (hold: TerminalHold) => T,
+): T {
+  const hold = enterTerminalPhase(root, op, action);
+  let result: T | undefined;
+  let bodyError: unknown = null;
+  try {
+    result = body(hold);
+  } catch (e) {
+    bodyError = e;
+  }
+  const problems = releaseTerminalPhase(root, hold);
+
+  if (bodyError !== null) {
+    if (problems.length > 0 && bodyError instanceof Error) {
+      /* Both, because a stale claim needs recovering whatever else went wrong. */
+      throw new OperationRefused(
+        `${bodyError.message}\n\nand the terminal claim could not be released: ${problems.join("; ")}. ${TERMINAL_RECOVERY}`,
+      );
+    }
+    throw bodyError;
+  }
+  if (problems.length > 0) {
+    throw new OperationRefused(`${problems.join("; ")}. ${TERMINAL_RECOVERY}`);
+  }
+  return result as T;
+}
+
+/**
+ * Recover a terminal claim abandoned by a process that is gone.
+ *
+ * ## Why this cannot be an age check
+ *
+ * A publisher inside its terminal phase and a publisher that died inside it
+ * look identical from outside: a claim file, and no way to ask the process. Any
+ * timeout would eventually take the phase away from a live publisher mid-link,
+ * which is the thing the phase exists to prevent. So the operator names the
+ * operation, and this refuses unless the whole of the state agrees.
+ *
+ * It QUARANTINES rather than deletes, for the same reason recovery quarantines
+ * a pending record: the claim is the only surviving evidence of what the dead
+ * process was doing, including whether it had already published.
+ */
+export function recoverTerminalClaim(root: string, operationId: string): readonly string[] {
+  if (!isOperationId(operationId)) {
+    throw new OperationRefused("the operation id to recover is not the bounded 16-hex shape");
+  }
+  const safety = evidenceFileProblems(root, TERMINAL_CLAIM_PATH);
+  if (safety.length > 0) throw new OperationRefused(safety.join("; "));
+
+  const before = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (before.kind === "absent") return ["no terminal claim was held"];
+  if (before.kind !== "file") {
+    throw new OperationRefused(
+      before.kind === "unsafe"
+        ? `${before.why} — the terminal claim is not a regular file and is not touched`
+        : `${TERMINAL_CLAIM_PATH} is a directory and is not touched`,
+    );
+  }
+
+  const claim = readTerminalClaim(root);
+  if (claim === null) {
+    throw new OperationRefused(
+      `${TERMINAL_CLAIM_PATH} exists and is malformed, so no operation can be identified from ` +
+        "it. Inspect it by hand; nothing here will guess what it meant.",
+    );
+  }
+  if (claim.operationId !== operationId) {
+    throw new OperationRefused(
+      `the terminal claim is held by operation ${claim.operationId}, not ${operationId} — ` +
+        "recovery names the operation it recovers, so a stale instruction cannot clear a live one",
+    );
+  }
+
+  /*
+   * THE MUTEX AND THE CLAIM MUST DESCRIBE THE SAME OPERATION. A claim naming an
+   * operation that no longer owns the lock is not evidence of an interrupted
+   * terminal phase; it is a state nobody has explained, and guessing is what
+   * this module refuses to do.
+   */
+  const lock = readOperationLock(root);
+  if (lock.kind === "free") {
+    throw new OperationRefused(
+      "a terminal claim exists while no operation owns the mutex — these describe different " +
+        "states and recovery will not reconcile them by guessing",
+    );
+  }
+  if (lock.kind === "unsafe") {
+    throw new OperationRefused(`the lock cannot be read: ${lock.why}`);
+  }
+  if (lock.lock.operationId !== operationId) {
+    throw new OperationRefused(
+      `the terminal claim names ${operationId} and the mutex is owned by ${lock.lock.operationId} — ` +
+        "the two describe different operations and neither is recovered here",
+    );
+  }
+
+  /* The file must not have changed while all of that was being read. */
+  const after = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (after.kind !== "file" || !sameToken(tokenOf(after.stat), tokenOf(before.stat))) {
+    throw new OperationRefused(
+      "the terminal claim changed while it was being inspected — nothing was moved",
+    );
+  }
+
+  const quarantine = terminalQuarantinePathFor(operationId);
+  const dest = evidenceFileProblems(root, quarantine);
+  if (dest.length > 0) throw new OperationRefused(dest.join("; "));
+  if (inspectPath(root, quarantine).kind !== "absent") {
+    throw new OperationRefused(
+      `${quarantine} already exists; a previous recovery of this operation is already recorded ` +
+        "and is not overwritten",
+    );
+  }
+  renameSync(join(root, TERMINAL_CLAIM_PATH), join(root, quarantine));
+  return [
+    `quarantined the ${claim.action} terminal claim for ${operationId} to ${quarantine}`,
+    /*
+     * SAID PLAINLY, because it is the one thing recovery cannot determine. A
+     * process can die after `linkSync` and before releasing the claim, and the
+     * canonical archive is then already published and correct. Nothing here
+     * removes it, and nothing here asserts it is absent.
+     */
+    "whether that operation had already published a canonical archive is NOT determined here; " +
+      "no archive was inspected, moved or removed",
+  ];
 }
 
 /* --------------------------------------------------------------------------
@@ -657,21 +991,51 @@ export function recoverOperation(
     pendingPath: pendingPathFor(operationId),
   });
 
-  /*
-   * THE TERMINAL CLAIM FIRST, BEFORE ANYTHING IS TOUCHED.
-   *
-   * Publication takes the same claim. Whichever of the two wins the atomic
-   * create proceeds and the other refuses, so a recovery cannot land between
-   * a publisher's last check and its rename — which is precisely the interval
-   * that let a recovered process publish anyway.
-   */
-  const release = claimTerminalPhase(root, op, "recover");
   const done: string[] = [];
-  try {
-    return recoverUnderClaim(root, op, owner, recordPath, done);
-  } finally {
-    release();
+
+  /*
+   * A TERMINAL CLAIM STOPS RECOVERY DEAD, AND MUST.
+   *
+   * ## Why this is not quarantined automatically
+   *
+   * A process that died holding the claim and a publisher currently inside its
+   * terminal phase leave the SAME state: a claim file naming this operation,
+   * beside a mutex naming this operation. Nothing on disk distinguishes them,
+   * and quarantining the claim here — which an earlier draft of this correction
+   * did — takes the terminal phase away from a live publisher mid-link. That is
+   * the failure this whole protocol exists to prevent, reintroduced by the
+   * recovery that was supposed to prevent it.
+   *
+   * So it refuses, and says exactly what a person must do instead. Quarantining
+   * an abandoned claim is a SEPARATE, explicitly requested act
+   * ({@link recoverTerminalClaim}, `--terminal-claim` on the recover command), which
+   * an operator performs only once they know the holding process is gone. There
+   * is no timeout that would decide it for them.
+   */
+  const claimState = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (claimState.kind !== "absent") {
+    const held = readTerminalClaim(root);
+    throw new OperationRefused(
+      `a terminal claim is present${held === null ? " and is malformed" : ` (${held.action} for operation ${held.operationId})`}. ` +
+        "A publisher may be inside its terminal phase right now, and nothing here can tell " +
+        "that apart from a process that died holding it — so recovery will not take it. " +
+        "Confirm the holding process is gone, then run " +
+        `\`pnpm release:recover --operation=${operationId} --terminal-claim\`, which quarantines the ` +
+        "claim without deleting it, and run recovery again.",
+    );
   }
+
+  /*
+   * THEN THE TERMINAL PHASE ITSELF, held across every step below.
+   *
+   * Publication takes the same claim and holds it through `endOperation()`, so
+   * a recovery cannot land between a publisher's last check and its completion
+   * — which is precisely the interval that let a publish and a recovery both
+   * partly succeed, leaving a canonical archive beside an ABANDONED record.
+   */
+  return withTerminalPhase(root, op, "recover", () =>
+    recoverUnderClaim(root, op, owner, recordPath, done),
+  );
 }
 
 function recoverUnderClaim(

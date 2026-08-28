@@ -24,13 +24,13 @@
 import {
   readFileSync,
   writeFileSync,
-  mkdirSync,
   rmSync,
   copyFileSync,
   readdirSync,
   existsSync,
   mkdtempSync,
   linkSync,
+  lstatSync,
 } from "node:fs";
 import { join, relative, sep, resolve, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
@@ -55,10 +55,12 @@ import {
   adoptOperation,
   isOperationId,
   inspectPath,
+  pathContainmentProblems,
+  safeMkdir,
   assertOwner,
   endOperation,
   OperationRefused,
-  claimTerminalPhase,
+  withTerminalPhase,
   type Operation,
 } from "./release-operation";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
@@ -327,11 +329,132 @@ export function rebuildSlotDir(operationId: string, slot: RebuildSlot): string {
 }
 
 /**
+ * Create a directory with every ancestor checked, wherever it sits.
+ *
+ * ## Why the containment root is not always the repository
+ *
+ * The real packager writes into `_review` beneath this repository, and every
+ * component from the repository root down must be proved — `_review` itself is
+ * exactly the link an attacker would plant. But `build()` also takes an
+ * arbitrary `outDir`, and the suites that exercise it build into their own
+ * temporary trees. Rooting the walk at the repository there produced a path
+ * beginning `../..`, which the traversal rule refuses — correctly, and about
+ * the wrong thing.
+ *
+ * So the root is chosen from where the target actually is: the repository when
+ * the target is inside it, and otherwise the deepest EXISTING ancestor of the
+ * target itself. Either way every component that exists is lstatted and no
+ * create passes through a link.
+ */
+function safeMkdirAt(target: string): void {
+  const fromRepo = relative(REPO_ROOT, target).split(sep).join("/");
+  if (fromRepo !== "" && !fromRepo.startsWith("..")) {
+    safeMkdir(REPO_ROOT, fromRepo);
+    return;
+  }
+  let base = dirname(target);
+  const tail: string[] = [basename(target)];
+  while (!existsSync(base) && dirname(base) !== base) {
+    tail.unshift(basename(base));
+    base = dirname(base);
+  }
+  safeMkdir(base, tail.join("/"));
+}
+
+/**
+ * A file object, as the filesystem knows it, plus the bytes it held.
+ *
+ * ## Why a pathname was not enough
+ *
+ * The archive was hashed, rebuilt three times, inflated and checked — and then
+ * published by PATHNAME: `linkSync(first.archive, distributable)`, with no
+ * re-read. The operation-private staging path is derived from the operation id
+ * and is therefore predictable, so a local process could replace or rewrite
+ * that file between the last verification and the link, and the canonical
+ * archive would then hold bytes nobody checked, published under the SHA this
+ * build had already reported.
+ *
+ * ## What this can and cannot promise
+ *
+ * Binding to device and inode proves the object linked is the object hashed:
+ * a REPLACEMENT (unlink-and-recreate, rename-over) changes the inode and is
+ * caught. It does not by itself catch a same-user process writing THROUGH the
+ * existing inode, so the bytes are re-hashed under the terminal hold as well,
+ * and the canonical path is re-hashed after the link.
+ *
+ * Between the final hash and the link there remains an interval no same-user
+ * check can close: a process with write access to the file can modify it at any
+ * instant, including after the last read. That is a property of running as the
+ * same user on a shared filesystem, not something this code can assert away.
+ * It is narrowed to a few syscalls and stated here rather than dressed up as a
+ * guarantee.
+ */
+export interface FileIdentity {
+  readonly dev: number;
+  readonly ino: number;
+  readonly size: number;
+  readonly sha: string;
+}
+
+/**
+ * Identify a regular file exactly, or refuse.
+ *
+ * `lstat`, so a symlink is seen as a link rather than as its target, and a
+ * device, socket or FIFO planted at the path is refused rather than read.
+ */
+export function identifyFile(path: string): FileIdentity {
+  const st = lstatSync(path);
+  if (st.isSymbolicLink()) {
+    throw new Refusal(`${path} is a symbolic link, and a release artefact may not be one`);
+  }
+  if (!st.isFile()) {
+    throw new Refusal(`${path} is not a regular file`);
+  }
+  return Object.freeze({ dev: st.dev, ino: st.ino, size: st.size, sha: sha256File(path) });
+}
+
+/** Every way two identities differ, named individually. */
+export function identityProblems(
+  what: string,
+  expected: FileIdentity,
+  actual: FileIdentity,
+): readonly string[] {
+  const problems: string[] = [];
+  if (actual.dev !== expected.dev || actual.ino !== expected.ino) {
+    problems.push(
+      `${what} is a different file object from the one that was verified ` +
+        `(device/inode ${String(expected.dev)}/${String(expected.ino)} became ` +
+        `${String(actual.dev)}/${String(actual.ino)})`,
+    );
+  }
+  if (actual.size !== expected.size) {
+    problems.push(
+      `${what} is ${String(actual.size)} bytes and the verified archive was ${String(expected.size)}`,
+    );
+  }
+  if (actual.sha !== expected.sha) {
+    problems.push(
+      `${what} hashes to ${actual.sha} and the verified archive hashed to ${expected.sha}`,
+    );
+  }
+  return problems;
+}
+
+/**
  * Every reason a resolved child destination may not be written to.
  *
- * Containment is checked on the RESOLVED path, so a traversal or an absolute
- * path that happens to look plausible is refused on what it actually points at
- * rather than on how it was spelled.
+ * ## Why lexical containment was not containment
+ *
+ * The previous edition compared `resolve()`d strings and then inspected the
+ * LEAF. Both are blind to an ancestor: make `_review` a symbolic link to
+ * somewhere else and `_review/.staging-<id>/rebuild/utc` still resolves,
+ * lexically, to a path "beneath the repository" — while every byte a child
+ * writes lands wherever that link points. The leaf inspection sees only a
+ * directory that does not exist yet, which is exactly the safe-looking answer.
+ *
+ * So every component of the chain is lstatted from the repository root
+ * outwards, and the deepest component that actually exists must realpath-
+ * resolve inside the root. See `pathContainmentProblems`.
  */
 export function rebuildSlotProblems(
   operationId: string,
@@ -350,11 +473,20 @@ export function rebuildSlotProblems(
         "derived from the operation and the slot, never chosen by the caller",
     );
   }
-  const expected = resolve(join(REPO_ROOT, "_review", `.staging-${operationId}`));
-  if (!resolve(allowed).startsWith(expected + sep)) {
+  const rel = relative(REPO_ROOT, allowed).split(sep).join("/");
+  if (rel.startsWith("..") || rel.length === 0) {
+    problems.push("CHILD: the resolved destination is outside this operation's staging tree");
+    return problems;
+  }
+  const expected = `_review/.staging-${operationId}/`;
+  if (!rel.startsWith(expected)) {
     problems.push("CHILD: the resolved destination is outside this operation's staging tree");
   }
-  const state = inspectPath(REPO_ROOT, relative(REPO_ROOT, allowed).split(sep).join("/"));
+  /* EVERY COMPONENT, not the leaf: _review, the staging root and rebuild too. */
+  for (const problem of pathContainmentProblems(REPO_ROOT, rel)) {
+    problems.push(`CHILD: ${problem}`);
+  }
+  const state = inspectPath(REPO_ROOT, rel);
   if (state.kind === "unsafe") problems.push(`CHILD: ${state.why}`);
   return problems;
 }
@@ -481,7 +613,21 @@ function recordTreeProblems(record: GateRecord | null): readonly string[] {
  * Recorded during staging so the copies can be checked against the commit
  * rather than against the working tree they were read from.
  */
-const stagedOrigins: { origin: string; staged: string }[] = [];
+/**
+ * ONE STAGING INVENTORY, BUILT WHILE COPYING AND FROZEN WHEN COPYING ENDS.
+ *
+ * The previous edition kept a MUTABLE MODULE GLOBAL, cleared at the top of each
+ * staging run. Three rebuilds run in child processes and the parent stages too,
+ * so "the inventory" was whichever run last wrote to it — and a check reading
+ * it afterwards was reading state, not a record of what a particular staging
+ * copied. An inventory that can be appended to after validation is not evidence
+ * about the thing that was validated.
+ */
+export interface StagingInventory {
+  readonly entries: readonly StagedOrigin[];
+}
+
+const emptyInventory: StagingInventory = Object.freeze({ entries: Object.freeze([]) });
 
 /**
  * Prove every staged copy is byte-identical to HEAD's own tree object.
@@ -521,31 +667,172 @@ export interface StagedOrigin {
  * about would let an untracked file into the archive by being untracked, which
  * is the smuggling case this whole check exists to refuse.
  */
-const GENERATED_STAGED_DIRS: readonly string[] = ["_sql-to-paste"];
+/**
+ * The EXACT generated files a package may stage, and where each comes from.
+ *
+ * ## What "the directory is declared generated" let through
+ *
+ * The previous rule accepted any origin whose first path component was
+ * `_sql-to-paste`. Independently proven, that accepted an arbitrary
+ * `_sql-to-paste/evil.sql` — a file in no commit, checked by nothing, copied
+ * into the archive because of the directory it sat in. It also accepted
+ * deliberately WRONG bytes under a legitimate wrapper name, because the only
+ * wrapper check in this file (`wrapperCheck`) reads the live repository copy
+ * rather than the staged one. A later read of the working tree is not evidence
+ * about bytes copied earlier.
+ *
+ * The allow-list is now derived from `WRAPPERS` itself, so it cannot drift, and
+ * every entry is checked as a wrapper rather than waved through as generated.
+ */
+export type GeneratedOrigin =
+  /** A paste wrapper: header plus a body that must equal its tracked source. */
+  | { readonly kind: "wrapper"; readonly spec: (typeof WRAPPERS)[number] }
+  /** A verbatim copy of a tracked verifier or prerequisite. */
+  | { readonly kind: "verbatim"; readonly source: string }
+  /**
+   * A file with NO tracked source at all.
+   *
+   * `observer-verify-2.sql` and `observer-behaviour-2.sql` exist only in this
+   * working directory: they are in no commit, no verifier directory holds them,
+   * and nothing in the repository generates them. The package has shipped them
+   * for many rounds, and the previous edition reported all eleven files here as
+   * "generated (wrappers vs sources)" — which was true of four, true in a
+   * different way of five, and simply false of these two.
+   *
+   * They are DECLARED rather than quietly accepted or silently dropped.
+   * Dropping them would change what the archive contains; accepting them by
+   * directory is what let an arbitrary file in. Declaring them means the count
+   * a reviewer reads distinguishes "checked against a commit" from "shipped
+   * with no source this repository can check it against".
+   */
+  | { readonly kind: "unsourced"; readonly why: string };
 
-/** Both halves of what the origin check found, so neither can hide the other. */
+export const GENERATED_ORIGINS: ReadonlyMap<string, GeneratedOrigin> = new Map<
+  string,
+  GeneratedOrigin
+>([
+  ...WRAPPERS.map((spec) => [`_sql-to-paste/${spec.out}`, { kind: "wrapper", spec }] as const),
+  [
+    "_sql-to-paste/observer-cron-health.sql",
+    { kind: "verbatim", source: "supabase/verifiers/observer-cron-health.sql" },
+  ],
+  [
+    "_sql-to-paste/observer-contract-readiness.sql",
+    { kind: "verbatim", source: "supabase/verifiers/observer-contract-readiness.sql" },
+  ],
+  [
+    "_sql-to-paste/observer-http-compat-proof.sql",
+    { kind: "verbatim", source: "supabase/verifiers/observer-http-compat-proof.sql" },
+  ],
+  [
+    "_sql-to-paste/observer-ai-readiness.sql",
+    { kind: "verbatim", source: "supabase/verifiers/observer-ai-readiness.sql" },
+  ],
+  [
+    "_sql-to-paste/observer-cron-prerequisite.sql",
+    { kind: "verbatim", source: "supabase/prerequisites/observer-cron-prerequisite.sql" },
+  ],
+  [
+    "_sql-to-paste/observer-verify-2.sql",
+    {
+      kind: "unsourced",
+      why: "no tracked source exists anywhere in the repository for this file",
+    },
+  ],
+  [
+    "_sql-to-paste/observer-behaviour-2.sql",
+    {
+      kind: "unsourced",
+      why: "no tracked source exists anywhere in the repository for this file",
+    },
+  ],
+]);
+
+/**
+ * Every reason one STAGED wrapper is not the wrapper it claims to be.
+ *
+ * Both halves are checked against the STAGED BYTES: the whole file must equal
+ * `renderWrapper(spec)`, and the body between `begin;` and `commit;` must equal
+ * the tracked source EXACTLY AS HEAD HOLDS IT — not as the working tree holds
+ * it now, because a wrapper edited during staging and restored afterwards would
+ * otherwise pass on the restored copy.
+ */
+export function stagedWrapperProblems(
+  stagedPath: string,
+  spec: (typeof WRAPPERS)[number],
+): readonly string[] {
+  const problems: string[] = [];
+  let staged: string;
+  try {
+    staged = readFileSync(stagedPath, "utf8");
+  } catch {
+    return [`${spec.out} was recorded as staged and cannot be read`];
+  }
+  if (staged !== renderWrapper(spec)) {
+    problems.push(`the staged ${spec.out} is not what renderWrapper produces for its source`);
+  }
+  let committed: Buffer;
+  try {
+    committed = execFileSync("git", ["show", `HEAD:${spec.source}`], {
+      cwd: REPO_ROOT,
+      maxBuffer: 64 * 1024 * 1024,
+      encoding: "buffer",
+    });
+  } catch {
+    return [...problems, `${spec.source} is not in HEAD, so ${spec.out} cannot be checked`];
+  }
+  let body: string;
+  try {
+    body = extractBody(staged);
+  } catch {
+    return [...problems, `the staged ${spec.out} has no begin;/commit; pair`];
+  }
+  if (!Buffer.from(body, "utf8").equals(committed)) {
+    problems.push(`the staged ${spec.out} body is not byte-identical to HEAD:${spec.source}`);
+  }
+  return problems;
+}
+
+/**
+ * Every category the origin check found, so none can hide inside another.
+ *
+ * The previous edition reported one number, "generated", for eleven files that
+ * were verified three different ways — four against `renderWrapper`, five
+ * against a tracked verifier, and two against nothing at all, because nothing
+ * tracked exists to compare them with. One number cannot say that.
+ */
 export interface StagedOriginResult {
   readonly problems: readonly string[];
   /** Copies proved byte-identical to HEAD. */
   readonly matchedHead: number;
-  /** Copies from a declared generated directory, checked by the wrapper gate. */
-  readonly generated: number;
+  /** Paste wrappers whose staged bytes match renderWrapper and HEAD's source. */
+  readonly wrappers: number;
+  /** Verbatim copies proved byte-identical to HEAD's verifier or prerequisite. */
+  readonly verbatim: number;
+  /** Declared files with no tracked source. NOT verified, and never counted as such. */
+  readonly unsourced: number;
 }
 
 export function stagedOriginResult(
   dir: string,
-  origins: readonly StagedOrigin[] = stagedOrigins,
+  inventory: StagingInventory = emptyInventory,
 ): StagedOriginResult {
   const problems: string[] = [];
+  const origins = inventory.entries;
   let matchedHead = 0;
-  let generated = 0;
+  let wrappers = 0;
+  let verbatim = 0;
+  let unsourced = 0;
   if (origins.length === 0) {
     return {
       problems: ["no staged file recorded its tracked origin — the copies cannot be checked"],
       matchedHead: 0,
-      generated: 0,
+      wrappers: 0,
+      verbatim: 0,
+      unsourced: 0,
     };
   }
+
   for (const { origin, staged } of origins) {
     const path = join(dir, ...staged.split("/"));
     if (!existsSync(path)) {
@@ -568,9 +855,41 @@ export function stagedOriginResult(
        * counted separately even then — a number that says "eleven files were
        * not checked against a commit" is evidence; silence is not.
        */
-      const dirName = origin.split("/")[0] ?? "";
-      if (GENERATED_STAGED_DIRS.includes(dirName)) {
-        generated += 1;
+      const declared = GENERATED_ORIGINS.get(origin);
+      if (declared !== undefined) {
+        if (declared.kind === "wrapper") {
+          const wrong = stagedWrapperProblems(path, declared.spec);
+          if (wrong.length > 0) problems.push(...wrong);
+          else wrappers += 1;
+          continue;
+        }
+        if (declared.kind === "verbatim") {
+          /*
+           * A VERBATIM COPY, compared with HEAD's bytes for its source — not
+           * with the working tree's, for the same reason every other staged
+           * file is compared with the commit.
+           */
+          let source: Buffer;
+          try {
+            source = execFileSync("git", ["show", `HEAD:${declared.source}`], {
+              cwd: REPO_ROOT,
+              maxBuffer: 64 * 1024 * 1024,
+              encoding: "buffer",
+            });
+          } catch {
+            problems.push(`${declared.source} is not in HEAD, so ${origin} cannot be checked`);
+            continue;
+          }
+          if (!readFileSync(path).equals(source)) {
+            problems.push(`${origin} is not byte-identical to HEAD:${declared.source}`);
+          } else verbatim += 1;
+          continue;
+        }
+        /*
+         * DECLARED UNSOURCED. Counted separately and never counted as verified:
+         * the whole point of the field is that this package cannot check it.
+         */
+        unsourced += 1;
         continue;
       }
       problems.push(`${origin} is staged and is not in HEAD`);
@@ -585,25 +904,108 @@ export function stagedOriginResult(
     }
     matchedHead += 1;
   }
-  return { problems, matchedHead, generated };
+  return { problems, matchedHead, wrappers, verbatim, unsourced };
 }
 
 export function stagedOriginProblems(
   dir: string,
-  origins: readonly StagedOrigin[] = stagedOrigins,
+  inventory: StagingInventory = emptyInventory,
 ): readonly string[] {
-  return stagedOriginResult(dir, origins).problems;
+  return stagedOriginResult(dir, inventory).problems;
+}
+
+/** Build an inventory from plain entries, so a test can drive the checks. */
+export function stagingInventoryOf(entries: readonly StagedOrigin[]): StagingInventory {
+  return Object.freeze({ entries: Object.freeze([...entries]) });
+}
+
+/**
+ * Whether an inventory COVERS a complete package staging, in both directions.
+ *
+ * Separate from the per-entry byte checks because it asks a different question.
+ * Those answer "is this copy the bytes it claims to be"; this answers "is this
+ * the set of things a package stages at all" — and the two failed in different
+ * ways. The per-entry check was one-way: it verified everything recorded and
+ * said nothing about a file somebody added, or about a declared wrapper that
+ * had quietly stopped being staged.
+ *
+ * The wrapper set is derived from `WRAPPERS`, so missing and surplus are both
+ * detectable and are named separately.
+ */
+export function stagingCoverageProblems(
+  dir: string,
+  inventory: StagingInventory,
+): readonly string[] {
+  const problems: string[] = [];
+  const origins = inventory.entries;
+
+  const seen = new Set<string>();
+  for (const { staged } of origins) {
+    if (seen.has(staged)) problems.push(`${staged} is claimed by more than one origin`);
+    seen.add(staged);
+  }
+
+  const stagedWrappers = new Set(
+    origins.map((o) => o.origin).filter((o) => o.startsWith("_sql-to-paste/")),
+  );
+  for (const expected of GENERATED_ORIGINS.keys()) {
+    if (!stagedWrappers.has(expected)) problems.push(`${expected} is declared and was not staged`);
+  }
+  for (const actual of stagedWrappers) {
+    if (!GENERATED_ORIGINS.has(actual)) {
+      problems.push(
+        `${actual} is not one of the ${String(GENERATED_ORIGINS.size)} declared generated files — ` +
+          "a file is not generated evidence merely because of the directory it sits in",
+      );
+    }
+  }
+
+  /*
+   * AND EVERY STAGED FILE HAS AN ORIGIN. The evidence documents and the
+   * manifest are written by this build rather than copied, so they are named
+   * here as the only files allowed to have no origin; anything else present in
+   * the staging tree and absent from the inventory arrived from somewhere this
+   * build cannot account for.
+   */
+  const rendered = new Set([
+    "hashes.txt",
+    "gate-results.json",
+    ...readdirSync(join(REPO_ROOT, "docs/release"))
+      .filter((f) => f.endsWith(".txt"))
+      .map((f) => f),
+  ]);
+  for (const path of walk(dir)) {
+    const name = relative(dir, path).split(sep).join("/");
+    if (rendered.has(name)) continue;
+    /*
+     * `patches/` is written by `git format-patch` during this build rather than
+     * copied from anywhere, so those files have no origin by construction. They
+     * are not unchecked: the transport-safe declaration governs which may carry
+     * control bytes, and the chain is regenerated and replayed by the suite.
+     */
+    if (name.startsWith("patches/")) continue;
+    if (!seen.has(name)) {
+      problems.push(`${name} is staged and no inventory entry names it`);
+    }
+  }
+  return problems;
 }
 
 /* -------------------------------------------------------------------------
    2. Staging: every input from a tracked source.
 ------------------------------------------------------------------------- */
 
-function stage(dir: string, evidence: CapturedEvidence | null): void {
+function stage(dir: string, evidence: CapturedEvidence | null): StagingInventory {
   rmSync(dir, { recursive: true, force: true });
-  mkdirSync(join(dir, "patches"), { recursive: true });
-  mkdirSync(join(dir, "supabase-migrations"), { recursive: true });
-  mkdirSync(join(dir, "generators"), { recursive: true });
+  /*
+   * THE STAGING SUBDIRECTORIES, each checked to its root first. `dir` is inside
+   * the operation's own staging tree, which `safeMkdir` has already proved, but
+   * these are created afterwards and a link planted at one of them in between
+   * would redirect every copy that follows.
+   */
+  for (const sub of ["patches", "supabase-migrations", "generators"]) {
+    safeMkdirAt(join(dir, sub));
+  }
 
   execFileSync(
     "git",
@@ -615,7 +1017,8 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
 
   encodeDeclaredPatches(join(dir, "patches"));
 
-  stagedOrigins.length = 0;
+  /* LOCAL to this staging run, and frozen when it ends. */
+  const recorded: StagedOrigin[] = [];
   const copyAll = (from: string, to: string, filter: (f: string) => boolean): void => {
     for (const f of readdirSync(join(REPO_ROOT, from)).sort()) {
       if (!filter(f)) continue;
@@ -624,7 +1027,7 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
        * WHERE IT CAME FROM, so the copy can be checked against the COMMIT
        * rather than against the working tree it was read from.
        */
-      stagedOrigins.push({
+      recorded.push({
         origin: `${from}/${f}`,
         staged: to === "." ? f : `${to}/${f}`,
       });
@@ -661,6 +1064,8 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
    */
   if (evidence === null) throw new Refusal("no captured evidence to stage");
   writeFileSync(join(dir, "gate-results.json"), evidence.json, "utf8");
+
+  return Object.freeze({ entries: Object.freeze([...recorded]) });
 }
 
 /**
@@ -1007,6 +1412,140 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
  * a path listed twice — each is its own failure, and each was invisible to a
  * check that compared one outer checksum against itself.
  */
+/**
+ * Everything a reviewer would run against an archive, run against THIS one.
+ *
+ * Extracted so it can be applied twice: once to the archive this build wrote,
+ * and again to the file at the canonical path after publication. Those are two
+ * different objects until something proves otherwise, and only the second is
+ * the one anybody receives.
+ */
+export interface ArchiveIntegrity {
+  readonly entries: number;
+  readonly manifestChecked: number;
+  readonly scannedFiles: number;
+}
+
+/**
+ * Every staged path and the digest of its bytes, taken once validation passes.
+ *
+ * ## Why the archive is compared with a map rather than with the directory
+ *
+ * The ZIP is written from the staging directory, and the directory is still on
+ * disk afterwards. Comparing the inflated archive with the directory therefore
+ * compares it with whatever the directory holds NOW — which is the same
+ * time-of-check/time-of-use gap the staged-origin check exists to close, moved
+ * one step later.
+ *
+ * So the moment validation succeeds, the exact bytes are reduced to a frozen
+ * map, and everything afterwards is held to that.
+ */
+export type ByteMap = ReadonlyMap<string, string>;
+
+export function byteMapOf(dir: string): ByteMap {
+  const map = new Map<string, string>();
+  for (const path of walk(dir)) {
+    map.set(relative(dir, path).split(sep).join("/"), sha256File(path));
+  }
+  return map;
+}
+
+/** Every way an inflated tree differs from the snapshot that was validated. */
+export function byteMapProblems(expected: ByteMap, actual: ByteMap): readonly string[] {
+  const problems: string[] = [];
+  for (const [name, sha] of expected) {
+    const got = actual.get(name);
+    if (got === undefined) problems.push(`${name} was staged and is not in the archive`);
+    else if (got !== sha) problems.push(`${name} does not hold the bytes that were validated`);
+  }
+  for (const name of actual.keys()) {
+    /* The manifest is written after the snapshot and is verified separately. */
+    if (name === "hashes.txt") continue;
+    if (!expected.has(name)) problems.push(`${name} is in the archive and was never staged`);
+  }
+  return problems;
+}
+
+export function verifyArchiveIntegrity(
+  archive: string,
+  work: string,
+  expected?: ByteMap,
+): ArchiveIntegrity {
+  execFileSync("unzip", ["-t", archive], { cwd: work, stdio: "ignore" });
+
+  const inflated = mkdtempSync(join(tmpdir(), "observer-verify-"));
+  try {
+    execFileSync("unzip", ["-q", archive, "-d", inflated], { stdio: "ignore" });
+    const problems = verifyEmbeddedManifest(inflated);
+    if (problems.length > 0) {
+      throw new Refusal(
+        `the archive's own manifest does not verify:\n${problems.map((x) => `  ${x}`).join("\n")}`,
+      );
+    }
+    const scan = scanDirectory(inflated);
+    if (
+      scan.foundCharacters !== 0 ||
+      scan.readFailures !== 0 ||
+      scan.scannedFiles !== scan.requestedFiles
+    ) {
+      throw new Refusal(
+        `the inflated archive scan is not complete and clean: ${describeScan(scan)}`,
+      );
+    }
+
+    /*
+     * AND THE INFLATED TREE IS THE VALIDATED SNAPSHOT, byte for byte, in both
+     * directions. A file that was staged and is absent, a file whose bytes
+     * changed, and a file that appeared from nowhere are three different
+     * failures and all three are named.
+     */
+    if (expected !== undefined) {
+      const drift = byteMapProblems(expected, byteMapOf(inflated));
+      if (drift.length > 0) {
+        throw new Refusal(
+          "the archive does not hold the bytes that were validated:\n" +
+            drift
+              .slice(0, 12)
+              .map((x) => `  ${x}`)
+              .join("\n"),
+        );
+      }
+    }
+    /*
+     * AND THE STANDARD CHECKER, ON THE MANIFEST ITSELF.
+     *
+     * Exit zero AND empty stderr: a checker that prints warnings while exiting
+     * zero has not verified anything quietly.
+     */
+    const check = spawnSync("sha256sum", ["-c", "hashes.txt"], {
+      cwd: inflated,
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    if (check.status !== 0) {
+      throw new Refusal(
+        `sha256sum -c hashes.txt failed inside the inflated archive (status ${String(check.status)})`,
+      );
+    }
+    if ((check.stderr ?? "") !== "") {
+      throw new Refusal(
+        "sha256sum -c hashes.txt wrote to stderr inside the inflated archive; a manifest " +
+          "check that warns has not verified silently",
+      );
+    }
+    const manifestChecked = (check.stdout ?? "")
+      .split("\n")
+      .filter((l) => l.endsWith(": OK")).length;
+    return {
+      entries: scanArchive(archive).entries,
+      manifestChecked,
+      scannedFiles: scan.scannedFiles,
+    };
+  } finally {
+    rmSync(inflated, { recursive: true, force: true });
+  }
+}
+
 export function verifyEmbeddedManifest(root: string): readonly string[] {
   const problems: string[] = [];
   const manifestPath = join(root, "hashes.txt");
@@ -1059,6 +1598,15 @@ function recipeCheck(dir: string): readonly string[] {
   return problems;
 }
 
+/**
+ * The REPOSITORY wrappers, checked against the repository sources.
+ *
+ * A hygiene check on the working tree, and deliberately NOT evidence about what
+ * was staged. It reads `_sql-to-paste/` live, so a wrapper edited during staging
+ * and restored before this runs would pass here while the archive carried the
+ * edited bytes. `stagedWrapperProblems` is the staged-byte check, and neither
+ * substitutes for the other.
+ */
 function wrapperCheck(): readonly string[] {
   const problems: string[] = [];
   for (const spec of WRAPPERS) {
@@ -1125,6 +1673,8 @@ export function build(
   staged: ControlCharacterScan;
   /** The same measurement taken from the written archive, inflated. */
   inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
+  /** The exact bytes that passed validation, frozen before the ZIP was written. */
+  validated: ByteMap;
 } {
   const { head, short, evidence } = requireCleanHead(options);
   say(`building the ${short} package`);
@@ -1155,9 +1705,17 @@ function buildFrom(
   manifest: number;
   staged: ControlCharacterScan;
   inArchive: { entries: number; foundCharacters: number; affectedFiles: string[] };
+  /** The exact bytes that passed validation, frozen before the ZIP was written. */
+  validated: ByteMap;
 } {
   const dir = join(outDir, short);
-  stage(dir, evidence);
+  /*
+   * THE STAGING ROOT, CHECKED TO THE REPOSITORY ROOT BEFORE ANYTHING IS COPIED.
+   * `outDir` is `_review` or an operation slot beneath it, and either can be
+   * redirected by a link at any ancestor. Every component is lstatted here.
+   */
+  safeMkdirAt(dir);
+  const inventory = stage(dir, evidence);
   const copied = walk(dir).length;
   /* The evidence files are staged too; they are written by the render below. */
   const evidenceCount = readdirSync(join(REPO_ROOT, "docs/release")).filter((f) =>
@@ -1211,7 +1769,16 @@ function buildFrom(
    * BEFORE ANYTHING IS ARCHIVED. A staged copy that does not match the commit
    * means the package would carry bytes the gate never measured.
    */
-  const origins = stagedOriginResult(dir);
+  const coverage = stagingCoverageProblems(dir, inventory);
+  if (coverage.length > 0) {
+    throw new Refusal(
+      `the staging inventory does not cover the staged tree:\n${coverage
+        .slice(0, 12)
+        .map((x) => `  ${x}`)
+        .join("\n")}`,
+    );
+  }
+  const origins = stagedOriginResult(dir, inventory);
   if (origins.problems.length > 0) {
     throw new Refusal(
       `the staged copies do not match HEAD:\n${origins.problems.map((x) => `  ${x}`).join("\n")}`,
@@ -1219,8 +1786,15 @@ function buildFrom(
   }
   say(
     `  staged origins           ${String(origins.matchedHead)} match HEAD, ` +
-      `${String(origins.generated)} generated (wrappers vs sources)`,
+      `${String(origins.wrappers)} wrapper(s), ${String(origins.verbatim)} verbatim copy(ies), ` +
+      `${String(origins.unsourced)} declared unsourced`,
   );
+
+  /*
+   * THE VALIDATED SNAPSHOT. Everything from here on is held to these exact
+   * bytes rather than to the directory they came from.
+   */
+  const validated = byteMapOf(dir);
 
   const finished = scanDirectory(dir);
   if (finished.foundCharacters > 0) {
@@ -1231,7 +1805,12 @@ function buildFrom(
   }
 
   const archive = join(archiveDir, `IRIS-Observer-${short}-review.zip`);
-  mkdirSync(archiveDir, { recursive: true });
+  /*
+   * CHECKED BEFORE IT IS CREATED. `mkdirSync(..., { recursive: true })` walks
+   * whatever ancestors exist, links included, so a check afterwards is too late
+   * — the traversal is the thing that had to be prevented.
+   */
+  safeMkdirAt(archiveDir);
   const when = new Date(git("show", "-s", "--format=%cI", "HEAD"));
   const entries = writeZip(dir, archive, when).length;
 
@@ -1254,7 +1833,15 @@ function buildFrom(
     );
   }
 
-  return { archive, sha: sha256File(archive), entries, manifest, staged: finished, inArchive };
+  return {
+    archive,
+    sha: sha256File(archive),
+    entries,
+    manifest,
+    staged: finished,
+    inArchive,
+    validated,
+  };
 }
 
 function main(): void {
@@ -1312,8 +1899,6 @@ function main(): void {
   const staging = join(outDir, `.staging-${op.operationId}`);
   const short = identity.head.slice(0, 7);
   const distributable = join(outDir, `IRIS-Observer-${short}-review.zip`);
-  /* Reported at the end, so a refusal after publication is distinguishable. */
-  let published = false;
 
   const cleanUp = (): void => {
     /*
@@ -1388,81 +1973,16 @@ function main(): void {
       }
 
       /*
-       * THE ARCHIVE'S OWN INTEGRITY, from the tools a reviewer would use.
+       * THE ARCHIVE'S OWN INTEGRITY, from the tools a reviewer would use, and
+       * from ONE routine — so the checks run here and the checks run on the
+       * published file cannot drift apart.
        */
-      execFileSync("unzip", ["-t", first.archive], { cwd: staging, stdio: "ignore" });
+      const integrity = verifyArchiveIntegrity(first.archive, staging, first.validated);
       say("    unzip -t                passed");
-      /*
-       * THE MANIFEST INSIDE THE ARCHIVE, VERIFIED FROM THE ARCHIVE.
-       *
-       * What ran here before was a one-line checksum of the outer ZIP against
-       * a number this same process had just computed — a tautology. It proved
-       * nothing about `hashes.txt`, which is the manifest a reviewer actually
-       * checks, and nothing about whether every entry it names is present,
-       * unique and correct.
-       *
-       * So the candidate is inflated into a private temporary directory and
-       * its own embedded manifest is verified there: every manifested path
-       * exists exactly once, every non-manifest entry is accounted for, no
-       * entry is surplus or missing, every digest matches, and the standard
-       * checker exits zero with empty stderr.
-       */
-      const inflated = mkdtempSync(join(tmpdir(), "observer-verify-"));
-      try {
-        execFileSync("unzip", ["-q", first.archive, "-d", inflated], { stdio: "ignore" });
-        const problems = verifyEmbeddedManifest(inflated);
-        if (problems.length > 0) {
-          throw new Refusal(
-            `the archive's own manifest does not verify:\n${problems.map((x) => `  ${x}`).join("\n")}`,
-          );
-        }
-        const inflatedScan = scanDirectory(inflated);
-        if (
-          inflatedScan.foundCharacters !== 0 ||
-          inflatedScan.readFailures !== 0 ||
-          inflatedScan.scannedFiles !== inflatedScan.requestedFiles
-        ) {
-          throw new Refusal(
-            `the inflated archive scan is not complete and clean: ${describeScan(inflatedScan)}`,
-          );
-        }
-        /*
-         * AND THE STANDARD CHECKER, ON THE MANIFEST ITSELF.
-         *
-         * The line printed here said "embedded manifest verified" while the
-         * only `sha256sum -c` in this file ran against a one-line SHA256SUMS
-         * naming the OUTER zip — a checksum this process had just computed,
-         * checked against itself. The custom bidirectional verifier above is
-         * real and stays; what was missing is the command a reviewer would
-         * actually type, run where they would type it.
-         *
-         * Exit zero AND empty stderr: a checker that prints warnings while
-         * exiting zero has not verified anything quietly.
-         */
-        const check = spawnSync("sha256sum", ["-c", "hashes.txt"], {
-          cwd: inflated,
-          encoding: "utf8",
-          maxBuffer: 32 * 1024 * 1024,
-        });
-        if (check.status !== 0) {
-          throw new Refusal(
-            `sha256sum -c hashes.txt failed inside the inflated archive (status ${String(check.status)})`,
-          );
-        }
-        if ((check.stderr ?? "") !== "") {
-          throw new Refusal(
-            "sha256sum -c hashes.txt wrote to stderr inside the inflated archive; a manifest " +
-              "check that warns has not verified silently",
-          );
-        }
-        const checked = (check.stdout ?? "").split("\n").filter((l) => l.endsWith(": OK")).length;
-        say(
-          `    embedded manifest       ${String(inflatedScan.scannedFiles)} files, ` +
-            `sha256sum -c: ${String(checked)} OK, 0 stderr`,
-        );
-      } finally {
-        rmSync(inflated, { recursive: true, force: true });
-      }
+      say(
+        `    embedded manifest       ${String(integrity.scannedFiles)} files, ` +
+          `sha256sum -c: ${String(integrity.manifestChecked)} OK, 0 stderr`,
+      );
 
       /*
        * AND SEPARATELY, THE OUTER ZIP'S OWN CHECKSUM. Reported as its own line
@@ -1479,6 +1999,17 @@ function main(): void {
       say("    outer zip checksum      sha256sum -c SHA256SUMS: passed");
     }
 
+    /*
+     * THE EXACT OBJECT THAT WAS JUST VERIFIED, bound before anything else runs.
+     * Everything published is checked against this, not against a pathname.
+     */
+    const verified = identifyFile(first.archive);
+    if (verified.sha !== first.sha) {
+      throw new Refusal(
+        `the archive changed between being hashed and being identified: ${first.sha} became ${verified.sha}`,
+      );
+    }
+
     /* Last: the tree, ownership, and only then the atomic publication. */
     binding.sample("before publication");
     if (binding.everBroken.length > 0) {
@@ -1491,15 +2022,33 @@ function main(): void {
       );
     }
     /*
-     * THE TERMINAL PHASE, CLAIMED ATOMICALLY.
+     * THE TERMINAL PHASE, HELD THROUGH COMPLETION.
      *
-     * Recovery takes the same claim. Whichever wins the exclusive create
-     * proceeds and the other refuses, so a recovery can no longer tombstone
-     * and release this operation between its final ownership check and its
-     * rename — the interval that let a recovered process publish anyway.
+     * Not merely across the link. The hold spans final validation, the
+     * canonical publication, this operation's own cleanup and
+     * `endOperation()`, and is released last — because releasing it after the
+     * link but before completion let a recovery tombstone the gate record and
+     * release the mutex while the published archive stayed on disk. A canonical
+     * archive beside an ABANDONED record is not an outcome either side may
+     * produce, and it was reachable.
      */
-    const releaseTerminal = claimTerminalPhase(REPO_ROOT, op, "publish");
-    try {
+    withTerminalPhase(REPO_ROOT, op, "publish", () => {
+      /*
+       * REVALIDATE THE EXACT CANDIDATE, under the hold, before anything is
+       * linked. The identity was taken when the archive was verified; if the
+       * object or its bytes have changed since, this is not the thing that was
+       * checked.
+       */
+      const now = identifyFile(first.archive);
+      const drift = identityProblems("the archive about to be published", verified, now);
+      if (drift.length > 0) {
+        throw new Refusal(
+          "the verified archive is not the file about to be published:\n" +
+            drift.map((x) => `  ${x}`).join("\n") +
+            "\nNothing has been published and no previous archive has been touched.",
+        );
+      }
+
       /*
        * NO-CLOBBER, ATOMICALLY. `link` fails if the destination exists, so an
        * archive already at that path is never overwritten and never deleted:
@@ -1515,16 +2064,57 @@ function main(): void {
         );
       }
       linkSync(first.archive, distributable);
+
+      /*
+       * AND THE CANONICAL PATH NAMES THE SAME OBJECT. A hard link shares the
+       * inode, so this is checkable rather than assumed — and the bytes are
+       * hashed again from the canonical path, which is the file a reviewer will
+       * actually open.
+       */
+      const canonical = identifyFile(distributable);
+      const mismatch = identityProblems("the canonical archive", verified, canonical);
+      if (mismatch.length > 0) {
+        /*
+         * The link is removed and the SOURCE is left alone: this operation
+         * created the canonical path in this same hold, so removing it restores
+         * exactly the state it found. No previously delivered archive can be
+         * at this path — the no-clobber check above proved it was absent.
+         */
+        rmSync(distributable, { force: true });
+        throw new Refusal(
+          "the canonical path does not name the verified archive:\n" +
+            mismatch.map((x) => `  ${x}`).join("\n"),
+        );
+      }
+
+      /*
+       * THE REQUIRED INTEGRITY CHECKS, ON THE FINAL CANDIDATE — the same
+       * routine, against the file a reviewer receives rather than against the
+       * one this build happened to write.
+       */
+      const finalIntegrity = verifyArchiveIntegrity(distributable, staging, first.validated);
+      if (finalIntegrity.entries !== first.inArchive.entries) {
+        rmSync(distributable, { force: true });
+        throw new Refusal(
+          `the canonical archive holds ${String(finalIntegrity.entries)} entries and the ` +
+            `verified one held ${String(first.inArchive.entries)}`,
+        );
+      }
+
       rmSync(first.archive, { force: true });
-      published = true;
-    } finally {
-      releaseTerminal();
-    }
+
+      /* Operation-private cleanup, still inside the hold. */
+      cleanUp();
+
+      /*
+       * AND COMPLETION, LAST. Only after this does the terminal phase end, so
+       * no recovery can observe a published archive beside a live operation it
+       * is entitled to tombstone.
+       */
+      endOperation(REPO_ROOT, op);
+    });
     say("");
-    say(
-      `  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}` +
-        `${published ? "" : " (NOT published)"}`,
-    );
+    say(`  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}`);
   } catch (e) {
     cleanUp();
     try {
@@ -1539,9 +2129,6 @@ function main(): void {
     }
     throw e;
   }
-
-  rmSync(staging, { recursive: true, force: true });
-  endOperation(REPO_ROOT, op);
 }
 
 /* A child run prints only its archive hash, so the parent can compare. */
@@ -1579,7 +2166,7 @@ if (process.argv.includes("--child")) {
    */
   const op = adoptOperation(REPO_ROOT, "package", operationId);
   const destination = rebuildSlotDir(operationId, slot as RebuildSlot);
-  mkdirSync(destination, { recursive: true });
+  safeMkdirAt(destination);
   say(build(destination, { operation: op, archiveDir: destination }).sha);
 } else if (process.argv[1]?.endsWith("build-package.ts")) {
   main();

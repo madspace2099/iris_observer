@@ -21,18 +21,30 @@ file names a hash the package cannot account for.
 
 {{SNAPSHOT_PROVENANCE}}
 
-A single read-only query produced it. No write was issued. Nothing below
-exposes a subject, a fingerprint, a key or the contents of any row.
+A single read-only query produced the six values below it. No write was issued.
+Nothing here exposes a subject, a fingerprint, a key or the contents of any row.
+
+WHAT THAT QUERY SELECTED, exactly — an observation time, a bucket count, two
+bucket ages and two audit-row counts:
 
   rate buckets present                                     {{BUCKETS}}
   oldest bucket, by window_start                           {{OLDEST_H}} hours
   newest bucket, by window_start                           {{NEWEST_H}} hours
-
   audit rows                                               {{AUDIT_ROWS}}
   of which audit_version = 1                               {{AUDIT_V1}}
-  pseudonym_version column present                         {{PSEUDONYM_COL}}   (migration 3 unapplied)
+
+WHAT IT DID NOT SELECT. The catalogue values below were carried forward from
+earlier rounds and nothing records which query produced them or when. An earlier
+edition printed them in the same block as the five above, under the heading of
+that one query — which is how five unsourced numbers came to be presented as
+fields of a measurement. They are marked for what they are:
+
+  pseudonym_version column present                         {{PSEUDONYM_COL}}
   pg_cron installed                                        {{PG_CRON}}
-  observer.run_rate_bucket_retention exists                {{RETENTION_FN}}   (migration 4 unapplied)
+  observer.run_rate_bucket_retention exists                {{RETENTION_FN}}
+
+No query is run here to settle them. This milestone makes no external access,
+and an unsourced number is reported as unknown rather than dressed as a reading.
 
 AT THAT OBSERVATION THE OLDEST BUCKET WAS PAST THE THRESHOLD.
 {{THRESHOLD_H}} is the deletion threshold migration 4 will enforce, and nothing

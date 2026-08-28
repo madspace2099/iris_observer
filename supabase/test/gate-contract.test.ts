@@ -196,7 +196,12 @@ describe("the gate record is a precondition for packaging", () => {
 
   it.each([
     ["report success false", { reportSuccess: false }, /test report success=false/],
-    ["report success absent", { reportSuccess: null }, /test report success=null/],
+    /*
+     * `null` is the runner saying it could NOT TELL — no usable report — which
+     * is a different fact from a report that says the run failed. Rendering
+     * both as "unsuccessful" describes an unmeasured run as a measured failure.
+     */
+    ["report state unknown", { reportSuccess: null }, /test report state is UNKNOWN/],
     ["a reported failed test", { reportedFailedTests: 1 }, /names 1 failed test/],
     ["a counted failed test", { countedFailedTests: 3 }, /3 failed test\(s\) counted/],
     ["a reported failed suite", { reportedFailedSuites: 1 }, /names 1 failed suite/],

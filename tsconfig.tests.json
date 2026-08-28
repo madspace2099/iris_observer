@@ -58,6 +58,7 @@
     "supabase/test/gate-evidence.test.ts",
     "supabase/test/staged-module.test.ts",
     "supabase/test/worker-bound.test.ts",
+    "supabase/test/terminal-phase.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }

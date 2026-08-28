@@ -339,9 +339,22 @@ describe("package generation refuses rather than lying", () => {
      */
     const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
     expect(source).not.toMatch(/readFileSync\([^)]*\.zip/);
+    /*
+     * The integrity checks run through ONE routine now, applied twice: to the
+     * archive this build wrote, and to the file at the canonical path after
+     * publication. Its parameter is named `archive`, and the only two call
+     * sites pass `first.archive` and `distributable` — both this run's own
+     * bytes. No delivered archive is an input to either.
+     */
     for (const [call] of source.matchAll(/execFileSync\("unzip",[^)]*\)/g)) {
-      expect(call).toContain("first.archive");
+      expect(call).toMatch(/\barchive\b/);
     }
+    /* Call sites only: the first match is the declaration of the routine. */
+    const integrityCalls = [...source.matchAll(/verifyArchiveIntegrity\(([A-Za-z][\w.]*),/g)].map(
+      (m) => m[1],
+    );
+    expect(integrityCalls).toEqual(["first.archive", "distributable"]);
+
     for (const [call] of source.matchAll(/execFileSync\("sha256sum",[^)]*\)/g)) {
       expect(call).toContain("SHA256SUMS");
     }

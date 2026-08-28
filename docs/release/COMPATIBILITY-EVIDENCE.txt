@@ -130,11 +130,17 @@ Vercel. No value, no scope and no presence claim: presence is item 3 above.
 
 
 ================================================================================
-4. EVERY READY VERCEL DEPLOYMENT, BY SHA
+4. EVERY VERCEL DEPLOYMENT READY AT THE LAST ENUMERATION, BY SHA
 ================================================================================
 
-Twenty deployments, all READY, fourteen distinct SHAs. The newest is still
-3f298a6, built 2026-08-25. {{INVENTORY_UNCHANGED_SENTENCE}}
+A HISTORICAL READING, NOT A PRESENT STATE. At the enumeration this table
+records there were twenty deployments, all READY at that moment, over fourteen
+distinct SHAs, and the newest recorded was 3f298a6, built 2026-08-25. Earlier
+editions wrote "all READY" and "the newest is still", which state as current
+something nothing has looked at since.
+
+{{DEPLOYMENT_INVENTORY_LINE}}
+{{INVENTORY_UNCHANGED_SENTENCE}}
 
   TARGET       SHA       REF                        URL
   -----------  --------  -------------------------  ----------------------------

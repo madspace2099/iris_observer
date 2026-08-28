@@ -636,7 +636,14 @@ export interface ExternalActivity {
   readonly when: string;
   /** Who or what performed it. */
   readonly actor: "an agent" | "Matthew" | "UNKNOWN";
-  readonly system: "Vercel" | "Supabase";
+  /**
+   * The system reached.
+   *
+   * `Git` is here because the previous type could not express it: the union was
+   * `Vercel | Supabase`, so a fetch from the git remote had nowhere to go and
+   * was simply left out of a list the documents called complete.
+   */
+  readonly system: "Vercel" | "Supabase" | "Git";
   /** What was done, named as the operation rather than described. */
   readonly action: string;
   /** Whether it changed anything on the other side. */
@@ -644,7 +651,7 @@ export interface ExternalActivity {
 }
 
 /**
- * EVERY EXTERNAL INTERACTION THIS PROJECT HAS RECORD OF, in order.
+ * THE KNOWN external interactions, in order — a PARTIAL list, and said to be.
  *
  * ## The three claims this replaces
  *
@@ -664,10 +671,62 @@ export interface ExternalActivity {
  * whether anything changed. A per-milestone claim is then a claim about the
  * rows dated within that milestone, and the global claim is the whole list.
  *
+ * ## Why it is no longer called complete
+ *
+ * The four-row edition was rendered under the words "the complete chronology",
+ * and it was not. It omitted the Supabase snapshot query that produced the
+ * reading every retention document quotes, the Vercel enumeration that produced
+ * the twenty-deployment table, and every git fetch that established the remote
+ * heads section 0 prints. Its TYPE could not even represent the third: the
+ * system field admitted Vercel and Supabase and nothing else.
+ *
+ * Rows have been added for the interactions this repository has evidence of,
+ * and the completeness of the list is itself recorded as UNKNOWN — because
+ * nothing here can establish that no other external call was ever made. A
+ * partial list described as partial is evidence; the same list described as
+ * every one is a claim about the world that no file in this repository can
+ * support.
+ *
  * APPEND-ONLY, like the observation log, and for the same reason: a record that
  * only shows the latest state cannot express that something changed.
  */
-export const EXTERNAL_ACTIVITY_LOG: readonly ExternalActivity[] = [
+export const EXTERNAL_ACTIVITY_COMPLETENESS = "UNKNOWN" as const;
+
+export const KNOWN_EXTERNAL_ACTIVITY: readonly ExternalActivity[] = [
+  {
+    /*
+     * THE READING EVERY RETENTION DOCUMENT QUOTES. Its timestamp is recorded
+     * because the query selected `now()`; who ran it is not.
+     */
+    when: "2026-08-27",
+    actor: "UNKNOWN",
+    system: "Supabase",
+    action: "ran the read-only snapshot query that produced the recorded live reading",
+    mutation: "none",
+  },
+  {
+    /*
+     * THE ENUMERATION BEHIND THE TWENTY-DEPLOYMENT TABLE. Recorded as having
+     * happened for the f1dbffd bundle; its clock time was never recorded.
+     */
+    when: "UNKNOWN",
+    actor: "UNKNOWN",
+    system: "Vercel",
+    action: "enumerated the deployment inventory to pagination exhaustion for the f1dbffd bundle",
+    mutation: "none",
+  },
+  {
+    /*
+     * GIT. Section 0 prints `origin/release/observer-demo-rc1` and
+     * `origin/main`, which are remote-tracking refs — they exist because
+     * somebody fetched. Dates are not recorded and are not invented.
+     */
+    when: "UNKNOWN",
+    actor: "UNKNOWN",
+    system: "Git",
+    action: "fetched from the git remote, establishing the remote heads this package prints",
+    mutation: "none",
+  },
   {
     /*
      * THE ROW THAT MAKES "NO AGENT HAS EVER READ VERCEL" FALSE. A read-only
@@ -713,12 +772,29 @@ export const EXTERNAL_ACTIVITY_LOG: readonly ExternalActivity[] = [
  * Stated as its own value rather than as prose, so the claim is scoped: it is
  * about this milestone, and it is not a claim about the list above.
  */
+/**
+ * The old name, kept pointing at the same list.
+ *
+ * Renamed deliberately: `EXTERNAL_ACTIVITY_LOG` read as though it were the log
+ * of external activity, and every document that rendered it inherited that
+ * reading. {@link KNOWN_EXTERNAL_ACTIVITY} says what it is.
+ */
+export const EXTERNAL_ACTIVITY_LOG = KNOWN_EXTERNAL_ACTIVITY;
+
 export const THIS_MILESTONE_EXTERNAL_ACCESS = Object.freeze({
   reads: 0,
   mutations: 0,
+  /*
+   * AN OPERATOR DECLARATION, SCOPED TO THIS MILESTONE.
+   *
+   * Not derived from anything: git history is evidence about files, never about
+   * whether a network call happened. It is stated as a declaration so a reader
+   * knows which kind of claim it is, and it says nothing about any other round.
+   */
   statement:
-    "this milestone made no external read and no external mutation of any kind; " +
-    "the interactions recorded above are earlier and are not withdrawn by it",
+    "OPERATOR DECLARATION, this milestone only: no external read and no external " +
+    "mutation of any kind was performed in it. The interactions listed above are " +
+    "earlier, are not withdrawn by it, and the completeness of that list is UNKNOWN",
 });
 
 /** The verdict for one recorded observation, from the classifier itself. */

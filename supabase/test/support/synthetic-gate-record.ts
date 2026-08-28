@@ -163,6 +163,8 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
        * with the measurement beside it, and "not recorded" is not "none".
        */
       failedSuiteNamesOmitted: 0,
+      /* No failing results, so the names account for none of them. */
+      failedSuiteResultsAccounted: 0,
       failedTests: [],
       failedTestsOmitted: 0,
       skippedTests: approvedSkips(options.platform ?? process.platform),

@@ -18,7 +18,7 @@
  * proves it by building under three zones and comparing.
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, lstatSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { deflateRawSync, inflateRawSync, crc32 } from "node:zlib";
 
@@ -27,8 +27,24 @@ export function walk(dir: string): readonly string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir).sort()) {
     const path = join(dir, entry);
-    if (statSync(path).isDirectory()) out.push(...walk(path));
-    else out.push(path);
+    /*
+     * LSTAT, NEVER STAT. `statSync` follows a symbolic link, so a link to a
+     * directory was recursed into and a link to a file was read through — and
+     * everything reached that way was manifested, hashed and archived as though
+     * it belonged to the staging tree. A walker that follows links is a walker
+     * that can be aimed.
+     *
+     * A link is refused rather than skipped: silently omitting it would make
+     * the manifest disagree with the directory it claims to describe, and the
+     * bidirectional coverage check would then be comparing two different sets.
+     */
+    const st = lstatSync(path);
+    if (st.isSymbolicLink()) {
+      throw new Error(`${path} is a symbolic link; a packaged tree may not contain one`);
+    }
+    if (st.isDirectory()) out.push(...walk(path));
+    else if (st.isFile()) out.push(path);
+    else throw new Error(`${path} is not a regular file or directory`);
   }
   return out;
 }

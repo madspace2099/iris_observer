@@ -423,6 +423,25 @@ export interface RecordedTestGate extends RecordedProcess {
   readonly runtimeErrorSuites?: number | null;
   readonly failedSuiteNames?: readonly string[];
   /**
+   * How many failing suite RESULTS the distinct basenames account for.
+   *
+   * ## Two different things that were being compared as one
+   *
+   * `reportedFailedSuites` counts RESULTS. `failedSuiteNames` carries distinct
+   * BASENAMES, and several results share a name whenever one file fails in more
+   * than one way — six results across three files is the shape `ddefa50`
+   * actually had. So the old rule could only say "names ≤ results", which is
+   * satisfied by naming one file for six failures and says nothing about the
+   * other five.
+   *
+   * This is the missing half: how many results the names ACCOUNT FOR. Retained
+   * names plus omitted names plus unaccounted results must equal the reported
+   * result count exactly, and a record that cannot say where five of its six
+   * failures were is refused rather than accepted for being arithmetically
+   * possible.
+   */
+  readonly failedSuiteResultsAccounted?: number;
+  /**
    * How many further failing suite basenames the bound dropped.
    *
    * REQUIRED, and required even when it is zero: an absent field and a field
@@ -644,6 +663,16 @@ export function isCount(value: unknown): value is number {
 
 /** A test-file label fit to persist: a basename, bounded, no path, no control byte. */
 const SAFE_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+/**
+ * A signal name, and a spawn error code, as the operating system writes them.
+ *
+ * Bounded shapes rather than free text, because both fields reach a document a
+ * reviewer opens. A message, a path or a URL in either is a failure's own text
+ * arriving somewhere it may not go.
+ */
+const SAFE_SIGNAL = /^SIG[A-Z0-9]{1,12}$/;
+const SAFE_ERROR_CODE = /^[A-Z][A-Z0-9_]{1,31}$/;
 
 /**
  * How many identities a record may retain in one list.
@@ -960,14 +989,29 @@ export function cleanProcessProblems(
    * it" and "the runner recorded it as fine" are different facts, and a red
    * record still has to say which of the two it means.
    */
+  /*
+   * PRESENCE, THEN TYPE, THEN VALUE — and the type check was missing.
+   *
+   * A field could hold a string, an object or an array and reach the value
+   * comparison, where `p.ok !== true` and `p.status !== 0` are satisfied by
+   * anything at all. A red record carrying `status: "1"` or `ok: "yes"` was
+   * structurally accepted and then compared as though it were a number.
+   */
   if (p.ok === undefined) {
     if (asks(check, "structure")) problems.push(`${label}: ok not recorded`);
-  } else if (p.ok !== true && asks(check, "acceptance")) {
+  } else if (typeof p.ok !== "boolean") {
+    if (asks(check, "structure")) problems.push(`${label}: ok is not a boolean`);
+  } else if (!p.ok && asks(check, "acceptance")) {
     problems.push(`${label}: ok is false`);
   }
 
   if (p.status === undefined) {
     if (asks(check, "structure")) problems.push(`${label}: status not recorded`);
+  } else if (p.status !== null && !Number.isInteger(p.status)) {
+    if (asks(check, "structure")) problems.push(`${label}: status is not an integer or null`);
+  } else if (p.status === null) {
+    /* A process that produced no exit status at all — signalled, or never ran. */
+    if (asks(check, "acceptance")) problems.push(`${label}: exit status UNKNOWN`);
   } else if (p.status !== 0 && asks(check, "acceptance")) {
     problems.push(`${label}: exit status ${String(p.status)}`);
   }
@@ -975,12 +1019,24 @@ export function cleanProcessProblems(
   /* `null` is a recorded absence of a signal. `undefined` is no record at all. */
   if (p.signal === undefined) {
     if (asks(check, "structure")) problems.push(`${label}: signal not recorded`);
+  } else if (p.signal !== null && typeof p.signal !== "string") {
+    if (asks(check, "structure")) problems.push(`${label}: signal is not a string or null`);
+  } else if (typeof p.signal === "string" && !SAFE_SIGNAL.test(p.signal)) {
+    if (asks(check, "structure")) {
+      problems.push(`${label}: signal is not a bounded signal name`);
+    }
   } else if (p.signal !== null && asks(check, "acceptance")) {
     problems.push(`${label}: signal ${p.signal}`);
   }
 
   if (p.errorCode === undefined) {
     if (asks(check, "structure")) problems.push(`${label}: errorCode not recorded`);
+  } else if (p.errorCode !== null && typeof p.errorCode !== "string") {
+    if (asks(check, "structure")) problems.push(`${label}: errorCode is not a string or null`);
+  } else if (typeof p.errorCode === "string" && !SAFE_ERROR_CODE.test(p.errorCode)) {
+    if (asks(check, "structure")) {
+      problems.push(`${label}: errorCode is not a bounded machine code`);
+    }
   } else if (p.errorCode !== null && asks(check, "acceptance")) {
     problems.push(`${label}: spawn error ${p.errorCode}`);
   }
@@ -1451,9 +1507,26 @@ function recordProblems(
     structural.push("no sanitized test-gate record");
   } else {
     /* ---- what the report said, which is a result rather than a shape ---- */
+    /*
+     * THREE STATES, BECAUSE TWO CANNOT SAY WHAT HAPPENED.
+     *
+     * `reportSuccess: false` is the runner saying the run failed.
+     * `reportSuccess: null` is the runner saying it could not tell — no report
+     * was written, or it could not be parsed. Rendering both as "unsuccessful"
+     * describes a run nobody measured as a run that was measured and failed,
+     * and those need different investigations. An absent field is a third thing
+     * again: the record does not say, which is a structural fault.
+     */
     if (t.reportSuccess === undefined) structural.push("reportSuccess not recorded");
-    else if (t.reportSuccess !== true) {
-      acceptance.push(`test report success=${String(t.reportSuccess)}`);
+    else if (t.reportSuccess === null) {
+      acceptance.push(
+        "the test report state is UNKNOWN — no usable report was produced, which is not " +
+          "the same as a report that says the run failed",
+      );
+    } else if (typeof t.reportSuccess !== "boolean") {
+      structural.push(`reportSuccess is ${JSON.stringify(t.reportSuccess)}, not a boolean or null`);
+    } else if (!t.reportSuccess) {
+      acceptance.push("test report success=false — the runner measured the run and it failed");
     }
     for (const [field, value, describe] of [
       [
@@ -1500,6 +1573,7 @@ function recordProblems(
       const suites = t.reportedFailedSuites ?? 0;
       const named = t.failedSuiteNames.length;
       const dropped = t.failedSuiteNamesOmitted;
+      const accounted = t.failedSuiteResultsAccounted;
       if (!isCount(dropped)) {
         structural.push("failedSuiteNamesOmitted is not a count");
       } else if (named + dropped > suites) {
@@ -1512,6 +1586,53 @@ function recordProblems(
           `${String(suites)} failed suite result(s) and no suite named — the record cannot ` +
             "say which file to look in",
         );
+      }
+
+      /*
+       * AND THE RESULTS THOSE NAMES ACCOUNT FOR, exactly.
+       *
+       * Names are distinct basenames and results are results, so "names ≤
+       * results" was the only rule that could be written — and it is satisfied
+       * by naming one file for six failures. The record must say how many
+       * results the names it kept account for, and that number is held to the
+       * measurement.
+       */
+      if (!isCount(accounted)) {
+        structural.push(
+          "failedSuiteResultsAccounted is not a count — the record cannot say how many " +
+            "failing results its basenames stand for",
+        );
+      } else if (accounted > suites) {
+        structural.push(
+          `the suite names account for ${String(accounted)} failing result(s) and only ` +
+            `${String(suites)} were reported`,
+        );
+      } else if (accounted < suites) {
+        structural.push(
+          `${String(suites - accounted)} of ${String(suites)} failing suite result(s) are ` +
+            "unaccounted for by any recorded basename",
+        );
+      } else if (accounted > 0 && named === 0 && dropped === 0) {
+        structural.push("results are accounted for by no names at all");
+      }
+
+      /*
+       * EVERY NAME IS A BOUNDED BASENAME, and distinct. A path, a message or a
+       * repeated name is not an identity — and a failure's text is exactly what
+       * must never reach a file somebody zips and hands over.
+       */
+      const seenNames = new Set<string>();
+      for (const name of t.failedSuiteNames) {
+        if (typeof name !== "string" || !SAFE_LABEL.test(name)) {
+          structural.push(
+            `a failed-suite identity is not a bounded basename: ${JSON.stringify(
+              typeof name === "string" ? name.slice(0, 40) : name,
+            )}`,
+          );
+          continue;
+        }
+        if (seenNames.has(name)) structural.push(`duplicate failed-suite basename: ${name}`);
+        seenNames.add(name);
       }
     }
     if (t.failedTests === undefined) {
@@ -1802,6 +1923,9 @@ export function sanitizedRecord(record: GateRecord): unknown {
       reportedFailedSuites: isCount(t?.reportedFailedSuites) ? t.reportedFailedSuites : null,
       runtimeErrorSuites: isCount(t?.runtimeErrorSuites) ? t.runtimeErrorSuites : null,
       failedSuiteNames: stageStrings(t?.failedSuiteNames, 64),
+      failedSuiteResultsAccounted: isCount(t?.failedSuiteResultsAccounted)
+        ? t.failedSuiteResultsAccounted
+        : null,
       failedSuiteNamesOmitted: isCount(t?.failedSuiteNamesOmitted)
         ? t.failedSuiteNamesOmitted
         : null,

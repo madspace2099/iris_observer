@@ -56,6 +56,7 @@ import {
 import {
   beginOperation,
   endOperation,
+  withTerminalPhase,
   assertOwner,
   discardOwnFiles,
   evidenceFileProblems,
@@ -512,6 +513,13 @@ function main(): void {
        * an absent field is the absence of a measurement rather than a zero.
        */
       failedSuiteNamesOmitted: gate.failedSuiteNamesOmitted,
+      /*
+       * HOW MANY RESULTS THOSE NAMES STAND FOR. Distinct basenames and failing
+       * results are different counts — six results across three files is a real
+       * shape — so the record says how many results its names account for, and
+       * the contract holds that to the reported total.
+       */
+      failedSuiteResultsAccounted: gate.failedSuiteResultsAccounted,
       /* Identity only: basename plus bounded, sanitized title. */
       failedTests: gate.failedTests,
       failedTestsOmitted: gate.failedTestsOmitted,
@@ -668,35 +676,50 @@ function main(): void {
    * renaming it would publish something nobody measured.
    */
   try {
-    assertOwner(REPO_ROOT, op);
-    if (op.kind !== "gate")
-      throw new OperationRefused("only a gate operation may publish a record");
-    writeFileSync(join(REPO_ROOT, op.pendingPath), bytes, "utf8");
+    /*
+     * THE SAME ARBITRATION THE PACKAGER USES, AND IT WAS MISSING HERE.
+     *
+     * Package publication and recovery contend for one terminal claim; the gate
+     * record publisher took no claim at all. So a recovery could tombstone the
+     * canonical record in the interval between this operation's last ownership
+     * check and its rename, and the rename would then overwrite the tombstone —
+     * a recovered operation publishing a result anyway, which is the exact
+     * failure the claim exists to prevent, in the other publisher.
+     *
+     * The hold spans validation, the canonical rename and `endOperation()`, and
+     * is released last. Recovery cannot enter until this operation is finished.
+     */
+    withTerminalPhase(REPO_ROOT, op, "publish", () => {
+      assertOwner(REPO_ROOT, op);
+      if (op.kind !== "gate")
+        throw new OperationRefused("only a gate operation may publish a record");
+      writeFileSync(join(REPO_ROOT, op.pendingPath), bytes, "utf8");
 
-    const readBack = JSON.parse(
-      readFileSync(join(REPO_ROOT, op.pendingPath), "utf8"),
-    ) as GateRecord;
-    const mismatches: string[] = [];
-    if (readBack.operationId !== op.operationId) mismatches.push("operation id");
-    if (readBack.head !== op.head) mismatches.push("head");
-    if (readBack.treeId !== op.treeId) mismatches.push("tree identity");
-    if (mismatches.length > 0) {
-      throw new OperationRefused(
-        `the pending record does not describe this operation (${mismatches.join(", ")})`,
-      );
-    }
-    if (failed === 0) {
-      const late = gateRecordProblems(readBack, op.head);
-      if (late.length > 0) {
+      const readBack = JSON.parse(
+        readFileSync(join(REPO_ROOT, op.pendingPath), "utf8"),
+      ) as GateRecord;
+      const mismatches: string[] = [];
+      if (readBack.operationId !== op.operationId) mismatches.push("operation id");
+      if (readBack.head !== op.head) mismatches.push("head");
+      if (readBack.treeId !== op.treeId) mismatches.push("tree identity");
+      if (mismatches.length > 0) {
         throw new OperationRefused(
-          `the pending record does not satisfy the contract: ${late.join("; ")}`,
+          `the pending record does not describe this operation (${mismatches.join(", ")})`,
         );
       }
-    }
+      if (failed === 0) {
+        const late = gateRecordProblems(readBack, op.head);
+        if (late.length > 0) {
+          throw new OperationRefused(
+            `the pending record does not satisfy the contract: ${late.join("; ")}`,
+          );
+        }
+      }
 
-    assertOwner(REPO_ROOT, op);
-    renameSync(join(REPO_ROOT, op.pendingPath), RECORD_PATH);
-    endOperation(REPO_ROOT, op);
+      assertOwner(REPO_ROOT, op);
+      renameSync(join(REPO_ROOT, op.pendingPath), RECORD_PATH);
+      endOperation(REPO_ROOT, op);
+    });
   } catch (e) {
     if (!(e instanceof OperationRefused)) throw e;
     discardOwnFiles(REPO_ROOT, op);

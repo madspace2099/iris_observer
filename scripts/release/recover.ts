@@ -3,6 +3,10 @@
  *
  *   pnpm release:recover                  say what holds the mutex
  *   pnpm release:recover --operation=<id> recover that operation, and only it
+ *   pnpm release:recover --operation=<id> --terminal-claim
+ *                                          quarantine an ABANDONED terminal
+ *                                          claim, having established that the
+ *                                          process holding it is gone
  *
  * ## Why deleting the lock was never recovery
  *
@@ -30,6 +34,8 @@ import { GATE_RECORD_PATH } from "./gate-contract";
 import {
   readOperationLock,
   recoverOperation,
+  recoverTerminalClaim,
+  readTerminalClaim,
   OPERATION_LOCK_PATH,
   OperationRefused,
 } from "./release-operation";
@@ -70,11 +76,44 @@ function main(): void {
     console.log("state, and releases only this lock. Packaging stays refused until a new gate");
     console.log("completes, because the previous green record may be one this operation had");
     console.log("already begun to replace.");
+
+    /*
+     * AND THE TERMINAL CLAIM, SEPARATELY, because it is a separate decision.
+     *
+     * A publisher inside its terminal phase and a process that died holding the
+     * claim leave the same file. Recovery will not take the phase from either,
+     * so quarantining the claim is an act the operator performs deliberately —
+     * after establishing the process is gone — rather than something recovery
+     * decides on their behalf with a timeout.
+     */
+    const claim = readTerminalClaim(REPO_ROOT);
+    if (claim !== null) {
+      console.log("");
+      console.log(`A TERMINAL CLAIM IS ALSO PRESENT: ${claim.action} for ${claim.operationId},`);
+      console.log(`claimed ${claim.claimedAt}. Recovery will not take it.`);
+      console.log("");
+      console.log("If that process is gone too, quarantine the claim first — it is moved aside,");
+      console.log("never deleted, and nothing about a published archive is inferred from it:");
+      console.log("");
+      console.log(`  pnpm release:recover --operation=${held.operationId} --terminal-claim`);
+    }
     return;
   }
 
   const operationId = arg.slice("--operation=".length);
   try {
+    /*
+     * THE CLAIM FIRST, AND ONLY WHEN ASKED. Quarantining it is a decision about
+     * whether a process is alive, which nothing here can observe.
+     */
+    if (process.argv.includes("--terminal-claim")) {
+      const moved = recoverTerminalClaim(REPO_ROOT, operationId);
+      console.log(`terminal claim for ${operationId}:`);
+      for (const step of moved) console.log(`  ${step}`);
+      console.log("");
+      console.log("  Now run the same command without --terminal-claim to recover the operation.");
+      return;
+    }
     const done = recoverOperation(REPO_ROOT, operationId, GATE_RECORD_PATH);
     console.log(`recovered ${held.kind} operation ${operationId}:`);
     for (const step of done) console.log(`  ${step}`);

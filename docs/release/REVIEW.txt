@@ -67,15 +67,31 @@ RETENTION-EVIDENCE.txt section 1:
     20260826140000  observer_bucket_retention                  ("migration 4")
     20260826090000  observer_audit_facade_cleanup   (the CONTRACT migration)
 
-  The evidence, every field from that one query, at {{OBSERVED_AT}}:
-    public.admit_ai_request has {{ADMIT_ARGS}} arguments, not 15  -> migration 3 unapplied
-    observer.ai_requests.pseudonym_version columns: {{PSEUDONYM_COL}}  -> migration 3 unapplied
-    observer.run_rate_bucket_retention: {{RETENTION_FN}}           -> migration 4 unapplied
-    public.consume_ai_quota + record_ai_request: {{LEGACY_FACADES}}  -> contract unapplied
-    pg_cron installed: {{PG_CRON}}                             -> prerequisite not run
+  THE CATALOGUE VALUES, AND WHERE THEY ARE NOT FROM. An earlier edition
+  introduced these as "every field from that one query, at {{OBSERVED_AT}}".
+  The snapshot query selects six columns — an observation time, a bucket count,
+  two bucket ages and two audit-row counts — and none of the five below is one
+  of them. They were carried forward from earlier rounds, and nothing records
+  which query produced them or when, so each renders as unknown beside the value
+  that was carried:
 
-DEPLOYMENT INVENTORY: twenty READY deployments over fourteen distinct SHAs.
-Newest is 3f298a6, built 2026-08-25. {{INVENTORY_UNCHANGED_SENTENCE}}
+    public.admit_ai_request argument count: {{ADMIT_ARGS}}
+    observer.ai_requests.pseudonym_version columns: {{PSEUDONYM_COL}}
+    observer.run_rate_bucket_retention: {{RETENTION_FN}}
+    public.consume_ai_quota + record_ai_request: {{LEGACY_FACADES}}
+    pg_cron installed: {{PG_CRON}}
+
+  The carried values are consistent with migrations 3 and 4 and the contract
+  migration all being unapplied, which is what the migration catalogue above
+  states directly. That catalogue is the claim this package makes; these five
+  numbers are not evidence for it and are no longer written as though they were.
+
+DEPLOYMENT INVENTORY, AS LAST ENUMERATED — a historical reading, not a present
+state. At that enumeration there were twenty READY deployments over fourteen
+distinct SHAs, and the newest recorded then was 3f298a6, built 2026-08-25.
+Whether that is still true is UNKNOWN; nothing has looked since.
+{{DEPLOYMENT_INVENTORY_LINE}}
+{{INVENTORY_UNCHANGED_SENTENCE}}
 
 {{NOT_DEPLOYED_BLOCK}}
 
@@ -471,16 +487,32 @@ the rule forbids.
 PAUSE AND STOP TAKE DIFFERENT REMEDIES, and running them together is the same
 mistake this section opened by describing. Stated separately:
 
-  STOP    an explicit operator decision, a CONFIGURATION CORRECTION, and a
-          RESTART OF PREFLIGHT STEP 1. Something is wrong with the value.
+  PAUSE   THE VALUE WAS NOT OBSERVED. The tooling could not isolate it and
+          nobody has read it by hand. Nothing is known to be wrong, so there is
+          NO configuration change and NO restart. The remedy is the manual
+          confirmation path: Matthew reads the exact non-secret origin — the
+          COMPLETE canonical origin, character for character, not merely the
+          project ref extracted from it — and that observation is compared with
+          the approved ref. PAUSE's own remedy says explicitly not to rotate or
+          replace anything.
 
-  PAUSE   NO configuration change and NO restart. Nothing is known to be wrong;
-          the TOOLING could not isolate the value. The remedy is the manual
-          confirmation path — Matthew reads the exact non-secret origin or
-          project ref, and that observation is compared with the approved ref.
-          PAUSE's own remedy says explicitly not to rotate or replace anything,
-          so telling the operator to correct the configuration and restart
-          contradicts it.
+  STOP    THE VALUE WAS OBSERVED AND IS WRONG, OR IS OBSERVED ABSENT. A server
+          row read and found missing is a finding about the environment, not an
+          incomplete confirmation; so is a malformed origin, a ref that names a
+          different project, and a browser and server pair that disagree. Each
+          takes an explicit operator decision, a CONFIGURATION CORRECTION, and a
+          RESTART OF PREFLIGHT STEP 1.
+
+  The distinction is not cosmetic. "Nobody looked" and "somebody looked and
+  there is nothing there" reach different states and different remedies, and
+  collapsing them is what sent an operator to change configuration on no
+  evidence.
+
+  THE COMPLETE ORIGIN IS WHAT IS RECORDED, not the ref. A bare project ref is
+  what survives extraction, not what was configured, so it cannot by itself show
+  the configured value had the required origin shape. Any instruction to record
+  only the ref is withdrawn: the origin is retained and the ref is reported from
+  it once the shape has been proved.
 
 An earlier edition wrote "every non-PASS state requires ... a configuration
 correction, and a RESTART OF PREFLIGHT STEP 1", which swept PAUSE into the STOP
@@ -1680,11 +1712,17 @@ same classifier the tests exercise:
   BOTH ENVIRONMENTS NOW MAP TO THE APPROVED PROJECT. That is a change since
   the previous package, and the reading that produced it is dated 2026-08-28.
 
-  WHAT THAT UNBLOCKS, AND WHAT IT DOES NOT. Step 1 returns PASS for both
-  relevant environments, so STEP 2 — explicit operator approval and the
-  pepper-state decision — IS NOW REACHABLE. It is a decision point, and the
-  pepper's state is one of the things decided there, so the pepper does not
-  block step 2.
+  WHAT THAT UNBLOCKS, AND WHAT IT DOES NOT. Only the PROJECT-MAPPING SUB-GATE
+  passed. Step 1 is not one check: it is a read-only preflight in two parts —
+  Git, the Supabase catalogue and a deployment inventory paginated to
+  exhaustion, and then pepper metadata and project mapping. The catalogue and
+  the inventory have NOT been read at this commit; both are UNKNOWN, and section
+  3a says so.
+
+  So: PROJECT MAPPING NO LONGER BLOCKS STEP 1. Step 2 becomes reachable only
+  once every remaining step-1 read and check has passed, and none of them has
+  been performed here. An earlier edition wrote "STEP 2 IS NOW REACHABLE", which
+  promoted one passing sub-gate into a completed step.
 
   THE PEPPER BLOCKS STEP 3. Step 3 reuses, creates or explicitly rotates the
   pepper per the safe branch, and {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN means
@@ -1703,10 +1741,17 @@ same classifier the tests exercise:
 
 {{EXTERNAL_ACTIVITY_BLOCK}}
 
-  Read that list before any per-milestone claim. AN AGENT HAS READ VERCEL — the
-  read-only project lookup on the first row above, in an earlier milestone.
-  Previous editions of this document said "NO AGENT HAS EVER READ VERCEL" and
-  that was false. They
+  Read that list before any per-milestone claim, and read what it is: a list of
+  the interactions this repository has evidence of, with its own completeness
+  recorded as UNKNOWN. A previous edition rendered a four-row list under the
+  words "the COMPLETE chronology" — it omitted the Supabase snapshot query that
+  produced the reading every retention document quotes, the Vercel enumeration
+  behind the twenty-deployment table, and every git fetch that established the
+  remote heads section 0 prints. Its type could not represent the third at all.
+
+  AN AGENT HAS READ VERCEL — the read-only project lookup listed above, in an
+  earlier milestone. Previous editions of this document said "NO AGENT HAS EVER
+  READ VERCEL" and that was false. They
   also said "zero external access" in a way that read as a claim about the
   project rather than about one milestone. Scoped correctly:
   {{THIS_MILESTONE_EXTERNAL}}. The exact time of day was not recorded for the
@@ -1840,11 +1885,12 @@ package whose evidence claims freshness the file history does not support.
      `SUPABASE_URL` is the complete canonical origin for the approved project,
      and each environment's complete variable list contains no
      `NEXT_PUBLIC_SUPABASE_URL`. MAPPED / PASS / via manual, for Preview and
-     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 2,
-     which is reachable. The pepper blocks STEP 3, and the Production runtime
-     credentials block PROMOTION — which section 6 excludes from this sequence
-     entirely. Neither blocks step 2, and saying they "still do" ran three
-     different constraints together.
+     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 1,
+     but step 1 is INCOMPLETE: its catalogue and inventory reads have not been
+     performed, so step 2 is not yet reachable. The pepper blocks STEP 3, and
+     the Production runtime credentials block PROMOTION — which section 6
+     excludes from this sequence entirely. Four different constraints, stated
+     separately.
   c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:
@@ -1889,8 +1935,10 @@ Not executed. Steps 1-2 are read-only. Guarded by
       project ref inside the NON-SECRET, SERVER-SIDE `SUPABASE_URL` — never
       from `NEXT_PUBLIC_SUPABASE_URL`, which is a secondary consistency check
       only and STOPS the rollout if it names a different project.
-   2. Explicit operator approval, and the pepper-state decision. REACHABLE at
-      {{HEAD_SHORT}}: step 1 returns PASS for both relevant environments.
+   2. Explicit operator approval, and the pepper-state decision. NOT REACHABLE
+      at {{HEAD_SHORT}}: the project-mapping sub-gate of step 1 passes, and the
+      rest of step 1 — the Supabase catalogue and the deployment inventory — has
+      not been read. Step 1 is INCOMPLETE, not passed.
    3. Reuse, create or explicitly rotate the pepper per the safe branch. BLOCKED
       at {{HEAD_SHORT}} by {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN — no branch
       is safe to take while it is unknown whether the two rows hold one value.

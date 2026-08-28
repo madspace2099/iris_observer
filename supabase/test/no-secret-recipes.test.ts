@@ -222,3 +222,72 @@ describe("the artefacts still say where a pepper does come from", () => {
     expect(doc).toMatch(/scrollback\s+buffer\s+is\s+not\s+a\s+secret\s+store/i);
   });
 });
+
+/**
+ * THE HISTORY SCAN HAS NO EXEMPTIONS AT ALL.
+ *
+ * An earlier attempt at this milestone declared one commit by SHA, so that a
+ * transient test fixture could stay in history. It then needed a second entry
+ * for the commit message describing the first — which is what a control looks
+ * like while it is being negotiated away one case at a time. The operator
+ * refused it and authorised a local-only history repair instead.
+ *
+ * What survives is the diagnostic improvement: the scan runs commit by commit,
+ * so a finding names the commit that introduced it rather than a line number in
+ * a concatenated log. What must not survive is any way to make a finding stop
+ * being one.
+ */
+describe("the secret auditor exempts nothing", () => {
+  const source = readFileSync(
+    join(import.meta.dirname, "..", "..", "scripts", "secret-audit.mjs"),
+    "utf8",
+  );
+
+  it("declares no commit, path or pattern as permitted", () => {
+    /* No SHA-shaped literal anywhere: that is what a declaration would need. */
+    expect(source).not.toMatch(/[0-9a-f]{40}/);
+    expect(source).not.toMatch(/HISTORICAL_SECRET|declaredCommits|EXEMPT_PATHS|allowPattern/);
+    /* And nothing skips a commit. */
+    expect(source).not.toMatch(/continue;/);
+  });
+
+  it("scans every commit in the range, diff and message alike", () => {
+    expect(source).toContain('git(["rev-list", range])');
+    expect(source).toContain('git(["show", "--no-color", sha])');
+    /*
+     * `git show` prints the message above the diff, so one pass covers both —
+     * which is why the message that described the fixture was caught at all.
+     */
+    expect(source).toMatch(/prints the commit message as well as the diff/);
+  });
+
+  it("attributes a finding to a commit a person can act on", () => {
+    expect(source).toMatch(/<commit \${sha\.slice\(0, 7\)}>/);
+    expect(source).not.toContain("<history ");
+  });
+
+  it("still scans the working tree, the staged diff and the bundle unconditionally", () => {
+    expect(source).toContain('scanText("<staged diff>", git(["diff", "--cached"]))');
+    expect(source).toContain("for (const rel of listed) findings.push(...scanFile(");
+    /*
+     * The ONE thing the auditor does not scan is itself and the pattern file it
+     * loads, which pre-dates this milestone: a scanner that matched its own
+     * rules would report every pattern it knows.
+     */
+    expect(source).toContain('const SELF = new Set(["scripts/secret-audit.mjs", PATTERNS_FILE]);');
+  });
+
+  it("finds nothing anywhere, including in this branch's history", () => {
+    /*
+     * THE PROOF THE DECLARATION WAS UNNECESSARY. The repaired history contains
+     * no commit carrying the shape, so the scan is clean with nothing exempted.
+     */
+    const out = execFileSync(process.execPath, ["scripts/secret-audit.mjs"], {
+      cwd: join(import.meta.dirname, "..", ".."),
+      encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    expect(out).toContain("secret audit: clean");
+    expect(out).toMatch(/history\s+origin\/main\.\.HEAD/);
+  });
+});
