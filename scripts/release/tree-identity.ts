@@ -27,6 +27,26 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { suiteInventoryDigestOf } from "./gate-contract";
 
+/**
+ * Raised when a tracked file cannot be read while the identity is computed.
+ *
+ * A distinct type, so a caller can tell "this tree cannot be identified" from
+ * "git failed" — and so nothing can catch it by accident along with the
+ * ordinary spawn failures around it. It carries PATHS only: a read failure's
+ * message names an errno and a location, and this value reaches a record.
+ */
+export class UnreadableTrackedFiles extends Error {
+  readonly paths: readonly string[];
+  constructor(paths: readonly string[]) {
+    super(
+      `${String(paths.length)} tracked file(s) could not be read, so the tree has no identity: ` +
+        `${paths.slice(0, 8).join(", ")}${paths.length > 8 ? ", …" : ""}`,
+    );
+    this.name = "UnreadableTrackedFiles";
+    this.paths = [...paths];
+  }
+}
+
 export interface TreeIdentity {
   readonly branch: string;
   readonly head: string;
@@ -95,21 +115,35 @@ export function trackedBytesDigest(root: string): string {
     })
     .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
+  const unreadable: string[] = [];
   for (const { mode, path } of entries) {
     let bytes: Buffer;
     try {
       bytes = readFileSync(join(root, path));
     } catch {
       /*
-       * A tracked file that cannot be read is not a file this digest can
-       * describe. Recording it as a distinct, stable marker keeps the digest
-       * deterministic while making the absence part of the identity.
+       * A FILE THAT CANNOT BE READ IS NOT MEASURED, AND MUST NOT LOOK MEASURED.
+       *
+       * The previous edition hashed the literal "UNREADABLE" in place of the
+       * bytes. That is deterministic, which is what it was written for, and it
+       * is exactly the wrong property: the digest then had a stable value for
+       * a file nobody had read, so a gate could record an identity, the file
+       * could become readable again with different content, and the identity
+       * would still be reproduced by a later run that also could not read it.
+       * Worse, the packager copies the bytes — so the archive would carry
+       * content this digest never described.
+       *
+       * Collected rather than thrown at the first one, so the refusal can name
+       * every file instead of one at a time.
        */
-      hash.update(`${path}\u0000${mode}\u0000UNREADABLE\u0000`);
+      unreadable.push(path);
       continue;
     }
     hash.update(`${path}\u0000${mode}\u0000${String(bytes.length)}\u0000`);
     hash.update(bytes);
+  }
+  if (unreadable.length > 0) {
+    throw new UnreadableTrackedFiles(unreadable);
   }
   return hash.digest("hex");
 }

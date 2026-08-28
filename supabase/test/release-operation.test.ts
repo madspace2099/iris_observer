@@ -19,11 +19,15 @@ import {
   expectedSuiteFiles,
   suiteLabel,
   hiddenTrackedPaths,
+  trackedBytesDigest,
+  type UnreadableTrackedFiles,
 } from "../../scripts/release/tree-identity";
 import {
   packagingProblems,
   ownershipProblems,
   verifyEmbeddedManifest,
+  stagedOriginProblems,
+  branchProblems,
 } from "../../scripts/release/build-package";
 import {
   gateRecordProblems,
@@ -57,7 +61,9 @@ import {
   transportSafeNote,
   isDeclaredHistorical,
   HISTORICAL_CONTROL_CHAR_COMMITS,
+  patchCommit,
 } from "../../scripts/release/transport-safe";
+import { facts, render } from "../../scripts/release/facts";
 
 /**
  * A GATE RESULT IS ABOUT BYTES, AND USED TO BE ABOUT A COMMIT NAME.
@@ -303,21 +309,52 @@ describe("the distributed archive is the one that was verified", () => {
     expect(text).toContain("hashes.every((h) => h.sha === first.sha");
   });
 
-  it("builds into a staging directory and publishes by rename", () => {
+  it("builds into a staging directory and publishes without clobbering", () => {
     const text = source();
     expect(text).toContain("const staging = join(outDir");
-    expect(text).toContain("renameSync(first.archive, distributable)");
+    /*
+     * LINK, NOT RENAME. `rename` silently replaces an existing destination, so
+     * publishing over a previous archive destroyed it and said nothing.
+     * `link` fails when the destination exists, which is the whole point.
+     */
+    expect(text).toContain("linkSync(first.archive, distributable)");
+    expect(text).not.toContain("renameSync(first.archive, distributable)");
     /* Publication comes after the checks, never before. */
     const verify = text.indexOf("all four identical");
-    const publish = text.indexOf("renameSync(first.archive, distributable)");
+    const publish = text.indexOf("linkSync(first.archive, distributable)");
     expect(verify).toBeGreaterThan(0);
     expect(publish).toBeGreaterThan(verify);
   });
 
-  it("removes every temporary artefact and any same-HEAD archive on refusal", () => {
+  it("refuses rather than replacing an archive already at that path", () => {
+    const text = source();
+    /* Both SHAs are reported, so a reviewer can tell which file is which. */
+    expect(text).toContain("if (existsSync(distributable))");
+    expect(text).toMatch(/Its SHA-256 is \${sha256File\(distributable\)}/);
+    expect(text).toContain("Nothing has been deleted or replaced");
+  });
+
+  it("removes its own temporary artefacts, and only those", () => {
     const text = source();
     expect(text).toContain("rmSync(staging, { recursive: true, force: true })");
-    expect(text).toContain("if (!published) rmSync(distributable, { force: true })");
+    /*
+     * AND NEVER THE DISTRIBUTABLE. Cleanup used to delete any archive at the
+     * destination whenever the build did not publish — so a build that refused
+     * for any reason at all destroyed the previous, verified archive at the
+     * same HEAD. That deletion is gone.
+     */
+    expect(text).not.toContain("if (!published) rmSync(distributable");
+    expect(text).not.toMatch(/rmSync\(distributable/);
+  });
+
+  it("claims the terminal phase before publishing, and releases it after", () => {
+    const text = source();
+    const claim = text.indexOf('claimTerminalPhase(REPO_ROOT, op, "publish")');
+    const publish = text.indexOf("linkSync(first.archive, distributable)");
+    const release = text.indexOf("releaseTerminal()");
+    expect(claim).toBeGreaterThan(0);
+    expect(publish).toBeGreaterThan(claim);
+    expect(release).toBeGreaterThan(publish);
   });
 
   it("runs unzip -t and sha256sum -c before publishing", () => {
@@ -1074,7 +1111,7 @@ describe("packaging verifies what it publishes", () => {
   it("compares all four hashes before publishing", () => {
     expect(source).toContain('{ label: "written archive", sha: first.sha }');
     const compare = source.indexOf("hashes.every((h) => h.sha === first.sha");
-    const publish = source.indexOf("renameSync(first.archive, distributable)");
+    const publish = source.indexOf("linkSync(first.archive, distributable)");
     expect(compare).toBeGreaterThan(0);
     expect(publish).toBeGreaterThan(compare);
   });
@@ -1204,6 +1241,26 @@ describe("evidence does not attribute fields to a query that never selected them
     expect(DEPLOYMENT_INVENTORY_PROVENANCE.enumeratedAt).not.toBe(LIVE.observedAt);
   });
 
+  it("renders the enumeration's missing timestamp as NOT RECORDED, and dates nothing by it", () => {
+    /*
+     * TWO READS OF TWO SYSTEMS. The deployment list and the database snapshot
+     * were rendered from one timestamp, so a database reading dated the
+     * deployment enumeration as well. The enumeration's clock time was never
+     * recorded, and the document now says so in those words rather than
+     * borrowing a time from the other read.
+     */
+    const rendered = render(
+      readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8"),
+      facts({ stagedFiles: 0 }),
+    ).out;
+    expect(rendered).toMatch(/last enumerated for the f1dbffd bundle, at NOT RECORDED/);
+    expect(rendered).toMatch(
+      /At the carried-forward enumeration, the newest recorded deployment was\s+3f298a6/,
+    );
+    /* The database observation time is a different sentence about a different read. */
+    expect(rendered).toMatch(/it is not the database observation time/);
+  });
+
   it("names byte-comparison states for what they compare", () => {
     const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
     expect(source).toContain('"record changed"');
@@ -1217,8 +1274,10 @@ describe("evidence does not attribute fields to a query that never selected them
 /**
  * THE TRANSPORT-SAFE EXPLANATION, MEASURED.
  *
- * The note said all three commits REMOVE backspaces and that every byte sits on
- * a removed line. Decoded and counted, that is false for two of the three.
+ * The note said every affected commit REMOVES backspaces and that every byte
+ * sits on a removed line. Decoded and counted, that is false — and the reasons
+ * beside the commits then carried counts of their own that were wrong too, so
+ * the counts are declared as data and regenerated from git here.
  */
 describe("the transport-safe note reports where the bytes actually are", () => {
   it("counts added, removed and context separately", () => {
@@ -1234,7 +1293,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     expect(controlByteDistribution(line(" "))).toEqual({ added: 0, removed: 0, context: 1 });
   });
 
-  it("measures the three declared patches and finds bytes on ADDED lines", () => {
+  it("measures every declared patch and finds bytes on ADDED lines", () => {
     const out = mkdtempSync(join(tmpdir(), "observer-patchfacts-"));
     try {
       execFileSync("git", ["format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q"], {
@@ -1249,7 +1308,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
       expect(measured).toHaveLength(HISTORICAL_CONTROL_CHAR_COMMITS.length);
       /* The claim that every byte is on a removed line is false. */
       expect(measured.some((m) => m.added > 0)).toBe(true);
-      /* And so is the claim that all three only remove them. */
+      /* And so is the claim that they only remove them. */
       expect(measured.some((m) => m.removed === 0)).toBe(true);
       for (const m of measured) expect(m.added + m.removed + m.context).toBeGreaterThan(0);
     } finally {
@@ -1257,13 +1316,374 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     }
   });
 
-  it("does not claim all three commits remove backspaces", () => {
+  it("holds every declared distribution to the bytes git actually produces", () => {
+    /*
+     * THE DEFECT THIS CLOSES, TWICE OVER.
+     *
+     * The reasons beside these commits carried counts written from memory. One
+     * said a commit "removes two backspaces from the gate-contract FAILED
+     * matcher" when it ADDS two and removes none; another said `1b8b912`
+     * removes "a backspace" when it removes two. Both were corrections of an
+     * earlier wrong description, and both were wrong in the same way — a number
+     * typed beside the thing rather than taken from it.
+     *
+     * So the counts are declared as DATA and regenerated here. A reason that
+     * drifts from history now fails, instead of shipping in a document.
+     */
+    const out = mkdtempSync(join(tmpdir(), "observer-declared-"));
+    try {
+      execFileSync("git", ["format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q"], {
+        cwd: ROOT,
+      });
+      const files = readdirSync(out).sort();
+      const byCommit = new Map<string, { file: string; text: string }>();
+      for (const f of files) {
+        const text = readFileSync(join(out, f), "latin1");
+        const sha = patchCommit(text);
+        if (sha !== null) byCommit.set(sha, { file: f, text });
+      }
+
+      for (const declared of HISTORICAL_CONTROL_CHAR_COMMITS) {
+        const found = byCommit.get(declared.sha);
+        expect(found, declared.sha).toBeDefined();
+        expect(controlByteDistribution(found?.text ?? ""), found?.file).toEqual(
+          declared.distribution,
+        );
+        /* And the reason carries no number to go stale. */
+        expect(declared.why, declared.sha).not.toMatch(/\b(one|two|three|four|\d+)\b/);
+      }
+
+      /* Nothing else in the chain carries a control byte. */
+      const undeclared = files.filter((f) => {
+        const text = readFileSync(join(out, f), "latin1");
+        if (isDeclaredHistorical(text)) return false;
+        const d = controlByteDistribution(text);
+        return d.added + d.removed + d.context > 0;
+      });
+      expect(undeclared).toEqual([]);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  });
+
+  it("reconstructs the chain end to end with git am, when the base object is here", () => {
+    /*
+     * THE CLAIM THE NOTE MAKES, EXECUTED. The note says a decoded sidecar is
+     * byte-for-byte the original patch and therefore `git am` applicable. That
+     * had never been run: the encoding was verified by hash, and a hash proves
+     * the bytes round-trip, not that the result applies.
+     *
+     * SKIPPED, NOT FAILED, when the base commit is not present locally — a
+     * shallow or partial clone genuinely cannot do this, and a test that fails
+     * on a legitimate checkout would be a test about the clone.
+     */
+    const base = "1ee5d2d";
+    let haveBase = true;
+    try {
+      execFileSync("git", ["rev-parse", `${base}^{commit}`], { cwd: ROOT, stdio: "pipe" });
+    } catch {
+      haveBase = false;
+    }
+    if (!haveBase) return;
+
+    const work = mkdtempSync(join(tmpdir(), "observer-am-"));
+    const patches = join(work, "patches");
+    const repo = join(work, "repo");
+    try {
+      mkdirSync(patches, { recursive: true });
+      execFileSync(
+        "git",
+        ["format-patch", `${base}..HEAD`, "-o", patches, "--no-signature", "-q"],
+        {
+          cwd: ROOT,
+        },
+      );
+
+      /*
+       * ENCODE THE DECLARED ONES EXACTLY AS THE PACKAGER DOES, then decode them
+       * back — so what `git am` is handed is the recovered file, not the
+       * original. Recovering the original is the whole claim.
+       */
+      let recovered = 0;
+      for (const f of readdirSync(patches).sort()) {
+        if (!f.endsWith(".patch")) continue;
+        const path = join(patches, f);
+        const bytes = readFileSync(path);
+        if (!isDeclaredHistorical(bytes.toString("utf8"))) continue;
+        const body64 = bytes.toString("base64").replace(/(.{76})/g, "$1\n");
+        const decoded = Buffer.from(body64.replace(/\n/g, ""), "base64");
+        expect(decoded.equals(bytes), f).toBe(true);
+        writeFileSync(path, decoded);
+        recovered += 1;
+      }
+      expect(recovered).toBe(HISTORICAL_CONTROL_CHAR_COMMITS.length);
+
+      /* A throwaway checkout at the base, and the whole chain replayed onto it. */
+      execFileSync("git", ["clone", "--quiet", "--no-local", "--shared", ROOT, repo], {
+        cwd: work,
+      });
+      for (const [k, v] of [
+        ["user.email", "test@example.invalid"],
+        ["user.name", "Test"],
+        ["commit.gpgsign", "false"],
+        ["core.autocrlf", "false"],
+        ["core.eol", "lf"],
+      ]) {
+        execFileSync("git", ["config", k, v], { cwd: repo });
+      }
+      execFileSync("git", ["checkout", "--quiet", "--detach", base], { cwd: repo });
+      execFileSync(
+        "git",
+        [
+          "am",
+          "--quiet",
+          ...readdirSync(patches)
+            .sort()
+            .map((f) => join(patches, f)),
+        ],
+        { cwd: repo, maxBuffer: 64 * 1024 * 1024 },
+      );
+
+      /*
+       * THE TREE, NOT THE COMMIT IDS. `git am` writes new committer metadata,
+       * so the SHAs differ by construction; what must match is the content the
+       * chain produces.
+       */
+      const rebuilt = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+        cwd: repo,
+        encoding: "utf8",
+      }).trim();
+      const original = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
+        cwd: ROOT,
+        encoding: "utf8",
+      }).trim();
+      expect(rebuilt).toBe(original);
+    } finally {
+      rmSync(work, { recursive: true, force: true });
+    }
+  }, 180_000);
+
+  it("does not claim every affected commit removes backspaces", () => {
     const note = transportSafeNote(
       ["0034.patch.base64"],
       [{ name: "0034.patch.base64", bytes: { added: 2, removed: 0, context: 0 } }],
     );
     expect(note).toContain("2 on added line(s)");
     expect(note).toMatch(/wherever in the diff they occur/);
-    expect(note).not.toMatch(/commits in question\s+REMOVE backspace/);
+    /* And it states no fixed number of affected patches, which went stale. */
+    expect(note).not.toMatch(/all three/);
+    expect(note).toMatch(/computed from the decoded patches of THIS/);
+  });
+});
+
+/**
+ * THE ARCHIVE CARRIES THE COMMIT'S BYTES, OR IT IS REFUSED.
+ *
+ * ## The window sampling could not close
+ *
+ * The tree was sampled before the build and again before publication. A change
+ * made after the first sample and restored before the last one left no trace in
+ * either — and the bytes copied into the archive in between were the changed
+ * ones. Sampling more often narrows that window; it cannot close it, because
+ * the thing sampled is not the thing copied.
+ *
+ * So the COPIES are checked, each against `git show HEAD:<origin>`. Note what
+ * the cases below do NOT do: they never touch this repository's working tree.
+ * They do not have to — that is the point. The tree is clean before, during and
+ * after every one of them, and the refusal fires anyway, because the check does
+ * not consult the tree at all.
+ */
+describe("the staged copies are checked against the commit, not the tree", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-origins-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  /** A tracked file that exists in HEAD and is small enough to copy about. */
+  const ORIGIN = "scripts/release/secret-patterns.json";
+
+  /** Stage a byte-exact copy of HEAD's version of ORIGIN. */
+  const stageFromHead = (): { dir: string; staged: string } => {
+    const dir = mkdtempSync(join(scratch, "staged-"));
+    const committed = execFileSync("git", ["show", `HEAD:${ORIGIN}`], {
+      cwd: ROOT,
+      maxBuffer: 64 * 1024 * 1024,
+      encoding: "buffer",
+    });
+    mkdirSync(join(dir, "generators"), { recursive: true });
+    writeFileSync(join(dir, "generators", "secret-patterns.json"), committed);
+    return { dir, staged: "generators/secret-patterns.json" };
+  };
+
+  it("accepts a copy that is byte-identical to HEAD", () => {
+    const { dir, staged } = stageFromHead();
+    expect(stagedOriginProblems(dir, [{ origin: ORIGIN, staged }])).toEqual([]);
+  });
+
+  it("refuses a copy taken while the tracked file was modified, however briefly", () => {
+    /*
+     * THE WHOLE SEQUENCE, WITHOUT TOUCHING THE TREE.
+     *
+     * A tracked file edited during staging and restored immediately afterwards
+     * produces exactly this: a staged copy holding the edited bytes, beside a
+     * working tree that is clean and a HEAD that is unchanged. Every sample the
+     * build takes agrees; only the copy disagrees.
+     */
+    const { dir, staged } = stageFromHead();
+    const path = join(dir, "generators", "secret-patterns.json");
+    const edited = `${readFileSync(path, "utf8")}\n`;
+    writeFileSync(path, edited, "utf8");
+
+    /*
+     * THE ORIGIN FILE ITSELF WAS NEVER TOUCHED — only the copy holds the edit,
+     * which is exactly the state a mid-staging edit leaves behind once it has
+     * been restored. (This asserts the origin rather than the whole tree: the
+     * suite runs during development, when other files are legitimately being
+     * worked on, and a clean-tree assertion here would be about the milestone
+     * rather than about the rule.)
+     */
+    expect(
+      stagedOriginProblems(dir, [
+        { origin: ORIGIN, staged: "unmodified/secret-patterns.json" },
+      ]).join(" "),
+    ).toMatch(/is not present/);
+
+    const problems = stagedOriginProblems(dir, [{ origin: ORIGIN, staged }]).join(" ");
+    expect(problems).toMatch(/does not match HEAD:/);
+    expect(problems).toMatch(/restoring it afterwards does not change what was copied/);
+  });
+
+  it("refuses a staged file whose origin is not in HEAD at all", () => {
+    const { dir, staged } = stageFromHead();
+    const problems = stagedOriginProblems(dir, [
+      { origin: "scripts/release/not-a-tracked-file.json", staged },
+    ]).join(" ");
+    expect(problems).toMatch(/is staged and is not in HEAD/);
+  });
+
+  it("refuses a recorded origin whose copy is missing", () => {
+    const dir = mkdtempSync(join(scratch, "empty-"));
+    const problems = stagedOriginProblems(dir, [
+      { origin: ORIGIN, staged: "generators/secret-patterns.json" },
+    ]).join(" ");
+    expect(problems).toMatch(/was recorded as staged and is not present/);
+  });
+
+  it("refuses a staging that recorded no origins at all", () => {
+    /* An empty list is not a clean result; it is the check never having run. */
+    const dir = mkdtempSync(join(scratch, "none-"));
+    expect(stagedOriginProblems(dir, []).join(" ")).toMatch(/no staged file recorded/);
+  });
+
+  it("runs before anything is archived", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
+    const check = source.indexOf("const origins = stagedOriginProblems(dir)");
+    const scan = source.indexOf("const finished = scanDirectory(dir)");
+    expect(check).toBeGreaterThan(0);
+    expect(scan).toBeGreaterThan(check);
+  });
+});
+
+/**
+ * A COMMIT BEING RIGHT IS NOT THE RELEASE BEING CUT FROM WHERE IT CLAIMS.
+ *
+ * Checking out a detached HEAD, or a second branch at the same commit, cannot
+ * be done to this repository while its own suite is running — so the rule is a
+ * free function over two strings and every shape is exercised here.
+ */
+describe("the branch is checked three ways", () => {
+  const RELEASE = "release/observer-demo-rc1";
+
+  it("accepts the release branch recorded and checked out", () => {
+    expect(branchProblems(RELEASE, RELEASE)).toEqual([]);
+  });
+
+  it("refuses a detached HEAD, even at the right commit", () => {
+    const problems = branchProblems("HEAD", "HEAD").join(" ");
+    expect(problems).toMatch(/the checkout is on a detached HEAD/);
+  });
+
+  it("refuses a second branch pointing at the same commit", () => {
+    const problems = branchProblems("hotfix/same-commit", "hotfix/same-commit").join(" ");
+    expect(problems).toMatch(/the checkout is on hotfix\/same-commit, not release/);
+  });
+
+  it("refuses a record and a checkout that disagree", () => {
+    const problems = branchProblems(RELEASE, "main").join(" ");
+    expect(problems).toMatch(/the checkout is on main/);
+    expect(problems).toMatch(/the gate recorded branch "release\/observer-demo-rc1"/);
+  });
+
+  it("refuses a record that names no branch at all", () => {
+    /* `branch: null` beside prose naming the release branch is what 20ff3e0 staged. */
+    const problems = branchProblems(null, RELEASE).join(" ");
+    expect(problems).toMatch(/the gate recorded branch null/);
+  });
+});
+
+/**
+ * A FILE NOBODY COULD READ MUST NOT LOOK MEASURED.
+ *
+ * The digest used to hash the literal "UNREADABLE" in place of the bytes. That
+ * is deterministic, which is what it was written for, and it is precisely the
+ * wrong property: two runs that both failed to read a file agreed with each
+ * other about an identity neither had established, and the packager copies the
+ * bytes regardless.
+ */
+describe("a tracked file that cannot be read has no identity", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-unreadable-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it("digests an ordinary repository", () => {
+    expect(trackedBytesDigest(throwaway(scratch))).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("refuses when a tracked file has been deleted from the worktree", () => {
+    const root = throwaway(scratch);
+    rmSync(join(root, "src", "app.ts"));
+    expect(() => trackedBytesDigest(root)).toThrow(/could not be read/);
+  });
+
+  it("refuses when a tracked path has become a directory", () => {
+    const root = throwaway(scratch);
+    rmSync(join(root, "src", "app.ts"));
+    mkdirSync(join(root, "src", "app.ts"));
+    expect(() => trackedBytesDigest(root)).toThrow(/could not be read/);
+  });
+
+  it("names the files rather than the read failure", () => {
+    const root = throwaway(scratch);
+    rmSync(join(root, "src", "app.ts"));
+    rmSync(join(root, "src", "a.test.ts"));
+    try {
+      trackedBytesDigest(root);
+      expect.unreachable("the digest should have refused");
+    } catch (e) {
+      const error = e as UnreadableTrackedFiles;
+      expect(error.name).toBe("UnreadableTrackedFiles");
+      expect([...error.paths].sort()).toEqual(["src/a.test.ts", "src/app.ts"]);
+      /*
+       * PATHS ONLY. A read failure's message names an errno and an absolute
+       * location, and this value reaches a record somebody zips up.
+       */
+      expect(error.message).not.toMatch(/ENOENT|EISDIR|errno/);
+      expect(error.message).not.toContain(root);
+    }
+  });
+
+  it("does not fabricate a stable identity for an unreadable tree", () => {
+    /*
+     * The defect, stated as the property it violated. Two different unreadable
+     * files used to produce digests that differed only in the path — so an
+     * identity existed for a tree nobody had read.
+     */
+    const a = throwaway(scratch);
+    rmSync(join(a, "src", "app.ts"));
+    expect(() => trackedBytesDigest(a)).toThrow();
+    /* And the placeholder is gone from the source, not merely unreachable. */
+    const source = readFileSync(join(ROOT, "scripts/release/tree-identity.ts"), "utf8");
+    expect(source).not.toContain("UNREADABLE\\u0000");
   });
 });

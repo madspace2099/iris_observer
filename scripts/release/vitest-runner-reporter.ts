@@ -95,15 +95,25 @@ export function safeIdentity(raw: unknown): string {
   return raw;
 }
 
-/** Sorted, de-duplicated and bounded, so the field cannot grow without limit. */
-export function boundedIdentities(all: readonly string[]): readonly string[] {
+/**
+ * Sorted, de-duplicated and bounded — by retaining some and counting the rest.
+ *
+ * A fabricated "and N more" entry in an identity list is a name that identifies
+ * nothing, and it made the list's length disagree with the count beside it.
+ * What is dropped is now reported as a number.
+ */
+export interface BoundedNames {
+  readonly retained: readonly string[];
+  readonly omitted: number;
+}
+
+export function boundedIdentities(all: readonly string[]): BoundedNames {
   const unique = [...new Set(all)].sort();
-  return unique.length <= MAX_IDENTITIES
-    ? unique
-    : [
-        ...unique.slice(0, MAX_IDENTITIES - 1),
-        `and ${String(unique.length - (MAX_IDENTITIES - 1))} more`,
-      ];
+  if (unique.length <= MAX_IDENTITIES) return { retained: unique, omitted: 0 };
+  return {
+    retained: unique.slice(0, MAX_IDENTITIES),
+    omitted: unique.length - MAX_IDENTITIES,
+  };
 }
 
 /**
@@ -146,6 +156,15 @@ export interface RunnerDiagnostics {
   readonly sanitizedUnhandledErrorOperations: readonly string[];
   /** Stable handle for "this error again". Carries none of the error. */
   readonly unhandledErrorFingerprints: readonly string[];
+  /**
+   * How many distinct values each of the five lists above had to drop.
+   *
+   * Recorded rather than absorbed, because the bound is this file's decision
+   * and not a fact about the run. Zero is the ordinary case and is written out
+   * anyway: an absent field and a field saying nothing was dropped are
+   * different claims, and only one of them can be checked.
+   */
+  readonly sanitizedUnhandledErrorsOmitted: UnhandledOmissions;
   /** Vitest's own end-of-run state: `passed`, `failed` or `interrupted`. */
   readonly runState: string;
   /** How many test modules the run ended with. */
@@ -212,12 +231,30 @@ interface ErrorLike {
   readonly constructor?: { readonly name?: unknown };
 }
 
+/**
+ * How many DISTINCT values the bound dropped, per list.
+ *
+ * Each list is de-duplicated separately, so each can lose a different number,
+ * and one shared number would be a guess about four of them. A reader adding
+ * a list's length to its entry here gets the number of distinct values the run
+ * actually produced — which is the claim a fabricated "and N more" entry made
+ * unverifiable, because that entry was itself counted as a value.
+ */
+export interface UnhandledOmissions {
+  readonly names: number;
+  readonly codes: number;
+  readonly subsystems: number;
+  readonly operations: number;
+  readonly fingerprints: number;
+}
+
 export interface UnhandledSummary {
   readonly names: readonly string[];
   readonly codes: readonly string[];
   readonly subsystems: readonly string[];
   readonly operations: readonly string[];
   readonly fingerprints: readonly string[];
+  readonly omitted: UnhandledOmissions;
 }
 
 /** Reduce Vitest's error list to identities. Exported so a fixture can drive it. */
@@ -255,12 +292,26 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
     fingerprints.push(fingerprint(subsystem, operation, name, code));
   }
 
-  return {
+  const bound = {
     names: boundedIdentities(names),
     codes: boundedIdentities(codes),
     subsystems: boundedIdentities(subsystems),
     operations: boundedIdentities(operations),
     fingerprints: boundedIdentities(fingerprints),
+  };
+  return {
+    names: bound.names.retained,
+    codes: bound.codes.retained,
+    subsystems: bound.subsystems.retained,
+    operations: bound.operations.retained,
+    fingerprints: bound.fingerprints.retained,
+    omitted: {
+      names: bound.names.omitted,
+      codes: bound.codes.omitted,
+      subsystems: bound.subsystems.omitted,
+      operations: bound.operations.omitted,
+      fingerprints: bound.fingerprints.omitted,
+    },
   };
 }
 
@@ -440,6 +491,7 @@ export default class RunnerDiagnosticsReporter {
       sanitizedUnhandledErrorSubsystems: summary.subsystems,
       sanitizedUnhandledErrorOperations: summary.operations,
       unhandledErrorFingerprints: summary.fingerprints,
+      sanitizedUnhandledErrorsOmitted: summary.omitted,
       runState: safeIdentity(reason),
       moduleCount: testModules.length,
       durationMs: Date.now() - this.start,

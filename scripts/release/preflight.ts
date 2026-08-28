@@ -484,8 +484,13 @@ export interface RecordedEnvironmentObservation {
  * needs to see that a variable was added, not merely that one exists now.
  *
  * Every observation here was made by MATTHEW, in the Vercel dashboard, and
- * supplied to this repository as screenshots. No agent has ever read Vercel.
- * The exact time of day was not recorded on either date and is not invented.
+ * supplied to this repository as screenshots. The exact time of day was not
+ * recorded on either date and is not invented.
+ *
+ * This log is about ENVIRONMENT VARIABLES specifically. It is not the record of
+ * external access as a whole — see {@link EXTERNAL_ACTIVITY_LOG}, which exists
+ * because this file used to carry the sentence "No agent has ever read Vercel"
+ * and that sentence was false.
  */
 export const OBSERVATION_LOG: readonly RecordedEnvironmentObservation[] = [
   /* ---- 2026-08-27, superseded but not erased --------------------------- */
@@ -587,14 +592,134 @@ export const PRODUCTION_RUNTIME_STATE = Object.freeze({
 });
 
 /**
- * Whether the observations mutated anything.
+ * Whether the recorded variable observations mutated anything.
  *
- * The screenshots show open variable editors with Save and Cancel controls.
- * Nobody has confirmed which was clicked, so this is UNKNOWN — not zero. A
- * milestone that reported "zero external mutations" here would be reporting an
- * assumption as a measurement.
+ * ## Why this is no longer UNKNOWN
+ *
+ * The screenshots show open variable editors with Save and Cancel controls, and
+ * for one round nobody had said which was clicked — so the honest value was
+ * UNKNOWN, and an earlier edition that said "the editor was exited without
+ * saving" was reporting an assumption as a measurement.
+ *
+ * Matthew has since confirmed he exited with CANCEL. That is a statement from
+ * the person who performed the act, which is the only source that could settle
+ * it, so the status is settled — and the withdrawn-assumption paragraph that
+ * described it as unknowable is now itself out of date and is removed.
+ *
+ * This says nothing about the PRODUCTION TRANSITION. A `SUPABASE_URL` appeared
+ * in Production between the two readings, and who added it and when is not
+ * recorded by anyone. See {@link PRODUCTION_TRANSITION}.
  */
-export const OBSERVATION_MUTATION_STATUS = "UNKNOWN" as const;
+export const OBSERVATION_MUTATION_STATUS = "NO_MUTATION_CONFIRMED" as const;
+
+/**
+ * The variable that appeared in Production between the two readings.
+ *
+ * A DIFFERENT FACT from {@link OBSERVATION_MUTATION_STATUS}, and one nothing
+ * available here can settle. The 2026-08-27 reading shows Production with no
+ * `SUPABASE_URL`; the 2026-08-28 reading shows it present and canonical.
+ * Somebody added it in between. Neither who nor when is recorded, and neither
+ * is inferred from the fact that Matthew was the one taking the screenshots.
+ */
+export const PRODUCTION_TRANSITION = Object.freeze({
+  variable: "SUPABASE_URL",
+  environment: "Production",
+  from: "observed absent on 2026-08-27",
+  to: "observed present and canonical on 2026-08-28",
+  actor: "UNKNOWN" as const,
+  occurredAt: "UNKNOWN" as const,
+});
+
+/** One external interaction with a system outside this repository. */
+export interface ExternalActivity {
+  /** The date it happened, or UNKNOWN where no date was recorded. */
+  readonly when: string;
+  /** Who or what performed it. */
+  readonly actor: "an agent" | "Matthew" | "UNKNOWN";
+  readonly system: "Vercel" | "Supabase";
+  /** What was done, named as the operation rather than described. */
+  readonly action: string;
+  /** Whether it changed anything on the other side. */
+  readonly mutation: "none" | "UNKNOWN" | "a variable was added";
+}
+
+/**
+ * EVERY EXTERNAL INTERACTION THIS PROJECT HAS RECORD OF, in order.
+ *
+ * ## The three claims this replaces
+ *
+ * The evidence carried three sentences that could not all stand:
+ *
+ *   "NO AGENT HAS EVER READ VERCEL"   — false. An agent called `get_project`
+ *                                        against the Vercel account in an
+ *                                        earlier milestone.
+ *   "zero external access"            — false as a statement about the project;
+ *                                        true only of a single milestone.
+ *   "this milestone performs no
+ *    external mutation"               — true, and repeatedly written in a way
+ *                                        that read as a global claim.
+ *
+ * The correction is not to soften them. It is to keep the chronology and let
+ * each statement be scoped to a row in it: what happened, when, who did it, and
+ * whether anything changed. A per-milestone claim is then a claim about the
+ * rows dated within that milestone, and the global claim is the whole list.
+ *
+ * APPEND-ONLY, like the observation log, and for the same reason: a record that
+ * only shows the latest state cannot express that something changed.
+ */
+export const EXTERNAL_ACTIVITY_LOG: readonly ExternalActivity[] = [
+  {
+    /*
+     * THE ROW THAT MAKES "NO AGENT HAS EVER READ VERCEL" FALSE. A read-only
+     * project lookup, made by an agent in an earlier milestone. It changed
+     * nothing, and it is still external access.
+     */
+    when: "UNKNOWN",
+    actor: "an agent",
+    system: "Vercel",
+    action: "get_project",
+    mutation: "none",
+  },
+  {
+    when: "2026-08-27",
+    actor: "Matthew",
+    system: "Vercel",
+    action: "read the Preview and Production environment-variable lists in the dashboard",
+    mutation: "none",
+  },
+  {
+    /*
+     * Between the two readings the Production `SUPABASE_URL` appeared. Recorded
+     * as its own row precisely because nobody knows who performed it.
+     */
+    when: "UNKNOWN",
+    actor: "UNKNOWN",
+    system: "Vercel",
+    action: "added SUPABASE_URL to the Production scope",
+    mutation: "a variable was added",
+  },
+  {
+    when: "2026-08-28",
+    actor: "Matthew",
+    system: "Vercel",
+    action: "read the complete project variable list and the Shared tab, and exited with Cancel",
+    mutation: "none",
+  },
+];
+
+/**
+ * What THIS milestone did externally, which is nothing.
+ *
+ * Stated as its own value rather than as prose, so the claim is scoped: it is
+ * about this milestone, and it is not a claim about the list above.
+ */
+export const THIS_MILESTONE_EXTERNAL_ACCESS = Object.freeze({
+  reads: 0,
+  mutations: 0,
+  statement:
+    "this milestone made no external read and no external mutation of any kind; " +
+    "the interactions recorded above are earlier and are not withdrawn by it",
+});
 
 /** The verdict for one recorded observation, from the classifier itself. */
 export function classifyObservation(

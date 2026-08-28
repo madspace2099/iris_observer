@@ -19,7 +19,10 @@ import {
   ARCHIVE_OUTCOMES,
   outcomeOf,
   priorDelivered,
+  DEPLOYMENT_INVENTORY_PROVENANCE,
+  OLDEST_BUCKET_HISTORY_PROVENANCE,
 } from "../../scripts/release/live-snapshot";
+import { HISTORICAL_CONTROL_CHAR_COMMITS } from "../../scripts/release/transport-safe";
 import { baselineCommit } from "../../scripts/release/facts";
 import {
   OBSERVED_MAPPINGS,
@@ -28,6 +31,9 @@ import {
   PEPPER_STATE,
   PRODUCTION_RUNTIME_STATE,
   OBSERVATION_MUTATION_STATUS,
+  PRODUCTION_TRANSITION,
+  EXTERNAL_ACTIVITY_LOG,
+  THIS_MILESTONE_EXTERNAL_ACCESS,
   classifyObservation,
   renderObservedMapping,
   APPROVED_PROJECT_REF,
@@ -414,6 +420,16 @@ describe("the deployment inventory's provenance", () => {
 describe("the evidence prose says what is true at this commit", () => {
   const review = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
   const compat = readFileSync(join(ROOT, "docs/release/COMPATIBILITY-EVIDENCE.txt"), "utf8");
+  /*
+   * AND THE RENDERED TEXT, for the claims that are VALUES rather than words.
+   *
+   * The template can only carry a placeholder for the pepper verdict, the
+   * external-activity chronology and the mutation status — that is the whole
+   * point of rendering them from the declared state rather than typing them.
+   * Checking those against the authored file would only prove a placeholder
+   * exists; checking them here proves the constant reaches the document.
+   */
+  const rendered = render(review, facts({ stagedFiles: 0 })).out;
 
   it("does not claim no history was ever rewritten", () => {
     /*
@@ -577,25 +593,53 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(review).toMatch(/time of day was not\s+recorded/);
   });
 
-  it("does not claim the observations changed nothing", () => {
+  it("attributes the mutation status to whoever could settle it", () => {
     /*
-     * The screenshots show open editors with Save and Cancel. An earlier
-     * edition said the editor was exited without saving; nobody confirmed it,
-     * so that was an assumption reported as a measurement.
+     * The screenshots show open editors with Save and Cancel, and for one round
+     * nobody had said which was clicked — so UNKNOWN was the honest value.
+     * Matthew has since confirmed CANCEL. A statement from the person who
+     * performed the act is the only source that could settle it, so the status
+     * is settled and the "UNKNOWN, not zero" paragraph is out of date.
      */
-    expect(review).toMatch(/WHETHER ANYTHING WAS CHANGED IS UNKNOWN, NOT ZERO/);
-    /*
-     * The retracted claim is QUOTED so a reader can see what was withdrawn;
-     * what must not survive is it being made. The withdrawal marker is what
-     * distinguishes the two.
-     */
-    expect(review).toMatch(/that was an assumption/);
-    expect(review).toMatch(/it is withdrawn/);
+    expect(review).toMatch(/MATTHEW HAS SINCE CONFIRMED HE EXITED WITH\s+CANCEL/);
+    expect(rendered).toContain(OBSERVATION_MUTATION_STATUS);
+    /* The stale paragraph is gone, not merely contradicted further down. */
+    expect(review).not.toMatch(/WHETHER ANYTHING WAS CHANGED IS UNKNOWN, NOT ZERO/);
+    expect(review).not.toMatch(/Unless Matthew separately\s+confirms/);
   });
 
-  it("separates who read Vercel from what this agent did", () => {
-    expect(review).toMatch(/NO AGENT HAS EVER READ VERCEL/);
-    expect(review).toMatch(/no longer free of external reads/);
+  it("keeps the Production transition unknown, which the confirmation does not settle", () => {
+    /*
+     * Two different facts. Matthew confirming he clicked Cancel says nothing
+     * about who added Production's SUPABASE_URL between the two readings.
+     */
+    expect(review).toMatch(/THAT SETTLES THE READINGS, NOT THE TRANSITION/);
+    expect(rendered).toMatch(/Actor UNKNOWN, time UNKNOWN/);
+  });
+
+  it("does not claim no agent has ever read Vercel", () => {
+    /*
+     * It was false: an agent called get_project against the Vercel account in
+     * an earlier milestone. The sentence is removed, the chronology replaces
+     * it, and the correction is stated rather than silently applied.
+     */
+    expect(review).toMatch(/AN AGENT HAS READ VERCEL/);
+    expect(review).toMatch(
+      /Previous editions of this document said "NO AGENT HAS EVER READ VERCEL" and\s+that was false/,
+    );
+    /*
+     * The action itself is NOT restated in prose. It is a row of the rendered
+     * chronology, and the binding cases below prove the document carries it
+     * from there and from nowhere else.
+     */
+    expect(review).not.toMatch(/read-only get_project call/);
+  });
+
+  it("renders the whole external chronology rather than a per-milestone sentence", () => {
+    /* Every declared row reaches the document, including the two UNKNOWN ones. */
+    for (const e of EXTERNAL_ACTIVITY_LOG) expect(rendered).toContain(e.action);
+    expect(rendered).toContain(THIS_MILESTONE_EXTERNAL_ACCESS.statement);
+    expect(rendered).toMatch(/recorded external interaction\(s\), of which \d+ changed something/);
   });
 
   it("keeps the three claims about external access distinct", () => {
@@ -605,11 +649,51 @@ describe("the evidence prose says what is true at this commit", () => {
      * statements, and collapsing them is how a stale reading becomes a claim
      * about now.
      */
-    expect(review).toMatch(/NO EXTERNAL MUTATION OCCURRED/);
-    /* And the two findings the same screenshots settle against us. */
-    expect(review).toMatch(/SEPARATE_SECRET_ROWS \/ EQUALITY_UNPROVEN \/ STOP/);
-    expect(review).toMatch(/PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN \/ STOP/);
+    /* Scoped to the round, and said to be scoped to it. */
+    expect(review).toMatch(/NO EXTERNAL MUTATION OCCURRED IN THIS ROUND/);
+    expect(review).toMatch(/THAT IS A CLAIM ABOUT THIS ROUND, NOT ABOUT THE PROJECT/);
+    /*
+     * And the two findings the same screenshots settle against us — RENDERED
+     * from the declared state objects, so the document cannot state a verdict
+     * the constants do not carry.
+     */
+    expect(rendered).toContain(
+      `${PEPPER_STATE.state} / ${PEPPER_STATE.finding} / ${PEPPER_STATE.verdict}`,
+    );
+    expect(rendered).toContain(
+      `${PRODUCTION_RUNTIME_STATE.state} / ${PRODUCTION_RUNTIME_STATE.verdict}`,
+    );
+    for (const m of PRODUCTION_RUNTIME_STATE.missing) expect(rendered).toContain(m);
     expect(review).toMatch(/TWO SEPARATE UNREVEALABLE ROWS ARE NOT TWO EQUAL VALUES/);
+  });
+
+  it("names the step each STOP actually blocks", () => {
+    /*
+     * Project mapping passing makes step 2 reachable; the pepper blocks step 3;
+     * the Production credentials block promotion, which section 6 excludes from
+     * the sequence entirely. An earlier edition ran all three together as "the
+     * pepper and Production runtime credentials still do [block step 2]".
+     */
+    expect(review).toMatch(
+      /STEP 2 — explicit operator approval and the\s+pepper-state decision — IS NOW REACHABLE/,
+    );
+    expect(review).toMatch(/THE PEPPER BLOCKS STEP 3/);
+    expect(review).toMatch(/THE PRODUCTION RUNTIME CREDENTIALS BLOCK PROMOTION/);
+    expect(review).not.toMatch(/the pepper and Production runtime credentials still do/);
+  });
+
+  it("gives PAUSE a remedy that is not the STOP remedy", () => {
+    /*
+     * PAUSE says the TOOLING could not isolate the value, not that the value is
+     * wrong, and its own remedy forbids rotating or replacing anything — so
+     * "every non-PASS state requires a configuration correction and a restart"
+     * reinstated exactly the advice section B removes.
+     */
+    expect(review).toMatch(/PAUSE AND STOP TAKE DIFFERENT REMEDIES/);
+    expect(review).toMatch(/PAUSE\s+NO configuration change and NO restart/);
+    expect(review).not.toMatch(
+      /Every non-PASS state requires an explicit operator decision, a\nconfiguration correction/,
+    );
   });
 });
 
@@ -653,8 +737,23 @@ describe("delivery is not acceptance", () => {
      * every "unchanged since" line spanned the wrong interval.
      */
     const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
-    expect(last).toBe("20ff3e0");
+    expect(last).toBe("3b746f4");
     expect(baselineCommit().startsWith(last)).toBe(true);
+  });
+
+  it("counts twenty delivered, six rejected and none accepted", () => {
+    /*
+     * DERIVED, never written into prose. Each number is a different question —
+     * how many went out, how many came back refused, how many anybody accepted
+     * — and they were previously stated as sentences that went stale one at a
+     * time.
+     */
+    expect(DELIVERED_ARCHIVES).toHaveLength(20);
+    const outcomes = DELIVERED_ARCHIVES.map((a) => outcomeOf(a.bundle));
+    expect(outcomes.filter((o) => o === "rejected")).toHaveLength(6);
+    expect(outcomes.filter((o) => o === "accepted")).toHaveLength(0);
+    /* And the archive delivered at the start of this round is one of the six. */
+    expect(outcomeOf("3b746f4")).toBe("rejected");
   });
 
   it("keeps the enumeration point where somebody actually looked", () => {
@@ -738,13 +837,31 @@ describe("the carried-forward mapping is derived from the classifier", () => {
     expect(PRODUCTION_RUNTIME_STATE.missing).toContain("SUPABASE_SECRET_KEY");
   });
 
-  it("does not claim the observations mutated nothing", () => {
+  it("records the mutation status Matthew confirmed, and nothing wider", () => {
     /*
-     * The screenshots show open editors with Save and Cancel. Nobody confirmed
-     * which was clicked, so UNKNOWN is the honest value and zero would be an
-     * assumption reported as a measurement.
+     * UNKNOWN was the honest value while nobody had said which control was
+     * clicked. Matthew has since confirmed CANCEL — a statement from the person
+     * who performed the act, which is the only source that could settle it.
      */
-    expect(OBSERVATION_MUTATION_STATUS).toBe("UNKNOWN");
+    expect(OBSERVATION_MUTATION_STATUS).toBe("NO_MUTATION_CONFIRMED");
+    /*
+     * AND IT SETTLES ONLY THE READINGS. The variable that appeared in
+     * Production between them has no recorded actor and no recorded time, and
+     * neither is inferred from who was taking the screenshots.
+     */
+    expect(PRODUCTION_TRANSITION.actor).toBe("UNKNOWN");
+    expect(PRODUCTION_TRANSITION.occurredAt).toBe("UNKNOWN");
+    expect(PRODUCTION_TRANSITION.variable).toBe("SUPABASE_URL");
+  });
+
+  it("keeps an external-activity row for the agent read that did happen", () => {
+    const agentReads = EXTERNAL_ACTIVITY_LOG.filter((e) => e.actor === "an agent");
+    expect(agentReads).toHaveLength(1);
+    expect(agentReads[0]?.action).toBe("get_project");
+    expect(agentReads[0]?.mutation).toBe("none");
+    /* And this milestone claims nothing beyond itself. */
+    expect(THIS_MILESTONE_EXTERNAL_ACCESS.reads).toBe(0);
+    expect(THIS_MILESTONE_EXTERNAL_ACCESS.mutations).toBe(0);
   });
 
   it("renders the current mapping from the classifier, with its ref", () => {
@@ -859,5 +976,112 @@ describe("every hash-shaped token in the evidence is accounted for", () => {
     expect(review).not.toContain("974b74e963629c27");
     expect(review).not.toContain("948471bfdbb525a4");
     expect(review).toMatch(/THE DIGEST IS DELIBERATELY NOT QUOTED HERE/);
+  });
+});
+
+/**
+ * A DECLARED STATE OBJECT THAT NOTHING RENDERS IS DECORATION.
+ *
+ * `PEPPER_STATE`, `PRODUCTION_RUNTIME_STATE`, `OBSERVATION_MUTATION_STATUS`,
+ * `DEPLOYMENT_INVENTORY_PROVENANCE` and `OLDEST_BUCKET_HISTORY_PROVENANCE` were
+ * exported, frozen and asserted by tests — and nothing rendered them. The
+ * documents stated the same facts as hand-written prose, so the constants
+ * proved only that a constant existed. Changing one changed a test and changed
+ * no document; changing a document changed no constant. That is two independent
+ * copies of a changing fact, which is the defect the whole rendering layer
+ * exists to prevent.
+ *
+ * The cases below are the only ones that can tell a rendering source from a
+ * decorative constant: each replaces a value with a SYNTHETIC one and requires
+ * the rendered document to move with it. A hand-written document does not.
+ */
+describe("every declared state object is a rendering source", () => {
+  const template = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
+  const renderWith = (values: Readonly<Record<string, string>>): string =>
+    render(template, { ...facts({ stagedFiles: 0 }), ...values }).out;
+
+  /**
+   * Each fact, the synthetic value put in its place, and a fragment of the real
+   * one that must then be absent. The second half is what makes this a binding
+   * test rather than an insertion test: prose that merely also contains the
+   * synthetic string would still carry the original.
+   */
+  const bindings: readonly {
+    key: string;
+    synthetic: string;
+    realFragment: string;
+  }[] = [
+    {
+      key: "PEPPER_STATE_LINE",
+      synthetic: "SYNTHETIC_PEPPER_STATE / SYNTHETIC_FINDING / PROCEED",
+      realFragment: `${PEPPER_STATE.state} / ${PEPPER_STATE.finding} / ${PEPPER_STATE.verdict}`,
+    },
+    {
+      key: "PRODUCTION_RUNTIME_LINE",
+      synthetic: "SYNTHETIC_RUNTIME_STATE / PROCEED",
+      realFragment: `${PRODUCTION_RUNTIME_STATE.state} / ${PRODUCTION_RUNTIME_STATE.verdict}`,
+    },
+    {
+      key: "OBSERVATION_MUTATION_STATUS",
+      synthetic: "SYNTHETIC_MUTATION_STATUS",
+      realFragment: OBSERVATION_MUTATION_STATUS,
+    },
+    {
+      key: "DEPLOYMENT_INVENTORY_LINE",
+      synthetic: "last enumerated for the SYNTHETIC bundle, at SYNTHETIC TIME.",
+      realFragment: `last enumerated for the ${DEPLOYMENT_INVENTORY_PROVENANCE.lastEnumeratedFor} bundle`,
+    },
+    {
+      key: "BUCKET_HISTORY_PROVENANCE",
+      synthetic: "SYNTHETIC PROVENANCE FOR THE BUCKET SERIES",
+      realFragment: OLDEST_BUCKET_HISTORY_PROVENANCE,
+    },
+    {
+      key: "EXTERNAL_ACTIVITY_BLOCK",
+      synthetic: "  SYNTHETIC EXTERNAL ACTIVITY, none recorded",
+      realFragment: EXTERNAL_ACTIVITY_LOG[0]?.action ?? "get_project",
+    },
+    {
+      key: "THIS_MILESTONE_EXTERNAL",
+      synthetic: "this milestone did something SYNTHETIC externally",
+      realFragment: THIS_MILESTONE_EXTERNAL_ACCESS.statement,
+    },
+    {
+      key: "PRODUCTION_TRANSITION_LINE",
+      synthetic: "SYNTHETIC_VARIABLE in SYNTHETIC_SCOPE. Actor SYNTHETIC.",
+      realFragment: `Actor ${PRODUCTION_TRANSITION.actor}, time ${PRODUCTION_TRANSITION.occurredAt}.`,
+    },
+    {
+      key: "PATCH_SUMMARY",
+      synthetic: "SYNTHETIC patch count",
+      realFragment: `${String(HISTORICAL_CONTROL_CHAR_COMMITS.length)} ship base64-encoded`,
+    },
+  ];
+
+  it("renders the real value for every one of them", () => {
+    const real = renderWith({});
+    for (const b of bindings) expect(real, b.key).toContain(b.realFragment);
+  });
+
+  it.each(bindings.map((b) => [b.key, b] as const))(
+    "carries %s from the declared value and nowhere else",
+    (_key, b) => {
+      const swapped = renderWith({ [b.key]: b.synthetic });
+      /* The synthetic value reaches the document ... */
+      expect(swapped).toContain(b.synthetic);
+      /* ... and the real one is not still written beside it. */
+      expect(swapped).not.toContain(b.realFragment);
+    },
+  );
+
+  it("leaves no placeholder unresolved and no fact unused", () => {
+    /*
+     * A placeholder nothing supplies prints as {{NAME}} in the delivered
+     * document; a fact nothing renders is the decorative constant this whole
+     * block exists to refuse. Both are failures.
+     */
+    const { out, missing } = render(template, facts({ stagedFiles: 0 }));
+    expect(missing).toEqual([]);
+    expect(out).not.toMatch(/\{\{[A-Z0-9_]+\}\}/);
   });
 });

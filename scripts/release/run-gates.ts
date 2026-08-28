@@ -506,9 +506,17 @@ function main(): void {
       reportedFailedSuites: gate.reportedFailedSuites,
       runtimeErrorSuites: gate.runtimeErrorSuites,
       failedSuiteNames: gate.failedSuiteNames,
+      /*
+       * AND HOW MANY EACH BOUNDED LIST DROPPED. Written even when zero: the
+       * contract reconciles retained + omitted against the measured count, and
+       * an absent field is the absence of a measurement rather than a zero.
+       */
+      failedSuiteNamesOmitted: gate.failedSuiteNamesOmitted,
       /* Identity only: basename plus bounded, sanitized title. */
       failedTests: gate.failedTests,
+      failedTestsOmitted: gate.failedTestsOmitted,
       skippedTests: gate.skippedTests,
+      skippedTestsOmitted: gate.skippedTestsOmitted,
       /*
        * RUNNER-LEVEL EVIDENCE. Vitest's JSON reporter discards the
        * unhandled-error list and computes `success` without it, while

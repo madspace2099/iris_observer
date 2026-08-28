@@ -11,6 +11,7 @@ import {
   NO_REPORT,
   safeTitle,
   boundIdentities,
+  boundNames,
   summarizeReport,
   runnerEvidenceReasons,
   NO_RUNNER_EVIDENCE,
@@ -461,20 +462,60 @@ describe("what a failing test is allowed to leave behind", () => {
     expect(safe.endsWith("…")).toBe(true);
   });
 
-  it("bounds the number of identities, and says it did", () => {
-    const many = Array.from({ length: MAX_IDENTITIES + 40 }, (_, i) => ({
-      suite: "a.test.ts",
-      title: `case ${String(i)}`,
-    }));
-    const bounded = boundIdentities(many);
-    expect(bounded.length).toBe(MAX_IDENTITIES);
-    /* 24 kept plus the summary line, so 41 of the 65 are accounted for by it. */
-    expect(bounded.at(-1)?.title).toBe(`and ${String(many.length - (MAX_IDENTITIES - 1))} more`);
+  /**
+   * THE BOUND, AT EVERY COUNT THAT CAN BEHAVE DIFFERENTLY.
+   *
+   * Empty, one, exactly the bound, one past it, and a number far past it. The
+   * previous edition tested one count — sixty-five — and the two cases that
+   * actually mattered were the two it did not cover: at exactly the bound
+   * nothing may be dropped, and one past it the record must be able to say so
+   * without inventing a test.
+   */
+  const identities = (n: number): { suite: string; title: string }[] =>
+    Array.from({ length: n }, (_, i) => ({ suite: "a.test.ts", title: `case ${String(i)}` }));
+
+  for (const n of [0, 1, MAX_IDENTITIES, MAX_IDENTITIES + 1, 100_000]) {
+    it(`bounds ${String(n)} identities into retained plus omitted`, () => {
+      const bounded = boundIdentities(identities(n));
+      /* The whole claim: what was kept and what was dropped are the truth. */
+      expect(bounded.retained.length + bounded.omitted).toBe(n);
+      expect(bounded.retained.length).toBe(Math.min(n, MAX_IDENTITIES));
+      expect(bounded.omitted).toBe(Math.max(0, n - MAX_IDENTITIES));
+      expect(Number.isInteger(bounded.omitted)).toBe(true);
+      expect(bounded.omitted).toBeGreaterThanOrEqual(0);
+    });
+  }
+
+  it("never fabricates an identity to stand for the ones it dropped", () => {
+    /*
+     * The defect this replaces. The bound appended { suite: "…", title: "and N
+     * more" }, which is a test that does not exist, carrying a suite name the
+     * record contract's own label rule refuses — so a run with twenty-six
+     * failures produced evidence that was both wrong about the count and
+     * unable to pass the check that would have caught it.
+     */
+    const bounded = boundIdentities(identities(MAX_IDENTITIES + 1));
+    for (const id of bounded.retained) {
+      expect(id.suite).toBe("a.test.ts");
+      expect(id.title).toMatch(/^case \d+$/);
+      expect(id.suite).not.toBe("…");
+      expect(id.title).not.toMatch(/more$/);
+    }
+    expect(bounded.omitted).toBe(1);
   });
 
-  it("keeps a short list whole", () => {
+  it("keeps a list at or under the bound whole, and drops nothing", () => {
     const few = [{ suite: "a.test.ts", title: "one" }];
-    expect(boundIdentities(few)).toEqual(few);
+    expect(boundIdentities(few).retained).toEqual(few);
+    expect(boundIdentities(few).omitted).toBe(0);
+    expect(boundIdentities(identities(MAX_IDENTITIES)).omitted).toBe(0);
+  });
+
+  it("bounds plain suite names the same way", () => {
+    const names = Array.from({ length: MAX_IDENTITIES + 7 }, (_, i) => `s${String(i)}.test.ts`);
+    const bounded = boundNames(names);
+    expect(bounded.retained.length + bounded.omitted).toBe(names.length);
+    for (const n of bounded.retained) expect(n).toMatch(/^s\d+\.test\.ts$/);
   });
 
   /**
@@ -565,7 +606,9 @@ describe("what a failing test is allowed to leave behind", () => {
       "durationMs",
       "errorCode",
       "failedSuiteNames",
+      "failedSuiteNamesOmitted",
       "failedTests",
+      "failedTestsOmitted",
       "observedPeakWorkers",
       "ok",
       "phase",
@@ -586,6 +629,7 @@ describe("what a failing test is allowed to leave behind", () => {
       "sanitizedUnhandledErrorNames",
       "signal",
       "skippedTests",
+      "skippedTestsOmitted",
       "status",
       "workerCount",
       "workerPool",
@@ -902,13 +946,62 @@ describe("runner error identities are allow-listed, not cleaned", () => {
     expect(summary).toContain("(unnamed)");
   });
 
-  it("de-duplicates and bounds the lists", () => {
+  it("de-duplicates and bounds the lists, counting what it dropped", () => {
     const many = Array.from({ length: 40 }, (_v, i) =>
       Object.assign(new Error("x"), { name: `E${String(i)}` }),
     );
-    const { names } = summarizeUnhandled(many);
+    const { names, omitted } = summarizeUnhandled(many);
     expect(names).toHaveLength(10);
-    expect(names.at(-1)).toBe("and 31 more");
+    /*
+     * Ten kept and thirty dropped, which is the forty distinct names — rather
+     * than nine kept beside a fabricated eleventh entry reading "and 31 more",
+     * a value that names no error and was itself counted as one.
+     */
+    expect(names.length + omitted.names).toBe(40);
+    expect(omitted.names).toBe(30);
+    for (const n of names) expect(n).toMatch(/^E\d+$/);
+  });
+
+  /**
+   * THE FIVE LISTS ARE DE-DUPLICATED SEPARATELY, so they drop separately.
+   *
+   * One shared omission count would be a guess about four of them: forty errors
+   * with forty distinct names can share a single code, and the code list then
+   * drops nothing while the name list drops thirty.
+   */
+  it("counts each list's omissions separately", () => {
+    const many = Array.from({ length: 40 }, (_v, i) =>
+      Object.assign(new Error("x"), { name: `E${String(i)}`, code: "EPIPE" }),
+    );
+    const { names, codes, omitted } = summarizeUnhandled(many);
+    expect(names.length + omitted.names).toBe(40);
+    expect(codes).toEqual(["EPIPE"]);
+    expect(omitted.codes).toBe(0);
+  });
+
+  it("drops nothing at or under the bound, and says so", () => {
+    for (const n of [0, 1, 10]) {
+      const errors = Array.from({ length: n }, (_v, i) =>
+        Object.assign(new Error("x"), { name: `E${String(i)}` }),
+      );
+      const { names, omitted } = summarizeUnhandled(errors);
+      expect(names, String(n)).toHaveLength(n);
+      expect(omitted.names, String(n)).toBe(0);
+    }
+    /* And one past it drops exactly one. */
+    const eleven = Array.from({ length: 11 }, (_v, i) =>
+      Object.assign(new Error("x"), { name: `E${String(i)}` }),
+    );
+    expect(summarizeUnhandled(eleven).omitted.names).toBe(1);
+  });
+
+  it("survives a hostile number of distinct identities without growing", () => {
+    const many = Array.from({ length: 20_000 }, (_v, i) =>
+      Object.assign(new Error("x"), { name: `E${String(i)}` }),
+    );
+    const { names, omitted } = summarizeUnhandled(many);
+    expect(names).toHaveLength(10);
+    expect(names.length + omitted.names).toBe(20_000);
   });
 
   it("collapses forty identical errors to one identity", () => {

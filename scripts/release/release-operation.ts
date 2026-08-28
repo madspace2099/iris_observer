@@ -488,6 +488,119 @@ export function withOperation<T>(
 }
 
 /* --------------------------------------------------------------------------
+ * The terminal phase
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The single object that decides between publishing and recovering.
+ *
+ * ## What repeated ownership checks could not do
+ *
+ * Publication used to assert ownership and then remove and rename. Recovery
+ * could tombstone the result and release the operation in the gap between the
+ * check and the rename, and the recovered process would publish anyway. Adding
+ * another `assertOwner` moves the gap; it does not close it, because every
+ * check-then-act pair has one by construction.
+ *
+ * ## What closes it
+ *
+ * Both actions must first CLAIM this file, created with `wx` — one atomic
+ * filesystem operation with exactly one winner. The invariant follows directly:
+ *
+ *   either recovery holds the claim and publication cannot enter its critical
+ *   section at all, or publication holds it and recovery refuses until the
+ *   claim is released; both can never succeed.
+ *
+ * The claim is not an advisory flag anybody may ignore: it is the only door
+ * into either critical section, and the loser is told who holds it.
+ */
+export const TERMINAL_CLAIM_PATH = ".release/release-terminal.claim";
+
+export type TerminalAction = "publish" | "recover";
+
+export interface TerminalClaim {
+  readonly action: TerminalAction;
+  readonly operationId: string;
+  readonly claimedAt: string;
+}
+
+/** Who holds the terminal phase, if anyone. Never throws. */
+export function readTerminalClaim(root: string): TerminalClaim | null {
+  const state = inspectPath(root, TERMINAL_CLAIM_PATH);
+  if (state.kind !== "file") return null;
+  try {
+    const parsed = JSON.parse(readFileSync(join(root, TERMINAL_CLAIM_PATH), "utf8")) as unknown;
+    if (!isPlainObject(parsed)) return null;
+    const { action, operationId, claimedAt } = parsed;
+    if (action !== "publish" && action !== "recover") return null;
+    if (!isOperationId(operationId)) return null;
+    if (typeof claimedAt !== "string") return null;
+    return Object.freeze({ action, operationId, claimedAt });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Take the terminal phase, or refuse. The caller MUST release it.
+ *
+ * Ownership is asserted while the claim is held, not before taking it — so a
+ * claim won by an operation that has since lost the mutex still refuses, and
+ * refuses without having touched anything.
+ */
+export function claimTerminalPhase(
+  root: string,
+  op: Operation,
+  action: TerminalAction,
+): () => void {
+  const path = join(root, TERMINAL_CLAIM_PATH);
+  const claim: TerminalClaim = Object.freeze({
+    action,
+    operationId: op.operationId,
+    claimedAt: new Date().toISOString(),
+  });
+
+  try {
+    writeFileSync(path, `${JSON.stringify(claim, null, 2)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+    });
+  } catch {
+    const held = readTerminalClaim(root);
+    throw new OperationRefused(
+      held === null
+        ? `the terminal phase is held and the claim could not be read; ${action} may not proceed`
+        : `the terminal phase is held by ${held.action} for operation ${held.operationId} ` +
+            `(claimed ${held.claimedAt}); ${action} may not proceed`,
+    );
+  }
+
+  /* Read back, so a claim this call did not actually create is not acted on. */
+  const readBack = readTerminalClaim(root);
+  if (readBack === null || readBack.operationId !== op.operationId || readBack.action !== action) {
+    throw new OperationRefused(
+      "the terminal claim at that path is not the one this operation just created",
+    );
+  }
+
+  /*
+   * AND THE MUTEX, WHILE THE CLAIM IS HELD. An operation that lost the lock
+   * before reaching here releases the claim and refuses, having published or
+   * recovered nothing.
+   */
+  try {
+    assertOwner(root, op);
+  } catch (e) {
+    rmSync(path, { force: true });
+    throw e;
+  }
+
+  return () => {
+    rmSync(path, { force: true });
+  };
+}
+
+/* --------------------------------------------------------------------------
  * Recovery
  * ------------------------------------------------------------------------ */
 
@@ -534,7 +647,6 @@ export function recoverOperation(
     );
   }
 
-  const done: string[] = [];
   const owner = state.lock;
   const op: Operation = Object.freeze({
     kind: owner.kind,
@@ -545,32 +657,56 @@ export function recoverOperation(
     pendingPath: pendingPathFor(operationId),
   });
 
+  /*
+   * THE TERMINAL CLAIM FIRST, BEFORE ANYTHING IS TOUCHED.
+   *
+   * Publication takes the same claim. Whichever of the two wins the atomic
+   * create proceeds and the other refuses, so a recovery cannot land between
+   * a publisher's last check and its rename — which is precisely the interval
+   * that let a recovered process publish anyway.
+   */
+  const release = claimTerminalPhase(root, op, "recover");
+  const done: string[] = [];
+  try {
+    return recoverUnderClaim(root, op, owner, recordPath, done);
+  } finally {
+    release();
+  }
+}
+
+function recoverUnderClaim(
+  root: string,
+  op: Operation,
+  owner: OperationLock,
+  recordPath: string,
+  done: string[],
+): readonly string[] {
   /* 1. Tombstone the canonical result, atomically, whatever it currently is. */
   const safety = evidenceFileProblems(root, recordPath);
   if (safety.length > 0) throw new OperationRefused(safety.join("; "));
   const tombstone = {
     status: GATE_ABANDONED,
-    operationId,
+    operationId: op.operationId,
     kind: owner.kind,
     head: owner.head,
     abandonedAt: new Date().toISOString(),
   };
-  const tmp = `${recordPath}.recovering-${operationId}`;
+  const tmp = `${recordPath}.recovering-${op.operationId}`;
   writeFileSync(join(root, tmp), `${JSON.stringify(tombstone, null, 2)}\n`, "utf8");
   renameSync(join(root, tmp), join(root, recordPath));
   done.push(`tombstoned ${recordPath} — no result is packageable until a new gate completes`);
 
   /* 2. Quarantine only THIS operation's pending file. */
   if (inspectPath(root, op.pendingPath).kind === "file") {
-    const quarantine = quarantinePathFor(operationId);
+    const quarantine = quarantinePathFor(op.operationId);
     renameSync(join(root, op.pendingPath), join(root, quarantine));
     done.push(`quarantined ${op.pendingPath} to ${quarantine}`);
   } else {
-    done.push(`no pending result belonged to ${operationId}`);
+    done.push(`no pending result belonged to ${op.operationId}`);
   }
 
   /* 3. Release only this exact operation. */
   endOperation(root, op);
-  done.push(`released ${owner.kind} operation ${operationId}`);
+  done.push(`released ${owner.kind} operation ${op.operationId}`);
   return done;
 }

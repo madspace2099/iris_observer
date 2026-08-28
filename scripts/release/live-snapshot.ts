@@ -176,6 +176,7 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "c1b80f0",
   "ab98c7a",
   "20ff3e0",
+  "3b746f4",
 ];
 
 /**
@@ -230,6 +231,13 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
   { bundle: "c1b80f0", sha256: "e6b8360f0653ea6a1371c5cc494323bc419a716b5ebfe6eaf11e0b71404133f8" },
   { bundle: "ab98c7a", sha256: "789f6d0fb9546dec6f84f9003762c4357876301104a5bf7d8aec4cbc384fcc75" },
   { bundle: "20ff3e0", sha256: "9e8c62c6898b3695d5b66bac654f8c33f02099546f560596c3c19f746b0c6451" },
+  /*
+   * Delivered at the start of THIS milestone and rejected by the audit that
+   * opened it. Declaring it here is what moves the byte-comparison baseline to
+   * `3b746f4`, so every "unchanged since" line in this package spans this
+   * milestone rather than the previous one.
+   */
+  { bundle: "3b746f4", sha256: "42627dd847629b09f6c86ba62a039203923dc7e957a484ff6c78aaf1bb2c5697" },
 ];
 
 /**
@@ -272,6 +280,14 @@ export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
    * not acceptance, and nothing here infers acceptance from one.
    */
   "20ff3e0": "rejected",
+  /*
+   * Rejected by the fifteen-item audit that opened this milestone: a staged
+   * evidence module that could not run from the archive, a recovery/publication
+   * race, arbitrary child output paths, a manifest command nobody ran, and
+   * provenance that named the wrong enumeration. Physical checks passed again;
+   * that is not acceptance and is not read as any.
+   */
+  "3b746f4": "rejected",
 };
 
 export const outcomeOf = (bundle: string): ArchiveOutcome =>

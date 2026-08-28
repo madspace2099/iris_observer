@@ -139,13 +139,45 @@ export function safeTitle(raw: string): string {
   return flattened.length > MAX_TITLE ? `${flattened.slice(0, MAX_TITLE - 1)}…` : flattened;
 }
 
-/** Bound a list of identities, and say so in the record when it was cut. */
-export function boundIdentities(all: readonly TestIdentity[]): readonly TestIdentity[] {
-  if (all.length <= MAX_IDENTITIES) return all;
-  return [
-    ...all.slice(0, MAX_IDENTITIES - 1),
-    { suite: "…", title: `and ${String(all.length - (MAX_IDENTITIES - 1))} more` },
-  ];
+/**
+ * Bound a list of identities by RETAINING some and COUNTING the rest.
+ *
+ * ## The pseudo-identity this replaces
+ *
+ * The previous edition appended a fabricated entry — suite `…`, title "and N
+ * more" — to a truncated list. That is a record inventing a test that does not
+ * exist, and it collided head-on with two contract rules: the identity count
+ * must equal the measured count, and every suite name must be a safe basename.
+ * A run with twenty-six failures produced a record that was both wrong about
+ * how many there were and carrying a suite name the contract rejects.
+ *
+ * Truncation is a real constraint — an unbounded field in evidence somebody
+ * zips up is a way to smuggle arbitrary text — so the fix is not to keep
+ * everything. It is to say plainly how many were kept and how many were not,
+ * in a separate field, and let the contract check that the two add up.
+ */
+export interface BoundedIdentities {
+  readonly retained: readonly TestIdentity[];
+  readonly omitted: number;
+}
+
+export function boundIdentities(all: readonly TestIdentity[]): BoundedIdentities {
+  if (all.length <= MAX_IDENTITIES) return { retained: all, omitted: 0 };
+  return {
+    retained: all.slice(0, MAX_IDENTITIES),
+    omitted: all.length - MAX_IDENTITIES,
+  };
+}
+
+/** The same bound for plain names, so the suite list cannot grow without limit. */
+export interface BoundedNames {
+  readonly retained: readonly string[];
+  readonly omitted: number;
+}
+
+export function boundNames(all: readonly string[]): BoundedNames {
+  if (all.length <= MAX_IDENTITIES) return { retained: all, omitted: 0 };
+  return { retained: all.slice(0, MAX_IDENTITIES), omitted: all.length - MAX_IDENTITIES };
 }
 
 export interface ReportSummary {
@@ -164,19 +196,35 @@ export interface ReportSummary {
    * BASENAMES ONLY of the failing suites. No path, no message, no output: the
    * name identifies the file to look in, and everything else a failure carries
    * is exactly what must not reach a file somebody zips and hands over.
+   *
+   * Bounded like the identity lists, and for the same reason: the number of
+   * suites is not something this process controls.
    */
   readonly failedSuiteNames: readonly string[];
+  /** How many failing suite names the bound dropped. Never a fabricated name. */
+  readonly failedSuiteNamesOmitted: number;
   /**
    * WHICH tests failed, by identity. Bounded, sanitized, no message, no
    * expected or received value, no stack, no path, no output.
    */
   readonly failedTests: readonly TestIdentity[];
   /**
+   * How many failing identities the bound dropped.
+   *
+   * Separate from the list because the list is bounded and the truth is not.
+   * The retained entries plus this number are the whole of what happened, and
+   * the contract checks that sum against the measured count — which is exactly
+   * what the fabricated "and N more" entry made impossible.
+   */
+  readonly failedTestsOmitted: number;
+  /**
    * WHICH tests were skipped. Here because the skipped COUNT drifted between
    * two runs of the same commit with no way to say which test moved, and an
    * unexplained count is an unexplained result.
    */
   readonly skippedTests: readonly TestIdentity[];
+  /** How many skipped identities the bound dropped. */
+  readonly skippedTestsOmitted: number;
 }
 
 /* -------------------------------------------------------------------------
@@ -266,9 +314,12 @@ export function summarizeReport(report: VitestReport): ReportSummary {
     countedFailedTests: counted,
     reportedFailedSuites: report.numFailedTestSuites ?? null,
     runtimeErrorSuites: runtimeErrors,
-    failedSuiteNames: failedSuites.sort(),
-    failedTests: boundIdentities(failedTests),
-    skippedTests: boundIdentities(skippedTests),
+    failedSuiteNames: boundNames(failedSuites.sort()).retained,
+    failedSuiteNamesOmitted: boundNames(failedSuites.sort()).omitted,
+    failedTests: boundIdentities(failedTests).retained,
+    failedTestsOmitted: boundIdentities(failedTests).omitted,
+    skippedTests: boundIdentities(skippedTests).retained,
+    skippedTestsOmitted: boundIdentities(skippedTests).omitted,
   };
 }
 
@@ -433,10 +484,19 @@ export function classifyTestGate(
     );
   }
   if (report.failedSuiteNames.length > 0) {
-    reasons.push(`failing suite(s): ${report.failedSuiteNames.join(", ")}`);
+    reasons.push(
+      `failing suite(s): ${report.failedSuiteNames.join(", ")}` +
+        (report.failedSuiteNamesOmitted > 0
+          ? ` (+${String(report.failedSuiteNamesOmitted)} not listed)`
+          : ""),
+    );
   }
   for (const t of report.failedTests) {
     reasons.push(`failed: ${t.suite} > ${t.title}`);
+  }
+  /* Said as a number, because a name that identifies nothing is not evidence. */
+  if (report.failedTestsOmitted > 0) {
+    reasons.push(`${String(report.failedTestsOmitted)} further failed test(s) not listed`);
   }
 
   /*
@@ -460,8 +520,11 @@ export const NO_REPORT: ReportSummary = {
   reportedFailedSuites: null,
   runtimeErrorSuites: null,
   failedSuiteNames: [],
+  failedSuiteNamesOmitted: 0,
   failedTests: [],
+  failedTestsOmitted: 0,
   skippedTests: [],
+  skippedTestsOmitted: 0,
 };
 
 /** A one-line summary for the console and for the persisted record. */
@@ -475,7 +538,7 @@ export function describe(result: TestGateResult): string {
     `countedFailedTests=${String(result.countedFailedTests)}`,
     `reportedFailedSuites=${String(result.reportedFailedSuites)}`,
     `runtimeErrorSuites=${String(result.runtimeErrorSuites)}`,
-    `failedSuites=[${result.failedSuiteNames.join(",")}]`,
+    `failedSuites=[${result.failedSuiteNames.join(",")}]+${String(result.failedSuiteNamesOmitted)}`,
     `unhandledErrors=${String(result.reportedUnhandledErrors)}`,
     `pool=${String(result.workerPool)}`,
     `workers=${String(result.configuredMinWorkers)}..${String(result.configuredMaxWorkers)}`,

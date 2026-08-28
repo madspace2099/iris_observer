@@ -25,8 +25,21 @@ import {
   LAST_VERCEL_ENUMERATION,
   DELIVERED_ARCHIVES,
   outcomeOf,
+  OLDEST_BUCKET_HISTORY_PROVENANCE,
+  DEPLOYMENT_INVENTORY_PROVENANCE,
 } from "./live-snapshot";
-import { renderMappingTable, renderObservedMapping, APPROVED_PROJECT_REF } from "./preflight";
+import { HISTORICAL_CONTROL_CHAR_COMMITS } from "./transport-safe";
+import {
+  renderMappingTable,
+  renderObservedMapping,
+  APPROVED_PROJECT_REF,
+  PEPPER_STATE,
+  PRODUCTION_RUNTIME_STATE,
+  OBSERVATION_MUTATION_STATUS,
+  PRODUCTION_TRANSITION,
+  EXTERNAL_ACTIVITY_LOG,
+  THIS_MILESTONE_EXTERNAL_ACCESS,
+} from "./preflight";
 
 export const REPO_ROOT = join(import.meta.dirname, "..", "..");
 
@@ -528,6 +541,87 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
 }
 
 /** Every placeholder an evidence template may use, resolved. */
+/**
+ * THE DECLARED STATE OBJECTS, RENDERED — not merely declared beside the prose.
+ *
+ * ## What "decorative" meant here
+ *
+ * `PEPPER_STATE`, `PRODUCTION_RUNTIME_STATE`, `OBSERVATION_MUTATION_STATUS`,
+ * `DEPLOYMENT_INVENTORY_PROVENANCE` and `OLDEST_BUCKET_HISTORY_PROVENANCE` were
+ * declared, exported, frozen, and asserted by tests — and NOTHING RENDERED THEM.
+ * The evidence documents stated the same facts as hand-written prose, so the
+ * constants proved only that a constant existed with a given value. Changing
+ * one changed a test and changed no document; changing the document changed no
+ * constant. Two independent copies of a changing fact is exactly the defect
+ * this module exists to prevent, and the release apparatus had it in its own
+ * findings.
+ *
+ * Everything below is a rendering source. The template carries placeholders,
+ * `render()` reports any placeholder left behind, and the semantic checks in
+ * `build-package.ts` re-read the RENDERED text — so a value that stops matching
+ * its constant now stops the package.
+ */
+function externalActivityBlock(): string {
+  const rows = EXTERNAL_ACTIVITY_LOG.map((e) => {
+    const when = e.when === "UNKNOWN" ? "date UNKNOWN" : e.when;
+    return [
+      `  ${when} — ${e.actor}, ${e.system}`,
+      `      ${e.action}`,
+      `      changed: ${e.mutation}`,
+    ].join("\n");
+  });
+  const reads = EXTERNAL_ACTIVITY_LOG.length;
+  const changed = EXTERNAL_ACTIVITY_LOG.filter((e) => e.mutation !== "none").length;
+  return [
+    `${String(reads)} recorded external interaction(s), of which ${String(changed)} changed something:`,
+    "",
+    ...rows,
+  ].join("\n");
+}
+
+/** The pepper finding, from the constant rather than from prose beside it. */
+function pepperLine(): string {
+  return (
+    `${PEPPER_STATE.state} / ${PEPPER_STATE.finding} / ${PEPPER_STATE.verdict}` +
+    ` — observed ${PEPPER_STATE.observedOn}`
+  );
+}
+
+function productionRuntimeLine(): string {
+  return (
+    `${PRODUCTION_RUNTIME_STATE.state} / ${PRODUCTION_RUNTIME_STATE.verdict}` +
+    ` — no Production-scoped ${PRODUCTION_RUNTIME_STATE.missing.join(" and no Production-scoped ")}` +
+    `, observed ${PRODUCTION_RUNTIME_STATE.observedOn}`
+  );
+}
+
+/**
+ * How many patches ship, and how many of them are encoded.
+ *
+ * DERIVED FROM THE CHAIN, not written down. The evidence said "three of them"
+ * and the declared list has grown to five since; a count in prose goes stale in
+ * exactly the way a count computed from `git rev-list` and the declared list
+ * cannot. The base is the same commit `format-patch` is run from, so the two
+ * numbers describe the same series.
+ */
+function patchSummary(): string {
+  const total = Number(git("rev-list", "--count", "1ee5d2d..HEAD"));
+  const encoded = HISTORICAL_CONTROL_CHAR_COMMITS.length;
+  return (
+    `${String(total)} patches, of which ${String(encoded)} ship base64-encoded and ` +
+    `${String(total - encoded)} ship raw`
+  );
+}
+
+function deploymentInventoryLine(): string {
+  const d = DEPLOYMENT_INVENTORY_PROVENANCE;
+  return [
+    `last enumerated for the ${d.lastEnumeratedFor} bundle, at NOT RECORDED.`,
+    `At the carried-forward enumeration, the newest recorded deployment was`,
+    `${d.newestAtThatEnumeration}. Whether the inventory is still accurate is ${d.currentlyAccurate}.`,
+  ].join("\n    ");
+}
+
 export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   const head = git("rev-parse", "HEAD");
   const headShort = head.slice(0, 7);
@@ -539,6 +633,13 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     "--left-right",
     "--count",
     "origin/release/observer-demo-rc1...HEAD",
+  ).split(/\s+/);
+
+  const [startBehind = "0", startAhead = "0"] = git(
+    "rev-list",
+    "--left-right",
+    "--count",
+    `origin/release/observer-demo-rc1...${parent}`,
   ).split(/\s+/);
 
   const localOnly = git("log", "--format=%h %s", "origin/release/observer-demo-rc1..HEAD")
@@ -692,6 +793,20 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
      */
     OBSERVED_MAPPING_BLOCK: renderObservedMapping(APPROVED_PROJECT_REF),
 
+    /*
+     * WHERE THIS MILESTONE STARTED, DERIVED FROM THE DELIVERY LIST.
+     *
+     * Section 0 carried a hard-coded start HEAD and a hard-coded "0 / 10", and
+     * both went stale the moment another bundle was delivered — it still named
+     * `f1dbffd` after eight further deliveries, describing a round that ended
+     * long ago as "this round". The start of a milestone is the commit of the
+     * last archive handed over, which is exactly what `baselineCommit()` is,
+     * so nothing here has to be edited when one is declared.
+     */
+    START_HEAD: parent,
+    START_BEHIND: startBehind,
+    START_AHEAD: startAhead,
+
     LOCAL_ONLY_SENTENCE: wrap(
       localOnlyShorts,
       `${word(localOnlyShorts.length)} commits exist only on this machine: `,
@@ -778,6 +893,22 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     THRESHOLD_H: String(RETENTION_THRESHOLD_HOURS),
     EXPECTED_MAX_H: String(RETENTION_THRESHOLD_HOURS + 1),
     BUCKET_HISTORY: OLDEST_BUCKET_HISTORY.join(", "),
+    BUCKET_HISTORY_PROVENANCE: OLDEST_BUCKET_HISTORY_PROVENANCE,
+    PATCH_SUMMARY: patchSummary(),
+
+    /* Rendered from the declared state, so neither can drift from the other. */
+    EXTERNAL_ACTIVITY_BLOCK: externalActivityBlock(),
+    THIS_MILESTONE_EXTERNAL: THIS_MILESTONE_EXTERNAL_ACCESS.statement,
+    OBSERVATION_MUTATION_STATUS,
+    PRODUCTION_TRANSITION_LINE:
+      `${PRODUCTION_TRANSITION.variable} in ${PRODUCTION_TRANSITION.environment}: ` +
+      `${PRODUCTION_TRANSITION.from}, then ${PRODUCTION_TRANSITION.to}. ` +
+      `Actor ${PRODUCTION_TRANSITION.actor}, time ${PRODUCTION_TRANSITION.occurredAt}.`,
+    PEPPER_STATE_LINE: pepperLine(),
+    PEPPER_VERDICT: PEPPER_STATE.verdict,
+    PRODUCTION_RUNTIME_LINE: productionRuntimeLine(),
+    PRODUCTION_RUNTIME_VERDICT: PRODUCTION_RUNTIME_STATE.verdict,
+    DEPLOYMENT_INVENTORY_LINE: deploymentInventoryLine(),
 
     M4_SOURCE_SHA: sha256(M4),
     M4_WRAPPER_SHA: sha256("_sql-to-paste/observer-migration-4-retention.sql"),

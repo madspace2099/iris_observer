@@ -19,7 +19,41 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 /** This file lives in `scripts/release/`, so the repository root is two up. */
-const REPO_ROOT_FOR_PATTERNS = join(import.meta.dirname, "..", "..");
+/**
+ * Where this module's own data file lives, in EITHER layout it runs in.
+ *
+ * In the repository it sits at `scripts/release/secret-patterns.json`, two
+ * directories above this file's parent. In the ARCHIVE both files are staged
+ * side by side in `generators/`, and the repository-relative path resolves to
+ * nothing at all — so the staged detector could be imported and could not run.
+ * The archive shipped a module and its data and still could not execute one
+ * against the other.
+ *
+ * ADJACENT FIRST. A file beside the module is the layout that holds in both
+ * places once staging puts it there, and the repository path remains as the
+ * fallback for a source checkout. Neither is a guess: each is checked for
+ * existence before it is read, and if neither is present the caller is told
+ * which two places were looked at rather than being handed a parse error.
+ */
+const PATTERNS_BESIDE_MODULE = join(import.meta.dirname, "secret-patterns.json");
+const PATTERNS_IN_REPOSITORY = join(
+  import.meta.dirname,
+  "..",
+  "..",
+  "scripts",
+  "release",
+  "secret-patterns.json",
+);
+
+/** The data file this module reads, wherever it is deployed. */
+export function secretPatternsPath(): string {
+  if (existsSync(PATTERNS_BESIDE_MODULE)) return PATTERNS_BESIDE_MODULE;
+  if (existsSync(PATTERNS_IN_REPOSITORY)) return PATTERNS_IN_REPOSITORY;
+  throw new Error(
+    "secret-patterns.json is beside neither this module nor its repository path — " +
+      "the detector cannot run without its definitions",
+  );
+}
 import { scanProblems, describeScan, type ControlCharacterScan } from "./control-chars";
 import { isOperationId, GATE_ABANDONED } from "./release-operation";
 
@@ -263,9 +297,11 @@ export function skipProblems(record: GateRecord): readonly string[] {
    * half: an extra skip beside the approved one is still an unexplained skip.
    */
   const allowed = platform === APPROVED_SKIP.platform ? 1 : 0;
-  if (skipped.length !== allowed) {
+  /* Counting what the bound dropped: an unlisted skip is still a skip. */
+  const dropped = record.testGate?.skippedTestsOmitted ?? 0;
+  if (skipped.length + dropped !== allowed) {
     problems.push(
-      `${String(skipped.length)} skipped test(s) on ${platform}, where exactly ${String(allowed)} is permitted`,
+      `${String(skipped.length + dropped)} skipped test(s) on ${platform}, where exactly ${String(allowed)} is permitted`,
     );
   }
   for (const id of skipped) {
@@ -386,14 +422,39 @@ export interface RecordedTestGate extends RecordedProcess {
   readonly reportedFailedSuites?: number | null;
   readonly runtimeErrorSuites?: number | null;
   readonly failedSuiteNames?: readonly string[];
+  /**
+   * How many further failing suite basenames the bound dropped.
+   *
+   * REQUIRED, and required even when it is zero: an absent field and a field
+   * saying nothing was dropped are different claims, and only one can be
+   * checked against the count beside it.
+   */
+  readonly failedSuiteNamesOmitted?: number;
   /** Identities of the failing tests. Must be present, and must be empty. */
   readonly failedTests?: readonly { readonly suite: string; readonly title: string }[];
+  /**
+   * How many further failing identities the bound dropped.
+   *
+   * ## What this replaces
+   *
+   * The runner used to truncate the list and append a fabricated twenty-fifth
+   * entry — suite `…`, title "and N more". The contract then compared the
+   * LIST LENGTH with the measured failure count, and the two could not agree:
+   * twenty-six failures produced twenty-five entries, one of which named no
+   * test and carried a suite name this contract's own label rule refuses.
+   *
+   * A count cannot be mistaken for a test. The rule below is that retained
+   * identities plus this number equal the measurement.
+   */
+  readonly failedTestsOmitted?: number;
   /**
    * Identities of the skipped tests. Present so a changed skip COUNT can be
    * explained rather than noticed; not required to be empty, because skipping
    * a platform-specific test is correct behaviour.
    */
   readonly skippedTests?: readonly { readonly suite: string; readonly title: string }[];
+  /** How many further skipped identities the bound dropped. */
+  readonly skippedTestsOmitted?: number;
   /*
    * RUNNER-LEVEL EVIDENCE, required.
    *
@@ -475,7 +536,14 @@ export interface GateRecord {
    */
   readonly controlCharacterScan?: ControlCharacterScan;
   readonly tests?: {
-    /** passed + skipped + failed, as the runner counted them. */
+    /**
+     * passed + skipped + failed, as the runner counted them.
+     *
+     * CHECKED as arithmetic, not carried as a claim. This field was staged into
+     * the archive and printed, and nothing ever compared it with the three
+     * numbers it summarises — so a total could disagree with its own parts and
+     * the package would print it.
+     */
     readonly total?: number;
     readonly passed?: number;
     readonly skipped?: number;
@@ -578,6 +646,16 @@ export function isCount(value: unknown): value is number {
 const SAFE_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 /**
+ * How many identities a record may retain in one list.
+ *
+ * Stated HERE as well as in the runner, because the contract has to be able to
+ * tell "the bound dropped some" from "the record omitted some for no reason".
+ * A list shorter than this bound that still claims omissions is the second, and
+ * is refused.
+ */
+export const MAX_RECORDED_IDENTITIES = 25;
+
+/**
  * The rendered totals, checked as arithmetic rather than read as a sentence.
  *
  * The contract validated the test GATE and never the `tests` object the archive
@@ -587,11 +665,14 @@ const SAFE_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
  */
 export function testTotalsProblems(record: GateRecord, check?: RecordCheck): readonly string[] {
   const problems: string[] = [];
+  /* Structural findings raised before the main buffer below exists. */
+  const structuralTotal: string[] = [];
   const t = record.tests;
   if (t === undefined) return asks(check, "structure") ? ["no test totals recorded"] : [];
 
   const typing: string[] = [];
   for (const [field, value] of [
+    ["total", t.total],
     ["passed", t.passed],
     ["skipped", t.skipped],
     ["failed", t.failed],
@@ -606,6 +687,20 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
   const failed = t.failed ?? 0;
   const files = t.files ?? 0;
   const total = passed + skipped + failed;
+
+  /*
+   * THE RECORDED TOTAL IS A CLAIM ABOUT THE THREE NUMBERS BESIDE IT.
+   *
+   * It was staged, printed in the evidence, and never compared with anything.
+   * Every arithmetic rule below used the DERIVED sum, so a record whose own
+   * `total` said something else was internally contradictory and packageable.
+   * Both are checked now, and the derived sum remains what the rest is held to.
+   */
+  if (t.total !== total) {
+    structuralTotal.push(
+      `tests.total is ${String(t.total)} but passed + skipped + failed is ${String(total)}`,
+    );
+  }
 
   /* A failing count is a real result, correctly recorded: acceptance, not shape. */
   if (failed !== 0 && asks(check, "acceptance")) {
@@ -639,7 +734,7 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
     }
   }
 
-  const structural: string[] = [];
+  const structural: string[] = [...structuralTotal];
 
   /*
    * A RUN THAT COLLECTED NOTHING IS NOT A RUN AT ALL.
@@ -723,18 +818,44 @@ export function testTotalsProblems(record: GateRecord, check?: RecordCheck): rea
      * case had moved, because the identities were never cross-checked against
      * the count that summarised them.
      */
+    /*
+     * RETAINED PLUS OMITTED, NEVER LENGTH ALONE.
+     *
+     * The identity lists are bounded and the counts are not, so a list length
+     * is not a claim about how many there were — it is a claim about how many
+     * fit. The number that did not fit is recorded beside it, and the two
+     * together are held to the measurement. Requiring the length alone to equal
+     * the count is what made a twenty-six-failure run unrepresentable, and what
+     * the fabricated "and N more" entry was invented to paper over.
+     */
+    for (const [what, list, omitted, measured] of [
+      ["failed", gate.failedTests, gate.failedTestsOmitted, failed],
+      ["skipped", gate.skippedTests, gate.skippedTestsOmitted, skipped],
+    ] as const) {
+      if (!Array.isArray(list)) continue;
+      if (!isCount(omitted)) {
+        structural.push(
+          `${what}TestsOmitted is not a count — a bounded list without the number it ` +
+            "dropped cannot be reconciled with the measurement",
+        );
+        continue;
+      }
+      if (list.length + omitted !== measured) {
+        structural.push(
+          `${String(list.length)} ${what}-test identities plus ${String(omitted)} omitted ` +
+            `for ${String(measured)} ${what} tests`,
+        );
+      }
+      /* A list under the bound cannot have dropped anything. */
+      if (omitted > 0 && list.length < MAX_RECORDED_IDENTITIES) {
+        structural.push(
+          `${what}TestsOmitted is ${String(omitted)} while only ${String(list.length)} ` +
+            "identities were retained — nothing was dropped for want of room",
+        );
+      }
+    }
     const failedIds = gate.failedTests;
-    if (Array.isArray(failedIds) && failedIds.length !== failed) {
-      structural.push(
-        `${String(failedIds.length)} failed-test identities for ${String(failed)} failed tests`,
-      );
-    }
     const skippedIds = gate.skippedTests;
-    if (Array.isArray(skippedIds) && skippedIds.length !== skipped) {
-      structural.push(
-        `${String(skippedIds.length)} skipped-test identities for ${String(skipped)} skipped tests`,
-      );
-    }
     for (const [what, list] of [
       ["failed", failedIds],
       ["skipped", skippedIds],
@@ -981,6 +1102,20 @@ export function runnerEvidenceProblems(
     ["reasons", t.reasons],
   ] as const) {
     if (!Array.isArray(value)) structural.push(`${field} is not an array`);
+  }
+
+  /*
+   * AND THE THREE COUNTS THAT MAKE THOSE LISTS READABLE. Absent is refused
+   * rather than read as zero: "nothing was dropped" is a measurement, and a
+   * missing field is the absence of one.
+   */
+  for (const [field, value] of [
+    ["failedSuiteNamesOmitted", t.failedSuiteNamesOmitted],
+    ["failedTestsOmitted", t.failedTestsOmitted],
+    ["skippedTestsOmitted", t.skippedTestsOmitted],
+  ] as const) {
+    if (value === undefined) structural.push(`${field} not recorded`);
+    else if (!isCount(value)) structural.push(`${field} is not a count`);
   }
 
   /* Zero unhandled errors and a non-empty identity list cannot both be true. */
@@ -1352,6 +1487,33 @@ function recordProblems(
     } else if (t.failedSuiteNames.length !== 0) {
       acceptance.push(`failing suite(s): ${t.failedSuiteNames.join(", ")}`);
     }
+    /*
+     * THE NAMES AND THE SUITE COUNT ARE ONE MEASUREMENT.
+     *
+     * `reportedFailedSuites` counts failing suite RESULTS and the list carries
+     * their basenames, so several results can share one name and the list is
+     * never longer than the count. A record naming three files while reporting
+     * one failed suite is describing two different runs; a record reporting six
+     * failures and naming none has lost the half that says where to look.
+     */
+    if (Array.isArray(t.failedSuiteNames)) {
+      const suites = t.reportedFailedSuites ?? 0;
+      const named = t.failedSuiteNames.length;
+      const dropped = t.failedSuiteNamesOmitted;
+      if (!isCount(dropped)) {
+        structural.push("failedSuiteNamesOmitted is not a count");
+      } else if (named + dropped > suites) {
+        structural.push(
+          `${String(named + dropped)} failing suite name(s) for ${String(suites)} failed ` +
+            "suite result(s) — a basename cannot name more results than were reported",
+        );
+      } else if (suites > 0 && named + dropped === 0) {
+        structural.push(
+          `${String(suites)} failed suite result(s) and no suite named — the record cannot ` +
+            "say which file to look in",
+        );
+      }
+    }
     if (t.failedTests === undefined) {
       structural.push("no failed-test identities recorded — rerun `pnpm release:gates`");
     } else if (t.failedTests.length !== 0) {
@@ -1424,6 +1586,20 @@ function recordProblems(
      * many skips — that is what a suite whose setup threw looks like — and
      * saying so is not the same as saying the record is malformed.
      */
+    /*
+     * THE PLATFORM IS PART OF THE RECORD'S SHAPE.
+     *
+     * Every skip rule below is a comparison against the machine the run
+     * happened on, so a record without a platform cannot be checked at all —
+     * that is incompleteness, not a failed run, and it belongs with the
+     * structural findings a red record is held to as well.
+     */
+    if (typeof record.platform !== "string" || !KNOWN_PLATFORMS.includes(record.platform)) {
+      structural.push(
+        `platform ${JSON.stringify(record.platform)} is not recorded as one this release ` +
+          "recognises — no skip can be checked against anything",
+      );
+    }
     acceptance.push(...skipProblems(record));
 
     if (t.reasons === undefined) structural.push("no gate reasons recorded");
@@ -1626,8 +1802,13 @@ export function sanitizedRecord(record: GateRecord): unknown {
       reportedFailedSuites: isCount(t?.reportedFailedSuites) ? t.reportedFailedSuites : null,
       runtimeErrorSuites: isCount(t?.runtimeErrorSuites) ? t.runtimeErrorSuites : null,
       failedSuiteNames: stageStrings(t?.failedSuiteNames, 64),
+      failedSuiteNamesOmitted: isCount(t?.failedSuiteNamesOmitted)
+        ? t.failedSuiteNamesOmitted
+        : null,
       failedTests: stageIdentities(t?.failedTests),
+      failedTestsOmitted: isCount(t?.failedTestsOmitted) ? t.failedTestsOmitted : null,
       skippedTests: stageIdentities(t?.skippedTests),
+      skippedTestsOmitted: isCount(t?.skippedTestsOmitted) ? t.skippedTestsOmitted : null,
       reportedUnhandledErrors: isCount(t?.reportedUnhandledErrors)
         ? t.reportedUnhandledErrors
         : null,
@@ -1727,7 +1908,7 @@ interface SecretRule {
 }
 
 export function secretRules(scope: string): readonly { name: string; pattern: RegExp }[] {
-  const raw = readFileSync(join(REPO_ROOT_FOR_PATTERNS, SECRET_PATTERNS_FILE), "utf8");
+  const raw = readFileSync(secretPatternsPath(), "utf8");
   const doc = JSON.parse(raw) as { rules: readonly SecretRule[] };
   return doc.rules
     .filter((r) => r.scopes.includes(scope))

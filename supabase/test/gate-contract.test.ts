@@ -654,10 +654,35 @@ describe("the verdict string must be the canonical rendering", () => {
   });
 
   it("refuses identity counts that disagree with the totals", () => {
+    /*
+     * RETAINED PLUS OMITTED, against the measurement. The list is bounded and
+     * the count is not, so the length alone was never the claim — an emptied
+     * list beside a declared zero omissions cannot account for the skips.
+     */
     const r = greenRecord();
-    const bad = { ...r, testGate: { ...r.testGate, skippedTests: [] } };
+    const bad = {
+      ...r,
+      testGate: { ...r.testGate, skippedTests: [], skippedTestsOmitted: 0 },
+    };
     expect(gateRecordProblems(bad, HEAD).join(" ")).toMatch(
-      /0 skipped-test identities for \d+ skipped tests/,
+      /0 skipped-test identities plus 0 omitted for \d+ skipped tests/,
+    );
+  });
+
+  it("accepts a bounded list whose omissions account for the difference", () => {
+    /*
+     * The same record, told the truth about what was dropped, stops raising the
+     * arithmetic problem — the shape a run with more skips than the bound
+     * retains would produce, which the previous rule made unrepresentable.
+     */
+    const r = greenRecord();
+    const skipped = r.tests?.skipped ?? 0;
+    const honest = {
+      ...r,
+      testGate: { ...r.testGate, skippedTests: [], skippedTestsOmitted: skipped },
+    };
+    expect(gateRecordProblems(honest, HEAD).join(" ")).not.toMatch(
+      /skipped-test identities plus/,
     );
   });
 

@@ -157,8 +157,16 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       reportedFailedSuites: 0,
       runtimeErrorSuites: 0,
       failedSuiteNames: [],
+      /*
+       * NOTHING WAS DROPPED, SAID RATHER THAN LEFT OUT. The contract refuses an
+       * absent omission count: a bounded list without one cannot be reconciled
+       * with the measurement beside it, and "not recorded" is not "none".
+       */
+      failedSuiteNamesOmitted: 0,
       failedTests: [],
+      failedTestsOmitted: 0,
       skippedTests: approvedSkips(options.platform ?? process.platform),
+      skippedTestsOmitted: 0,
       phase: "test",
       reportWritten: true,
       reportParsed: true,

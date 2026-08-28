@@ -29,12 +29,12 @@ import {
   copyFileSync,
   readdirSync,
   existsSync,
-  renameSync,
   mkdtempSync,
+  linkSync,
 } from "node:fs";
-import { join, relative, sep, basename, dirname } from "node:path";
+import { join, relative, sep, resolve, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import {
   facts,
@@ -53,9 +53,12 @@ import { walk, writeZip, scanArchive } from "./zip";
 import {
   beginOperation,
   adoptOperation,
+  isOperationId,
+  inspectPath,
   assertOwner,
   endOperation,
   OperationRefused,
+  claimTerminalPhase,
   type Operation,
 } from "./release-operation";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
@@ -64,6 +67,7 @@ import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
 import {
   readGateRecord,
+  REQUIRED_BRANCH,
   gateRecordProblems,
   captureEvidence,
   type CapturedEvidence,
@@ -286,6 +290,76 @@ function requireCleanHead(options: BuildOptions = {}): {
 }
 
 /**
+ * Where one deterministic rebuild is allowed to write.
+ *
+ * DERIVED, NEVER PASSED IN. The child interface used to take a directory from
+ * the command line — `--child <anything>` — so a caller could aim a rebuild at
+ * any path the process could write, during a live package operation, with the
+ * parent's operation id lending it an air of legitimacy.
+ *
+ * A child destination is now a function of three things it cannot choose: the
+ * repository root, the operation id, and a bounded SLOT identifier naming which
+ * of the three time-zone rebuilds it is. Everything else is refused.
+ */
+export const REBUILD_SLOTS = Object.freeze(["utc", "budapest", "new-york"] as const);
+
+export type RebuildSlot = (typeof REBUILD_SLOTS)[number];
+
+export function isRebuildSlot(value: unknown): value is RebuildSlot {
+  return typeof value === "string" && (REBUILD_SLOTS as readonly string[]).includes(value);
+}
+
+/**
+ * The one directory a child of this operation may write to.
+ *
+ * Inside the operation's own staging tree, so it is removed by the same cleanup
+ * that removes everything else this operation made, and so it can never be the
+ * distributable path.
+ */
+export function rebuildSlotDir(operationId: string, slot: RebuildSlot): string {
+  if (!isOperationId(operationId)) {
+    throw new Refusal("a rebuild slot needs a well-formed operation id");
+  }
+  if (!isRebuildSlot(slot)) {
+    throw new Refusal(`${JSON.stringify(slot)} is not one of the declared rebuild slots`);
+  }
+  return join(REPO_ROOT, "_review", `.staging-${operationId}`, "rebuild", slot);
+}
+
+/**
+ * Every reason a resolved child destination may not be written to.
+ *
+ * Containment is checked on the RESOLVED path, so a traversal or an absolute
+ * path that happens to look plausible is refused on what it actually points at
+ * rather than on how it was spelled.
+ */
+export function rebuildSlotProblems(
+  operationId: string,
+  slot: unknown,
+  requested: string | undefined,
+): readonly string[] {
+  const problems: string[] = [];
+  if (!isRebuildSlot(slot)) {
+    problems.push(`CHILD: ${JSON.stringify(slot)} is not a declared rebuild slot`);
+    return problems;
+  }
+  const allowed = rebuildSlotDir(operationId, slot);
+  if (requested !== undefined && resolve(requested) !== resolve(allowed)) {
+    problems.push(
+      "CHILD: a rebuild destination was supplied on the command line; destinations are " +
+        "derived from the operation and the slot, never chosen by the caller",
+    );
+  }
+  const expected = resolve(join(REPO_ROOT, "_review", `.staging-${operationId}`));
+  if (!resolve(allowed).startsWith(expected + sep)) {
+    problems.push("CHILD: the resolved destination is outside this operation's staging tree");
+  }
+  const state = inspectPath(REPO_ROOT, relative(REPO_ROOT, allowed).split(sep).join("/"));
+  if (state.kind === "unsafe") problems.push(`CHILD: ${state.why}`);
+  return problems;
+}
+
+/**
  * Every reason this process may not act as the release operation's owner.
  *
  * FIVE THINGS HAVE TO AGREE, and each of them names itself when it does not.
@@ -339,9 +413,40 @@ export function ownershipProblems(
  * `inputsDigest` from the clean tree the packager sees, and that is the only
  * signal that distinguishes it from an honest one.
  */
+/**
+ * THREE NAMES FOR ONE BRANCH, AND ALL THREE MUST AGREE.
+ *
+ * The checkout's branch, the branch the gate recorded, and the one branch a
+ * release may be cut from. A detached HEAD at the right commit and a second
+ * branch pointing at the same commit are both refused: the commit being right
+ * is not the same as the release being cut from where it claims. HEAD alone
+ * cannot tell those apart, which is why the archive at `20ff3e0` could stage
+ * `branch: null` beside prose naming the release branch.
+ *
+ * A free function over two strings so the rule can be exercised at every shape
+ * — detached, a second branch at the same commit, a disagreeing record — none
+ * of which can be produced by checking out this repository during its own test
+ * run.
+ */
+export function branchProblems(recorded: unknown, actual: string): readonly string[] {
+  const problems: string[] = [];
+  if (actual !== REQUIRED_BRANCH) {
+    problems.push(
+      `the checkout is on ${actual === "HEAD" ? "a detached HEAD" : actual}, not ${REQUIRED_BRANCH}`,
+    );
+  }
+  if (recorded !== actual) {
+    problems.push(
+      `the gate recorded branch ${JSON.stringify(recorded)} and this checkout is on ${JSON.stringify(actual)}`,
+    );
+  }
+  return problems;
+}
+
 function recordTreeProblems(record: GateRecord | null): readonly string[] {
   if (record === null) return [];
   const now = treeIdentity(REPO_ROOT);
+  const problemsOfBranch = [...branchProblems(record.branch, now.branch)];
   const problems = [
     ...treeProblems(REPO_ROOT, {
       branch: now.branch,
@@ -367,6 +472,72 @@ function recordTreeProblems(record: GateRecord | null): readonly string[] {
         "or removed since the gate ran",
     );
   }
+  return [...problemsOfBranch, ...problems];
+}
+
+/**
+ * Every tracked file the package copied, and where it came from.
+ *
+ * Recorded during staging so the copies can be checked against the commit
+ * rather than against the working tree they were read from.
+ */
+const stagedOrigins: { origin: string; staged: string }[] = [];
+
+/**
+ * Prove every staged copy is byte-identical to HEAD's own tree object.
+ *
+ * ## Why sampling the working tree was not enough
+ *
+ * The tree was sampled before the build and again before publication, so a
+ * change made after the first sample and restored before the last left no
+ * trace — and the bytes copied into the archive in between were the changed
+ * ones. Sampling more often narrows that window; it cannot close it, because
+ * the thing sampled is not the thing copied.
+ *
+ * This compares the thing copied. Each staged file is read back and matched
+ * against `git show HEAD:<origin>`, so a modification during staging is caught
+ * no matter when it was restored — and the archive either carries the commit's
+ * bytes or it is refused.
+ */
+export interface StagedOrigin {
+  /** The tracked path in HEAD the copy was taken from. */
+  readonly origin: string;
+  /** Where the copy sits inside the staging directory, in POSIX form. */
+  readonly staged: string;
+}
+
+export function stagedOriginProblems(
+  dir: string,
+  origins: readonly StagedOrigin[] = stagedOrigins,
+): readonly string[] {
+  const problems: string[] = [];
+  if (origins.length === 0) {
+    return ["no staged file recorded its tracked origin — the copies cannot be checked"];
+  }
+  for (const { origin, staged } of origins) {
+    const path = join(dir, ...staged.split("/"));
+    if (!existsSync(path)) {
+      problems.push(`${staged} was recorded as staged and is not present`);
+      continue;
+    }
+    let committed: Buffer;
+    try {
+      committed = execFileSync("git", ["show", `HEAD:${origin}`], {
+        cwd: REPO_ROOT,
+        maxBuffer: 64 * 1024 * 1024,
+        encoding: "buffer",
+      });
+    } catch {
+      problems.push(`${origin} is staged and is not in HEAD`);
+      continue;
+    }
+    if (!readFileSync(path).equals(committed)) {
+      problems.push(
+        `${staged} does not match HEAD:${origin} — the working tree changed between the ` +
+          "gate and this staging, and restoring it afterwards does not change what was copied",
+      );
+    }
+  }
   return problems;
 }
 
@@ -390,9 +561,19 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
 
   encodeDeclaredPatches(join(dir, "patches"));
 
+  stagedOrigins.length = 0;
   const copyAll = (from: string, to: string, filter: (f: string) => boolean): void => {
     for (const f of readdirSync(join(REPO_ROOT, from)).sort()) {
-      if (filter(f)) copyFileSync(join(REPO_ROOT, from, f), join(dir, to, f));
+      if (!filter(f)) continue;
+      copyFileSync(join(REPO_ROOT, from, f), join(dir, to, f));
+      /*
+       * WHERE IT CAME FROM, so the copy can be checked against the COMMIT
+       * rather than against the working tree it was read from.
+       */
+      stagedOrigins.push({
+        origin: `${from}/${f}`,
+        staged: to === "." ? f : `${to}/${f}`,
+      });
     }
   };
 
@@ -972,6 +1153,18 @@ function buildFrom(
    * other, and a scan that stopped before it would be a scan with a hole in it
    * the size of the last file written.
    */
+  /*
+   * BEFORE ANYTHING IS ARCHIVED. A staged copy that does not match the commit
+   * means the package would carry bytes the gate never measured.
+   */
+  const origins = stagedOriginProblems(dir);
+  if (origins.length > 0) {
+    throw new Refusal(
+      `the staged copies do not match HEAD:\n${origins.map((x) => `  ${x}`).join("\n")}`,
+    );
+  }
+  say(`  staged origins           ${String(stagedOrigins.length)} tracked files match HEAD`);
+
   const finished = scanDirectory(dir);
   if (finished.foundCharacters > 0) {
     throw new Refusal(
@@ -1062,16 +1255,25 @@ function main(): void {
   const staging = join(outDir, `.staging-${op.operationId}`);
   const short = identity.head.slice(0, 7);
   const distributable = join(outDir, `IRIS-Observer-${short}-review.zip`);
+  /* Reported at the end, so a refusal after publication is distinguishable. */
   let published = false;
 
   const cleanUp = (): void => {
-    rmSync(staging, { recursive: true, force: true });
     /*
-     * A same-HEAD archive at the distributable path after a refusal is the
-     * failure mode this exists to prevent: it is indistinguishable from a
-     * verified one, and it is the file somebody would hand over.
+     * ONLY WHAT THIS OPERATION CREATED.
+     *
+     * The previous edition deleted the canonical same-HEAD archive whenever
+     * this attempt had not published — so a LATER failing attempt destroyed an
+     * EARLIER verified deliverable it had never touched. A failure has no
+     * business removing somebody else's result, and "same HEAD" is not
+     * ownership: an archive at that path may be a fully verified artefact from
+     * a previous, successful operation.
+     *
+     * The staging directory is named for this operation and is the only thing
+     * this operation made. Publication is a no-clobber link, so an unpublished
+     * failure cannot have left anything at the distributable path either.
      */
-    if (!published) rmSync(distributable, { force: true });
+    rmSync(staging, { recursive: true, force: true });
   };
 
   try {
@@ -1093,11 +1295,15 @@ function main(): void {
     {
       say("");
       say("  rebuilding under three time zones, and comparing all four hashes:");
-      const scratch = join(staging, "children");
       const hashes: { readonly label: string; readonly sha: string }[] = [
         { label: "written archive", sha: first.sha },
       ];
-      for (const tz of ["UTC", "Europe/Budapest", "America/New_York"]) {
+      const zones: readonly { tz: string; slot: RebuildSlot }[] = [
+        { tz: "UTC", slot: "utc" },
+        { tz: "Europe/Budapest", slot: "budapest" },
+        { tz: "America/New_York", slot: "new-york" },
+      ];
+      for (const { tz, slot } of zones) {
         assertOwner(REPO_ROOT, op);
         /* Through tsx: this file is TypeScript and bare node cannot load it. */
         const out = execFileSync(
@@ -1106,7 +1312,7 @@ function main(): void {
             join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs"),
             process.argv[1] ?? "",
             "--child",
-            scratch,
+            `--slot=${slot}`,
             `--operation=${op.operationId}`,
           ],
           { cwd: REPO_ROOT, encoding: "utf8", env: { ...process.env, TZ: tz } },
@@ -1163,11 +1369,49 @@ function main(): void {
             `the inflated archive scan is not complete and clean: ${describeScan(inflatedScan)}`,
           );
         }
-        say(`    embedded manifest         ${String(inflatedScan.scannedFiles)} files verified`);
+        /*
+         * AND THE STANDARD CHECKER, ON THE MANIFEST ITSELF.
+         *
+         * The line printed here said "embedded manifest verified" while the
+         * only `sha256sum -c` in this file ran against a one-line SHA256SUMS
+         * naming the OUTER zip — a checksum this process had just computed,
+         * checked against itself. The custom bidirectional verifier above is
+         * real and stays; what was missing is the command a reviewer would
+         * actually type, run where they would type it.
+         *
+         * Exit zero AND empty stderr: a checker that prints warnings while
+         * exiting zero has not verified anything quietly.
+         */
+        const check = spawnSync("sha256sum", ["-c", "hashes.txt"], {
+          cwd: inflated,
+          encoding: "utf8",
+          maxBuffer: 32 * 1024 * 1024,
+        });
+        if (check.status !== 0) {
+          throw new Refusal(
+            `sha256sum -c hashes.txt failed inside the inflated archive (status ${String(check.status)})`,
+          );
+        }
+        if ((check.stderr ?? "") !== "") {
+          throw new Refusal(
+            "sha256sum -c hashes.txt wrote to stderr inside the inflated archive; a manifest " +
+              "check that warns has not verified silently",
+          );
+        }
+        const checked = (check.stdout ?? "").split("\n").filter((l) => l.endsWith(": OK")).length;
+        say(
+          `    embedded manifest       ${String(inflatedScan.scannedFiles)} files, ` +
+            `sha256sum -c: ${String(checked)} OK, 0 stderr`,
+        );
       } finally {
         rmSync(inflated, { recursive: true, force: true });
       }
 
+      /*
+       * AND SEPARATELY, THE OUTER ZIP'S OWN CHECKSUM. Reported as its own line
+       * because it is a different claim about a different object: the archive
+       * as a file, rather than the manifest inside it.
+       */
       const listing = `${first.sha}  ${basename(first.archive)}\n`;
       const sumFile = join(staging, "SHA256SUMS");
       writeFileSync(sumFile, listing, "utf8");
@@ -1175,7 +1419,7 @@ function main(): void {
         cwd: dirname(first.archive),
         stdio: "ignore",
       });
-      say("    sha256sum -c            passed");
+      say("    outer zip checksum      sha256sum -c SHA256SUMS: passed");
     }
 
     /* Last: the tree, ownership, and only then the atomic publication. */
@@ -1189,12 +1433,41 @@ function main(): void {
             .join("\n"),
       );
     }
-    assertOwner(REPO_ROOT, op);
-    rmSync(distributable, { force: true });
-    renameSync(first.archive, distributable);
-    published = true;
+    /*
+     * THE TERMINAL PHASE, CLAIMED ATOMICALLY.
+     *
+     * Recovery takes the same claim. Whichever wins the exclusive create
+     * proceeds and the other refuses, so a recovery can no longer tombstone
+     * and release this operation between its final ownership check and its
+     * rename — the interval that let a recovered process publish anyway.
+     */
+    const releaseTerminal = claimTerminalPhase(REPO_ROOT, op, "publish");
+    try {
+      /*
+       * NO-CLOBBER, ATOMICALLY. `link` fails if the destination exists, so an
+       * archive already at that path is never overwritten and never deleted:
+       * it is reported, and this operation refuses rather than replacing a
+       * result it did not produce.
+       */
+      if (existsSync(distributable)) {
+        throw new Refusal(
+          `an archive already exists at ${relative(REPO_ROOT, distributable).split(sep).join("/")}. ` +
+            `Its SHA-256 is ${sha256File(distributable)} and this build produced ${first.sha}. ` +
+            "Nothing has been deleted or replaced. Move or remove the existing archive " +
+            "deliberately if it is to be superseded.",
+        );
+      }
+      linkSync(first.archive, distributable);
+      rmSync(first.archive, { force: true });
+      published = true;
+    } finally {
+      releaseTerminal();
+    }
     say("");
-    say(`  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}`);
+    say(
+      `  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}` +
+        `${published ? "" : " (NOT published)"}`,
+    );
   } catch (e) {
     cleanUp();
     try {
@@ -1216,19 +1489,41 @@ function main(): void {
 
 /* A child run prints only its archive hash, so the parent can compare. */
 if (process.argv.includes("--child")) {
-  const scratch = process.argv[process.argv.indexOf("--child") + 1] ?? tmpdir();
-  mkdirSync(scratch, { recursive: true });
   /*
-   * UNDER THE PARENT'S OWNERSHIP, never its own.
+   * A CHILD CHOOSES NOTHING.
    *
-   * The three time-zone rebuilds are part of ONE package operation. A child
-   * that tried to take the mutex would refuse — correctly, the parent holds it
-   * — so it verifies the parent's ownership instead, and never releases it.
+   * It is told which operation it belongs to and which of the three rebuild
+   * slots it is; both are validated, and the destination is derived from them.
+   * A directory on the command line is refused outright rather than used —
+   * being told where to write is exactly the capability this interface must
+   * not have while a package operation is live.
    */
-  const idArg = process.argv.find((a) => a.startsWith("--operation="));
-  const operationId = idArg === undefined ? "" : idArg.slice("--operation=".length);
+  const arg = (name: string): string | undefined => {
+    const found = process.argv.find((a) => a.startsWith(`--${name}=`));
+    return found === undefined ? undefined : found.slice(name.length + 3);
+  };
+  const operationId = arg("operation") ?? "";
+  const slot = arg("slot");
+  /* A bare positional after --child is the old interface, and is refused. */
+  const positional = process.argv[process.argv.indexOf("--child") + 1];
+  const supplied =
+    positional !== undefined && !positional.startsWith("--") ? positional : undefined;
+
+  const problems = rebuildSlotProblems(operationId, slot, supplied);
+  if (problems.length > 0) {
+    say(problems.join("\n"));
+    process.exit(1);
+  }
+
+  /*
+   * UNDER THE PARENT'S OWNERSHIP, never its own. A child that tried to take the
+   * mutex would refuse — correctly, the parent holds it — so it verifies the
+   * parent's ownership instead, and never releases it and never publishes.
+   */
   const op = adoptOperation(REPO_ROOT, "package", operationId);
-  say(build(scratch, { operation: op }).sha);
+  const destination = rebuildSlotDir(operationId, slot as RebuildSlot);
+  mkdirSync(destination, { recursive: true });
+  say(build(destination, { operation: op, archiveDir: destination }).sha);
 } else if (process.argv[1]?.endsWith("build-package.ts")) {
   main();
 }

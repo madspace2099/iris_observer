@@ -5,9 +5,16 @@
  * spread over three patch files, while the package reported "control-char scan
  * 0". Both halves of that are explicable and neither is acceptable.
  *
- *   * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history:
- *     they are the REMOVED lines of the three commits that removed them. A
- *     diff that did not contain them would be a wrong diff.
+ * THOSE NUMBERS DESCRIBE THAT ARCHIVE AND NOTHING SINCE. The series has grown:
+ * the declared list below now has five entries, and every count that appears in
+ * a shipped document is measured from the patches of the build that ships them
+ * — see {@link controlByteDistribution} and {@link transportSafeNote}. Nothing
+ * downstream restates a number written here.
+ *
+ *   * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history. A
+ *     diff that did not contain them would be a wrong diff. They are NOT all on
+ *     removed lines: two of the five commits ADD control bytes, one does both,
+ *     and the note that ships beside them says which, from measurement.
  *   * THE SCAN WAS IN THE WRONG PLACE. It ran over tracked files before the
  *     packager had staged anything, so it never saw a patch at all.
  *
@@ -36,37 +43,66 @@
  *
  * AND THEY ARE NOT ALL REMOVALS. An earlier edition of this comment said each
  * commit removed a backspace, so every byte sat on a `-` line. Measured, that
- * is false: the first entry below adds two, and the pair at the end add and
- * then remove two each. The note that ships with the patches is generated from
- * the decoded files for exactly this reason.
+ * is false — and the correction that replaced it was ALSO wrong, because it was
+ * written from memory too: it said the first entry "removes two backspaces from
+ * the gate-contract FAILED matcher" when that commit ADDS two and removes none,
+ * and it said `1b8b912` removes "a backspace" when it removes two.
+ *
+ * So the prose no longer carries a count at all. Each entry declares the
+ * distribution it expects as DATA, and
+ * `supabase/test/release-operation.test.ts` regenerates the patches with
+ * `git format-patch` and refuses any entry whose declaration does not match the
+ * bytes. A count that drifts from the history now fails a test rather than
+ * shipping in a document.
  */
-export const HISTORICAL_CONTROL_CHAR_COMMITS: readonly { sha: string; why: string }[] = [
+/** Where a patch's forbidden bytes actually sit. Measured, never assumed. */
+export interface ControlByteDistribution {
+  readonly added: number;
+  readonly removed: number;
+  readonly context: number;
+}
+
+export interface HistoricalControlCharCommit {
+  readonly sha: string;
+  /** What the commit did. Deliberately carries no numbers. */
+  readonly why: string;
+  /** Where its control bytes sit, checked against the regenerated patch. */
+  readonly distribution: ControlByteDistribution;
+}
+
+export const HISTORICAL_CONTROL_CHAR_COMMITS: readonly HistoricalControlCharCommit[] = [
   {
     sha: "a0226f7e0c78191b5e58e59221ac01e63375b030",
-    why: "removes two backspaces from the gate-contract FAILED matcher",
+    /* ADDS them: the matcher it introduces contains the bytes it matches. */
+    why: "introduces the gate-contract FAILED matcher, which contains backspaces",
+    distribution: { added: 2, removed: 0, context: 0 },
   },
   {
     sha: "9e00a4f18a1902d8a4312e5cf49e2c8abc89fdf0",
-    why: "removes two backspaces from a test regex and adds the widened scan",
+    why: "rewrites a test regex and adds the widened scan",
+    distribution: { added: 2, removed: 2, context: 0 },
   },
   {
     sha: "1b8b912f273c6b2a60114db7de4f5965bce786e6",
-    why: "removes a backspace from the REVIEW paragraph describing backspaces",
+    why: "removes backspaces from the REVIEW paragraph describing backspaces",
+    distribution: { added: 0, removed: 2, context: 0 },
   },
   {
     /*
      * A test that MEASURES where control bytes sit needed control bytes to
-     * measure, and three literal backspaces were written into it. The staged
-     * package scan refused the build immediately — the mechanism working, in
-     * the phase it is meant to work in — and the test now assembles them at
-     * runtime instead. The bytes are in this commit's diff permanently.
+     * measure, and literal backspaces were written into it. The staged package
+     * scan refused the build immediately — the mechanism working, in the phase
+     * it is meant to work in — and the test now assembles them at runtime
+     * instead. The bytes are in this commit's diff permanently.
      */
     sha: "0b9d0fda032f5ad37d4ebb387ab419bb1175d3cc",
-    why: "adds three backspaces to a transport-safe test that measures them",
+    why: "adds backspaces to a transport-safe test that measures them",
+    distribution: { added: 3, removed: 0, context: 0 },
   },
   {
     sha: "af8ff78b355550744ef2ca674f6773666a666c0b",
-    why: "removes those three backspaces, assembling them at runtime instead",
+    why: "removes those backspaces, assembling them at runtime instead",
+    distribution: { added: 0, removed: 3, context: 0 },
   },
 ];
 
@@ -81,13 +117,6 @@ export function isDeclaredHistorical(contents: string): boolean {
   const sha = patchCommit(contents);
   if (sha === null) return false;
   return HISTORICAL_CONTROL_CHAR_COMMITS.some((c) => c.sha === sha);
-}
-
-/** Where a patch's forbidden bytes actually sit. Measured, never assumed. */
-export interface ControlByteDistribution {
-  readonly added: number;
-  readonly removed: number;
-  readonly context: number;
 }
 
 /**
@@ -138,11 +167,13 @@ export function transportSafeNote(
     "CHARACTERS, wherever in the diff they occur: added lines, removed lines or",
     "context alike. Nothing about the encoding decision depends on which.",
     "",
-    "AN EARLIER EDITION OF THIS NOTE SAID OTHERWISE. It claimed all three",
-    "commits REMOVE backspaces and that every byte sits on a removed line.",
-    "Measured, that is false for two of the three. The mechanism was always",
-    "sound; the explanation of it was not, so it is now computed from the",
-    "decoded patches rather than written down once and carried forward.",
+    "AN EARLIER EDITION OF THIS NOTE SAID OTHERWISE. It claimed every affected",
+    "commit REMOVES backspaces and that every byte sits on a removed line.",
+    "Measured, that is false: some sit on added lines and one patch has both.",
+    "It also stated how many patches were affected, and that number went stale",
+    "as the series grew. The mechanism was always sound; the explanation of it",
+    "was not, so every count below is computed from the decoded patches of THIS",
+    "build rather than written down once and carried forward.",
     "",
     "WHERE THE BYTES ACTUALLY ARE, measured from these exact files:",
     "",

@@ -34,12 +34,16 @@ exposes a subject, a fingerprint, a key or the contents of any row.
   pg_cron installed                                        {{PG_CRON}}
   observer.run_rate_bucket_retention exists                {{RETENTION_FN}}   (migration 4 unapplied)
 
-AT THAT OBSERVATION THE OLDEST BUCKET WAS PAST THE THRESHOLD. Recorded at
-{{BUCKET_HISTORY}} hours across successive rounds. {{THRESHOLD_H}} is the
-deletion threshold migration 4 will enforce, and nothing had removed the row
-when it got there — because nothing prunes. The claim this evidence exists to
-support was not hypothetical at {{OBSERVED_AT}}: the table was holding data past
-the age the documentation promises. Whether it still is, is UNKNOWN here.
+AT THAT OBSERVATION THE OLDEST BUCKET WAS PAST THE THRESHOLD.
+{{THRESHOLD_H}} is the deletion threshold migration 4 will enforce, and nothing
+had removed the row when it got there — because nothing prunes. The claim this
+evidence exists to support was not hypothetical at {{OBSERVED_AT}}: the table
+was holding data past the age the documentation promises. Whether it still is,
+is UNKNOWN here.
+
+EARLIER RECORDED AGES: {{BUCKET_HISTORY}} hours. These were
+{{BUCKET_HISTORY_PROVENANCE}}. The previous wording, "recorded at N hours across
+successive rounds", presented them as a measured series and they are not one.
 
 THIS IS THE ONLY PLACE THE LIVE NUMBERS ARE STATED IN FULL. Every other file in
 this package renders the same fields from the same snapshot object and refers

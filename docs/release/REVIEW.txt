@@ -34,15 +34,22 @@ reading one bundle should not have to reconstruct the others.
 0. STATE, RECORDED BEFORE ANY CHANGE THIS ROUND
 ================================================================================
 
+THE START OF THIS ROUND is the commit of the last archive handed over, which is
+where the audit that opened it was performed. It is derived from the delivery
+list rather than written here: a hard-coded start HEAD named f1dbffd for eight
+further deliveries, describing a finished round as "this round".
+
   branch                            release/observer-demo-rc1  (never left)
-  local HEAD at the start           f1dbffd4ba1725bcee50515702673bc2c4923214
+  local HEAD at the start           {{START_HEAD}}
   remote release/observer-demo-rc1  {{REMOTE_RELEASE}}
   remote main                       {{REMOTE_MAIN}}
   working tree                      CLEAN
-  behind / ahead at the start       0 / 10
+  behind / ahead at the start       {{START_BEHIND}} / {{START_AHEAD}}
 
   local HEAD now                    {{HEAD}}
   behind / ahead                    {{BEHIND}} / {{AHEAD}}
+
+  {{LOCAL_ONLY_SENTENCE}}
 
 MIGRATIONS — as recorded by the catalogue query in the carried-forward
 snapshot. NOT re-read at {{HEAD_SHORT}}; see the provenance line in
@@ -83,10 +90,15 @@ from the declaration rather than typed:
 ENVIRONMENT METADATA: names and requirement in COMPATIBILITY-EVIDENCE.txt §3.
 PRESENCE, SCOPE AND VALUE REMAIN UNAVAILABLE FROM HERE.
 
-NO EXTERNAL MUTATION OCCURRED. No Vercel environment variable was changed. No
-deployment was created, redeployed, promoted, protected or deleted. No Ask
-Observer HTTP request was made. pg_cron was not enabled. Supabase was not
+NO EXTERNAL MUTATION OCCURRED IN THIS ROUND. No Vercel environment variable was
+changed. No deployment was created, redeployed, promoted, protected or deleted.
+No Ask Observer HTTP request was made. pg_cron was not enabled. Supabase was not
 written to. No migration was applied. Nothing was pushed, merged or tagged.
+
+THAT IS A CLAIM ABOUT THIS ROUND, NOT ABOUT THE PROJECT. Earlier rounds did read
+Vercel and something did add a variable to the Production scope. The complete
+chronology is in section 3a, and no sentence in this document scopes it more
+broadly than the row it rests on.
 
 NO HISTORY WAS REWRITTEN IN THIS ROUND, AND ONE EARLIER ROUND DID REWRITE TWO
 COMMITS. Both are true and they are about different milestones, so stating only
@@ -257,9 +269,12 @@ The delivered `1b8b912` archive contained EIGHT literal BACKSPACE bytes — two 
 patch 0034, four in 0035, two in 0036 — under the heading "control-char scan 0".
 Both halves of that are explicable and neither is acceptable:
 
-  * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history: they
-    are the REMOVED lines of the three commits that removed them. A diff
-    without them would be a wrong diff.
+  * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history. A
+    diff without them would be a wrong diff. THEY ARE NOT ALL REMOVALS: this
+    document previously called them "the REMOVED lines of the three commits
+    that removed them", and measured, patch 0034 ADDS both of its bytes and
+    removes none. Where each one actually sits is measured per build and
+    printed in `patches/TRANSPORT-SAFE.txt`, never restated here.
   * THE SCAN NEVER SAW THEM. It ran over tracked files, before `format-patch`
     had written a single patch. Its number was true about the working tree and
     silent about everything the packager produces.
@@ -276,9 +291,18 @@ DELETED rather than left on disk. None of them is summarised into the others.
 C — HOW THE HISTORICAL PATCHES TRAVEL.
 
 History is not rewritten and the patches are not excluded from the scan. Each
-patch from a DECLARED commit — three of them, named by full SHA with a reason
-each in `scripts/release/transport-safe.ts` — ships base64-encoded instead of
-raw, with `patches/TRANSPORT-SAFE.txt` beside them.
+patch from a DECLARED commit — named by full SHA in
+`scripts/release/transport-safe.ts`, each with a reason and a DECLARED BYTE
+DISTRIBUTION — ships base64-encoded instead of raw, with
+`patches/TRANSPORT-SAFE.txt` beside them.
+
+THE COUNT IS NOT WRITTEN HERE. It was, and it went stale: "three of them" was
+true of the `1b8b912` series and the list has grown to five since, because two
+later commits added and then removed the backspaces a transport-safe test needed
+in order to measure backspaces. `{{PATCH_SUMMARY}}` is rendered from the build
+that produced this archive, and a test regenerates the patches with
+`git format-patch` and refuses any declared distribution that does not match the
+bytes git produces.
 
 THOSE FILES ARE NOT DIRECTLY `git am` APPLICABLE. They decode to bytes identical
 to what `git format-patch` produces, so the recovered patch is applicable and
@@ -442,10 +466,30 @@ EVERY STATE NOW CARRIES A VERDICT, and none of them says "note it and continue":
 
 A PUBLIC URL NAMING THE APPROVED PROJECT DOES NOT CONVERT THE FALLBACK INTO A
 PASS. It is the most tempting way past this gate and precisely the substitution
-the rule forbids. Every non-PASS state requires an explicit operator decision, a
-configuration correction, and a RESTART OF PREFLIGHT STEP 1; the numbered
-rollout now says step 2 is unreachable until step 1 returns PASS for every
-relevant environment.
+the rule forbids.
+
+PAUSE AND STOP TAKE DIFFERENT REMEDIES, and running them together is the same
+mistake this section opened by describing. Stated separately:
+
+  STOP    an explicit operator decision, a CONFIGURATION CORRECTION, and a
+          RESTART OF PREFLIGHT STEP 1. Something is wrong with the value.
+
+  PAUSE   NO configuration change and NO restart. Nothing is known to be wrong;
+          the TOOLING could not isolate the value. The remedy is the manual
+          confirmation path — Matthew reads the exact non-secret origin or
+          project ref, and that observation is compared with the approved ref.
+          PAUSE's own remedy says explicitly not to rotate or replace anything,
+          so telling the operator to correct the configuration and restart
+          contradicts it.
+
+An earlier edition wrote "every non-PASS state requires ... a configuration
+correction, and a RESTART OF PREFLIGHT STEP 1", which swept PAUSE into the STOP
+remedy and reinstated exactly the wrong advice section B removes. Only a
+MISMATCH found by manual confirmation restarts step 1, and it does so because a
+mismatch IS a configuration fault.
+
+Either way, step 2 is unreachable until step 1 returns PASS for every relevant
+environment.
 
 The table lives in `scripts/release/preflight.ts` and is RENDERED into the
 pepper contract, so the rule the documents state is the rule
@@ -1592,9 +1636,16 @@ From the carried-forward observation at {{OBSERVED_AT}} — not re-read here:
     absent; both legacy façades still present.
 
 AT {{OBSERVED_AT}} THE OLDEST BUCKET WAS {{OLDEST_H}} HOURS, PAST THE
-{{THRESHOLD_H}}-HOUR THRESHOLD migration 4 will enforce. Recorded at
-{{BUCKET_HISTORY}} across successive rounds. Nothing had removed it, because
-nothing prunes. WHETHER THAT IS STILL TRUE IS UNKNOWN — see section 3a.
+{{THRESHOLD_H}}-HOUR THRESHOLD migration 4 will enforce. Nothing had removed it,
+because nothing prunes. WHETHER THAT IS STILL TRUE IS UNKNOWN — see section 3a.
+
+  EARLIER RECORDED AGES, AND WHAT THEY ARE NOT. The values {{BUCKET_HISTORY}}
+  were {{BUCKET_HISTORY_PROVENANCE}}. They were previously printed as having
+  been "recorded across successive rounds", which invites exactly the reading
+  they cannot support — eight integers in ascending order read as one thing
+  observed rising, and nothing here records when each was read, by which query,
+  or against which database state. Only {{OLDEST_H}}, dated {{OBSERVED_AT}}, is
+  a measurement this package stands behind.
 
 
 ================================================================================
@@ -1608,11 +1659,14 @@ Consequently, and stated plainly rather than left to be inferred:
   * THE CURRENT LIVE DATABASE STATE IS UNKNOWN. Bucket count, oldest bucket age,
     audit-row count, whether pg_cron has appeared, whether any migration has been
     applied — all of it describes {{OBSERVED_AT}} and nothing later.
-  * THE CURRENT DEPLOYMENT INVENTORY IS UNKNOWN. It was last enumerated against
-    Vercel for the f1dbffd bundle and has been carried forward since — an
-    explicit constant now, never derived from the tail of the list of bundles
-    that merely record it. No deployment was enumerated, created, redeployed,
-    protected, promoted or deleted in this milestone.
+  * THE CURRENT DEPLOYMENT INVENTORY IS UNKNOWN. Rendered from the declared
+    provenance rather than restated here: {{DEPLOYMENT_INVENTORY_LINE}}
+    It has been carried forward since — an explicit constant, never derived from
+    the tail of the list of bundles that merely record it. No deployment was
+    enumerated, created, redeployed, protected, promoted or deleted in this
+    milestone. The enumeration's clock time is NOT RECORDED and is not invented;
+    it is not the database observation time, which belongs to a different read
+    of a different system.
   * NO VERCEL ENVIRONMENT VARIABLE WAS READ IN THIS MILESTONE, and none was
     changed. Presence, scope and value of every one of them remain what section
     4 says they are, except the two the authorised preflight already settled,
@@ -1623,24 +1677,53 @@ same classifier the tests exercise:
 
 {{OBSERVED_MAPPING_BLOCK}}
 
-  BOTH ENVIRONMENTS NOW MAP TO THE APPROVED PROJECT, and project mapping no
-  longer blocks step 2. That is a change since the previous package, and the
-  reading that produced it is dated 2026-08-28.
+  BOTH ENVIRONMENTS NOW MAP TO THE APPROVED PROJECT. That is a change since
+  the previous package, and the reading that produced it is dated 2026-08-28.
 
-  WHO READ IT, AND WHAT THAT MEANS FOR "EXTERNAL ACCESS". Matthew read the
-  Vercel dashboard and supplied screenshots. NO AGENT HAS EVER READ VERCEL, and
-  this milestone performed no external access of any kind — but the combined
-  history of these milestones is no longer free of external reads, and saying
-  "zero external access" without that distinction would be false. The exact
-  time of day was not recorded on either date and is not invented.
+  WHAT THAT UNBLOCKS, AND WHAT IT DOES NOT. Step 1 returns PASS for both
+  relevant environments, so STEP 2 — explicit operator approval and the
+  pepper-state decision — IS NOW REACHABLE. It is a decision point, and the
+  pepper's state is one of the things decided there, so the pepper does not
+  block step 2.
 
-  WHETHER ANYTHING WAS CHANGED IS UNKNOWN, NOT ZERO. The screenshots show open
-  variable editors with Save and Cancel controls. Nobody has confirmed which
-  was clicked. An earlier edition of this document said "no variable was
-  edited; the editor was exited without saving" — that was an assumption
-  reported as a measurement, and it is withdrawn. Unless Matthew separately
-  confirms he exited with Cancel, the mutation status of these observations is
-  UNKNOWN.
+  THE PEPPER BLOCKS STEP 3. Step 3 reuses, creates or explicitly rotates the
+  pepper per the safe branch, and {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN means
+  no branch is safe to take: two separate unrevealable rows are not two equal
+  values, and step 3 cannot choose between reuse and rotation without knowing
+  which it is.
+
+  THE PRODUCTION RUNTIME CREDENTIALS BLOCK PROMOTION, which is not a step in
+  this sequence at all — section 6 ends by saying no Production promotion is
+  part of it. That STOP therefore constrains what may be done AFTER the
+  sequence, not where inside it the operator may reach.
+
+  WHO READ IT, AND WHAT THAT MEANS FOR "EXTERNAL ACCESS". The complete
+  chronology is rendered from the declared log, so no sentence anywhere in this
+  package can scope it differently:
+
+{{EXTERNAL_ACTIVITY_BLOCK}}
+
+  Read that list before any per-milestone claim. AN AGENT HAS READ VERCEL — the
+  read-only project lookup on the first row above, in an earlier milestone.
+  Previous editions of this document said "NO AGENT HAS EVER READ VERCEL" and
+  that was false. They
+  also said "zero external access" in a way that read as a claim about the
+  project rather than about one milestone. Scoped correctly:
+  {{THIS_MILESTONE_EXTERNAL}}. The exact time of day was not recorded for the
+  dashboard readings and is not invented.
+
+  WHETHER THE OBSERVATIONS CHANGED ANYTHING: {{OBSERVATION_MUTATION_STATUS}}.
+  The screenshots show open variable editors with Save and Cancel controls, and
+  for one round this document said the status was UNKNOWN, because nobody had
+  said which control was clicked. MATTHEW HAS SINCE CONFIRMED HE EXITED WITH
+  CANCEL. That is a statement from the person who performed the act, which is
+  the only source that could settle it, so the earlier "UNKNOWN, not zero"
+  paragraph is itself now out of date and is removed rather than left standing.
+
+  THAT SETTLES THE READINGS, NOT THE TRANSITION. A separate fact, on its own
+  row of the chronology above: {{PRODUCTION_TRANSITION_LINE}} Nothing recorded
+  who performed it or when, and neither is inferred from who took the
+  screenshots.
 
   WHAT THE SCREENSHOTS ESTABLISH, EXACTLY. For both Preview and Production:
   `SUPABASE_URL` is the complete canonical origin
@@ -1669,7 +1752,7 @@ Project mapping passing does not make either of these pass. They are separate
 findings about separate facts, and neither converts a mapping PASS back into a
 mapping failure.
 
-  SEPARATE_SECRET_ROWS / EQUALITY_UNPROVEN / STOP
+  {{PEPPER_STATE_LINE}}
 
   Preview and Production each carry their own `OBSERVER_SUBJECT_PEPPER` SECRET
   row, and no Shared variable is linked. Both environments now target the SAME
@@ -1695,16 +1778,17 @@ mapping failure.
        snapshots to be made unreachable, because a snapshot still holding the
        previous pepper writes identifiers nothing else can correlate.
 
-  PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN / STOP
+  {{PRODUCTION_RUNTIME_LINE}}
 
-  The same complete project list, and the empty Shared tab, show no
-  Production-scoped `OPENAI_API_KEY` and no Production-scoped
-  `SUPABASE_SECRET_KEY`. Preview's runtime credential presence is recorded.
-  PRODUCTION'S COMPLETENESS IS NOT ESTABLISHED, so Production deployment
-  remains STOP until its runtime credentials are established.
+  The same complete project list, and the empty Shared tab, show neither of
+  those rows in the Production scope. Preview's runtime credential presence is
+  recorded. PRODUCTION'S COMPLETENESS IS NOT ESTABLISHED, so Production
+  deployment remains {{PRODUCTION_RUNTIME_VERDICT}} until its runtime
+  credentials are established.
 
   Nothing here configures them. That is a deliberate act with its own
-  authorisation, and this milestone performs no external mutation.
+  authorisation, and it was not performed in this milestone — see the
+  chronology above for what external activity there has actually been.
 
 An earlier edition of this package asserted all of "no Supabase query was made
 this round", "verified by one live query, the only external access this
@@ -1749,15 +1833,18 @@ package whose evidence claims freshness the file history does not support.
      exist for Preview and Production and no Shared variable is linked, so ONE
      RECORD DOES NOT COVER BOTH. Whether the two hold the same value is
      UNPROVEN and unprovable from a listing — the values are secrets and were
-     not inspected. SEPARATE_SECRET_ROWS / EQUALITY_UNPROVEN / STOP. See
+     not inspected. {{PEPPER_STATE_LINE}}. See
      section 3a.
   b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
      SETTLED FOR BOTH, on the 2026-08-28 manual observation: each environment's
      `SUPABASE_URL` is the complete canonical origin for the approved project,
      and each environment's complete variable list contains no
      `NEXT_PUBLIC_SUPABASE_URL`. MAPPED / PASS / via manual, for Preview and
-     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 2;
-     the pepper and Production runtime credentials still do.
+     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 2,
+     which is reachable. The pepper blocks STEP 3, and the Production runtime
+     credentials block PROMOTION — which section 6 excludes from this sequence
+     entirely. Neither blocks step 2, and saying they "still do" ran three
+     different constraints together.
   c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:
@@ -1802,8 +1889,11 @@ Not executed. Steps 1-2 are read-only. Guarded by
       project ref inside the NON-SECRET, SERVER-SIDE `SUPABASE_URL` — never
       from `NEXT_PUBLIC_SUPABASE_URL`, which is a secondary consistency check
       only and STOPS the rollout if it names a different project.
-   2. Explicit operator approval, and the pepper-state decision.
-   3. Reuse, create or explicitly rotate the pepper per the safe branch.
+   2. Explicit operator approval, and the pepper-state decision. REACHABLE at
+      {{HEAD_SHORT}}: step 1 returns PASS for both relevant environments.
+   3. Reuse, create or explicitly rotate the pepper per the safe branch. BLOCKED
+      at {{HEAD_SHORT}} by {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN — no branch
+      is safe to take while it is unknown whether the two rows hold one value.
    4. Redeploy exact SHA `3f298a6` as a fresh Preview, without pushing.
    5. Confirm READY and exact SHA; run the pre-migration HTTP smoke; then
       DELETE the original unverified `3f298a6` deployment.
@@ -1825,7 +1915,10 @@ Not executed. Steps 1-2 are read-only. Guarded by
   19. Run `observer-contract-readiness.sql` with that floor — 0 on both axes,
       INCONCLUSIVE — then apply the contract migration last.
 
-  NO PRODUCTION PROMOTION IS PART OF THIS SEQUENCE.
+  NO PRODUCTION PROMOTION IS PART OF THIS SEQUENCE. Separately, promotion is
+  itself {{PRODUCTION_RUNTIME_VERDICT}} until Production's runtime credentials
+  are established — a constraint on what may be done after this sequence, not on
+  any step within it.
 
 
 ================================================================================

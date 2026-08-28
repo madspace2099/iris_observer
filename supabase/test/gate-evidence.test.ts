@@ -707,3 +707,186 @@ describe("the ddefa50 red shape is evidence, not a malformed record", () => {
     }
   });
 });
+
+/**
+ * THE COUNTS A BOUNDED LIST CANNOT SPEAK FOR.
+ *
+ * Every rule here exists because the record used to describe a truncated list
+ * as though it were the whole truth — by appending a fabricated identity, and
+ * by comparing list LENGTHS with measured counts that the bound had already
+ * made unequal. The list and the number beside it are now checked as one claim.
+ */
+describe("bounded evidence is reconciled with what was measured", () => {
+  const head = "3b746f43db7d3d79d709274f939ce8c3474df9dd";
+
+  /** A green record with its test gate patched. */
+  const withGate = (patch: Record<string, unknown>): GateRecord => {
+    const clean = greenGateRecord(head);
+    return { ...clean, testGate: { ...clean.testGate, ...patch } } as GateRecord;
+  };
+
+  it("accepts the clean record, which drops nothing and says so", () => {
+    expect(structuralRecordProblems(greenGateRecord(head), head)).toEqual([]);
+  });
+
+  it("refuses a record whose omission count is missing", () => {
+    for (const field of ["failedSuiteNamesOmitted", "failedTestsOmitted", "skippedTestsOmitted"]) {
+      const clean = greenGateRecord(head);
+      const gate = { ...clean.testGate } as Record<string, unknown>;
+      delete gate[field];
+      const record = { ...clean, testGate: gate } as GateRecord;
+      expect(structuralRecordProblems(record, head).join(" "), field).toMatch(
+        new RegExp(`${field} not recorded`),
+      );
+    }
+  });
+
+  it("refuses an omission count that is not a count", () => {
+    for (const bad of [-1, 1.5, "3", null, Number.NaN]) {
+      const record = withGate({ failedTestsOmitted: bad });
+      expect(structuralRecordProblems(record, head).join(" "), JSON.stringify(bad)).toMatch(
+        /failedTestsOmitted (is not a count|not recorded)/,
+      );
+    }
+  });
+
+  it("requires retained identities plus omitted to equal the measurement", () => {
+    /* Twenty-six skips: twenty-five retained, one omitted, and the total says 26. */
+    const clean = greenGateRecord(head);
+    const skipped = Array.from({ length: 25 }, (_v, i) => ({
+      suite: "a.test.ts",
+      title: `case ${String(i)}`,
+    }));
+    const consistent = {
+      ...clean,
+      tests: { ...clean.tests, total: 1201, passed: 1175, skipped: 26, failed: 0 },
+      testGate: { ...clean.testGate, skippedTests: skipped, skippedTestsOmitted: 1 },
+    } as GateRecord;
+    /* The arithmetic rule is satisfied — 25 + 1 = 26 — so it is not raised. */
+    expect(structuralRecordProblems(consistent, head).join(" ")).not.toMatch(
+      /skipped-test identities plus/,
+    );
+
+    /* Claiming zero omissions for the same list contradicts the measurement. */
+    const contradictory = {
+      ...consistent,
+      testGate: { ...clean.testGate, skippedTests: skipped, skippedTestsOmitted: 0 },
+    } as GateRecord;
+    expect(structuralRecordProblems(contradictory, head).join(" ")).toMatch(
+      /25 skipped-test identities plus 0 omitted for 26 skipped tests/,
+    );
+  });
+
+  it("refuses omissions claimed by a list that never filled the bound", () => {
+    const clean = greenGateRecord(head);
+    const record = {
+      ...clean,
+      tests: { ...clean.tests, total: 1201, passed: 1198, skipped: 3, failed: 0 },
+      testGate: {
+        ...clean.testGate,
+        skippedTests: [{ suite: "a.test.ts", title: "one" }],
+        skippedTestsOmitted: 2,
+      },
+    } as GateRecord;
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /nothing was dropped for want of room/,
+    );
+  });
+
+  it("refuses a fabricated identity standing in for the ones that were dropped", () => {
+    /*
+     * The exact record the previous bound produced. It is refused twice over:
+     * the suite name is not a safe label, and twenty-five entries plus a
+     * declared zero omissions do not account for twenty-six skips.
+     */
+    const clean = greenGateRecord(head);
+    const skipped = [
+      ...Array.from({ length: 24 }, (_v, i) => ({
+        suite: "a.test.ts",
+        title: `case ${String(i)}`,
+      })),
+      { suite: "…", title: "and 2 more" },
+    ];
+    const record = {
+      ...clean,
+      tests: { ...clean.tests, total: 1201, passed: 1175, skipped: 26, failed: 0 },
+      testGate: { ...clean.testGate, skippedTests: skipped, skippedTestsOmitted: 0 },
+    } as GateRecord;
+    const problems = structuralRecordProblems(record, head).join(" ");
+    expect(problems).toMatch(/unsafe suite name/);
+    expect(problems).toMatch(/25 skipped-test identities plus 0 omitted for 26 skipped tests/);
+  });
+
+  it("checks the recorded total against the three numbers it summarises", () => {
+    const clean = greenGateRecord(head);
+    const record = { ...clean, tests: { ...clean.tests, total: 9999 } } as GateRecord;
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /tests\.total is 9999 but passed \+ skipped \+ failed is/,
+    );
+  });
+
+  it("refuses a total that is not a count at all", () => {
+    for (const bad of [-1, 2.5, "1201", null]) {
+      const clean = greenGateRecord(head);
+      const record = { ...clean, tests: { ...clean.tests, total: bad } } as GateRecord;
+      expect(structuralRecordProblems(record, head).join(" "), JSON.stringify(bad)).toMatch(
+        /tests\.total is not a count/,
+      );
+    }
+  });
+
+  it("refuses more failing suite names than there were failing suites", () => {
+    const record = withGate({
+      reportedFailedSuites: 1,
+      failedSuiteNames: ["a.test.ts", "b.test.ts", "c.test.ts"],
+      failedSuiteNamesOmitted: 0,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /3 failing suite name\(s\) for 1 failed suite result\(s\)/,
+    );
+  });
+
+  it("refuses failing suites that name no file to look in", () => {
+    const record = withGate({
+      reportedFailedSuites: 6,
+      failedSuiteNames: [],
+      failedSuiteNamesOmitted: 0,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /6 failed suite result\(s\) and no suite named/,
+    );
+  });
+
+  it("accepts several results sharing one basename", () => {
+    /* Six failing results in three files is the shape ddefa50 actually had. */
+    const record = withGate({
+      reportedFailedSuites: 6,
+      failedSuiteNames: ["a.test.ts", "b.test.ts", "c.test.ts"],
+      failedSuiteNamesOmitted: 0,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).not.toMatch(/failing suite name/);
+  });
+
+  it("treats an unrecorded platform as a structural fault, not a failed run", () => {
+    for (const bad of [undefined, "", "plan9", 3]) {
+      const clean = greenGateRecord(head);
+      const record = { ...clean, platform: bad } as GateRecord;
+      expect(structuralRecordProblems(record, head).join(" "), JSON.stringify(bad)).toMatch(
+        /is not recorded as one this release recognises/,
+      );
+    }
+  });
+
+  it("counts a dropped skip as a skip when checking the approved set", () => {
+    /*
+     * A skip the bound did not list is still a skip. Reading only the retained
+     * list would let an unapproved skip past by being the twenty-sixth.
+     */
+    const clean = greenGateRecord(head);
+    const record = {
+      ...clean,
+      testGate: { ...clean.testGate, skippedTestsOmitted: 4 },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(/skipped test\(s\) on/);
+  });
+});
