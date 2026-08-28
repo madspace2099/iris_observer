@@ -146,7 +146,8 @@ export function packagingProblems(input: PreconditionInput): readonly string[] {
 
   if (input.dirty.length > 0) {
     problems.push(
-      `the working tree is not clean, so the package would describe a commit that does not\n` +
+      `CLEAN TREE: the working tree is not clean, so the package would describe a commit\n` +
+        `that does not ` +
         `contain what it ships:\n${input.dirty.map((l) => `  ${l}`).join("\n")}`,
     );
   }
@@ -183,14 +184,14 @@ export function packagingProblems(input: PreconditionInput): readonly string[] {
    */
   if (input.treeProblems.length > 0) {
     problems.push(
-      `the working tree is not the one the gate measured:\n` +
+      `RECORD TREE: the working tree is not the one the gate measured:\n` +
         input.treeProblems.map((p) => `  ${p}`).join("\n"),
     );
   }
 
   if (input.gateProblems.length > 0) {
     problems.push(
-      `the gate record is not current and clean:\n${input.gateProblems.map((p) => `  ${p}`).join("\n")}\n\n` +
+      `GATE RECORD: the gate record is not current and clean:\n${input.gateProblems.map((p) => `  ${p}`).join("\n")}\n\n` +
         `  Run:  pnpm release:gates\n` +
         `  then: pnpm release:package --verify`,
     );
@@ -253,7 +254,7 @@ function requireCleanHead(options: BuildOptions = {}): {
      * OWNERSHIP, RE-ASSERTED. Not a reading of the lock: a demand that this
      * process is still the owner at the moment the evidence is read.
      */
-    lockProblems: ownershipProblems(root, op),
+    lockProblems: ownershipProblems(root, op, head, record?.treeId),
     /*
      * The tree must be the one the record measured. A synthetic record in a
      * test root describes a tree nobody claims to have measured, so the
@@ -278,20 +279,50 @@ function requireCleanHead(options: BuildOptions = {}): {
   return { head, short: head.slice(0, 7), evidence };
 }
 
-/** Every reason this process may not act as the release operation's owner. */
-function ownershipProblems(root: string, op: Operation | undefined): readonly string[] {
+/**
+ * Every reason this process may not act as the release operation's owner.
+ *
+ * FIVE THINGS HAVE TO AGREE, and each of them names itself when it does not.
+ * A refusal that says only "cannot package" is a refusal somebody reads as the
+ * one they were expecting — which is exactly how an ownership failure spent a
+ * milestone disguised as the dirty-tree refusal that came before it.
+ */
+export function ownershipProblems(
+  root: string,
+  op: Operation | undefined,
+  head: string,
+  recordTreeId: string | undefined,
+): readonly string[] {
   if (op === undefined) {
     return [
-      "no release operation was begun — a packager that does not hold the mutex is a " +
-        "packager whose evidence can be replaced under it while it builds",
+      "OWNERSHIP: no release operation was begun. A packager that does not hold the mutex " +
+        "is a packager whose evidence can be replaced under it while it builds.",
+    ];
+  }
+  if (op.kind !== "package") {
+    return [
+      `OWNERSHIP: the release operation is a ${op.kind} operation, not a package operation — ` +
+        "a gate holds the mutex to measure, and measuring is not building",
     ];
   }
   try {
     assertOwner(root, op);
-    return [];
   } catch (e) {
-    return [(e as Error).message];
+    return [`OWNERSHIP: ${(e as Error).message}`];
   }
+
+  const problems: string[] = [];
+  if (op.head !== head) {
+    problems.push(
+      `OWNERSHIP: the package operation was begun at ${op.head.slice(0, 7)}, and this build is at ${head.slice(0, 7)}`,
+    );
+  }
+  if (recordTreeId !== undefined && op.treeId !== recordTreeId) {
+    problems.push(
+      `OWNERSHIP: the package operation was begun against tree ${op.treeId.slice(0, 12)}, and the gate record describes tree ${recordTreeId.slice(0, 12)}`,
+    );
+  }
+  return problems;
 }
 
 /**

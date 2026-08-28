@@ -48,6 +48,7 @@ import {
   renderTestVerdict,
   gateRecordProblems,
   stagedRecordProblems,
+  structuralRecordProblems,
   sanitizedRecord,
   type GateRecord,
 } from "./gate-contract";
@@ -513,6 +514,18 @@ function main(): void {
       workerCount: gate.workerCount,
       configuredMinWorkers: gate.configuredMinWorkers,
       configuredMaxWorkers: gate.configuredMaxWorkers,
+      /*
+       * MEASURED, AND ALMOST LOST.
+       *
+       * The reporter counts peak concurrent modules — one per worker, so the
+       * real concurrency — and `readRunnerEvidence` has carried it since the
+       * milestone that added it. This literal enumerates its fields explicitly
+       * and simply left this one out, so the value was computed on every run
+       * and written down on none. Nothing caught it: the runner skipped
+       * contract validation once a gate had already failed, and the first green
+       * run would have refused to publish.
+       */
+      observedPeakWorkers: gate.observedPeakWorkers,
       reasons: gate.reasons,
     },
     /*
@@ -558,6 +571,29 @@ function main(): void {
    * about to be written, and the staged one over the projection that would go
    * into an archive.
    */
+  /*
+   * STRUCTURE ALWAYS; ACCEPTANCE ONLY WHEN THERE IS SOMETHING TO ACCEPT.
+   *
+   * This used to be skipped entirely once a gate had failed — a red record was
+   * expected to fail the contract, so consulting it looked pointless. That is
+   * how a missing measurement stayed invisible: the record was ALSO
+   * structurally incomplete, and nothing said so until the first green run
+   * would have refused to publish. One failure must not suppress evidence
+   * about another.
+   */
+  const structure = [
+    ...structuralRecordProblems(built, head),
+    ...structuralRecordProblems(sanitizedRecord(built) as GateRecord, head, "staged"),
+  ];
+  if (structure.length > 0) {
+    console.log("");
+    console.log("  THE RECORD THIS RUN PRODUCED IS STRUCTURALLY INCOMPLETE:");
+    console.log("  (this is separate from whether the gates passed — a red record still has");
+    console.log("   to record every measurement it claims to have taken)");
+    for (const problem of structure) console.log(`    ${problem}`);
+    failed += 1;
+  }
+
   const contract = failed > 0 ? [] : gateRecordProblems(built, head);
   const projection =
     failed > 0 ? [] : stagedRecordProblems(sanitizedRecord(built) as GateRecord, head);

@@ -10,7 +10,7 @@ import {
   type PreconditionInput,
 } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { syntheticGateRecord } from "./support/synthetic-gate-record";
+import { openPackageOperation, type TestPackageOperation } from "./support/package-operation";
 
 /**
  * Package generation must be repeatable, and the manifest must be usable.
@@ -77,11 +77,33 @@ describe("package generation", () => {
    * had grown, which is the signature of a budget being crossed rather than a
    * race being lost.
    */
+  /*
+   * A REAL PACKAGE OPERATION, in a temporary root this suite owns.
+   *
+   * `build()` may run only under one, and these builds were given none — so
+   * every one of them refused at collection time. On a dirty tree the refusal
+   * they hit first was the clean-tree one, which was expected, so the ownership
+   * refusal underneath it stayed invisible until the authoritative gate at
+   * `3094443` ran on a clean commit and this suite failed with zero failed
+   * assertions.
+   */
+  let owned!: TestPackageOperation;
+
   beforeAll(() => {
-    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
-    first = build(join(scratch, "a"), { gateRecordRoot: evidence });
-    second = build(join(scratch, "b"), { gateRecordRoot: evidence });
+    owned = openPackageOperation(scratch, fullHead);
+    first = build(join(scratch, "a"), {
+      gateRecordRoot: owned.root,
+      operation: owned.operation,
+    });
+    second = build(join(scratch, "b"), {
+      gateRecordRoot: owned.root,
+      operation: owned.operation,
+    });
   }, 240_000);
+
+  afterAll(() => {
+    owned.close();
+  });
 
   it("produces byte-identical archives from a clean staging state, twice", () => {
     expect(second.sha).toBe(first.sha);

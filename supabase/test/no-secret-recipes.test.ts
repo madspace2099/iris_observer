@@ -5,7 +5,7 @@ import { join, relative, sep } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { scanText, inScope, EXEMPT, EXEMPT_SUFFIX } from "../../scripts/release/secret-recipes";
 import { build } from "../../scripts/release/build-package";
-import { syntheticGateRecord } from "./support/synthetic-gate-record";
+import { openPackageOperation, type TestPackageOperation } from "./support/package-operation";
 
 /**
  * No operator-facing artefact may hand somebody a command that makes a secret
@@ -171,11 +171,17 @@ describe("the generated package carries no runnable secret recipe", () => {
   const short = fullHead.slice(0, 7);
   let staged = "";
 
+  let owned: TestPackageOperation | undefined;
+
   beforeAll(() => {
-    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
-    build(join(scratch, "out"), { gateRecordRoot: evidence });
+    owned = openPackageOperation(scratch, fullHead);
+    build(join(scratch, "out"), { gateRecordRoot: owned.root, operation: owned.operation });
     staged = join(scratch, "out", short);
   }, 240_000);
+
+  afterAll(() => {
+    owned?.close();
+  });
 
   it("stages files to check in the first place", () => {
     expect(

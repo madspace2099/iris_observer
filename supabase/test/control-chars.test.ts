@@ -31,7 +31,8 @@ import {
 } from "../../scripts/release/transport-safe";
 import { build } from "../../scripts/release/build-package";
 import { walk } from "../../scripts/release/zip";
-import { syntheticGateRecord, greenGateRecord, cleanScan } from "./support/synthetic-gate-record";
+import { greenGateRecord, cleanScan } from "./support/synthetic-gate-record";
+import { openPackageOperation, type TestPackageOperation } from "./support/package-operation";
 
 /**
  * Invisible control characters, and the two places they got through.
@@ -368,15 +369,18 @@ describe("the packager refuses an injected character", () => {
   let pristine = "";
   const mine: string[] = [];
 
+  /* The suite's own gate evidence AND its own package operation, in its own root. */
+  let owned: TestPackageOperation | undefined;
+
   beforeAll(() => {
-    /* The suite's own gate evidence, in the suite's own root. */
-    const evidence = syntheticGateRecord(mkdtempSync(join(scratch, "evidence-")), fullHead);
+    owned = openPackageOperation(scratch, fullHead);
     const out = join(scratch, "pristine");
-    build(out, { gateRecordRoot: evidence });
+    build(out, { gateRecordRoot: owned.root, operation: owned.operation });
     pristine = join(out, shortHead);
   }, 240_000);
 
   afterAll(() => {
+    owned?.close();
     for (const dir of mine) rmSync(dir, { recursive: true, force: true });
   });
 

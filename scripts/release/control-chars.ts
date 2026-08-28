@@ -126,16 +126,33 @@ export function scanDirectory(dir: string): ControlCharacterScan {
  * absent or wrongly typed field: "the scan did not record it" and "the scan
  * recorded nothing wrong" are different facts, and only one is evidence.
  */
-export function scanProblems(scan: unknown, label: string): readonly string[] {
+/**
+ * Which half of the contract is being asked about.
+ *
+ * STRUCTURE is "is this evidence" — every field present, correctly typed, and
+ * internally consistent. ACCEPTANCE is "is this evidence green". They were one
+ * list, and that is how a missing measurement hid: once the test gate was
+ * already red the whole check stopped being consulted, so nothing noticed that
+ * the record was also structurally incomplete. A red record may fail
+ * acceptance; it may not fail structure.
+ */
+export type ScanCheck = "structure" | "acceptance";
+
+const asks = (check: ScanCheck | undefined, kind: ScanCheck): boolean =>
+  check === undefined || check === kind;
+
+export function scanProblems(scan: unknown, label: string, check?: ScanCheck): readonly string[] {
   const problems: string[] = [];
   if (scan === null || typeof scan !== "object") {
-    return [`${label}: no structured control-character evidence`];
+    return asks(check, "structure") ? [`${label}: no structured control-character evidence`] : [];
   }
   const s = scan as Partial<ControlCharacterScan>;
 
   const wholeNumber = (value: unknown, field: string): number | null => {
     if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-      problems.push(`${label}.${field} is not a non-negative integer: ${JSON.stringify(value)}`);
+      if (asks(check, "structure")) {
+        problems.push(`${label}.${field} is not a non-negative integer: ${JSON.stringify(value)}`);
+      }
       return null;
     }
     return value;
@@ -150,46 +167,50 @@ export function scanProblems(scan: unknown, label: string): readonly string[] {
    * COMPLETENESS, BEFORE CLEANLINESS. A scan that read fewer files than it was
    * asked to has not established anything about the ones it missed.
    */
-  if (requested !== null && scanned !== null && scanned !== requested) {
-    problems.push(
-      `${label}: read ${String(scanned)} of ${String(requested)} requested file(s) — the rest were not checked`,
-    );
-  }
-  if (failures !== null && failures !== 0) {
-    problems.push(`${label}: ${String(failures)} file(s) could not be read`);
-  }
-  if (!Array.isArray(s.unreadableFiles) || s.unreadableFiles.some((f) => typeof f !== "string")) {
-    problems.push(`${label}.unreadableFiles is not an array of strings`);
-  } else if (failures !== null && s.unreadableFiles.length !== failures) {
-    problems.push(
-      `${label}: ${String(failures)} read failure(s) but ${String(s.unreadableFiles.length)} named`,
-    );
-  }
-
-  if (!Array.isArray(s.affectedFiles) || s.affectedFiles.some((f) => typeof f !== "string")) {
-    problems.push(`${label}.affectedFiles is not an array of strings`);
-  } else if (s.affectedFiles.length > 0) {
-    problems.push(
-      `${label}: ${s.affectedFiles.length} affected file(s): ${s.affectedFiles.join(", ")}`,
-    );
-  }
-
-  if (scanned !== null && scanned === 0) problems.push(`${label}: scanned no files at all`);
-  if (found !== null && found !== 0)
-    problems.push(`${label}: ${String(found)} control character(s)`);
-
-  /*
-   * The two halves must agree. A zero count beside a non-empty file list, or a
-   * non-zero count beside an empty one, means the evidence is internally
-   * inconsistent — which is its own reason to refuse, separate from either
-   * value being wrong.
-   */
-  if (found !== null && Array.isArray(s.affectedFiles)) {
-    const listed = s.affectedFiles.length;
-    if ((found === 0) !== (listed === 0)) {
+  if (asks(check, "structure")) {
+    if (requested !== null && scanned !== null && scanned !== requested) {
       problems.push(
-        `${label}: count and file list disagree — ${String(found)} character(s), ${String(listed)} file(s)`,
+        `${label}: read ${String(scanned)} of ${String(requested)} requested file(s) — the rest were not checked`,
       );
+    }
+    if (!Array.isArray(s.unreadableFiles) || s.unreadableFiles.some((f) => typeof f !== "string")) {
+      problems.push(`${label}.unreadableFiles is not an array of strings`);
+    } else if (failures !== null && s.unreadableFiles.length !== failures) {
+      problems.push(
+        `${label}: ${String(failures)} read failure(s) but ${String(s.unreadableFiles.length)} named`,
+      );
+    }
+    if (!Array.isArray(s.affectedFiles) || s.affectedFiles.some((f) => typeof f !== "string")) {
+      problems.push(`${label}.affectedFiles is not an array of strings`);
+    }
+    if (scanned !== null && scanned === 0) problems.push(`${label}: scanned no files at all`);
+
+    /*
+     * The two halves must agree. A zero count beside a non-empty file list, or
+     * a non-zero count beside an empty one, means the evidence is internally
+     * inconsistent — its own reason to refuse, separate from either value.
+     */
+    if (found !== null && Array.isArray(s.affectedFiles)) {
+      const listed = s.affectedFiles.length;
+      if ((found === 0) !== (listed === 0)) {
+        problems.push(
+          `${label}: count and file list disagree — ${String(found)} character(s), ${String(listed)} file(s)`,
+        );
+      }
+    }
+  }
+
+  if (asks(check, "acceptance")) {
+    if (failures !== null && failures !== 0) {
+      problems.push(`${label}: ${String(failures)} file(s) could not be read`);
+    }
+    if (Array.isArray(s.affectedFiles) && s.affectedFiles.length > 0) {
+      problems.push(
+        `${label}: ${s.affectedFiles.length} affected file(s): ${s.affectedFiles.join(", ")}`,
+      );
+    }
+    if (found !== null && found !== 0) {
+      problems.push(`${label}: ${String(found)} control character(s)`);
     }
   }
 

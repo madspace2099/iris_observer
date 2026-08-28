@@ -101,6 +101,28 @@ export const REQUIRED_PHASE = "test";
 export const REQUIRED_POOL = "forks";
 export const REQUIRED_WORKERS = 4;
 
+/**
+ * Which half of the contract is being asked about.
+ *
+ * STRUCTURE is "is this evidence": every required measurement present, every
+ * field correctly typed, every duplicated fact agreeing with its copy.
+ * ACCEPTANCE is "is this evidence green".
+ *
+ * They were one list, and that is exactly how a missing measurement hid. The
+ * runner skipped contract validation entirely once a gate had already failed —
+ * because a red record was expected to fail it — so nobody noticed the record
+ * was ALSO structurally incomplete: `observedPeakWorkers` was computed and
+ * never written down, and the first green run would have refused to publish.
+ *
+ * A red record may fail acceptance. It may not fail structure. One failure
+ * must not suppress evidence about another.
+ */
+export type RecordCheck = "structure" | "acceptance";
+
+/** Does this pass want that category? An absent category wants both. */
+const asks = (check: RecordCheck | undefined, kind: RecordCheck): boolean =>
+  check === undefined || check === kind;
+
 /** `vitest 3.2.7` — a bounded name and a version, and nothing else. */
 const RUNNER_IDENTITY = /^[a-z][a-z0-9-]{0,23} [0-9]{1,3}(\.[0-9]{1,4}){0,3}$/;
 
@@ -328,20 +350,21 @@ const SAFE_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
  * beside per-file counts summing to something else entirely, and section 7 of
  * the package would print the sentence.
  */
-export function testTotalsProblems(record: GateRecord): readonly string[] {
+export function testTotalsProblems(record: GateRecord, check?: RecordCheck): readonly string[] {
   const problems: string[] = [];
   const t = record.tests;
-  if (t === undefined) return ["no test totals recorded"];
+  if (t === undefined) return asks(check, "structure") ? ["no test totals recorded"] : [];
 
+  const typing: string[] = [];
   for (const [field, value] of [
     ["passed", t.passed],
     ["skipped", t.skipped],
     ["failed", t.failed],
     ["files", t.files],
   ] as const) {
-    if (!isCount(value)) problems.push(`tests.${field} is not a count: ${JSON.stringify(value)}`);
+    if (!isCount(value)) typing.push(`tests.${field} is not a count: ${JSON.stringify(value)}`);
   }
-  if (problems.length > 0) return problems;
+  if (typing.length > 0) return asks(check, "structure") ? typing : [];
 
   const passed = t.passed ?? 0;
   const skipped = t.skipped ?? 0;
@@ -349,32 +372,38 @@ export function testTotalsProblems(record: GateRecord): readonly string[] {
   const files = t.files ?? 0;
   const total = passed + skipped + failed;
 
-  if (failed !== 0) problems.push(`tests.failed is ${String(failed)}`);
+  /* A failing count is a real result, correctly recorded: acceptance, not shape. */
+  if (failed !== 0 && asks(check, "acceptance")) {
+    problems.push(`tests.failed is ${String(failed)}`);
+  }
+
+  const structural: string[] = [];
 
   /*
-   * A RUN THAT COLLECTED NOTHING IS NOT A GREEN RUN.
+   * A RUN THAT COLLECTED NOTHING IS NOT A RUN AT ALL.
    *
    * `0 passed, 0 skipped, 0 failed / 0 files` beside an empty `perFile` was
-   * internally consistent and satisfied every arithmetic check: nothing failed,
-   * the entries matched the file count, and the sum matched the total. A stray
-   * path argument, a mistyped filter or a glob that matched nothing produces
-   * exactly that record, and it used to package.
+   * internally consistent and satisfied every arithmetic check. A stray path
+   * argument or a glob that matched nothing produces exactly that record, and
+   * it used to package. It is a STRUCTURAL fault — the evidence is incomplete —
+   * so a red record is held to it too.
    */
-  if (files === 0) problems.push("tests.files is 0 — the run collected no suites at all");
-  if (total === 0) problems.push("tests collected no tests at all");
+  if (files === 0) structural.push("tests.files is 0 — the run collected no suites at all");
+  if (total === 0) structural.push("tests collected no tests at all");
 
   const perFile = t.perFile;
   if (perFile === undefined || perFile === null || typeof perFile !== "object") {
-    problems.push("tests.perFile not recorded");
-    return problems;
+    structural.push("tests.perFile not recorded");
+    return [...problems, ...(asks(check, "structure") ? structural : [])];
   }
   if (Array.isArray(perFile)) {
-    problems.push("tests.perFile is an array, not a per-suite map");
-    return problems;
+    structural.push("tests.perFile is an array, not a per-suite map");
+    return [...problems, ...(asks(check, "structure") ? structural : [])];
   }
+
   const entries = Object.entries(perFile);
   if (new Set(entries.map(([label]) => label)).size !== entries.length) {
-    problems.push("tests.perFile has duplicate labels");
+    structural.push("tests.perFile has duplicate labels");
   }
 
   /*
@@ -383,50 +412,64 @@ export function testTotalsProblems(record: GateRecord): readonly string[] {
    */
   const expected = record.expectedSuites;
   if (!Array.isArray(expected) || expected.some((x) => typeof x !== "string")) {
-    problems.push("expectedSuites is not recorded as a list of suite names");
+    structural.push("expectedSuites is not recorded as a list of suite names");
   } else {
     const want = [...expected].sort();
     const got = entries.map(([label]) => label).sort();
     const missing = want.filter((x) => !got.includes(x));
     const extra = got.filter((x) => !want.includes(x));
     if (missing.length > 0) {
-      problems.push(
+      structural.push(
         `${String(missing.length)} expected suite(s) were not collected: ${missing.slice(0, 6).join(", ")}${missing.length > 6 ? ", …" : ""}`,
       );
     }
     if (extra.length > 0) {
-      problems.push(
+      structural.push(
         `${String(extra.length)} collected suite(s) are not in the expected inventory: ${extra.slice(0, 6).join(", ")}${extra.length > 6 ? ", …" : ""}`,
       );
     }
   }
+
   for (const [label, count] of entries) {
     if (!SAFE_LABEL.test(label)) {
-      problems.push(`tests.perFile has an unsafe label: ${JSON.stringify(label.slice(0, 32))}`);
+      structural.push(`tests.perFile has an unsafe label: ${JSON.stringify(label.slice(0, 32))}`);
     }
-    if (!isCount(count)) problems.push(`tests.perFile[${label}] is not a count`);
+    if (!isCount(count)) structural.push(`tests.perFile[${label}] is not a count`);
   }
   if (entries.length !== files) {
-    problems.push(
+    structural.push(
       `tests.perFile has ${String(entries.length)} entries but tests.files is ${String(files)}`,
     );
   }
   const summed = entries.reduce((a, [, n]) => a + (isCount(n) ? n : 0), 0);
   if (summed !== total) {
-    problems.push(`tests.perFile sums to ${String(summed)}, not ${String(total)}`);
+    structural.push(`tests.perFile sums to ${String(summed)}, not ${String(total)}`);
   }
 
+  /*
+   * THE TOTALS AND THE GATE MUST BE ONE MEASUREMENT.
+   *
+   * A record that says nothing failed while its own gate says six suites did is
+   * not evidence, whichever half is right — so this is a consistency check and
+   * a red record is held to it as well.
+   */
   const gate = record.testGate;
   if (gate !== undefined) {
+    /*
+     * A COUNT WITHOUT IDENTITIES IS A NUMBER. The skipped count moved from 24
+     * to 23 between two runs of one commit and the record could not say which
+     * case had moved, because the identities were never cross-checked against
+     * the count that summarised them.
+     */
     const failedIds = gate.failedTests;
     if (Array.isArray(failedIds) && failedIds.length !== failed) {
-      problems.push(
+      structural.push(
         `${String(failedIds.length)} failed-test identities for ${String(failed)} failed tests`,
       );
     }
     const skippedIds = gate.skippedTests;
     if (Array.isArray(skippedIds) && skippedIds.length !== skipped) {
-      problems.push(
+      structural.push(
         `${String(skippedIds.length)} skipped-test identities for ${String(skipped)} skipped tests`,
       );
     }
@@ -440,24 +483,18 @@ export function testTotalsProblems(record: GateRecord): readonly string[] {
         const suite = (id as { suite?: unknown }).suite;
         const title = (id as { title?: unknown }).title;
         if (typeof suite !== "string" || !SAFE_LABEL.test(suite)) {
-          problems.push(`${what} identity has an unsafe suite name`);
+          structural.push(`${what} identity has an unsafe suite name`);
           continue;
         }
         if (typeof title !== "string" || title.length === 0 || title.length > 200) {
-          problems.push(`${what} identity has no usable title`);
+          structural.push(`${what} identity has no usable title`);
           continue;
         }
         const key = `${suite} > ${title}`;
-        if (seen.has(key)) problems.push(`duplicate ${what} identity: ${suite}`);
+        if (seen.has(key)) structural.push(`duplicate ${what} identity: ${suite}`);
         seen.add(key);
       }
     }
-
-    /*
-     * EVERY zero-failure claim, cross-checked against every other one. A run is
-     * clean or it is not; six fields saying so and one saying otherwise is a
-     * record that cannot be believed in either direction.
-     */
     const claims: [string, unknown][] = [
       ["reportSuccess", gate.reportSuccess === true],
       ["reportedFailedTests", gate.reportedFailedTests === 0],
@@ -470,40 +507,83 @@ export function testTotalsProblems(record: GateRecord): readonly string[] {
     ];
     const disagreeing = claims.filter(([, ok]) => ok !== true).map(([name]) => name);
     if (failed === 0 && disagreeing.length > 0) {
-      problems.push(
+      structural.push(
         `tests.failed is 0 but ${disagreeing.join(", ")} disagree${disagreeing.length === 1 ? "s" : ""}`,
       );
     }
   }
 
-  /* The verdict string must be the canonical rendering of those numbers. */
+  /*
+   * THE VERDICT STRING IS THE SAME MEASUREMENT AS THE NUMBERS.
+   *
+   * Only when it IS a test verdict. A red run records `FAILED — …` there, which
+   * is a correct statement of what happened and not a rendering of the totals;
+   * comparing it against the canonical rendering would fail every red record
+   * for a reason that is not a structural fault.
+   */
   const verdict = record.gates?.["pnpm test"];
-  const canonical = `${String(passed)} passed, ${String(skipped)} skipped, ${String(failed)} failed / ${String(files)} files`;
-  if (verdict !== canonical) {
-    problems.push(
+  const canonical = renderTestVerdict({ passed, skipped, failed, files });
+  if (verdict === undefined) {
+    structural.push("no pnpm test verdict recorded");
+  } else if (typeof verdict === "string" && verdict.startsWith("FAILED")) {
+    /*
+     * A STATED FAILURE IS NOT A BROKEN RENDERING. The runner writes
+     * `FAILED — <reasons>` when a gate genuinely fails, which is a correct
+     * account of what happened rather than a rendering of the totals.
+     * Comparing it against the canonical form would fail every red record for
+     * something that is not a structural fault.
+     */
+  } else if (verdict !== canonical) {
+    /*
+     * Everything else must BE the rendering of the numbers beside it. "BROKEN"
+     * and "8 FOUND" are neither a measurement nor a stated failure, and both
+     * used to pass a check that only looked for the word FAILED.
+     */
+    structural.push(
       `the pnpm test verdict ${JSON.stringify(verdict)} is not the canonical rendering ` +
         `of the structured results (expected ${JSON.stringify(canonical)})`,
     );
   }
 
-  return problems;
+  return [...problems, ...(asks(check, "structure") ? structural : [])];
 }
 
-export function cleanProcessProblems(p: RecordedProcess, label: string): readonly string[] {
+export function cleanProcessProblems(
+  p: RecordedProcess,
+  label: string,
+  check?: RecordCheck,
+): readonly string[] {
   const problems: string[] = [];
 
-  if (p.ok === undefined) problems.push(`${label}: ok not recorded`);
-  else if (p.ok !== true) problems.push(`${label}: ok is false`);
+  /*
+   * PRESENCE IS STRUCTURE; THE VALUE IS ACCEPTANCE. "The runner did not record
+   * it" and "the runner recorded it as fine" are different facts, and a red
+   * record still has to say which of the two it means.
+   */
+  if (p.ok === undefined) {
+    if (asks(check, "structure")) problems.push(`${label}: ok not recorded`);
+  } else if (p.ok !== true && asks(check, "acceptance")) {
+    problems.push(`${label}: ok is false`);
+  }
 
-  if (p.status === undefined) problems.push(`${label}: status not recorded`);
-  else if (p.status !== 0) problems.push(`${label}: exit status ${String(p.status)}`);
+  if (p.status === undefined) {
+    if (asks(check, "structure")) problems.push(`${label}: status not recorded`);
+  } else if (p.status !== 0 && asks(check, "acceptance")) {
+    problems.push(`${label}: exit status ${String(p.status)}`);
+  }
 
   /* `null` is a recorded absence of a signal. `undefined` is no record at all. */
-  if (p.signal === undefined) problems.push(`${label}: signal not recorded`);
-  else if (p.signal !== null) problems.push(`${label}: signal ${p.signal}`);
+  if (p.signal === undefined) {
+    if (asks(check, "structure")) problems.push(`${label}: signal not recorded`);
+  } else if (p.signal !== null && asks(check, "acceptance")) {
+    problems.push(`${label}: signal ${p.signal}`);
+  }
 
-  if (p.errorCode === undefined) problems.push(`${label}: errorCode not recorded`);
-  else if (p.errorCode !== null) problems.push(`${label}: spawn error ${p.errorCode}`);
+  if (p.errorCode === undefined) {
+    if (asks(check, "structure")) problems.push(`${label}: errorCode not recorded`);
+  } else if (p.errorCode !== null && asks(check, "acceptance")) {
+    problems.push(`${label}: spawn error ${p.errorCode}`);
+  }
 
   return problems;
 }
@@ -516,13 +596,19 @@ export function processTriplesAgree(
   return a.status === b.status && a.signal === b.signal && a.errorCode === b.errorCode;
 }
 
-export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
-  const problems: string[] = [];
+export function runnerEvidenceProblems(
+  t: RecordedTestGate,
+  check?: RecordCheck,
+): readonly string[] {
+  const structural: string[] = [];
+  const acceptance: string[] = [];
+
+  /* ---- unhandled runner errors ---------------------------------------- */
 
   if (t.reportedUnhandledErrors === undefined || t.reportedUnhandledErrors === null) {
-    problems.push("unhandled runner errors were not measured — rerun `pnpm release:gates`");
+    structural.push("unhandled runner errors were not measured — rerun `pnpm release:gates`");
   } else if (!Number.isInteger(t.reportedUnhandledErrors) || t.reportedUnhandledErrors < 0) {
-    problems.push(
+    structural.push(
       `reportedUnhandledErrors is not a count: ${JSON.stringify(t.reportedUnhandledErrors)}`,
     );
   } else if (t.reportedUnhandledErrors > 0) {
@@ -530,64 +616,82 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
       ...(t.sanitizedUnhandledErrorNames ?? []),
       ...(t.sanitizedUnhandledErrorCodes ?? []),
     ]
-      .filter((s) => s !== "(none)")
+      .filter((x) => x !== "(none)")
       .join(", ");
-    problems.push(
+    acceptance.push(
       `${String(t.reportedUnhandledErrors)} unhandled runner error(s)${ids === "" ? "" : `: ${ids}`}`,
     );
   } else {
     /*
      * ZERO MEANS BOTH LISTS ARE EMPTY. `["(none)"]` is a placeholder somebody
      * wrote where a measurement belongs, and a count of zero beside a non-empty
-     * identity list is evidence disagreeing with itself. Neither is an empty
-     * measurement, and the count is the field a reader trusts.
+     * identity list is evidence disagreeing with itself.
      */
     for (const [field, value] of [
       ["sanitizedUnhandledErrorNames", t.sanitizedUnhandledErrorNames],
       ["sanitizedUnhandledErrorCodes", t.sanitizedUnhandledErrorCodes],
     ] as const) {
       if (Array.isArray(value) && value.length !== 0) {
-        problems.push(
+        structural.push(
           `reportedUnhandledErrors is 0 but ${field} names ${String(value.length)} — a placeholder is not an empty measurement`,
         );
       }
     }
   }
 
+  /* ---- the observed peak, which is a MEASUREMENT ------------------------ */
+
   /*
-   * THE OBSERVED PEAK, WHICH IS EVIDENCE THE BOUND WAS HONOURED.
+   * THE FIELD THAT HID.
    *
-   * Configured bounds say what the pool was told. This says what happened, and
-   * it is the only field here that can contradict the configuration.
+   * The reporter has counted peak concurrent modules — one per worker, so the
+   * real concurrency — all along, and the persisted record enumerated its
+   * fields explicitly and simply left this one out. Nothing noticed, because
+   * the runner skipped contract validation once a gate had already failed, and
+   * the first green run would have refused to publish.
+   *
+   * PRESENCE AND SHAPE ARE STRUCTURE. Whether a value is a plausible peak for a
+   * green run is acceptance. A red record must still say what it observed.
    */
-  if (t.observedPeakWorkers === undefined || t.observedPeakWorkers === null) {
-    problems.push(
+  const peak = t.observedPeakWorkers;
+  if (peak === undefined || peak === null) {
+    structural.push(
       "observedPeakWorkers not recorded — the reporter measures it, so an absent value means the record threw a measurement away",
     );
-  } else if (!isCount(t.observedPeakWorkers) || t.observedPeakWorkers < 1) {
-    problems.push(
-      `observedPeakWorkers is not a positive count: ${JSON.stringify(t.observedPeakWorkers)}`,
-    );
-  } else if (t.observedPeakWorkers > REQUIRED_WORKERS) {
-    problems.push(
-      `observedPeakWorkers is ${String(t.observedPeakWorkers)}, above the bound of ${String(REQUIRED_WORKERS)} — the pool did not honour what it was told`,
-    );
+  } else if (!isCount(peak)) {
+    structural.push(`observedPeakWorkers is not a non-negative integer: ${JSON.stringify(peak)}`);
+  } else {
+    if (peak > REQUIRED_WORKERS) {
+      structural.push(
+        `observedPeakWorkers is ${String(peak)}, above the configured maximum of ${String(REQUIRED_WORKERS)} — the pool did not honour what it was told`,
+      );
+    }
+    if (peak < 1) {
+      /*
+       * A completed run executed at least one module, so a peak of zero beside
+       * a non-empty result contradicts the run itself. It is not a refusal to
+       * accept a green result — it is a refusal to believe the evidence.
+       */
+      acceptance.push(
+        "observedPeakWorkers is 0 — a run that collected tests cannot have had no module executing",
+      );
+    }
   }
+
+  /* ---- the report's own three facts ------------------------------------ */
 
   for (const [field, value] of [
     ["reportWritten", t.reportWritten],
     ["reportParsed", t.reportParsed],
     ["reportCompleted", t.reportCompleted],
   ] as const) {
-    if (value === undefined) problems.push(`${field} not recorded`);
-    else if (value !== true) problems.push(`${field} is false`);
+    if (value === undefined) structural.push(`${field} not recorded`);
+    else if (value !== true) acceptance.push(`${field} is false`);
   }
 
   /*
    * TYPES BEFORE VALUES. A string has a `length`, so a field that should be an
-   * array and is not would otherwise be read for one — and a sanitizer that
-   * turned a malformed field into an empty array would make "not recorded" and
-   * "recorded as none" indistinguishable all over again.
+   * array and is not would otherwise be read for one.
    */
   for (const [field, value] of [
     ["sanitizedUnhandledErrorNames", t.sanitizedUnhandledErrorNames],
@@ -597,7 +701,7 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
     ["skippedTests", t.skippedTests],
     ["reasons", t.reasons],
   ] as const) {
-    if (!Array.isArray(value)) problems.push(`${field} is not an array`);
+    if (!Array.isArray(value)) structural.push(`${field} is not an array`);
   }
 
   /* Zero unhandled errors and a non-empty identity list cannot both be true. */
@@ -607,10 +711,10 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
   const identified =
     names.filter((n) => n !== "(none)").length + codes.filter((c) => c !== "(none)").length;
   if (unhandled === 0 && identified > 0) {
-    problems.push("reportedUnhandledErrors is 0 but unhandled-error identities were recorded");
+    structural.push("reportedUnhandledErrors is 0 but unhandled-error identities were recorded");
   }
   if (isCount(unhandled) && unhandled > 0 && identified === 0) {
-    problems.push(
+    structural.push(
       `reportedUnhandledErrors is ${String(unhandled)} but no identity was recorded for any of them`,
     );
   }
@@ -618,53 +722,48 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
   /*
    * The three process facts under their explicit names, cross-checked against
    * the ones already recorded. A record that disagrees with itself is not
-   * evidence, whichever half is right.
+   * evidence, whichever half is right — structure, not acceptance.
    */
-  if (t.processStatus === undefined) problems.push("processStatus not recorded");
+  if (t.processStatus === undefined) structural.push("processStatus not recorded");
   else if (t.processStatus !== t.status) {
-    problems.push(
+    structural.push(
       `processStatus ${String(t.processStatus)} disagrees with status ${String(t.status)}`,
     );
   }
-  if (t.processSignal === undefined) problems.push("processSignal not recorded");
+  if (t.processSignal === undefined) structural.push("processSignal not recorded");
   else if (t.processSignal !== (t.signal ?? null)) {
-    problems.push("processSignal disagrees with signal");
+    structural.push("processSignal disagrees with signal");
   }
-  if (t.processErrorCode === undefined) problems.push("processErrorCode not recorded");
+  if (t.processErrorCode === undefined) structural.push("processErrorCode not recorded");
   else if (t.processErrorCode !== (t.errorCode ?? null)) {
-    problems.push("processErrorCode disagrees with errorCode");
+    structural.push("processErrorCode disagrees with errorCode");
   }
+
+  /* ---- the bound this release claims ------------------------------------ */
 
   /*
    * THE CONCURRENCY BOUND IS PART OF THE ACCEPTANCE, NOT A NOTE ON IT.
    *
    * The runner-level exit was reproduced under the pool's default sizing and
    * has not been reproduced under four workers. That correction is only worth
-   * anything if the record proves the run it describes actually used it — and
-   * the contract accepted this field missing, null, or set to anything at all.
-   * A record from an unbounded run would then have been packaged as evidence
-   * for a bounded one.
-   *
-   * It is not proof that recurrence is impossible. It is the guarantee that a
-   * green record was produced under the conditions this release claims.
+   * anything if the record proves the run it describes actually used it. Being
+   * RECORDED is structure; being the required value is acceptance.
    */
-  if (t.phase === undefined) problems.push("phase not recorded");
+  if (t.phase === undefined) structural.push("phase not recorded");
   else if (t.phase !== REQUIRED_PHASE) {
-    problems.push(`phase is ${JSON.stringify(t.phase)}, not ${JSON.stringify(REQUIRED_PHASE)}`);
+    acceptance.push(`phase is ${JSON.stringify(t.phase)}, not ${JSON.stringify(REQUIRED_PHASE)}`);
   }
 
-  if (t.workerPool === undefined || t.workerPool === null) problems.push("workerPool not recorded");
-  else if (t.workerPool !== REQUIRED_POOL) {
-    problems.push(`workerPool is ${JSON.stringify(t.workerPool)}, not ${REQUIRED_POOL}`);
+  if (t.workerPool === undefined || t.workerPool === null) {
+    structural.push("workerPool not recorded");
+  } else if (t.workerPool !== REQUIRED_POOL) {
+    acceptance.push(`workerPool is ${JSON.stringify(t.workerPool)}, not ${REQUIRED_POOL}`);
   }
 
   /*
-   * BOTH BOUNDS, AND THEY ARE CONFIGURATION.
-   *
+   * BOTH BOUNDS, AND THEY ARE CONFIGURATION — never an observed concurrency.
    * The forks pool keeps `minWorkers` processes alive independently of
-   * `maxWorkers`, so a ceiling alone does not describe the pool. Recording both
-   * proves what the pool was TOLD. It is not an observed peak, nothing here
-   * measures one, and this contract does not pretend otherwise.
+   * `maxWorkers`, so a ceiling alone does not describe the pool.
    */
   for (const [field, value] of [
     ["workerCount", t.workerCount],
@@ -672,41 +771,35 @@ export function runnerEvidenceProblems(t: RecordedTestGate): readonly string[] {
     ["configuredMaxWorkers", t.configuredMaxWorkers],
   ] as const) {
     if (value === undefined || value === null) {
-      problems.push(`${field} not recorded — the run may have been unbounded`);
+      structural.push(`${field} not recorded — the run may have been unbounded`);
+    } else if (!isCount(value)) {
+      structural.push(`${field} is not a count: ${JSON.stringify(value)}`);
     } else if (value !== REQUIRED_WORKERS) {
-      problems.push(
+      acceptance.push(
         `${field} is ${String(value)}, not ${String(REQUIRED_WORKERS)} — ` +
           `this record did not come from a run bounded the way the release claims`,
       );
     }
   }
 
-  /*
-   * If an observed peak is ever recorded it must not exceed the bound. Absent
-   * is fine: the evidence then proves configuration only, and says so.
-   */
-  if (t.observedPeakWorkers !== undefined && t.observedPeakWorkers !== null) {
-    if (!isCount(t.observedPeakWorkers)) {
-      problems.push("observedPeakWorkers is not a count");
-    } else if (t.observedPeakWorkers > REQUIRED_WORKERS) {
-      problems.push(
-        `observedPeakWorkers is ${String(t.observedPeakWorkers)}, above the bound of ${String(REQUIRED_WORKERS)}`,
-      );
-    }
-  }
-
-  /*
-   * The runner's identity, bounded. It says which Vitest produced the record,
-   * and every conclusion about that reporter's behaviour is version-specific.
-   */
-  if (t.runner === undefined || t.runner === null) problems.push("runner not recorded");
-  else if (!RUNNER_IDENTITY.test(t.runner)) {
-    problems.push(
-      `runner identity is not a bounded name: ${JSON.stringify(t.runner.slice(0, 32))}`,
+  /* The observed peak may not exceed what the pool was configured for. */
+  if (isCount(peak) && isCount(t.configuredMaxWorkers) && peak > t.configuredMaxWorkers) {
+    structural.push(
+      `observedPeakWorkers is ${String(peak)}, above the configured maximum of ${String(t.configuredMaxWorkers)} recorded beside it`,
     );
   }
 
-  return problems;
+  const runner = t.runner;
+  if (runner === undefined || runner === null) structural.push("runner not recorded");
+  else if (!RUNNER_IDENTITY.test(runner)) {
+    structural.push(
+      `runner identity is not a bounded name and version: ${JSON.stringify(runner.slice(0, 40))}`,
+    );
+  }
+
+  if (check === "structure") return structural;
+  if (check === "acceptance") return acceptance;
+  return [...structural, ...acceptance];
 }
 
 /**
@@ -730,6 +823,24 @@ export function gateRecordProblems(record: GateRecord | null, head: string): rea
 }
 
 /**
+ * Every reason the record is not EVIDENCE, whether or not it is green.
+ *
+ * Every completed attempt is held to this, red ones included. A red record may
+ * correctly fail green acceptance; it may not omit a measurement, contradict
+ * itself, or carry a field of the wrong type. The runner used to skip contract
+ * validation altogether once a gate had failed — because a red record was
+ * expected to fail it — and that is how `observedPeakWorkers` was computed for
+ * weeks and never written down.
+ */
+export function structuralRecordProblems(
+  record: GateRecord | null,
+  head: string,
+  mode: RecordMode = "operational",
+): readonly string[] {
+  return recordProblems(record, head, mode, "structure");
+}
+
+/**
  * Every reason the STAGED projection may not be shipped.
  *
  * Identical to the operational contract except that operational identity is
@@ -744,7 +855,14 @@ function recordProblems(
   record: GateRecord | null,
   head: string,
   mode: RecordMode,
+  check?: RecordCheck,
 ): readonly string[] {
+  /*
+   * THE LIFECYCLE STATES COME FIRST AND ARE NEITHER CATEGORY.
+   *
+   * A missing file, a tombstone and an in-progress marker are not records at
+   * all, so there is nothing to check the structure of and nothing to accept.
+   */
   if (record === null)
     return [`${GATE_RECORD_PATH} is missing or unreadable — run \`pnpm release:gates\``];
 
@@ -768,7 +886,9 @@ function recordProblems(
     ];
   }
 
-  const problems: string[] = [];
+  const structural: string[] = [];
+  const acceptance: string[] = [];
+
   const operationId = (record as { operationId?: unknown }).operationId;
   if (mode === "operational") {
     /*
@@ -776,21 +896,19 @@ function recordProblems(
      * connects the bytes on disk to the run that measured them.
      */
     if (!isOperationId(operationId)) {
-      problems.push(
+      structural.push(
         "the record does not name the operation that produced it — rerun `pnpm release:gates`",
       );
     }
   } else if (operationId !== undefined) {
-    problems.push(
+    structural.push(
       "the staged projection carries an operation id — a random value in the archive makes " +
         "two identical runs at one commit produce different bytes",
     );
   }
 
   /*
-   * WHAT WAS MEASURED, NOT MERELY WHERE.
-   *
-   * Both modes require the tree identity. A record bound only to HEAD cannot
+   * WHAT WAS MEASURED, NOT MERELY WHERE. A record bound only to HEAD cannot
    * tell a clean commit from the same commit measured with uncommitted edits in
    * place, and reverting the edits afterwards leaves every other check happy.
    */
@@ -799,17 +917,17 @@ function recordProblems(
     ["inputsDigest", record.inputsDigest],
   ] as const) {
     if (typeof value !== "string" || !/^[0-9a-f]{40,64}$/.test(value)) {
-      problems.push(
+      structural.push(
         `${field} is not recorded as a digest — the record is not bound to the bytes it measured`,
       );
     }
   }
   if (typeof record.suiteInventoryDigest !== "string" || record.suiteInventoryDigest === "") {
-    problems.push("suiteInventoryDigest is not recorded — a filtered run would look complete");
+    structural.push("suiteInventoryDigest is not recorded — a filtered run would look complete");
   }
 
   if (record.head !== head) {
-    problems.push(
+    structural.push(
       `recorded at ${String(record.head).slice(0, 7) || "nothing"}, not at ${head.slice(0, 7)} — rerun \`pnpm release:gates\``,
     );
   }
@@ -817,64 +935,61 @@ function recordProblems(
   for (const gate of REQUIRED_GATES) {
     const outcome = record.gates?.[gate];
     if (outcome === undefined) {
-      problems.push(`${gate}: no result recorded`);
+      structural.push(`${gate}: no result recorded`);
       continue;
     }
     /*
      * Case-SENSITIVE, and deliberately. The runner writes the literal word
-     * FAILED for a failure, while a clean test gate reads "… 0 failed / 40
+     * FAILED for a failure, while a clean test gate reads "… 0 failed / 45
      * files" — a case-insensitive match rejected every green record it saw.
-     *
-     * IT IS ALSO NOT ENOUGH ON ITS OWN. A string check can only reject prose it
-     * recognises: `"8 FOUND"` and `"BROKEN"` both passed it, because neither
-     * contains the word it looks for. Gates whose result is a measurement carry
-     * STRUCTURED evidence as well, checked below, and the string is then only a
-     * label that has to match what the structure says.
      */
-    if (/FAILED/.test(outcome)) problems.push(`${gate}: ${outcome}`);
+    if (/FAILED/.test(outcome)) acceptance.push(`${gate}: ${outcome}`);
 
     /*
      * AND the verdict must be the canonical one, not merely free of the word
-     * FAILED. "BROKEN" contains no such word and used to pass.
+     * FAILED. "BROKEN" contains no such word and used to pass. A gate that
+     * recorded a genuine failure states it here, so a non-canonical verdict is
+     * only an acceptance problem when the gate did not fail.
      */
     const canonical = CANONICAL_VERDICTS[gate];
-    if (canonical !== undefined && outcome !== canonical) {
-      problems.push(
+    if (canonical !== undefined && outcome !== canonical && !/FAILED/.test(outcome)) {
+      acceptance.push(
         `${gate}: verdict ${JSON.stringify(outcome)} is not the canonical ${JSON.stringify(canonical)}`,
       );
     }
 
     /* The scan gates have no process of their own; the rest must have one. */
     if (gate === CONTROL_CHARACTER_GATE) continue;
-    const p = record.processes?.[gate];
-    if (p === undefined) {
-      problems.push(`${gate}: no process metadata recorded`);
+    const proc = record.processes?.[gate];
+    if (proc === undefined) {
+      structural.push(`${gate}: no process metadata recorded`);
       continue;
     }
-    problems.push(...cleanProcessProblems(p, gate));
+    structural.push(...cleanProcessProblems(proc, gate, "structure"));
+    acceptance.push(...cleanProcessProblems(proc, gate, "acceptance"));
   }
 
-  /*
-   * The control-character gate, structurally.
-   *
-   * Every field present and correctly typed, zero characters, an empty file
-   * list, the two halves agreeing with each other, and a recorded verdict that
-   * matches what the structure says. Absent, malformed, negative, non-integer
-   * or non-zero all refuse.
-   */
-  problems.push(...testTotalsProblems(record));
-  problems.push(...scanProblems(record.controlCharacterScan, "controlCharacterScan"));
+  structural.push(...testTotalsProblems(record, "structure"));
+  acceptance.push(...testTotalsProblems(record, "acceptance"));
+  structural.push(
+    ...scanProblems(record.controlCharacterScan, "controlCharacterScan", "structure"),
+  );
+  acceptance.push(
+    ...scanProblems(record.controlCharacterScan, "controlCharacterScan", "acceptance"),
+  );
+
   const scan = record.controlCharacterScan;
   if (scan !== undefined && typeof scan.scannedFiles === "number") {
     /*
      * The verdict must describe THIS scan, not merely look clean. Comparing
-     * against the clean form alone let a dirty scan sit beside a clean
-     * sentence without the mismatch being reported.
+     * against the clean form alone let a dirty scan sit beside a clean sentence
+     * without the mismatch being reported. Structure: the two halves are one
+     * measurement whether or not it found anything.
      */
     const expected = describeScan(scan);
     const recorded = record.gates?.[CONTROL_CHARACTER_GATE];
     if (recorded !== expected) {
-      problems.push(
+      structural.push(
         `${CONTROL_CHARACTER_GATE}: verdict ${JSON.stringify(recorded)} does not match the structured evidence (expected ${JSON.stringify(expected)})`,
       );
     }
@@ -882,47 +997,68 @@ function recordProblems(
 
   const t = record.testGate;
   if (t === undefined) {
-    problems.push("no sanitized test-gate record");
+    structural.push("no sanitized test-gate record");
   } else {
-    if (t.reportSuccess !== true) problems.push(`test report success=${String(t.reportSuccess)}`);
-    if ((t.reportedFailedTests ?? 1) !== 0) {
-      problems.push(`test report names ${String(t.reportedFailedTests)} failed test(s)`);
+    /* ---- what the report said, which is a result rather than a shape ---- */
+    if (t.reportSuccess === undefined) structural.push("reportSuccess not recorded");
+    else if (t.reportSuccess !== true) {
+      acceptance.push(`test report success=${String(t.reportSuccess)}`);
     }
-    if ((t.countedFailedTests ?? 1) !== 0) {
-      problems.push(`${String(t.countedFailedTests)} failed test(s) counted from results`);
+    for (const [field, value, describe] of [
+      [
+        "reportedFailedTests",
+        t.reportedFailedTests,
+        (n: number) => `test report names ${String(n)} failed test(s)`,
+      ],
+      [
+        "countedFailedTests",
+        t.countedFailedTests,
+        (n: number) => `${String(n)} failed test(s) counted from results`,
+      ],
+      [
+        "reportedFailedSuites",
+        t.reportedFailedSuites,
+        (n: number) => `test report names ${String(n)} failed suite(s)`,
+      ],
+      [
+        "runtimeErrorSuites",
+        t.runtimeErrorSuites,
+        (n: number) => `${String(n)} suite(s) failed with no failed assertion`,
+      ],
+    ] as const) {
+      if (value === undefined || value === null) structural.push(`${field} not recorded`);
+      else if (!isCount(value)) structural.push(`${field} is not a count`);
+      else if (value !== 0) acceptance.push(describe(value));
     }
-    if ((t.reportedFailedSuites ?? 1) !== 0) {
-      problems.push(`test report names ${String(t.reportedFailedSuites)} failed suite(s)`);
-    }
-    if ((t.runtimeErrorSuites ?? 1) !== 0) {
-      problems.push(`${String(t.runtimeErrorSuites)} suite(s) failed with no failed assertion`);
-    }
-    if ((t.failedSuiteNames ?? ["unrecorded"]).length !== 0) {
-      problems.push(`failing suite(s): ${(t.failedSuiteNames ?? []).join(", ")}`);
+
+    if (t.failedSuiteNames === undefined) {
+      structural.push("no failed-suite identities recorded");
+    } else if (t.failedSuiteNames.length !== 0) {
+      acceptance.push(`failing suite(s): ${t.failedSuiteNames.join(", ")}`);
     }
     if (t.failedTests === undefined) {
-      problems.push("no failed-test identities recorded — rerun `pnpm release:gates`");
+      structural.push("no failed-test identities recorded — rerun `pnpm release:gates`");
     } else if (t.failedTests.length !== 0) {
-      problems.push(
+      acceptance.push(
         `failing test(s): ${t.failedTests.map((f) => `${f.suite} > ${f.title}`).join("; ")}`,
       );
     }
     if (t.skippedTests === undefined) {
-      problems.push("no skipped-test identities recorded — rerun `pnpm release:gates`");
+      structural.push("no skipped-test identities recorded — rerun `pnpm release:gates`");
     }
 
     /*
      * THE TEST GATE'S OWN PROCESS, RECORDED THREE TIMES.
      *
      * The same outcome sits in `processes["pnpm test"]`, in the `testGate`
-     * triple, and in the `processStatus/Signal/ErrorCode` triple added while
-     * the runner-level exit was being diagnosed. Copies checked separately are
-     * copies that can disagree, and this contract accepted a record whose
-     * spawned process said status 0 while both `testGate` copies said 1: the
-     * duplicated fields agreed with each other, so nothing looked wrong.
+     * triple, and in the `processStatus/Signal/ErrorCode` triple. Copies
+     * checked separately are copies that can disagree, and this contract once
+     * accepted a record whose spawned process said status 0 while both
+     * `testGate` copies said 1.
      */
-    problems.push(...cleanProcessProblems(t, "test gate"));
-    problems.push(
+    structural.push(...cleanProcessProblems(t, "test gate", "structure"));
+    acceptance.push(...cleanProcessProblems(t, "test gate", "acceptance"));
+    structural.push(
       ...cleanProcessProblems(
         {
           ok: t.ok,
@@ -931,6 +1067,19 @@ function recordProblems(
           errorCode: t.processErrorCode,
         },
         "test gate (process fields)",
+        "structure",
+      ).filter((m) => !m.includes(": ok ")),
+    );
+    acceptance.push(
+      ...cleanProcessProblems(
+        {
+          ok: t.ok,
+          status: t.processStatus,
+          signal: t.processSignal,
+          errorCode: t.processErrorCode,
+        },
+        "test gate (process fields)",
+        "acceptance",
       ).filter((m) => !m.includes(": ok ")),
     );
 
@@ -941,21 +1090,26 @@ function recordProblems(
       errorCode: t.processErrorCode,
     };
     if (!processTriplesAgree(own, copy)) {
-      problems.push("the test gate's two process triples disagree with each other");
+      structural.push("the test gate's two process triples disagree with each other");
     }
     const spawned = record.processes?.["pnpm test"];
-    if (spawned === undefined) problems.push("no spawned-process record for pnpm test");
+    if (spawned === undefined) structural.push("no spawned-process record for pnpm test");
     else if (!processTriplesAgree(own, spawned)) {
-      problems.push("the test gate disagrees with the process that ran it");
+      structural.push("the test gate disagrees with the process that ran it");
     }
 
-    problems.push(...runnerEvidenceProblems(t));
-    if ((t.reasons ?? ["unrecorded"]).length !== 0) {
-      problems.push(`test gate not clean: ${(t.reasons ?? []).join("; ")}`);
+    structural.push(...runnerEvidenceProblems(t, "structure"));
+    acceptance.push(...runnerEvidenceProblems(t, "acceptance"));
+
+    if (t.reasons === undefined) structural.push("no gate reasons recorded");
+    else if (t.reasons.length !== 0) {
+      acceptance.push(`test gate not clean: ${t.reasons.join("; ")}`);
     }
   }
 
-  return problems;
+  if (check === "structure") return structural;
+  if (check === "acceptance") return acceptance;
+  return [...structural, ...acceptance];
 }
 
 /**

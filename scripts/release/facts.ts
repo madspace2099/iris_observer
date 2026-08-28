@@ -158,6 +158,16 @@ export interface GateResults {
   readonly testGate?: {
     readonly failedTests?: readonly { readonly suite: string; readonly title: string }[];
     readonly skippedTests?: readonly { readonly suite: string; readonly title: string }[];
+    /*
+     * CONFIGURATION, kept separate from the observation below it. These are
+     * what the pool was told; none of them is a count of anything that
+     * happened.
+     */
+    readonly workerPool?: string | null;
+    readonly configuredMinWorkers?: number | null;
+    readonly configuredMaxWorkers?: number | null;
+    /** MEASURED: peak modules executing at once, one per worker. */
+    readonly observedPeakWorkers?: number | null;
   };
   readonly gates: Readonly<Record<string, string>>;
 }
@@ -254,6 +264,22 @@ function gateBlock(): string {
    * because the record stores a basename and a bounded title and nothing else,
    * and a skip whose title does not say why leaves a reader with a number.
    */
+  /*
+   * CONFIGURATION AND OBSERVATION, ON SEPARATE LINES.
+   *
+   * The bounds are what the pool was TOLD. The peak is what happened. Printing
+   * a configured value where a reader expects a measurement is how "four
+   * workers" came to be reported as though somebody had counted them.
+   */
+  const bounds = [
+    `min ${String(r.testGate?.configuredMinWorkers ?? "not recorded")}`,
+    `max ${String(r.testGate?.configuredMaxWorkers ?? "not recorded")}`,
+    `pool ${String(r.testGate?.workerPool ?? "not recorded")}`,
+  ].join(", ");
+  const peak = r.testGate?.observedPeakWorkers;
+  const peakLine =
+    peak === undefined || peak === null ? "NOT MEASURED" : `${String(peak)} concurrent modules`;
+
   const skipped = r.testGate?.skippedTests ?? [];
   const skippedLines =
     r.tests.skipped === 0
@@ -262,6 +288,8 @@ function gateBlock(): string {
         ? ["                                       NOT RECORDED — rerun `pnpm release:gates`"]
         : skipped.map((s) => `                                       ${s.suite}  ${s.title}`);
   return [
+    `  worker bounds (configured)     ${bounds}`,
+    `  peak concurrency (observed)    ${peakLine}`,
     `${stale}  pnpm test                      ${r.tests.passed} passed, ${r.tests.skipped} skipped, ` +
       `${r.tests.failed} failed / ${r.tests.files} files`,
     ...perFile,
