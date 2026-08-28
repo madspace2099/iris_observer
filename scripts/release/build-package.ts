@@ -1363,6 +1363,22 @@ export function hashTokens(text: string): readonly { line: number; token: string
 export function accountableHashes(): ReadonlySet<string> {
   const allowed = new Set<string>();
 
+  /*
+   * THE PRESERVED RED RECORDS, BY THE TOKEN IN THEIR FILENAME.
+   *
+   * A record is named `gate-results-FAILED-<commit>-<operation>.json`, and the
+   * operation half is a sixteen-hex token that looks exactly like an
+   * unaccounted hash — which is what the accounting rule is for. It is
+   * accountable here in the strongest available sense: the semantic checks
+   * require the evidence to name each of these records AND require each named
+   * file to exist in this repository, so a token admitted here cannot be a
+   * number somebody typed. If a record is removed or renamed, the semantic
+   * check refuses the build before this set is ever consulted.
+   */
+  for (const attempt of RED_GATE_ATTEMPTS) {
+    for (const token of attempt.record.match(/[0-9a-f]{8,}/g) ?? []) allowed.add(token);
+  }
+
   const m4 = `${MIGRATIONS_DIR}/20260826140000_observer_bucket_retention.sql`;
   const contract = `${MIGRATIONS_DIR}/20260826090000_observer_audit_facade_cleanup.sql`;
   for (const c of ["HEAD", "HEAD~1", "bb574b6", "7e3c00a", "ee954b8", "c6fdc73", "f1dbffd"]) {
