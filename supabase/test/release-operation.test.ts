@@ -15,6 +15,7 @@ import { packagingProblems, ownershipProblems } from "../../scripts/release/buil
 import {
   gateRecordProblems,
   structuralRecordProblems,
+  renderFailedVerdict,
   sanitizedRecord,
   captureEvidence,
   readGateRecord,
@@ -648,18 +649,63 @@ describe("one failure does not suppress evidence about another", () => {
     expect(acceptance).toMatch(/observedPeakWorkers not recorded/);
   });
 
-  it("does not fail a red record for its own honest FAILED verdict", () => {
+  it("requires a red verdict to be canonical, not merely to begin with FAILED", () => {
     /*
-     * `FAILED — <reasons>` is a correct account of what happened, not a broken
-     * rendering of the totals. Comparing it against the canonical form would
-     * fail every red record for something that is not a structural fault.
+     * SUPERSEDED, AND DELIBERATELY STRICTER.
+     *
+     * An earlier edition exempted anything starting with `FAILED` from the
+     * canonical-rendering check, on the reasoning that free prose is a correct
+     * account of what happened. It is — for a HUMAN. For a record it means the
+     * verdict can say anything at all, including numbers that contradict the
+     * measurements sitting beside it, and it means the sanitizer refuses the
+     * field so a red projection loses its test gate entirely.
+     *
+     * A red verdict now has one canonical shape, rendered from those same
+     * measurements. Prose beginning with FAILED is no longer exempt.
      */
     const base = greenGateRecord(head);
-    const red = {
+    const t = base.tests;
+    const prose = {
       ...base,
       gates: { ...base.gates, "pnpm test": "FAILED — exit status 1" },
     } as GateRecord;
-    expect(structuralRecordProblems(red, head).join(" ")).not.toMatch(/canonical rendering/);
+    expect(structuralRecordProblems(prose, head).join(" ")).toMatch(/not the canonical rendering/);
+
+    /* And the canonical red rendering of the same numbers is accepted. */
+    const canonical = {
+      ...base,
+      testGate: {
+        ...base.testGate,
+        ok: false,
+        status: 1,
+        processStatus: 1,
+        reportSuccess: false,
+        reportedFailedSuites: 2,
+        runtimeErrorSuites: 1,
+        failedSuiteNames: ["a.test.ts", "b.test.ts"],
+        reasons: ["exit status 1"],
+      },
+      processes: {
+        ...base.processes,
+        "pnpm test": { ok: false, status: 1, signal: null, errorCode: null },
+      },
+      gates: {
+        ...base.gates,
+        "pnpm test": renderFailedVerdict({
+          passed: t?.passed ?? 0,
+          skipped: t?.skipped ?? 0,
+          failed: t?.failed ?? 0,
+          files: t?.files ?? 0,
+          status: 1,
+          reportSuccess: false,
+          failedSuites: 2,
+          runtimeErrorSuites: 1,
+        }),
+      },
+    } as GateRecord;
+    expect(structuralRecordProblems(canonical, head)).toEqual([]);
+    /* Structurally valid, and never acceptable. */
+    expect(gateRecordProblems(canonical, head)).not.toEqual([]);
   });
 
   it("still refuses a verdict that is neither a measurement nor a stated failure", () => {
