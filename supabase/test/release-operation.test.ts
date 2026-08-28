@@ -27,6 +27,7 @@ import {
   ownershipProblems,
   verifyEmbeddedManifest,
   stagedOriginProblems,
+  stagedOriginResult,
   branchProblems,
 } from "../../scripts/release/build-package";
 import {
@@ -1575,9 +1576,54 @@ describe("the staged copies are checked against the commit, not the tree", () =>
     expect(stagedOriginProblems(dir, []).join(" ")).toMatch(/no staged file recorded/);
   });
 
+  it("allows a generated directory's copies, and counts them separately", () => {
+    /*
+     * `_sql-to-paste/` is gitignored on purpose: it holds the paste-ready
+     * wrappers `wrap-migration.ts` writes from the tracked migration sources.
+     * "Must equal HEAD" is the wrong rule for a file no commit was ever meant
+     * to hold — and the `wrappers vs sources` gate proves each one is a
+     * verbatim copy of the tracked SQL it wraps.
+     *
+     * COUNTED, NOT WAVED THROUGH. A number saying how many copies were checked
+     * some other way is evidence; a silent skip is the absence of one.
+     */
+    const dir = mkdtempSync(join(scratch, "generated-"));
+    mkdirSync(join(dir, "gen"), { recursive: true });
+    writeFileSync(join(dir, "gen", "wrapper.sql"), "-- generated\n", "utf8");
+    const result = stagedOriginResult(dir, [
+      { origin: "_sql-to-paste/wrapper.sql", staged: "gen/wrapper.sql" },
+    ]);
+    expect(result.problems).toEqual([]);
+    expect(result.generated).toBe(1);
+    expect(result.matchedHead).toBe(0);
+  });
+
+  it("still refuses an untracked origin from any other directory", () => {
+    /*
+     * THE EXCEPTION IS BY NAME, NOT BY ABSENCE. A rule that skipped whatever
+     * git did not know about would let a file into the archive BY being
+     * untracked, which is the case this check exists to refuse.
+     */
+    const dir = mkdtempSync(join(scratch, "smuggled-"));
+    mkdirSync(join(dir, "generators"), { recursive: true });
+    writeFileSync(join(dir, "generators", "extra.ts"), "export const x = 1;\n", "utf8");
+    const result = stagedOriginResult(dir, [
+      { origin: "scripts/release/extra.ts", staged: "generators/extra.ts" },
+    ]);
+    expect(result.problems.join(" ")).toMatch(/is staged and is not in HEAD/);
+    expect(result.generated).toBe(0);
+  });
+
+  it("counts a matching tracked copy as matched, not as generated", () => {
+    const { dir, staged } = stageFromHead();
+    const result = stagedOriginResult(dir, [{ origin: ORIGIN, staged }]);
+    expect(result.matchedHead).toBe(1);
+    expect(result.generated).toBe(0);
+  });
+
   it("runs before anything is archived", () => {
     const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
-    const check = source.indexOf("const origins = stagedOriginProblems(dir)");
+    const check = source.indexOf("const origins = stagedOriginResult(dir)");
     const scan = source.indexOf("const finished = scanDirectory(dir)");
     expect(check).toBeGreaterThan(0);
     expect(scan).toBeGreaterThan(check);
