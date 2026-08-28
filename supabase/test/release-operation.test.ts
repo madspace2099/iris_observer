@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -86,10 +87,40 @@ import { facts, render } from "../../scripts/release/facts";
  */
 
 const ROOT = join(import.meta.dirname, "..", "..");
+const execFileAsync = promisify(execFile);
+
 const readSource = (path: string): string => readFileSync(path, "utf8");
 
 const git = (root: string, ...args: readonly string[]): string =>
   execFileSync("git", [...args], { cwd: root, encoding: "utf8" });
+
+/**
+ * The same, ASYNCHRONOUSLY, for the git calls that take seconds.
+ *
+ * ## Why a test's choice of API is a property of the gate
+ *
+ * A Vitest worker reports progress to the parent over an RPC with a deadline.
+ * `execFileSync` blocks the worker's event loop for the whole child process, so
+ * a five-second `git am` is five seconds in which that worker cannot process
+ * the reply to its own `onTaskUpdate` — and Vitest records the expiry as an
+ * UNHANDLED ERROR and exits 1 while the JSON report says every test passed.
+ * That is the exact runner-level shape this repository spent a milestone
+ * diagnosing, and the heaviest git operations in the suite are in this file.
+ *
+ * The measurement that pointed here: during the run that produced it, the
+ * PARENT's worst event-loop stall was 77ms — so the parent was answering. What
+ * could not answer was a worker holding its own loop inside a synchronous
+ * clone-and-replay of sixty-three patches. An awaited child process holds
+ * nothing, and the proof it performs is unchanged.
+ */
+const gitAsync = async (root: string, ...args: readonly string[]): Promise<string> => {
+  const { stdout } = await execFileAsync("git", [...args], {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return stdout;
+};
 
 /** A tiny repository with one commit, so tree identity has something to say. */
 function throwaway(scratch: string): string {
@@ -1294,12 +1325,10 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     expect(controlByteDistribution(line(" "))).toEqual({ added: 0, removed: 0, context: 1 });
   });
 
-  it("measures every declared patch and finds bytes on ADDED lines", () => {
+  it("measures every declared patch and finds bytes on ADDED lines", async () => {
     const out = mkdtempSync(join(tmpdir(), "observer-patchfacts-"));
     try {
-      execFileSync("git", ["format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q"], {
-        cwd: ROOT,
-      });
+      await gitAsync(ROOT, "format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q");
       const measured = readdirSync(out)
         .sort()
         .map((f) => ({ f, text: readFileSync(join(out, f), "latin1") }))
@@ -1317,7 +1346,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     }
   });
 
-  it("holds every declared distribution to the bytes git actually produces", () => {
+  it("holds every declared distribution to the bytes git actually produces", async () => {
     /*
      * THE DEFECT THIS CLOSES, TWICE OVER.
      *
@@ -1333,9 +1362,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
      */
     const out = mkdtempSync(join(tmpdir(), "observer-declared-"));
     try {
-      execFileSync("git", ["format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q"], {
-        cwd: ROOT,
-      });
+      await gitAsync(ROOT, "format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q");
       const files = readdirSync(out).sort();
       const byCommit = new Map<string, { file: string; text: string }>();
       for (const f of files) {
@@ -1367,7 +1394,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     }
   });
 
-  it("reconstructs the chain end to end with git am, when the base object is here", () => {
+  it("reconstructs the chain end to end with git am, when the base object is here", async () => {
     /*
      * THE CLAIM THE NOTE MAKES, EXECUTED. The note says a decoded sidecar is
      * byte-for-byte the original patch and therefore `git am` applicable. That
@@ -1381,7 +1408,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     const base = "1ee5d2d";
     let haveBase = true;
     try {
-      execFileSync("git", ["rev-parse", `${base}^{commit}`], { cwd: ROOT, stdio: "pipe" });
+      await gitAsync(ROOT, "rev-parse", `${base}^{commit}`);
     } catch {
       haveBase = false;
     }
@@ -1392,13 +1419,7 @@ describe("the transport-safe note reports where the bytes actually are", () => {
     const repo = join(work, "repo");
     try {
       mkdirSync(patches, { recursive: true });
-      execFileSync(
-        "git",
-        ["format-patch", `${base}..HEAD`, "-o", patches, "--no-signature", "-q"],
-        {
-          cwd: ROOT,
-        },
-      );
+      await gitAsync(ROOT, "format-patch", `${base}..HEAD`, "-o", patches, "--no-signature", "-q");
 
       /*
        * ENCODE THE DECLARED ONES EXACTLY AS THE PACKAGER DOES, then decode them
@@ -1420,29 +1441,25 @@ describe("the transport-safe note reports where the bytes actually are", () => {
       expect(recovered).toBe(HISTORICAL_CONTROL_CHAR_COMMITS.length);
 
       /* A throwaway checkout at the base, and the whole chain replayed onto it. */
-      execFileSync("git", ["clone", "--quiet", "--no-local", "--shared", ROOT, repo], {
-        cwd: work,
-      });
+      await gitAsync(work, "clone", "--quiet", "--no-local", "--shared", ROOT, repo);
       for (const [k, v] of [
         ["user.email", "test@example.invalid"],
         ["user.name", "Test"],
         ["commit.gpgsign", "false"],
+        /* No line-ending rewriting, so the replayed tree is compared as written. */
         ["core.autocrlf", "false"],
         ["core.eol", "lf"],
-      ]) {
-        execFileSync("git", ["config", k, v], { cwd: repo });
+      ] as const) {
+        await gitAsync(repo, "config", k, v);
       }
-      execFileSync("git", ["checkout", "--quiet", "--detach", base], { cwd: repo });
-      execFileSync(
-        "git",
-        [
-          "am",
-          "--quiet",
-          ...readdirSync(patches)
-            .sort()
-            .map((f) => join(patches, f)),
-        ],
-        { cwd: repo, maxBuffer: 64 * 1024 * 1024 },
+      await gitAsync(repo, "checkout", "--quiet", "--detach", base);
+      await gitAsync(
+        repo,
+        "am",
+        "--quiet",
+        ...readdirSync(patches)
+          .sort()
+          .map((f) => join(patches, f)),
       );
 
       /*
@@ -1450,14 +1467,8 @@ describe("the transport-safe note reports where the bytes actually are", () => {
        * so the SHAs differ by construction; what must match is the content the
        * chain produces.
        */
-      const rebuilt = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
-        cwd: repo,
-        encoding: "utf8",
-      }).trim();
-      const original = execFileSync("git", ["rev-parse", "HEAD^{tree}"], {
-        cwd: ROOT,
-        encoding: "utf8",
-      }).trim();
+      const rebuilt = (await gitAsync(repo, "rev-parse", "HEAD^{tree}")).trim();
+      const original = (await gitAsync(ROOT, "rev-parse", "HEAD^{tree}")).trim();
       expect(rebuilt).toBe(original);
     } finally {
       rmSync(work, { recursive: true, force: true });

@@ -44,6 +44,20 @@
     "supabase/test/gate-runner.test.ts",
     "supabase/test/gate-contract.test.ts",
     "supabase/test/control-chars.test.ts",
+
+    /*
+     * THE RELEASE SUITES, ADDED BECAUSE THE GAP WAS REAL.
+     *
+     * `release-operation.test.ts` was not in this list, so a test file that
+     * called an undefined `gitAsync` nine times type-checked clean and would
+     * have failed only when the case ran. These four exercise the release
+     * apparatus itself, which is the part of this repository whose whole job is
+     * refusing to describe something it has not measured.
+     */
+    "supabase/test/release-operation.test.ts",
+    "supabase/test/gate-evidence.test.ts",
+    "supabase/test/staged-module.test.ts",
+    "supabase/test/worker-bound.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }

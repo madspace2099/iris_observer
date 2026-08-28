@@ -220,7 +220,20 @@ describe("hostile records are refused rather than reshaped", () => {
       what: "a control-character scan claiming zero of nothing",
       record: {
         ...greenGateRecord(HEAD),
-        controlCharacterScan: { scannedFiles: 0, foundCharacters: 0, affectedFiles: [] },
+        /*
+         * COMPLETE, because a scan records what it was ASKED to read as well as
+         * what it read. This literal predates those two fields and type-checked
+         * only because the file sat outside the type-check target. The case is
+         * unchanged: a scan of nothing is still not evidence of cleanliness.
+         */
+        controlCharacterScan: {
+          requestedFiles: 0,
+          scannedFiles: 0,
+          readFailures: 0,
+          unreadableFiles: [],
+          foundCharacters: 0,
+          affectedFiles: [],
+        },
       },
     },
     {
