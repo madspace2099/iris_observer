@@ -622,9 +622,36 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
  * prefix of a hash this package can account for. Pure-decimal runs are
  * migration timestamps and are skipped.
  */
-function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly string[] {
+/**
+ * Every hash-shaped token in a piece of evidence.
+ *
+ * `[0-9a-f]{8,}` with at least one letter in it — a run of digits alone is a
+ * timestamp, not a digest. Exported so a fast test can apply the SAME rule the
+ * packager applies, rather than a second copy of it that can drift.
+ */
+export function hashTokens(text: string): readonly { line: number; token: string }[] {
+  const found: { line: number; token: string }[] = [];
+  text.split("\n").forEach((line, i) => {
+    for (const token of line.match(/[0-9a-f]{8,}/g) ?? []) {
+      if (!/[a-f]/.test(token)) continue;
+      found.push({ line: i + 1, token });
+    }
+  });
+  return found;
+}
+
+/**
+ * Every digest this repository can account for, without building anything.
+ *
+ * EXPORTED, so a fast test applies the same allow-set the packager applies
+ * rather than a narrower copy that turns into a list of exceptions. The
+ * packager adds one thing to it — the hash of every file it just staged — and
+ * that is permissiveness a DOCUMENT should never need: a document citing a
+ * digest that exists only inside the archive being built is citing something a
+ * reader cannot check.
+ */
+export function accountableHashes(): ReadonlySet<string> {
   const allowed = new Set<string>();
-  for (const p of walk(dir)) allowed.add(sha256File(p));
 
   const m4 = `${MIGRATIONS_DIR}/20260826140000_observer_bucket_retention.sql`;
   const contract = `${MIGRATIONS_DIR}/20260826090000_observer_audit_facade_cleanup.sql`;
@@ -673,18 +700,34 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
    */
   for (const a of DELIVERED_ARCHIVES) allowed.add(a.sha256);
 
+  return allowed;
+}
+
+/** Every hash-shaped token in `text` that nothing in `allowed` accounts for. */
+export function unaccountedTokens(
+  name: string,
+  text: string,
+  allowed: ReadonlySet<string>,
+): readonly string[] {
+  const problems: string[] = [];
+  for (const { line, token } of hashTokens(text)) {
+    if (![...allowed].some((h) => h.startsWith(token))) {
+      problems.push(`${name}:${String(line)}  ${token}  accounted for by nothing in this package`);
+    }
+  }
+  return problems;
+}
+
+function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly string[] {
+  const allowed = new Set<string>(accountableHashes());
+  /* Plus what this build just staged, which only the build can know. */
+  for (const p of walk(dir)) allowed.add(sha256File(p));
+
   const problems: string[] = [];
   let checked = 0;
   for (const { name, text } of rendered) {
-    text.split("\n").forEach((line, i) => {
-      for (const token of line.match(/[0-9a-f]{8,}/g) ?? []) {
-        if (!/[a-f]/.test(token)) continue; /* a timestamp, not a hash */
-        checked += 1;
-        if (![...allowed].some((h) => h.startsWith(token))) {
-          problems.push(`${name}:${i + 1}  ${token}  accounted for by nothing in this package`);
-        }
-      }
-    });
+    checked += hashTokens(text).length;
+    problems.push(...unaccountedTokens(name, text, allowed));
   }
   say(`  hash accounting          ${checked} tokens, ${problems.length} unaccounted`);
   return problems;

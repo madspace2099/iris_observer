@@ -707,12 +707,33 @@ names.
             errors, pool forks, workers 4..4, observed peak 4 in the
             diagnostics. Every other gate was clean. No package was produced.
 
-            Preserved at .release/gate-results-FAILED-3094443-974b74e963629c27
-            .json, sha256 58a07af7b77b7c787f350fe7da41a40d6a012119ebb4246307e1
-            52b02dbea4c6, untracked and NOT packaged — it preserves the record
-            for whoever holds this working directory and is not evidence a
-            reviewer can open. It was not retried at its own commit, and the
-            green run below does not retract or replace it.
+            Preserved in this working directory under a filename naming that
+            commit and the operation that produced it, untracked and NOT
+            packaged. THE DIGEST IS DELIBERATELY NOT QUOTED HERE, and the
+            reason is worth stating: this package refuses to print a
+            hash-shaped token it cannot account for, and a digest of an
+            untracked file is exactly such a token. The control is right, so
+            the prose gives way rather than the control. The digests of both
+            preserved records are in this repository's commit messages, where
+            a reader who has the repository can check them and a reader who has
+            only the archive is not offered a number they cannot verify.
+
+            It was not retried at its own commit, and no later run retracts or
+            replaces it.
+
+  ddefa50   RED, and preserved. The first and only authoritative attempt at
+            that commit, and the second permanent red result. The same three
+            suites failed at SUITE level: 1554 passed, 24 skipped, 0 failed
+            assertions across 47 files, six failed suite results, three
+            runtime-error suites, zero unhandled runner errors, reportSuccess
+            false, exit status 1, pool forks, workers 4..4, OBSERVED PEAK 4 —
+            recorded for the first time, because the milestone that produced
+            this red run is the one that stopped throwing that measurement
+            away. Every other gate was clean. No package was produced.
+
+            Preserved the same way, and its digest likewise lives in the commit
+            message rather than in this document. It was not retried, and no
+            later run retracts or replaces it.
 
   {{HEAD_SHORT}}   this candidate — see THE GATE, below.
 
@@ -947,6 +968,69 @@ its own copy of the audit patterns, under a test that asserted the two were
 synchronised and never read the auditor. They had already diverged. Both now
 load `scripts/release/secret-patterns.json`, so "in step" is a property of the
 code rather than a sentence in a comment.
+
+WHY THE SECOND AUTHORITATIVE GATE WENT RED, WHICH WAS NOT THE RELEASE PROTOCOL.
+
+The gate at `ddefa50` failed the same three suites in the same shape as the one
+before it, and the cause was entirely different. A count pattern is not a root
+cause, and this is what happened when the pattern was actually chased.
+
+THE MATRIX. Bounded, non-authoritative, one run per case, isolated temporary
+state, starting with the smallest affected suite.
+
+  A   ordinary invocation, no reporters, no outer operation
+      FAILED — 14 passed, 14 skipped, 0 failed assertions, 2 failed suite
+      results. Refusal raised inside `beforeAll`.
+
+  B   the exact gate arguments: JSON reporter, output file, the sanitized
+      runner reporter, controlled diagnostics environment
+      FAILED — identical shape. 14 passed, 14 skipped, 0 failed assertions.
+      Observed peak 1, zero unhandled runner errors, reporter completed.
+
+  B2  the runner reporter beside the default reporter, so the refusal is
+      visible rather than discarded by the JSON reporter
+      FAILED — identical shape, and it names the reason.
+
+A AND B FAILING IDENTICALLY REJECTS THE REPORTER HYPOTHESIS OUTRIGHT. The
+invocation is irrelevant; the cause travels with the commit. Cases C through H —
+sequencing, canonical marker leakage, mutex leakage, inherited operation
+identity, private-context threading — were therefore not run. Each would have
+been asking a question already answered, and inventing work is its own way of
+being wrong.
+
+THE CAUSE. This package refuses to print a hash-shaped token it cannot account
+for: every `[0-9a-f]{8,}` run containing a letter, in every rendered evidence
+file, must be a prefix of something the package can produce — a commit on this
+branch, a tree, a declared archive digest, a computed diff hash. It is a real
+control, and it caught a real problem.
+
+The problem was the evidence prose. The previous milestone recorded the
+preserved failed record by quoting the operation id that produced it and the
+sha256 of the file holding it, WRAPPED ACROSS TWO LINES so it arrived as two
+tokens rather than one. Three unaccountable tokens; three refusals; `build()`
+threw inside the `beforeAll` of all three package-building suites; their tests
+were reported as SKIPPED. Six failed suite results, three runtime-error suites,
+zero failed assertions — the shape a runner-level fault makes, produced by a
+paragraph.
+
+WHY IT SURVIVED VERIFICATION, WHICH IS THE PART WORTH LEARNING. The three
+suites HAD been run on a clean commit and passed, 28/55/131 with no skips. They
+were run at the candidate commit. The prose that broke them landed in the NEXT
+commit — the one that recorded those very results — and nothing re-ran them
+there. DOCUMENTATION IS A BUILD INPUT. Verification at the commit before the
+final one is verification of a different tree.
+
+THE CORRECTION, WHICH DOES NOT TOUCH THE CONTROL. No allowlist, no exception,
+no weakening. The prose gives way instead: the digests of both preserved failed
+records live in this repository's commit messages, where a reader who has the
+repository can check them, and are deliberately absent from an archive that
+cannot account for them. A reader is not offered a number they have no way to
+verify.
+
+AND IT FAILS IN A SECOND NOW, NOT IN A FORTY-SECOND BUILD.
+`supabase/test/artefact-consistency.test.ts` scans every evidence document with
+the packager's OWN exported token scanner and its OWN exported allow-set — one
+implementation, not a copy that drifts into a list of exceptions.
 
 TWO DEFECTS THE FIRST AUTHORITATIVE GATE FOUND, AND WHY ONLY A GATE COULD.
 

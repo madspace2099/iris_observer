@@ -5,6 +5,11 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { facts, render } from "../../scripts/release/facts";
 import {
+  hashTokens,
+  accountableHashes,
+  unaccountedTokens,
+} from "../../scripts/release/build-package";
+import {
   LIVE,
   DEPLOYMENTS,
   CAPABILITY,
@@ -682,5 +687,99 @@ describe("the carried-forward mapping is derived from the classifier", () => {
     const review = render(source, facts({ stagedFiles: 0 })).out;
     expect(review).toContain("MANUAL_PUBLIC_UNOBSERVED");
     expect(review).not.toMatch(/Preview\s+SUPABASE_URL\s+MAPPED/);
+  });
+});
+
+/**
+ * A HASH-SHAPED TOKEN NOBODY CAN ACCOUNT FOR REFUSES THE PACKAGE.
+ *
+ * That control is right and this milestone did not weaken it. It is here
+ * because the evidence prose broke it, and the break cost an authoritative
+ * gate run.
+ *
+ * The `ddefa50` gate went red for one reason and it was not the release
+ * protocol: REVIEW quoted the operation id of a preserved failed record and the
+ * sha256 of the file holding it, WRAPPED ACROSS TWO LINES so it arrived as two
+ * separate tokens. The packager refuses a digest it cannot account for, an
+ * untracked file's digest is exactly that, and `build()` therefore threw inside
+ * the `beforeAll` of all three package-building suites. Fourteen tests in
+ * `package-generation` alone were reported as SKIPPED — a suite-level failure
+ * with zero failed assertions, which is the shape a runner-level fault makes.
+ *
+ * The lesson was sequencing, not design. Those suites had been verified on a
+ * clean candidate commit; the prose that broke them landed in the NEXT commit,
+ * the one that recorded the verification results, and nothing re-ran them
+ * there. Documentation is a build input.
+ *
+ * So this runs in a second rather than inside a forty-second build, and it uses
+ * the packager's own token scanner rather than a second copy of the rule.
+ */
+describe("every hash-shaped token in the evidence is accounted for", () => {
+  const documents = [
+    "docs/release/REVIEW.txt",
+    "docs/release/COMPATIBILITY-EVIDENCE.txt",
+    "docs/release/PEPPER-CONTRACT.txt",
+    "docs/release/RETENTION-EVIDENCE.txt",
+  ];
+
+  it("finds no token the repository cannot account for", () => {
+    /*
+     * THE PACKAGER'S OWN ALLOW-SET, not a narrower copy of it. A copy would
+     * accumulate exceptions for tokens the packager already accounts for, and
+     * a list of exceptions is not a control.
+     *
+     * The packager adds one thing this does not: the hash of every file it
+     * just staged. That is permissiveness a DOCUMENT should never need — a
+     * document citing a digest that exists only inside the archive being built
+     * is citing something its reader cannot check.
+     */
+    const allowed = accountableHashes();
+    const unaccounted: string[] = [];
+    for (const doc of documents) {
+      unaccounted.push(...unaccountedTokens(doc, readFileSync(join(ROOT, doc), "utf8"), allowed));
+    }
+    expect(unaccounted).toEqual([]);
+  });
+
+  it("applies the packager's own rule, not a copy of it", () => {
+    /*
+     * `hashTokens` is exported from the packager and used by it. A second
+     * implementation here would be a second thing to keep in step, which is the
+     * failure mode this repository keeps finding.
+     */
+    const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
+    expect(source).toContain("export function hashTokens");
+    expect(source).toContain("for (const { line, token } of hashTokens(text))");
+  });
+
+  it("counts a run of digits as a timestamp rather than a digest", () => {
+    expect(hashTokens("recorded at 20260826140000")).toEqual([]);
+    expect(hashTokens("sha 20260826140000abc")).toHaveLength(1);
+  });
+
+  it("sees a wrapped digest as two separate tokens, which is why it broke", () => {
+    /*
+     * THE EXACT SHAPE. A sha256 split across a line boundary is not one token
+     * the checker can match against a known digest — it is two, and neither is
+     * a prefix of anything.
+     */
+    const wrapped = "sha256 58a07af7b77b7c787f350fe7da41a40d6a012119ebb4246307e1\n52b02dbea4c6,";
+    const tokens = hashTokens(wrapped);
+    expect(tokens).toHaveLength(2);
+    expect(tokens[0]?.line).toBe(1);
+    expect(tokens[1]?.line).toBe(2);
+  });
+
+  it("does not quote a preserved failed record's digest in the evidence", () => {
+    /*
+     * The digests live in this repository's commit messages, where a reader
+     * with the repository can check them. Printing them in an archive offers a
+     * number nothing in that archive can verify — which is precisely what the
+     * accounting control exists to refuse.
+     */
+    const review = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
+    expect(review).not.toContain("974b74e963629c27");
+    expect(review).not.toContain("948471bfdbb525a4");
+    expect(review).toMatch(/THE DIGEST IS DELIBERATELY NOT QUOTED HERE/);
   });
 });
