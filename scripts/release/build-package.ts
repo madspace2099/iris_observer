@@ -65,6 +65,12 @@ import {
   withTerminalPhase,
   type Operation,
 } from "./release-operation";
+import {
+  appendJournal,
+  identifyArchive,
+  startupProblems,
+  type JournalContext,
+} from "./operation-journal";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
 import { scanText, inScope } from "./secret-recipes";
 import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
@@ -1925,6 +1931,20 @@ function main(): void {
     process.exit(1);
   }
 
+  /*
+   * NOTHING STARTS WHILE ANOTHER OPERATION IS UNRESOLVED.
+   *
+   * The mutex answers "is anybody running?", which a crashed operation answers
+   * no to while leaving a published archive, a stale claim or both. The journal
+   * answers "did anybody finish?", which is the question that matters, and the
+   * refusal names the exact command that resolves each one.
+   */
+  const unresolved = startupProblems(REPO_ROOT);
+  if (unresolved.length > 0) {
+    for (const problem of unresolved) say(`  ${problem}`);
+    process.exit(1);
+  }
+
   let op: Operation;
   try {
     op = beginOperation(REPO_ROOT, "package", identity.head, identity.treeId);
@@ -1933,6 +1953,12 @@ function main(): void {
     say(`PACKAGE GENERATION REFUSED — ${(e as Error).message}`);
     process.exit(1);
   }
+  /* THE JOURNAL OPENS BEFORE ANYTHING ELSE HAPPENS. */
+  const journal: JournalContext = {
+    branch: identity.branch,
+    inputsDigest: identity.inputsDigest,
+  };
+  appendJournal(REPO_ROOT, op, journal, "started", { note: "package operation opened" });
 
   const binding = new TreeBinding(REPO_ROOT, {
     branch: identity.branch,
@@ -1974,6 +2000,7 @@ function main(): void {
   };
 
   try {
+    appendJournal(REPO_ROOT, op, journal, "package-staging", { note: "staging the package" });
     binding.sample("before the build");
     const first = build(outDir, { operation: op, archiveDir: staging });
     say("");
@@ -2064,6 +2091,20 @@ function main(): void {
         `the archive changed between being hashed and being identified: ${first.sha} became ${verified.sha}`,
       );
     }
+    /*
+     * THE PRIVATE CANDIDATE IS VERIFIED, AND THAT IS RECORDED BEFORE ANYTHING
+     * BECOMES VISIBLE. A crash from here on leaves a journal saying what was
+     * built and what its bytes were, which is what recovery needs in order to
+     * decide anything at all.
+     */
+    const candidate = identifyArchive(
+      REPO_ROOT,
+      relative(REPO_ROOT, first.archive).split(sep).join("/"),
+    );
+    appendJournal(REPO_ROOT, op, journal, "package-verified", {
+      archive: candidate,
+      note: "private candidate verified",
+    });
 
     /* Last: the tree, ownership, and only then the atomic publication. */
     binding.sample("before publication");
@@ -2087,6 +2128,7 @@ function main(): void {
      * archive beside an ABANDONED record is not an outcome either side may
      * produce, and it was reachable.
      */
+    const canonicalRel = relative(REPO_ROOT, distributable).split(sep).join("/");
     withTerminalPhase(REPO_ROOT, op, "publish", () => {
       /*
        * REVALIDATE THE EXACT CANDIDATE, under the hold, before anything is
@@ -2118,6 +2160,20 @@ function main(): void {
             "deliberately if it is to be superseded.",
         );
       }
+      /*
+       * PUBLISHING IS RECORDED BEFORE THE LINK, NEVER AFTER.
+       *
+       * The journal must never be behind the world. A crash between this line
+       * and the link leaves a journal saying `publishing` and no archive, which
+       * resolution reads as "did not complete". A crash AFTER the link leaves
+       * the same state and an archive whose identity is written down here — and
+       * resolution finalises it only when the file is that exact object.
+       */
+      appendJournal(REPO_ROOT, op, journal, "publishing", {
+        archive: { ...candidate, path: canonicalRel },
+        note: "linking the canonical archive",
+      });
+
       linkSync(first.archive, distributable);
 
       /*
@@ -2156,6 +2212,16 @@ function main(): void {
         );
       }
 
+      /*
+       * PUBLISHED, RECORDED BEFORE OWNERSHIP IS RELEASED. Every post-link check
+       * has passed and the canonical file has been re-identified, so this is the
+       * first moment at which the archive is genuinely the deliverable.
+       */
+      appendJournal(REPO_ROOT, op, journal, "published", {
+        archive: identifyArchive(REPO_ROOT, canonicalRel),
+        note: "canonical archive published and verified",
+      });
+
       rmSync(first.archive, { force: true });
 
       /* Operation-private cleanup, still inside the hold. */
@@ -2172,6 +2238,15 @@ function main(): void {
     say(`  published ${relative(REPO_ROOT, distributable).split(sep).join("/")}`);
   } catch (e) {
     cleanUp();
+    /*
+     * A TERMINAL RED STATE, so nothing is left unresolved by an ordinary
+     * refusal. Only a CRASH should leave an operation needing a person.
+     */
+    try {
+      appendJournal(REPO_ROOT, op, journal, "failed", { note: "package generation refused" });
+    } catch {
+      /* The journal may itself be why this failed; do not mask the real error. */
+    }
     try {
       endOperation(REPO_ROOT, op);
     } catch {

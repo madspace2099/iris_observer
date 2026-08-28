@@ -52,7 +52,7 @@ import {
   type Stats,
 } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 export const RELEASE_DIR = ".release";
 export const OPERATION_LOCK_PATH = ".release/release-operation.lock";
@@ -287,17 +287,45 @@ export interface OwnerToken {
   readonly ino: number;
   readonly birthtimeMs: number;
   readonly size: number;
+  /**
+   * Whether the object is a regular file, so a type change is a difference.
+   */
+  readonly isFile: boolean;
+  /**
+   * A digest of the lock's COMPLETE BYTES.
+   *
+   * ## The rewrite this closes
+   *
+   * The token was device, inode, birth time and SIZE. A lock rewritten IN PLACE
+   * — same inode, same length — therefore compared equal, and the recorded HEAD
+   * or tree could be replaced by an equal-length alternative that this process
+   * would then accept as its own. Both are hex strings of fixed width, so
+   * equal-length substitution is not a contrivance; it is the natural shape of
+   * the attack.
+   *
+   * Hashing the bytes makes the content part of the identity. An operation now
+   * owns a specific file holding specific bytes, and anything else is somebody
+   * else's lock.
+   */
+  readonly digest: string;
 }
 
-const tokenOf = (st: Stats): OwnerToken => ({
+const tokenOfBytes = (st: Stats, bytes: Buffer): OwnerToken => ({
   dev: st.dev,
   ino: st.ino,
   birthtimeMs: st.birthtimeMs,
   size: st.size,
+  isFile: st.isFile(),
+  digest: createHash("sha256").update(bytes).digest("hex"),
 });
 
 const sameToken = (a: OwnerToken, b: OwnerToken): boolean =>
-  a.dev === b.dev && a.ino === b.ino && a.birthtimeMs === b.birthtimeMs && a.size === b.size;
+  a.dev === b.dev &&
+  a.ino === b.ino &&
+  a.birthtimeMs === b.birthtimeMs &&
+  a.size === b.size &&
+  a.isFile === b.isFile &&
+  a.digest === b.digest;
 
 /**
  * Three states, because two cannot express what is on disk.
@@ -340,9 +368,16 @@ export function readOperationLock(root: string): LockState {
     return { kind: "unsafe", why: `${OPERATION_LOCK_PATH} resolves outside the repository` };
   }
 
+  /* READ ONCE, and hash exactly those bytes: two reads can differ. */
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(join(root, OPERATION_LOCK_PATH));
+  } catch {
+    return { kind: "unsafe", why: `${OPERATION_LOCK_PATH} could not be read` };
+  }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(join(root, OPERATION_LOCK_PATH), "utf8"));
+    parsed = JSON.parse(bytes.toString("utf8"));
   } catch {
     return {
       kind: "unsafe",
@@ -356,7 +391,7 @@ export function readOperationLock(root: string): LockState {
       why: `${OPERATION_LOCK_PATH} is present but does not describe an operation`,
     };
   }
-  return { kind: "held", lock, token: tokenOf(state.stat) };
+  return { kind: "held", lock, token: tokenOfBytes(state.stat, bytes) };
 }
 
 const RECOVERY = `run \`pnpm release:recover --operation=<id>\`, which validates that exact operation, tombstones the canonical result and releases only that lock. Deleting the lock by hand is not recovery: it leaves the previous green record packageable, which is the state the tombstone exists to prevent`;
@@ -502,6 +537,22 @@ export function adoptOperation(root: string, kind: OperationKind, operationId: s
 }
 
 /** Throw unless this exact operation still owns the mutex, right now. */
+/**
+ * Every field an ownership assertion compares, named individually.
+ *
+ * The token covers device, inode, birth time, size, file type and the complete
+ * bytes; these are the DECLARED facts inside those bytes, checked separately so
+ * a refusal says which one moved rather than only that something did.
+ */
+export function ownerFieldProblems(lock: OperationLock, op: Operation): readonly string[] {
+  const problems: string[] = [];
+  if (lock.operationId !== op.operationId) problems.push("a different operation id");
+  if (lock.kind !== op.kind) problems.push("a different operation kind");
+  if (lock.head !== op.head) problems.push("a different HEAD");
+  if (lock.treeId !== op.treeId) problems.push("a different tree identity");
+  return problems;
+}
+
 export function assertOwner(root: string, op: Operation): void {
   const state = readOperationLock(root);
   if (state.kind === "free") {
@@ -742,7 +793,7 @@ export function enterTerminalPhase(
     action,
     operationId: op.operationId,
     nonce,
-    token: tokenOf(state.stat),
+    token: tokenOfBytes(state.stat, readFileSync(join(root, TERMINAL_CLAIM_PATH))),
   });
   try {
     assertOwner(root, op);
@@ -771,7 +822,9 @@ export function terminalReleaseProblems(root: string, hold: TerminalHold): reado
   if (state.kind !== "file") {
     return [state.kind === "unsafe" ? state.why : `${TERMINAL_CLAIM_PATH} is a directory`];
   }
-  if (!sameToken(tokenOf(state.stat), hold.token)) {
+  if (
+    !sameToken(tokenOfBytes(state.stat, readFileSync(join(root, TERMINAL_CLAIM_PATH))), hold.token)
+  ) {
     return [
       "the terminal claim on disk is a different file object from the one this hold " +
         "created — it has been replaced, and this hold will not delete somebody else's claim",
@@ -858,6 +911,8 @@ export function recoverTerminalClaim(root: string, operationId: string): readonl
 
   const before = inspectPath(root, TERMINAL_CLAIM_PATH);
   if (before.kind === "absent") return ["no terminal claim was held"];
+  const beforeBytes =
+    before.kind === "file" ? readFileSync(join(root, TERMINAL_CLAIM_PATH)) : Buffer.alloc(0);
   if (before.kind !== "file") {
     throw new OperationRefused(
       before.kind === "unsafe"
@@ -905,7 +960,15 @@ export function recoverTerminalClaim(root: string, operationId: string): readonl
 
   /* The file must not have changed while all of that was being read. */
   const after = inspectPath(root, TERMINAL_CLAIM_PATH);
-  if (after.kind !== "file" || !sameToken(tokenOf(after.stat), tokenOf(before.stat))) {
+  const claimPath = join(root, TERMINAL_CLAIM_PATH);
+  if (
+    after.kind !== "file" ||
+    before.kind !== "file" ||
+    !sameToken(
+      tokenOfBytes(after.stat, readFileSync(claimPath)),
+      tokenOfBytes(before.stat, beforeBytes),
+    )
+  ) {
     throw new OperationRefused(
       "the terminal claim changed while it was being inspected — nothing was moved",
     );
@@ -1055,9 +1118,21 @@ function recoverUnderClaim(
     head: owner.head,
     abandonedAt: new Date().toISOString(),
   };
-  const tmp = `${recordPath}.recovering-${op.operationId}`;
-  writeFileSync(join(root, tmp), `${JSON.stringify(tombstone, null, 2)}\n`, "utf8");
-  renameSync(join(root, tmp), join(root, recordPath));
+  /*
+   * THROUGH AN UNPREDICTABLE PRIVATE PATH, NEVER A DERIVED SIBLING.
+   *
+   * This wrote \`<record>.recovering-<operation>\`, a name derived entirely from
+   * public information and therefore plantable in advance. A reproduced attack
+   * planted a SYMLINK there: the write followed it and clobbered a file outside
+   * the repository, and the rename then installed that link as the canonical
+   * gate record.
+   *
+   * {@link writeThroughPrivateTemp} uses sixteen unpredictable bytes, an
+   * exclusive create, restrictive permissions, a containment walk of every
+   * component, and an identity check of the exact object immediately before the
+   * rename.
+   */
+  writeThroughPrivateTemp(root, recordPath, `${JSON.stringify(tombstone, null, 2)}\n`, "tombstone");
   done.push(`tombstoned ${recordPath} — no result is packageable until a new gate completes`);
 
   /* 2. Quarantine only THIS operation's pending file. */
@@ -1073,4 +1148,78 @@ function recoverUnderClaim(
   endOperation(root, op);
   done.push(`released ${owner.kind} operation ${op.operationId}`);
   return done;
+}
+
+/**
+ * A private, unpredictable, operation-owned temporary path inside `.release`.
+ *
+ * ## The predictable sibling this replaces
+ *
+ * Recovery wrote `gate-results.json.recovering-<operation>` and then renamed it
+ * over the canonical record. The name is derived entirely from public
+ * information, so it can be pre-planted — and a reproduced attack planted a
+ * symlink there, which the write followed to clobber a file outside the
+ * repository and then installed as the canonical gate record.
+ *
+ * The name now carries 16 unpredictable bytes, the create is exclusive, and the
+ * object created is re-identified before it is renamed anywhere.
+ */
+export function privateTempPath(prefix: string): string {
+  if (!/^[a-z][a-z0-9-]{0,23}$/.test(prefix)) {
+    throw new OperationRefused("a private temporary prefix must be a short lowercase name");
+  }
+  return `${RELEASE_DIR}/.tmp-${prefix}-${randomBytes(16).toString("hex")}`;
+}
+
+/**
+ * Write bytes to a private path and rename them onto `destination`, safely.
+ *
+ * Every mutation is preceded by a containment walk and an identity check of the
+ * exact object about to be moved, so a path swapped between validation and
+ * rename is caught rather than followed.
+ */
+export function writeThroughPrivateTemp(
+  root: string,
+  destination: string,
+  bytes: string,
+  prefix: string,
+): void {
+  for (const rel of [destination]) {
+    const problems = pathContainmentProblems(root, rel);
+    if (problems.length > 0) throw new OperationRefused(problems.join("; "));
+    const state = inspectPath(root, rel);
+    if (state.kind === "unsafe") throw new OperationRefused(state.why);
+    if (state.kind === "dir") {
+      throw new OperationRefused(`${rel} is a directory where a regular file belongs`);
+    }
+  }
+
+  const temp = privateTempPath(prefix);
+  const tempProblems = pathContainmentProblems(root, temp);
+  if (tempProblems.length > 0) throw new OperationRefused(tempProblems.join("; "));
+
+  mkdirSync(join(root, RELEASE_DIR), { recursive: true, mode: 0o700 });
+  writeFileSync(join(root, temp), bytes, { encoding: "utf8", flag: "wx", mode: 0o600 });
+
+  /* The object just created must still be the one about to be renamed. */
+  const created = inspectPath(root, temp);
+  if (created.kind !== "file") {
+    throw new OperationRefused("the private temporary file is not the object that was created");
+  }
+  const before = { dev: created.stat.dev, ino: created.stat.ino };
+
+  /* And the destination must still be safe at the last possible instant. */
+  const lateProblems = pathContainmentProblems(root, destination);
+  if (lateProblems.length > 0) throw new OperationRefused(lateProblems.join("; "));
+  const lateState = inspectPath(root, destination);
+  if (lateState.kind === "unsafe") throw new OperationRefused(lateState.why);
+  if (lateState.kind === "dir") {
+    throw new OperationRefused(`${destination} became a directory`);
+  }
+
+  const again = inspectPath(root, temp);
+  if (again.kind !== "file" || again.stat.dev !== before.dev || again.stat.ino !== before.ino) {
+    throw new OperationRefused("the private temporary file changed identity before the rename");
+  }
+  renameSync(join(root, temp), join(root, destination));
 }

@@ -53,16 +53,15 @@ import {
   sanitizedRecord,
   type GateRecord,
 } from "./gate-contract";
+import { beginOperation, endOperation, withTerminalPhase } from "./release-operation";
 import {
-  beginOperation,
-  endOperation,
-  withTerminalPhase,
   assertOwner,
   discardOwnFiles,
   evidenceFileProblems,
   OperationRefused,
   type Operation,
 } from "./release-operation";
+import { appendJournal, startupProblems, type JournalContext } from "./operation-journal";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
 import { scanFiles, describeScan, type ControlCharacterScan } from "./control-chars";
 
@@ -356,6 +355,20 @@ function main(): void {
    * could start, invalidate the record, fail, and the packager would still
    * finish an archive from the green record it had captured before any of that.
    */
+  /*
+   * NOTHING STARTS WHILE ANOTHER OPERATION IS UNRESOLVED.
+   *
+   * The mutex answers "is anybody running?", which a crashed operation answers
+   * no to while leaving a published archive, a stale claim or both. The journal
+   * answers "did anybody finish?", which is the question that matters, and the
+   * refusal names the exact command that resolves each one.
+   */
+  const unresolved = startupProblems(REPO_ROOT);
+  if (unresolved.length > 0) {
+    for (const problem of unresolved) console.log(`  ${problem}`);
+    process.exit(1);
+  }
+
   let op: Operation;
   try {
     op = beginOperation(REPO_ROOT, "gate", head, identity.treeId);
@@ -364,6 +377,12 @@ function main(): void {
     console.log(`  ${(e as Error).message}`);
     process.exit(1);
   }
+  /* THE JOURNAL OPENS BEFORE ANYTHING ELSE HAPPENS. */
+  const journal: JournalContext = {
+    branch: identity.branch,
+    inputsDigest: identity.inputsDigest,
+  };
+  appendJournal(REPO_ROOT, op, journal, "started", { note: "gate operation opened" });
   const binding = new TreeBinding(REPO_ROOT, {
     branch: identity.branch,
     head,
@@ -689,6 +708,15 @@ function main(): void {
      * The hold spans validation, the canonical rename and `endOperation()`, and
      * is released last. Recovery cannot enter until this operation is finished.
      */
+    /*
+     * THE VERDICT IS RECORDED BEFORE THE RECORD IS PUBLISHED.
+     *
+     * A gate that crashes between measuring and publishing leaves a journal
+     * saying which way it went, so a person resolving it is not guessing.
+     */
+    appendJournal(REPO_ROOT, op, journal, failed === 0 ? "gate-green" : "gate-red", {
+      note: failed === 0 ? "every gate clean" : "at least one gate failed",
+    });
     withTerminalPhase(REPO_ROOT, op, "publish", () => {
       assertOwner(REPO_ROOT, op);
       if (op.kind !== "gate")
@@ -718,10 +746,24 @@ function main(): void {
 
       assertOwner(REPO_ROOT, op);
       renameSync(join(REPO_ROOT, op.pendingPath), RECORD_PATH);
+      /*
+       * PUBLISHED, BEFORE OWNERSHIP ENDS. What a gate publishes is a canonical
+       * result rather than a file anybody receives, so the archive field stays
+       * null — the journal records that this operation completed, not a
+       * deliverable it did not produce.
+       */
+      appendJournal(REPO_ROOT, op, journal, "published", {
+        note: "canonical gate record published",
+      });
       endOperation(REPO_ROOT, op);
     });
   } catch (e) {
     if (!(e instanceof OperationRefused)) throw e;
+    try {
+      appendJournal(REPO_ROOT, op, journal, "failed", { note: "publication refused" });
+    } catch {
+      /* Do not mask the refusal with a journal problem. */
+    }
     discardOwnFiles(REPO_ROOT, op);
     console.log("");
     console.log(`  ${e.message}`);

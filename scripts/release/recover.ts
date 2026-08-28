@@ -36,11 +36,103 @@ import {
   recoverOperation,
   recoverTerminalClaim,
   readTerminalClaim,
+  endOperation,
+  pendingPathFor,
   OPERATION_LOCK_PATH,
   OperationRefused,
 } from "./release-operation";
+import { resolveOperation, unresolvedOperations, RESOLVE_COMMAND } from "./operation-journal";
+import { verifyArchiveIntegrity } from "./build-package";
+import { join } from "node:path";
+
+/**
+ * Resolve one operation by name, whatever it crashed in the middle of.
+ *
+ * Deliberately BEFORE every other check in this command, because the states it
+ * exists for are exactly the ones the other checks cannot read: a crash after
+ * `endOperation()` leaves no mutex, so anything that begins by reading the mutex
+ * refuses and the operation stays stuck forever.
+ */
+function resolve(operationId: string): void {
+  const outcome = resolveOperation(REPO_ROOT, operationId, {
+    /*
+     * The complete integrity routine, on the exact canonical file. An archive
+     * is finalised only if it is this operation's own inode AND passes every
+     * check a reviewer would run.
+     */
+    verifyArchive: (rel) => {
+      try {
+        verifyArchiveIntegrity(join(REPO_ROOT, rel), REPO_ROOT);
+        return [];
+      } catch (e) {
+        return [(e as Error).message];
+      }
+    },
+    /*
+     * Release only what still belongs to this operation. Neither is required to
+     * be present: the whole point is that a crash may have left either, both or
+     * neither behind.
+     */
+    releaseOwnership: (entry) => {
+      const steps: string[] = [];
+      const claim = readTerminalClaim(REPO_ROOT);
+      if (claim !== null && claim.operationId === entry.operationId) {
+        steps.push(...recoverTerminalClaim(REPO_ROOT, entry.operationId));
+      }
+      const lock = readOperationLock(REPO_ROOT);
+      if (lock.kind === "held" && lock.lock.operationId === entry.operationId) {
+        endOperation(REPO_ROOT, {
+          kind: lock.lock.kind,
+          operationId: entry.operationId,
+          head: lock.lock.head,
+          treeId: lock.lock.treeId,
+          token: lock.token,
+          pendingPath: pendingPathFor(entry.operationId),
+        });
+        steps.push(`released the ${lock.lock.kind} mutex held by ${entry.operationId}`);
+      }
+      return steps;
+    },
+  });
+  console.log(`operation ${outcome.operationId}: ${String(outcome.from)} -> ${outcome.to}`);
+  for (const step of outcome.steps) console.log(`  ${step}`);
+}
 
 function main(): void {
+  /*
+   * UNRESOLVED OPERATIONS FIRST, because they are what blocks everything and
+   * because a crash may have left no mutex for the code below to read.
+   */
+  const stuck = unresolvedOperations(REPO_ROOT);
+  const arg0 = process.argv.find((a) => a.startsWith("--operation="));
+  if (process.argv.includes("--resolve")) {
+    if (arg0 === undefined) {
+      console.log("--resolve needs --operation=<id>. Unresolved operations:");
+      for (const u of stuck) console.log(`  ${u.operationId}  ${u.state}  ${u.entry.at}`);
+      process.exit(1);
+    }
+    try {
+      resolve(arg0.slice("--operation=".length));
+    } catch (e) {
+      if (!(e instanceof OperationRefused)) throw e;
+      console.log(`RESOLUTION REFUSED — ${e.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+  if (stuck.length > 0) {
+    console.log("one or more operations are unresolved:");
+    console.log("");
+    for (const u of stuck) {
+      console.log(`  ${u.operationId}  ${u.state}  recorded ${u.entry.at}`);
+      console.log(`    ${RESOLVE_COMMAND(u.operationId)}`);
+    }
+    console.log("");
+    console.log("Resolution is explicit and operation-bound. It never takes an operation");
+    console.log("away on a timer, never deletes an archive it cannot prove is that");
+    console.log("operation's own, and running it twice changes nothing the second time.");
+    return;
+  }
   const state = readOperationLock(REPO_ROOT);
 
   if (state.kind === "free") {

@@ -59,6 +59,7 @@
     "supabase/test/staged-module.test.ts",
     "supabase/test/worker-bound.test.ts",
     "supabase/test/terminal-phase.test.ts",
+    "supabase/test/crash-recovery.test.ts",
     "apps/web/test/request-id-header.test.ts"
   ]
 }
