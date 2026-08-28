@@ -681,9 +681,7 @@ describe("the verdict string must be the canonical rendering", () => {
       ...r,
       testGate: { ...r.testGate, skippedTests: [], skippedTestsOmitted: skipped },
     };
-    expect(gateRecordProblems(honest, HEAD).join(" ")).not.toMatch(
-      /skipped-test identities plus/,
-    );
+    expect(gateRecordProblems(honest, HEAD).join(" ")).not.toMatch(/skipped-test identities plus/);
   });
 
   it("refuses duplicate identities", () => {
