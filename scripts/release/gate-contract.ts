@@ -204,7 +204,19 @@ export const REQUIRED_BRANCH = "release/observer-demo-rc1";
  */
 export const APPROVED_SKIP = Object.freeze({
   suite: "gate-runner.test.ts",
-  title: "records termination by signal (POSIX only; skipped on win32)",
+  /*
+   * THE FULL NAME VITEST REPORTS, describe prefix included.
+   *
+   * The reporter records a test's complete name, not the string passed to
+   * `it()`, and this constant was written from the `it()` alone — so the first
+   * authoritative gate under this contract refused the one skip the contract
+   * exists to approve. A cross-check in `gate-runner.test.ts` now derives the
+   * expected name from the suite's own `describe`/`it` text, so the constant
+   * cannot drift from the test it names.
+   */
+  title:
+    "runProcess reports what happened to the child records termination by signal " +
+    "(POSIX only; skipped on win32)",
   platform: "win32",
 });
 

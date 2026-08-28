@@ -23,6 +23,7 @@ import {
   type ReportSummary,
 } from "../../scripts/release/gate-run";
 import { syntheticGateRecord } from "./support/synthetic-gate-record";
+import { APPROVED_SKIP } from "../../scripts/release/gate-contract";
 import { safeIdentity, summarizeUnhandled } from "../../scripts/release/vitest-runner-reporter";
 import { classifyShape } from "../../scripts/release/runner-matrix";
 
@@ -976,5 +977,42 @@ describe("the diagnostic matrix distinguishes the shapes", () => {
     expect(classifyShape({ ...base, processStatus: 1, reportedUnhandledErrors: null })).toBe(
       "RUNNER-LEVEL EXIT (unexplained)",
     );
+  });
+});
+
+/**
+ * THE ONE APPROVED SKIP NAMES THIS EXACT TEST.
+ *
+ * The contract approves one skipped test on win32, by suite AND by full name.
+ * The constant was first written from the `it()` string alone, while Vitest
+ * records the complete name including the `describe` prefix — so the first
+ * authoritative gate under that contract refused the very skip it was written
+ * to approve.
+ *
+ * This derives the expected name from this file's own text, so the constant
+ * cannot drift from the test again without this failing.
+ */
+describe("the approved skip is the test that is actually skipped", () => {
+  const source = readFileSync(join(ROOT, "supabase/test/gate-runner.test.ts"), "utf8");
+  const itText = "records termination by signal (POSIX only; skipped on win32)";
+
+  it("names this suite", () => {
+    expect(APPROVED_SKIP.suite).toBe("gate-runner.test.ts");
+  });
+
+  it("names the full describe-plus-it text Vitest reports", () => {
+    expect(source).toContain(itText);
+    expect(APPROVED_SKIP.title.endsWith(itText)).toBe(true);
+
+    const before = source.slice(0, source.indexOf(itText));
+    const describes = [...before.matchAll(/describe\("([^"]+)"/g)].map((m) => m[1] ?? "");
+    const enclosing = describes.at(-1) ?? "";
+    expect(enclosing).not.toBe("");
+    expect(APPROVED_SKIP.title).toBe(`${enclosing} ${itText}`);
+  });
+
+  it("approves it on win32 and nowhere else", () => {
+    expect(APPROVED_SKIP.platform).toBe("win32");
+    expect(source).toContain('it.runIf(process.platform !== "win32")');
   });
 });

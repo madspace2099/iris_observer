@@ -969,6 +969,23 @@ synchronised and never read the auditor. They had already diverged. Both now
 load `scripts/release/secret-patterns.json`, so "in step" is a property of the
 code rather than a sentence in a comment.
 
+THE SKIP CONTRACT REFUSED THE ONE SKIP IT WAS WRITTEN TO APPROVE.
+
+The first authoritative gate under the new contract went RED, and the cause was
+the contract itself. `APPROVED_SKIP.title` was written from the `it()` string;
+Vitest records a test's COMPLETE name, describe prefix included. Every other
+gate was clean and the record was otherwise green — 1647 passed, 1 skipped, 0
+failed across 47 files, that one skip being exactly the POSIX-only signal case.
+
+It is recorded as a permanent red result at that commit. The commit was not
+retried; the correction went into a NEW commit, which is the one allowance this
+milestone had for a deterministic defect it introduced itself.
+
+The constant now carries the full name, and `gate-runner.test.ts` derives the
+expected name from its own describe and it text — so the two cannot drift apart
+again without that cross-check failing first, in a second rather than in an
+authoritative gate.
+
 WHAT AN INDEPENDENT AUDIT OF THE `20ff3e0` ARCHIVE FOUND.
 
 That archive passed every physical check: outer hash, 113 sorted unique entries,
