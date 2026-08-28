@@ -8,6 +8,7 @@ import {
   secretPatternsIn,
   parseTestVerdict,
   renderTestVerdict,
+  suiteInventoryDigestOf,
   renderFailedVerdict,
   parseFailedVerdict,
   structuralRecordProblems,
@@ -138,10 +139,15 @@ describe("captured evidence cannot change after it is validated", () => {
      * point uses the capture, so a record edited mid-build — by a gate run
      * starting, or by hand — cannot reach the archive.
      */
-    const record = greenGateRecord(HEAD) as { branch: string };
+    const record = greenGateRecord(HEAD) as { treeId: string };
     const evidence = captureEvidence(record as GateRecord, HEAD);
     const before = evidence.json;
-    record.branch = "some-other-branch";
+    /*
+     * The branch is now pinned to the release branch by the contract, so a
+     * mutation there is refused rather than merely different. The tree id is a
+     * staged field with no fixed value, which is what this case needs.
+     */
+    record.treeId = "9".repeat(40);
     expect(evidence.json).toBe(before);
     expect(captureEvidence(record as GateRecord, HEAD).json).not.toBe(before);
   });
@@ -441,6 +447,8 @@ describe("the ddefa50 red shape is evidence, not a malformed record", () => {
     return {
       ...r,
       expectedSuites: Object.keys(perFile).sort(),
+      /* Derived, because the contract recomputes it from the names beside it. */
+      suiteInventoryDigest: suiteInventoryDigestOf(Object.keys(perFile)),
       tests: {
         total: PASSED + SKIPPED,
         passed: PASSED,

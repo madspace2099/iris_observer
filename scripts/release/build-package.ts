@@ -30,6 +30,7 @@ import {
   readdirSync,
   existsSync,
   renameSync,
+  mkdtempSync,
 } from "node:fs";
 import { join, relative, sep, basename, dirname } from "node:path";
 import { createHash } from "node:crypto";
@@ -45,7 +46,7 @@ import {
   execSha,
   fileShaAt,
   baselineCommit,
-  snapshotRefreshed,
+  snapshotRecordChanged,
   MIGRATIONS_DIR,
 } from "./facts";
 import { walk, writeZip, scanArchive } from "./zip";
@@ -69,7 +70,12 @@ import {
   type GateRecord,
 } from "./gate-contract";
 import { scanDirectory, describeScan, type ControlCharacterScan } from "./control-chars";
-import { isDeclaredHistorical, transportSafeNote } from "./transport-safe";
+import {
+  isDeclaredHistorical,
+  transportSafeNote,
+  controlByteDistribution,
+  type ControlByteDistribution,
+} from "./transport-safe";
 
 /**
  * The authorised local-history rewrite, declared rather than inferred.
@@ -396,6 +402,17 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
   copyAll("supabase/verifiers", "supabase-migrations", isSql);
   copyAll("supabase/prerequisites", "supabase-migrations", isSql);
   copyAll("scripts/release", "generators", (f) => f.endsWith(".ts"));
+  /*
+   * AND THE DATA THOSE GENERATORS READ.
+   *
+   * `gate-contract.ts` was staged and `secret-patterns.json` was not, because
+   * only `.ts` was copied from this directory. The archive therefore shipped a
+   * secret detector that loads a file the archive does not contain: a reader
+   * running it from the package gets a module-not-found error, and the "one
+   * definition, loaded by both systems" claim was true of the repository and
+   * false of the thing handed over.
+   */
+  copyAll("scripts/release", "generators", (f) => f.endsWith(".json"));
   copyAll("docs/release", "generators", (f) => f.endsWith(".txt"));
   copyAll("docs/release", "generators", (f) => f.endsWith(".json"));
 
@@ -421,20 +438,34 @@ function stage(dir: string, evidence: CapturedEvidence | null): void {
  */
 function encodeDeclaredPatches(patchDir: string): void {
   const encoded: string[] = [];
+  const measured: { name: string; bytes: ControlByteDistribution }[] = [];
   for (const file of readdirSync(patchDir).sort()) {
     if (!file.endsWith(".patch")) continue;
     const path = join(patchDir, file);
     const bytes = readFileSync(path);
-    if (!isDeclaredHistorical(bytes.toString("utf8"))) continue;
+    const text = bytes.toString("utf8");
+    if (!isDeclaredHistorical(text)) continue;
+
+    /*
+     * MEASURED BEFORE ENCODING, from the very bytes about to be encoded. The
+     * note beside these files used to describe where the control characters
+     * sat, and described them wrongly for two of the three patches, so it now
+     * reports what was counted rather than what somebody remembered.
+     */
+    measured.push({ name: `${file}.base64`, bytes: controlByteDistribution(text) });
 
     /* Wrapped, so the sidecar is ordinary text rather than one enormous line. */
-    const body = bytes.toString("base64").replace(/(.{76})/g, "$1\n");
-    writeFileSync(`${path}.base64`, `${body}\n`, "utf8");
+    const body64 = bytes.toString("base64").replace(/(.{76})/g, "$1\n");
+    writeFileSync(`${path}.base64`, `${body64}\n`, "utf8");
     rmSync(path);
     encoded.push(`${file}.base64`);
   }
   if (encoded.length > 0) {
-    writeFileSync(join(patchDir, "TRANSPORT-SAFE.txt"), transportSafeNote(encoded), "utf8");
+    writeFileSync(
+      join(patchDir, "TRANSPORT-SAFE.txt"),
+      transportSafeNote(encoded, measured),
+      "utf8",
+    );
   }
 }
 
@@ -584,7 +615,7 @@ function semanticChecks(rendered: readonly Rendered[]): readonly string[] {
    * `live-snapshot.ts` actually changed since the last delivered bundle. A
    * document may still QUOTE the wording it is retracting; it may not assert it.
    */
-  if (!snapshotRefreshed(baselineCommit())) {
+  if (!snapshotRecordChanged(baselineCommit())) {
     const FRESH =
       /re-read this round|read this round|the only external access this milestone made|still rising|is now \d+ hours|oldest bucket is now/gi;
     for (const { name, text } of rendered) {
@@ -730,6 +761,54 @@ function hashAccounting(dir: string, rendered: readonly Rendered[]): readonly st
     problems.push(...unaccountedTokens(name, text, allowed));
   }
   say(`  hash accounting          ${checked} tokens, ${problems.length} unaccounted`);
+  return problems;
+}
+
+/**
+ * Verify an inflated archive against the `hashes.txt` it contains.
+ *
+ * EVERY DIRECTION. A manifest that lists a file the archive lacks, an archive
+ * carrying a file the manifest does not list, a digest that does not match, or
+ * a path listed twice — each is its own failure, and each was invisible to a
+ * check that compared one outer checksum against itself.
+ */
+export function verifyEmbeddedManifest(root: string): readonly string[] {
+  const problems: string[] = [];
+  const manifestPath = join(root, "hashes.txt");
+  if (!existsSync(manifestPath)) return ["hashes.txt is not in the archive"];
+
+  const listed = new Map<string, string>();
+  for (const line of readFileSync(manifestPath, "utf8").split("\n")) {
+    if (line.startsWith("#") || line.trim() === "") continue;
+    const m = /^([0-9a-f]{64})\s+(.+)$/.exec(line.trim());
+    if (m === null) {
+      problems.push(
+        `manifest line is not a digest and a path: ${JSON.stringify(line.slice(0, 60))}`,
+      );
+      continue;
+    }
+    const [, digest, path] = m;
+    if (listed.has(path ?? "")) problems.push(`${String(path)} is listed twice`);
+    listed.set(path ?? "", digest ?? "");
+  }
+
+  const present = new Set(
+    walk(root)
+      .map((f) => relative(root, f).split(sep).join("/"))
+      .filter((f) => f !== "hashes.txt"),
+  );
+
+  for (const [path, digest] of listed) {
+    if (!present.has(path)) {
+      problems.push(`${path} is manifested and absent from the archive`);
+      continue;
+    }
+    const actual = sha256File(join(root, ...path.split("/")));
+    if (actual !== digest) problems.push(`${path} does not match its manifested digest`);
+  }
+  for (const path of present) {
+    if (!listed.has(path)) problems.push(`${path} is in the archive and not manifested`);
+  }
   return problems;
 }
 
@@ -929,7 +1008,14 @@ function buildFrom(
 }
 
 function main(): void {
-  const verify = process.argv.includes("--verify");
+  /*
+   * VERIFICATION IS NOT A FLAG.
+   *
+   * `--verify` was optional and ordinary `pnpm release:package` published the
+   * canonical archive without it — so the one command a person is most likely
+   * to type was the one that produced an unverified deliverable. There is no
+   * public invocation that publishes without complete verification any more.
+   */
   const outDir = join(REPO_ROOT, "_review");
 
   /*
@@ -1004,7 +1090,7 @@ function main(): void {
     );
     say(`  SHA-256   ${first.sha}`);
 
-    if (verify) {
+    {
       say("");
       say("  rebuilding under three time zones, and comparing all four hashes:");
       const scratch = join(staging, "children");
@@ -1043,6 +1129,45 @@ function main(): void {
        */
       execFileSync("unzip", ["-t", first.archive], { cwd: staging, stdio: "ignore" });
       say("    unzip -t                passed");
+      /*
+       * THE MANIFEST INSIDE THE ARCHIVE, VERIFIED FROM THE ARCHIVE.
+       *
+       * What ran here before was a one-line checksum of the outer ZIP against
+       * a number this same process had just computed — a tautology. It proved
+       * nothing about `hashes.txt`, which is the manifest a reviewer actually
+       * checks, and nothing about whether every entry it names is present,
+       * unique and correct.
+       *
+       * So the candidate is inflated into a private temporary directory and
+       * its own embedded manifest is verified there: every manifested path
+       * exists exactly once, every non-manifest entry is accounted for, no
+       * entry is surplus or missing, every digest matches, and the standard
+       * checker exits zero with empty stderr.
+       */
+      const inflated = mkdtempSync(join(tmpdir(), "observer-verify-"));
+      try {
+        execFileSync("unzip", ["-q", first.archive, "-d", inflated], { stdio: "ignore" });
+        const problems = verifyEmbeddedManifest(inflated);
+        if (problems.length > 0) {
+          throw new Refusal(
+            `the archive's own manifest does not verify:\n${problems.map((x) => `  ${x}`).join("\n")}`,
+          );
+        }
+        const inflatedScan = scanDirectory(inflated);
+        if (
+          inflatedScan.foundCharacters !== 0 ||
+          inflatedScan.readFailures !== 0 ||
+          inflatedScan.scannedFiles !== inflatedScan.requestedFiles
+        ) {
+          throw new Refusal(
+            `the inflated archive scan is not complete and clean: ${describeScan(inflatedScan)}`,
+          );
+        }
+        say(`    embedded manifest         ${String(inflatedScan.scannedFiles)} files verified`);
+      } finally {
+        rmSync(inflated, { recursive: true, force: true });
+      }
+
       const listing = `${first.sha}  ${basename(first.archive)}\n`;
       const sumFile = join(staging, "SHA256SUMS");
       writeFileSync(sumFile, listing, "utf8");

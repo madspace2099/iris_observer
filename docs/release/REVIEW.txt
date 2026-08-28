@@ -969,6 +969,118 @@ synchronised and never read the auditor. They had already diverged. Both now
 load `scripts/release/secret-patterns.json`, so "in step" is a property of the
 code rather than a sentence in a comment.
 
+WHAT AN INDEPENDENT AUDIT OF THE `20ff3e0` ARCHIVE FOUND.
+
+That archive passed every physical check: outer hash, 113 sorted unique entries,
+112/112 manifest verification, `unzip -t`, zero control characters in every
+stored entry, internally consistent staged totals, unchanged packaged SQL, a
+structurally continuous patch chain. It was rejected anyway, on the release and
+evidence contract — not on anything the application does. Seven defects, and
+each of them was a place where a check believed its own paperwork.
+
+  A GREEN RUN   The contract required the skipped-test IDENTITIES to number the
+  THAT SKIPPED  same as the skipped COUNT, and nothing more. A report in which
+  EVERYTHING.   EVERY test was skipped satisfied it: counts agreed, no assertion
+                failed, the process exited zero, and a package could be built
+                from a run that executed nothing. Vitest reports a suite whose
+                setup threw as SKIPPED — which is exactly how twenty-three tests
+                vanished at `3094443` and again at `ddefa50`.
+
+                The platform is now MEASURED from `process.platform` and
+                recorded. Acceptance requires zero skips where every test
+                applies, or on win32 exactly the one approved signal-test
+                identity and nothing else. A title containing "win32" proves
+                nothing and is never trusted: the claim is cross-checked
+                against the measurement.
+
+  A RECORD      `branch: null` sat in the staged record while this document
+  THAT COULD    named the release branch, because the generic text filter
+  NOT NAME ITS  refuses slash-containing strings and a branch name has a slash
+  BRANCH.       in it. A dedicated branch sanitizer keeps the name whole, and
+                both the source record and the projection must name exactly
+                `release/observer-demo-rc1`. `tests.total` was dropped from the
+                projection entirely, so the archive could not re-check its own
+                arithmetic; it is carried now.
+
+  AN INVENTORY  `suiteInventoryDigest` was computed over file PATHS while the
+  DIGEST        record stored suite NAMES, so nothing could recompute it from
+  NOTHING       the record — and a binding nothing can recompute binds nothing.
+  COULD CHECK.  It is now a function of exactly the list that travels in the
+                evidence, recomputed during source validation, staged
+                validation and packaging.
+
+  AN IDENTITY   The tree identity hashed `git ls-files -s`, which reports the
+  OVER THE      INDEX rather than the bytes on disk — and git offers two
+  INDEX, NOT    supported ways to make an edited tracked file look pristine:
+  THE BYTES.    `assume-unchanged` and `skip-worktree`. Under either, `git
+                status` stays silent, `git diff` stays empty, `ls-files -s`
+                reports the unchanged blob, and every check the release made
+                would pass while the gate measured different bytes.
+
+                The identity now reads the files: path, mode, length and the
+                actual bytes, in canonical order. Both hiding flags are refused
+                outright, whether or not anything was edited.
+
+  A PUBLISHING  `--verify` was OPTIONAL, and ordinary `pnpm release:package`
+  PATH WITH NO  published the canonical archive without it — so the command a
+  VERIFICATION. person is most likely to type produced an unverified
+                deliverable. There is no unverified publishing path now.
+
+                And what `--verify` checked was a one-line checksum of the
+                outer ZIP against a number the same process had just computed:
+                a tautology. It said nothing about `hashes.txt`, which is the
+                manifest a reviewer actually uses. The candidate is now
+                inflated into a private temporary directory and its OWN
+                embedded manifest is verified there — every manifested path
+                present exactly once, every entry accounted for, nothing
+                surplus or missing, every digest checked, and the inflated
+                scan complete and clean — before anything is published.
+
+  A DETECTOR    The archive shipped `gate-contract.ts`, which loads
+  WITHOUT ITS   `secret-patterns.json`, and did not ship the JSON: only `.ts`
+  DEFINITIONS.  was copied from that directory. A reader running the staged
+                detector got a missing-file error, so "one definition, loaded
+                by both systems" was true of the repository and false of the
+                thing handed over. The data file is staged beside its consumer
+                and manifested with it.
+
+  AN            The note beside the encoded patches said all three commits
+  EXPLANATION   REMOVE backspaces and that every byte sits on a removed line.
+  THAT WAS      Decoded and counted: 0034 has two bytes on ADDED lines and none
+  MEASURABLY    removed; 0035 has two added and two removed; 0036 has two
+  FALSE.        removed and none added. The mechanism was always right and the
+                story about it was wrong.
+
+                The note is generated from the measured decoded patches now,
+                and says what is actually true: a patch is encoded because its
+                decoded bytes contain forbidden C0 characters, wherever in the
+                diff they occur.
+
+PROVENANCE, SPLIT BY WHAT ACTUALLY OBSERVED WHAT.
+
+`SNAPSHOT_QUERY` selects six fields: an observation time, a bucket count with
+its oldest and newest ages, an audit-row count and an audit-version-1 count.
+Three documents attributed schema shapes, function arities, a migration
+catalogue and cron state to "that one query". It selects none of them. Those
+fields carry their own provenance or `UNKNOWN`, and no query was invented to
+justify a constant. The historical query text is preserved as it was run,
+duplicate column names included — rewriting it would produce a query that reads
+better and that nobody executed.
+
+The bucket-age series is retained and qualified: eight integers recorded across
+earlier milestones without individual timestamps or sources. They are not
+verifiable as successive measurements and are no longer presented as such.
+
+The deployment inventory has provenance of its own, separate from the database
+clock they were rendered from together: last ENUMERATED for `f1dbffd`, the
+enumeration's own time NOT RECORDED, the newest deployment AT THAT ENUMERATION
+`3f298a6`, and currently accurate UNKNOWN. It is not "the newest deployment".
+
+Byte-comparison states are named for what they compare — `record unchanged`,
+`record changed`, `comparison unavailable`. "Refreshed" was a claim about a
+query having run, which a byte comparison cannot see: a changed constant is
+equally consistent with somebody editing the file.
+
 A RED RECORD IS EVIDENCE, AND THE CONTRACT WAS CALLING IT MALFORMED.
 
 The `ddefa50` gate recorded a genuine failure and the contract reported the
@@ -1489,51 +1601,93 @@ Consequently, and stated plainly rather than left to be inferred:
     4 says they are, except the two the authorised preflight already settled,
     which are recorded immediately below and have NOT been re-observed since.
 
-THE CARRIED-FORWARD PREFLIGHT RESULT, rendered from the one recorded
-observation through the same classifier the tests exercise:
+THE PROJECT MAPPING, rendered from the latest recorded observation through the
+same classifier the tests exercise:
 
 {{OBSERVED_MAPPING_BLOCK}}
 
-  OBSERVED BY MATTHEW ON 2026-08-27; EXACT TIME NOT RECORDED. This is a
-  carried-forward manual reading, not a current live one — nothing in this
-  milestone re-read it, and the environment may have changed since.
+  BOTH ENVIRONMENTS NOW MAP TO THE APPROVED PROJECT, and project mapping no
+  longer blocks step 2. That is a change since the previous package, and the
+  reading that produced it is dated 2026-08-28.
 
-  NEITHER ENVIRONMENT IS A PASS, and an earlier edition of this package said
-  Preview was. That table was hand-maintained beside a rule that had already
-  been corrected to require the public row as well, so it stated a verdict the
-  rule would not reach. The block above is derived, not restated.
+  WHO READ IT, AND WHAT THAT MEANS FOR "EXTERNAL ACCESS". Matthew read the
+  Vercel dashboard and supplied screenshots. NO AGENT HAS EVER READ VERCEL, and
+  this milestone performed no external access of any kind — but the combined
+  history of these milestones is no longer free of external reads, and saying
+  "zero external access" without that distinction would be false. The exact
+  time of day was not recorded on either date and is not invented.
 
-  WHAT WAS ACTUALLY OBSERVED, AND WHAT WAS NOT. Matthew read the Preview
-  `SUPABASE_URL` row in the Vercel dashboard, character for character, as the
-  complete canonical origin `https://tfcchobwobpadenampyh` + `.supabase.co` —
-  Type: Config, Environment: Preview. That establishes the Preview SERVER ref.
-  NOBODY LOOKED FOR THE `NEXT_PUBLIC_SUPABASE_URL` ROW. Its state is therefore
-  unobserved, which is not the same as absent, and `MAPPED` requires the public
-  variable to be absent or to name the same project. Preview is
-  MANUAL_PUBLIC_UNOBSERVED/PAUSE: server ref established, manual confirmation
-  INCOMPLETE.
+  WHETHER ANYTHING WAS CHANGED IS UNKNOWN, NOT ZERO. The screenshots show open
+  variable editors with Save and Cancel controls. Nobody has confirmed which
+  was clicked. An earlier edition of this document said "no variable was
+  edited; the editor was exited without saving" — that was an assumption
+  reported as a measurement, and it is withdrawn. Unless Matthew separately
+  confirms he exited with Cancel, the mutation status of these observations is
+  UNKNOWN.
 
-  PAUSE IS NOT A FINDING THAT THE CONFIGURATION IS WRONG. It asserts nothing
-  about the public row's value. It asks for one observation — the exact
-  non-secret row, absent or present — and it does not license rotating,
-  replacing or editing anything. Neither PAUSE nor STOP permits step 2.
+  WHAT THE SCREENSHOTS ESTABLISH, EXACTLY. For both Preview and Production:
+  `SUPABASE_URL` is the complete canonical origin
+  `https://tfcchobwobpadenampyh` + `.supabase.co`, Type Config, in that scope;
+  the COMPLETE project variable list contains no `NEXT_PUBLIC_SUPABASE_URL`
+  row; and no Shared variable is linked. Reading the list itself is what makes
+  the public row OBSERVED ABSENT rather than merely unobserved — a search box
+  returning nothing never established that, which is why this sat at PAUSE.
 
-  PRODUCTION HAS NO `SUPABASE_URL` AT ALL. That is SERVER_URL_ABSENT, whose
-  decision is STOP, and it is a STOP on its own terms rather than a missing
-  reading: an absent server variable would leave the SERVER resolving through
-  the browser-exposed name, which may never substitute for the authoritative
-  server mapping. The server observation is evaluated FIRST, so no public value
-  could rescue it even if one had been recorded.
+  PRODUCTION CHANGED, AND BOTH READINGS ARE KEPT. On 2026-08-27 Production had
+  NO `SUPABASE_URL` at all; on 2026-08-28 it has the canonical origin. The
+  earlier observation is not overwritten. A variable being ADDED between two
+  readings is the more interesting of the two facts, and a log that only ever
+  shows the latest state cannot express it. `preflight.ts` holds an append-only
+  observation log; the current table is derived from its tail.
 
-  The complete origin is retained rather than the bare ref: a bare ref is what
-  survives extraction, not what was configured, so it cannot by itself show
-  that the configured value had the required origin shape. No variable was
-  edited; the editor was exited without saving.
+  THE COMPLETE ORIGIN IS RETAINED, not the bare ref: a bare ref is what
+  survives extraction, not what was configured, so it cannot by itself show the
+  configured value had the required origin shape. The extracted ref is what
+  gets REPORTED once the origin has proved the shape — those are two different
+  jobs and the record does both.
 
-  PREVIEW DOES NOT RESCUE PRODUCTION. The two environments are separate
-  configuration scopes; a proved mapping in one says nothing about the other,
-  and inferring it would be exactly the suffix-and-scope confusion the preflight
-  rules were tightened to refuse. THE PRODUCTION PROJECT MAPPING REMAINS STOP.
+TWO THINGS THE SAME SCREENSHOTS SETTLE AGAINST US, ON THEIR OWN AXES.
+
+Project mapping passing does not make either of these pass. They are separate
+findings about separate facts, and neither converts a mapping PASS back into a
+mapping failure.
+
+  SEPARATE_SECRET_ROWS / EQUALITY_UNPROVEN / STOP
+
+  Preview and Production each carry their own `OBSERVER_SUBJECT_PEPPER` SECRET
+  row, and no Shared variable is linked. Both environments now target the SAME
+  Supabase project — which is exactly what makes this a problem rather than a
+  detail. Pseudonyms written from Preview and pseudonyms written from
+  Production land in one database, and they are only comparable if both were
+  computed from the same pepper.
+
+  TWO SEPARATE UNREVEALABLE ROWS ARE NOT TWO EQUAL VALUES. Nothing in a
+  dashboard listing establishes equality: not the shared name, not the creation
+  date, not who edited them last. The values are secrets; they were not
+  inspected and must not be. Equality is UNPROVEN and this is a STOP in its own
+  right.
+
+  THE TWO WAYS OUT, NEITHER OF WHICH IS PERFORMED HERE.
+
+    1. Securely reconcile both scopes to one known stored value.
+
+    2. Explicitly authorise a coordinated rotation — which is not a small act.
+       A rotation changes every pseudonymous identifier the system computes,
+       restarts subject-scoped quota state, requires one value across EVERY
+       environment sharing the database, and requires old or unknown deployment
+       snapshots to be made unreachable, because a snapshot still holding the
+       previous pepper writes identifiers nothing else can correlate.
+
+  PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN / STOP
+
+  The same complete project list, and the empty Shared tab, show no
+  Production-scoped `OPENAI_API_KEY` and no Production-scoped
+  `SUPABASE_SECRET_KEY`. Preview's runtime credential presence is recorded.
+  PRODUCTION'S COMPLETENESS IS NOT ESTABLISHED, so Production deployment
+  remains STOP until its runtime credentials are established.
+
+  Nothing here configures them. That is a deliberate act with its own
+  authorisation, and this milestone performs no external mutation.
 
 An earlier edition of this package asserted all of "no Supabase query was made
 this round", "verified by one live query, the only external access this
@@ -1574,13 +1728,19 @@ package whose evidence claims freshness the file history does not support.
 ================================================================================
 
   a. WHETHER `OBSERVER_SUBJECT_PEPPER` EXISTS, in which scopes, and whether one
-     record covers them all.  Settled by: step 1, part two.
+     record covers them all.  PARTLY SETTLED, AGAINST US: separate SECRET rows
+     exist for Preview and Production and no Shared variable is linked, so ONE
+     RECORD DOES NOT COVER BOTH. Whether the two hold the same value is
+     UNPROVEN and unprovable from a listing — the values are secrets and were
+     not inspected. SEPARATE_SECRET_ROWS / EQUALITY_UNPROVEN / STOP. See
+     section 3a.
   b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
-     Settled by: step 1, part one. NOT SETTLED FOR EITHER ENVIRONMENT. Preview
-     has its SERVER ref established by manual reading but its public row was
-     never observed, so it is MANUAL_PUBLIC_UNOBSERVED and PAUSE; Production is
-     SERVER_URL_ABSENT and STOP. See section 3a. Neither was re-observed in this
-     milestone, and neither permits step 2.
+     SETTLED FOR BOTH, on the 2026-08-28 manual observation: each environment's
+     `SUPABASE_URL` is the complete canonical origin for the approved project,
+     and each environment's complete variable list contains no
+     `NEXT_PUBLIC_SUPABASE_URL`. MAPPED / PASS / via manual, for Preview and
+     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 2;
+     the pepper and Production runtime credentials still do.
   c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
   d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
   e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:

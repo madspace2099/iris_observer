@@ -13,6 +13,8 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   gateRecordProblems,
+  suiteInventoryDigestOf,
+  renderTestVerdict,
   isAbandoned,
   sanitizedRecord,
   FORBIDDEN_STAGED_FIELDS,
@@ -88,22 +90,31 @@ const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null };
  */
 function greenRecord(): GateRecord {
   const base = greenGateRecord(HEAD);
+  /*
+   * The counts, the inventory, its digest and the skips all describe ONE run.
+   * Each of these used to be stated independently, so a change to the contract
+   * made the fixture contradict itself rather than the contract.
+   */
+  const perFile = evenPerFile(40, 1002);
+  const names = Object.keys(perFile);
+  const skips = base.testGate?.skippedTests ?? [];
+  const passed = 1002 - skips.length;
   return {
     ...base,
     controlCharacterScan: cleanScan(300),
-    tests: { passed: 1000, skipped: 2, failed: 0, files: 40, perFile: evenPerFile(40, 1002) },
-    /* The expected inventory has to describe the same suites the counts do. */
-    expectedSuites: Object.keys(evenPerFile(40, 1002)).sort(),
-    testGate: {
-      ...base.testGate,
-      skippedTests: [
-        { suite: "platform.test.ts", title: "skipped on this platform" },
-        { suite: "platform.test.ts", title: "also skipped here" },
-      ],
+    tests: {
+      total: 1002,
+      passed,
+      skipped: skips.length,
+      failed: 0,
+      files: 40,
+      perFile,
     },
+    expectedSuites: [...names].sort(),
+    suiteInventoryDigest: suiteInventoryDigestOf(names),
     gates: {
       ...base.gates,
-      "pnpm test": "1000 passed, 2 skipped, 0 failed / 40 files",
+      "pnpm test": renderTestVerdict({ passed, skipped: skips.length, failed: 0, files: 40 }),
       "raw-NUL scan": "0 in 300 files",
     },
   };
@@ -646,7 +657,7 @@ describe("the verdict string must be the canonical rendering", () => {
     const r = greenRecord();
     const bad = { ...r, testGate: { ...r.testGate, skippedTests: [] } };
     expect(gateRecordProblems(bad, HEAD).join(" ")).toMatch(
-      /0 skipped-test identities for 2 skipped tests/,
+      /0 skipped-test identities for \d+ skipped tests/,
     );
   });
 

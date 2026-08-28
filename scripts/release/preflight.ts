@@ -475,7 +475,20 @@ export interface RecordedEnvironmentObservation {
   readonly observedOn: string;
 }
 
-export const OBSERVED_MAPPINGS: readonly RecordedEnvironmentObservation[] = [
+/**
+ * Every manual observation ever recorded, in the order they were made.
+ *
+ * APPEND-ONLY. Production moved from "observed absent" to "observed present"
+ * between the two dates, and overwriting the first reading would erase the fact
+ * that it changed — which is the more interesting fact of the two. A reader
+ * needs to see that a variable was added, not merely that one exists now.
+ *
+ * Every observation here was made by MATTHEW, in the Vercel dashboard, and
+ * supplied to this repository as screenshots. No agent has ever read Vercel.
+ * The exact time of day was not recorded on either date and is not invented.
+ */
+export const OBSERVATION_LOG: readonly RecordedEnvironmentObservation[] = [
+  /* ---- 2026-08-27, superseded but not erased --------------------------- */
   {
     environment: "Preview",
     /*
@@ -489,12 +502,99 @@ export const OBSERVED_MAPPINGS: readonly RecordedEnvironmentObservation[] = [
   },
   {
     environment: "Production",
-    /* Looked for, and not there — which is a finding, not a gap in the record. */
+    /* Looked for, and not there — a finding, not a gap in the record. */
     observedServer: PUBLIC_ABSENT,
     observedPublic: PUBLIC_UNOBSERVED,
     observedOn: "2026-08-27",
   },
+
+  /* ---- 2026-08-28, current ---------------------------------------------- */
+  {
+    environment: "Preview",
+    observedServer: publicPresent("https://tfcchobwobpadenampyh.supabase.co"),
+    /*
+     * NOW OBSERVED ABSENT, which is different from unobserved.
+     *
+     * The screenshots show the COMPLETE project variable list with no
+     * `NEXT_PUBLIC_SUPABASE_URL` row in it, and the Shared tab with nothing
+     * linked. That is a reading of the list itself rather than a search box
+     * returning nothing, which is the distinction that kept this at PAUSE.
+     */
+    observedPublic: PUBLIC_ABSENT,
+    observedOn: "2026-08-28",
+  },
+  {
+    environment: "Production",
+    /*
+     * PRODUCTION CHANGED. It had no `SUPABASE_URL` on 2026-08-27 and has the
+     * canonical origin now. Both readings are kept: one of them is the reason
+     * the other matters.
+     */
+    observedServer: publicPresent("https://tfcchobwobpadenampyh.supabase.co"),
+    observedPublic: PUBLIC_ABSENT,
+    observedOn: "2026-08-28",
+  },
 ];
+
+/** The latest observation for each environment, which is what a table renders. */
+export const OBSERVED_MAPPINGS: readonly RecordedEnvironmentObservation[] = (() => {
+  const latest = new Map<string, RecordedEnvironmentObservation>();
+  for (const o of OBSERVATION_LOG) latest.set(o.environment, o);
+  return Object.freeze([...latest.values()]);
+})();
+
+/** Everything ever recorded for one environment, oldest first. */
+export const historyFor = (environment: string): readonly RecordedEnvironmentObservation[] =>
+  OBSERVATION_LOG.filter((o) => o.environment === environment);
+
+/**
+ * The pepper, which the same screenshots also show — and which they cannot
+ * settle.
+ *
+ * Preview and Production each carry their own `OBSERVER_SUBJECT_PEPPER` SECRET
+ * row, and no Shared variable is linked. Both environments now target the same
+ * Supabase project, so the pseudonyms written from one must be computed from
+ * the same pepper as the pseudonyms written from the other.
+ *
+ * TWO SEPARATE UNREVEALABLE ROWS ARE NOT TWO EQUAL VALUES. Nothing in a
+ * dashboard listing establishes equality: not the shared name, not the creation
+ * date, not who last edited them. The values are secrets and are not inspected,
+ * so equality is UNPROVEN and the state is its own STOP — independent of
+ * project mapping, which now passes.
+ */
+export const PEPPER_STATE = Object.freeze({
+  state: "SEPARATE_SECRET_ROWS",
+  finding: "EQUALITY_UNPROVEN",
+  verdict: "STOP" as const,
+  observedOn: "2026-08-28",
+});
+
+/**
+ * What the same complete listing does NOT contain for Production.
+ *
+ * The project list and the empty Shared tab show no Production-scoped
+ * `OPENAI_API_KEY` or `SUPABASE_SECRET_KEY`. Preview's runtime credential
+ * presence is recorded; Production's completeness is not established.
+ *
+ * This is a separate axis from project mapping and does not convert either
+ * mapping PASS back into a failure. It is its own STOP.
+ */
+export const PRODUCTION_RUNTIME_STATE = Object.freeze({
+  state: "PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN",
+  verdict: "STOP" as const,
+  missing: Object.freeze(["OPENAI_API_KEY", "SUPABASE_SECRET_KEY"]),
+  observedOn: "2026-08-28",
+});
+
+/**
+ * Whether the observations mutated anything.
+ *
+ * The screenshots show open variable editors with Save and Cancel controls.
+ * Nobody has confirmed which was clicked, so this is UNKNOWN — not zero. A
+ * milestone that reported "zero external mutations" here would be reporting an
+ * assumption as a measurement.
+ */
+export const OBSERVATION_MUTATION_STATUS = "UNKNOWN" as const;
 
 /** The verdict for one recorded observation, from the classifier itself. */
 export function classifyObservation(

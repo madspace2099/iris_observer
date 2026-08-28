@@ -4,6 +4,9 @@ import type { ControlCharacterScan } from "../../../scripts/release/control-char
 import {
   gateRecordProblems,
   REQUIRED_GATES,
+  APPROVED_SKIP,
+  suiteInventoryDigestOf,
+  renderTestVerdict,
   CANONICAL_VERDICTS,
   type GateRecord,
 } from "../../../scripts/release/gate-contract";
@@ -36,6 +39,19 @@ import {
 const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null } as const;
 
 /**
+ * The skips a green record may carry on a given platform.
+ *
+ * Exactly one on win32 — the signal case `spawnSync` cannot report there — and
+ * none anywhere else. A fixture that always carried one skip described a record
+ * only a win32 contract would accept, and one where every test was skipped
+ * would have satisfied the previous contract entirely.
+ */
+const approvedSkips = (platform: string): { suite: string; title: string }[] =>
+  platform === APPROVED_SKIP.platform
+    ? [{ suite: APPROVED_SKIP.suite, title: APPROVED_SKIP.title }]
+    : [];
+
+/**
  * A complete, clean control-character scan over `files` files.
  *
  * The scan now records what it was ASKED to read as well as what it read, so
@@ -56,6 +72,8 @@ export interface SyntheticOptions {
   readonly overrides?: Partial<GateRecord>;
   /** How many files the control-character scan claims to have looked at. */
   readonly scannedFiles?: number;
+  /** Which platform this record claims to have been measured on. */
+  readonly platform?: string;
   /** The operation this record claims to come from. */
   readonly operationId?: string;
 }
@@ -90,7 +108,13 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
     if (canonical !== undefined) gates[gate] = canonical;
     processes[gate] = { ...cleanProcess };
   }
-  gates["pnpm test"] = "1200 passed, 1 skipped, 0 failed / 43 files";
+  const skips = approvedSkips(options.platform ?? process.platform).length;
+  gates["pnpm test"] = renderTestVerdict({
+    passed: 1201 - skips,
+    skipped: skips,
+    failed: 0,
+    files: 43,
+  });
   gates["raw-NUL scan"] = `0 in ${String(scannedFiles)} files`;
 
   return {
@@ -102,10 +126,29 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
     /* The identity of the bytes the gate measured, not merely where. */
     treeId: "1234567890abcdef1234567890abcdef12345678",
     inputsDigest: "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-    suiteInventoryDigest: "fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+    /*
+     * DERIVED, because the contract recomputes it. A constant here would be a
+     * fixture asserting the digest of something else, which is exactly the
+     * filtered-inventory shape the binding exists to refuse.
+     */
+    suiteInventoryDigest: suiteInventoryDigestOf(Object.keys(perFile(43, 1201))),
+    /* The platform this record claims to have been measured on. */
+    platform: options.platform ?? process.platform,
     expectedSuites: Object.keys(perFile(43, 1201)).sort(),
     controlCharacterScan: cleanScan(scannedFiles),
-    tests: { passed: 1200, skipped: 1, failed: 0, files: 43, perFile: perFile(43, 1201) },
+    /*
+     * TOTALS THAT FOLLOW THE PLATFORM. One hard-coded skip described a record
+     * only a win32 contract would accept, and the total was absent entirely —
+     * so the staged projection could not re-check its own arithmetic.
+     */
+    tests: {
+      total: 1201,
+      passed: 1201 - approvedSkips(options.platform ?? process.platform).length,
+      skipped: approvedSkips(options.platform ?? process.platform).length,
+      failed: 0,
+      files: 43,
+      perFile: perFile(43, 1201),
+    },
     testGate: {
       ...cleanProcess,
       reportSuccess: true,
@@ -115,7 +158,7 @@ export function greenGateRecord(head: string, options: SyntheticOptions = {}): G
       runtimeErrorSuites: 0,
       failedSuiteNames: [],
       failedTests: [],
-      skippedTests: [{ suite: "platform.test.ts", title: "skipped on this platform" }],
+      skippedTests: approvedSkips(options.platform ?? process.platform),
       phase: "test",
       reportWritten: true,
       reportParsed: true,

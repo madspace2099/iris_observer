@@ -22,7 +22,10 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createHash } from "node:crypto";
+import { suiteInventoryDigestOf } from "./gate-contract";
 
 export interface TreeIdentity {
   readonly branch: string;
@@ -42,8 +45,6 @@ export interface TreeIdentity {
 const git = (root: string, ...args: readonly string[]): string =>
   execFileSync("git", [...args], { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 
-const sha256 = (text: string): string => createHash("sha256").update(text, "utf8").digest("hex");
-
 /**
  * Which files the suite is expected to collect.
  *
@@ -59,6 +60,83 @@ export function expectedSuiteFiles(root: string): readonly string[] {
     .sort();
 }
 
+/**
+ * A digest over the ACTUAL BYTES of every tracked working-tree file.
+ *
+ * ## Why the index was not enough
+ *
+ * The identity used to hash `git ls-files -s`, which lists what the INDEX
+ * holds: mode, blob id and path. That describes what git has been told, not
+ * what is on disk — and the gate reads what is on disk. The two coincide only
+ * while nothing has been hidden from git, and git offers two supported ways to
+ * hide exactly that:
+ *
+ *   assume-unchanged   git promises not to look at the file
+ *   skip-worktree      git treats the worktree copy as absent
+ *
+ * Under either flag a tracked file can be edited freely, `git status` stays
+ * silent, `git diff` stays empty, and `ls-files -s` reports the unchanged blob
+ * — so every check the release made would pass while the gate measured
+ * different bytes and the packager copied them into the archive.
+ *
+ * So this reads the files. Path, mode, byte length and the bytes themselves,
+ * in canonical path order, hashed once.
+ */
+export function trackedBytesDigest(root: string): string {
+  const hash = createHash("sha256");
+  const entries = git(root, "ls-files", "-s", "-z")
+    .split("\0")
+    .filter((e) => e.length > 0)
+    .map((e) => {
+      /* "<mode> <blob> <stage>\t<path>" */
+      const tab = e.indexOf("\t");
+      const meta = e.slice(0, tab).split(" ");
+      return { mode: meta[0] ?? "", path: e.slice(tab + 1) };
+    })
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+
+  for (const { mode, path } of entries) {
+    let bytes: Buffer;
+    try {
+      bytes = readFileSync(join(root, path));
+    } catch {
+      /*
+       * A tracked file that cannot be read is not a file this digest can
+       * describe. Recording it as a distinct, stable marker keeps the digest
+       * deterministic while making the absence part of the identity.
+       */
+      hash.update(`${path}\u0000${mode}\u0000UNREADABLE\u0000`);
+      continue;
+    }
+    hash.update(`${path}\u0000${mode}\u0000${String(bytes.length)}\u0000`);
+    hash.update(bytes);
+  }
+  return hash.digest("hex");
+}
+
+/**
+ * Tracked paths git has been told to stop looking at.
+ *
+ * Both flags are legitimate tools and neither belongs anywhere near a release
+ * measurement: their entire purpose is to make a modified tracked file look
+ * unmodified, which is precisely the state this evidence must be able to see.
+ */
+export function hiddenTrackedPaths(root: string): readonly string[] {
+  return (
+    git(root, "ls-files", "-v")
+      .split("\n")
+      /*
+       * LOWERCASE TAGS MEAN assume-unchanged; `S` MEANS skip-worktree, and it is
+       * capital. Filtering on lowercase alone saw one of the two flags and missed
+       * the other — which is the more thorough of the two at hiding a change.
+       */
+      .filter((line) => /^[a-zS]/.test(line))
+      .map((line) => ({ tag: line[0] ?? "", path: line.slice(2).trim() }))
+      .filter(({ tag }) => tag === "h" || tag === "s" || tag === "S")
+      .map(({ tag, path }) => `${path} (${tag === "h" ? "assume-unchanged" : "skip-worktree"})`)
+  );
+}
+
 /** The basename Vitest reports for a suite, which is what the record stores. */
 export const suiteLabel = (file: string): string =>
   (file.split("/").pop() ?? file).replace(/\.test\.tsx?$/, "");
@@ -70,11 +148,21 @@ export function treeIdentity(root: string): TreeIdentity {
     branch: git(root, "rev-parse", "--abbrev-ref", "HEAD").trim(),
     head: git(root, "rev-parse", "HEAD").trim(),
     treeId: git(root, "rev-parse", "HEAD^{tree}").trim(),
-    inputsDigest: sha256(git(root, "ls-files", "-s")),
+    inputsDigest: trackedBytesDigest(root),
     trackedFiles: git(root, "ls-files", "-z")
       .split("\0")
       .filter((f) => f.length > 0).length,
-    suiteInventoryDigest: sha256(files.join("\n")),
+    /*
+     * OVER THE NAMES THE RECORD CARRIES, not over the paths.
+     *
+     * The digest used to be taken over file PATHS while the record stored
+     * LABELS, so nothing could recompute it from the record — and a binding
+     * nothing can recompute binds nothing. It is now a function of exactly the
+     * list that travels in the evidence, canonically sorted, so the contract
+     * recomputes it during source and staged validation and the packager
+     * recomputes it again from the repository itself.
+     */
+    suiteInventoryDigest: suiteInventoryDigestOf(files.map(suiteLabel)),
     suiteInventory: Object.freeze(files.map(suiteLabel).sort()),
   });
 }
@@ -116,6 +204,21 @@ export function treeProblems(root: string, expected?: TreeExpectation): readonly
   }
   if (dirty("diff", "--cached", "--quiet")) {
     problems.push("the index has staged changes not present in HEAD");
+  }
+
+  /*
+   * AND NOTHING MAY BE HIDDEN FROM GIT.
+   *
+   * `assume-unchanged` and `skip-worktree` make an edited tracked file look
+   * pristine to `git status`, `git diff` and `ls-files -s` alike. A release
+   * cannot measure what it has been told not to look at.
+   */
+  const hidden = hiddenTrackedPaths(root);
+  if (hidden.length > 0) {
+    problems.push(
+      `${String(hidden.length)} tracked file(s) are hidden from git and cannot be measured: ` +
+        `${hidden.slice(0, 6).join(", ")}${hidden.length > 6 ? ", …" : ""}`,
+    );
   }
 
   /*

@@ -23,6 +23,11 @@ import {
 import { baselineCommit } from "../../scripts/release/facts";
 import {
   OBSERVED_MAPPINGS,
+  OBSERVATION_LOG,
+  historyFor,
+  PEPPER_STATE,
+  PRODUCTION_RUNTIME_STATE,
+  OBSERVATION_MUTATION_STATUS,
   classifyObservation,
   renderObservedMapping,
   APPROVED_PROJECT_REF,
@@ -561,9 +566,36 @@ describe("the evidence prose says what is true at this commit", () => {
     expect(compat).toMatch(/\{\{LAST_ENUMERATION\}\}/);
   });
 
-  it("dates the manual observation honestly and marks it carried forward", () => {
-    expect(review).toMatch(/OBSERVED BY MATTHEW ON 2026-08-27; EXACT TIME NOT RECORDED/);
-    expect(review).toMatch(/carried-forward manual reading, not a current live one/);
+  it("dates the manual observations honestly and keeps the superseded one", () => {
+    /*
+     * The reading moved. Production had no SUPABASE_URL on 2026-08-27 and has
+     * the canonical origin on 2026-08-28, and both are recorded — a variable
+     * being ADDED is the more interesting of the two facts.
+     */
+    expect(review).toMatch(/2026-08-28/);
+    expect(review).toMatch(/PRODUCTION CHANGED, AND BOTH READINGS ARE KEPT/);
+    expect(review).toMatch(/time of day was not\s+recorded/);
+  });
+
+  it("does not claim the observations changed nothing", () => {
+    /*
+     * The screenshots show open editors with Save and Cancel. An earlier
+     * edition said the editor was exited without saving; nobody confirmed it,
+     * so that was an assumption reported as a measurement.
+     */
+    expect(review).toMatch(/WHETHER ANYTHING WAS CHANGED IS UNKNOWN, NOT ZERO/);
+    /*
+     * The retracted claim is QUOTED so a reader can see what was withdrawn;
+     * what must not survive is it being made. The withdrawal marker is what
+     * distinguishes the two.
+     */
+    expect(review).toMatch(/that was an assumption/);
+    expect(review).toMatch(/it is withdrawn/);
+  });
+
+  it("separates who read Vercel from what this agent did", () => {
+    expect(review).toMatch(/NO AGENT HAS EVER READ VERCEL/);
+    expect(review).toMatch(/no longer free of external reads/);
   });
 
   it("keeps the three claims about external access distinct", () => {
@@ -574,9 +606,10 @@ describe("the evidence prose says what is true at this commit", () => {
      * about now.
      */
     expect(review).toMatch(/NO EXTERNAL MUTATION OCCURRED/);
-    expect(review).toMatch(/carried-forward manual reading/);
-    expect(review).toMatch(/NOT been re-observed since/);
-    expect(review).toMatch(/Neither was re-observed in this\s+milestone/);
+    /* And the two findings the same screenshots settle against us. */
+    expect(review).toMatch(/SEPARATE_SECRET_ROWS \/ EQUALITY_UNPROVEN \/ STOP/);
+    expect(review).toMatch(/PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN \/ STOP/);
+    expect(review).toMatch(/TWO SEPARATE UNREVEALABLE ROWS ARE NOT TWO EQUAL VALUES/);
   });
 });
 
@@ -620,7 +653,7 @@ describe("delivery is not acceptance", () => {
      * every "unchanged since" line spanned the wrong interval.
      */
     const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
-    expect(last).toBe("ab98c7a");
+    expect(last).toBe("20ff3e0");
     expect(baselineCommit().startsWith(last)).toBe(true);
   });
 
@@ -659,34 +692,79 @@ describe("the carried-forward mapping is derived from the classifier", () => {
     ...classifyObservation(o, APPROVED_PROJECT_REF),
   }));
 
-  it("reaches PAUSE for Preview, because nobody looked at the public row", () => {
+  it("reaches MAPPED for Preview on the 2026-08-28 observation", () => {
     const preview = outcomes.find((o) => o.environment === "Preview");
-    expect(preview?.state).toBe("MANUAL_PUBLIC_UNOBSERVED");
-    expect(preview?.verdict).toBe("PAUSE");
-    expect(preview?.ref).toBeNull();
+    expect(preview?.state).toBe("MAPPED");
+    expect(preview?.verdict).toBe("PASS");
+    expect(preview?.ref).toBe(APPROVED_PROJECT_REF);
+    expect(preview?.via).toBe("manual");
   });
 
-  it("reaches STOP for Production, on the server observation alone", () => {
+  it("reaches MAPPED for Production, which had no SUPABASE_URL a day earlier", () => {
+    /*
+     * THE TRANSITION IS THE POINT. Production was observed ABSENT on
+     * 2026-08-27 and observed present, canonical and correct on 2026-08-28.
+     * Both readings are kept; overwriting the first would erase the fact that
+     * a variable was added, which is the more interesting of the two facts.
+     */
     const production = outcomes.find((o) => o.environment === "Production");
-    expect(production?.state).toBe("SERVER_URL_ABSENT");
-    expect(production?.verdict).toBe("STOP");
+    expect(production?.state).toBe("MAPPED");
+    expect(production?.verdict).toBe("PASS");
+    expect(production?.ref).toBe(APPROVED_PROJECT_REF);
   });
 
-  it("claims no PASS anywhere, in the rendering or in the document", () => {
+  it("keeps every superseded observation rather than overwriting it", () => {
+    const production = historyFor("Production");
+    expect(production).toHaveLength(2);
+    expect(production[0]?.observedOn).toBe("2026-08-27");
+    expect(production[0]?.observedServer.kind).toBe("absent");
+    expect(production[1]?.observedOn).toBe("2026-08-28");
+    expect(production[1]?.observedServer.kind).toBe("present");
+    /* The log only ever grows: the latest view is derived from it, not stored. */
+    expect(OBSERVATION_LOG.length).toBeGreaterThan(OBSERVED_MAPPINGS.length);
+  });
+
+  it("records the pepper and Production runtime STOPs on their own axes", () => {
+    /*
+     * MAPPING PASSING DOES NOT MAKE THESE PASS. Two separate unrevealable
+     * secret rows are not two equal values, and a complete listing that shows
+     * no Production OPENAI_API_KEY does not become a mapping failure.
+     */
+    expect(PEPPER_STATE.verdict).toBe("STOP");
+    expect(PEPPER_STATE.state).toBe("SEPARATE_SECRET_ROWS");
+    expect(PEPPER_STATE.finding).toBe("EQUALITY_UNPROVEN");
+    expect(PRODUCTION_RUNTIME_STATE.verdict).toBe("STOP");
+    expect(PRODUCTION_RUNTIME_STATE.missing).toContain("OPENAI_API_KEY");
+    expect(PRODUCTION_RUNTIME_STATE.missing).toContain("SUPABASE_SECRET_KEY");
+  });
+
+  it("does not claim the observations mutated nothing", () => {
+    /*
+     * The screenshots show open editors with Save and Cancel. Nobody confirmed
+     * which was clicked, so UNKNOWN is the honest value and zero would be an
+     * assumption reported as a measurement.
+     */
+    expect(OBSERVATION_MUTATION_STATUS).toBe("UNKNOWN");
+  });
+
+  it("renders the current mapping from the classifier, with its ref", () => {
     const block = renderObservedMapping(APPROVED_PROJECT_REF);
-    expect(block).not.toContain("PASS");
-    expect(block).toContain("MANUAL_PUBLIC_UNOBSERVED");
-    expect(block).toContain("SERVER_URL_ABSENT");
-    /* And the complete origin is kept, not reduced to a bare ref. */
+    expect(block).toContain("MAPPED");
+    expect(block).toContain("PASS");
     expect(block).toContain("https://tfcchobwobpadenampyh.supabase.co");
+    expect(block).toContain("observed absent");
+    /* Both environments, both derived. */
+    expect(block).toContain("Preview");
+    expect(block).toContain("Production");
   });
 
   it("renders into the evidence rather than being typed beside it", () => {
     const source = readFileSync(join(ROOT, "docs/release/REVIEW.txt"), "utf8");
     expect(source).toContain("{{OBSERVED_MAPPING_BLOCK}}");
     const review = render(source, facts({ stagedFiles: 0 })).out;
-    expect(review).toContain("MANUAL_PUBLIC_UNOBSERVED");
-    expect(review).not.toMatch(/Preview\s+SUPABASE_URL\s+MAPPED/);
+    /* Rendered, so the document cannot state a verdict the rule would not reach. */
+    expect(review).toContain("MAPPED");
+    expect(review).toContain("established via           manual");
   });
 });
 

@@ -16,6 +16,7 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 
 /** This file lives in `scripts/release/`, so the repository root is two up. */
 const REPO_ROOT_FOR_PATTERNS = join(import.meta.dirname, "..", "..");
@@ -179,6 +180,143 @@ export const REQUIRED_PHASE = "test";
 export const REQUIRED_POOL = "forks";
 export const REQUIRED_WORKERS = 4;
 
+/** The one branch a release may be measured or packaged on. */
+export const REQUIRED_BRANCH = "release/observer-demo-rc1";
+
+/**
+ * The only test a green release may skip, and the only platform it may skip on.
+ *
+ * ## The false green this closes
+ *
+ * The contract required the skipped-test IDENTITIES to number the same as the
+ * skipped COUNT, and nothing more. So a report in which every test was skipped
+ * satisfied it perfectly: the counts agreed, no assertion failed, the process
+ * exited zero, and a package could be built from a run that executed nothing.
+ *
+ * Vitest reports a suite whose `beforeAll` threw as SKIPPED, which is exactly
+ * how twenty-three tests vanished at `3094443` and `ddefa50` — so this is not
+ * a hypothetical shape. It is the shape two authoritative gates produced.
+ *
+ * One skip is legitimate: `spawnSync` cannot report a terminating signal on
+ * win32, so asserting it there would assert the harness rather than the code.
+ * That skip is approved by IDENTITY and by PLATFORM, and a title is not
+ * evidence of either — a test can be called anything.
+ */
+export const APPROVED_SKIP = Object.freeze({
+  suite: "gate-runner.test.ts",
+  title: "records termination by signal (POSIX only; skipped on win32)",
+  platform: "win32",
+});
+
+/** Platforms this release knows how to reason about. */
+const KNOWN_PLATFORMS = Object.freeze([
+  "aix",
+  "darwin",
+  "freebsd",
+  "linux",
+  "openbsd",
+  "sunos",
+  "win32",
+]);
+
+/**
+ * Every reason the skipped tests are not the ones a green release may have.
+ *
+ * The PLATFORM is a measurement, taken from `process.platform` by the runner
+ * and recorded. It is never inferred from a title: "skipped on win32" in a name
+ * is text somebody typed, and the whole point is to cross-check the claim
+ * against what the machine reported.
+ */
+export function skipProblems(record: GateRecord): readonly string[] {
+  const problems: string[] = [];
+  const platform = record.platform;
+  if (platform === undefined || platform === null || platform === "") {
+    problems.push("platform not recorded — an approved skip cannot be checked against anything");
+    return problems;
+  }
+  if (typeof platform !== "string" || !KNOWN_PLATFORMS.includes(platform)) {
+    problems.push(`platform ${JSON.stringify(platform)} is not one this release recognises`);
+    return problems;
+  }
+
+  const skipped = record.testGate?.skippedTests;
+  if (!Array.isArray(skipped)) {
+    problems.push("no skipped-test identities recorded");
+    return problems;
+  }
+
+  /*
+   * ON EVERY PLATFORM WHERE EVERY TEST APPLIES, ZERO. On win32, exactly the
+   * approved identity and nothing else. "Nothing else" is the load-bearing
+   * half: an extra skip beside the approved one is still an unexplained skip.
+   */
+  const allowed = platform === APPROVED_SKIP.platform ? 1 : 0;
+  if (skipped.length !== allowed) {
+    problems.push(
+      `${String(skipped.length)} skipped test(s) on ${platform}, where exactly ${String(allowed)} is permitted`,
+    );
+  }
+  for (const id of skipped) {
+    const suite = (id as { suite?: unknown }).suite;
+    const title = (id as { title?: unknown }).title;
+    if (platform !== APPROVED_SKIP.platform) {
+      problems.push(
+        `a test was skipped on ${platform}, where no skip is approved: ${String(suite)}`,
+      );
+      continue;
+    }
+    if (suite !== APPROVED_SKIP.suite || title !== APPROVED_SKIP.title) {
+      problems.push(
+        `skipped test ${JSON.stringify(String(suite))} is not the one skip this release approves`,
+      );
+    }
+  }
+
+  /*
+   * AND A RUN THAT ASSERTED NOTHING IS NOT A GREEN RUN, whatever it skipped.
+   */
+  const passed = record.tests?.passed ?? 0;
+  if (passed === 0) {
+    problems.push("no test passed — a report cannot be successful with nothing executed");
+  }
+  return problems;
+}
+
+/**
+ * A branch name, kept whole — slash and all.
+ *
+ * The generic text filter refuses slash-containing strings because a path is
+ * slash-shaped, so `release/observer-demo-rc1` came out as `null` and the
+ * staged record said the branch was unknown while REVIEW said it was that one.
+ * A dedicated sanitizer is the answer, not a relaxed general filter: this
+ * accepts exactly the shape a git branch name has, bounded, with no traversal,
+ * no leading or trailing slash and no run of two.
+ */
+const BRANCH_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*(\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/;
+
+export function safeBranch(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  if (value.length === 0 || value.length > 100) return null;
+  if (value.includes("..") || value.includes("//")) return null;
+  return BRANCH_NAME.test(value) ? value : null;
+}
+
+/**
+ * The digest of an expected-suite inventory, computed from the names alone.
+ *
+ * CRYPTOGRAPHICALLY BOUND, so a filtered subset cannot arrive with a digest
+ * that merely looks internally consistent. The contract recomputes this from
+ * the names in the record and compares it with the digest the record supplies;
+ * a run that collected half the repository and recorded a matching half-digest
+ * still fails, because the packager recomputes the inventory from the
+ * repository as well.
+ */
+export function suiteInventoryDigestOf(names: readonly string[]): string {
+  return createHash("sha256")
+    .update([...names].sort().join("\n"), "utf8")
+    .digest("hex");
+}
+
 /**
  * Which half of the contract is being asked about.
  *
@@ -295,6 +433,13 @@ export interface GateRecord {
   readonly head?: string;
   /** The branch the operation ran on. */
   readonly branch?: string;
+  /**
+   * `process.platform`, as the runner measured it.
+   *
+   * A MEASUREMENT, so an approved platform-inapplicable skip can be checked
+   * against the machine rather than against a title somebody typed.
+   */
+  readonly platform?: string;
   /**
    * The identity of the bytes the gate actually measured.
    *
@@ -1044,8 +1189,35 @@ function recordProblems(
       );
     }
   }
+  /*
+   * THE BRANCH, EXACTLY. A record that cannot say which branch it measured is
+   * a record whose evidence prose can claim any branch it likes — and the
+   * `20ff3e0` archive did exactly that, staging `branch: null` beside a
+   * document naming the release branch.
+   */
+  const branch = safeBranch(record.branch);
+  if (branch === null) {
+    structural.push(`branch is not recorded as a usable name: ${JSON.stringify(record.branch)}`);
+  } else if (branch !== REQUIRED_BRANCH) {
+    structural.push(`recorded on branch ${branch}, not ${REQUIRED_BRANCH}`);
+  }
+
   if (typeof record.suiteInventoryDigest !== "string" || record.suiteInventoryDigest === "") {
     structural.push("suiteInventoryDigest is not recorded — a filtered run would look complete");
+  } else if (Array.isArray(record.expectedSuites)) {
+    /*
+     * RECOMPUTED, NOT TRUSTED. A supplied digest that matches a filtered list
+     * is internally consistent and describes the wrong repository; only
+     * recomputing it here, and again from the repository at packaging time,
+     * makes the binding mean anything.
+     */
+    const recomputed = suiteInventoryDigestOf(record.expectedSuites as readonly string[]);
+    if (recomputed !== record.suiteInventoryDigest) {
+      structural.push(
+        "suiteInventoryDigest does not match the expectedSuites recorded beside it — " +
+          "the inventory and its digest describe different sets",
+      );
+    }
   }
 
   if (record.head !== head) {
@@ -1233,6 +1405,15 @@ function recordProblems(
     structural.push(...runnerEvidenceProblems(t, "structure"));
     acceptance.push(...runnerEvidenceProblems(t, "acceptance"));
 
+    /*
+     * WHICH TESTS WERE SKIPPED, AND WHETHER THEY WERE ALLOWED TO BE.
+     *
+     * Acceptance, not structure: a red record may legitimately carry a great
+     * many skips — that is what a suite whose setup threw looks like — and
+     * saying so is not the same as saying the record is malformed.
+     */
+    acceptance.push(...skipProblems(record));
+
     if (t.reasons === undefined) structural.push("no gate reasons recorded");
     else if (t.reasons.length !== 0) {
       acceptance.push(`test gate not clean: ${t.reasons.join("; ")}`);
@@ -1407,12 +1588,15 @@ export function sanitizedRecord(record: GateRecord): unknown {
      * tree and is what reproducibility is actually about.
      */
     head: bounded(record.head, 40),
-    branch: safeText(record.branch, 64),
+    branch: safeBranch(record.branch),
+    platform: safeText(record.platform, 16),
     treeId: bounded(record.treeId, 64),
     inputsDigest: bounded(record.inputsDigest, 64),
     suiteInventoryDigest: bounded(record.suiteInventoryDigest, 64),
     expectedSuites: stageStrings(record.expectedSuites, 64),
     tests: {
+      /* Carried, so the arithmetic can be re-checked from the archive alone. */
+      total: isCount(tests?.total) ? tests.total : null,
       passed: isCount(tests?.passed) ? tests.passed : null,
       skipped: isCount(tests?.skipped) ? tests.skipped : null,
       failed: isCount(tests?.failed) ? tests.failed : null,

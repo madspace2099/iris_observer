@@ -18,6 +18,23 @@
  */
 
 /** The exact read-only query that produced {@link LIVE}. Nothing here writes. */
+/**
+ * WHAT THIS QUERY SELECTS, AND ONLY THAT.
+ *
+ * Six fields: an observation time, a bucket count with its oldest and newest
+ * ages, an audit-row count and an audit-version-1 count. Nothing else.
+ *
+ * REVIEW, RETENTION-EVIDENCE and COMPATIBILITY-EVIDENCE attributed a great deal
+ * more to "that one query" — schema shapes, function arities, a migration
+ * catalogue, cron state. This query selects none of it, and a document that
+ * says otherwise is describing a query nobody ran. Those fields now carry
+ * their own provenance, or `UNKNOWN`, and none of them is attributed here.
+ *
+ * The text is also preserved AS IT WAS RUN, duplicate `n` column names and all.
+ * A future reading may use unique aliases; rewriting this string would produce
+ * a query that reads better and that nobody executed, and the observation would
+ * then be attributed to it.
+ */
 export const SNAPSHOT_QUERY = `
 with snap as (select now() as observed_at),
 buckets as (
@@ -76,8 +93,40 @@ export const LIVE: LiveSnapshot = {
  */
 export const RETENTION_THRESHOLD_HOURS = 48;
 
-/** Every bucket age observed in this series, oldest reading first. */
+/**
+ * Bucket ages recorded across this series, oldest reading first.
+ *
+ * WITHOUT TIMESTAMPS OR SOURCES, so this is NOT a series of measurements a
+ * reader can check. Nothing here records when each number was read, by which
+ * query, or against which database state — and eight integers in a row invite
+ * exactly the reading the evidence must not offer: that they are successive
+ * observations of one thing rising.
+ *
+ * They are retained because they were recorded, and qualified because that is
+ * all that is true of them. Any document rendering this list must say so.
+ */
 export const OLDEST_BUCKET_HISTORY: readonly number[] = [37, 38, 39, 44, 45, 47, 48, 49];
+
+/** What is actually known about the series above. Rendered beside it. */
+export const OLDEST_BUCKET_HISTORY_PROVENANCE =
+  "recorded across earlier milestones without individual timestamps or queries; " +
+  "not verifiable as successive measurements and not presented as such";
+
+/**
+ * When the deployment inventory was last actually enumerated, and what that
+ * enumeration said — kept apart from the DATABASE observation time.
+ *
+ * The two were rendered from one timestamp, so a database reading dated the
+ * deployment list as well. They are different reads of different systems and
+ * only one of them happened at that moment.
+ */
+export const DEPLOYMENT_INVENTORY_PROVENANCE = Object.freeze({
+  lastEnumeratedFor: "f1dbffd",
+  /* Never invented. No record of the enumeration's clock time survives. */
+  enumeratedAt: "not recorded",
+  newestAtThatEnumeration: "3f298a6",
+  currentlyAccurate: "UNKNOWN",
+});
 
 /**
  * THREE DIFFERENT FACTS, and the previous edition ran two of them together.
@@ -126,6 +175,7 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "aa579a4",
   "c1b80f0",
   "ab98c7a",
+  "20ff3e0",
 ];
 
 /**
@@ -179,6 +229,7 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
   { bundle: "aa579a4", sha256: "e52e09fad3558e51b12decee13966cfd75d5edb2e225e237429d72c17ba2ba93" },
   { bundle: "c1b80f0", sha256: "e6b8360f0653ea6a1371c5cc494323bc419a716b5ebfe6eaf11e0b71404133f8" },
   { bundle: "ab98c7a", sha256: "789f6d0fb9546dec6f84f9003762c4357876301104a5bf7d8aec4cbc384fcc75" },
+  { bundle: "20ff3e0", sha256: "9e8c62c6898b3695d5b66bac654f8c33f02099546f560596c3c19f746b0c6451" },
 ];
 
 /**
@@ -211,8 +262,16 @@ export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
   "1b8b912": "rejected",
   aa579a4: "rejected",
   c1b80f0: "rejected",
-  /* Rejected by the independent audit that opened this milestone. */
+  /* Rejected by the independent audit that opened the previous milestone. */
   ab98c7a: "rejected",
+  /*
+   * Rejected on evidence-contract grounds by the audit that opened this one.
+   * The archive passed every physical check — hashes, manifest, entries,
+   * control characters, patch chain, SQL equality — and was refused for what
+   * its evidence claimed, not for anything it shipped. A green local gate is
+   * not acceptance, and nothing here infers acceptance from one.
+   */
+  "20ff3e0": "rejected",
 };
 
 export const outcomeOf = (bundle: string): ArchiveOutcome =>

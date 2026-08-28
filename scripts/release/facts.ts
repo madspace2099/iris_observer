@@ -419,14 +419,25 @@ export const SNAPSHOT_FILE = "scripts/release/live-snapshot.ts";
  * during the current milestone, because the claim is computed from whether the
  * file changed.
  */
-export type SnapshotProvenanceState = "refreshed" | "carried-forward" | "unknown";
+/**
+ * What comparing two copies of the snapshot file can establish.
+ *
+ * THREE ANSWERS, AND NONE OF THEM IS "FRESH". The states used to be called
+ * `refreshed` and `carried-forward`, and "refreshed" was a claim about a query
+ * having been run — which a byte comparison cannot see. A changed constant is
+ * equally consistent with somebody editing the file.
+ *
+ * So they are named for what is actually compared: the record's bytes.
+ */
+export type SnapshotProvenanceState =
+  "record changed" | "record unchanged" | "comparison unavailable";
 
 /**
  * Just the LIVE object literal, not the whole file.
  *
  *  also carries bookkeeping — the delivered-archive hashes,
  * the inventory provenance — that changes every milestone without anything
- * being re-read. Comparing the whole file therefore reported "refreshed" on a
+ * being re-read. Comparing the whole file therefore reported a change on a
  * round where no query was made, which is the exact fail-open this check
  * exists to prevent. The reading is the object; the rest is not.
  */
@@ -442,7 +453,7 @@ export function snapshotState(baseline: string): SnapshotProvenanceState {
   try {
     const then = liveBlock(gitShowBytes(baseline, SNAPSHOT_FILE).toString("utf8"));
     const now = liveBlock(readFileSync(join(REPO_ROOT, SNAPSHOT_FILE), "utf8"));
-    return then === now ? "carried-forward" : "refreshed";
+    return then === now ? "record unchanged" : "record changed";
   } catch {
     /*
      * The baseline has no copy of the file, so the comparison cannot be made.
@@ -450,18 +461,25 @@ export function snapshotState(baseline: string): SnapshotProvenanceState {
      * way would silently license every freshness claim in the package. It also
      * means DELIVERED_ARCHIVES is stale, which the provenance text says.
      */
-    return "unknown";
+    return "comparison unavailable";
   }
 }
 
-/** Freshness may only be claimed when the reading demonstrably changed. */
-export function snapshotRefreshed(baseline: string): boolean {
-  return snapshotState(baseline) === "refreshed";
+/**
+ * Did the recorded snapshot CHANGE since the baseline archive?
+ *
+ * Not "was it refreshed": a changed constant is equally consistent with an edit,
+ * and this can never distinguish the two. It answers the only question a byte
+ * comparison can answer, and the packager uses it to refuse a document that
+ * claims a new reading while the file it came from has not moved.
+ */
+export function snapshotRecordChanged(baseline: string): boolean {
+  return snapshotState(baseline) === "record changed";
 }
 
 function snapshotProvenance(baseline: string, headShort: string, parentShort: string): string {
   const state = snapshotState(baseline);
-  if (state === "unknown") {
+  if (state === "comparison unavailable") {
     return [
       `OBSERVED AT ${LIVE.observedAt}. PROVENANCE UNPROVEN: ${SNAPSHOT_FILE} has no`,
       `copy at ${parentShort}, so no comparison could be made. That also means the`,
@@ -470,7 +488,7 @@ function snapshotProvenance(baseline: string, headShort: string, parentShort: st
       "UNKNOWN either way.",
     ].join("\n");
   }
-  if (state === "refreshed") {
+  if (state === "record changed") {
     return [
       `OBSERVED AT ${LIVE.observedAt}.`,
       "",

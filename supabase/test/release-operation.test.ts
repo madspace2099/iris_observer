@@ -1,6 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
@@ -10,12 +18,22 @@ import {
   TreeBinding,
   expectedSuiteFiles,
   suiteLabel,
+  hiddenTrackedPaths,
 } from "../../scripts/release/tree-identity";
-import { packagingProblems, ownershipProblems } from "../../scripts/release/build-package";
+import {
+  packagingProblems,
+  ownershipProblems,
+  verifyEmbeddedManifest,
+} from "../../scripts/release/build-package";
 import {
   gateRecordProblems,
   structuralRecordProblems,
   renderFailedVerdict,
+  renderTestVerdict,
+  safeBranch,
+  suiteInventoryDigestOf,
+  APPROVED_SKIP,
+  REQUIRED_BRANCH,
   sanitizedRecord,
   captureEvidence,
   readGateRecord,
@@ -28,6 +46,18 @@ import {
 } from "../../scripts/release/release-operation";
 import { openPackageOperation, type TestPackageOperation } from "./support/package-operation";
 import { greenGateRecord, syntheticGateRecord } from "./support/synthetic-gate-record";
+import {
+  SNAPSHOT_QUERY,
+  LIVE,
+  OLDEST_BUCKET_HISTORY_PROVENANCE,
+  DEPLOYMENT_INVENTORY_PROVENANCE,
+} from "../../scripts/release/live-snapshot";
+import {
+  controlByteDistribution,
+  transportSafeNote,
+  isDeclaredHistorical,
+  HISTORICAL_CONTROL_CHAR_COMMITS,
+} from "../../scripts/release/transport-safe";
 
 /**
  * A GATE RESULT IS ABOUT BYTES, AND USED TO BE ABOUT A COMMIT NAME.
@@ -61,6 +91,15 @@ function throwaway(scratch: string): string {
   git(root, "config", "user.email", "test@example.invalid");
   git(root, "config", "user.name", "Test");
   git(root, "config", "commit.gpgsign", "false");
+  /*
+   * NO LINE-ENDING REWRITING, so this experiment isolates the variable it is
+   * about. With `core.autocrlf` on, `git reset --hard` writes CRLF where the
+   * test wrote LF, and the byte digest correctly reports different bytes — a
+   * true observation that would make this case about git's checkout filter
+   * rather than about edited-then-restored content.
+   */
+  git(root, "config", "core.autocrlf", "false");
+  git(root, "config", "core.eol", "lf");
   mkdirSync(join(root, "src"), { recursive: true });
   writeFileSync(join(root, "src", "app.ts"), "export const answer = 42;\n", "utf8");
   writeFileSync(join(root, "src", "a.test.ts"), "/* a suite */\n", "utf8");
@@ -726,5 +765,501 @@ describe("one failure does not suppress evidence about another", () => {
     expect(guarded).toBeGreaterThan(structural);
     /* The structural pass is not behind the failure guard. */
     expect(runner).toContain("THE RECORD THIS RUN PRODUCED IS STRUCTURALLY INCOMPLETE");
+  });
+});
+
+/**
+ * A RUN THAT SKIPPED EVERYTHING USED TO BE A GREEN RUN.
+ *
+ * The contract required the skipped-test IDENTITIES to number the same as the
+ * skipped COUNT, and nothing else. A report in which every test was skipped
+ * satisfied that perfectly: counts agreed, no assertion failed, the process
+ * exited zero, and a package could be built from a run that executed nothing.
+ *
+ * Vitest reports a suite whose `beforeAll` threw as SKIPPED, which is exactly
+ * how twenty-three tests vanished at `3094443` and again at `ddefa50` — so this
+ * is not a hypothetical. It is the shape two authoritative gates produced.
+ */
+describe("an unexpected skip is not a green run", () => {
+  const head = "7".repeat(40);
+  const onPlatform = (platform: string): GateRecord => greenGateRecord(head, { platform });
+
+  it("accepts zero skips where every test applies", () => {
+    const linux = onPlatform("linux");
+    expect(linux.testGate?.skippedTests).toEqual([]);
+    expect(gateRecordProblems(linux, head)).toEqual([]);
+  });
+
+  it("accepts exactly the approved identity on win32, and nothing more", () => {
+    const win = onPlatform("win32");
+    expect(win.testGate?.skippedTests).toHaveLength(1);
+    expect(gateRecordProblems(win, head)).toEqual([]);
+  });
+
+  it("refuses a record with no platform at all", () => {
+    const base = onPlatform("linux") as Record<string, unknown>;
+    delete base["platform"];
+    expect(gateRecordProblems(base as GateRecord, head).join(" ")).toMatch(/platform not recorded/);
+  });
+
+  it.each([
+    ["", "empty"],
+    ["plan9", "unknown"],
+    ["Win32", "wrong case"],
+  ])("refuses %s as a platform (%s)", (platform) => {
+    const record = { ...onPlatform("linux"), platform } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(
+      /platform (not recorded|.* is not one this release recognises)/,
+    );
+  });
+
+  it("refuses an unexpected skip on a platform where none is approved", () => {
+    const base = onPlatform("linux");
+    const record = {
+      ...base,
+      tests: { ...base.tests, passed: (base.tests?.passed ?? 1) - 1, skipped: 1 },
+      testGate: {
+        ...base.testGate,
+        skippedTests: [{ suite: "something.test.ts", title: "skipped for no stated reason" }],
+      },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(
+      /a test was skipped on linux, where no skip is approved/,
+    );
+  });
+
+  it("refuses an ADDITIONAL skip beside the approved one", () => {
+    const base = onPlatform("win32");
+    const record = {
+      ...base,
+      tests: { ...base.tests, passed: (base.tests?.passed ?? 2) - 1, skipped: 2 },
+      testGate: {
+        ...base.testGate,
+        skippedTests: [
+          ...(base.testGate?.skippedTests ?? []),
+          { suite: "another.test.ts", title: "also skipped" },
+        ],
+      },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(
+      /2 skipped test\(s\) on win32, where exactly 1 is permitted/,
+    );
+  });
+
+  it.each([
+    ["a changed title", { suite: APPROVED_SKIP.suite, title: "records termination by signal" }],
+    ["a changed suite", { suite: "gate-runner2.test.ts", title: APPROVED_SKIP.title }],
+  ])("refuses the approved skip with %s", (_why, identity) => {
+    const base = onPlatform("win32");
+    const record = {
+      ...base,
+      testGate: { ...base.testGate, skippedTests: [identity] },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(
+      /is not the one skip this release approves/,
+    );
+  });
+
+  it("refuses the approved identity on the WRONG platform", () => {
+    /*
+     * A TITLE IS NOT EVIDENCE OF A PLATFORM. The approved skip's title contains
+     * the word win32, and a record claiming linux while skipping it is a record
+     * whose prose and whose measurement disagree. The measurement wins.
+     */
+    const base = onPlatform("linux");
+    const record = {
+      ...base,
+      tests: { ...base.tests, passed: (base.tests?.passed ?? 1) - 1, skipped: 1 },
+      testGate: {
+        ...base.testGate,
+        skippedTests: [{ suite: APPROVED_SKIP.suite, title: APPROVED_SKIP.title }],
+      },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(
+      /skipped on linux, where no skip is approved/,
+    );
+  });
+
+  it("refuses a run in which everything was skipped", () => {
+    /*
+     * THE FALSE GREEN ITSELF. Status zero, no failed assertion, counts that
+     * agree with their identities — and nothing executed.
+     */
+    const base = onPlatform("linux");
+    const every = Object.keys(base.tests?.perFile ?? {}).map((suite) => ({
+      suite,
+      title: "never ran",
+    }));
+    const record = {
+      ...base,
+      tests: { ...base.tests, passed: 0, skipped: every.length, total: every.length },
+      testGate: { ...base.testGate, skippedTests: every },
+    } as GateRecord;
+    const problems = gateRecordProblems(record, head).join(" ");
+    expect(problems).toMatch(/no test passed/);
+    expect(problems).toMatch(/where no skip is approved/);
+  });
+
+  it("refuses report success with nothing executed", () => {
+    const base = onPlatform("linux");
+    const record = {
+      ...base,
+      tests: { ...base.tests, passed: 0, skipped: 0, total: 0, files: 0, perFile: {} },
+    } as GateRecord;
+    expect(gateRecordProblems(record, head).join(" ")).toMatch(/no test passed/);
+  });
+});
+
+/**
+ * THE BRANCH, THE INVENTORY AND THE TOTALS.
+ *
+ * The `20ff3e0` archive staged `branch: null` while REVIEW named the release
+ * branch, because the generic text filter refuses slash-containing strings and
+ * a branch name has a slash in it. The staged record also dropped `tests.total`
+ * entirely, so the arithmetic could not be re-checked from the archive alone.
+ */
+describe("a record names the branch and the inventory it measured", () => {
+  const head = "8".repeat(40);
+
+  it("keeps the release branch whole, slash included", () => {
+    expect(safeBranch("release/observer-demo-rc1")).toBe("release/observer-demo-rc1");
+    const staged = sanitizedRecord(greenGateRecord(head)) as { branch?: unknown };
+    expect(staged.branch).toBe(REQUIRED_BRANCH);
+  });
+
+  it.each([
+    ["null", null],
+    ["absent", undefined],
+    ["empty", ""],
+    ["a detached HEAD", "HEAD"],
+    ["another branch", "main"],
+    ["a traversal", "release/../../etc"],
+    ["a double slash", "release//observer-demo-rc1"],
+    ["a leading slash", "/release/observer-demo-rc1"],
+  ])("refuses %s as the branch", (_why, branch) => {
+    const record = { ...greenGateRecord(head), branch } as GateRecord;
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /branch is not recorded as a usable name|recorded on branch/,
+    );
+  });
+
+  it("carries the total, so the arithmetic survives into the archive", () => {
+    const staged = sanitizedRecord(greenGateRecord(head)) as { tests?: { total?: unknown } };
+    expect(staged.tests?.total).toBe(1201);
+  });
+
+  it("binds the inventory digest to the names beside it", () => {
+    const base = greenGateRecord(head);
+    const names = Object.keys(base.tests?.perFile ?? {});
+    expect(base.suiteInventoryDigest).toBe(suiteInventoryDigestOf(names));
+    /* Order does not matter; membership does. */
+    expect(suiteInventoryDigestOf([...names].reverse())).toBe(base.suiteInventoryDigest);
+  });
+
+  it("refuses a filtered inventory whose counts and digest agree with each other", () => {
+    /*
+     * THE ATTACK THIS CLOSES. Half the repository, a per-file map that sums
+     * correctly, a file count that matches, and a digest computed over exactly
+     * that half — internally flawless, and describing a different repository.
+     */
+    const base = greenGateRecord(head);
+    const all = Object.entries(base.tests?.perFile ?? {});
+    const half = Object.fromEntries(all.slice(0, Math.floor(all.length / 2)));
+    const names = Object.keys(half);
+    const total = Object.values(half).reduce((a, n) => a + n, 0);
+    const filtered = {
+      ...base,
+      tests: { total, passed: total, skipped: 0, failed: 0, files: names.length, perFile: half },
+      expectedSuites: [...names].sort(),
+      suiteInventoryDigest: suiteInventoryDigestOf(names),
+      testGate: { ...base.testGate, skippedTests: [] },
+      gates: {
+        ...base.gates,
+        "pnpm test": renderTestVerdict({
+          passed: total,
+          skipped: 0,
+          failed: 0,
+          files: names.length,
+        }),
+      },
+    } as GateRecord;
+    /*
+     * The record is self-consistent, so only the REPOSITORY can refuse it —
+     * which is what the packager's recomputation from git is for. What the
+     * contract catches here is the smaller half of the same defect.
+     */
+    expect(structuralRecordProblems(filtered, head)).toEqual([]);
+    expect(filtered.suiteInventoryDigest).not.toBe(base.suiteInventoryDigest);
+  });
+
+  it("refuses a digest that does not match the names recorded beside it", () => {
+    const base = greenGateRecord(head);
+    const record = { ...base, suiteInventoryDigest: "f".repeat(64) } as GateRecord;
+    expect(structuralRecordProblems(record, head).join(" ")).toMatch(
+      /does not match the expectedSuites recorded beside it/,
+    );
+  });
+});
+
+/**
+ * THE EVIDENCE IS BOUND TO BYTES GIT CAN BE TOLD TO IGNORE.
+ *
+ * The identity hashed `git ls-files -s`, which reports the INDEX. Two supported
+ * flags make an edited tracked file look pristine to `git status`, `git diff`
+ * and `ls-files -s` alike — so every check the release made would pass while
+ * the gate measured different bytes and the packager shipped them.
+ */
+describe("nothing tracked may be hidden from the measurement", () => {
+  const scratch = mkdtempSync(join(tmpdir(), "observer-hidden-"));
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it.each([
+    ["assume-unchanged", "--assume-unchanged"],
+    ["skip-worktree", "--skip-worktree"],
+  ])("sees a change hidden by %s, and refuses", (_why, flag) => {
+    const root = throwaway(scratch);
+    const clean = treeIdentity(root);
+
+    git(root, "update-index", flag, "src/app.ts");
+    writeFileSync(join(root, "src", "app.ts"), "export const answer = 666;\n", "utf8");
+
+    /* git reports nothing wrong — that is the whole point of the flag. */
+    expect(git(root, "status", "--porcelain=v1").trim()).toBe("");
+
+    /* The byte digest sees it anyway. */
+    expect(treeIdentity(root).inputsDigest).not.toBe(clean.inputsDigest);
+    /* And the flag itself is refused, whether or not anything was edited. */
+    const problems = treeProblems(root).join(" ");
+    expect(problems).toMatch(/hidden from git and cannot be measured/);
+    expect(hiddenTrackedPaths(root).join(" ")).toContain("src/app.ts");
+  });
+
+  it("reports no hidden paths in an ordinary clean repository", () => {
+    expect(hiddenTrackedPaths(throwaway(scratch))).toEqual([]);
+  });
+
+  it("hashes the bytes on disk rather than the blob in the index", () => {
+    const root = throwaway(scratch);
+    const before = treeIdentity(root).inputsDigest;
+    writeFileSync(join(root, "src", "app.ts"), "export const answer = 43;\n", "utf8");
+    /* Not staged, not committed — only the working tree moved. */
+    expect(treeIdentity(root).inputsDigest).not.toBe(before);
+  });
+});
+
+/**
+ * THE PACKAGER'S OWN VERIFICATION.
+ *
+ * `--verify` was optional and ordinary `pnpm release:package` published without
+ * it, so the command a person is most likely to type produced an unverified
+ * deliverable. And what `--verify` checked was a one-line checksum of the outer
+ * ZIP against a number the same process had just computed — a tautology that
+ * said nothing about `hashes.txt`, the manifest a reviewer actually uses.
+ */
+describe("packaging verifies what it publishes", () => {
+  const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
+
+  it("has no unverified publishing path", () => {
+    expect(source).not.toContain('process.argv.includes("--verify")');
+    expect(source).toMatch(/VERIFICATION IS NOT A FLAG/);
+  });
+
+  it("verifies the manifest inside the archive, from the archive", () => {
+    expect(source).toContain("verifyEmbeddedManifest(inflated)");
+    expect(source).toMatch(/unzip", \["-q", first\.archive/);
+  });
+
+  it("compares all four hashes before publishing", () => {
+    expect(source).toContain('{ label: "written archive", sha: first.sha }');
+    const compare = source.indexOf("hashes.every((h) => h.sha === first.sha");
+    const publish = source.indexOf("renameSync(first.archive, distributable)");
+    expect(compare).toBeGreaterThan(0);
+    expect(publish).toBeGreaterThan(compare);
+  });
+
+  it("catches a manifest that is missing, surplus, corrupt or duplicated", () => {
+    const root = mkdtempSync(join(tmpdir(), "observer-manifest-"));
+    try {
+      mkdirSync(join(root, "sub"), { recursive: true });
+      writeFileSync(join(root, "a.txt"), "alpha\n", "utf8");
+      writeFileSync(join(root, "sub", "b.txt"), "beta\n", "utf8");
+      const digest = (rel: string): string =>
+        createHash("sha256")
+          .update(readFileSync(join(root, ...rel.split("/"))))
+          .digest("hex");
+
+      const good = `${digest("a.txt")}  a.txt\n${digest("sub/b.txt")}  sub/b.txt\n`;
+      writeFileSync(join(root, "hashes.txt"), good, "utf8");
+      expect(verifyEmbeddedManifest(root)).toEqual([]);
+
+      /* A manifested file the archive does not contain. */
+      writeFileSync(join(root, "hashes.txt"), `${good}${"0".repeat(64)}  missing.txt\n`, "utf8");
+      expect(verifyEmbeddedManifest(root).join(" ")).toMatch(/manifested and absent/);
+
+      /* A file the manifest does not list. */
+      writeFileSync(join(root, "hashes.txt"), `${digest("a.txt")}  a.txt\n`, "utf8");
+      expect(verifyEmbeddedManifest(root).join(" ")).toMatch(/in the archive and not manifested/);
+
+      /* A digest that does not match. */
+      writeFileSync(
+        join(root, "hashes.txt"),
+        `${"1".repeat(64)}  a.txt\n${digest("sub/b.txt")}  sub/b.txt\n`,
+        "utf8",
+      );
+      expect(verifyEmbeddedManifest(root).join(" ")).toMatch(
+        /does not match its manifested digest/,
+      );
+
+      /* The same path twice. */
+      writeFileSync(
+        root === "" ? "" : join(root, "hashes.txt"),
+        `${good}${digest("a.txt")}  a.txt\n`,
+        "utf8",
+      );
+      expect(verifyEmbeddedManifest(root).join(" ")).toMatch(/is listed twice/);
+
+      /* And no manifest at all. */
+      rmSync(join(root, "hashes.txt"));
+      expect(verifyEmbeddedManifest(root).join(" ")).toMatch(/hashes.txt is not in the archive/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * THE STAGED CONTRACT'S OWN DEPENDENCY.
+ *
+ * The archive shipped `gate-contract.ts`, which loads `secret-patterns.json`,
+ * and did not ship the JSON — only `.ts` was copied from `scripts/release`. A
+ * reader running the staged detector got a missing-file error, so the "one
+ * definition, loaded by both systems" claim was true of the repository and
+ * false of the thing handed over.
+ */
+describe("the staged secret detector can actually run", () => {
+  it("copies json from the generator directory, not only ts", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/build-package.ts"), "utf8");
+    expect(source).toContain(
+      'copyAll("scripts/release", "generators", (f) => f.endsWith(".json"))',
+    );
+  });
+
+  it("names a dependency that exists and is the one the auditor uses", () => {
+    /*
+     * BYTE-IDENTICAL to the file the authoritative secret audit reads. Two
+     * copies that merely agree today are two copies that can drift.
+     */
+    const patterns = join(ROOT, "scripts/release/secret-patterns.json");
+    expect(existsSync(patterns)).toBe(true);
+    const contract = readFileSync(join(ROOT, "scripts/release/gate-contract.ts"), "utf8");
+    expect(contract).toContain('"scripts/release/secret-patterns.json"');
+    const auditor = readFileSync(join(ROOT, "scripts/secret-audit.mjs"), "utf8");
+    expect(auditor).toContain("scripts/release/secret-patterns.json");
+    /* And it parses into rules both scopes can use. */
+    const doc = JSON.parse(readFileSync(patterns, "utf8")) as {
+      rules: { name: string; pattern: string; scopes: string[] }[];
+    };
+    expect(doc.rules.some((r) => r.scopes.includes("audit"))).toBe(true);
+    expect(doc.rules.some((r) => r.scopes.includes("staged"))).toBe(true);
+  });
+});
+
+/**
+ * PROVENANCE: WHAT THE RECORDED QUERY SELECTED, AND WHAT IT DID NOT.
+ */
+describe("evidence does not attribute fields to a query that never selected them", () => {
+  it("selects six fields and claims six", () => {
+    const q = SNAPSHOT_QUERY;
+    for (const field of ["observed_at", "oldest_h", "newest_h", "audit_version = 1"]) {
+      expect(q).toContain(field);
+    }
+    /* And none of the things documents used to attribute to it. */
+    for (const absent of ["pg_proc", "pg_cron", "information_schema", "pronargs", "cron.job"]) {
+      expect(q, absent).not.toContain(absent);
+    }
+  });
+
+  it("keeps the historical text as it was run, duplicate column names included", () => {
+    /*
+     * Rewriting it with unique aliases would produce a query that reads better
+     * and that nobody executed — and the observation would then be attributed
+     * to it.
+     */
+    expect((SNAPSHOT_QUERY.match(/count\(\*\)::int as n\b/g) ?? []).length).toBe(2);
+  });
+
+  it("qualifies the untimestamped bucket series rather than presenting it as measurements", () => {
+    expect(OLDEST_BUCKET_HISTORY_PROVENANCE).toMatch(/without individual timestamps/);
+    expect(OLDEST_BUCKET_HISTORY_PROVENANCE).toMatch(/not presented as such/);
+  });
+
+  it("gives the deployment inventory its own provenance, not the database clock", () => {
+    expect(DEPLOYMENT_INVENTORY_PROVENANCE.lastEnumeratedFor).toBe("f1dbffd");
+    expect(DEPLOYMENT_INVENTORY_PROVENANCE.enumeratedAt).toBe("not recorded");
+    expect(DEPLOYMENT_INVENTORY_PROVENANCE.currentlyAccurate).toBe("UNKNOWN");
+    expect(DEPLOYMENT_INVENTORY_PROVENANCE.newestAtThatEnumeration).toBe("3f298a6");
+    /* And it is not the database observation time. */
+    expect(DEPLOYMENT_INVENTORY_PROVENANCE.enumeratedAt).not.toBe(LIVE.observedAt);
+  });
+
+  it("names byte-comparison states for what they compare", () => {
+    const source = readFileSync(join(ROOT, "scripts/release/facts.ts"), "utf8");
+    expect(source).toContain('"record changed"');
+    expect(source).toContain('"record unchanged"');
+    expect(source).toContain('"comparison unavailable"');
+    /* "refreshed" was a claim about a query, which a byte comparison cannot see. */
+    expect(source).not.toContain('=== "refreshed"');
+  });
+});
+
+/**
+ * THE TRANSPORT-SAFE EXPLANATION, MEASURED.
+ *
+ * The note said all three commits REMOVE backspaces and that every byte sits on
+ * a removed line. Decoded and counted, that is false for two of the three.
+ */
+describe("the transport-safe note reports where the bytes actually are", () => {
+  it("counts added, removed and context separately", () => {
+    const added = controlByteDistribution("+const a = /xy/;\n");
+    expect(added).toEqual({ added: 1, removed: 0, context: 0 });
+    const removed = controlByteDistribution("-const a = /xy/;\n");
+    expect(removed).toEqual({ added: 0, removed: 1, context: 0 });
+    const context = controlByteDistribution(" const a = /xy/;\n");
+    expect(context).toEqual({ added: 0, removed: 0, context: 1 });
+  });
+
+  it("measures the three declared patches and finds bytes on ADDED lines", () => {
+    const out = mkdtempSync(join(tmpdir(), "observer-patchfacts-"));
+    try {
+      execFileSync("git", ["format-patch", "1ee5d2d..HEAD", "-o", out, "--no-signature", "-q"], {
+        cwd: ROOT,
+      });
+      const measured = readdirSync(out)
+        .sort()
+        .map((f) => ({ f, text: readFileSync(join(out, f), "latin1") }))
+        .filter(({ text }) => isDeclaredHistorical(text))
+        .map(({ f, text }) => ({ f: f.slice(0, 4), ...controlByteDistribution(text) }));
+
+      expect(measured).toHaveLength(HISTORICAL_CONTROL_CHAR_COMMITS.length);
+      /* The claim that every byte is on a removed line is false. */
+      expect(measured.some((m) => m.added > 0)).toBe(true);
+      /* And so is the claim that all three only remove them. */
+      expect(measured.some((m) => m.removed === 0)).toBe(true);
+      for (const m of measured) expect(m.added + m.removed + m.context).toBeGreaterThan(0);
+    } finally {
+      rmSync(out, { recursive: true, force: true });
+    }
+  });
+
+  it("does not claim all three commits remove backspaces", () => {
+    const note = transportSafeNote(
+      ["0034.patch.base64"],
+      [{ name: "0034.patch.base64", bytes: { added: 2, removed: 0, context: 0 } }],
+    );
+    expect(note).toContain("2 on added line(s)");
+    expect(note).toMatch(/wherever in the diff they occur/);
+    expect(note).not.toMatch(/commits in question\s+REMOVE backspace/);
   });
 });

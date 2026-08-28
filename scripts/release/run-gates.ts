@@ -479,6 +479,8 @@ function main(): void {
     operationId: op.operationId,
     head,
     branch: identity.branch,
+    /* MEASURED, never inferred from a test's title. */
+    platform: process.platform,
     treeId: identity.treeId,
     inputsDigest: identity.inputsDigest,
     suiteInventoryDigest: identity.suiteInventoryDigest,

@@ -59,15 +59,72 @@ export function isDeclaredHistorical(contents: string): boolean {
   return HISTORICAL_CONTROL_CHAR_COMMITS.some((c) => c.sha === sha);
 }
 
+/** Where a patch's forbidden bytes actually sit. Measured, never assumed. */
+export interface ControlByteDistribution {
+  readonly added: number;
+  readonly removed: number;
+  readonly context: number;
+}
+
+/**
+ * Count forbidden C0 bytes per diff-line kind in one patch's decoded text.
+ *
+ * The explanation that shipped beside these patches said all three commits
+ * REMOVE backspaces and that the bytes occur only on removed lines. Measured,
+ * that is false for two of the three: one patch's bytes are entirely on ADDED
+ * lines, and another has them on both. The mechanism was always right and the
+ * story about it was wrong, so the story is now computed.
+ */
+export function controlByteDistribution(contents: string): ControlByteDistribution {
+  let added = 0;
+  let removed = 0;
+  let context = 0;
+  for (const line of contents.split("\n")) {
+    let here = 0;
+    for (const ch of line) {
+      const code = ch.codePointAt(0) ?? 0;
+      if (code < 32 && code !== 9 && code !== 10 && code !== 13) here += 1;
+    }
+    if (here === 0) continue;
+    if (line.startsWith("+")) added += here;
+    else if (line.startsWith("-")) removed += here;
+    else context += here;
+  }
+  return { added, removed, context };
+}
+
 /** The note that ships beside the encoded patches. */
-export function transportSafeNote(encoded: readonly string[]): string {
+export function transportSafeNote(
+  encoded: readonly string[],
+  measured: readonly { readonly name: string; readonly bytes: ControlByteDistribution }[] = [],
+): string {
+  const describe = (b: ControlByteDistribution): string => {
+    const parts: string[] = [];
+    if (b.added > 0) parts.push(`${String(b.added)} on added line(s)`);
+    if (b.removed > 0) parts.push(`${String(b.removed)} on removed line(s)`);
+    if (b.context > 0) parts.push(`${String(b.context)} on context line(s)`);
+    return parts.length === 0 ? "none" : parts.join(", ");
+  };
+
   return [
     "TRANSPORT-SAFE PATCH ENCODING",
     "",
     "Some patches in this series contain literal C0 control bytes — BACKSPACE,",
-    "0x08 — on their removed lines. That is correct: the commits in question",
-    "REMOVE backspace characters that a shell-escaping slip had written into",
-    "regular expressions, so the diff has to show them.",
+    "0x08. A patch is encoded because its DECODED BYTES CONTAIN FORBIDDEN C0",
+    "CHARACTERS, wherever in the diff they occur: added lines, removed lines or",
+    "context alike. Nothing about the encoding decision depends on which.",
+    "",
+    "AN EARLIER EDITION OF THIS NOTE SAID OTHERWISE. It claimed all three",
+    "commits REMOVE backspaces and that every byte sits on a removed line.",
+    "Measured, that is false for two of the three. The mechanism was always",
+    "sound; the explanation of it was not, so it is now computed from the",
+    "decoded patches rather than written down once and carried forward.",
+    "",
+    "WHERE THE BYTES ACTUALLY ARE, measured from these exact files:",
+    "",
+    ...(measured.length === 0
+      ? ["  (not measured for this build)"]
+      : measured.map((m) => `  ${m.name}  ${describe(m.bytes)}`)),
     "",
     "A text archive must not carry invisible control characters, and rewriting",
     "history to avoid them is not on the table. So each affected patch ships",
