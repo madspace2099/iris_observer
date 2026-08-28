@@ -699,6 +699,21 @@ names.
             measurements, which held, but for the false-accept paths around
             them that the milestone after it closes.
 
+  3094443   RED, and preserved. The first and only authoritative attempt at
+            that commit. Three suites — control-chars, no-secret-recipes,
+            package-generation — failed at SUITE level with zero failed
+            assertions: 1523 passed, 24 skipped, 0 failed across 47 files, six
+            failed suites, three runtime-error suites, zero unhandled runner
+            errors, pool forks, workers 4..4, observed peak 4 in the
+            diagnostics. Every other gate was clean. No package was produced.
+
+            Preserved at .release/gate-results-FAILED-3094443-974b74e963629c27
+            .json, sha256 58a07af7b77b7c787f350fe7da41a40d6a012119ebb4246307e1
+            52b02dbea4c6, untracked and NOT packaged — it preserves the record
+            for whoever holds this working directory and is not evidence a
+            reviewer can open. It was not retried at its own commit, and the
+            green run below does not retract or replace it.
+
   {{HEAD_SHORT}}   this candidate — see THE GATE, below.
 
 THE RED RUN WAS NOT RETRIED AT ITS OWN COMMIT, and the green run listed after
@@ -932,6 +947,93 @@ its own copy of the audit patterns, under a test that asserted the two were
 synchronised and never read the auditor. They had already diverged. Both now
 load `scripts/release/secret-patterns.json`, so "in step" is a property of the
 code rather than a sentence in a comment.
+
+TWO DEFECTS THE FIRST AUTHORITATIVE GATE FOUND, AND WHY ONLY A GATE COULD.
+
+Both were introduced by the milestone that added the release mutex, and both
+were invisible to every check that ran before the gate.
+
+  A PACKAGER  `build()` requires a package operation, and the three suites that
+  WITH NO     exercise it were given none. Each refused at collection with a
+  OPERATION.  `Refusal`, which Vitest reports as a failed SUITE and zero failed
+              tests — the exact shape a runner-level fault produces.
+
+              THE REASON IT HID IS THE INTERESTING PART. On a dirty development
+              tree those suites refuse for a DIFFERENT precondition: the tree is
+              not clean, so no package may be built. That refusal was expected
+              and was read as such, every time. The tree was dirty for the whole
+              of the milestone that broke them, so the ownership refusal
+              underneath was never once seen. It surfaced the first time the
+              suites ran on a clean commit, which is what an authoritative gate
+              is.
+
+              Fixed in the HARNESS, not the invariant. Ownership stays required
+              and there is no test-only bypass. `openPackageOperation` gives
+              each suite a private temporary release root, a synthetic green
+              record verified through the real source, staged and structural
+              contracts, and a genuine package operation taken through the real
+              API; on close it releases only its own operation and removes only
+              its own files. No test reads, writes, deletes or recovers this
+              repository's real `.release` state.
+
+              And every packaging precondition now names itself — CLEAN TREE,
+              OWNERSHIP, RECORD TREE, GATE RECORD — so one refusal can no longer
+              be read as another. All failing preconditions are reported, not
+              only the first.
+
+  A MEASURE-  The reporter counts peak concurrent modules — one per worker, so
+  MENT NEVER  the real concurrency — and the runner carried it into its evidence
+  WRITTEN     object. The persisted `testGate` literal enumerates its fields
+  DOWN.       explicitly, and this one was simply absent. The value was computed
+              on every run and recorded on none.
+
+              IT HID BECAUSE VALIDATION WAS SKIPPED ONCE A GATE HAD FAILED. A
+              red record was expected to fail the contract, so consulting the
+              contract looked pointless — and nobody learned that the record was
+              ALSO structurally incomplete. The first green run would have
+              refused to publish.
+
+              So structure and acceptance are separate contracts now. STRUCTURE
+              — every measurement present, every field typed, every duplicated
+              fact agreeing with its copy — runs on EVERY completed attempt, red
+              ones included. ACCEPTANCE runs when there is something to accept.
+              A red record may fail acceptance; it may not omit a measurement.
+              One failure does not suppress evidence about another.
+
+WHAT WAS RUN BEFORE THIS GATE, ON A CLEAN COMMIT.
+
+The three suites that failed at `3094443` had never been run on one. They were
+run repeatedly on a dirty tree, where they refuse for a different precondition,
+so the workflow below is now the one that precedes an authoritative gate:
+implement, run what does not need a clean repository, COMMIT a candidate, and
+then run the affected suites while that candidate is clean.
+
+Measured at the candidate commit, tree clean, before the gate:
+
+  package-generation.test.ts          28 passed, 0 skipped, 0 failed
+  control-chars.test.ts               55 passed, 0 skipped, 0 failed
+  no-secret-recipes.test.ts          131 passed, 0 skipped, 0 failed
+  all three together, forward        214 passed, 0 skipped, 0 failed
+  all three together, reverse        214 passed, 0 skipped, 0 failed
+  seven release-critical suites      569 passed, 1 skipped, 0 failed
+  the same seven, reverse order      569 passed, 1 skipped, 0 failed
+  the complete ordinary suite       1577 passed, 1 skipped, 0 failed (47 files)
+
+`package-generation` reported 14 passed and 14 SKIPPED before this correction,
+and the skips were the suite refusing to build rather than a decision to skip
+anything. A suite-level failure with zero failed assertions is still a failure,
+and so is a suite that quietly declines to do its work.
+
+THE ONE REMAINING SKIP is `gate-runner.test.ts` recording termination by
+signal, which is POSIX-only and named as such. It is the only conditional skip
+in the repository, and nothing is skipped because the real `.release` directory
+lacks a record, because `_review/<head>` does not exist, because a previous
+archive is present, or because ownership was not arranged.
+
+CONFIGURATION AND OBSERVATION ARE PRINTED SEPARATELY. The bounds are what the
+pool was told; the peak is what happened. They are equal in this release and
+that is a coincidence of this release, not an identity — a record whose peak is
+BELOW its bound is perfectly valid, and one above it is refused.
 
 WHAT THE PREVIOUS ATTEMPT LOCK WAS, AND WHY IT WAS NOT ENOUGH.
 
