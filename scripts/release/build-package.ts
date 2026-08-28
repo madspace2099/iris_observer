@@ -50,6 +50,7 @@ import {
   MIGRATIONS_DIR,
   RED_GATE_ATTEMPTS,
   HISTORY_REPAIR,
+  HISTORY_REPAIR_OLD_TREE,
 } from "./facts";
 import { walk, writeZip, scanArchive } from "./zip";
 import {
@@ -1373,6 +1374,31 @@ export function accountableHashes(): ReadonlySet<string> {
    */
   for (const attempt of RED_GATE_ATTEMPTS) {
     for (const token of attempt.record.match(/[0-9a-f]{8,}/g) ?? []) allowed.add(token);
+  }
+
+  /*
+   * THE SUPERSEDED TREE THE HISTORY-REPAIR COMPARISON CITES.
+   *
+   * The evidence names the tree the replaced history had, so a reader can see
+   * that the repair changed content and what it changed. That tree is no longer
+   * reachable from this branch — its commit was replaced — so nothing in the
+   * ordinary derivation reaches it, and the accounting rule refused the build.
+   *
+   * It is admitted here only after being PROVED to be a real object: git is
+   * asked what it is, and it must answer "tree". A number somebody typed is not
+   * an object, so this is an accountability check rather than an allowlist —
+   * and if the object is ever genuinely gone, the build refuses rather than
+   * printing an identifier nothing can resolve.
+   */
+  const oldTree = HISTORY_REPAIR_OLD_TREE;
+  try {
+    const kind = execFileSync("git", ["cat-file", "-t", oldTree], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    }).trim();
+    if (kind === "tree") allowed.add(oldTree);
+  } catch {
+    /* Not resolvable here; the token stays unaccounted and the build refuses. */
   }
 
   const m4 = `${MIGRATIONS_DIR}/20260826140000_observer_bucket_retention.sql`;

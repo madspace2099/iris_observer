@@ -727,6 +727,16 @@ export const HISTORY_REPAIR = Object.freeze({
  * beside the thing instead of taken from it. It is derived now, and the
  * rendered prose says however many there are.
  */
+/**
+ * The tree the replaced history had.
+ *
+ * DECLARED, because it cannot be derived: its commit is no longer reachable
+ * from this branch. The hash-accounting rule admits it only after git confirms
+ * the object is genuinely a tree, so a mistyped identifier refuses the build
+ * rather than being printed as evidence.
+ */
+export const HISTORY_REPAIR_OLD_TREE = "799515f23a680f10b1f9c494f0f02ff23304ab40";
+
 export function historyReplacementCommits(): readonly string[] {
   return git("log", "--format=%h", `${HISTORY_REPAIR.protectedBase}..HEAD`)
     .split("\n")
@@ -746,7 +756,7 @@ export function historyRepairFacts(): Readonly<Record<string, string>> {
     HISTORY_REPLACEMENT_LIST: replacements.join(", "),
     HISTORY_OLD_RANGE: `${base}..ebeb916`,
     HISTORY_NEW_RANGE: `${base}..${git("rev-parse", "--short", "HEAD")}`,
-    HISTORY_OLD_TREE: "799515f23a680f10b1f9c494f0f02ff23304ab40",
+    HISTORY_OLD_TREE: HISTORY_REPAIR_OLD_TREE,
     HISTORY_NEW_TREE: git("rev-parse", "HEAD^{tree}"),
   };
 }
