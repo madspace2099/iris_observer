@@ -246,6 +246,7 @@ export const INVENTORY_RECORDED_IN: readonly string[] = [
   "20ff3e0",
   "3b746f4",
   "03f43a7",
+  "ab1f773",
 ];
 
 /**
@@ -313,6 +314,12 @@ export const DELIVERED_ARCHIVES: readonly { readonly bundle: string; readonly sh
    * 03f43a7, so every "unchanged since" line spans this milestone.
    */
   { bundle: "03f43a7", sha256: "20c2f2ddebe046660ef66ac87d7586eec754214bdb20237be05b44e9cb9a2466" },
+  /*
+   * Delivered at the start of THIS milestone and rejected by the audit that
+   * opened it. It passed every physical check again and was refused for
+   * release-protocol, provenance and evidence-contract defects.
+   */
+  { bundle: "ab1f773", sha256: "cbba7b96e2bd89c368fa5c4321006abc539e11540ba7f80bad12416f9da20817" },
 ];
 
 /**
@@ -373,6 +380,13 @@ export const ARCHIVE_OUTCOMES: Readonly<Record<string, ArchiveOutcome>> = {
    * attributed five values to a query that never selected them.
    */
   "03f43a7": "rejected",
+  /*
+   * Rejected by the audit that opened this milestone: a terminal protocol with
+   * two reproducible crash states, a predictable recovery sibling path, lock
+   * ownership that accepted an equal-length rewrite, two SQL inputs with no
+   * tracked origin, and a replacement-commit count typed into prose.
+   */
+  ab1f773: "rejected",
 };
 
 export const outcomeOf = (bundle: string): ArchiveOutcome =>

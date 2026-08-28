@@ -1115,3 +1115,85 @@ describe("red records are refused for what they cannot say", () => {
     expect(gateRecordProblems(clean, head)).toEqual([]);
   });
 });
+
+/**
+ * A PROCESS ENDS IN ONE OF THREE WAYS, AND THE RECORD MUST SAY WHICH.
+ *
+ * The four fields were checked one at a time, so combinations no process can
+ * produce were structurally acceptable: a status AND a signal, a signal AND a
+ * spawn error, or all three null — a process that neither ran nor failed to
+ * start. Each is a record describing something that did not happen.
+ */
+describe("process fields describe exactly one outcome", () => {
+  const head = "ab1f773f602e8ddce9089c685690872c7741b034";
+  const withGate = (patch: Record<string, unknown>): GateRecord => {
+    const clean = greenGateRecord(head);
+    return { ...clean, testGate: { ...clean.testGate, ...patch } } as GateRecord;
+  };
+  const problems = (patch: Record<string, unknown>): string =>
+    structuralRecordProblems(withGate(patch), head).join(" ");
+
+  it.each([
+    ["a status and a signal", { status: 1, signal: "SIGKILL", errorCode: null, ok: false }],
+    [
+      "a signal and a spawn error",
+      { status: null, signal: "SIGKILL", errorCode: "ENOENT", ok: false },
+    ],
+    ["a status and a spawn error", { status: 0, signal: null, errorCode: "ENOENT", ok: false }],
+    ["all three at once", { status: 1, signal: "SIGTERM", errorCode: "EACCES", ok: false }],
+    ["none of the three", { status: null, signal: null, errorCode: null, ok: false }],
+  ])("refuses %s", (_what, patch) => {
+    expect(problems(patch)).toMatch(/do not describe one outcome/);
+  });
+
+  it.each([
+    ["a normal exit", { status: 0, signal: null, errorCode: null, ok: true }],
+    ["a failing exit", { status: 1, signal: null, errorCode: null, ok: false }],
+    ["termination by signal", { status: null, signal: "SIGKILL", errorCode: null, ok: false }],
+    ["a spawn failure", { status: null, signal: null, errorCode: "ENOENT", ok: false }],
+  ])("accepts %s as a shape", (_what, patch) => {
+    expect(problems(patch)).not.toMatch(/do not describe one outcome/);
+  });
+
+  it("requires ok to agree with the outcome", () => {
+    /* A failing exit that calls itself ok is a record contradicting itself. */
+    expect(problems({ status: 1, signal: null, errorCode: null, ok: true })).toMatch(
+      /ok is true beside a normal exit that did not succeed/,
+    );
+    expect(problems({ status: 0, signal: null, errorCode: null, ok: false })).toMatch(
+      /ok is false beside a normal exit/,
+    );
+  });
+
+  it("holds runtime-error suites to the failing suite count", () => {
+    /*
+     * A runtime-error suite is DERIVED by counting suites that failed with no
+     * failed assertion, so it is a subset of the failing suite results — and
+     * nothing checked that. Three runtime errors beside one failed suite is two
+     * different runs.
+     */
+    expect(problems({ reportedFailedSuites: 1, runtimeErrorSuites: 3 })).toMatch(
+      /3 runtime-error suite\(s\) for 1 failed suite result\(s\)/,
+    );
+  });
+
+  it("accepts the boundary where every failing suite is a runtime error", () => {
+    const record = withGate({
+      reportedFailedSuites: 3,
+      runtimeErrorSuites: 3,
+      failedSuiteNames: ["a.test.ts", "b.test.ts", "c.test.ts"],
+      failedSuiteNamesOmitted: 0,
+      failedSuiteResultsAccounted: 3,
+    });
+    expect(structuralRecordProblems(record, head).join(" ")).not.toMatch(/runtime-error suite/);
+  });
+
+  it("still distinguishes an unknown report from a failed one", () => {
+    expect(gateRecordProblems(withGate({ reportSuccess: null }), head).join(" ")).toMatch(
+      /report state is UNKNOWN/,
+    );
+    expect(gateRecordProblems(withGate({ reportSuccess: false }), head).join(" ")).toMatch(
+      /success=false/,
+    );
+  });
+});

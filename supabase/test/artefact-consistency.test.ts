@@ -3,7 +3,13 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { facts, render, RED_GATE_ATTEMPTS, HISTORY_REPAIR } from "../../scripts/release/facts";
+import {
+  facts,
+  render,
+  RED_GATE_ATTEMPTS,
+  HISTORY_REPAIR,
+  historyReplacementCommits,
+} from "../../scripts/release/facts";
 import {
   hashTokens,
   accountableHashes,
@@ -369,7 +375,24 @@ describe("the deployment inventory's provenance", () => {
     } catch {
       return null;
     }
-    const section = /EVERY READY VERCEL DEPLOYMENT[\s\S]*?NOT DEPLOYED/.exec(text)?.[0] ?? "";
+    /*
+     * BOTH HEADINGS, because the heading changed and this did not.
+     *
+     * The section used to be "EVERY READY VERCEL DEPLOYMENT, BY SHA" and was
+     * renamed to say the reading is HISTORICAL rather than current — a correct
+     * change, and it silently broke this extractor for every archive built
+     * afterwards: the regex matched nothing, `inventoryOf` returned null, and
+     * the case reported "no readable inventory" for a bundle whose table was
+     * perfectly intact.
+     *
+     * An extractor pinned to prose is a check that a rename can disable, so it
+     * accepts either wording and the case would fail loudly if a future one
+     * appeared.
+     */
+    const section =
+      /EVERY (?:READY VERCEL DEPLOYMENT|VERCEL DEPLOYMENT READY)[\s\S]*?NOT DEPLOYED/.exec(
+        text,
+      )?.[0] ?? "";
     const urls = section.match(/iris-observer-[a-z0-9]+-/g) ?? [];
     return urls.length > 0 ? urls.join(",") : null;
   };
@@ -507,6 +530,33 @@ describe("the evidence prose says what is true at this commit", () => {
     /* And the auditor itself declares nothing. */
     const auditor = readFileSync(join(ROOT, "scripts", "secret-audit.mjs"), "utf8");
     expect(auditor).not.toMatch(/[0-9a-f]{40}/);
+  });
+
+  it("derives the replacement count from the branch, never from a constant", () => {
+    /*
+     * THE DEFECT THIS CLOSES. `replacementCommits: 1` was declared and "replaced
+     * by one" was written into the prose, and three commits were already there
+     * by the time the archive shipped — the repair had needed a second for the
+     * evidence and a third for the hash accounting, and neither moved.
+     */
+    const derived = historyReplacementCommits();
+    expect(derived.length).toBeGreaterThanOrEqual(3);
+    expect(rendered).toContain(String(derived.length));
+    expect(rendered).toContain(derived.join(", "));
+    /* And the number in the document IS the length of the list beside it. */
+    const m = /([0-9]+) local-only commits above \S+ were replaced by ([0-9]+) on the same/.exec(
+      rendered.replace(/\s+/g, " "),
+    );
+    expect(m, "the replacement sentence must be rendered").not.toBeNull();
+    expect(Number(m?.[2])).toBe(derived.length);
+    /* The constant that went stale is gone. */
+    /*
+     * The constant that went stale is gone as a FIELD. It survives in the
+     * comment naming what it was, so this looks for a declaration rather than
+     * for the word anywhere in the file.
+     */
+    const facts = readFileSync(join(ROOT, "scripts", "release", "facts.ts"), "utf8");
+    expect(facts).not.toMatch(/^\s*replacementCommits:\s*[0-9]/m);
   });
 
   it("names the protected base and does not claim to have touched it", () => {
@@ -836,23 +886,23 @@ describe("delivery is not acceptance", () => {
      * every "unchanged since" line spanned the wrong interval.
      */
     const last = DELIVERED_ARCHIVES.at(-1)?.bundle ?? "";
-    expect(last).toBe("03f43a7");
+    expect(last).toBe("ab1f773");
     expect(baselineCommit().startsWith(last)).toBe(true);
   });
 
-  it("counts twenty-one delivered, seven rejected and none accepted", () => {
+  it("counts twenty-two delivered, eight rejected and none accepted", () => {
     /*
      * DERIVED, never written into prose. Each number is a different question —
      * how many went out, how many came back refused, how many anybody accepted
      * — and they were previously stated as sentences that went stale one at a
      * time.
      */
-    expect(DELIVERED_ARCHIVES).toHaveLength(21);
+    expect(DELIVERED_ARCHIVES).toHaveLength(22);
     const outcomes = DELIVERED_ARCHIVES.map((a) => outcomeOf(a.bundle));
-    expect(outcomes.filter((o) => o === "rejected")).toHaveLength(7);
+    expect(outcomes.filter((o) => o === "rejected")).toHaveLength(8);
     expect(outcomes.filter((o) => o === "accepted")).toHaveLength(0);
-    /* And the archive delivered at the start of this round is one of the seven. */
-    expect(outcomeOf("03f43a7")).toBe("rejected");
+    /* And the archive delivered at the start of this round is one of the eight. */
+    expect(outcomeOf("ab1f773")).toBe("rejected");
   });
 
   it("keeps the enumeration point where somebody actually looked", () => {

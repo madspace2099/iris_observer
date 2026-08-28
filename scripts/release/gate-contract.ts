@@ -1041,7 +1041,70 @@ export function cleanProcessProblems(
     problems.push(`${label}: spawn error ${p.errorCode}`);
   }
 
+  /*
+   * AND THE FOUR FIELDS MUST DESCRIBE EXACTLY ONE OUTCOME.
+   *
+   * A process ends in one of three ways and each has a distinct shape:
+   *
+   *   normal exit      integer status, null signal, null errorCode
+   *   signalled        null status,    a signal,    null errorCode
+   *   spawn failure    null status,    null signal, an errorCode
+   *
+   * Checking the fields INDIVIDUALLY, as this did, accepts combinations no
+   * process can produce — a status AND a signal, or a signal AND a spawn error,
+   * or all three null, which is a process that neither ran nor failed to start.
+   * Each is a record describing something that did not happen.
+   */
+  problems.push(...processShapeProblems(p, label, check));
   return problems;
+}
+
+/**
+ * Every reason the four process fields do not describe one real outcome.
+ *
+ * Structural, not acceptance: a red record is held to this too, because what
+ * happened has to be answerable before whether it was acceptable means anything.
+ */
+export function processShapeProblems(
+  p: RecordedProcess,
+  label: string,
+  check?: RecordCheck,
+): readonly string[] {
+  if (!asks(check, "structure")) return [];
+  /* Absent fields are reported by the per-field checks; shape needs all four. */
+  if (p.status === undefined || p.signal === undefined || p.errorCode === undefined) return [];
+
+  const has = {
+    status: p.status !== null,
+    signal: p.signal !== null,
+    errorCode: p.errorCode !== null,
+  };
+  const shapes: readonly { readonly name: string; readonly ok: boolean }[] = [
+    { name: "a normal exit", ok: has.status && !has.signal && !has.errorCode },
+    { name: "termination by signal", ok: !has.status && has.signal && !has.errorCode },
+    { name: "a spawn failure", ok: !has.status && !has.signal && has.errorCode },
+  ];
+  const matched = shapes.filter((sh) => sh.ok);
+  if (matched.length !== 1) {
+    return [
+      `${label}: status, signal and errorCode do not describe one outcome ` +
+        `(status ${JSON.stringify(p.status)}, signal ${JSON.stringify(p.signal)}, ` +
+        `errorCode ${JSON.stringify(p.errorCode)}) — no process ends that way`,
+    ];
+  }
+
+  /*
+   * AND `ok` MUST AGREE WITH IT. A clean result is a normal exit with status
+   * zero and nothing else; anything else is not ok, whatever the field says.
+   */
+  const clean = has.status && p.status === 0 && !has.signal && !has.errorCode;
+  if (typeof p.ok === "boolean" && p.ok !== clean) {
+    return [
+      `${label}: ok is ${String(p.ok)} beside ${matched[0]?.name ?? ""}` +
+        `${clean ? "" : " that did not succeed"}`,
+    ];
+  }
+  return [];
 }
 
 /** Do two recorded process triples describe the same outcome? */
@@ -1553,6 +1616,26 @@ function recordProblems(
       if (value === undefined || value === null) structural.push(`${field} not recorded`);
       else if (!isCount(value)) structural.push(`${field} is not a count`);
       else if (value !== 0) acceptance.push(describe(value));
+    }
+
+    /*
+     * A RUNTIME-ERROR SUITE IS A FAILED SUITE.
+     *
+     * It is DERIVED by counting suites that failed while recording no failed
+     * assertion, so it is a subset of the failing suite results — and nothing
+     * checked that. A record claiming three runtime-error suites beside one
+     * failed suite result describes two different runs, and the boundary case
+     * (equal counts, every failure a hook or collection error) is the ordinary
+     * shape of a bad afternoon rather than something to refuse.
+     */
+    if (isCount(t.runtimeErrorSuites) && isCount(t.reportedFailedSuites)) {
+      if (t.runtimeErrorSuites > t.reportedFailedSuites) {
+        structural.push(
+          `${String(t.runtimeErrorSuites)} runtime-error suite(s) for ` +
+            `${String(t.reportedFailedSuites)} failed suite result(s) — a suite that failed ` +
+            "with no failed assertion is one that failed",
+        );
+      }
     }
 
     if (t.failedSuiteNames === undefined) {

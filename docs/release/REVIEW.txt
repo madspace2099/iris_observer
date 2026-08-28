@@ -148,9 +148,15 @@ led to it. Neither result is retracted by the repair.
   one case at a time. The declaration is removed and no exemption of any kind
   remains: no allowlist, no path exception, no commit-message exception.
 
-  WHAT THE REPAIR CHANGED. Nine local-only commits above {{PROTECTED_BASE}}
-  were replaced by one, on the same base. Nothing at or before that commit was
-  touched. Every commit replaced was local-only and unreachable from any
+  WHAT THE REPAIR CHANGED. {{HISTORY_REPLACED_COUNT}} local-only commits above
+  {{HISTORY_BASE}} were replaced by {{HISTORY_REPLACEMENT_COUNT}} on the same
+  base: {{HISTORY_REPLACEMENT_LIST}}. The count is DERIVED from the branch, and
+  it had to be: an earlier edition said "replaced by one" while three commits
+  were already there, because the repair needed a second for the evidence and a
+  third for the hash accounting and neither the sentence nor the constant beside
+  it moved. Old range {{HISTORY_OLD_RANGE}} at tree {{HISTORY_OLD_TREE}};
+  new range {{HISTORY_NEW_RANGE}} at tree {{HISTORY_NEW_TREE}}.
+  Nothing at or before that commit was touched. Every commit replaced was local-only and unreachable from any
   remote-tracking ref, which was proved before anything was rewritten. The
   superseded commits are no longer reachable from this branch or from any ref;
   no claim is made here that their objects were physically pruned.

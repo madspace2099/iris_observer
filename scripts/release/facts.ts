@@ -701,13 +701,55 @@ export const RED_GATE_ATTEMPTS: readonly RedGateAttempt[] = [
  */
 export const HISTORY_REPAIR = Object.freeze({
   protectedBase: "03f43a7",
+  /*
+   * HOW MANY COMMITS WERE REPLACED. A count of things that no longer exist on
+   * this branch cannot be derived from it, so it is declared — and it is the
+   * only number here that is.
+   */
   replacedCommits: 9,
-  replacementCommits: 1,
   /* Neither red result is retracted by the repair. */
   retractsGateResults: false,
   /* Neither red commit was ever handed over, so neither is a delivery. */
   affectsDeliveryCounts: false,
 });
+
+/**
+ * The commits that REPLACED them, derived from the branch rather than typed.
+ *
+ * ## The number this removes
+ *
+ * `replacementCommits: 1` was written into the declaration and "replaced by
+ * one" into the prose, and by the time the archive shipped there were three.
+ * The repair had needed a second commit for the evidence and a third for the
+ * hash accounting, and neither the constant nor the sentence moved with them.
+ *
+ * That is precisely the defect this apparatus exists to remove: a count typed
+ * beside the thing instead of taken from it. It is derived now, and the
+ * rendered prose says however many there are.
+ */
+export function historyReplacementCommits(): readonly string[] {
+  return git("log", "--format=%h", `${HISTORY_REPAIR.protectedBase}..HEAD`)
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .reverse();
+}
+
+/** The old and new ranges and tree identities, all derived. */
+export function historyRepairFacts(): Readonly<Record<string, string>> {
+  const replacements = historyReplacementCommits();
+  const base = HISTORY_REPAIR.protectedBase;
+  return {
+    HISTORY_BASE: base,
+    HISTORY_REPLACED_COUNT: String(HISTORY_REPAIR.replacedCommits),
+    HISTORY_REPLACEMENT_COUNT: String(replacements.length),
+    HISTORY_REPLACEMENT_LIST: replacements.join(", "),
+    HISTORY_OLD_RANGE: `${base}..ebeb916`,
+    HISTORY_NEW_RANGE: `${base}..${git("rev-parse", "--short", "HEAD")}`,
+    HISTORY_OLD_TREE: "799515f23a680f10b1f9c494f0f02ff23304ab40",
+    HISTORY_NEW_TREE: git("rev-parse", "HEAD^{tree}"),
+  };
+}
 
 export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   const head = git("rev-parse", "HEAD");
@@ -1003,7 +1045,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     RED_FIRST_RECORD: RED_GATE_ATTEMPTS[0]?.record ?? "UNKNOWN",
     RED_SECOND: RED_GATE_ATTEMPTS[1]?.commit ?? "UNKNOWN",
     RED_SECOND_RECORD: RED_GATE_ATTEMPTS[1]?.record ?? "UNKNOWN",
-    PROTECTED_BASE: HISTORY_REPAIR.protectedBase,
+    ...historyRepairFacts(),
     PATCH_SUMMARY: patchSummary(),
 
     /* Rendered from the declared state, so neither can drift from the other. */
