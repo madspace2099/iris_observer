@@ -585,7 +585,21 @@ export const PEPPER_STATE = Object.freeze({
  * mapping PASS back into a failure. It is its own STOP.
  */
 export const PRODUCTION_RUNTIME_STATE = Object.freeze({
-  state: "PRODUCTION_RUNTIME_CREDENTIALS_UNPROVEN",
+  /*
+   * ABSENT, NOT UNPROVEN, and the difference is what the screenshots show.
+   *
+   * "Unproven" is the right word when nobody looked. Here somebody did: the
+   * COMPLETE six-row project variable list was read and the Shared tab was read
+   * and found empty, so neither credential is in the applicable configuration.
+   * That is an observation of absence, which is a finding — and calling it
+   * unproven understates evidence that was actually gathered.
+   *
+   * It remains a STOP either way. What changes is what a reader is told to do:
+   * an unproven state asks for an observation, and an absent one asks for the
+   * values to be configured.
+   */
+  state: "PRODUCTION_RUNTIME_CREDENTIALS_ABSENT",
+  observedIn: "the complete project variable list and the empty Shared tab",
   verdict: "STOP" as const,
   missing: Object.freeze(["OPENAI_API_KEY", "SUPABASE_SECRET_KEY"]),
   observedOn: "2026-08-28",

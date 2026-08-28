@@ -271,6 +271,27 @@ describe("the staged evidence module is self-contained", () => {
  * sampler watches the tracked digest throughout. A single differing sample is
  * a failure, and it names the interval rather than the end state.
  */
+/**
+ * WHAT A SAMPLING WATCHER ESTABLISHES, AND WHAT IT DOES NOT.
+ *
+ * This was called "leaves every tracked byte untouched throughout", which is
+ * more than a sampler can know. A hundred-millisecond poll of two directories
+ * establishes:
+ *
+ *   - an initial whole-tree snapshot;
+ *   - the release directories at a series of checkpoints during the run;
+ *   - a final whole-tree snapshot;
+ *   - that no sampled checkpoint differed from the first.
+ *
+ * It does NOT establish continuity. A change made and undone between two
+ * samples is invisible to it, and a change outside the two watched directories
+ * is outside its scope entirely. The whole-tree comparison at either end covers
+ * the second gap for the end states and not for the interval.
+ *
+ * The case is still worth having — it is what caught a suite deleting a tracked
+ * file for a few hundred milliseconds — but it is named for the evidence it
+ * produces rather than for the conclusion somebody would like to draw.
+ */
 describe("the release suites do not disturb the tree they measure", () => {
   const ROOT_DIR = join(import.meta.dirname, "..", "..");
   const VITEST = join(ROOT_DIR, "node_modules", "vitest", "vitest.mjs");
@@ -330,7 +351,7 @@ describe("the release suites do not disturb the tree they measure", () => {
     ["declared order", SUITES],
     ["reverse order", [...SUITES].reverse()],
   ])(
-    "leaves every tracked byte untouched throughout, in %s",
+    "observes no change at the sampled checkpoints, in %s",
     async (_order, suites) => {
       /* The child run of these suites must not re-enter this case. */
       if (process.env[CHILD] === "1") return;
@@ -355,7 +376,7 @@ describe("the release suites do not disturb the tree they measure", () => {
               "run",
               ...suites,
               "--testNamePattern",
-              "^(?!.*untouched throughout).*",
+              "^(?!.*no change at the sampled checkpoints).*",
               /*
                * BOUNDED, because this runs INSIDE a four-worker suite. Eight
                * workers between parent and child is the load that made a

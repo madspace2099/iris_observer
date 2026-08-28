@@ -1868,8 +1868,13 @@ mapping failure.
 
   {{PRODUCTION_RUNTIME_LINE}}
 
-  The same complete project list, and the empty Shared tab, show neither of
-  those rows in the Production scope. Preview's runtime credential presence is
+  ABSENT, NOT MERELY UNPROVEN. "Unproven" is the right word when nobody looked.
+  Somebody did: the COMPLETE six-row project variable list was read and the
+  Shared tab was read and found empty, so neither credential is in the
+  applicable configuration. That is an observation of absence, which is a
+  finding, and calling it unproven understates evidence that was gathered. It
+  remains a STOP either way; what changes is the remedy, which is to configure
+  the values rather than to go and look again. Preview's runtime credential presence is
   recorded. PRODUCTION'S COMPLETENESS IS NOT ESTABLISHED, so Production
   deployment remains {{PRODUCTION_RUNTIME_VERDICT}} until its runtime
   credentials are established.
