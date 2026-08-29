@@ -31,6 +31,8 @@
 
   --od-good: #3ecf8e;
   --od-warn: #e8b339;
+  --od-warn-soft: rgb(232 179 57 / 10%);
+  --od-warn-line: rgb(232 179 57 / 32%);
   --od-weak: #f0616d;
   --od-unknown: #8d9bad;
 
@@ -96,6 +98,7 @@
 }
 
 .od-brand-name {
+  display: block;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -103,6 +106,7 @@
 }
 
 .od-brand-sub {
+  display: block;
   font-size: 11px;
   color: var(--od-text-3);
   letter-spacing: 0.06em;
@@ -171,7 +175,8 @@
 
 .od-soon {
   margin-left: auto;
-  font-size: 9.5px;
+  /* 10.5px, not 9.5: a label under ten pixels is decoration, not information. */
+  font-size: 10.5px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--od-text-3);
@@ -212,12 +217,14 @@
 }
 
 .od-workspace-name {
+  display: block;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.25;
 }
 
 .od-workspace-role {
+  display: block;
   font-size: 11px;
   color: var(--od-text-3);
 }
@@ -376,6 +383,15 @@
   border: 1px solid var(--od-line);
   border-radius: var(--od-radius);
   padding: 18px;
+  /*
+   * A grid item may not refuse to fit its own track.
+   *
+   * Grid and flex children default to min-width:auto, which is min-content,
+   * and the table bleed below adds 36px of negative margin to that figure.
+   * On a narrow viewport the panel then insisted on being wider than the
+   * column it sits in and took the page sideways with it.
+   */
+  min-width: 0;
 }
 
 .od-panel-head {
@@ -500,8 +516,57 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
+/*
+ * The unit table beside the channel comparison.
+ *
+ * Split at this ratio the table had 637px for 640px of columns, so the last
+ * one — the demand verdict, the column a person is actually reading for —
+ * was cut off at 1440. It gets the full width until there is room for both.
+ */
+.od-row-wide {
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (max-width: 1560px) {
+  .od-row-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .od-row-units {
   grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  /*
+   * The two panels in this row hold unrelated amounts of content — a
+   * twenty-four row table beside a three-row comparison. Stretched to match,
+   * the shorter one was two hundred pixels of empty panel; each takes the
+   * height it needs instead.
+   */
+  align-items: start;
+}
+
+/* Three facts read off the plotted array, sat under the chart. */
+.od-chart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 34px;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--od-line);
+}
+
+.od-chart-foot dt {
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--od-text-3);
+}
+
+.od-chart-foot dd {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--od-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------------------------- charts */
@@ -577,9 +642,24 @@
 
 /* --------------------------------------------------------------- funnel */
 
-.od-funnel {
+/*
+ * The funnel takes whatever height the chart beside it sets.
+ *
+ * Both panels in this row stretch to the taller of the two, and the chart is
+ * sized by its own aspect ratio, so which of them is taller changes with the
+ * viewport. Distributing the five stages through the space means neither
+ * panel ends in a band of empty background at any width.
+ */
+.od-row-2 > .od-panel {
   display: flex;
   flex-direction: column;
+}
+
+.od-funnel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
   gap: 9px;
 }
 
@@ -629,9 +709,43 @@
 /* --------------------------------------------------------------- tables */
 
 .od-table-scroll {
+  /*
+   * POSITIONED ON PURPOSE, not for layout.
+   *
+   * The screen-reader labels inside the table are position:absolute. An
+   * absolutely positioned box is clipped by an ancestor overflow only when
+   * that ancestor is itself positioned — so against a static scroll box they
+   * escaped to their static position inside the 640px-wide table and pushed
+   * the whole document to 600px at a 390px viewport. Visible symptom: the
+   * phone layout scrolled sideways with nothing visible out there.
+   */
+  position: relative;
   overflow-x: auto;
   margin: 0 -18px -18px;
   padding: 0 18px 18px;
+
+  /*
+   * SCROLL SHADOWS, so a cut column reads as more table rather than as a bug.
+   *
+   * With the detail drawer open at 1440 the table needs 766px and has 653.
+   * That is legitimate — it scrolls — but a column sliced down the middle at
+   * the panel edge looks like a layout fault. The two local-attachment covers
+   * scroll with the content and the two fixed shadows do not, so a shadow is
+   * visible exactly while there is something in that direction to reach, and
+   * disappears at each end.
+   */
+  background:
+    linear-gradient(to right, var(--od-panel) 42%, rgb(15 21 32 / 0%)) left center,
+    linear-gradient(to left, var(--od-panel) 42%, rgb(15 21 32 / 0%)) right center,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 42%), rgb(0 0 0 / 0%)) left center,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 42%), rgb(0 0 0 / 0%)) right center;
+  background-repeat: no-repeat;
+  background-size:
+    46px 100%,
+    46px 100%,
+    15px 100%,
+    15px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 
 .od-table {
@@ -753,17 +867,28 @@
   border: 1px solid var(--od-accent-line);
 }
 
+/*
+ * THREE FINDINGS ABREAST, not three full-width bands.
+ *
+ * Read as a stack, each finding was a 76ch measure with half a 1920px panel
+ * empty beside it — the page looked unfinished at exactly the width it will
+ * be presented at. Columns give the same measure and no dead space, and the
+ * count drops with the viewport so the measure never collapses.
+ */
+.od-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 30px;
+}
+
 .od-brief-item {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
+  align-content: start;
   gap: 12px;
-  padding: 14px 0;
+  padding: 14px 0 2px;
+  /* A rule per finding, which reads the same at one, two or three columns. */
   border-top: 1px solid var(--od-line);
-}
-
-.od-brief-item:first-of-type {
-  border-top: 0;
-  padding-top: 4px;
 }
 
 .od-brief-index {
@@ -853,6 +978,102 @@
   }
 }
 
+/* --------------------------------------------------- notices and failure */
+
+/*
+ * An answer, not an absence.
+ *
+ * Used where a panel has data to show and one thing it cannot show — the
+ * window with no attributed reservation in it. Stating that plainly is more
+ * useful than three zeroes beside three bars.
+ */
+.od-notice {
+  border: 1px solid var(--od-warn-line);
+  background: var(--od-warn-soft);
+  border-radius: var(--od-radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.od-notice strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--od-warn);
+}
+
+.od-notice p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--od-text-2);
+  max-width: 78ch;
+}
+
+.od-error {
+  max-width: 560px;
+  margin: 64px auto 0;
+  text-align: center;
+  padding: 34px 30px;
+}
+
+.od-error-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: var(--od-warn-soft);
+  border: 1px solid var(--od-warn-line);
+  color: var(--od-warn);
+  margin-bottom: 14px;
+}
+
+.od-error-title {
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.01em;
+  margin: 0 0 9px;
+}
+
+.od-error-text {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--od-text-2);
+  margin: 0 auto;
+  max-width: 52ch;
+}
+
+.od-error-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.od-error-note {
+  font-size: 11px;
+  color: var(--od-text-3);
+  margin: 22px 0 0;
+}
+
+.od-btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 620;
+  color: #fff;
+  background: var(--od-accent);
+  border: 1px solid var(--od-accent);
+  border-radius: 8px;
+  padding: 8px 15px;
+  cursor: pointer;
+}
+
+.od-btn:hover {
+  background: #3aa0ff;
+}
+
 /* --------------------------------------------------------------- drawer */
 
 .od-drawer {
@@ -861,6 +1082,26 @@
   align-self: start;
   max-height: calc(100vh - 104px);
   overflow-y: auto;
+
+  /*
+   * The vertical form of the table shadows: the drawer is taller than the
+   * viewport for most units, and an event list that simply stops at the panel
+   * edge reads as a clipped panel rather than as a list that continues.
+   */
+  background:
+    linear-gradient(to bottom, var(--od-panel) 38%, rgb(15 21 32 / 0%)) center top,
+    linear-gradient(to top, var(--od-panel) 38%, rgb(15 21 32 / 0%)) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 42%), rgb(0 0 0 / 0%)) center top,
+    radial-gradient(farthest-side at 50% 100%, rgb(0 0 0 / 42%), rgb(0 0 0 / 0%)) center bottom,
+    var(--od-panel);
+  background-repeat: no-repeat;
+  background-size:
+    100% 42px,
+    100% 42px,
+    100% 14px,
+    100% 14px,
+    auto;
+  background-attachment: local, local, scroll, scroll, scroll;
 }
 
 .od-drawer-head {
@@ -948,10 +1189,12 @@
 }
 
 .od-event-detail {
+  display: block;
   color: var(--od-text);
 }
 
 .od-event-meta {
+  display: block;
   color: var(--od-text-3);
   font-size: 11px;
   margin-top: 2px;
@@ -1133,14 +1376,28 @@
   border-radius: 6px;
 }
 
+/*
+ * Present to a screen reader, absent from the layout.
+ *
+ * PINNED TO THE ORIGIN rather than left at its static position. A label like
+ * "Orientation" sits, in flow, wherever its control sits — inside a table
+ * that is 640px wide on a 390px phone, that static position is off-screen,
+ * and an absolutely positioned box escapes an ancestor overflow unless that
+ * ancestor is itself positioned. The result was a phone layout that scrolled
+ * sideways onto 400px of nothing. Anchored at the containing block origin it
+ * cannot push the document at any width, whatever it is nested in.
+ */
 .od-visually-hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;
   margin: -1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -1160,6 +1417,30 @@
 @media (max-width: 1500px) {
   .od-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1500px) {
+  .od-brief-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 24px;
+  }
+}
+
+@media (max-width: 900px) {
+  .od-brief-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * A panel heading and its controls stop sharing a line once the heading has
+ * no room left. Below this the description was rendering as a six-word-wide
+ * column beside the chips.
+ */
+@media (max-width: 760px) {
+  .od-panel-head {
+    flex-direction: column;
   }
 }
 
@@ -1189,7 +1470,9 @@
   }
 
   .od-side {
-    position: static;
+    /* Positioned, not static: it is a scroll container on a phone and the
+     * hidden labels inside it must resolve against it. */
+    position: relative;
     height: auto;
     flex-direction: row;
     align-items: center;
@@ -1198,6 +1481,28 @@
     padding: 12px 16px;
     border-right: 0;
     border-bottom: 1px solid var(--od-line);
+
+    /* The strip holds more than a phone is wide. The same shadows the tables
+     * use say so, rather than the last destination simply ending at the edge. */
+    background:
+      linear-gradient(to right, var(--od-bg-tint) 40%, rgb(8 11 17 / 0%)) left center,
+      linear-gradient(to left, var(--od-bg) 40%, rgb(8 11 17 / 0%)) right center,
+      radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 45%), rgb(0 0 0 / 0%)) left center,
+      radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 45%), rgb(0 0 0 / 0%)) right center,
+      var(--od-bg);
+    background-repeat: no-repeat;
+    background-size:
+      44px 100%,
+      44px 100%,
+      14px 100%,
+      14px 100%,
+      auto;
+    background-attachment: local, local, scroll, scroll, scroll;
+  }
+
+  /* Two words on one line; the strip is short enough without a wrap in it. */
+  .od-brand-name {
+    white-space: nowrap;
   }
 
   .od-navgroup {

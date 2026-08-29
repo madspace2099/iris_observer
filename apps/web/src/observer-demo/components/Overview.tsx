@@ -37,6 +37,16 @@ export function Overview() {
   const brief = DEMO_INSIGHTS.slice(0, 3);
   const maxChannel = Math.max(1, ...channels.map((c) => c.sessions));
 
+  /*
+   * A window can hold observed activity and no attributed outcome at all.
+   *
+   * Shown as a labelled state rather than as three zeroes: a zero beside a bar
+   * reads as a measurement, and the honest reading is that nothing was linked.
+   * Reachable on the Buda Terrace release with the channel set to Web IRIS.
+   */
+  const attributed = stages.find((stage) => stage.key === "reserved")?.value ?? 0;
+  const linked = channels.reduce((total, c) => total + c.linkedJourneys, 0);
+
   return (
     <>
       <div className="od-kpis">
@@ -90,39 +100,41 @@ export function Overview() {
           </>
         }
       >
-        {brief.map((insight, i) => (
-          <article className="od-brief-item" key={insight.id}>
-            <span className="od-brief-index" aria-hidden="true">
-              {i + 1}
-            </span>
-            <div>
-              <h3 className="od-brief-title">{insight.title}</h3>
-              <p className="od-brief-text">
-                <strong style={{ color: "var(--od-text)" }}>Observed. </strong>
-                {insight.measurement}
-              </p>
-              <p className="od-brief-text">{insight.whyItMatters}</p>
-              <p className="od-brief-action">{insight.recommendation}</p>
-              <div className="od-brief-foot">
-                <Chip
-                  tone={
-                    insight.evidence === "association"
-                      ? "warn"
-                      : insight.evidence === "attributed-conversion"
-                        ? "good"
-                        : "accent"
-                  }
-                >
-                  {EVIDENCE_LABEL[insight.evidence]}
-                </Chip>
-                <Chip>{insight.subject}</Chip>
+        <div className="od-brief-grid">
+          {brief.map((insight, i) => (
+            <article className="od-brief-item" key={insight.id}>
+              <span className="od-brief-index" aria-hidden="true">
+                {i + 1}
+              </span>
+              <div>
+                <h3 className="od-brief-title">{insight.title}</h3>
+                <p className="od-brief-text">
+                  <strong style={{ color: "var(--od-text)" }}>Observed. </strong>
+                  {insight.measurement}
+                </p>
+                <p className="od-brief-text">{insight.whyItMatters}</p>
+                <p className="od-brief-action">{insight.recommendation}</p>
+                <div className="od-brief-foot">
+                  <Chip
+                    tone={
+                      insight.evidence === "association"
+                        ? "warn"
+                        : insight.evidence === "attributed-conversion"
+                          ? "good"
+                          : "accent"
+                    }
+                  >
+                    {EVIDENCE_LABEL[insight.evidence]}
+                  </Chip>
+                  <Chip>{insight.subject}</Chip>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))}
+        </div>
       </Panel>
 
-      <div className="od-row od-row-units">
+      <div className="od-row od-row-wide">
         <Panel
           title="Unit demand"
           note="The eight units drawing the most detail views in this window. Views and favourites sum to the summary cards above."
@@ -191,8 +203,27 @@ export function Overview() {
 
         <Panel
           title="Channel comparison"
-          note="Web IRIS and Showroom are not two halves of one number. Activity that matched no journey is shown as its own category rather than divided between them."
+          note="Both channels are always shown here, whatever the channel filter selects, because the point of the panel is the comparison. Web IRIS and Showroom are not two halves of one number: activity that matched no journey is its own category rather than something divided between them."
         >
+          {attributed === 0 && (
+            <div className="od-notice" role="status">
+              <strong>
+                No attributed reservations
+                {selection.channel === "all" ? "" : ` on ${CHANNEL_LABEL[selection.channel]}`} in
+                this window
+              </strong>
+              <p>
+                Sessions were observed, but none of them reached a reservation that could be tied
+                back to an observed journey. The rows below cover both channels, so a figure there
+                may be higher than this one.{" "}
+                {linked === 0
+                  ? "No journey was linked across the two channels either."
+                  : `${formatCount(linked)} journeys were still linked across the two channels.`}{" "}
+                The session counts below are unaffected — they are counted, not attributed.
+              </p>
+            </div>
+          )}
+
           <div className="od-channels">
             {channels.map((c) => (
               <div className="od-channel" key={c.channel}>

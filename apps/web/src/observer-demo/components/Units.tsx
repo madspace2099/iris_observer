@@ -335,7 +335,7 @@ function UnitDetail({ row, onClose }: { row: UnitDemand; onClose: () => void }) 
       <h3 className="od-panel-title" style={{ fontSize: 12.5, marginTop: 16, marginBottom: 8 }}>
         Views over time
       </h3>
-      <DemandChart series={series} height={140} />
+      <DemandChart series={series} height={215} />
 
       <h3 className="od-panel-title" style={{ fontSize: 12.5, marginTop: 18, marginBottom: 8 }}>
         Channel breakdown

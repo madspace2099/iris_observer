@@ -149,7 +149,7 @@ export function KpiCard({ metric }: { metric: MetricCardValue }) {
  */
 export function DemandChart({
   series,
-  height = 260,
+  height = 420,
 }: {
   series: readonly SeriesPoint[];
   height?: number;
@@ -188,6 +188,19 @@ export function DemandChart({
 
   /* Four gridlines. More would compete with the data for attention. */
   const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f));
+
+  /*
+   * The busiest and quietest days in the window.
+   *
+   * Read off the same array the chart plots, so they cannot disagree with it.
+   * Both are stated as counts on dates: which day was busiest is a fact, and
+   * nothing here says why it was.
+   */
+  const totals = series.map((d) => d.web + d.showroom);
+  const peakAt = totals.indexOf(Math.max(...totals));
+  const lowAt = totals.indexOf(Math.min(...totals));
+  const peak = series[peakAt];
+  const low = series[lowAt];
   const point = hover === null ? undefined : series[hover];
 
   return (
@@ -317,6 +330,27 @@ export function DemandChart({
           <i className="od-swatch" style={{ background: "#3ecf8e" }} /> Showroom
         </span>
       </div>
+
+      {peak !== undefined && low !== undefined && (
+        <dl className="od-chart-foot">
+          <div>
+            <dt>Busiest day</dt>
+            <dd>
+              {peak.date} · {formatCount(peak.web + peak.showroom)} sessions
+            </dd>
+          </div>
+          <div>
+            <dt>Quietest day</dt>
+            <dd>
+              {low.date} · {formatCount(low.web + low.showroom)} sessions
+            </dd>
+          </div>
+          <div>
+            <dt>Days in window</dt>
+            <dd>{series.length}</dd>
+          </div>
+        </dl>
+      )}
     </div>
   );
 }
