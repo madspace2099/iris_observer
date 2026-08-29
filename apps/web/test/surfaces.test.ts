@@ -112,9 +112,17 @@ describe("no component reads fixtures directly", () => {
       .filter((file) => readFileSync(file, "utf8").includes("@observer/synthetic"))
       .map((file) => file.slice(resolve(import.meta.dirname, "..").length).replace(/\\/g, "/"));
 
-    // Only the composition root and the session adapter. A surface that needs
-    // agents, units or meetings asks the repository port for them.
-    expect(offenders.sort()).toEqual(["/src/lib/repository.ts", "/src/lib/session.ts"]);
+    /*
+     * Only the composition root, the session adapter and the account directory.
+     * The directory is where an account becomes a viewer, so it is the one
+     * other place that may name the synthetic world; a surface that needs
+     * agents, units or meetings asks the repository port for them.
+     */
+    expect(offenders.sort()).toEqual([
+      "/src/lib/accounts.ts",
+      "/src/lib/repository.ts",
+      "/src/lib/session.ts",
+    ]);
   });
 
   it("has no mock data module anywhere in the application", () => {
