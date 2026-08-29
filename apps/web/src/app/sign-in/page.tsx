@@ -25,6 +25,10 @@ export const metadata: Metadata = { title: "Sign in" };
  * ACCOUNT, and what that account may see is read from the account on the
  * server, never from anything the browser sends.
  *
+ * The flow is ACCOUNT then PROJECTS then OBSERVER. There is no step between
+ * this page and the project list: the profile screen is not on the way, not
+ * behind a redirect, and not reachable from any route the product serves.
+ *
  * The composition is the MADSPACE Client Portal sign-in, transcribed from the
  * reference build: two equal columns, a 48px inset, the four-stage scrim, a
  * 360px form on the warm off-white, and the same nine-part anatomy — eyebrow,
@@ -46,7 +50,7 @@ export default async function SignIn({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  /* Already signed in: the picker is gone, so the destination is the projects. */
+  /* Already signed in: the destination is the projects, and only the projects. */
   if ((await currentAccount()) !== null) {
     redirect(dynamicRoute(safeReturnTo(first("returnTo")) ?? "/projects"));
   }
@@ -100,10 +104,16 @@ export default async function SignIn({
       </a>
 
       <div className="mp-login">
+        {/*
+          The reference hero, asset for asset: the MADSPACE founders portrait,
+          the white mark, the four-stage scrim and the caption block. Only the
+          line is Observer's rather than the portal's, because the sentence is
+          the one thing on this panel that describes the product behind it.
+        */}
         <LoginHero
-          eyebrow="MADSPACE"
           line="One record of what happened in the showroom, for every development."
-          note="Observer reads what buyers did — it does not guess what they wanted."
+          captionLabel="Meet our founders"
+          captions={FOUNDERS}
         />
 
         <main className="mp-login-panel" id="main" tabIndex={-1}>
@@ -234,6 +244,19 @@ export default async function SignIn({
     </div>
   );
 }
+
+/**
+ * Who is in the photograph.
+ *
+ * MADSPACE's founders, and MADSPACE builds Observer — so this is the product's
+ * own front door, not another product's marketing carried across. It sits here
+ * beside the hero call rather than inside the component: when the photograph is
+ * replaced, the caption is replaced with it, in the same edit.
+ */
+const FOUNDERS = Object.freeze([
+  { name: "Máté Asbóth, Ing. arch.", role: "Co-founder, MADSPACE" },
+  { name: "Dávid Minárik, Ing.", role: "Co-founder, MADSPACE" },
+]);
 
 /**
  * What a reader is told, and what they are not.

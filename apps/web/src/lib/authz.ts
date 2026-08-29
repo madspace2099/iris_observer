@@ -1,7 +1,6 @@
 import "server-only";
 
 import { redirect } from "next/navigation";
-import type { Role } from "@observer/metrics";
 import type { Viewer } from "@observer/readmodels";
 import { SURFACES } from "./routes";
 import { dynamicRoute } from "./href";
@@ -34,20 +33,27 @@ export function requireSurface(viewer: Viewer, key: string, root: string): void 
   if (!surface.requiresRole.includes(viewer.role)) redirect(dynamicRoute(`${root}/showroom`));
 }
 
-/**
- * Whether this role may see colleagues named beside one another.
+/*
+ * WHERE `mayCompareNamedColleagues` USED TO BE.
  *
- * The product's own promise, made on the sign-in screen: an agent gets their
- * own patterns, their briefs and their follow-ups, and **no league table**. A
- * comparison that names Monika beside Akhilesh is a performance ranking however
- * it is captioned, and it is not a sales agent's to read.
+ * It answered false for a sales agent. It was the written form of a rule the
+ * three enforcement points stated for themselves — the route, the read model
+ * and the comparison tool each carried their own role check rather than calling
+ * this — so it documented the doctrine without guarding anything.
  *
- * Aggregate, unnamed team figures are a different thing and stay permitted —
- * "you spend 2.2× the team's share of time in Shortlist" names nobody.
+ * ADR-0029 reversed the rule: the boundary is the project, not the role, and
+ * the project grant is checked before any of those three is reached, by
+ * `requireSurface` above and by the repository's project context.
+ *
+ * A predicate that can only answer true is not a control, so it was removed
+ * rather than left returning one. What it protected is protected still, one
+ * layer down and by the check that was always doing the work.
+ *
+ * Two things ADR-0029 did not open, recorded here because this is where a
+ * reader will look for them: nothing belonging to another project, at any
+ * scope; and not the IRIS rating, account administration, credentials, billing
+ * or a buyer's personal data, none of which is a colleague's working figure.
  */
-export function mayCompareNamedColleagues(role: Role): boolean {
-  return role === "developer" || role === "agency_manager" || role === "madspace_admin";
-}
 
 /**
  * The developers a viewer holds, for the portfolio switch.

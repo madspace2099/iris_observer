@@ -166,7 +166,19 @@ export const SESSION_COOKIE_OPTIONS = {
   maxAge: SESSION_TTL_MS / 1000,
 } as const;
 
-export const SIGN_IN_OPTIONS: readonly { key: ViewerKey; viewer: Viewer; blurb: string }[] = [
+/**
+ * The design laboratory's profile list — NOT A SIGN-IN.
+ *
+ * It was called `SIGN_IN_OPTIONS` while a profile picker stood at `/sign-in`
+ * and minting a session was what choosing one did. Neither is true: the way in
+ * is `/sign-in` then `/projects`, and the only page that reads this list is
+ * `/lab/sign-in`, which is internal, MADSPACE-only and renders a component
+ * rather than authenticating anybody.
+ *
+ * The blurbs describe what each capacity sees, because a picker that says only
+ * "Sales agent" makes a reader guess at the difference between the entries.
+ */
+export const LAB_PROFILES: readonly { key: ViewerKey; viewer: Viewer; blurb: string }[] = [
   {
     key: "developer",
     viewer: VIEWERS.developer,
@@ -181,7 +193,7 @@ export const SIGN_IN_OPTIONS: readonly { key: ViewerKey; viewer: Viewer; blurb: 
   {
     key: "salesAgent",
     viewer: VIEWERS.salesAgent,
-    blurb: "Runs the meetings. Gets briefs and follow-ups, and no league table.",
+    blurb: "Runs the meetings. Sees their own project's team, and no other project.",
   },
   {
     key: "madspace",
@@ -203,5 +215,5 @@ export function viewerFor(key: ViewerKey): Viewer {
 
 /** Used by the design laboratory, which renders a viewer without a session. */
 export function isKnownViewerKey(value: string): value is ViewerKey {
-  return SIGN_IN_OPTIONS.some((option) => option.key === value);
+  return LAB_PROFILES.some((option) => option.key === value);
 }

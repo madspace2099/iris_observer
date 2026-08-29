@@ -1,4 +1,5 @@
 import { test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Review artefacts for the Showroom Intelligence surfaces.
@@ -11,12 +12,6 @@ const OUT =
   process.env["OBSERVER_SHOWROOM_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/showroom";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 async function shoot(page: Page, name: string, project: string) {
   await page.evaluate(() => document.fonts.ready);

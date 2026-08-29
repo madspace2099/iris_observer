@@ -34,17 +34,28 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   /*
-   * Sales Agents names colleagues beside one another.
+   * Sales Agents names colleagues beside one another, WITHIN ONE PROJECT.
    *
-   * The sign-in screen promises an agent their own patterns and no league
-   * table, and this surface is the league table. Enforced on the server by
-   * `requireSurface`, not by omitting a link — the route was reachable by
-   * typing it.
+   * This surface was closed to sales agents on the reasoning that a comparison
+   * naming colleagues is a performance ranking whoever reads it. That is now
+   * reversed for the people actually working a project together: an agent
+   * assigned to it sees every agent assigned to it, because the team's own
+   * figures are what a meeting is prepared against. ADR-0029 records the
+   * reversal and what it deliberately did not open.
+   *
+   * The boundary that did not move is the project. Two agents on the same
+   * project see one another; an agent on one project sees nothing of another,
+   * whether by this route, the read model, a tool call or Ask. And the IRIS
+   * rating stays MADSPACE-only — it is feedback on the software, and it is not
+   * part of what this opened.
+   *
+   * Enforced on the server by `requireSurface`, not by omitting a link — the
+   * route was reachable by typing it.
    */
   {
     route: "/[tenantSlug]/[projectSlug]/agents",
     audience: "internal",
-    requiresRole: ["developer", "agency_manager", "madspace_admin"],
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   {
     route: "/[tenantSlug]/[projectSlug]/audience",

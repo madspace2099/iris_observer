@@ -1062,7 +1062,8 @@ a {
  * structure — the sections are real, bounded objects — and drops the card
  * chrome that was doing the separating.
  *
- * A card is reserved for a genuine collection: the profile picker's people, a
+ * A card is reserved for a genuine collection: the project selector's
+ * developments, a
  * unit's own object. A fact is not a collection, and wrapping every fact in a
  * container is how density turns into a scrapbook.
  */

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The visual review set for Observer.
@@ -12,12 +13,6 @@ const OUT =
   process.env["OBSERVER_REVIEW_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/observer";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/showroom/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 /** Long enough for the cross-fade to land, short enough to keep the run quick. */
 async function settle(page: Page, ms = 1400) {

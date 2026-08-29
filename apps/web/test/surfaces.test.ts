@@ -145,13 +145,13 @@ describe("accessibility foundations", () => {
     expect(read("src/app/(app)/[tenantSlug]/[projectSlug]/layout.tsx")).toContain('id="main"');
     expect(read("src/app/madspace/page.tsx")).toContain('id="main"');
     /*
-     * Sign-in renders the profile picker, which owns its own `<main>`.
-     *
-     * Asserted where the landmark actually lives rather than on the route that
-     * composes it — a page that delegates its whole shell to a component has
-     * no markup of its own to check.
+     * The two portal surfaces mark their own landmark. Sign-in no longer
+     * delegates its shell to the profile picker — that component renders only
+     * in the laboratory now — so the landmark is asserted on the pages
+     * themselves.
      */
-    expect(read("src/showroom/ProfilePicker.tsx")).toContain('id="main"');
+    expect(read("src/app/sign-in/page.tsx")).toContain('id="main"');
+    expect(read("src/app/projects/page.tsx")).toContain('id="main"');
   });
 
   it("labels the primary navigation and marks the current page", () => {

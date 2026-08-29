@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 import { BURST } from "./limits";
 
 /**
@@ -24,11 +25,6 @@ function body(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/showroom/);
-}
 
 test.describe("Ask Observer's API boundary", () => {
   test("refuses an unauthenticated caller", async ({ request }) => {

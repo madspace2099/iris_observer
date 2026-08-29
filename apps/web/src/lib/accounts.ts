@@ -85,6 +85,11 @@ export interface Account {
  * Each maps to a viewer whose `projectIds` are the explicit grants the Projects
  * page is generated from — a sales agent assigned to one project has one entry
  * in that list and therefore one card.
+ *
+ * Two of them are sales agents on purpose. One holds a single project and one
+ * holds two, from developers who compete with each other, so the difference
+ * between "what this role may see" and "what this ACCOUNT was granted" is
+ * visible rather than argued.
  */
 const DIRECTORY: readonly Account[] = Object.freeze([
   {
@@ -104,6 +109,19 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "monika.kovacova@meridian-sales.example",
     displayName: VIEWERS.salesAgent.displayName,
     viewerKey: "salesAgent",
+  },
+  /*
+   * The same role as Monika, and a different answer, which is the point.
+   *
+   * Two explicit grants, one from each of two competing developers. The
+   * Projects page therefore shows this account two cards and Monika one — from
+   * the same code, reading the same list, with nothing role-specific in it.
+   */
+  {
+    accountId: "acct_akhilesh",
+    email: "akhilesh.undev@meridian-sales.example",
+    displayName: VIEWERS.salesAgentDual.displayName,
+    viewerKey: "salesAgentDual",
   },
   {
     accountId: "acct_madspace",

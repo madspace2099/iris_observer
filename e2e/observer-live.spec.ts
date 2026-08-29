@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Is the model actually answering on this deployment?
@@ -24,12 +25,6 @@ test.describe("the model is answering", () => {
     "One viewport. This is about the answer, not the layout.",
   );
 
-  async function signInAs(page: Page, name: string) {
-    await page.goto("/sign-in");
-    await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-    await page.waitForURL(/\/showroom/);
-    await page.evaluate(() => document.fonts.ready);
-  }
 
   /*
    * The label that says who wrote the prose — not merely the first one.

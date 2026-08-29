@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Layout integrity, measured rather than looked at.
@@ -33,11 +34,6 @@ const SURFACES = [
   "meetings",
 ] as const;
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
 /**
  * Elements whose own box is narrower than their content.

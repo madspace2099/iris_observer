@@ -9,7 +9,6 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
-import { NotPermittedError } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 
 /**
@@ -202,16 +201,15 @@ const compareAgentFlows: ToolDefinition<
   }),
   async run(context, args) {
     /*
-     * The same rule as the surface, enforced in the tool.
+     * The same rule as the surface, which is now the project rather than the
+     * role (ADR-0029). A sales agent may ask this about the project they are
+     * looking at, and the project was resolved from their grants before this
+     * tool ran — so there is nothing left for a role check to add.
      *
-     * Asking Observer to compare two named colleagues is the league table by
-     * another route, and a control that exists only on the page it was written
-     * for is not a control. `NotPermittedError` is what the agent loop already
-     * turns into an honest refusal.
+     * The refusal that stood here was removed rather than relaxed: a tool that
+     * answers what its own surface refuses, or refuses what its surface
+     * answers, is the inconsistency this comment used to warn about.
      */
-    if (context.viewer.role === "sales_agent") {
-      throw new NotPermittedError("a comparison of named colleagues");
-    }
 
     const view = await repository.getPresentationIntelligence(query(context), {
       mode: "agents",

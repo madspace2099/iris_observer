@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The role matrix, and the period, exercised through the browser.
@@ -10,44 +11,54 @@ import { expect, test, type Page } from "@playwright/test";
  * by a test that only clicks the links it is offered.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
-test.describe("a sales agent gets no league table", () => {
-  test("is not offered the team comparison", async ({ page }) => {
+test.describe("a sales agent sees the team on their own project", () => {
+  /*
+   * The rule this block asserts was reversed by ADR-0029. It used to read "a
+   * sales agent gets no league table" and enforced a ROLE; the boundary is now
+   * the PROJECT, so the cases changed shape rather than being deleted — the
+   * half that still matters is the half about the project she does not hold.
+   */
+
+  test("is offered the team comparison for a project she holds", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     const nav = page.getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link", { name: "Sales Agents" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Sales Agents" })).toBeVisible();
   });
 
-  test("cannot reach it by typing the URL", async ({ page }) => {
+  test("reads every agent on that project, not only herself", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     await page.goto("/alpha/northgate/agents");
 
-    /*
-     * Sent back to their briefing, and the comparison never rendered.
-     *
-     * Hiding a nav item is a layout decision. The route was open to anyone who
-     * typed it, and the page showed every colleague's outcome mix side by side.
-     */
-    await page.waitForURL(/\/showroom/);
-    await expect(page.locator(".iris-rings")).toHaveCount(0);
-    await expect(page.getByText("Lucia Bartošová")).toHaveCount(0);
+    /* The surface rendered, rather than redirecting to the briefing. */
+    await expect(page).toHaveURL(/\/agents/);
+    await expect(page.locator(".iris-rings")).toHaveCount(1);
+
+    const named = await page.locator(".iris-ring-card h3").allInnerTexts();
+    expect(named.length, "more than one agent, or it is not a team view").toBeGreaterThan(1);
+    expect(named, "her own results are among them").toContain("Monika Kováčová");
+    expect(
+      named.some((n) => n !== "Monika Kováčová"),
+      "and so are somebody else's",
+    ).toBe(true);
   });
 
-  test("is not offered a question it may not have answered", async ({ page }) => {
+  test("still sees nothing of a project she does not hold", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
-    // Suggesting a comparison and then refusing it reads as a broken product
-    // rather than as a policy.
-    await expect(page.getByRole("button", { name: "Compare the sales agents" })).toHaveCount(0);
+    await page.goto("/beta/kingsford/agents");
+
+    /*
+     * The part of the old rule that did not change, and the one that was
+     * always doing the work. Peer visibility is bounded by the project.
+     */
+    const text = await page.evaluate(() => document.body.innerText);
+    expect(text).toMatch(/not available to your account/i);
+    expect(text).not.toMatch(/Kingsford Yard/);
+    await expect(page.locator(".iris-rings")).toHaveCount(0);
   });
 
   test("still gets their own patterns", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
-    // The promise is "no league table", not "no analysis".
     const nav = page.getByRole("navigation", { name: "Sections" });
     await expect(nav.getByRole("link", { name: "Briefing" })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Detail surfaces" })).toBeVisible();

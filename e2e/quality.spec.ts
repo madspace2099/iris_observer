@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The checks that keep M2.1's corrections from regressing.
@@ -7,12 +8,6 @@ import { expect, test, type Page } from "@playwright/test";
  * screen. Each of these was wrong once; each is now a test.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  // The front door is the Showroom overview since ADR-0023.
-  await page.waitForURL(/\/showroom/);
-}
 
 test.describe("typography", () => {
   test("actually renders in Manrope, not the system fallback", async ({ page }) => {
@@ -65,9 +60,12 @@ test.describe("session boundary", () => {
     ]);
     await page.goto("/alpha/northgate/showroom");
     await page.waitForURL(/\/sign-in/);
-    // The sign-in surface is the profile picker now; its heading says what the
-    // choice is for rather than naming the mechanism.
-    await expect(page.getByRole("heading", { name: /Each profile sees a different Observer/ })).toBeVisible();
+    // What arrives is the account sign-in — a credential form, not a list of
+    // people to pick from. A forged cookie lands exactly where an anonymous
+    // reader lands, with no shortcut past it and no profile step behind it.
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.getByLabel("Work email address")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
   });
 
   /*
@@ -128,10 +126,13 @@ test.describe("session boundary", () => {
      * "This is a scenario selector, not production authentication" told a
      * developer in a consultation that they were looking at scaffolding. The
      * demonstration status is still stated — it has to be — in product
-     * language.
+     * language: what the data is, and that the addresses on the screen are not
+     * credentials for anything real.
      */
-    await expect(page.getByText(/demonstration running on synthetic data/i)).toBeVisible();
+    await expect(page.getByText(/synthetic data/i).first()).toBeVisible();
+    await expect(page.getByText(/not credentials for anything real/i)).toBeVisible();
     await expect(page.getByText(/not production authentication/i)).toHaveCount(0);
+    await expect(page.getByText(/scenario selector/i)).toHaveCount(0);
   });
 });
 

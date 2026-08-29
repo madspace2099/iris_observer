@@ -119,6 +119,84 @@ describe("the generic three-page demo is not part of the application", () => {
   });
 });
 
+describe("the way in is account, then projects, then Observer", () => {
+  /*
+   * THE FLOW, PINNED.
+   *
+   * A reader signs in, lands on the projects their account was granted, and
+   * opens one. There is no profile-selection step in that sequence, and the
+   * component that used to provide one is confined to the design laboratory.
+   * Each of these fails if somebody puts it back.
+   */
+
+  const appFiles = walk(appDir).filter((f) => f.endsWith(".tsx"));
+  const outsideLab = appFiles.filter((f) => !f.replace(/\\/g, "/").includes("/lab/"));
+
+  it("renders the profile picker from exactly one route, and that route is the laboratory", () => {
+    const importers = appFiles
+      .filter((f) => readFileSync(f, "utf8").includes("ProfilePicker"))
+      .map((f) => f.slice(appDir.length).replace(/\\/g, "/"));
+    expect(importers).toEqual(["/lab/sign-in/page.tsx"]);
+  });
+
+  it("keeps the picker out of every product route", () => {
+    const offenders = outsideLab
+      .filter((f) => readFileSync(f, "utf8").includes("ProfilePicker"))
+      .map((f) => f.slice(appDir.length).replace(/\\/g, "/"));
+    expect(offenders).toEqual([]);
+  });
+
+  it("declares that laboratory route internal and MADSPACE-only", () => {
+    const lab = SURFACES.find((surface) => surface.route === "/lab/sign-in");
+    expect(lab?.audience).toBe("internal");
+    expect(lab?.requiresRole).toEqual(["madspace_admin"]);
+  });
+
+  it("serves a credential form at the sign-in, not a list of people", () => {
+    const signIn = readFileSync(join(appDir, "sign-in", "page.tsx"), "utf8");
+    expect(signIn).toContain('type="email"');
+    expect(signIn).toContain('type="password"');
+    expect(signIn).toContain("authenticate(");
+    expect(signIn).not.toContain("ProfilePicker");
+  });
+
+  it("sends an authenticated reader to the projects and never to a project", () => {
+    /*
+     * Both the root redirect and the already-signed-in branch of the sign-in
+     * resolve to /projects. The root used to pick a project on the reader's
+     * behalf, which hid the existence of the others.
+     */
+    const root = readFileSync(join(appDir, "page.tsx"), "utf8");
+    expect(root).toContain("/projects");
+    expect(root).not.toMatch(/showroom|northgate|tenantSlug/);
+
+    const signIn = readFileSync(join(appDir, "sign-in", "page.tsx"), "utf8");
+    expect(signIn).toContain('"/projects"');
+  });
+
+  it("describes the flow with no step between the account and the projects", () => {
+    /*
+     * The milestone was once reported as "account, then SUB" + "PROFILE, then
+     * Observer", which was never the flow that was built. The term is banned
+     * rather than corrected, so the wrong description cannot come back in a
+     * comment, a label or a heading.
+     *
+     * Assembled from two halves so this rule does not match itself; the file
+     * that owns a ban is the one file allowed to name what it bans.
+     */
+    const banned = new RegExp("sub" + "-?" + "profile", "i");
+    const src = resolve(import.meta.dirname, "../src");
+    const roots = [src, resolve(import.meta.dirname, ".")];
+    const offenders = roots
+      .flatMap((root) => walk(root))
+      .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx") || f.endsWith(".css"))
+      .filter((f) => f !== import.meta.filename)
+      .filter((f) => banned.test(readFileSync(f, "utf8")))
+      .map((f) => f.slice(resolve(import.meta.dirname, "..").length));
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("the navigation matches the reference", () => {
   it("keeps the four primary sections, in order", () => {
     expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);

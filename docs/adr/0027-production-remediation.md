@@ -50,7 +50,13 @@ measure.
 `SURFACES` declared which roles may open which screen and **nothing read it
 except the navigation builder**. A sales agent who typed
 `/alpha/northgate/agents` was shown every colleague's outcome mix side by side —
-the league table the sign-in screen promises they will not get.
+the league table the sign-in screen promised they would not get.
+
+> **Superseded in part by ADR-0029.** The enforcement described below stands and
+> is what makes the rest of this work; the _rule_ it enforced does not. A sales
+> agent now reads the Sales Agents surface for a project they hold. The boundary
+> is the project, not the role, and it is still enforced at the route, the read
+> model and the tool.
 
 `requireSurface` now runs on every project surface before anything is read. The
 read model refuses too, and so does the comparison tool, because a route is one

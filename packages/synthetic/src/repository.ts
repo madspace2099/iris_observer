@@ -337,17 +337,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const { context, current } = await this.slices(query);
 
     /*
-     * A sales agent may not read a named comparison of their colleagues.
+     * Every role that holds the project reads this, sales agents included
+     * (ADR-0029). The refusal that used to stand here was a ROLE check; the
+     * check that matters is the project one, and it has already happened —
+     * `this.slices` resolves the project through the viewer's grants and
+     * throws before any session is counted if the grant is missing.
      *
-     * Refused at the read model, not only at the route, because the route is
-     * one of several ways in — a tool call, a server action or a future export
-     * would each have to remember the rule separately. The product promises an
-     * agent "no league table" on the sign-in screen, and this is the league
-     * table.
+     * So there is no branch here at all, and that is the point: an agent on
+     * Northgate sees Northgate's agents because Northgate is theirs, and sees
+     * nothing of Kingsford because Kingsford is not.
      */
-    if (context.viewer.role === "sales_agent") {
-      throw new NotPermittedError("the team comparison");
-    }
 
     // The IRIS rating is feedback on the software, so only MADSPACE sees it.
     return buildAgentsView(context, current, context.viewer.role === "madspace_admin");

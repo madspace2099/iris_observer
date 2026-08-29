@@ -111,6 +111,30 @@ export const VIEWERS = {
     agentId: agentId("agt_monika0001"),
     organisationName: "Meridian Sales",
   },
+  /*
+   * A SECOND SALES AGENT, ASSIGNED TO TWO PROJECTS BY TWO DIFFERENT DEVELOPERS.
+   *
+   * Monika above is the single-project case, and a single-project agent cannot
+   * demonstrate the property that matters most about per-project grants: that
+   * holding two of them gives access to each SEPARATELY and never to the two
+   * combined. Akhilesh holds Northgate (Alpha Estates) and Kingsford Yard
+   * (Beta Development), which are competitors — so every read he makes must be
+   * scoped to whichever project he is looking at, and no surface may total,
+   * average or rank across the pair.
+   *
+   * He is a real name from the agent roster rather than an invention: the same
+   * person appears in Northgate's Sales Agents surface, which is what makes the
+   * peer-visibility case checkable.
+   */
+  salesAgentDual: {
+    userId: "usr_agent_akhilesh",
+    displayName: "Akhilesh Undev",
+    role: "sales_agent",
+    tenantIds: [tenantId("tnt_demoalpha01"), tenantId("tnt_demobeta002")],
+    projectIds: [projectId("prj_northgate01"), projectId("prj_beta0000001")],
+    agentId: agentId("agt_akhilesh"),
+    organisationName: "Meridian Sales",
+  },
   madspace: {
     userId: "usr_madspace_ops",
     displayName: "MADSPACE Operations",

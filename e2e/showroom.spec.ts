@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The Showroom Intelligence surfaces, asserted.
@@ -10,12 +11,6 @@ import { expect, test, type Page } from "@playwright/test";
  * measures.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/showroom/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 const ROUTES = [
   ["showroom overview", "/alpha/northgate/showroom"],

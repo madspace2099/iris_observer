@@ -45,6 +45,7 @@
   --surface-inset: rgb(17 17 17 / 4%);
   --surface-chip: rgb(17 17 17 / 7%);
   --surface-ph-1: #e9e7e3;
+  --surface-ph-2: #e0ddd8;
   --surface-ph-3: #d3cfc9;
 
   /* ------------------------------------------- borders, the six levels */
@@ -221,12 +222,45 @@
   margin: 0 0 28px;
 }
 
-.mp-hero-note {
+/*
+ * THE CAPTION UNDER THE HERO LINE.
+ *
+ * The reference's own figures: a 13px uppercase label at 0.16em, then the
+ * people in a row with a 40px gap, name at 17px and role at 14px. It wraps,
+ * because two names at a narrow column width are two lines and the reference
+ * says so with flex-wrap rather than by hoping.
+ */
+.mp-hero-caption {
   font-size: var(--text-caption);
-  color: var(--on-dark-a78);
-  line-height: 1.55;
-  max-width: 420px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-dark-a80);
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.mp-hero-people {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  list-style: none;
   margin: 0;
+  padding: 0;
+}
+
+.mp-hero-person-name {
+  display: block;
+  font-size: var(--text-value-2);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-on-dark);
+}
+
+.mp-hero-person-role {
+  display: block;
+  font-size: var(--text-body);
+  color: var(--on-dark-a78);
+  margin-top: 4px;
 }
 
 .mp-login-panel {
@@ -546,17 +580,29 @@
 }
 
 /*
- * The cover.
+ * The cover, and what stands there until there is a photograph.
  *
- * A tinted block when a project has no photograph, which every demonstration
- * project currently is. Sized by aspect ratio rather than by the image, so a
- * cover arriving later cannot change the grid.
+ * Every demonstration project is currently without one, so this shows the
+ * reference's own placeholder: a soft 150deg gradient across three placeholder
+ * tints, not a flat tile. A flat tile reads as an image that failed to load; a
+ * gradient reads as a surface waiting for one.
+ *
+ * Sized by aspect ratio rather than by the image, and the image is a custom
+ * property — so a cover arriving later changes neither the grid nor this rule.
  */
 .mp-cover {
   position: relative;
   aspect-ratio: 4 / 3;
   background-color: var(--surface-ph-1);
-  background-image: var(--cover-image, none);
+  background-image: var(
+    --cover-image,
+    linear-gradient(
+      150deg,
+      var(--surface-ph-1) 0%,
+      var(--surface-ph-2) 55%,
+      var(--surface-ph-3) 100%
+    )
+  );
   background-size: cover;
   background-position: center;
 }
@@ -663,12 +709,38 @@
     padding: 28px 24px;
   }
 
+  /*
+   * The band needs its own scrim, not the panel's.
+   *
+   * The four-stage gradient is tuned to a half-screen photograph: it stays
+   * almost clear until 32% and only deepens at 78%, which on a 220px band puts
+   * the copy across two faces at their brightest. Same idea, different
+   * distances — clear where the photograph is, dark where the words are.
+   */
+  .mp-hero-scrim {
+    background: linear-gradient(
+      180deg,
+      var(--scrim-hero-1) 0%,
+      var(--scrim-hero-2) 26%,
+      var(--scrim-hero-3) 62%,
+      var(--scrim-hero-4) 100%
+    );
+  }
+
   .mp-hero-line {
     font-size: var(--text-lead);
     margin-bottom: 0;
+    max-width: none;
   }
 
-  .mp-hero-note {
+  /*
+   * The caption goes with the half-screen photograph, not with the band.
+   * At 220px tall the panel holds a mark and a line; a name list under them
+   * would be three things fighting for the same 60px, and the names are not
+   * what a reader opened this page to do.
+   */
+  .mp-hero-caption,
+  .mp-hero-people {
     display: none;
   }
 

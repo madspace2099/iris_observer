@@ -13,9 +13,13 @@ export const metadata: Metadata = { title: "Projects" };
  * THE PROJECT SELECTOR.
  *
  * Where every account lands after signing in, and the only way into an Observer
- * workspace. It replaces two things: the profile picker, which asked people to
- * choose an identity they already had, and the root redirect, which chose a
- * project for them and hid the fact that there were others.
+ * workspace. The flow is ACCOUNT then PROJECTS then OBSERVER, with nothing
+ * between this page and the sign-in.
+ *
+ * It replaced two things: the profile picker, which asked people to choose an
+ * identity they already had and is now confined to the design laboratory, and
+ * the root redirect, which chose a project for them and hid the fact that there
+ * were others.
  *
  * ## Generated from grants, not filtered for display
  *
@@ -119,9 +123,14 @@ export default async function Projects() {
             {cards.map(({ tenant, project }) => (
               <li className="mp-card" key={project.id}>
                 {/*
-                  The scrim exists to hold a caption against a photograph.
-                  Without one it is a grey wash over a flat tile, so it only
-                  renders when there is an image beneath it to darken.
+                  The cover, one of the four things this card may carry.
+
+                  No project has a photograph yet, so it shows the reference's
+                  own placeholder gradient and waits for one — set through the
+                  --cover-image custom property when covers arrive, without
+                  touching this markup. The caption scrim is not rendered: it
+                  exists to hold text against a photograph, and over a
+                  placeholder it is a grey wash over a grey tile.
                 */}
                 <div className="mp-cover" />
 
