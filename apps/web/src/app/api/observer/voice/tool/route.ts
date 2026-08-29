@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ask, runTools } from "@/lib/ai/agent";
+import { resolveApiKey } from "@/lib/credentials/service";
 import { admittedHeaders, AskBodySchema, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { TOOL_NAMES } from "@/lib/ai/tools";
@@ -70,9 +71,13 @@ export async function POST(request: Request) {
         { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
       );
     }
+    /* The asking account's own key, resolved on the server at the last moment. */
+    const credential = await resolveApiKey(admitted.accountId);
+
     const outcome = await ask(
       parsed.data.question,
       admitted.context,
+      credential.ok ? credential.apiKey : null,
       AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
     );
     return NextResponse.json(

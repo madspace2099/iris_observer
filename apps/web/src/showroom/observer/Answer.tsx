@@ -1,6 +1,7 @@
 "use client";
 
 import { INSIGHT_SOURCE_LABELS } from "@observer/contracts";
+import { SETTINGS_PATH } from "@/lib/credentials/failure";
 
 import type { AskOutcome } from "./types";
 
@@ -104,6 +105,23 @@ export function ObserverAnswerPanel({
           <p className="obs-answer-role">
             Observer&rsquo;s reading{outcome.status.live ? "" : " · written by the tools"}
           </p>
+
+          {/*
+            THE ONE EVIDENCE-ONLY REASON A READER CAN FIX THEMSELVES.
+
+            Every other one is an operator's — the feature is off, the
+            deployment is misconfigured — so this is the only one that earns a
+            link. Everything else on the sheet is unchanged: the figures are
+            measured either way. This is a note, not a wall.
+          */}
+          {outcome.status.setupRequired && (
+            <p className="obs-answer-setup">
+              Written by the tools because your account has no OpenAI connection.{" "}
+              <a className="iris-action" href={SETTINGS_PATH}>
+                Add your OpenAI API key
+              </a>
+            </p>
+          )}
           <p className="obs-answer-said">{answer.interpretation}</p>
 
           {answer.recommendedActions.length === 0 ? null : (

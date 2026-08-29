@@ -3,6 +3,7 @@ import "server-only";
 import OpenAI from "openai";
 
 import { environment, type ReasoningEffort } from "@/lib/env";
+import { NO_ACCOUNT_CONNECTION } from "@/lib/credentials/failure";
 import { LIMITS, modelIsAllowed } from "./limits";
 
 /**
@@ -15,9 +16,10 @@ import { LIMITS, modelIsAllowed } from "./limits";
  * file imports the vendor SDK, and the types below are this product's, not
  * OpenAI's.
  *
- * **This module is server-only.** `OPENAI_API_KEY` is read from the process
- * environment, never prefixed `NEXT_PUBLIC_`, and a test asserts that no client
- * bundle can reach it.
+ * **This module is server-only.** It reads no credential from the environment
+ * at all: a key is handed in per request, resolved from the asking account
+ * (ADR-0030). Nothing here is prefixed `NEXT_PUBLIC_` and a test asserts that
+ * no client bundle can reach any of it.
  *
  * ## What this layer refuses to do
  *
@@ -376,13 +378,25 @@ function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
   return body;
 }
 
-function client(): OpenAI {
-  const key = process.env["OPENAI_API_KEY"];
-  if (key === undefined || key.length === 0) {
-    throw new ModelConfigurationError("openai: OPENAI_API_KEY is not set on the server");
+/**
+ * A client for ONE credential, built where the credential is known.
+ *
+ * It used to read `process.env["OPENAI_API_KEY"]` and return a client for
+ * whatever the deployment held. That is exactly the wrong shape once keys
+ * belong to accounts: a single ambient credential, resolved implicitly, shared
+ * by every caller, and impossible to attribute. The key is now a parameter, so
+ * a client cannot be constructed without saying whose it is.
+ *
+ * Not cached, and not module-level. A cached client is a cached credential, and
+ * a cached credential keyed by anything other than the account is how one
+ * reader's question gets billed to another reader's project.
+ */
+function client(apiKey: string): OpenAI {
+  if (apiKey.length === 0) {
+    throw new ModelConfigurationError("openai: no API key was supplied for this request");
   }
   return new OpenAI({
-    apiKey: key,
+    apiKey,
     // One attempt. The breaker in limits.ts handles the repeated case; an
     // automatic retry in front of a per-token vendor is an uncapped bill.
     maxRetries: 0,
@@ -390,7 +404,14 @@ function client(): OpenAI {
   });
 }
 
-export function openAiModel(model: string): ObserverModel {
+/**
+ * Binds a model to one account's credential.
+ *
+ * The returned object closes over `apiKey` and nothing else reads it. It is
+ * built per request, used, and dropped — there is no registry of models to
+ * accidentally look one up in, and no default instance to fall back to.
+ */
+export function openAiModel(model: string, apiKey: string): ObserverModel {
   if (!modelIsAllowed(model)) {
     throw new ModelConfigurationError(
       `openai: model "${model}" is not on this deployment's allowlist (OBSERVER_ALLOWED_MODELS)`,
@@ -408,7 +429,7 @@ export function openAiModel(model: string): ObserverModel {
         throw new ModelConfigurationError(`openai: model "${chosen}" is not on the allowlist`);
       }
       try {
-        const response = await client().responses.create(
+        const response = await client(apiKey).responses.create(
           buildBody(turn, chosen) as never,
           turn.signal === undefined ? undefined : { signal: turn.signal },
         );
@@ -440,7 +461,7 @@ export function openAiModel(model: string): ObserverModel {
 
       let stream;
       try {
-        stream = await client().responses.create(
+        stream = await client(apiKey).responses.create(
           { ...buildBody(turn, chosen), stream: true } as never,
           turn.signal === undefined ? undefined : { signal: turn.signal },
         );
@@ -496,6 +517,20 @@ export interface ModelStatus {
   readonly live: boolean;
   /** Operator-facing. Redacted before it leaves the server. */
   readonly reason: string | null;
+  /**
+   * WHETHER THE READER CAN FIX THIS THEMSELVES, AND SURVIVES REDACTION.
+   *
+   * `reason` is stripped on its way out because it names the vendor and can
+   * quote a request back. This is a boolean and says one thing only: the
+   * account asking has no OpenAI connection. It carries no vendor detail, no
+   * message and no configuration, so it is safe to serialise — and it is what
+   * lets the answer sheet offer a link instead of an unexplained silence.
+   *
+   * False for every operator-side reason. Being told to visit Settings when
+   * the problem is `OBSERVER_AI_ENABLED` would send a reader somewhere that
+   * cannot help them.
+   */
+  readonly setupRequired: boolean;
 }
 
 export type ModelResolution =
@@ -516,7 +551,20 @@ export type ModelResolution =
  *   become the evidence-only path, because a deployment that believes it is
  *   running a model should never be quietly running a template.
  */
-export function resolveModel(): ModelResolution {
+/**
+ * Resolves the model for ONE account's credential.
+ *
+ * `apiKey` is null when the account that is asking has no connection, when the
+ * server cannot store credentials at all, or when a stored credential would not
+ * decrypt. Every one of those ends the same way — evidence-only — because the
+ * alternative is answering on somebody else's key.
+ *
+ * There is deliberately no branch that reads `process.env["OPENAI_API_KEY"]`.
+ * A deployment-wide key was the whole previous design; keeping it as a fallback
+ * would mean an account that declined to connect still spends MADSPACE's money,
+ * and no test could tell the two paths apart from the outside.
+ */
+export function resolveModel(apiKey: string | null): ModelResolution {
   const env = environment();
 
   if (!env.ai.enabled) {
@@ -528,11 +576,12 @@ export function resolveModel(): ModelResolution {
         model: "none",
         live: false,
         reason: "OBSERVER_AI_ENABLED is false",
+        setupRequired: false,
       },
     };
   }
 
-  if (!env.ai.keyConfigured) {
+  if (apiKey === null || apiKey.length === 0) {
     return {
       ok: false,
       configurationFault: false,
@@ -540,17 +589,24 @@ export function resolveModel(): ModelResolution {
         provider: "evidence-only",
         model: "none",
         live: false,
-        reason: "no model key is configured",
+        reason: NO_ACCOUNT_CONNECTION,
+        setupRequired: true,
       },
     };
   }
 
   try {
-    const model = openAiModel(env.ai.textModel);
+    const model = openAiModel(env.ai.textModel, apiKey);
     return {
       ok: true,
       model,
-      status: { provider: model.id, model: model.model, live: true, reason: null },
+      status: {
+        provider: model.id,
+        model: model.model,
+        live: true,
+        reason: null,
+        setupRequired: false,
+      },
     };
   } catch (error) {
     return {
@@ -561,6 +617,7 @@ export function resolveModel(): ModelResolution {
         model: env.ai.textModel,
         live: false,
         reason: error instanceof Error ? error.message : "the model provider is misconfigured",
+        setupRequired: false,
       },
     };
   }

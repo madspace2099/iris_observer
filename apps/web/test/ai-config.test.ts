@@ -113,10 +113,26 @@ describe("the model configuration", () => {
     expect(env.ai.reasoningEffort).toBe("medium");
   });
 
-  it("says so when the feature is on and no key is set", () => {
+  it("says so when the feature is on and no account can hold a credential", () => {
+    /*
+     * The sentence changed with the ownership model (ADR-0030). A missing
+     * ambient key is no longer the reason Ask falls back — there is no ambient
+     * key any more. The reason is that this server cannot store one for
+     * anybody: no encryption key, no Supabase, or neither.
+     */
     const env = withEnv({ OBSERVER_AI_ENABLED: "true" });
-    expect(env.ai.keyConfigured).toBe(false);
-    expect(env.problems.join(" ")).toMatch(/OPENAI_API_KEY is not set/);
+    expect(env.ai.credentialsReady).toBe(false);
+    expect(env.problems.join(" ")).toMatch(/cannot store account credentials/);
+  });
+
+  it("says an ambient key is now unread, so somebody removes it", () => {
+    /*
+     * A credential nobody reads is a credential nobody rotates. Setting
+     * OPENAI_API_KEY buys a deployment nothing and can only leak, so the
+     * report calls it out rather than ignoring it.
+     */
+    const env = withEnv({ OPENAI_API_KEY: "sk-not-a-real-key-for-tests" });
+    expect(env.problems.join(" ")).toMatch(/no longer read/);
   });
 
   it("never returns the key, only whether there is one", () => {
@@ -164,10 +180,16 @@ describe("the voice layer reports why it is off", () => {
     expect(voiceBlocker()?.detail).toMatch(/OBSERVER_VOICE_ENABLED/);
   });
 
-  it("names the missing key when there is no key", () => {
+  it("no longer answers the credential question, because it is per account", () => {
+    /*
+     * Whether a key exists is now a question about the ASKING ACCOUNT, and this
+     * function has no account. It answers only what the deployment forbids —
+     * the feature switched off, or a voice model outside the allowlist — and
+     * the route checks the account's own connection immediately before minting
+     * a client secret.
+     */
     withEnv({ OBSERVER_VOICE_ENABLED: "true" });
-    expect(voiceBlocker()?.kind).toBe("not_configured");
-    expect(voiceBlocker()?.detail).toMatch(/OPENAI_API_KEY/);
+    expect(voiceBlocker()).toBeNull();
   });
 
   it("names the model when the model is not permitted", () => {
@@ -190,7 +212,10 @@ describe("the voice layer reports why it is off", () => {
      * was unset on the server. `publicBlocker` is what the route sends, and
      * this is the assertion that it carries nothing to act on.
      */
-    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
+    withEnv({
+      OBSERVER_VOICE_ENABLED: "true",
+      OPENAI_VOICE_MODEL: "gpt-realtime-experimental",
+    });
     const blocker = voiceBlocker();
     const publicHalf = publicBlocker(blocker);
 
@@ -201,14 +226,17 @@ describe("the voice layer reports why it is off", () => {
   });
 
   it("says the same reader-facing sentence whichever the reason", () => {
-    // Three operator tasks, one thing the reader needs to know.
+    // Two operator tasks, one thing the reader needs to know.
     withEnv({ OBSERVER_VOICE_ENABLED: "false" });
     const off = voiceBlocker()?.reader;
-    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
-    const noKey = voiceBlocker()?.reader;
+    withEnv({
+      OBSERVER_VOICE_ENABLED: "true",
+      OPENAI_VOICE_MODEL: "gpt-realtime-experimental",
+    });
+    const wrongModel = voiceBlocker()?.reader;
 
     expect(off).toBeDefined();
-    expect(off).toBe(noKey);
+    expect(off).toBe(wrongModel);
   });
 
   it("is available when everything is set", () => {

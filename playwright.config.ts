@@ -126,6 +126,44 @@ export default defineConfig({
             OBSERVER_ASK_PER_VIEWER_PER_DAY: String(ASK_PER_VIEWER_PER_DAY),
             OBSERVER_ASK_PER_INSTANCE_PER_DAY: String(ASK_PER_INSTANCE_PER_DAY),
             OBSERVER_BREAKER_THRESHOLD: String(BREAKER_THRESHOLD),
+
+            /*
+             * NO PROVIDER CREDENTIAL REACHES THE SERVER THIS SUITE STARTS.
+             *
+             * Blanked rather than merely unset, because `env` here is merged
+             * over the parent process and this workstation has had a live key
+             * exported before — a suite run inherited it and billed real
+             * requests against it. An empty string is not a key, so the model
+             * layer refuses in exactly the way a production deployment does.
+             *
+             * The credential store is left unconfigured too: no master key, no
+             * Supabase, no memory-store flag. That is the fail-closed posture,
+             * and `e2e/settings-ai.spec.ts` asserts what a reader meets on it.
+             * The configured side is covered by the unit suite, against a
+             * synthetic master key and an in-memory store.
+             */
+            OPENAI_API_KEY: "",
+
+            /*
+             * THE CREDENTIAL HARNESS, WITH ALL FOUR OF ITS CONDITIONS.
+             *
+             * The store in `lib/credentials/test-store.ts` needs this exact
+             * flag value, the synthetic harness above, `OBSERVER_ENVIRONMENT`
+             * of exactly "development", and no deployment marker anywhere in
+             * the environment. Copying these four lines into Vercel yields a
+             * deployment with no credential store, because `VERCEL` is set
+             * there and cannot be unset by an .env file.
+             *
+             * It holds only `sk-observer-test-…` values and its probe makes no
+             * network call, so the browser suite exercises connect, test,
+             * replace and remove for real without a credential or a request.
+             *
+             * The master key is thirty-two zero bytes: valid hex, correct
+             * length, and unmistakably not a secret.
+             */
+            OBSERVER_CREDENTIAL_TEST_STORE: "browser-tests-only",
+            OBSERVER_ENVIRONMENT: "development",
+            OBSERVER_CREDENTIAL_KEY: "0".repeat(64),
           },
         },
       }

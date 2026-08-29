@@ -136,6 +136,16 @@ export default async function ProjectLayout({
           <a className="iris-action" href="/projects">
             Projects
           </a>
+          {/*
+            And the way to the account's own settings, from inside a project.
+            A reader who is told their questions are answered from evidence
+            because they have no OpenAI connection has to be able to reach the
+            place that fixes it without leaving through the browser's Back
+            button.
+          */}
+          <a className="iris-action" href="/settings/ai">
+            Settings
+          </a>
           {viewer.role === "madspace_admin" ? (
             <a className="iris-action" href="/madspace">
               Administration

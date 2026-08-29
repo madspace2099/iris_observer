@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { NotPermittedError } from "@observer/readmodels";
 
-import { currentViewer } from "@/lib/session";
+import { currentAccount, currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { LIMITS, checkAllowance, recordAttempt, type RefusalReason } from "./limits";
 import { admitAiRequest, auditClientFingerprint, clientFingerprint } from "./quota";
@@ -154,6 +154,20 @@ export type GateResult =
        * than handed back by it.
        */
       readonly requestId: string;
+      /**
+       * WHOSE OPENAI CONNECTION THIS REQUEST MAY USE.
+       *
+       * The account identifier, not a key. It is not a secret — it is the
+       * cookie's own subject — and it is carried so the route can ask the
+       * credential service for that account's key at the last possible moment,
+       * on the server, immediately before the model is built.
+       *
+       * The key itself is deliberately NOT on this object. `admittedHeaders`
+       * takes the whole `Admitted` and turns it into response headers; a
+       * secret sitting on the same record is one careless spread away from the
+       * wire.
+       */
+      readonly accountId: string;
     }
   | {
       readonly ok: false;
@@ -229,6 +243,17 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
   /* 1. authentication */
   const viewer = await currentViewer();
   if (viewer === null) return deny(401, "Not signed in.", null);
+
+  /*
+   * 1a. who is asking, as an account.
+   *
+   * The viewer says what may be seen; the account says whose OpenAI connection
+   * pays for the answer. They are resolved from the same signed cookie and are
+   * still two different questions — which is the distinction M0.1 introduced
+   * and this milestone spends.
+   */
+  const account = await currentAccount();
+  if (account === null) return deny(401, "Not signed in.", null);
 
   /*
    * 1b. the pseudonym key, before anything is spent.
@@ -395,6 +420,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
     subject,
     requestId,
     clientHash,
+    accountId: account.accountId,
     context: {
       viewer,
       tenantSlug: body.data.tenantSlug,

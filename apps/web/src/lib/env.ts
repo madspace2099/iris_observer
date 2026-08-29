@@ -1,4 +1,5 @@
 import "server-only";
+import { testStorePermitted } from "./credentials/test-store";
 import { z } from "zod";
 
 import { diagnoseServerSupabase } from "./supabase-env";
@@ -133,7 +134,15 @@ export interface EnvironmentReport {
     /** The feature switch, before any question of whether a key exists. */
     readonly enabled: boolean;
     /** Whether a key is present. Never which key, never how long. */
+    /**
+     * Whether `OPENAI_API_KEY` is present. Reported, and no longer used.
+     *
+     * Kept because a deployment carrying an unread credential should be told
+     * so — see the problem this raises — not because anything reads it.
+     */
     readonly keyConfigured: boolean;
+    /** Whether an account could store a credential: encryption AND storage. */
+    readonly credentialsReady?: boolean;
     /**
      * Whether the key is even the right *shape*.
      *
@@ -201,6 +210,19 @@ function validateIndependently(source: NodeJS.ProcessEnv): {
   }
 
   return { env: values as ObserverEnvironment, problems };
+}
+
+/**
+ * Whether the credential master key could work. Shape only, never the value.
+ *
+ * 32 bytes of hex. The same check `envelope.ts` makes, duplicated here rather
+ * than imported because `envelope.ts` is `server-only` and this module is read
+ * during instrumentation — and because a boot diagnostic that cannot run
+ * without the module it is diagnosing is not a diagnostic.
+ */
+function credentialKeyUsable(source: Record<string, string | undefined>): boolean {
+  const raw = source["OBSERVER_CREDENTIAL_KEY"]?.trim() ?? "";
+  return /^[0-9a-fA-F]{64}$/.test(raw);
 }
 
 export function environment(): EnvironmentReport {
@@ -292,6 +314,26 @@ export function environment(): EnvironmentReport {
   }
 
   const keyConfigured = env.OPENAI_API_KEY !== undefined;
+
+  /*
+   * Whether an account could hold a credential at all.
+   *
+   * Both halves: somewhere to put the ciphertext, and a key to make it with.
+   * Reported so an operator can tell "nobody has connected yet" apart from
+   * "nobody can connect", which look identical from a browser.
+   */
+  /*
+   * Somewhere to put a credential, and a key to make it with. BOTH.
+   *
+   * The store's own three conditions, mirrored: Supabase, or the in-memory
+   * harness where its flag is set outside production. Mirrored rather than
+   * imported because `store.ts` is `server-only` and this report is read
+   * during instrumentation — and a boot diagnostic that cannot run without the
+   * module it diagnoses is not a diagnostic. `apps/web/test/credentials.test.ts`
+   * asserts the two agree.
+   */
+  const storeAvailable = serverConfigured || testStorePermitted(process.env);
+  const credentialsReady = storeAvailable && credentialKeyUsable(process.env);
   /*
    * Shape, not value.
    *
@@ -308,9 +350,25 @@ export function environment(): EnvironmentReport {
       "OPENAI_API_KEY is set but is not shaped like an OpenAI key — check for placeholder angle brackets, surrounding quotes or a stray line break. Every model call will be rejected until it is corrected.",
     );
   }
-  if (env.OBSERVER_AI_ENABLED && !keyConfigured) {
+  /*
+   * AN AMBIENT KEY IS NO LONGER USED, AND SAYING SO IS THE POINT.
+   *
+   * Keys belong to accounts (ADR-0030). `OPENAI_API_KEY` is read by nothing on
+   * the request path any more — not the model client, not the voice session,
+   * not the probe — so a deployment that still sets it is carrying a live
+   * credential that buys it nothing and can only leak.
+   *
+   * It is reported as a problem rather than ignored, because a secret nobody
+   * reads is a secret nobody rotates.
+   */
+  if (keyConfigured) {
     problems.push(
-      "OBSERVER_AI_ENABLED is on but OPENAI_API_KEY is not set. Ask Observer answers from the deterministic provider: the same tools and the same evidence, in plainer prose.",
+      "OPENAI_API_KEY is set and is no longer read. Ask Observer runs on each account's own connection (ADR-0030); remove the variable so an unused credential is not sitting in the environment.",
+    );
+  }
+  if (env.OBSERVER_AI_ENABLED && !credentialsReady) {
+    problems.push(
+      "OBSERVER_AI_ENABLED is on but this server cannot store account credentials — it needs both OBSERVER_CREDENTIAL_KEY (32 bytes of hex) and Supabase. Until both exist nobody can connect a key, and Ask Observer answers from the deterministic provider: the same tools and the same evidence, in plainer prose.",
     );
   }
   if (env.OPENAI_STORE_RESPONSES) {
@@ -325,9 +383,9 @@ export function environment(): EnvironmentReport {
       "OPENAI_STORE_RESPONSES is true. It is ignored: Observer pins store=false on every request (ADR-0026).",
     );
   }
-  if (env.OBSERVER_VOICE_ENABLED && !keyConfigured) {
+  if (env.OBSERVER_VOICE_ENABLED && !credentialsReady) {
     problems.push(
-      "OBSERVER_VOICE_ENABLED is on but no key is configured, so the voice layer stays disabled and says so.",
+      "OBSERVER_VOICE_ENABLED is on but no account can hold a credential, so the voice layer has nothing to mint a client secret with and says so.",
     );
   }
 
@@ -345,6 +403,7 @@ export function environment(): EnvironmentReport {
       reasoningEffort: env.OPENAI_REASONING_EFFORT,
       storeResponses: env.OPENAI_STORE_RESPONSES,
       voiceEnabled: env.OBSERVER_VOICE_ENABLED,
+      credentialsReady,
     },
     problems,
   };
@@ -363,7 +422,7 @@ export function reportEnvironment(): void {
   const lines = [
     `[observer] data source: ${report.dataSource} · environment: ${report.environment}`,
     `[observer] supabase: browser ${report.supabase.browserConfigured ? "configured" : "not configured"}, server ${report.supabase.serverConfigured ? "configured" : "not configured"}`,
-    `[observer] ai: ${report.ai.enabled ? "enabled" : "disabled"} · key ${report.ai.keyConfigured ? (report.ai.keyWellFormed ? "present" : "present but malformed") : "absent"} · text ${report.ai.textModel} · fast ${report.ai.fastModel} · effort ${report.ai.reasoningEffort}`,
+    `[observer] ai: ${report.ai.enabled ? "enabled" : "disabled"} · credentials ${report.ai.credentialsReady === true ? "per account" : "unavailable"} · text ${report.ai.textModel} · fast ${report.ai.fastModel} · effort ${report.ai.reasoningEffort}`,
     `[observer] voice: ${report.ai.voiceEnabled ? "offered" : "disabled"} · model ${report.ai.voiceModel}`,
     ...report.problems.map((p) => `[observer] ${p}`),
   ];

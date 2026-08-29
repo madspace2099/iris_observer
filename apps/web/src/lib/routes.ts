@@ -26,6 +26,22 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
 
+  /*
+   * Account settings. Every signed-in role, because the thing being configured
+   * is the reader's own OpenAI connection and every role asks questions.
+   *
+   * It is not a project surface and takes no tenant or project: a credential
+   * belongs to the account and is used across every project that account may
+   * open. Putting it under a project route would have been the first step
+   * towards a per-project key, which is exactly the ownership model ADR-0030
+   * rejects.
+   */
+  {
+    route: "/settings/ai",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
   /* --- Showroom Intelligence, the primary surfaces (ADR-0023) ------------- */
 
   {

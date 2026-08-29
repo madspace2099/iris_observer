@@ -138,13 +138,12 @@ export function voiceBlocker(): VoiceBlocker | null {
       reader: SPOKEN,
     };
   }
-  if (!env.ai.keyConfigured) {
-    return {
-      kind: "not_configured",
-      detail: "No OPENAI_API_KEY is set on the server, so no client secret can be minted.",
-      reader: SPOKEN,
-    };
-  }
+  /*
+   * Whether a key EXISTS is now a per-account question, so it is not asked
+   * here. This function answers what the deployment forbids; the account's own
+   * connection is checked by the route, immediately before minting, and its
+   * absence produces the same spoken-questions-unavailable sentence.
+   */
   if (!modelIsAllowed(env.ai.voiceModel)) {
     return {
       kind: "model_not_allowed",
@@ -176,17 +175,22 @@ export interface VoiceSession {
  * pipeline, which sends it. What is lost is vendor-side correlation of the
  * spoken turns themselves, and that is recorded rather than papered over.
  */
-export async function createVoiceSession(): Promise<VoiceSession> {
+export async function createVoiceSession(apiKey: string): Promise<VoiceSession> {
   const env = environment();
   const blocker = voiceBlocker();
   if (blocker !== null) throw new ModelConfigurationError(`voice: ${blocker.detail}`);
 
-  const key = process.env["OPENAI_API_KEY"];
-  if (key === undefined || key.length === 0) {
-    throw new ModelConfigurationError("voice: OPENAI_API_KEY is not set on the server");
+  /*
+   * The asking account's key, passed in. The realtime client secret it mints is
+   * short-lived and scoped, but it is minted ON that account's OpenAI project
+   * and billed there — so the key must be theirs, and reading an ambient one
+   * here would spend somebody else's balance on a spoken question.
+   */
+  if (apiKey.length === 0) {
+    throw new ModelConfigurationError("voice: no API key was supplied for this request");
   }
 
-  const client = new OpenAI({ apiKey: key, maxRetries: 0, timeout: LIMITS.requestTimeoutMs });
+  const client = new OpenAI({ apiKey, maxRetries: 0, timeout: LIMITS.requestTimeoutMs });
 
   try {
     const secret = await client.realtime.clientSecrets.create({

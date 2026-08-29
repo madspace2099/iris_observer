@@ -78,6 +78,15 @@ export default async function Projects() {
           <span className="mp-bar-product">IRIS Observer</span>
 
           <div className="mp-bar-right">
+            {/*
+              One restrained entry to the account's own settings. A link in the
+              account area, not a navigation section and not a menu: there is
+              one settings page and it is about this reader's OpenAI
+              connection.
+            */}
+            <Link className="mp-bar-link" href={dynamicRoute("/settings/ai")}>
+              Settings
+            </Link>
             <span className="mp-chip">Demo</span>
             <span className="mp-bar-who">
               <strong>{account.displayName}</strong>

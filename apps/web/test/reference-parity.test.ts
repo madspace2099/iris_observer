@@ -58,6 +58,14 @@ const REFERENCE_ROUTES: readonly string[] = [
    * on the reader's behalf. Both are gone.
    */
   "/projects",
+  /*
+   * ADDED AFTER THE REFERENCE, deliberately and with approval.
+   *
+   * Account settings — the reader's own OpenAI connection (ADR-0030). Not a
+   * project route and takes no tenant: the credential belongs to the account
+   * and is used across every project that account may open.
+   */
+  "/settings/ai",
   "/madspace",
   "/lab",
   "/lab/sign-in",

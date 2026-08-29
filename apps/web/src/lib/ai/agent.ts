@@ -726,12 +726,27 @@ function outcomeShell(
 export async function* askStream(
   question: string,
   context: AskContextInput,
+  /**
+   * THE ASKING ACCOUNT'S OWN OPENAI KEY, OR NULL.
+   *
+   * A separate parameter rather than a field on `context`, and deliberately so.
+   * The context is handed to every tool, is shaped for logging, and is the
+   * object a future contributor will reach for when adding a field to a trace.
+   * A credential on it is one `JSON.stringify` away from an evidence record.
+   * Here it is a local, consumed once by `resolveModel` and closed over by a
+   * client that lives as long as the request.
+   *
+   * Null means evidence-only: no connection, no storage, or a stored credential
+   * that would not decrypt. It never means "use the deployment's key" — there
+   * is no deployment key left to use.
+   */
+  credential: string | null,
   signal?: AbortSignal,
 ): AsyncGenerator<AskEvent> {
   const trimmed = question.trim();
   const env = environment();
   const effort = context.depth === "deep" ? "high" : env.ai.reasoningEffort;
-  const resolution = resolveModel();
+  const resolution = resolveModel(credential);
 
   if (trimmed.length === 0) {
     yield {
@@ -1163,10 +1178,11 @@ export function safeParseAnswer(
 export async function ask(
   question: string,
   context: AskContextInput,
+  credential: string | null,
   signal?: AbortSignal,
 ): Promise<ObserverOutcome> {
   let outcome: ObserverOutcome | null = null;
-  for await (const event of askStream(question, context, signal)) {
+  for await (const event of askStream(question, context, credential, signal)) {
     if (event.type === "final") outcome = event.outcome;
   }
   /*

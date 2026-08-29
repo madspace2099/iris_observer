@@ -83,6 +83,17 @@
   --status-critical-bg-2: rgb(179 38 30 / 5%);
 
   /*
+   * Approved, from the design system's own value.
+   *
+   * Used for one dot beside the word "Connected" — and the word is what
+   * carries the meaning. Colour is never the only channel: remove the dot and
+   * the panel still says connected, in text, at full contrast.
+   */
+  --status-approved: #2f8f5b;
+  --status-approved-bg: rgb(47 143 91 / 8%);
+  --status-approved-border: rgb(47 143 91 / 26%);
+
+  /*
    * THE HERO SCRIM, four stages.
    *
    * Dark at the top so a white logo holds, almost clear through the upper
@@ -683,6 +694,221 @@
   margin: 0 auto;
 }
 
+/* ================================================================== settings */
+
+/*
+ * ACCOUNT SETTINGS — ONE COLUMN, BECAUSE IT IS A FORM AND A STATE.
+ *
+ * The projects page is a gallery and uses the full 1440. This is a page a
+ * reader reads: a paragraph, a form, a list of facts. Held at 720 so the line
+ * length stays somewhere a person can follow.
+ */
+.mp-main-narrow {
+  max-width: 720px;
+}
+
+.mp-lede {
+  font-size: var(--text-lead);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 28px;
+  max-width: 60ch;
+}
+
+.mp-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.mp-panel h2 {
+  margin: 0 0 12px;
+  font-size: var(--text-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.mp-panel-body {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 20px;
+  max-width: 60ch;
+}
+
+/*
+ * The alert grows a second line here — a title and a detail — so it stacks.
+ * Same colours, same border, same radius as the sign-in's single-sentence one.
+ */
+.mp-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.mp-alert strong {
+  font-weight: 600;
+}
+
+.mp-alert span {
+  color: var(--ink-2);
+}
+
+.mp-ok {
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--status-approved);
+  background: var(--status-approved-bg);
+  border: 1px solid var(--status-approved-border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin: 0 0 20px;
+}
+
+.mp-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mp-status h2 {
+  margin: 0;
+}
+
+/* A dot, not a meaning. The word beside it carries that. */
+.mp-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-approved);
+  flex: none;
+}
+
+.mp-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 24px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mp-facts dt {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.mp-facts dd {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+
+/* Tabular, so four bullets and four characters line up under the label. */
+.mp-mask {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.mp-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* A link that has to sit in a row of buttons and match their box. */
+.mp-btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.mp-btn[data-weight="danger"] {
+  border-color: var(--status-critical-border-2);
+  background: var(--surface-card);
+  color: var(--status-critical);
+}
+
+.mp-confirm {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  border-radius: var(--radius);
+}
+
+.mp-confirm strong {
+  display: block;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mp-confirm p {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0 0 16px;
+  max-width: 60ch;
+}
+
+.mp-advice {
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--surface-tint);
+  border-radius: var(--radius);
+}
+
+.mp-advice strong {
+  display: block;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mp-advice p,
+.mp-advice li {
+  font-size: var(--text-caption);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.mp-advice p {
+  margin: 0 0 10px;
+}
+
+.mp-advice ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.mp-link {
+  color: var(--link);
+}
+
+/* The settings entry in the account bar. A link, sized like the text beside it. */
+.mp-bar-link {
+  font-size: var(--text-caption);
+  color: var(--ink-3);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-line);
+  padding-bottom: 1px;
+}
+
+.mp-bar-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--border-hover);
+}
+
 /* ================================================================ responsive */
 
 /*
@@ -753,6 +979,11 @@
 @media (max-width: 767px) {
   .mp {
     --gutter: 24px;
+  }
+
+  .mp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
 
   .mp-grid {

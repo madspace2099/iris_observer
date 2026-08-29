@@ -37,6 +37,20 @@ async function signIn(page: Page, email: string, password = PASSWORD): Promise<v
   await page.getByLabel("Work email address").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in with password" }).click();
+
+  /*
+   * Wait for an OUTCOME, not for the network to go quiet.
+   *
+   * A server action that redirects navigates on the client, and `networkidle`
+   * can settle mid-transition: the Projects markup was in the document while
+   * `page.url()` still read `/sign-in`, so three cases failed on a URL that
+   * was about to be correct. Both terminal states have a marker of their own,
+   * and waiting for one of them is a fact rather than a guess about timing.
+   */
+  await Promise.race([
+    page.getByRole("heading", { level: 1, name: "Projects" }).waitFor({ state: "visible" }),
+    page.locator(".mp-alert").waitFor({ state: "visible" }),
+  ]);
   await page.waitForLoadState("networkidle");
 }
 
@@ -257,7 +271,17 @@ test.describe("leaving", () => {
     ]);
 
     await page.goBack();
+
+    /*
+     * Back lands on the projects entry in history, and the server sends it
+     * straight to the sign-in because there is no session any more. Waiting
+     * for that redirect rather than for the network to go quiet: `networkidle`
+     * can settle mid-transition, and the URL was read as `/projects` while the
+     * redirect was still resolving.
+     */
+    await page.waitForURL(/\/sign-in/);
     await page.waitForLoadState("networkidle");
+
     const text = await page.evaluate(() => document.body.innerText);
     expect(text).not.toContain("Riverside Walk");
     expect(new URL(page.url()).pathname).toBe("/sign-in");

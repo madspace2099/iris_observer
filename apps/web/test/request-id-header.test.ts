@@ -75,6 +75,12 @@ function admission(): GateModule.Admitted {
     subject: "0123456789abcdef",
     clientHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     requestId: REQUEST_ID,
+    /*
+     * Whose OpenAI connection the route may resolve. An identifier, not a key:
+     * the gate carries the account and the route asks the credential service
+     * for that account's credential immediately before the model is built.
+     */
+    accountId: "acct_test_developer",
     context: {
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",

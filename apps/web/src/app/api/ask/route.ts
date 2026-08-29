@@ -5,6 +5,7 @@ import { admittedHeaders, gate, redactStatus, type Admitted } from "@/lib/ai/gat
 import { LIMITS } from "@/lib/ai/limits";
 import { completeAiRequest, type ResponseSource } from "@/lib/ai/quota";
 import { recordAsk } from "@/lib/ai/telemetry";
+import { resolveApiKey } from "@/lib/credentials/service";
 
 /**
  * Ask Observer — the single-response route.
@@ -174,9 +175,22 @@ export async function POST(request: Request) {
    * timeout and still leave a reader waiting a minute. This ceiling covers the
    * lot, and the client can abort sooner.
    */
+  /*
+   * The asking account's own OpenAI key, resolved here and nowhere earlier.
+   *
+   * Last possible moment, on the server, for the account the gate authenticated
+   * — never from the request body, never from a header, never from the
+   * deployment's environment. `null` is an ordinary outcome: the reader gets
+   * every measured figure the tools produced, with the model stage skipped and
+   * the status saying why.
+   */
+  const credential = await resolveApiKey(admitted.accountId);
+  const apiKey = credential.ok ? credential.apiKey : null;
+
   const outcome = await ask(
     admitted.question,
     admitted.context,
+    apiKey,
     AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
   );
 

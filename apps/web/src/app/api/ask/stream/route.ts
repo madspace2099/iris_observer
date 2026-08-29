@@ -1,4 +1,5 @@
 import { askStream } from "@/lib/ai/agent";
+import { resolveApiKey } from "@/lib/credentials/service";
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { publicOutcome, reportOutcome } from "../route";
@@ -72,13 +73,25 @@ export async function POST(request: Request) {
    * that has gone quiet. Either must reach the upstream call, or a cancelled
    * question keeps costing money after nobody is listening.
    */
+  /*
+   * The asking account's own OpenAI key, resolved here and nowhere earlier.
+   *
+   * Last possible moment, on the server, for the account the gate authenticated
+   * — never from the request body, never from a header, never from the
+   * deployment's environment. `null` is an ordinary outcome: the reader gets
+   * every measured figure the tools produced, with the model stage skipped and
+   * the status saying why.
+   */
+  const credential = await resolveApiKey(admitted.accountId);
+  const apiKey = credential.ok ? credential.apiKey : null;
+
   const deadline = AbortSignal.timeout(LIMITS.requestTimeoutMs * 2);
   const signal = AbortSignal.any([request.signal, deadline]);
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of askStream(admitted.question, admitted.context, signal)) {
+        for await (const event of askStream(admitted.question, admitted.context, apiKey, signal)) {
           if (signal.aborted) break;
           switch (event.type) {
             case "stage":

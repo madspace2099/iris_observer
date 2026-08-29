@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { ModelConfigurationError } from "@/lib/ai/provider";
 import { createVoiceSession, publicBlocker, voiceBlocker } from "@/lib/ai/voice";
+import { resolveApiKey } from "@/lib/credentials/service";
 
 /**
  * Mints the browser's realtime credential.
@@ -33,6 +34,10 @@ export async function GET() {
     { headers: { "Cache-Control": "no-store" } },
   );
 }
+
+/** What a reader is told when their account has no connection. */
+const NO_CONNECTION =
+  "Observer needs your OpenAI connection before it can take spoken questions. Add one in Settings.";
 
 export async function POST(request: Request) {
   const admitted = await gate(await request.json().catch(() => null), request);
@@ -68,8 +73,26 @@ export async function POST(request: Request) {
     );
   }
 
+  /*
+   * The asking account's own key. No connection, no spoken questions.
+   *
+   * Told in the same words as any other unavailability, because "connect a key
+   * in Settings" is the reader's next step whichever half of the feature they
+   * reached first.
+   */
+  const credential = await resolveApiKey(admitted.accountId);
+  if (!credential.ok) {
+    return NextResponse.json(
+      {
+        error: "Voice needs an OpenAI connection on your account.",
+        blocker: { kind: "not_configured", reader: NO_CONNECTION },
+      },
+      { status: 503, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
+    );
+  }
+
   try {
-    const session = await createVoiceSession();
+    const session = await createVoiceSession(credential.apiKey);
     return NextResponse.json(session, {
       headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) },
     });

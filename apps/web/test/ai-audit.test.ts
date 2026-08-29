@@ -11,6 +11,15 @@ import type { CurrentPseudonymVersion, PseudonymVersion } from "../src/lib/ai/id
 import { resetLimits } from "../src/lib/ai/limits";
 
 /**
+ * A stand-in for the asking account's credential.
+ *
+ * These suites mock the provider, so nothing reads it. It is passed because
+ * `ask` requires it: a test that omitted it would be testing a signature the
+ * application does not have.
+ */
+const ACCOUNT_CREDENTIAL = "sk-fake-not-a-real-key-for-tests";
+
+/**
  * The audit, and the two things it got wrong.
  *
  * **It could not say who wrote the prose.** `answered · gpt-5.6-sol` was
@@ -42,6 +51,7 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
           model: "none",
           live: false,
           reason: "no model key is configured",
+          setupRequired: false,
         },
       },
   };
@@ -102,7 +112,13 @@ function useModel(script: readonly ScriptedTurn[]): ObserverModel {
   resolution.current = {
     ok: true,
     model,
-    status: { provider: "fake", model: "fake-model", live: true, reason: null },
+    status: {
+      provider: "fake",
+      model: "fake-model",
+      live: true,
+      reason: null,
+      setupRequired: false,
+    },
   };
   return model;
 }
@@ -123,7 +139,7 @@ afterEach(() => {
 describe("the audit says who wrote the answer", () => {
   it("classifies a model-authored answer as `model`, and names the author", async () => {
     useModel([PLAN, { text: composed() }]);
-    const outcome = await ask("Summarise the period.", CONTEXT);
+    const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.status.live).toBe(true);
     expect(classify(outcome)).toEqual({ responseSource: "model", modelAuthored: true });
@@ -135,7 +151,7 @@ describe("the audit says who wrote the answer", () => {
     // The defect, in one assertion: this used to be recorded as `answered ·
     // gpt-5.6-sol`, which claims a model wrote prose it never saw.
     useModel([PLAN, { failWith: "unavailable" }]);
-    const outcome = await ask("Summarise the period.", CONTEXT);
+    const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.answer).not.toBeNull();
     expect(classify(outcome)).toEqual({
@@ -148,7 +164,7 @@ describe("the audit says who wrote the answer", () => {
   });
 
   it("classifies a deployment with no model at all as `deterministic_composer`", async () => {
-    const outcome = await ask("Summarise the period.", CONTEXT);
+    const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.answer).not.toBeNull();
     expect(classify(outcome).responseSource).toBe("deterministic_composer");
@@ -158,7 +174,7 @@ describe("the audit says who wrote the answer", () => {
 
   it("distinguishes prose the schema rejected from prose the output guard rejected", async () => {
     useModel([PLAN, { text: "{ not json" }]);
-    const rejected = await ask("Summarise the period.", CONTEXT);
+    const rejected = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
     expect(rejected.diagnostics.fallbackReason).toBe("schema_rejected");
 
     /*
@@ -171,7 +187,7 @@ describe("the audit says who wrote the answer", () => {
       PLAN,
       { text: composed({ interpretation: "Depth fell because the agents skipped the tour." }) },
     ]);
-    const guarded = await ask("Summarise the period.", CONTEXT);
+    const guarded = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
     expect(guarded.diagnostics.fallbackReason).toBe("output_guard");
 
     for (const outcome of [rejected, guarded]) {
@@ -187,7 +203,7 @@ describe("the audit says who wrote the answer", () => {
      * obvious move — would file this as an outage and send somebody looking for
      * one. The reason code is what separates them.
      */
-    const outcome = await ask("   ", CONTEXT);
+    const outcome = await ask("   ", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.answer).toBeNull();
     expect(outcome.refusal).not.toBeNull();
@@ -198,9 +214,16 @@ describe("the audit says who wrote the answer", () => {
     resolution.current = {
       ok: false,
       configurationFault: true,
-      status: { provider: "openai", model: "gpt-5.6-sol", live: false, reason: "invalid key" },
+      status: {
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        live: false,
+        reason: "invalid key",
+        /* An operator's fault, so the reader is not sent to Settings. */
+        setupRequired: false,
+      },
     };
-    const outcome = await ask("Summarise the period.", CONTEXT);
+    const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.answer).toBeNull();
     expect(classify(outcome)).toEqual({ responseSource: "failure", modelAuthored: false });
@@ -212,7 +235,7 @@ describe("the audit says who wrote the answer", () => {
     // it. "The composing turn threw" sends an operator to look at timeouts; the
     // key is the thing they can actually fix.
     useModel([PLAN, { failWith: "configuration" }]);
-    const outcome = await ask("Summarise the period.", CONTEXT);
+    const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
 
     expect(outcome.diagnostics.fallbackReason).toBe("provider_misconfigured");
   });
@@ -238,7 +261,7 @@ describe("the audit's `modelAuthored` matches the answer sheet's `live`", () => 
       if (branch.turns === null) resolution.current = null;
       else useModel(branch.turns);
 
-      const outcome = await ask("Summarise the period.", CONTEXT);
+      const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);
       const { responseSource, modelAuthored } = classify(outcome);
 
       const liveWithAnswer = outcome.status.live && outcome.answer !== null;
