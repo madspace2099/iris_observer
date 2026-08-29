@@ -4,13 +4,7 @@
     {
       "name": "observer-ui",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--filter",
-        "@observer/web",
-        "dev",
-        "--port",
-        "3410"
-      ],
+      "runtimeArgs": ["--filter", "@observer/web", "dev", "--port", "3410"],
       "port": 3410
     }
   ]

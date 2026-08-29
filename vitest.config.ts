@@ -2,6 +2,15 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  /*
+   * The automatic JSX runtime, so a component can be rendered in a test.
+   *
+   * The application never needs this — Next compiles its own JSX — but the
+   * suite renders the loading and failure screens with react-dom/server to
+   * assert their wording, and esbuild's default classic transform emits
+   * React.createElement against an import the source correctly does not make.
+   */
+  esbuild: { jsx: "automatic" },
   resolve: {
     alias: {
       // Next's server-only marker does not resolve outside a Next build.
