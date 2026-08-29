@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { BURST } from "./limits";
 
 /**
  * The API boundary, exercised rather than inspected.
@@ -132,11 +133,17 @@ test.describe("Ask Observer's API boundary", () => {
      *
      * The test did not fail because a ceiling was broken. It failed because a
      * sequential loop cannot outrun a rolling window when each turn costs a
-     * tenth of it. Fifteen at once against a ceiling of ten leaves no such
-     * race, and finishes in seconds rather than seven minutes.
+     * tenth of it. A burst at once against a lower ceiling leaves no such race,
+     * and finishes in seconds rather than seven minutes.
+     *
+     * The count is DERIVED from the ceiling the suite configures, not written
+     * here. It used to be fifteen, chosen against a ceiling of ten; the suite
+     * later raised the ceiling to thirty and fifteen requests stopped reaching
+     * it. A test that proves a limit is enforced must not be silently disarmed
+     * by the configuration that sets the limit.
      */
     const burst = await Promise.all(
-      Array.from({ length: 15 }, () => page.request.post(ASK, { data: body() })),
+      Array.from({ length: BURST }, () => page.request.post(ASK, { data: body() })),
     );
 
     let stopped: { retryAfter: string | undefined; refusal: string | null } | null = null;
@@ -154,7 +161,7 @@ test.describe("Ask Observer's API boundary", () => {
 
     expect(
       stopped,
-      `the burst was never stopped — 15 concurrent requests returned ${burst
+      `the burst was never stopped — ${BURST} concurrent requests returned ${burst
         .map((r) => r.status())
         .join(", ")}`,
     ).not.toBeNull();

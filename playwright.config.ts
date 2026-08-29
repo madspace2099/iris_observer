@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import {
+  ASK_PER_INSTANCE_PER_DAY,
+  ASK_PER_MINUTE,
+  ASK_PER_VIEWER_PER_DAY,
+  BREAKER_THRESHOLD,
+} from "./e2e/limits";
 
 /**
  * End-to-end checks.
@@ -82,12 +88,36 @@ export default defineConfig({
            * hundred honest requests alongside them.
            */
           env: {
-            // High enough that ordinary tests never reach it, low enough that
-            // the burst test still proves the limiter works.
-            OBSERVER_ASK_PER_MINUTE: "30",
-            OBSERVER_ASK_PER_VIEWER_PER_DAY: "5000",
-            OBSERVER_ASK_PER_INSTANCE_PER_DAY: "20000",
-            OBSERVER_BREAKER_THRESHOLD: "500",
+            /*
+             * A PEPPER THE SUITE CAN USE AND NO DEPLOYMENT CAN.
+             *
+             * Ask Observer refuses every question without a subject pepper, by
+             * design and with no fallback — so a browser suite could not reach
+             * an answer at all, and three cases that assert on one failed for a
+             * missing variable rather than for anything about the product.
+             *
+             * What is passed here is sixty-four identical characters and a flag
+             * saying who is asking. It is not a secret, it is not derived from
+             * one, it is not read from the environment, it is not written to any
+             * file, and it never leaves the server process. Preview and
+             * Production carry neither line, and `describePepper` refuses this
+             * value wherever the flag is absent — so copying this block into a
+             * deployment yields a deployment that answers nothing, not one
+             * running on a published key.
+             */
+            OBSERVER_SYNTHETIC_HARNESS: "1",
+            OBSERVER_SUBJECT_PEPPER: "a".repeat(64),
+
+            /*
+             * Declared in e2e/limits.ts, beside the burst that has to exceed
+             * them. Raising a ceiling here without raising the burst there is
+             * how the burst test came to fire fifteen requests at a limit of
+             * thirty and pass none of them.
+             */
+            OBSERVER_ASK_PER_MINUTE: String(ASK_PER_MINUTE),
+            OBSERVER_ASK_PER_VIEWER_PER_DAY: String(ASK_PER_VIEWER_PER_DAY),
+            OBSERVER_ASK_PER_INSTANCE_PER_DAY: String(ASK_PER_INSTANCE_PER_DAY),
+            OBSERVER_BREAKER_THRESHOLD: String(BREAKER_THRESHOLD),
           },
         },
       }

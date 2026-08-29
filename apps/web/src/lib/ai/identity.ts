@@ -102,20 +102,51 @@ const PLACEHOLDER =
   /^(<.*>|\[.*\]|\{.*\}|change[-_ ]?me.*|replace[-_ ]?me.*|your[-_ ]?.*|example.*|placeholder.*|secret|password|todo.*|x+|\.+)$/i;
 
 /**
+ * The one thing this flag is allowed to mean.
+ *
+ * A browser suite runs the real production build, so it cannot be recognised by
+ * `VITEST` (that is the unit runner) or by `NODE_ENV=test` (Next needs
+ * `production` to serve a built application). Without a third signal the suite
+ * could only exercise Ask Observer by being handed something shaped like a real
+ * secret — which is the opposite of what a test harness should carry.
+ *
+ * So the harness announces itself, and the ONLY consequence is that an
+ * obviously-fake pepper is accepted. Everything else about the contract is
+ * untouched:
+ *
+ *   - a MISSING pepper still refuses, flag or no flag;
+ *   - a placeholder, a quoted value, a padded value and a short value are all
+ *     still refused;
+ *   - no ceiling, audit row or subject derivation changes;
+ *   - nothing is derived from another credential, and nothing falls back.
+ *
+ * The value the suite passes is sixty-four identical characters. That value is
+ * refused by every deployment precisely because this flag is absent there, so
+ * copying the harness configuration into Preview or Production produces a
+ * deployment that refuses every question rather than one running on a known
+ * key. The failure mode of misusing this is fail-closed.
+ */
+const SYNTHETIC_HARNESS = "OBSERVER_SYNTHETIC_HARNESS";
+
+/**
  * Whether obvious test material is acceptable.
  *
  * A pepper of sixty-four `a`s is exactly what a test should use — explicit,
  * deterministic and unmistakably not a secret — and exactly what a deployment
- * must refuse. `VITEST` is set by the runner; neither it nor `NODE_ENV=test` is
- * set on Preview or Production.
+ * must refuse. `VITEST` is set by the runner; neither it, nor `NODE_ENV=test`,
+ * nor the harness flag above is set on Preview or Production.
  *
  * Read from the same source as everything else rather than from `process.env`
  * directly, so `describePepper` is a function of its argument and nothing more.
- * A test can then describe a deployment — a bag with no `VITEST` in it — instead
- * of mutating the runner's own environment to pretend to be one.
+ * A test can then describe a deployment — a bag with none of the three in it —
+ * instead of mutating the runner's own environment to pretend to be one.
  */
 function inTestEnvironment(source: EnvSource): boolean {
-  return source["VITEST"] !== undefined || source["NODE_ENV"] === "test";
+  return (
+    source["VITEST"] !== undefined ||
+    source["NODE_ENV"] === "test" ||
+    source[SYNTHETIC_HARNESS] === "1"
+  );
 }
 
 /**
