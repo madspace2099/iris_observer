@@ -172,3 +172,6 @@ export interface UnitEvent {
   readonly kind: "view" | "favorite" | "meeting" | "reservation";
   readonly detail: string;
 }
+
+/** Re-exported so a test can name the selection without importing the metrics. */
+export type { Selection } from "./metrics";

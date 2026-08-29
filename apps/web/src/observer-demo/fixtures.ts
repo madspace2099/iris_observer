@@ -128,10 +128,19 @@ function buildDays(projectId: string): readonly DayRow[] {
       const favorites = Math.round(explorers * (isShowroom ? 0.31 : 0.17));
       const meetings = Math.round(qualified * (isShowroom ? 0.22 : 0.06));
       /*
-       * Reservations are rare and lumpy. A daily rate would draw a smooth line
+       * A RESERVATION FOLLOWS A MEETING. It cannot exceed one.
+       *
+       * Reservations used to be drawn independently, and on the smallest
+       * project's web channel that produced days with a reservation and no
+       * meeting — a funnel that inverts at the last stage. The stage order is
+       * the one claim the funnel makes, so the generator has to respect it
+       * rather than the test being relaxed to accommodate it.
+       *
+       * Still rare and still lumpy: a daily rate would draw a smooth line
        * through something that happens a few times a month.
        */
       const reservations =
+        meetings > 0 &&
         noise(i * 17 + (isShowroom ? 3 : 11) + projectId.length) > (isShowroom ? 0.74 : 0.87)
           ? 1
           : 0;
