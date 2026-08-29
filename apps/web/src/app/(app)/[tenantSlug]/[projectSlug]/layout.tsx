@@ -127,6 +127,15 @@ export default async function ProjectLayout({
             }))}
           />
           <PeriodSwitcher />
+          {/*
+            The way back to the selector.
+            One link, using the control class the header already has. The
+            project switcher beside it moves between grants; this is how a
+            reader leaves the workspace without signing out.
+          */}
+          <a className="iris-action" href="/projects">
+            Projects
+          </a>
           {viewer.role === "madspace_admin" ? (
             <a className="iris-action" href="/madspace">
               Administration

@@ -1,23 +1,18 @@
 import { redirect } from "next/navigation";
-import { repository } from "@/lib/repository";
-import { currentViewer } from "@/lib/session";
+import { dynamicRoute } from "@/lib/href";
+import { currentAccount } from "@/lib/session";
 
 /**
- * The entry point sends the viewer to their first accessible project rather
- * than to a chooser. A landing page whose only content is "pick a project" is
- * a step, not a screen.
+ * The entry point, which now chooses nothing.
+ *
+ * It used to send a reader straight into their first accessible project. That
+ * was defensible when a session was a persona and most personas held one
+ * project; it is wrong now. An account with two developments would be dropped
+ * into one of them with no indication that the other existed, and an account
+ * with one would never learn that opening a project is a decision it makes.
+ *
+ * Both go to the same place: the project selector.
  */
 export default async function Home() {
-  const viewer = await currentViewer();
-  if (viewer === null) redirect("/sign-in");
-
-  const tenants = await repository.listTenants(viewer);
-  const tenant = tenants[0];
-  if (tenant === undefined) redirect("/sign-in");
-
-  const projects = await repository.listProjects(viewer, tenant.id);
-  const project = projects[0];
-  if (project === undefined) redirect("/sign-in");
-
-  redirect(`/${tenant.slug}/${project.slug}/showroom`);
+  redirect(dynamicRoute((await currentAccount()) === null ? "/sign-in" : "/projects"));
 }

@@ -1,0 +1,732 @@
+/*
+ * THE MADSPACE CLIENT PORTAL SURFACES: SIGN IN, AND PROJECTS.
+ *
+ * Everything here is scoped under `.mp` so it cannot reach the Observer
+ * analytics screens, which are frozen (docs/observer-visual-baseline.md). Two
+ * surfaces live in this layer and nothing else: the account sign-in and the
+ * project selector a reader lands on afterwards.
+ *
+ * ## Where the values come from
+ *
+ * The token block below is transcribed from the Client Portal reference build
+ * (`Klient Portál.zip`) rather than approximated: the same six border levels,
+ * the same surface ramp, the same type scale, the same 12px radius. It is the
+ * same system the Observer screens already use — the design-system document
+ * describes one product family, and these two pages are the family's front
+ * door.
+ *
+ * ## Light first, dark by token swap
+ *
+ * The portal is a light surface; the Observer application behind it is dark.
+ * The inverse theme is a redeclaration of the same names, never a filter on
+ * `body` — a filter makes body the containing block for `position: fixed` and
+ * breaks every overlay in the product. That is the reference's own note, and it
+ * is right.
+ */
+
+.mp {
+  /* ---------------------------------------------------------------- ink */
+  --ink: #111111;
+  --ink-900: #1e1e1e;
+  --ink-800: #2a2a2a;
+  --ink-700: #3a3a3a;
+  --ink-2: #4a4a4a;
+  --ink-3: #5c5c5c;
+  --ink-4: #6b6b6b;
+  --ink-5: #767676;
+  --ink-deep: #0b0b0b;
+  --ink-on-dark: #ffffff;
+
+  /* ----------------------------------------------------------- surfaces */
+  --surface-page: #f6f5f3;
+  --surface-card: #ffffff;
+  --surface-raised: #fafaf9;
+  --surface-tint: #edebe7;
+  --surface-inset: rgb(17 17 17 / 4%);
+  --surface-chip: rgb(17 17 17 / 7%);
+  --surface-ph-1: #e9e7e3;
+  --surface-ph-3: #d3cfc9;
+
+  /* ------------------------------------------- borders, the six levels */
+  --border-hairline: rgb(17 17 17 / 6%);
+  --border-subtle: rgb(17 17 17 / 8%);
+  --border-panel: rgb(17 17 17 / 9%);
+  --border-track: rgb(17 17 17 / 10%);
+  --border-line: rgb(17 17 17 / 12%);
+  --border-field: rgb(17 17 17 / 16%);
+  --border-emphasis: rgb(17 17 17 / 20%);
+  --border-dashed: rgb(17 17 17 / 24%);
+  --border-dashed-strong: rgb(17 17 17 / 28%);
+  --border-hover: rgb(17 17 17 / 35%);
+
+  /* --------------------------------------------------------------- type */
+  --text-display-1: clamp(30px, 4.4vw, 44px);
+  --text-heading-1: clamp(24px, 2.9vw, 30px);
+  --text-heading-3: 22px;
+  --text-value-2: 17px;
+  --text-lead: 16px;
+  --text-body-strong: 15px;
+  --text-body: 14px;
+  --text-caption: 13px;
+  --text-micro: 12px;
+
+  /* -------------------------------------------------------------- shape */
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* --------------------------------------------------------- accents */
+  --link: #0f6fd0;
+  --link-hover: #0e6fcb;
+  --status-critical: #b3261e;
+  --status-critical-border-2: rgb(179 38 30 / 28%);
+  --status-critical-bg-2: rgb(179 38 30 / 5%);
+
+  /*
+   * THE HERO SCRIM, four stages.
+   *
+   * Dark at the top so a white logo holds, almost clear through the upper
+   * third so the photograph is actually visible, then deepening to nearly
+   * opaque at the bottom where the copy sits. Declared on the overlay element,
+   * never baked into the image, so the image can be replaced without it.
+   */
+  --scrim-hero-1: rgb(11 11 11 / 55%);
+  --scrim-hero-2: rgb(11 11 11 / 10%);
+  --scrim-hero-3: rgb(11 11 11 / 75%);
+  --scrim-hero-4: rgb(11 11 11 / 92%);
+  --on-dark-a80: rgb(255 255 255 / 80%);
+  --on-dark-a78: rgb(255 255 255 / 78%);
+
+  /* ------------------------------------------------------------- layout */
+  --page-max: 1440px;
+  --gutter: 40px;
+
+  min-height: 100vh;
+  background: var(--surface-page);
+  color: var(--ink);
+  font-family:
+    Inter,
+    "Inter Variable",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mp *,
+.mp *::before,
+.mp *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * A visible ring on everything focusable, at an offset, never removed. The
+ * reference leaves `outline:none` on its inputs; that is the one thing here
+ * not copied from it.
+ */
+.mp a:focus-visible,
+.mp button:focus-visible,
+.mp input:focus-visible,
+.mp [tabindex]:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.mp-skip {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 200;
+  padding: 11px 18px;
+  background: var(--ink);
+  color: var(--ink-on-dark);
+  font-size: var(--text-body);
+  font-weight: 500;
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: top 0.12s ease;
+}
+
+.mp-skip:focus {
+  top: 12px;
+}
+
+/* ==================================================================== sign in */
+
+.mp-login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/*
+ * THE HERO, AS A SLOT.
+ *
+ * The image is temporary and will be replaced with an Observer photograph. It
+ * is addressed through one custom property, so replacing it is one value —
+ * nothing here depends on its dimensions, and the focal point is configurable
+ * because "cover" crops and the interesting part of a photograph is rarely its
+ * centre.
+ */
+.mp-hero {
+  position: relative;
+  background-color: var(--ink-deep);
+  background-image: var(--hero-image, none);
+  background-size: cover;
+  background-position: var(--hero-focus, center top);
+  background-repeat: no-repeat;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+/* Separate from the image, so one can change without the other. */
+.mp-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--scrim-hero-1) 0%,
+    var(--scrim-hero-2) 32%,
+    var(--scrim-hero-3) 78%,
+    var(--scrim-hero-4) 100%
+  );
+}
+
+.mp-hero-logo {
+  position: relative;
+  align-self: flex-start;
+  height: 16px;
+  width: auto;
+  object-fit: contain;
+}
+
+.mp-hero-body {
+  position: relative;
+}
+
+.mp-hero-line {
+  font-size: var(--text-heading-1);
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink-on-dark);
+  max-width: 420px;
+  margin: 0 0 28px;
+}
+
+.mp-hero-note {
+  font-size: var(--text-caption);
+  color: var(--on-dark-a78);
+  line-height: 1.55;
+  max-width: 420px;
+  margin: 0;
+}
+
+.mp-login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.mp-form {
+  width: 100%;
+  max-width: 360px;
+}
+
+.mp-eyebrow {
+  margin-bottom: 12px;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-title {
+  margin: 0 0 28px;
+  font-size: var(--text-heading-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.mp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/*
+ * A real label, not a placeholder standing in for one.
+ *
+ * The reference labels its inputs with `aria-label` and shows the name only
+ * until the reader types. A visible label that stays is the accessible version
+ * of the same design, and it costs the composition nothing.
+ */
+.mp-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.mp-input {
+  padding: 12px 14px;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--ink);
+  background: var(--surface-card);
+}
+
+.mp-input::placeholder {
+  color: var(--ink-5);
+}
+
+.mp-input[aria-invalid="true"] {
+  border-color: var(--status-critical);
+}
+
+.mp-btn {
+  padding: 13px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface-page);
+}
+
+.mp-btn[data-weight="secondary"] {
+  border-color: var(--border-emphasis);
+  background: var(--surface-card);
+  color: var(--ink);
+}
+
+.mp-btn[data-weight="link"] {
+  padding: 11px 0;
+  border: none;
+  background: none;
+  color: var(--link);
+  text-align: left;
+  font-weight: 400;
+}
+
+.mp-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-field);
+  background: var(--surface-inset);
+  color: var(--ink-5);
+}
+
+.mp-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.mp-divider::before,
+.mp-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-track);
+}
+
+.mp-divider span {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.mp-note {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  line-height: 1.5;
+}
+
+.mp-alert {
+  font-size: var(--text-body);
+  color: var(--status-critical);
+  line-height: 1.5;
+  padding: 11px 13px;
+  border: 1px solid var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  border-radius: var(--radius);
+}
+
+/* What the demonstration offers, stated where a reader needs it. */
+.mp-demo {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius);
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  line-height: 1.6;
+}
+
+.mp-demo strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-size: var(--text-micro);
+  margin-bottom: 6px;
+}
+
+.mp-demo code {
+  color: var(--ink);
+  font-size: var(--text-micro);
+}
+
+/* =================================================================== projects */
+
+.mp-bar {
+  border-bottom: 1px solid var(--border-panel);
+  background: var(--surface-page);
+}
+
+.mp-bar-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mp-bar-brand {
+  font-size: var(--text-body);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mp-bar-product {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+  padding-left: 16px;
+  border-left: 1px solid var(--border-line);
+}
+
+.mp-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mp-bar-who {
+  text-align: right;
+  line-height: 1.3;
+}
+
+.mp-bar-who strong {
+  display: block;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.mp-bar-who span {
+  display: block;
+  font-size: var(--text-micro);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-banner {
+  background: var(--surface-tint);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.mp-banner-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 12px var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--text-caption);
+  /*
+   * --ink-3, not --ink-4.
+   *
+   * The banner sits on --surface-tint rather than on the page, and the
+   * secondary ink measures 4.48:1 against it — a fiftieth short of the
+   * contrast floor, which is exactly the kind of miss that survives every
+   * review that trusts a token to be safe everywhere. One step darker is
+   * 5.62:1 on the tint and still reads as secondary.
+   */
+  color: var(--ink-3);
+}
+
+.mp-chip {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.mp-main {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 64px var(--gutter) 96px;
+}
+
+.mp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.mp-head-eyebrow {
+  margin-bottom: 14px;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-head h1 {
+  margin: 0;
+  font-size: var(--text-display-1);
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.mp-count {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+}
+
+.mp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  align-items: stretch;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mp-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 140ms ease;
+}
+
+.mp-card:hover {
+  border-color: var(--border-hover);
+}
+
+/*
+ * The cover.
+ *
+ * A tinted block when a project has no photograph, which every demonstration
+ * project currently is. Sized by aspect ratio rather than by the image, so a
+ * cover arriving later cannot change the grid.
+ */
+.mp-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: var(--surface-ph-1);
+  background-image: var(--cover-image, none);
+  background-size: cover;
+  background-position: center;
+}
+
+.mp-cover-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 55%, rgb(0 0 0 / 45%) 100%);
+}
+
+.mp-card-body {
+  flex: 1;
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mp-developer {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.mp-project {
+  margin: 0 0 22px;
+  font-size: var(--text-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.mp-card-action {
+  margin-top: auto;
+}
+
+.mp-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface-page);
+  font-size: var(--text-body);
+  font-weight: 500;
+  border-radius: var(--radius);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mp-open:hover {
+  background: var(--ink-900);
+}
+
+.mp-empty {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  padding: 56px 40px;
+  text-align: center;
+}
+
+.mp-empty strong {
+  display: block;
+  font-size: var(--text-lead);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.mp-empty p {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+  line-height: 1.55;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ================================================================ responsive */
+
+/*
+ * The documented gutters — 40, 24, 16 — and the reference's own grid steps.
+ * The login is the one place this layer improves on the reference, which has
+ * no mobile breakpoint at all: below 900px the two columns become one, the
+ * photograph becomes a band rather than half the screen, and the form stays
+ * the thing a reader came for.
+ */
+@media (max-width: 1023px) {
+  .mp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .mp-login {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .mp-hero {
+    min-height: 220px;
+    padding: 28px 24px;
+  }
+
+  .mp-hero-line {
+    font-size: var(--text-lead);
+    margin-bottom: 0;
+  }
+
+  .mp-hero-note {
+    display: none;
+  }
+
+  .mp-login-panel {
+    padding: 40px 24px 56px;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .mp {
+    --gutter: 24px;
+  }
+
+  .mp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mp-main {
+    padding-top: 40px;
+  }
+
+  .mp-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .mp-bar-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .mp-bar-right {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 479px) {
+  .mp {
+    --gutter: 16px;
+  }
+
+  .mp-hero {
+    min-height: 168px;
+  }
+
+  .mp-login-panel {
+    padding: 32px 16px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp *,
+  .mp *::before,
+  .mp *::after {
+    transition-duration: 0.001ms !important;
+  }
+}

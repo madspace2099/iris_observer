@@ -49,6 +49,15 @@ const routes = walk(appDir)
 const REFERENCE_ROUTES: readonly string[] = [
   "/",
   "/sign-in",
+  /*
+   * ADDED AFTER THE REFERENCE, deliberately and with approval.
+   *
+   * The account layer arrived in M0.1: a reader signs in, lands here, and opens
+   * a project. The reference had no such route because it had no account layer
+   * — a profile picker minted the session and the root redirect chose a project
+   * on the reader's behalf. Both are gone.
+   */
+  "/projects",
   "/madspace",
   "/lab",
   "/lab/sign-in",

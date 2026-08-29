@@ -12,6 +12,20 @@ import type { SurfaceDescriptor } from "@observer/readmodels";
 export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/sign-in", audience: "internal", requiresRole: [] },
 
+  /*
+   * The project selector, between the account and the workspace.
+   *
+   * Every signed-in role reaches it, because every account has to choose a
+   * project before Observer has anything to show. What it lists is not a
+   * function of the role but of the account grants, which is why the role list
+   * here is every role rather than a subset.
+   */
+  {
+    route: "/projects",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
   /* --- Showroom Intelligence, the primary surfaces (ADR-0023) ------------- */
 
   {
