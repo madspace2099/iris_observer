@@ -105,6 +105,14 @@ export default defineConfig({
              * deployment yields a deployment that answers nothing, not one
              * running on a published key.
              */
+            /*
+             * The synthetic account directory, so the suite can pass through
+             * the visible sign-in. Its own switch, not the pepper harness:
+             * one flag that unlocks two unrelated things is a flag nobody can
+             * reason about. Absent on every deployment, where sign-in then has
+             * no directory to check a credential against and refuses.
+             */
+            OBSERVER_DEMO_ACCOUNTS: "1",
             OBSERVER_SYNTHETIC_HARNESS: "1",
             OBSERVER_SUBJECT_PEPPER: "a".repeat(64),
 
