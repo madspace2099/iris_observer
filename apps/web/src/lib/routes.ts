@@ -105,22 +105,6 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/lab/sign-in", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/lab/overview-a", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/lab/overview-b", audience: "internal", requiresRole: ["madspace_admin"] },
-
-  /*
-   * The Observer demonstration surface.
-   *
-   * A complete product experience over a frozen fixture, built to be shown.
-   * It reads no repository, holds no customer data and touches no session, so
-   * it sits outside the authenticated tree — but a route with no declared
-   * audience is exactly how a buyer-facing page appears by accident, and the
-   * same reasoning that put the design laboratory in this list puts this here.
-   * MADSPACE, because it is a thing MADSPACE presents rather than a thing a
-   * customer is given.
-   */
-  { route: "/observer", audience: "internal", requiresRole: ["madspace_admin"] },
-  { route: "/observer/overview", audience: "internal", requiresRole: ["madspace_admin"] },
-  { route: "/observer/units", audience: "internal", requiresRole: ["madspace_admin"] },
-  { route: "/observer/insights", audience: "internal", requiresRole: ["madspace_admin"] },
 ];
 
 /**
