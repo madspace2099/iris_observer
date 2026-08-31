@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 import { environment, type ReasoningEffort } from "@/lib/env";
 import { NO_ACCOUNT_CONNECTION } from "@/lib/credentials/failure";
+import type { ModelId } from "@/lib/models/catalogue";
 import { LIMITS, modelIsAllowed } from "./limits";
 
 /**
@@ -511,6 +512,57 @@ export function openAiModel(model: string, apiKey: string): ObserverModel {
 
 /* --- resolution ---------------------------------------------------------------- */
 
+/**
+ * WHY NO MODEL MAY BE CALLED, WHEN NONE MAY.
+ *
+ * Six causes, and a reader can act on four of them — but only if they are told
+ * which one happened. They used to be one boolean: every refusal reached the
+ * answer sheet as "your account has no OpenAI connection", so an account that
+ * had spent its monthly budget was sent to Settings to add a key it already
+ * had. A correct enforcement decision, reported as the wrong problem.
+ *
+ * Safe to serialise: a fixed word from a closed set. It names no vendor, quotes
+ * no message and carries nothing about the deployment.
+ */
+export type ModelBlock =
+  /** No credential stored for the chosen model's provider. */
+  | "no_connection"
+  /** A credential exists, but nothing may be spent: no ceiling is set. */
+  | "no_budget"
+  /** This month's ceiling is reached. Enforced BEFORE any request is made. */
+  | "budget_exhausted"
+  /** The provider told this account it cannot reach this model. */
+  | "model_unavailable"
+  /** A stored credential that will not decrypt. */
+  | "unreadable"
+  /** The question is larger than Observer will send. See the catalogue. */
+  | "too_large"
+  /** Storage or the ledger did not answer. Fail closed. */
+  | "unavailable";
+
+/** Passed in place of access when admission refused, so the refusal is named. */
+export interface ModelBlocked {
+  readonly blocked: ModelBlock;
+}
+
+/** What a caller hands the resolver: a key to use, a refusal, or nothing. */
+export type ModelGrant = ModelAccess | ModelBlocked | null;
+
+function isBlocked(grant: ModelGrant): grant is ModelBlocked {
+  return grant !== null && "blocked" in grant;
+}
+
+/** The operator-facing sentence for each. Redacted before it leaves. */
+const BLOCK_REASON: Readonly<Record<ModelBlock, string>> = Object.freeze({
+  no_connection: NO_ACCOUNT_CONNECTION,
+  no_budget: "no monthly Observer budget is set for this account",
+  budget_exhausted: "the monthly Observer budget for this account is used up",
+  model_unavailable: "the chosen model is not available to the key on this account",
+  unreadable: "the stored credential for this account could not be read",
+  too_large: "the question is larger than Observer will send in one request",
+  unavailable: "credential storage or the usage ledger did not answer",
+});
+
 export interface ModelStatus {
   readonly provider: string;
   readonly model: string;
@@ -528,9 +580,19 @@ export interface ModelStatus {
    *
    * False for every operator-side reason. Being told to visit Settings when
    * the problem is `OBSERVER_AI_ENABLED` would send a reader somewhere that
-   * cannot help them.
+   * cannot help them — and false, now, for a reader who has a key and has run
+   * out of budget, whose problem Settings solves through a different door.
    */
   readonly setupRequired: boolean;
+  /**
+   * WHICH REFUSAL HAPPENED. Null when a model answered.
+   *
+   * Survives redaction for the same reason `setupRequired` does: a word from
+   * a closed set, carrying nothing about the vendor or the request. It is what
+   * lets the sheet say the monthly budget is used up instead of sending
+   * somebody to add a key they already added.
+   */
+  readonly blocked: ModelBlock | null;
 }
 
 export type ModelResolution =
@@ -564,7 +626,37 @@ export type ModelResolution =
  * would mean an account that declined to connect still spends MADSPACE's money,
  * and no test could tell the two paths apart from the outside.
  */
-export function resolveModel(apiKey: string | null): ModelResolution {
+/**
+ * What the asking account may use for this question.
+ *
+ * A model identifier from the catalogue and the credential for its provider.
+ * Null when the account has no connection, when the chosen model's provider is
+ * not connected, or when the ledger refused the spend — all of which end the
+ * same way, evidence-only, because none of them may quietly become "use
+ * somebody else's key" or "spend past the ceiling".
+ */
+export interface ModelAccess {
+  readonly model: ModelId;
+  readonly apiKey: string;
+}
+
+/**
+ * How a catalogue model becomes something callable.
+ *
+ * Injected rather than imported. `providers/transport.ts` needs this module's
+ * types, so this module importing it back would be a cycle; a setter called
+ * once by the composition root keeps the dependency in one direction and makes
+ * the seam something a reader can see rather than infer.
+ */
+type ModelBuilder = (model: ModelId, apiKey: string) => ObserverModel;
+
+let buildModel: ModelBuilder | null = null;
+
+export function useModelBuilder(builder: ModelBuilder): void {
+  buildModel = builder;
+}
+
+export function resolveModel(grant: ModelGrant): ModelResolution {
   const env = environment();
 
   if (!env.ai.enabled) {
@@ -577,11 +669,34 @@ export function resolveModel(apiKey: string | null): ModelResolution {
         live: false,
         reason: "OBSERVER_AI_ENABLED is false",
         setupRequired: false,
+        blocked: null,
       },
     };
   }
 
-  if (apiKey === null || apiKey.length === 0) {
+  /*
+   * A named refusal, reported as itself.
+   *
+   * `setupRequired` is true for exactly one of them, because adding a key is
+   * the fix for exactly one of them.
+   */
+  if (isBlocked(grant)) {
+    return {
+      ok: false,
+      configurationFault: false,
+      status: {
+        provider: "evidence-only",
+        model: "none",
+        live: false,
+        reason: BLOCK_REASON[grant.blocked],
+        setupRequired: grant.blocked === "no_connection",
+        blocked: grant.blocked,
+      },
+    };
+  }
+
+  const access = grant;
+  if (access === null || access.apiKey.length === 0) {
     return {
       ok: false,
       configurationFault: false,
@@ -591,12 +706,21 @@ export function resolveModel(apiKey: string | null): ModelResolution {
         live: false,
         reason: NO_ACCOUNT_CONNECTION,
         setupRequired: true,
+        blocked: "no_connection",
       },
     };
   }
 
   try {
-    const model = openAiModel(env.ai.textModel, apiKey);
+    /*
+     * The catalogue decides which vendor and which transport; the account
+     * decided which model. `env.ai.textModel` no longer chooses anything — it
+     * survives only as a deployment-wide fallback for a request that arrives
+     * with no preference at all, and the settings page is where a preference
+     * comes from.
+     */
+    if (buildModel === null) throw new ModelConfigurationError("no model transport is installed");
+    const model = buildModel(access.model, access.apiKey);
     return {
       ok: true,
       model,
@@ -606,6 +730,7 @@ export function resolveModel(apiKey: string | null): ModelResolution {
         live: true,
         reason: null,
         setupRequired: false,
+        blocked: null,
       },
     };
   } catch (error) {
@@ -613,11 +738,12 @@ export function resolveModel(apiKey: string | null): ModelResolution {
       ok: false,
       configurationFault: true,
       status: {
-        provider: "openai",
-        model: env.ai.textModel,
+        provider: "provider",
+        model: access.model,
         live: false,
         reason: error instanceof Error ? error.message : "the model provider is misconfigured",
         setupRequired: false,
+        blocked: "unavailable",
       },
     };
   }

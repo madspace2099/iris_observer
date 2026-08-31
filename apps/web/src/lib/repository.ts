@@ -10,3 +10,16 @@ import { syntheticRepository } from "@observer/synthetic";
  * and nothing else (ADR-0007).
  */
 export const repository: ObserverRepository = syntheticRepository;
+
+/*
+ * THE MODEL TRANSPORT, INSTALLED ONCE.
+ *
+ * `ai/provider.ts` resolves which model answers; `providers/transport.ts`
+ * knows how to reach five vendors. The first cannot import the second without a
+ * cycle, so the composition root — this file, which every surface already
+ * imports — introduces them.
+ */
+import { useModelBuilder } from "@/lib/ai/provider";
+import { modelFor } from "@/lib/providers/transport";
+
+useModelBuilder(modelFor);

@@ -886,15 +886,28 @@ describe("the test store is not a development convenience", () => {
       .map((f) => f.slice(src.length).split("\\").join("/"));
 
     /*
-     * Two, and both deliberate. `ai/limits.ts` keeps the Ask limiter's counters
-     * there for the same bundle-boundary reason and predates this work; the
-     * credential feature's single use is the harness, which is the file that
-     * gets deleted when the harness is no longer wanted.
+     * Four, and every one deliberate.
+     *
+     * `ai/limits.ts` keeps the Ask limiter's counters there for the same
+     * bundle-boundary reason and predates all of this. The other three are the
+     * browser harness — credentials, ledger, preferences — each isolated in its
+     * own file so the whole harness is deleted in three pieces rather than
+     * unpicked from the product.
+     *
+     * A fifth entry appearing here means somebody reached for process-global
+     * state in the product itself, which is what this list exists to catch.
      */
-    expect(offenders.sort()).toEqual(["/lib/ai/limits.ts", "/lib/credentials/test-store.ts"]);
-    expect(offenders.filter((f) => f.includes("credentials"))).toEqual([
+    expect(offenders.sort()).toEqual([
+      "/lib/ai/limits.ts",
+      "/lib/budget/test-ledger.ts",
       "/lib/credentials/test-store.ts",
+      "/lib/models/test-preferences.ts",
     ]);
+
+    /* Every one of the three is a test store, by name and by isolation. */
+    for (const harness of offenders.filter((f) => f !== "/lib/ai/limits.ts")) {
+      expect(harness, harness).toMatch(/test-(store|ledger|preferences).ts$/);
+    }
   });
 });
 
@@ -907,19 +920,39 @@ describe("the scripted probe replaces the network entirely", () => {
     OBSERVER_ENVIRONMENT: "development",
   };
 
+  /**
+   * The model the probe is asked about.
+   *
+   * It matters now: the probe goes through the same transport that answers
+   * questions, so it reaches the vendor the model belongs to. A key for one
+   * provider tested against another provider's model is the defect this
+   * parameter exists to prevent.
+   */
+  const MODEL = "gpt-5.6-luna" as const;
+
   it("is chosen exactly where the test store is, and calls nothing", async () => {
     const { probeFor } = await import("../src/lib/credentials/probe");
     const scripted = probeFor(harness);
 
-    expect(await scripted("sk-observer-test-plain-000000")).toEqual({ ok: true });
-    expect(await scripted("sk-observer-test-reject-00000")).toEqual({
+    expect(await scripted("sk-observer-test-plain-000000", MODEL)).toEqual({ ok: true });
+    expect(await scripted("sk-observer-test-reject-00000", MODEL)).toEqual({
       ok: false,
       status: 401,
-      code: null,
+      code: "invalid_api_key",
     });
 
-    /* A real-looking key is refused here too, without a request. */
-    expect(await scripted(REAL_LOOKING)).toEqual({ ok: false, status: 401, code: null });
+    /*
+     * A real-looking key is refused, without a request.
+     *
+     * The refusal now lives in the scripted transport rather than in a probe of
+     * its own, which is a better place for it: it protects the ANSWER path as
+     * well as the test button. Nothing about it reaches a network either way.
+     */
+    expect(await scripted(REAL_LOOKING, MODEL)).toEqual({
+      ok: false,
+      status: 401,
+      code: "invalid_api_key",
+    });
   });
 
   it("maps each scripted suffix to the category it stands for", async () => {
@@ -935,11 +968,29 @@ describe("the scripted probe replaces the network entirely", () => {
     ];
 
     for (const [key, expected] of cases) {
-      const result = await scripted(key);
+      const result = await scripted(key, MODEL);
       expect(result.ok, key).toBe(false);
       if (!result.ok) {
         expect(classifyProviderFailure(result.status, result.code), key).toBe(expected);
       }
+    }
+  });
+
+  it("probes the model it is given, not one fixed one", async () => {
+    const { probeFor } = await import("../src/lib/credentials/probe");
+    const scripted = probeFor(harness);
+
+    /*
+     * Every model in the catalogue, probed by name.
+     *
+     * The probe used to build one client with one hard-coded model whatever it
+     * was asked about, so a reader testing a key for a model they had chosen
+     * learned nothing about that model. The catalogue is one vendor now, but
+     * the models differ in price and entitlement and the probe must reach the
+     * one it was handed. Under the harness nothing leaves the machine.
+     */
+    for (const model of ["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"] as const) {
+      expect(await scripted("sk-observer-test-plain-000000", model), model).toEqual({ ok: true });
     }
   });
 });

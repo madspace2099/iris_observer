@@ -14,11 +14,13 @@ import {
 } from "@observer/contracts";
 import { NotPermittedError } from "@observer/readmodels";
 
+import { classifyProviderFailure } from "@/lib/credentials/failure";
 import { environment } from "@/lib/env";
 import { LIMITS, breakerIsOpen, recordUpstreamFailure, recordUpstreamSuccess } from "./limits";
 import {
   ModelConfigurationError,
   resolveModel,
+  type ModelGrant,
   type ModelMessage,
   type ModelStatus,
   type ModelToolSpec,
@@ -86,7 +88,42 @@ export interface ObserverOutcome {
     readonly fallbackReason: FallbackReason | null;
     /** Whether a model call was made at all. False means none was configured. */
     readonly modelAttempted: boolean;
+    /**
+     * Whether the provider said this account cannot reach the chosen model.
+     *
+     * Distinct from every other upstream failure, because it is the only one
+     * that says something durable about the account rather than about the
+     * moment: a rate limit clears, an outage ends, an entitlement does not.
+     * The route records it against the account so the settings page can show
+     * the model as unreachable instead of letting a reader pick it again and
+     * wait for the same refusal.
+     *
+     * Server-side only — it is not in `publicOutcome`, and the browser learns
+     * the same fact through `status.blocked` on the next question.
+     */
+    readonly modelUnavailable: boolean;
   };
+}
+
+/**
+ * WHETHER A FAILURE MEANS "NOT THIS MODEL, ON THIS ACCOUNT".
+ *
+ * The transports throw a status and a short vendor code and nothing else — no
+ * message, because an upstream message can quote the request back and the
+ * request carries project evidence. `classifyProviderFailure` maps that pair
+ * to one of seven conditions, and exactly one of them is durable: a model this
+ * account is not entitled to will be refused again tomorrow, where a rate limit
+ * or an outage will not.
+ *
+ * Duck-typed rather than `instanceof`, so this module does not have to import
+ * the transport layer that imports its own types back.
+ */
+function saysModelUnreachable(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name !== "TransportFailure") return false;
+  const failure = error as Error & { status?: unknown; code?: unknown };
+  if (typeof failure.status !== "number") return false;
+  const code = typeof failure.code === "string" ? failure.code : null;
+  return classifyProviderFailure(failure.status, code) === "model_unavailable";
 }
 
 /**
@@ -697,6 +734,7 @@ function outcomeShell(
     diagnostics: {
       turns: 0,
       usage: null,
+      modelUnavailable: false,
       schemaRejected: false,
       truncated: false,
       reasoningEffort: effort,
@@ -736,17 +774,18 @@ export async function* askStream(
    * Here it is a local, consumed once by `resolveModel` and closed over by a
    * client that lives as long as the request.
    *
-   * Null means evidence-only: no connection, no storage, or a stored credential
-   * that would not decrypt. It never means "use the deployment's key" — there
-   * is no deployment key left to use.
+   * Null means evidence-only: no connection, no storage, a stored credential
+   * that would not decrypt, or a monthly budget with no room left. It never
+   * means "use the deployment's key" — there is no deployment key to use — and
+   * it never means "spend anyway".
    */
-  credential: string | null,
+  access: ModelGrant,
   signal?: AbortSignal,
 ): AsyncGenerator<AskEvent> {
   const trimmed = question.trim();
   const env = environment();
   const effort = context.depth === "deep" ? "high" : env.ai.reasoningEffort;
-  const resolution = resolveModel(credential);
+  const resolution = resolveModel(access);
 
   if (trimmed.length === 0) {
     yield {
@@ -775,6 +814,8 @@ export async function* askStream(
    * is shown, and it must never stop the tools running.
    */
   let configurationFault = false;
+  /* Set by either model turn. See `AskDiagnostics.modelUnavailable`. */
+  let modelUnavailable = false;
 
   if (!resolution.ok && resolution.configurationFault) {
     yield {
@@ -887,6 +928,7 @@ export async function* askStream(
       if (error instanceof ModelConfigurationError) {
         configurationFault = true;
       }
+      if (saysModelUnreachable(error)) modelUnavailable = true;
       recordUpstreamFailure();
       reportUpstreamFailure("planning", error);
       calls = routeQuestion(trimmed, context).map((c) => ({ ...c }));
@@ -1003,6 +1045,7 @@ export async function* askStream(
        */
       fallbackReason: live ? null : configurationFault ? "provider_misconfigured" : fallback,
       modelAttempted: model !== null,
+      modelUnavailable,
     },
   });
 
@@ -1092,6 +1135,7 @@ Answer the question using only the figures above. Cite bundle ids in every findi
   } catch (error) {
     // Same rule as the planning turn: the prose is lost, the figures are not.
     if (error instanceof ModelConfigurationError) configurationFault = true;
+    if (saysModelUnreachable(error)) modelUnavailable = true;
     recordUpstreamFailure();
     reportUpstreamFailure("composition", error);
     yield {
@@ -1178,11 +1222,11 @@ export function safeParseAnswer(
 export async function ask(
   question: string,
   context: AskContextInput,
-  credential: string | null,
+  access: ModelGrant,
   signal?: AbortSignal,
 ): Promise<ObserverOutcome> {
   let outcome: ObserverOutcome | null = null;
-  for await (const event of askStream(question, context, credential, signal)) {
+  for await (const event of askStream(question, context, access, signal)) {
     if (event.type === "final") outcome = event.outcome;
   }
   /*

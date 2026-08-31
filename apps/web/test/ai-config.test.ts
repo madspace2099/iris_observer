@@ -174,35 +174,45 @@ describe("the model allowlist is authorisation, not configuration", () => {
 });
 
 describe("the voice layer reports why it is off", () => {
-  it("names the switch when the switch is off", () => {
+  /*
+   * ONE ANSWER, AND NO ENVIRONMENT CHANGES IT.
+   *
+   * These cases used to check that the blocker named the right cause —
+   * the switch, the allowlist — and returned null when a deployment had
+   * everything set. Returning null is what let the route mint a realtime
+   * secret by talking to OpenAI outside the shared transport, which is the hole
+   * `no-egress.test.ts` now guards.
+   *
+   * Realtime voice is M0.5: no transport, and no pricing for realtime audio,
+   * which is not billed at the text-token rates the catalogue carries. Until
+   * both exist the honest answer is "not built", and it must not be reachable
+   * by configuration — so what is asserted here is that no environment produces
+   * any other answer.
+   */
+  it("says it is not built, whatever the switch says", () => {
     withEnv({ OBSERVER_VOICE_ENABLED: "false", OPENAI_API_KEY: "x" });
-    expect(voiceBlocker()?.kind).toBe("disabled");
-    expect(voiceBlocker()?.detail).toMatch(/OBSERVER_VOICE_ENABLED/);
+    expect(voiceBlocker()?.kind).toBe("not_built");
+
+    withEnv({ OBSERVER_VOICE_ENABLED: "true", OPENAI_API_KEY: "x" });
+    expect(voiceBlocker()?.kind).toBe("not_built");
   });
 
-  it("no longer answers the credential question, because it is per account", () => {
-    /*
-     * Whether a key exists is now a question about the ASKING ACCOUNT, and this
-     * function has no account. It answers only what the deployment forbids —
-     * the feature switched off, or a voice model outside the allowlist — and
-     * the route checks the account's own connection immediately before minting
-     * a client secret.
-     */
-    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
-    expect(voiceBlocker()).toBeNull();
-  });
-
-  it("names the model when the model is not permitted", () => {
+  it("cannot be switched on by a model allowlist either", () => {
     withEnv({
       OBSERVER_VOICE_ENABLED: "true",
       OPENAI_API_KEY: "x",
       OPENAI_VOICE_MODEL: "gpt-realtime-experimental",
     });
     const blocker = voiceBlocker();
-    expect(blocker?.kind).toBe("model_not_allowed");
-    expect(blocker?.detail).toMatch(/gpt-realtime-experimental/);
-    // A model identifier and a variable name. Neither is a secret.
+    expect(blocker?.kind).toBe("not_built");
+    expect(blocker?.detail).toMatch(/not implemented/i);
+    /* A milestone reference and a sentence. Neither is a secret. */
     expect(blocker?.detail).not.toMatch(/sk-/);
+  });
+
+  it("tells the reader plainly, without naming a variable", () => {
+    withEnv({ OBSERVER_VOICE_ENABLED: "true" });
+    expect(voiceBlocker()?.reader).toMatch(/not enabled yet/i);
   });
 
   it("keeps the operator's diagnosis off the browser's copy", () => {
@@ -239,9 +249,16 @@ describe("the voice layer reports why it is off", () => {
     expect(off).toBe(wrongModel);
   });
 
-  it("is available when everything is set", () => {
+  it("is never available, however completely a deployment is configured", () => {
+    /*
+     * The inverse of what this used to assert, and deliberately so. A fully
+     * configured deployment reaching `null` here is precisely what let the
+     * route mint a realtime secret against a vendor — including from the
+     * synthetic harness, carrying a fake key. Until M0.5 builds the transport
+     * and the pricing, there is no configuration that opens this door.
+     */
     withEnv({ OBSERVER_VOICE_ENABLED: "true", OPENAI_API_KEY: "x" });
-    expect(voiceBlocker()).toBeNull();
+    expect(voiceBlocker()?.kind).toBe("not_built");
   });
 });
 

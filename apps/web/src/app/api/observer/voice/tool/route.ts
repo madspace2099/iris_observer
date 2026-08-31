@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ask, runTools } from "@/lib/ai/agent";
-import { resolveApiKey } from "@/lib/credentials/service";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
 import { admittedHeaders, AskBodySchema, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { TOOL_NAMES } from "@/lib/ai/tools";
@@ -71,15 +78,37 @@ export async function POST(request: Request) {
         { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
       );
     }
-    /* The asking account's own key, resolved on the server at the last moment. */
-    const credential = await resolveApiKey(admitted.accountId);
-
-    const outcome = await ask(
-      parsed.data.question,
-      admitted.context,
-      credential.ok ? credential.apiKey : null,
-      AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+    /* Model, credential and budget, on the server, at the last moment. */
+    const admission = await admitModelRequest(
+      admitted.accountId,
+      admitted.question,
+      admitted.context.depth,
+      parseOverride(admitted.modelOverride),
     );
+
+    /* Non-refundable from here. See the same block in the POST route. */
+    const dispatched = admission.ok ? await dispatchAdmission(admission.reservation) : false;
+
+    let outcome;
+    try {
+      outcome = await ask(
+        parsed.data.question,
+        admitted.context,
+        admission.ok && dispatched
+          ? admission.access
+          : admission.ok
+            ? { blocked: "unavailable" as const }
+            : blockFor(admission.refusal),
+        AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+      );
+    } catch (error) {
+      if (admission.ok) await abandonAdmission(admission.reservation, dispatched);
+      throw error;
+    }
+
+    if (admission.ok) {
+      await settleAdmission(admission.reservation, outcome.diagnostics.usage ?? null);
+    }
     return NextResponse.json(
       {
         /*

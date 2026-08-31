@@ -5,7 +5,15 @@ import { admittedHeaders, gate, redactStatus, type Admitted } from "@/lib/ai/gat
 import { LIMITS } from "@/lib/ai/limits";
 import { completeAiRequest, type ResponseSource } from "@/lib/ai/quota";
 import { recordAsk } from "@/lib/ai/telemetry";
-import { resolveApiKey } from "@/lib/credentials/service";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  recordModelUnavailable,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
 
 /**
  * Ask Observer — the single-response route.
@@ -176,23 +184,91 @@ export async function POST(request: Request) {
    * lot, and the client can abort sooner.
    */
   /*
-   * The asking account's own OpenAI key, resolved here and nowhere earlier.
-   *
-   * Last possible moment, on the server, for the account the gate authenticated
-   * — never from the request body, never from a header, never from the
-   * deployment's environment. `null` is an ordinary outcome: the reader gets
-   * every measured figure the tools produced, with the model stage skipped and
-   * the status saying why.
+   * Removed: the credential is now resolved inside `admitModelRequest`,
+   * together with the model choice and the budget, so the three cannot be
+   * decided in an order that spends money before checking whether it may.
    */
-  const credential = await resolveApiKey(admitted.accountId);
-  const apiKey = credential.ok ? credential.apiKey : null;
-
-  const outcome = await ask(
+  /*
+   * Model, credential and budget decided together, and before anything is
+   * spent. A refusal here means no provider request is made at all — which is
+   * what "no request after the budget is exhausted" has to mean to be worth
+   * writing down.
+   */
+  const admission = await admitModelRequest(
+    admitted.accountId,
     admitted.question,
-    admitted.context,
-    apiKey,
-    AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+    admitted.context.depth,
+    parseOverride(admitted.modelOverride),
   );
+
+  /*
+   * THE HOLD BECOMES NON-REFUNDABLE HERE, BEFORE ANYTHING IS SENT.
+   *
+   * Everything up to this line can be released for free. Past it, the vendor
+   * may have done the work and will bill for it whatever this process manages
+   * to observe — so a failure below is recorded as uncertain rather than
+   * refunded. A hold that will not dispatch means no model request is made.
+   */
+  let dispatched = false;
+  if (admission.ok) {
+    dispatched = await dispatchAdmission(admission.reservation);
+  }
+  /*
+   * Refused requests carry WHY, not merely "no".
+   *
+   * `null` here used to mean six different things, and the sheet rendered all
+   * six as a missing connection.
+   */
+  const access = admission.ok && dispatched ? admission.access : null;
+  const grant =
+    access !== null
+      ? access
+      : admission.ok
+        ? { blocked: "unavailable" as const }
+        : blockFor(admission.refusal);
+
+  let outcome;
+  try {
+    outcome = await ask(
+      admitted.question,
+      admitted.context,
+      grant,
+      AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+    );
+  } catch (error) {
+    /*
+     * No answer — and what that costs depends on whether anything was sent.
+     * Never a blanket refund: see `abandonAdmission`.
+     */
+    if (admission.ok) await abandonAdmission(admission.reservation, dispatched);
+    throw error;
+  }
+
+  /*
+   * WHAT THIS REQUEST LEARNED ABOUT THE ACCOUNT, KEPT.
+   *
+   * A provider that refuses a model for entitlement will refuse it again: it
+   * is a standing fact about this account's key, not a bad minute. Recorded so
+   * the settings page can show the model as unreachable and the next question
+   * can pick a different one — rather than a reader choosing the same model
+   * every day and waiting for the same refusal.
+   *
+   * Only entitlement. A rate limit or an outage is deliberately NOT recorded;
+   * marking a model unreachable because a vendor was briefly down would hide
+   * it from somebody perfectly entitled to use it.
+   */
+  if (admission.ok && outcome.diagnostics.modelUnavailable) {
+    await recordModelUnavailable(admitted.accountId, admission.access.model);
+  }
+
+  if (admission.ok) {
+    /*
+     * Settled from the provider's own usage report where there is one. A model
+     * that answered without reporting tokens keeps the estimate rather than
+     * being recorded as free.
+     */
+    await settleAdmission(admission.reservation, outcome.diagnostics.usage ?? null);
+  }
 
   await reportOutcome(outcome, admitted, started);
 

@@ -601,6 +601,40 @@
  * facts; this says why the prose is plainer than it could be and where to
  * change that. Secondary ink, not a warning colour — nothing has gone wrong.
  */
+/*
+ * WHICH MODEL IS ABOUT TO ANSWER.
+ *
+ * On the rail, beside the prompt, in the rail's own quiet ink. Named rather
+ * than implied: a reader who cannot tell which model wrote a sentence cannot
+ * judge it, and that judgement is what this whole product asks them to make.
+ */
+.obs-model {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.obs-model-select,
+.obs-model-static {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  max-width: 12rem;
+}
+
+.obs-model-select {
+  cursor: pointer;
+}
+
+.obs-model-select:hover {
+  color: var(--ink-2);
+}
+
 .obs-answer-setup {
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;

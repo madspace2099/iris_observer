@@ -8,10 +8,10 @@ import {
   open,
   seal,
 } from "./envelope";
+import { probeModelFor, type ModelId, type ProviderId } from "@/lib/models/catalogue";
 import { classifyProviderFailure, impugnsCredential, type ConnectionFailure } from "./failure";
 import {
   CredentialStorageError,
-  OPENAI,
   credentialStore,
   type CredentialAction,
   type StoredCredential,
@@ -131,6 +131,7 @@ function metadataOf(row: StoredCredential): ConnectionMetadata {
 
 async function writeAudit(
   accountId: string,
+  provider: ProviderId,
   action: CredentialAction,
   succeeded: boolean,
   category: string,
@@ -139,7 +140,7 @@ async function writeAudit(
   if (!storage.available) return;
   await storage.store.audit({
     accountId,
-    provider: OPENAI,
+    provider,
     action,
     succeeded,
     category,
@@ -156,7 +157,10 @@ async function writeAudit(
  * who obtained it, which is the property that lets the settings page be an
  * ordinary server component.
  */
-export async function connectionFor(accountId: string): Promise<ConnectionState> {
+export async function connectionFor(
+  accountId: string,
+  provider: ProviderId = "openai",
+): Promise<ConnectionState> {
   const unavailable = unavailableReason();
   if (unavailable !== null) return { kind: "unavailable", failure: unavailable };
 
@@ -164,7 +168,7 @@ export async function connectionFor(accountId: string): Promise<ConnectionState>
   if (!storage.available) return { kind: "unavailable", failure: "storage_unavailable" };
 
   try {
-    const row = await storage.store.read(accountId, OPENAI);
+    const row = await storage.store.read(accountId, provider);
     if (row === null) return { kind: "not_connected" };
     return { kind: "connected", connection: metadataOf(row) };
   } catch (error) {
@@ -185,7 +189,21 @@ export async function connectionFor(accountId: string): Promise<ConnectionState>
 /* ============================================================== writing state */
 
 export type SaveResult =
-  | { readonly ok: true; readonly connection: ConnectionMetadata; readonly replaced: boolean }
+  | {
+      readonly ok: true;
+      readonly connection: ConnectionMetadata;
+      readonly replaced: boolean;
+      /**
+       * The model the probe could not reach, when the key itself was fine.
+       *
+       * Null on an ordinary success. Set when the provider authenticated the
+       * key and then said this account may not use the model it was asked
+       * about — a fact about the entitlement, not about the credential. The
+       * caller records it so the settings page can show that model as out of
+       * reach, and tells the reader to pick another one.
+       */
+      readonly unreachableModel: ModelId | null;
+    }
   | { readonly ok: false; readonly failure: ConnectionFailure };
 
 /**
@@ -193,9 +211,15 @@ export type SaveResult =
  *
  * Injected rather than imported so the suite can exercise every branch without
  * a network call and without a real key — and so this module has no import edge
- * to the OpenAI SDK at all. The route supplies the real one.
+ * to any vendor SDK at all. The route supplies the real one.
+ *
+ * The MODEL is a parameter because a key is not valid in the abstract: it is
+ * valid for a vendor, and reachable for some models on that vendor. Probing
+ * every provider's key against one hard-coded OpenAI model — which is what
+ * this did — tested an Anthropic key by sending it to OpenAI, and reported the
+ * inevitable rejection as though the reader had pasted the wrong thing.
  */
-export type ConnectionProbe = (apiKey: string) => Promise<ProbeResult>;
+export type ConnectionProbe = (apiKey: string, model: ModelId) => Promise<ProbeResult>;
 
 export type ProbeResult =
   | { readonly ok: true }
@@ -217,12 +241,14 @@ export async function saveConnection(
   accountId: string,
   rawKey: string,
   probe: ConnectionProbe,
+  provider: ProviderId = "openai",
+  model: ModelId = probeModelFor(provider),
 ): Promise<SaveResult> {
   const trimmed = rawKey.trim();
 
   const unavailable = unavailableReason();
   if (unavailable !== null) {
-    await writeAudit(accountId, "connected", false, unavailable);
+    await writeAudit(accountId, provider, "connected", false, unavailable);
     return { ok: false, failure: unavailable };
   }
 
@@ -238,7 +264,7 @@ export async function saveConnection(
    * masked identifier not to reveal a third of it.
    */
   if (trimmed.length < 12) {
-    await writeAudit(accountId, "connected", false, "rejected");
+    await writeAudit(accountId, provider, "connected", false, "rejected");
     return { ok: false, failure: "rejected" };
   }
 
@@ -251,23 +277,46 @@ export async function saveConnection(
    * living in a fixture nobody audits.
    */
   if (storage.store.accepts !== undefined && !storage.store.accepts(trimmed)) {
-    await writeAudit(accountId, "connected", false, "rejected");
+    await writeAudit(accountId, provider, "connected", false, "rejected");
     return { ok: false, failure: "rejected" };
   }
 
   let existing: StoredCredential | null;
   try {
-    existing = await storage.store.read(accountId, OPENAI);
+    existing = await storage.store.read(accountId, provider);
   } catch {
     return { ok: false, failure: "provider_unavailable" };
   }
   const replacing = existing !== null;
 
-  const probed = await probe(trimmed);
-  if (!probed.ok) {
-    const failure = classifyProviderFailure(probed.status, probed.code);
-    await writeAudit(accountId, replacing ? "replaced" : "connected", false, failure);
-    return { ok: false, failure };
+  const probed = await probe(trimmed, model);
+
+  /*
+   * A KEY THAT CANNOT REACH ONE MODEL IS STILL A KEY.
+   *
+   * Every probe failure used to stop the write, so a reader whose account was
+   * not entitled to the model Observer happened to ask about could not store a
+   * credential that authenticated perfectly well — and was told to check the
+   * key, which was never the problem. The provider only gets as far as
+   * refusing a model AFTER it has accepted the credential, so this particular
+   * failure is positive evidence that the key works.
+   *
+   * Every other failure is refused as before. A rate limit or an outage says
+   * nothing either way, and storing a credential nobody has verified is how a
+   * reader ends up with a connection that has never worked.
+   */
+  const probeFailure = probed.ok ? null : classifyProviderFailure(probed.status, probed.code);
+  const unreachableModel = probeFailure === "model_unavailable" ? model : null;
+
+  if (probeFailure !== null && unreachableModel === null) {
+    await writeAudit(
+      accountId,
+      provider,
+      replacing ? "replaced" : "connected",
+      false,
+      probeFailure,
+    );
+    return { ok: false, failure: probeFailure };
   }
 
   const at = nowIso();
@@ -275,8 +324,8 @@ export async function saveConnection(
   try {
     row = {
       accountId,
-      provider: OPENAI,
-      sealed: seal(trimmed, { accountId, provider: OPENAI }),
+      provider,
+      sealed: seal(trimmed, { accountId, provider }),
       lastFour: lastFour(trimmed),
       createdAt: existing?.createdAt ?? at,
       updatedAt: at,
@@ -286,7 +335,7 @@ export async function saveConnection(
     };
   } catch (error) {
     if (error instanceof EncryptionUnavailableError) {
-      await writeAudit(accountId, "connected", false, "storage_unavailable");
+      await writeAudit(accountId, provider, "connected", false, "storage_unavailable");
       return { ok: false, failure: "storage_unavailable" };
     }
     throw error;
@@ -297,6 +346,7 @@ export async function saveConnection(
   } catch {
     await writeAudit(
       accountId,
+      provider,
       replacing ? "replaced" : "connected",
       false,
       "provider_unavailable",
@@ -304,8 +354,18 @@ export async function saveConnection(
     return { ok: false, failure: "provider_unavailable" };
   }
 
-  await writeAudit(accountId, replacing ? "replaced" : "connected", true, "ok");
-  return { ok: true, connection: metadataOf(row), replaced: replacing };
+  /*
+   * Recorded as a success, with the caveat attached rather than folded away.
+   * The credential is stored and usable; one model on it is not.
+   */
+  await writeAudit(
+    accountId,
+    provider,
+    replacing ? "replaced" : "connected",
+    true,
+    unreachableModel === null ? "ok" : "model_unavailable",
+  );
+  return { ok: true, connection: metadataOf(row), replaced: replacing, unreachableModel };
 }
 
 export type TestResult =
@@ -322,6 +382,8 @@ export type TestResult =
 export async function testConnection(
   accountId: string,
   probe: ConnectionProbe,
+  provider: ProviderId = "openai",
+  model: ModelId = probeModelFor(provider),
 ): Promise<TestResult> {
   const unavailable = unavailableReason();
   if (unavailable !== null) return { ok: false, failure: unavailable };
@@ -331,7 +393,7 @@ export async function testConnection(
 
   let row: StoredCredential | null;
   try {
-    row = await storage.store.read(accountId, OPENAI);
+    row = await storage.store.read(accountId, provider);
   } catch {
     return { ok: false, failure: "provider_unavailable" };
   }
@@ -339,16 +401,16 @@ export async function testConnection(
 
   let key: string;
   try {
-    key = open(row.sealed, { accountId, provider: OPENAI });
+    key = open(row.sealed, { accountId, provider });
   } catch (error) {
     if (error instanceof CredentialUnreadableError || error instanceof EncryptionUnavailableError) {
-      await writeAudit(accountId, "tested", false, "unreadable");
+      await writeAudit(accountId, provider, "tested", false, "unreadable");
       return { ok: false, failure: "unreadable" };
     }
     throw error;
   }
 
-  const probed = await probe(key);
+  const probed = await probe(key, model);
   const at = nowIso();
 
   /*
@@ -367,14 +429,14 @@ export async function testConnection(
   const outcome: TestOutcome =
     failure === null ? "passed" : impugnsCredential(failure) ? "rejected" : "unavailable";
 
-  await storage.store.recordTest(accountId, OPENAI, outcome, at);
+  await storage.store.recordTest(accountId, provider, outcome, at);
 
   if (failure !== null) {
-    await writeAudit(accountId, "tested", false, failure);
+    await writeAudit(accountId, provider, "tested", false, failure);
     return { ok: false, failure };
   }
 
-  await writeAudit(accountId, "tested", true, "ok");
+  await writeAudit(accountId, provider, "tested", true, "ok");
   return { ok: true, at };
 }
 
@@ -385,19 +447,22 @@ export async function testConnection(
  * holds the ciphertext, and a reader who asked for their key to be removed did
  * not ask for it to be hidden.
  */
-export async function removeConnection(accountId: string): Promise<boolean> {
+export async function removeConnection(
+  accountId: string,
+  provider: ProviderId = "openai",
+): Promise<boolean> {
   const storage = credentialStore();
   if (!storage.available) return false;
 
   let removed = false;
   try {
-    removed = await storage.store.remove(accountId, OPENAI);
+    removed = await storage.store.remove(accountId, provider);
   } catch {
-    await writeAudit(accountId, "removed", false, "provider_unavailable");
+    await writeAudit(accountId, provider, "removed", false, "provider_unavailable");
     return false;
   }
 
-  await writeAudit(accountId, "removed", removed, removed ? "ok" : "rejected");
+  await writeAudit(accountId, provider, "removed", removed, removed ? "ok" : "rejected");
   return removed;
 }
 
@@ -420,7 +485,10 @@ export type KeyResolution =
  * because silently answering on the deployment's own key would bill MADSPACE
  * for a question asked by somebody who declined to connect an account.
  */
-export async function resolveApiKey(accountId: string): Promise<KeyResolution> {
+export async function resolveApiKey(
+  accountId: string,
+  provider: ProviderId = "openai",
+): Promise<KeyResolution> {
   if (unavailableReason() !== null) return { ok: false, reason: "unavailable" };
 
   const storage = credentialStore();
@@ -428,7 +496,7 @@ export async function resolveApiKey(accountId: string): Promise<KeyResolution> {
 
   let row: StoredCredential | null;
   try {
-    row = await storage.store.read(accountId, OPENAI);
+    row = await storage.store.read(accountId, provider);
   } catch {
     return { ok: false, reason: "unavailable" };
   }
@@ -443,7 +511,7 @@ export async function resolveApiKey(accountId: string): Promise<KeyResolution> {
    * the ciphertext against whatever the database happened to hand back.
    */
   try {
-    return { ok: true, apiKey: open(row.sealed, { accountId, provider: OPENAI }) };
+    return { ok: true, apiKey: open(row.sealed, { accountId, provider }) };
   } catch {
     return { ok: false, reason: "unreadable" };
   }

@@ -30,6 +30,14 @@ export interface ObserverStatus {
    * predates the field; absent reads as false, which is the safe direction.
    */
   readonly setupRequired?: boolean;
+  /**
+   * Which refusal happened, when one did. Absent or null means a model answered.
+   *
+   * One word from a closed set, chosen on the server. The sheet uses it to say
+   * what is actually wrong — an exhausted budget is not a missing key, and
+   * telling a reader to add one they already have wastes their afternoon.
+   */
+  readonly blocked?: string | null;
 }
 
 export interface AskOutcome {

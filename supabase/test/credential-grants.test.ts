@@ -1,9 +1,23 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { openDatabase } from "./support/pglite";
+import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+
+/*
+ * CLOSE WHAT THE FIXTURE OPENS.
+ *
+ * The database below is a Postgres compiled to WASM, built once for the whole
+ * file. Left open it keeps a live handle in the forked worker, the worker does
+ * not exit on its own, and Vitest tears the pool down underneath it — which it
+ * records as an unhandled error and an exit code of 1 while its own report is
+ * already written and green. `supabase/test/worker-bound.test.ts` fails when a
+ * suite that boots one of these does not register both hooks, which is how this
+ * omission was found.
+ */
+afterEach(closeTestDatabases);
+afterAll(closeSuiteDatabases);
 
 /**
  * THE CREDENTIAL TABLES, AND WHO CAN ACTUALLY TOUCH THEM.

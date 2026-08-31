@@ -26,8 +26,15 @@
  * One server process serves all three viewport projects, and the Ask limiter is
  * per-instance by design (ADR-0026), so a burst in one project spends the
  * allowance of the other two.
+ *
+ * Thirty was enough until a suite arrived that spends a monthly budget to prove
+ * it is enforced: `models-and-budget.spec.ts` legitimately asks dozens of
+ * questions inside a minute, and at thirty the limiter answered some of them —
+ * which arrives as a refusal with no reason attached and reads exactly like a
+ * budget rule misfiring. Raised so ordinary tests stay clear of it, and the
+ * burst below stays clear of THEM.
  */
-export const ASK_PER_MINUTE = 30;
+export const ASK_PER_MINUTE = 90;
 
 export const ASK_PER_VIEWER_PER_DAY = 5000;
 export const ASK_PER_INSTANCE_PER_DAY = 20000;

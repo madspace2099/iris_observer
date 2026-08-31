@@ -1,11 +1,16 @@
 import "server-only";
 
-import OpenAI from "openai";
-
-import { environment } from "@/lib/env";
-import { LIMITS, modelIsAllowed } from "./limits";
-import { ModelConfigurationError, describeOpenAiFailure } from "./provider";
-import { toolSpecs } from "./agent";
+/*
+ * NO VENDOR SDK IS IMPORTED HERE, AND THAT IS THE POINT.
+ *
+ * This module used to construct an OpenAI client. It was the only AI path that
+ * bypassed the injectable transport, which meant the synthetic harness — whose
+ * entire guarantee is that nothing leaves the machine — could still have sent a
+ * fake key to api.openai.com the moment somebody pressed a microphone. The
+ * import is gone rather than guarded: a guard is something a later edit can
+ * step around, and a missing dependency is not.
+ */
+import { ModelConfigurationError } from "./provider";
 
 /**
  * The realtime voice session.
@@ -91,7 +96,12 @@ export const DELEGATE_TOOL_NAME = DELEGATE_TOOL.name;
  * server. That is a configuration detail handed to an audience who cannot act
  * on it and should not be shown it.
  */
-export type VoiceBlockerKind = "disabled" | "not_configured" | "model_not_allowed";
+export type VoiceBlockerKind =
+  | "disabled"
+  | "not_configured"
+  | "model_not_allowed"
+  /** Realtime voice has not been built. The only answer this milestone gives. */
+  | "not_built";
 
 export interface VoiceBlocker {
   readonly kind: VoiceBlockerKind;
@@ -127,31 +137,29 @@ export function publicBlocker(blocker: VoiceBlocker | null): PublicVoiceBlocker 
  * and a single `false` would send somebody looking in the wrong place.
  */
 export function voiceBlocker(): VoiceBlocker | null {
-  const env = environment();
-  const SPOKEN =
-    "Observer is not taking spoken questions on this deployment. It still answers in text.";
-
-  if (!env.ai.voiceEnabled) {
-    return {
-      kind: "disabled",
-      detail: "OBSERVER_VOICE_ENABLED is false.",
-      reader: SPOKEN,
-    };
-  }
   /*
-   * Whether a key EXISTS is now a per-account question, so it is not asked
-   * here. This function answers what the deployment forbids; the account's own
-   * connection is checked by the route, immediately before minting, and its
-   * absence produces the same spoken-questions-unavailable sentence.
+   * ONE ANSWER, AND NO FLAG CAN CHANGE IT.
+   *
+   * Realtime voice is M0.5. There is no transport for it, and no pricing:
+   * realtime audio is not billed at the text-token rates this catalogue
+   * carries, so metering a spoken session against a reader's monthly budget
+   * would put a number on their screen that bears no relation to their bill.
+   *
+   * The earlier version consulted `OBSERVER_VOICE_ENABLED` and the model
+   * allowlist and, finding both satisfactory, returned null — at which point
+   * the route minted a realtime secret by talking to OpenAI directly, outside
+   * the injectable transport every other AI path goes through. That is the hole
+   * this closes: not by adding a check, but by removing the destination.
+   *
+   * `OBSERVER_VOICE_ENABLED` is deliberately not consulted. A refusal a
+   * deployment can switch off is not a refusal.
    */
-  if (!modelIsAllowed(env.ai.voiceModel)) {
-    return {
-      kind: "model_not_allowed",
-      detail: `The configured voice model "${env.ai.voiceModel}" is not in OBSERVER_ALLOWED_MODELS.`,
-      reader: SPOKEN,
-    };
-  }
-  return null;
+  return {
+    kind: "not_built",
+    detail: "Realtime voice is not implemented in this milestone. See ADR-0031.",
+    reader:
+      "Spoken questions are not enabled yet. Observer answers in text, and the spoken interface is coming in a later milestone.",
+  };
 }
 
 export interface VoiceSession {
@@ -175,53 +183,29 @@ export interface VoiceSession {
  * pipeline, which sends it. What is lost is vendor-side correlation of the
  * spoken turns themselves, and that is recorded rather than papered over.
  */
-export async function createVoiceSession(apiKey: string): Promise<VoiceSession> {
-  const env = environment();
-  const blocker = voiceBlocker();
-  if (blocker !== null) throw new ModelConfigurationError(`voice: ${blocker.detail}`);
+/**
+ * SPOKEN QUESTIONS ARE NOT BUILT YET, AND THIS SAYS SO RATHER THAN TRYING.
+ *
+ * This function used to construct an OpenAI client and mint a realtime client
+ * secret. That made it the one AI path in the codebase that did NOT go through
+ * the injectable transport — so the synthetic browser harness, whose whole
+ * guarantee is that no request can leave, would have made a real HTTPS request
+ * to api.openai.com carrying a fake `sk-observer-test-…` key the moment
+ * anybody pressed a microphone. A DNS lookup, a TLS handshake and a 401 in
+ * somebody's logs, from a suite that promises silence.
+ *
+ * Realtime voice is M0.5. Until the transport, the pricing and the metering for
+ * it exist — realtime audio is not priced with the text-token rates in this
+ * catalogue, and pretending otherwise would put a wrong number in a reader's
+ * budget — this refuses locally and tells the truth about why.
+ *
+ * The refusal is deliberate and permanent for as long as this line stands: not
+ * a feature flag somebody can turn on to reach the vendor, but a function with
+ * no code path to the network at all.
+ */
+export const VOICE_NOT_ENABLED =
+  "Spoken questions are not enabled yet. Observer answers in text, and the spoken interface is coming in a later milestone.";
 
-  /*
-   * The asking account's key, passed in. The realtime client secret it mints is
-   * short-lived and scoped, but it is minted ON that account's OpenAI project
-   * and billed there — so the key must be theirs, and reading an ambient one
-   * here would spend somebody else's balance on a spoken question.
-   */
-  if (apiKey.length === 0) {
-    throw new ModelConfigurationError("voice: no API key was supplied for this request");
-  }
-
-  const client = new OpenAI({ apiKey, maxRetries: 0, timeout: LIMITS.requestTimeoutMs });
-
-  try {
-    const secret = await client.realtime.clientSecrets.create({
-      expires_after: { anchor: "created_at", seconds: 600 },
-      session: {
-        type: "realtime",
-        model: env.ai.voiceModel,
-        instructions: VOICE_INSTRUCTIONS,
-        // The read-only analyses, plus the delegation tool. Identical schemas
-        // to the text agent's, generated from the same Zod definitions.
-        tools: [
-          ...toolSpecs().map((tool) => ({
-            type: "function" as const,
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters,
-          })),
-          DELEGATE_TOOL,
-        ],
-        tool_choice: "auto",
-        // A spoken answer that runs for four minutes is not an answer.
-        max_output_tokens: 1200,
-      } as never,
-    });
-
-    return {
-      clientSecret: secret.value,
-      expiresAt: secret.expires_at,
-      model: env.ai.voiceModel,
-    };
-  } catch (error) {
-    throw describeOpenAiFailure(error);
-  }
+export function createVoiceSession(_apiKey: string): Promise<VoiceSession> {
+  return Promise.reject(new ModelConfigurationError(`voice: ${VOICE_NOT_ENABLED}`));
 }

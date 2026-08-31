@@ -27,6 +27,8 @@ export function ObserverConsole({
   greeting,
   briefing,
   hasObservation,
+  models,
+  activeModel,
 }: {
   context: ObserverContext;
   greeting: string;
@@ -34,10 +36,29 @@ export function ObserverConsole({
   briefing: string;
   /** Whether the briefing is a finding or simply a description of the period. */
   hasObservation: boolean;
+  /**
+   * The models this ACCOUNT may use, resolved on the server.
+   *
+   * The rail carries the same control; the briefing needs its own because the
+   * rail is deliberately hidden here — this page has the console instead, and
+   * the model a question will use has to be visible wherever a question is
+   * asked.
+   */
+  models: readonly { id: string; label: string }[];
+  activeModel: { id: string; label: string } | null;
 }) {
   const field = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState("");
   const [deep, setDeep] = useState(false);
+
+  /*
+   * The model for the next question, when the reader picks one.
+   *
+   * Null means "whatever this account's settings say" — which is what the
+   * server would decide anyway, so the default costs no round trip and the
+   * control starts on the truth rather than on a guess.
+   */
+  const [chosen, setChosen] = useState<string | null>(null);
   const observer = useObserver(context);
   // Held by the shell, so the conversation outlives this page.
   const voice = useSharedVoice();
@@ -80,7 +101,7 @@ export function ObserverConsole({
 
   const send = (question: string) => {
     setValue(question);
-    void observer.ask(question, deep ? "deep" : "standard");
+    void observer.ask(question, deep ? "deep" : "standard", chosen);
   };
 
   return (
@@ -103,7 +124,7 @@ export function ObserverConsole({
           className="obs-prompt"
           onSubmit={(e) => {
             e.preventDefault();
-            void observer.ask(value, deep ? "deep" : "standard");
+            void observer.ask(value, deep ? "deep" : "standard", chosen);
           }}
         >
           <label className="iris-sr" htmlFor="observer-prompt">
@@ -127,7 +148,7 @@ export function ObserverConsole({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                void observer.ask(value, deep ? "deep" : "standard");
+                void observer.ask(value, deep ? "deep" : "standard", chosen);
               }
             }}
           />
@@ -167,6 +188,39 @@ export function ObserverConsole({
             />
             Deep report — slower, higher reasoning effort
           </label>
+
+          {/*
+            WHICH MODEL IS ABOUT TO ANSWER.
+            
+            Beside the depth switch, because they are the same kind of decision:
+            how hard Observer thinks, and what it thinks with. A reader who
+            cannot tell which model wrote a sentence cannot judge it.
+          */}
+          {activeModel !== null && (
+            <span className="obs-model">
+              <label className="iris-sr" htmlFor="observer-console-model">
+                Model for this question
+              </label>
+              {models.length > 1 ? (
+                <select
+                  id="observer-console-model"
+                  className="obs-model-select"
+                  value={chosen ?? activeModel.id}
+                  onChange={(e) => setChosen(e.target.value)}
+                  disabled={observer.busy}
+                >
+                  {models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="obs-model-static">{activeModel.label}</span>
+              )}
+            </span>
+          )}
+
           <span className="obs-demo-note">Demonstration data</span>
         </p>
 

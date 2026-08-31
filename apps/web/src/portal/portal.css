@@ -861,6 +861,22 @@
   max-width: 60ch;
 }
 
+/*
+ * The first step, while there is one.
+ *
+ * Not a banner and not an alert: nothing has gone wrong, the account is simply
+ * new. It reads as the sentence it is, one notch darker than the paragraph
+ * above it so the eye lands there first.
+ */
+.mp-first-step {
+  margin-top: 16px;
+  color: var(--ink-900);
+}
+
+.mp-first-step strong {
+  font-weight: 600;
+}
+
 .mp-advice {
   margin-top: 24px;
   padding: 20px;
@@ -907,6 +923,169 @@
 .mp-bar-link:hover {
   color: var(--ink);
   border-bottom-color: var(--border-hover);
+}
+
+/* ========================================================== models and budget */
+
+/*
+ * The panels stack, because they are read in order: what may be spent, what
+ * spends it, and the keys that make either possible.
+ */
+.mp-panel + .mp-panel {
+  margin-top: 24px;
+}
+
+.mp-panel h3 {
+  margin: 0;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+}
+
+/*
+ * THE BUDGET METER.
+ *
+ * A bar, and a percentage beside it in text. Colour is never the only channel:
+ * the threshold sentence below says the same thing in words, so a reader who
+ * cannot distinguish the fills is told in full.
+ */
+.mp-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-inset);
+  overflow: hidden;
+  margin: 4px 0 20px;
+}
+
+.mp-meter-fill {
+  height: 100%;
+  background: var(--status-approved);
+  border-radius: 999px;
+}
+
+.mp-meter[data-threshold="most"] .mp-meter-fill {
+  background: #b8860b;
+}
+
+.mp-meter[data-threshold="exhausted"] .mp-meter-fill {
+  background: var(--status-critical);
+}
+
+.mp-percent {
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-threshold {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin: 0 0 20px;
+  border: 1px solid var(--border-line);
+  background: var(--surface-tint);
+  color: var(--ink-2);
+}
+
+.mp-threshold[data-threshold="most"] {
+  border-color: rgb(184 134 11 / 32%);
+  background: rgb(184 134 11 / 7%);
+}
+
+.mp-threshold[data-threshold="exhausted"] {
+  border-color: var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  color: var(--status-critical);
+}
+
+/* ------------------------------------------------------------ model choices */
+
+.mp-choices {
+  border: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-choice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.mp-choice:hover {
+  border-color: var(--border-hover);
+}
+
+/* A model whose provider is not connected. Dimmed, and it says why in text. */
+.mp-choice[data-usable="false"] {
+  opacity: 0.62;
+}
+
+.mp-choice input {
+  margin-top: 3px;
+  flex: none;
+}
+
+.mp-choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mp-choice-name {
+  font-size: var(--text-body-strong);
+  font-weight: 500;
+}
+
+.mp-choice-flag {
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+.mp-choice-summary {
+  font-size: var(--text-caption);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.mp-choice-price {
+  font-size: var(--text-micro);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- providers */
+
+.mp-provider {
+  padding: 20px 0;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mp-provider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.mp-provider-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+  color: var(--ink-2);
+}
+
+.mp-provider-state[data-muted="true"] {
+  color: var(--ink-4);
 }
 
 /* ================================================================ responsive */

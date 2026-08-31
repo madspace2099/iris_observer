@@ -13,11 +13,14 @@ import { resetLimits } from "../src/lib/ai/limits";
 /**
  * A stand-in for the asking account's credential.
  *
- * These suites mock the provider, so nothing reads it. It is passed because
- * `ask` requires it: a test that omitted it would be testing a signature the
- * application does not have.
+ * These suites mock `resolveModel`, so neither the model nor the key is read.
+ * Both are passed because `ask` requires them: a test that omitted either
+ * would be testing a signature the application does not have.
  */
-const ACCOUNT_CREDENTIAL = "sk-fake-not-a-real-key-for-tests";
+const ACCOUNT_CREDENTIAL = {
+  model: "gpt-5.6-terra",
+  apiKey: "sk-observer-test-audit-0000000",
+} as const;
 
 /**
  * The audit, and the two things it got wrong.
@@ -52,6 +55,7 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
           live: false,
           reason: "no model key is configured",
           setupRequired: false,
+          blocked: null,
         },
       },
   };
@@ -118,6 +122,7 @@ function useModel(script: readonly ScriptedTurn[]): ObserverModel {
       live: true,
       reason: null,
       setupRequired: false,
+      blocked: null,
     },
   };
   return model;
@@ -221,6 +226,7 @@ describe("the audit says who wrote the answer", () => {
         reason: "invalid key",
         /* An operator's fault, so the reader is not sent to Settings. */
         setupRequired: false,
+        blocked: null,
       },
     };
     const outcome = await ask("Summarise the period.", CONTEXT, ACCOUNT_CREDENTIAL);

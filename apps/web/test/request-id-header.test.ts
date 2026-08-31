@@ -81,6 +81,8 @@ function admission(): GateModule.Admitted {
      * for that account's credential immediately before the model is built.
      */
     accountId: "acct_test_developer",
+    /* No per-question model was asked for; the account's preference decides. */
+    modelOverride: null,
     context: {
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",

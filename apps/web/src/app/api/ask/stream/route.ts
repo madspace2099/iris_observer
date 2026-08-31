@@ -1,5 +1,13 @@
 import { askStream } from "@/lib/ai/agent";
-import { resolveApiKey } from "@/lib/credentials/service";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  recordModelUnavailable,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { publicOutcome, reportOutcome } from "../route";
@@ -74,24 +82,40 @@ export async function POST(request: Request) {
    * question keeps costing money after nobody is listening.
    */
   /*
-   * The asking account's own OpenAI key, resolved here and nowhere earlier.
-   *
-   * Last possible moment, on the server, for the account the gate authenticated
-   * — never from the request body, never from a header, never from the
-   * deployment's environment. `null` is an ordinary outcome: the reader gets
-   * every measured figure the tools produced, with the model stage skipped and
-   * the status saying why.
+   * Model, credential and budget, decided together and before anything is
+   * spent. A refusal still streams: the reader gets every measured figure the
+   * tools produced, with the model stage skipped and the status saying why.
    */
-  const credential = await resolveApiKey(admitted.accountId);
-  const apiKey = credential.ok ? credential.apiKey : null;
+  const admission = await admitModelRequest(
+    admitted.accountId,
+    admitted.question,
+    admitted.context.depth,
+    parseOverride(admitted.modelOverride),
+  );
+
+  /* Non-refundable from here. See the same block in the POST route. */
+  let dispatched = false;
+  if (admission.ok) {
+    dispatched = await dispatchAdmission(admission.reservation);
+  }
+  const resolved = admission.ok && dispatched ? admission.access : null;
+  const access =
+    resolved !== null
+      ? resolved
+      : admission.ok
+        ? { blocked: "unavailable" as const }
+        : blockFor(admission.refusal);
 
   const deadline = AbortSignal.timeout(LIMITS.requestTimeoutMs * 2);
   const signal = AbortSignal.any([request.signal, deadline]);
 
+  /* Whether the budget hold has already become a charge. */
+  let settled = false;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of askStream(admitted.question, admitted.context, apiKey, signal)) {
+        for await (const event of askStream(admitted.question, admitted.context, access, signal)) {
           if (signal.aborted) break;
           switch (event.type) {
             case "stage":
@@ -118,6 +142,22 @@ export async function POST(request: Request) {
                */
               controller.enqueue(frame("final", publicOutcome(event.outcome)));
               await reportOutcome(event.outcome, admitted, started);
+              /*
+               * The hold becomes a charge, here, where the token counts are.
+               * Marked settled so the catch below cannot release a reservation
+               * that has already been paid.
+               */
+              if (admission.ok) {
+                /* Entitlement is durable; see the same block in the POST route. */
+                if (event.outcome.diagnostics.modelUnavailable) {
+                  await recordModelUnavailable(admitted.accountId, admission.access.model);
+                }
+                await settleAdmission(
+                  admission.reservation,
+                  event.outcome.diagnostics.usage ?? null,
+                );
+                settled = true;
+              }
               break;
           }
         }
@@ -133,6 +173,8 @@ export async function POST(request: Request) {
             error: "Observer could not complete this answer. The measured evidence is unchanged.",
           }),
         );
+        /* No answer, no charge. The reader asked and got nothing. */
+        if (admission.ok && !settled) await abandonAdmission(admission.reservation, dispatched);
       } finally {
         controller.close();
       }

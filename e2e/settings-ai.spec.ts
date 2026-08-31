@@ -65,13 +65,23 @@ async function settings(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle");
 }
 
+/**
+ * Leaves the account with no OpenAI key, whatever it had.
+ *
+ * The confirmation is addressed by PROVIDER now — `?confirm=openai`, not
+ * `?confirm=remove` — because there are five keys to remove rather than one.
+ * The old parameter matched nothing, so this quietly stopped removing anything
+ * and every case in the file inherited whatever the case before it had
+ * connected. Three of them then failed for reasons that had nothing to do with
+ * what they were testing.
+ */
 async function disconnect(page: Page): Promise<void> {
-  await page.goto("/settings/ai?confirm=remove");
+  await page.goto("/settings/ai?confirm=openai");
   await page.waitForLoadState("networkidle");
   const button = page.getByRole("button", { name: "Yes, remove it" });
   if ((await button.count()) > 0) {
     await button.click();
-    await page.getByRole("heading", { name: "Add your OpenAI API key" }).waitFor();
+    await page.locator(".mp-ok").waitFor({ state: "visible" });
   }
 }
 
@@ -84,10 +94,22 @@ async function disconnect(page: Page): Promise<void> {
  * connected panel, or the alert saying why not.
  */
 async function submitKey(page: Page, key: string): Promise<void> {
-  await page.locator("input[name='apiKey']").fill(key);
-  await page.getByRole("button", { name: "Add and test" }).click();
+  /*
+   * The OpenAI field by id, not by name.
+   *
+   * There are five of these now, one per provider, and they all carry the same
+   * `name` because they post to the same action. This spec is about OpenAI.
+   */
+  await page.locator("input#key-openai").fill(key);
+  await page.locator("form:has(input#key-openai) button[type='submit']").click();
+  /*
+   * Both terminal states have a marker, and neither is a heading any more:
+   * the page reports an outcome in a status line or an alert, and the panel
+   * beneath it re-renders. Waiting for a heading that the multi-provider
+   * layout does not have made this wait thirty seconds for nothing.
+   */
   await Promise.race([
-    page.getByRole("heading", { name: "Connected" }).waitFor({ state: "visible" }),
+    page.locator(".mp-ok").waitFor({ state: "visible" }),
     page.locator(".mp-alert").waitFor({ state: "visible" }),
   ]);
   await page.waitForLoadState("networkidle");
@@ -257,9 +279,10 @@ test.describe("connecting, testing, replacing and removing", () => {
   test.skip(() => test.info().project.name !== "wide", STATEFUL);
 
   test("starts with no connection and a form", async ({ page }) => {
+    /* The state is the `beforeEach`'s to establish, and it does. */
     await settings(page);
     expect(await body(page)).toContain("Add your OpenAI API key");
-    await expect(page.locator("input[name='apiKey']")).toBeEnabled();
+    await expect(page.locator("input#key-openai")).toBeEnabled();
   });
 
   test("says what OpenAI charges, and does not promise Observer is free", async ({ page }) => {
@@ -303,8 +326,9 @@ test.describe("connecting, testing, replacing and removing", () => {
      * that rate limits — the connection survives and says so.
      */
     await connect(page, GOOD);
-    await page.getByRole("link", { name: "Replace key" }).click();
-    await page.getByRole("heading", { name: "Replace your OpenAI API key" }).waitFor();
+    await page.getByRole("link", { name: "Replace key" }).first().click();
+    /* Replacing shows the form again, with the promise that nothing changes yet. */
+    await page.getByText("Keep the current key instead").waitFor();
     await submitKey(page, TRANSIENT);
 
     const text = await body(page);
@@ -318,12 +342,15 @@ test.describe("connecting, testing, replacing and removing", () => {
   test("asks before removing, and then removes", async ({ page }) => {
     await connect(page, GOOD);
     /* Each step is a navigation; wait for the panel it renders, not the network. */
-    await page.getByRole("link", { name: "Remove connection" }).click();
+    await page.getByRole("link", { name: "Remove", exact: true }).first().click();
     await page.getByRole("button", { name: "Yes, remove it" }).waitFor();
-    expect(await body(page)).toContain("Remove this connection?");
+    /* The confirmation names the provider, now that there are five of them. */
+    expect(await body(page)).toContain("Remove the OpenAI key?");
 
     await page.getByRole("button", { name: "Yes, remove it" }).click();
-    await page.getByRole("heading", { name: "Add your OpenAI API key" }).waitFor();
+    await page.locator(".mp-ok").waitFor({ state: "visible" });
+
+    /* Back to the empty state, which is where the instruction lives. */
     expect(await body(page)).toContain("Add your OpenAI API key");
   });
 });

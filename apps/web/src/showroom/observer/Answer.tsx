@@ -3,6 +3,89 @@
 import { INSIGHT_SOURCE_LABELS } from "@observer/contracts";
 import { SETTINGS_PATH } from "@/lib/credentials/failure";
 
+/**
+ * WHAT TO TELL A READER WHOSE QUESTION NO MODEL ANSWERED.
+ *
+ * `status.blocked` is one word from a closed set, chosen on the server and
+ * carried through the redaction that strips everything else. Each one gets the
+ * sentence that is true of it and the link that actually helps:
+ *
+ *   no_connection      add a key                    → the keys panel
+ *   no_budget          set a ceiling before spending → the budget panel
+ *   budget_exhausted   raise it, or wait for the 1st → the budget panel
+ *   model_unavailable  choose a model the key reaches → the model panel
+ *   unreadable         the stored key will not open  → the keys panel
+ *
+ * `unavailable` is deliberately absent: storage being down is not something a
+ * reader fixes, and offering them a link would waste their time. It falls
+ * through to no note at all, which is what every operator-side cause does.
+ */
+interface SetupNote {
+  readonly because: string;
+  readonly action: string;
+  readonly href: string;
+}
+
+const BUDGET_PANEL = `${SETTINGS_PATH}#budget`;
+const MODEL_PANEL = `${SETTINGS_PATH}#models`;
+
+function setupNote(status: { blocked?: string | null; setupRequired?: boolean }): SetupNote | null {
+  switch (status.blocked) {
+    case "no_connection":
+      return {
+        because: "your account has no OpenAI connection",
+        action: "Add your OpenAI API key",
+        href: SETTINGS_PATH,
+      };
+    case "no_budget":
+      return {
+        because: "your account has no monthly Observer budget set",
+        action: "Set a monthly budget",
+        href: BUDGET_PANEL,
+      };
+    case "budget_exhausted":
+      return {
+        because: "your monthly Observer budget is used up",
+        action: "Review your budget",
+        href: BUDGET_PANEL,
+      };
+    case "model_unavailable":
+      return {
+        because: "your key cannot reach the model you chose",
+        action: "Choose another model",
+        href: MODEL_PANEL,
+      };
+    case "unreadable":
+      return {
+        because: "the key stored for your account could not be read",
+        action: "Replace your API key",
+        href: SETTINGS_PATH,
+      };
+    case "too_large":
+      /*
+       * Nothing in Settings fixes this, so it gets the sentence and no link.
+       * A shorter question does, and saying so is more use than a destination.
+       */
+      return {
+        because: "your question is larger than Observer will send in one request",
+        action: "Try asking about a shorter period",
+        href: SETTINGS_PATH,
+      };
+    default:
+      /*
+       * An outcome from a surface that predates `blocked` still says whether
+       * setup is required, and that older signal means exactly one thing.
+       */
+      return status.setupRequired === true
+        ? {
+            because: "your account has no OpenAI connection",
+            action: "Add your OpenAI API key",
+            href: SETTINGS_PATH,
+          }
+        : null;
+  }
+}
+
 import type { AskOutcome } from "./types";
 
 /**
@@ -52,6 +135,7 @@ export function ObserverAnswerPanel({
   followUps: readonly string[];
 }) {
   const answer = outcome.answer;
+  const note = setupNote(outcome.status);
 
   return (
     <div className="obs-answer">
@@ -107,18 +191,22 @@ export function ObserverAnswerPanel({
           </p>
 
           {/*
-            THE ONE EVIDENCE-ONLY REASON A READER CAN FIX THEMSELVES.
+            THE EVIDENCE-ONLY REASONS A READER CAN FIX THEMSELVES.
 
-            Every other one is an operator's — the feature is off, the
-            deployment is misconfigured — so this is the only one that earns a
-            link. Everything else on the sheet is unchanged: the figures are
-            measured either way. This is a note, not a wall.
+            The rest are an operator's — the feature is off, the deployment is
+            misconfigured — and those get no link, because Settings cannot help
+            with them. Everything else on the sheet is unchanged either way:
+            the figures are measured, not written. This is a note, not a wall.
+
+            Each reason says what is actually wrong. One sentence covering all
+            of them sent a reader whose monthly budget was spent to go and add
+            the key they were already using.
           */}
-          {outcome.status.setupRequired && (
+          {note !== null && (
             <p className="obs-answer-setup">
-              Written by the tools because your account has no OpenAI connection.{" "}
-              <a className="iris-action" href={SETTINGS_PATH}>
-                Add your OpenAI API key
+              Written by the tools because {note.because}.{" "}
+              <a className="iris-action" href={note.href}>
+                {note.action}
               </a>
             </p>
           )}

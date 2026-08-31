@@ -47,6 +47,15 @@ export const AskBodySchema = z.object({
    * phrased.
    */
   depth: z.enum(["standard", "deep"]).default("standard"),
+  /**
+   * A model for THIS question only, overriding the account's preference.
+   *
+   * A string here is a request, not a permission: it is validated against the
+   * catalogue and then checked against what this account actually holds, so a
+   * reader cannot name a model whose provider they have not connected — or one
+   * the provider has already told them they cannot reach.
+   */
+  model: z.string().max(64).nullable().default(null),
 });
 
 export type AskBody = z.infer<typeof AskBodySchema>;
@@ -168,6 +177,8 @@ export type GateResult =
        * wire.
        */
       readonly accountId: string;
+      /** The per-question model the caller asked for, unvalidated. */
+      readonly modelOverride: string | null;
     }
   | {
       readonly ok: false;
@@ -421,6 +432,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
     requestId,
     clientHash,
     accountId: account.accountId,
+    modelOverride: body.data.model,
     context: {
       viewer,
       tenantSlug: body.data.tenantSlug,

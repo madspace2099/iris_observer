@@ -4,6 +4,9 @@ import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import { DetailNav, PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
+import { currentAccount } from "@/lib/session";
+import { activeModelFor, connectedProviders } from "@/lib/ai/admission";
+import { modelsForProviders } from "@/lib/models/catalogue";
 import { ObserverRail } from "@/showroom/observer/ObserverRail";
 import { ObserverVoiceProvider } from "@/showroom/observer/ObserverVoiceProvider";
 import { SyntheticBadge } from "@/showroom/parts";
@@ -60,6 +63,24 @@ export default async function ProjectLayout({
     }
     throw error;
   }
+
+  /*
+   * WHICH MODELS THIS ACCOUNT MAY ASK WITH, RESOLVED ON THE SERVER.
+   *
+   * The rail renders a picker from this list and nothing else. A browser
+   * cannot add to it, and the gate re-checks any model named in a request
+   * against the same grants — so the list is a convenience for the reader
+   * rather than the thing that enforces anything.
+   */
+  const account = await currentAccount();
+  const connected = account === null ? [] : await connectedProviders(account.accountId);
+  const usable = modelsForProviders(connected).map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+  }));
+  const chosen =
+    account === null ? null : (await activeModelFor(account.accountId, "standard")).model;
+  const active = chosen === null ? null : (usable.find((m) => m.id === chosen) ?? null);
 
   const projects = await repository.listProjects(viewer, tenant.id);
   const tenants = await repository.listTenants(viewer);
@@ -185,7 +206,13 @@ export default async function ProjectLayout({
           {children}
         </main>
 
-        <ObserverRail projectLabel={project.name} root={root} role={viewer.role} />
+        <ObserverRail
+          projectLabel={project.name}
+          root={root}
+          role={viewer.role}
+          models={usable}
+          activeModel={active}
+        />
       </ObserverVoiceProvider>
     </div>
   );
