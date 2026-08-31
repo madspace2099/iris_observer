@@ -139,7 +139,23 @@ test.describe("signing in", () => {
     await page.getByLabel("Password").focus();
     await page.keyboard.type(PASSWORD);
     await page.keyboard.press("Enter");
-    await page.waitForLoadState("networkidle");
+
+    /*
+     * WAIT FOR THE NAVIGATION, NOT FOR THE NETWORK TO GO QUIET.
+     *
+     * Signing in is a server action that redirects: the POST completes, and
+     * then the client router navigates. `networkidle` is a quiescence
+     * heuristic — half a second with at most two connections open — and that
+     * window can fall in the gap BETWEEN those two events. Measured on this
+     * machine under load, it resolved before the navigation in one round out
+     * of twelve, with the navigation arriving 368ms later; the test then read
+     * `/sign-in` and failed, having asked the wrong question.
+     *
+     * `waitForURL` waits for the thing the action actually causes. The
+     * assertion below is unchanged and still exact — this only stops it being
+     * evaluated early.
+     */
+    await page.waitForURL(/\/projects/);
     expect(new URL(page.url()).pathname).toBe("/projects");
   });
 });
@@ -296,7 +312,8 @@ test.describe("leaving", () => {
     await page.waitForLoadState("networkidle");
 
     await page.getByRole("link", { name: "Projects", exact: true }).click();
-    await page.waitForLoadState("networkidle");
+    /* The router navigation, not the network's quiet. See the keyboard case. */
+    await page.waitForURL(/\/projects/);
     expect(new URL(page.url()).pathname).toBe("/projects");
     /* Still signed in: leaving a workspace is not signing out. */
     await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
@@ -309,7 +326,8 @@ test.describe("returnTo goes back inside, or nowhere", () => {
     await page.getByLabel("Work email address").fill(ACCOUNTS.petra);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in with password" }).click();
-    await page.waitForLoadState("networkidle");
+    /* The redirect the action performs. See the keyboard case. */
+    await page.waitForURL(/\/alpha\/northgate\/units/);
     expect(new URL(page.url()).pathname).toBe("/alpha/northgate/units");
   });
 
@@ -334,7 +352,20 @@ test.describe("returnTo goes back inside, or nowhere", () => {
       await page.getByLabel("Work email address").fill(ACCOUNTS.petra);
       await page.getByLabel("Password").fill(PASSWORD);
       await page.getByRole("button", { name: "Sign in with password" }).click();
-      await page.waitForLoadState("networkidle");
+
+      /*
+       * WAIT FOR THE FORM TO BE LEFT, AND ASSERT WHERE IT WENT.
+       *
+       * Deliberately NOT `waitForURL(/projects/)`. If the open redirect ever
+       * regressed, waiting for the destination this test expects would sit
+       * there until it timed out and report "waiting for URL" — hiding the one
+       * fact worth knowing. Waiting for the navigation to happen AT ALL lets
+       * the assertions below fire on whatever it actually was, so a regression
+       * to example.invalid fails with the attacker's hostname in the message.
+       *
+       * The assertions are untouched: hostname and pathname, both exact.
+       */
+      await page.waitForURL((u) => new URL(u).pathname !== "/sign-in");
 
       const url = new URL(page.url());
       expect(url.hostname, name).toBe("localhost");

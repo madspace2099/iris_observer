@@ -69,6 +69,27 @@ export const fileShaAt = (commit: string, path: string): string =>
   createHash("sha256").update(gitShowBytes(commit, path)).digest("hex");
 
 /**
+ * WHETHER A PATH EXISTED AT A COMMIT — WITHOUT CONFLATING IT WITH A BROKEN REPO.
+ *
+ * `git show <commit>:<path>` exits non-zero for a file that did not exist yet
+ * AND for a commit that cannot be read at all, so a bare try/catch around it
+ * reports a corrupt repository as "this file is new". `ls-tree` separates the
+ * two exactly: it exits 0 whether or not the path matches and prints nothing
+ * when it does not, so an empty result means ABSENT and a throw means something
+ * is actually wrong — which a release gate must never swallow.
+ */
+export const presentAt = (commit: string, path: string): boolean =>
+  git("ls-tree", "-r", "--name-only", commit, "--", path).length > 0;
+
+/** The file's hash at a commit, or null if the file did not exist there yet. */
+export const fileShaAtOrNull = (commit: string, path: string): string | null =>
+  presentAt(commit, path) ? fileShaAt(commit, path) : null;
+
+/** The executable-SQL hash at a commit, or null if it did not exist there yet. */
+export const execShaOrNull = (commit: string, path: string): string | null =>
+  presentAt(commit, path) ? execSha(commit, path) : null;
+
+/**
  * What "unchanged" is measured against: the commit of the last DELIVERED
  * bundle, not `HEAD~1`.
  *
@@ -790,36 +811,67 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   const deployedShas = new Set(DEPLOYMENTS.map((d) => d.sha));
   const notDeployed = localOnlyShorts.filter((s) => !deployedShas.has(s));
 
-  /* Every migration source, compared against the previous release commit. */
+  /*
+   * Every migration source, compared against the last delivered bundle.
+   *
+   * THREE STATES, BECAUSE THERE ARE THREE THINGS THAT CAN HAVE HAPPENED.
+   *
+   * A migration that did not exist at the baseline is NEW. That is not the same
+   * fact as "edited", and collapsing the two would be wrong in both directions:
+   * a new migration is normal forward-only progress, while an edit to SQL that
+   * has already been delivered is what this gate forbids.
+   *
+   * It also used to be unrepresentable. `fileShaAt` was called unguarded, so
+   * the first migration added after a delivery made this whole function throw —
+   * the release gate went red for the ordinary act of adding a migration, and
+   * reported nothing at all about the migration it could not read. The absence
+   * is now a value rather than an exception, so the reviewer is TOLD about the
+   * new file, which is the one they must actually go and apply.
+   */
   const migrationRows = readdirSync(join(REPO_ROOT, MIGRATIONS_DIR))
     .filter((f) => f.endsWith(".sql"))
     .sort()
     .map((f) => {
       const path = `${MIGRATIONS_DIR}/${f}`;
       const nowFile = sha256(path);
-      const thenFile = fileShaAt(parent, path);
+      const thenFile = fileShaAtOrNull(parent, path);
+      const thenExec = execShaOrNull(parent, path);
       const nowExec = createHash("sha256")
         .update(strip(readFileSync(join(REPO_ROOT, path), "utf8")))
         .digest("hex");
+      const isNew = thenFile === null;
       return {
         f,
         nowFile,
-        fileSame: nowFile === thenFile,
-        execSame: nowExec === execSha(parent, path),
+        isNew,
+        /* Only a file that EXISTED and matches is unchanged. New is neither. */
+        fileSame: !isNew && nowFile === thenFile,
+        execSame: !isNew && nowExec === thenExec,
       };
     });
 
-  const changedFiles = migrationRows.filter((r) => !r.fileSame);
-  const changedExec = migrationRows.filter((r) => !r.execSame);
+  /*
+   * Added and edited are counted apart, on purpose.
+   *
+   * `changedExec` feeds the line that says executable change is forbidden, and
+   * that rule is about SQL a reviewer has already been handed. Counting new
+   * migrations there would accuse this milestone of breaking a rule it did not
+   * break; leaving them out of the report entirely would hide a schema change.
+   * So they are reported, separately, in their own sentence.
+   */
+  const newFiles = migrationRows.filter((r) => r.isNew);
+  const changedFiles = migrationRows.filter((r) => !r.isNew && !r.fileSame);
+  const changedExec = migrationRows.filter((r) => !r.isNew && !r.execSame);
 
   const migrationsBlock = migrationRows
-    .map(
-      (r) =>
-        `  ${r.fileSame ? "unchanged" : "comments "}  ${r.nowFile.slice(0, 16)}…  ${r.f}` +
-        (r.fileSame
+    .map((r) => {
+      const state = r.isNew ? "NEW      " : r.fileSame ? "unchanged" : "comments ";
+      const detail =
+        r.isNew || r.fileSame
           ? ""
-          : `\n              executable SQL identical: ${r.execSame ? "YES" : "NO"}`),
-    )
+          : `\n              executable SQL identical: ${r.execSame ? "YES" : "NO"}`;
+      return `  ${state}  ${r.nowFile.slice(0, 16)}…  ${r.f}` + detail;
+    })
     .join("\n");
 
   const contractExecNow = createHash("sha256")
@@ -845,8 +897,12 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     "delivered bundle:",
     ...(changedFiles.length > 0 ? changedFiles.map((r) => `  ${r.f}`) : ["  (none)"]),
     "",
+    `${word(newFiles.length)} migration file${newFiles.length === 1 ? "" : "s"} ADDED since the last`,
+    "delivered bundle, which a reviewer has not applied yet:",
+    ...(newFiles.length > 0 ? newFiles.map((r) => `  ${r.f}`) : ["  (none)"]),
+    "",
     changedExec.length === 0
-      ? "NO EXECUTABLE SQL CHANGED AT ALL."
+      ? "NO EXECUTABLE SQL CHANGED AT ALL in a migration already delivered."
       : `${changedExec.length} CHANGED EXECUTABLY, which this milestone forbids.`,
   ].join("\n");
 
@@ -892,12 +948,15 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   ];
   const artefactRows = artefactPaths.map((path) => {
     const now = sha256(path);
-    let then: string | null = null;
-    try {
-      then = fileShaAt(parent, path);
-    } catch {
-      then = null; /* new in this commit */
-    }
+    /*
+     * `fileShaAtOrNull` rather than a try/catch around `fileShaAt`.
+     *
+     * The catch could not tell a file that did not exist yet from a commit that
+     * could not be read, so an unreadable baseline would have been rendered as
+     * a page of NEW artefacts — a green-looking report built on a broken
+     * repository. Absence is now asked about directly, and anything else throws.
+     */
+    const then = fileShaAtOrNull(parent, path);
     const state = then === null ? "NEW      " : then === now ? "unchanged" : "changed  ";
     return `  ${state}  ${now.slice(0, 16)}…  ${path.split("/").pop() ?? path}`;
   });
