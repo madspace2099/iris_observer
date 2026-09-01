@@ -292,6 +292,24 @@ meeting **in progress**. Low priority, but it is free once ingest is streaming, 
 > and flush in batches, never block the game thread, and per-device credentials rather than
 > a shared key in the binary.
 >
+> **Update, 2026-09-01 — §7 is done, and the legacy transport is retired.** Akhilesh reports
+> UE-OBS-001 complete: every hard-coded Supabase URL and key is gone from the V2 plugin,
+> configuration arrives through Unreal Project Settings, and V2 no longer depends on the
+> direct-table transport at all. The `SendGlobalAnalyticsToSupabase` path this section asked
+> to delete is deleted.
+>
+> The old shape is **LEGACY** and is not a supported production path for V2:
+>
+> ```
+> LEGACY   interaction → mutable in-memory state → app close → one snapshot blob
+>                      → direct database tables
+>
+> V2       interaction → immutable event with UUID and UTC timestamp
+>                      → durable local outbox → bounded HTTPS batch
+>                      → protected ingestion backend → explicit acknowledgement
+>                      → removed from the outbox only on accepted or duplicate
+> ```
+>
 > The event names in §2 remain **illustrative**. ADR-0013 defers the wire catalogue to the
 > schema registry, and the contract candidate fixes no business event names.
 

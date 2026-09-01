@@ -70,3 +70,31 @@ are right, and a test says so.
 
 **This is not permission to implement.** No endpoint exists, nothing is deployed, and every proposal
 here is still a proposal. Five decisions genuinely need Akhilesh, and the rest need a review.
+
+## Amendment, 2026-09-01 — two classifications added
+
+Akhilesh reported UE-OBS-001 through UE-OBS-004 complete, which surfaced a gap in the table this ADR
+introduced: it could distinguish an approved rule from a proposal, but it had nowhere honest to put a
+**fact**.
+
+That the engine is 5.6, that the credential currently lives at
+`Saved/Observer/source_credential.json`, that monotonic sequencing exists — all true, none of them
+architecture rules, and all of them free to change next sprint. Recording them as `LOCKED_FROM_BRIEF`
+would lend the brief's authority to an implementation detail, which is the same mislabelling this
+table exists to prevent, running the other way.
+
+- **`UE_IMPLEMENTATION_CONFIRMED`** — a fact evidenced by completed UE work, carrying the UE package
+  that evidences it. It may never be the antecedent of a derivation: a contract rule justified by an
+  implementation is an architecture rule argued backwards.
+- **`DECIDED_BY_PRODUCT`** — an approved decision that is neither in the brief nor still a proposal,
+  carrying who decided and when. The legacy clean-slate decision is the first, and the seven pending
+  Matthew proposals will land here as they are signed off. Without it, an approved decision would have
+  to be recorded as `PROPOSED`, which misrepresents it.
+
+Both require an `evidence` field that the other five classifications must leave null, and a test
+enforces exactly that.
+
+The same pass turned the two packages Akhilesh is starting into generated specifications —
+`validation-order.md` for UE-OBS-005 and `outbox-states.md` for UE-OBS-006 — both rendered from the
+same constants the validator and the error model use, so a handoff document cannot drift from the
+behaviour it describes.

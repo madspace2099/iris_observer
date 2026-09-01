@@ -100,6 +100,7 @@ describe("activation success", () => {
     environment: "production",
     environment_mismatch: false,
     source_token: `obs_${"a".repeat(56)}`,
+    token_expires_at: null,
     ingest_url: "https://example.supabase.co/functions/v1/observer-ingest",
     heartbeat_url: "https://example.supabase.co/functions/v1/observer-heartbeat",
     accepted_schema_versions: { min: 1, max: 1 },
@@ -124,6 +125,22 @@ describe("activation success", () => {
         field,
       ).toBe(false);
     }
+  });
+
+  it("states no expiry, in a field that could carry one later", () => {
+    /*
+     * The field exists precisely because the answer is "never". Without it, a
+     * future expiry policy would have to arrive in a new field, and every build
+     * parsing this response strictly would break on the day it did.
+     */
+    expect(ActivationSuccessSchema.parse(success).token_expires_at).toBeNull();
+    expect(
+      ActivationSuccessSchema.safeParse({
+        ...success,
+        token_expires_at: "2027-01-01T00:00:00.000Z",
+      }).success,
+      "and a value parses, so introducing one is not a breaking change",
+    ).toBe(true);
   });
 
   it("refuses a token too short to be one", () => {

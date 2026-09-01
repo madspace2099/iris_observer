@@ -37,11 +37,36 @@
 export const CLASSIFICATIONS = [
   "LOCKED_FROM_BRIEF",
   "DERIVED_FROM_LOCKED_RULE",
+  "UE_IMPLEMENTATION_CONFIRMED",
+  "DECIDED_BY_PRODUCT",
   "PROPOSED",
   "OPEN",
   "MOCK_ONLY",
 ] as const;
 export type Classification = (typeof CLASSIFICATIONS)[number];
+
+/**
+ * TWO CLASSES ADDED AFTER AKHILESH'S UE-OBS-001..004 REPORT.
+ *
+ * **`UE_IMPLEMENTATION_CONFIRMED`** — a fact evidenced by completed UE work that
+ * the architecture brief never mandated as exact implementation detail. That the
+ * engine is 5.6, that the credential currently lives at
+ * `Saved/Observer/source_credential.json`, that monotonic sequencing exists: all
+ * true, none of them architecture rules. Recording them as LOCKED would be
+ * lending the brief's authority to an implementation detail that may change next
+ * sprint, which is precisely the mislabelling this table exists to prevent — in
+ * the opposite direction from the one originally guarded against.
+ *
+ * **`DECIDED_BY_PRODUCT`** — an approved decision that is neither in the brief
+ * nor still a proposal. The legacy clean-slate decision is the first: nothing in
+ * the brief speaks to it, and calling it PROPOSED would misrepresent a decision
+ * that has been made. Without this class an approved decision has nowhere honest
+ * to sit, and it will be needed again as the Matthew proposals are signed off.
+ *
+ * Neither class may be the antecedent of a derivation. A rule derived from
+ * implementation evidence is an architecture rule justified backwards, and a
+ * rule derived from a product decision is a wire constraint justified by scope.
+ */
 
 export const OWNERS = [
   "brief",
@@ -62,6 +87,13 @@ export interface ContractRule {
   readonly briefSection: string | null;
   /** Required for DERIVED, empty for everything else. */
   readonly derivedFrom: readonly string[];
+  /**
+   * Required for `UE_IMPLEMENTATION_CONFIRMED` and `DECIDED_BY_PRODUCT`, and
+   * forbidden for everything else: which UE package evidences the fact, or who
+   * decided and when. A claim of either kind without its source is exactly the
+   * unattributed assertion this table exists to make impossible.
+   */
+  readonly evidence: string | null;
   readonly owner: Owner;
   /** UE5 milestones that cannot be finished until this is settled. */
   readonly blocks: readonly string[];
@@ -80,6 +112,7 @@ const locked = (
   classification: "LOCKED_FROM_BRIEF",
   briefSection,
   derivedFrom: [],
+  evidence: null,
   owner: "brief",
   blocks: [],
   where,
@@ -97,6 +130,7 @@ const derived = (
   classification: "DERIVED_FROM_LOCKED_RULE",
   briefSection: null,
   derivedFrom,
+  evidence: null,
   owner: "matthew",
   blocks,
   where,
@@ -114,6 +148,7 @@ const proposed = (
   classification: "PROPOSED",
   briefSection: null,
   derivedFrom: [],
+  evidence: null,
   owner,
   blocks,
   where,
@@ -131,6 +166,7 @@ const open = (
   classification: "OPEN",
   briefSection: null,
   derivedFrom: [],
+  evidence: null,
   owner,
   blocks,
   where,
@@ -142,7 +178,39 @@ const mock = (id: string, statement: string, where: string): ContractRule => ({
   classification: "MOCK_ONLY",
   briefSection: null,
   derivedFrom: [],
+  evidence: null,
   owner: "harness",
+  blocks: [],
+  where,
+});
+
+/** A fact evidenced by completed UE work. Never an architecture rule. */
+const ueConfirmed = (
+  id: string,
+  statement: string,
+  evidence: string,
+  where: string,
+): ContractRule => ({
+  id,
+  statement,
+  classification: "UE_IMPLEMENTATION_CONFIRMED",
+  briefSection: null,
+  derivedFrom: [],
+  evidence,
+  owner: "akhilesh",
+  blocks: [],
+  where,
+});
+
+/** An approved decision that is neither in the brief nor still a proposal. */
+const decided = (id: string, statement: string, evidence: string, where: string): ContractRule => ({
+  id,
+  statement,
+  classification: "DECIDED_BY_PRODUCT",
+  briefSection: null,
+  derivedFrom: [],
+  evidence,
+  owner: "product",
   blocks: [],
   where,
 });
@@ -494,9 +562,15 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     ["UE-OBS-006"],
     "limits.ts",
   ),
+  /*
+   * Narrowed after UE-OBS-004. Feasibility is no longer in question — U-10
+   * records that monotonic sequencing exists in the V2 event engine — so what
+   * remains is the semantic guarantee, which implementation evidence does not
+   * establish on its own.
+   */
   proposed(
     "P-17",
-    "sequence is required for session facts and generated centrally by the subsystem, never by a Blueprint.",
+    "sequence is mandatory for every session-scoped event, cannot be overridden by a Blueprint caller, and has defined reset semantics at each new session_id.",
     "matthew_and_akhilesh",
     ["UE-OBS-004", "UE-OBS-009"],
     "ingestion.ts",
@@ -583,13 +657,7 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     [],
     "docs",
   ),
-  open(
-    "O-10",
-    "The legacy InsightAnalytics Supabase target and whether it holds data to preserve.",
-    "akhilesh",
-    [],
-    "docs",
-  ),
+  /* O-10 (the legacy InsightAnalytics target) is closed. See PD-01 and U-12. */
   open(
     "O-11",
     "Credential internals: hash or KDF, prefix scheme, lookup index.",
@@ -603,6 +671,110 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "akhilesh",
     ["UE-OBS-006"],
     "limits.ts",
+  ),
+  open(
+    "O-13",
+    "What protection is applied at rest to the persisted source credential, and whether a platform-appropriate protected store is practical for V1.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-003"],
+    "credential.ts",
+  ),
+  open(
+    "O-14",
+    "The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-007"],
+    "wire.ts",
+  ),
+  open(
+    "O-15",
+    "Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-007"],
+    "ingestion.ts",
+  ),
+
+  /* ------------------------------------- UE_IMPLEMENTATION_CONFIRMED */
+  ueConfirmed("U-01", "The current target engine is Unreal Engine 5.6.", "UE-OBS-001", "wire.ts"),
+  ueConfirmed(
+    "U-02",
+    "All hard-coded Supabase URLs and keys are removed from the V2 plugin; backend configuration comes through Unreal Project Settings.",
+    "UE-OBS-001",
+    "docs",
+  ),
+  ueConfirmed(
+    "U-03",
+    "The V2 plugin no longer depends on the legacy direct-table transport.",
+    "UE-OBS-001",
+    "docs",
+  ),
+  ueConfirmed(
+    "U-04",
+    "A one-time activation flow with source-token persistence and crash recovery is implemented.",
+    "UE-OBS-003",
+    "activation.ts",
+  ),
+  ueConfirmed(
+    "U-05",
+    "The source credential currently persists at Saved/Observer/source_credential.json.",
+    "UE-OBS-003",
+    "credential.ts",
+  ),
+  ueConfirmed(
+    "U-06",
+    "Mock activation codes currently use a DEV- prefix. A prefix is not semantic to the contract.",
+    "UE-OBS-003",
+    "@observer/ue5-mock",
+  ),
+  ueConfirmed(
+    "U-07",
+    "Multi-tenant and multi-source isolation has been exercised against mock activation behaviour.",
+    "UE-OBS-003",
+    "docs",
+  ),
+  ueConfirmed(
+    "U-08",
+    "FObserverEvent carries a stable identifier generated before the first send.",
+    "UE-OBS-004",
+    "ingestion.ts",
+  ),
+  ueConfirmed(
+    "U-09",
+    "FObserverEvent serialises UTC timestamps with millisecond precision as YYYY-MM-DDTHH:MM:SS.sssZ.",
+    "UE-OBS-004",
+    "wire.ts",
+  ),
+  ueConfirmed(
+    "U-10",
+    "Monotonic sequencing is implemented in the V2 event engine.",
+    "UE-OBS-004",
+    "ingestion.ts",
+  ),
+  ueConfirmed(
+    "U-11",
+    "JSON serialisation and deserialisation of the event envelope roundtrips inside Unreal.",
+    "UE-OBS-004",
+    "ingestion.ts",
+  ),
+  ueConfirmed(
+    "U-12",
+    "The legacy InsightAnalytics database holds only prototype snapshot blobs in user_sessions and global_analytics, written during Job 1 proof-of-concept testing. No live client analytics.",
+    "Akhilesh, 2026-09-01",
+    "docs",
+  ),
+
+  /* -------------------------------------------- DECIDED_BY_PRODUCT */
+  decided(
+    "PD-01",
+    "Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics.",
+    "Matthew, 2026-09-01, on the evidence in U-12",
+    "docs",
+  ),
+  decided(
+    "PD-02",
+    "The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise.",
+    "Matthew, 2026-09-01, on the evidence in U-03",
+    "docs",
   ),
 
   /* ------------------------------------------------------------- MOCK_ONLY */

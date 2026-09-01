@@ -9,20 +9,23 @@ Nothing here is implemented. No endpoint exists, no Edge Function is deployed, n
 touched. This is a contract candidate: precise enough for Akhilesh to build UE-OBS-003 through
 UE-OBS-010 against, with every unresolved product decision left visibly unresolved.
 
-| Label         | Meaning                                                                             |
-| ------------- | ----------------------------------------------------------------------------------- |
-| **LOCKED**    | Approved in the architecture brief. Restated with a citation, never reopened here.  |
-| **DERIVED**   | Not in the brief, but follows from a rule that is. The derivation is named.         |
-| **PROPOSED**  | A concrete recommendation awaiting sign-off. Not yet contract.                      |
-| **OPEN**      | Genuinely unresolved, and left that way rather than filled with invented certainty. |
-| **MOCK-ONLY** | Test fixture. Never protocol.                                                       |
+| Label            | Meaning                                                                             |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| **LOCKED**       | Approved in the architecture brief. Restated with a citation, never reopened here.  |
+| **UE-CONFIRMED** | Evidenced by completed UE work. True, and not an architecture rule.                 |
+| **DECIDED**      | An approved decision that is neither in the brief nor still a proposal.             |
+| **DERIVED**      | Not in the brief, but follows from a rule that is. The derivation is named.         |
+| **PROPOSED**     | A concrete recommendation awaiting sign-off. Not yet contract.                      |
+| **OPEN**         | Genuinely unresolved, and left that way rather than filled with invented certainty. |
+| **MOCK-ONLY**    | Test fixture. Never protocol.                                                       |
 
 The full classification is machine-readable in `packages/contracts/src/ue5/traceability.ts` and
 rendered to [`ue5-contract/traceability.md`](ue5-contract/traceability.md). Tests enforce it:
 nothing `PROPOSED` may cite the brief, and every `DERIVED` rule must name the locked rule it follows
 from. A convenient proposal cannot quietly acquire the authority of an approved decision.
 
-**Counts:** 28 LOCKED · 17 DERIVED · 22 PROPOSED · 12 OPEN · 3 MOCK-ONLY.
+**Counts:** 28 LOCKED · 17 DERIVED · **12 UE-CONFIRMED** · **2 DECIDED** · 22 PROPOSED · 14 OPEN ·
+3 MOCK-ONLY. Ninety-eight rules in all.
 
 ---
 
@@ -156,6 +159,7 @@ value only produces a mismatch flag the operator can see.
   "environment": "production",
   "environment_mismatch": false,
   "source_token": "<opaque, returned exactly once>",
+  "token_expires_at": null,
   "ingest_url": "https://<ref>.supabase.co/functions/v1/observer-ingest",
   "heartbeat_url": "https://<ref>.supabase.co/functions/v1/observer-heartbeat",
   "accepted_schema_versions": { "min": 1, "max": 1 },
@@ -342,7 +346,32 @@ for a clock.
 
 `config_refresh_after` says when to re-read **configuration**. It is not a token lifetime.
 
-### 6.2 After a 401 or a 403
+`token_expires_at` is on the wire and is always `null`. The field exists precisely because the answer
+is "never": a client that reads it and finds `null` knows no expiry is stated, and if a policy is ever
+introduced the value arrives in a field every build already reads, rather than in a new one that
+breaks every strict parser on the day it appears.
+
+### 6.2 Credential at rest — a concrete UE-OBS-003 follow-up, OPEN-13
+
+UE-OBS-003 persists the credential at `Saved/Observer/source_credential.json` (`U-05`).
+
+**Being JSON is not the problem, and this is not a criticism of that choice.** A packaged Unreal
+application cannot keep a secret, the approved architecture accepts that (§3.4), and nothing in this
+contract depends on pretending otherwise. What the contract requires is unchanged and is all
+behavioural: source-scoped, revocable, rotatable, never source-controlled, never logged, narrow
+authority, an operator-visible unauthorised state, and revocation effective on the next request.
+
+What is genuinely open is narrower and worth asking precisely: **is the token plaintext in that file,
+and what platform-appropriate protection is applied to it?** If it is plaintext, the residual risk is
+that anyone with filesystem access to a showroom PC — a support engineer, a backup, a shared machine —
+has the credential without needing to open a binary at all. That is a materially lower bar than
+extraction from a packaged build, which is the threat the architecture actually accepted.
+
+The question is therefore whether UE 5.6 on Windows offers something practical for V1 — DPAPI, the
+Credential Manager, or an equivalent. **Not redesigned here**, because the answer depends on Unreal
+and platform facts we do not hold. Recorded as OPEN-13, owned jointly, and blocking nothing.
+
+### 6.3 After a 401 or a 403
 
 1. Stop sending immediately. Never retry with a credential the server has just refused.
 2. **Keep the outbox.** The events are not the problem and must not be discarded.
@@ -465,7 +494,17 @@ diagnostic or validating, and what it means for a mixed-age backlog.
 
 ---
 
-## 11. Session sequence — PROPOSED
+## 11. Session sequence — feasibility CONFIRMED, semantics PROPOSED
+
+**UE implementation confirmed (`U-10`).** `FObserverEvent` implements monotonic sequencing. Central
+generation is demonstrably feasible, and that question is closed rather than re-asked.
+
+**Still to verify** — three details implementation evidence does not settle on its own, and which
+remain `P-17`:
+
+1. whether `sequence` is guaranteed **mandatory** for every session-scoped event;
+2. whether Blueprint callers are **completely unable** to override or manage it;
+3. the exact **reset semantics** when a new `session_id` starts.
 
 The brief marks `sequence` _Recommended_. **Proposal: required for session facts**, because it is the
 only ordering signal that survives a wrong device clock — and §10 leaves clock trust deliberately
@@ -500,6 +539,12 @@ document.
 test tells it and nothing else. Identifiers come from a counter and clocks are injected, so a
 transcript is reproducible.
 
+**Activation code prefixes are cosmetic.** The UE build tests against `DEV-` codes and the harness
+mints `OBS-`; the schema constrains length and nothing else. `new MockObserverBackend({ codePrefix:
+"DEV" })` makes the harness match, rather than asking the UE side to change something the protocol
+does not care about. The forbidden-content scanner is prefix-agnostic for the same reason — it
+previously knew `OBS-` only, which is to say it protected the prefix nobody was testing with.
+
 ```bash
 pnpm ue5:mock
 ```
@@ -512,20 +557,25 @@ tell apart. See `packages/ue5-mock/src/scenarios.ts`.
 
 ## 13. Open items
 
-| Ref         | Item                                                                          | Owner                     |
-| ----------- | ----------------------------------------------------------------------------- | ------------------------- |
-| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events. | Backend review            |
-| **OPEN-2**  | Analytics event retention. No policy exists.                                  | Product                   |
-| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                  | Matthew + Akhilesh        |
-| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                     | Matthew                   |
-| **OPEN-5**  | Screenshots: storage path and how events reference it.                        | Matthew                   |
-| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.      | Product                   |
-| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                     | Akhilesh                  |
-| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.              | Product + Akhilesh        |
-| **OPEN-9**  | Schema support window — how long old builds remain accepted.                  | Matthew                   |
-| **OPEN-10** | Legacy `InsightAnalytics` target and any data to preserve.                    | **Akhilesh**              |
-| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                        | Backend review            |
-| **OPEN-12** | Numeric limit values.                                                         | **Akhilesh measurements** |
+| Ref         | Item                                                                           | Owner                     |
+| ----------- | ------------------------------------------------------------------------------ | ------------------------- |
+| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events.  | Backend review            |
+| **OPEN-2**  | Analytics event retention. No policy exists.                                   | Product                   |
+| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                   | Matthew + Akhilesh        |
+| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                      | Matthew                   |
+| **OPEN-5**  | Screenshots: storage path and how events reference it.                         | Matthew                   |
+| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.       | Product                   |
+| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                      | Akhilesh                  |
+| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.               | Product + Akhilesh        |
+| **OPEN-9**  | Schema support window — how long old builds remain accepted.                   | Matthew                   |
+| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                         | Backend review            |
+| **OPEN-12** | Numeric limit values.                                                          | **Akhilesh measurements** |
+| **OPEN-13** | Protection applied to the persisted source credential at rest (§6.2).          | Matthew + Akhilesh        |
+| **OPEN-14** | UE event identifier: hyphenation, and RFC 4122 version/variant conformance.    | Matthew + Akhilesh        |
+| **OPEN-15** | Whether `FObserverEvent` serialises snake_case rather than Unreal's camelCase. | Matthew + Akhilesh        |
+
+**OPEN-10 is closed.** It asked which legacy database held prototype analytics and whether any of it
+needed preserving. Answered on 2026-09-01: prototype snapshot blobs only, nothing to migrate. See §15.
 
 ### Deliberately out of scope
 
@@ -538,16 +588,65 @@ only if ingestion is ever metered by event volume, which the approved architectu
 
 ## 14. What still needs a decision, and from whom
 
-**Akhilesh — five things, and only these five.**
+**Akhilesh — five things.** Two questions were removed after the UE-OBS-001..004 report: the legacy
+database (answered, §15) and whether central sequence generation is feasible at all (`U-10` shows it
+already exists). Three are new, and all three come from having a real implementation to compare
+against rather than from anything going wrong.
 
-1. The legacy `InsightAnalytics` Supabase target, and whether it holds data to preserve.
-2. Whether `sequence` may become mandatory for session facts, generated by the subsystem.
-3. The platform matrix beyond UE 5.6.
-4. Realistic batch, event and outbox limits, measured on real hardware.
-5. Confirmation that the 401/403 behaviour in §6.2 is implementable as written.
+1. **Credential at rest** — is the token plaintext in `source_credential.json`, and does UE 5.6 on
+   Windows offer a practical protected store for V1? (§6.2, OPEN-13)
+2. **Event identifier** — hyphenated, and does it carry RFC 4122 version and variant bits? (OPEN-14)
+3. **Field naming** — `event_id` or `eventId` on the wire? (OPEN-15)
+4. **Sequence semantics** — mandatory for session-scoped events, unreachable from Blueprint, and what
+   happens to the counter at a new `session_id`? (§11, P-17)
+5. **Platform matrix and limits** — targets beyond Windows kiosk on 5.6, and realistic ceilings
+   measured on the actual hardware. (OPEN-7, OPEN-12)
 
 **Matthew — the proposals in this document.** Activation v1 (§3), Ingestion v1 (§4), the error model
 (§5), credential lifecycle and no-expiry (§6), heartbeat B + C (§7), limit field shape (§8),
 source-scoped deduplication (§9.1), and the `SourceObservation.sequence` amendment (§11).
 
 Everything else in §13 can wait for live ingestion without blocking UE-OBS-003 through UE-OBS-010.
+
+---
+
+## 15. Closed decisions
+
+### 15.1 Legacy analytics — no migration. DECIDED, `PD-01`
+
+Akhilesh confirmed on 2026-09-01 (`U-12`) that the legacy `InsightAnalytics` database holds **no live
+client analytics**. It carried prototype snapshot blobs written directly into `user_sessions` and
+`global_analytics` during Job 1 proof-of-concept testing and demo showroom sessions, and those blobs
+do not conform to the versioned, multi-tenant `FObserverEvent` fact schema.
+
+**Observer V2 analytics starts as a clean slate.** Nothing is to be built for those records: no legacy
+importer, no compatibility projection, no blob migration, no historical conversion layer. The old
+system is kept as historical prototype evidence where useful.
+
+The legacy adapter in UE-OBS-011 stays in scope. It is about **Blueprint and API migration
+convenience**, not about moving historical analytics data — a distinction worth keeping, because the
+two would be very different pieces of work under the same milestone name.
+
+### 15.2 The legacy transport is retired. DECIDED, `PD-02`
+
+```
+LEGACY   interaction → mutable in-memory state → application/session close
+                     → one large snapshot blob → direct database tables
+
+V2       interaction → immutable event with UUID + UTC timestamp
+                     → durable local outbox → bounded HTTPS batch
+                     → protected ingestion backend → explicit acknowledgement
+                     → removed from the outbox only after accepted or duplicate
+```
+
+UE-OBS-001 removed every hard-coded Supabase URL and key from the V2 plugin; configuration arrives
+through Unreal Project Settings, and V2 no longer depends on the direct-table transport (`U-02`,
+`U-03`). No V2 code or document may imply that the legacy path remains a supported production route.
+`docs/01-foundation.md` §7 and `docs/03-event-map.md` §7–8 carry dated amendments to that effect.
+
+### 15.3 Central sequence generation is feasible. `U-10`
+
+`FObserverEvent` implements monotonic sequencing. The feasibility question is closed and is not to be
+reopened. What remains is the semantic guarantee — mandatory for session-scoped events, unreachable
+from Blueprint, defined reset behaviour — which implementation evidence does not establish on its own,
+and which stays `P-17`.

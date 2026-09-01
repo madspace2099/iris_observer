@@ -22,6 +22,24 @@ describe("first activation", () => {
     expect(activation.environment_mismatch).toBe(false);
   });
 
+  it("states no token expiry, in a field that could carry one later", () => {
+    expect(activated().activation.token_expires_at).toBeNull();
+  });
+
+  it("mints whatever code prefix a test asks for, because a prefix is not semantic", () => {
+    /*
+     * Akhilesh's UE build tests against `DEV-` codes and this harness mints
+     * `OBS-`. The schema constrains length and nothing else, so the harness
+     * bends rather than asking the UE side to change something the protocol
+     * does not care about.
+     */
+    const dev = new MockObserverBackend({ codePrefix: "DEV" });
+    const code = dev.issueActivationCode();
+    expect(code.startsWith("DEV-")).toBe(true);
+    const answer = response(dev.activate(activationRequest({ activation_code: code })));
+    expect(answer.status).toBe(200);
+  });
+
   it("states no limits, because none have been decided", () => {
     const { activation } = activated();
     for (const value of Object.values(activation.limits)) expect(value).toBeNull();
@@ -83,6 +101,48 @@ describe("a code that cannot be used", () => {
         source_id: null,
         retry_after_seconds: null,
       });
+    }
+  });
+
+  it("answers a revoked code exactly as it answers an unknown one", () => {
+    /*
+     * The fourth case, added with the rest. An operator who withdraws a code
+     * must not thereby create a signal: a revoked code that failed differently
+     * would tell whoever holds it that it had once been real, and therefore
+     * that the source it belonged to exists.
+     */
+    const revoked = backend.issueActivationCode();
+    backend.revokeCode(revoked);
+    const answer = response(backend.activate(activationRequest({ activation_code: revoked })));
+    expect(answer.status).toBe(401);
+    expect(answer.body).toEqual({
+      status: "failed",
+      code: "activation_failed",
+      message: "The activation code could not be used.",
+      source_id: null,
+      retry_after_seconds: null,
+    });
+  });
+
+  it("never answers 409 with a source_id for a code that simply cannot be used", () => {
+    /*
+     * The correction, pinned. `409 already_activated` is reachable only from a
+     * VALID code meeting an installation that already has a live source — the
+     * caller has already proved possession. An unusable code must never take
+     * that path, because `409 + source_id` would hand a source identifier to
+     * somebody holding nothing but a guess.
+     */
+    const consumed = backend.issueActivationCode();
+    response(backend.activate(activationRequest({ activation_code: consumed })));
+    const revoked = backend.issueActivationCode();
+    backend.revokeCode(revoked);
+    const expired = backend.issueActivationCode();
+    backend.expireCode(expired);
+
+    for (const code of [consumed, revoked, expired, "OBS-FFFF-FFFF-FFF0"]) {
+      const answer = response(backend.activate(activationRequest({ activation_code: code })));
+      expect(answer.status, code).toBe(401);
+      expect(answer.body["source_id"], code).toBeNull();
     }
   });
 

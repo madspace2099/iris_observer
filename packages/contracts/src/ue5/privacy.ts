@@ -121,7 +121,16 @@ const CREDENTIAL_SHAPES: readonly RegExp[] = [
    * credential design is settled.
    */
   /\bobs_[0-9a-f]{32,}/i,
-  /\bOBS-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}\b/,
+  /*
+   * An activation code, prefix-agnostic.
+   *
+   * It was `OBS-` only, which is the prefix our own reference implementation
+   * happens to mint. Akhilesh's UE build tests against `DEV-` codes, and a
+   * scanner that catches one prefix and not the other catches whichever one
+   * nobody happens to be using that week. The prefix is not semantic to the
+   * contract, so the pattern should not treat it as though it were.
+   */
+  /\b[A-Z]{2,6}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}\b/,
   /\bsk-[A-Za-z0-9_-]{16,}/,
   /\bBearer\s+[A-Za-z0-9._-]{16,}/i,
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\./,

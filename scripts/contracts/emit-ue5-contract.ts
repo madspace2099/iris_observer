@@ -5,6 +5,17 @@ import {
   componentJsonSchemas,
 } from "../../packages/contracts/src/ue5/openapi";
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "../../packages/contracts/src/ue5/errors";
+import { LOCAL_VALIDATION_ORDER } from "../../packages/contracts/src/ue5/validation";
+import {
+  EVENT_LEAVES_PENDING_DELIVERY,
+  EVENT_PRESERVED_NOT_RETRIED,
+  EVENT_REMAINS_LOCALLY,
+  RESTART_INVARIANTS,
+  UNAUTHORISED_OUTBOX_BEHAVIOUR,
+  outboxStateForEventResult,
+  outboxStateForRequestFailure,
+  outboxStateForTransportFailure,
+} from "../../packages/contracts/src/ue5/outbox";
 import {
   CLASSIFICATIONS,
   CONTRACT_RULES,
@@ -49,6 +60,8 @@ export function generatedArtefacts(): Map<string, string> {
 
   files.set("traceability.md", traceabilityMarkdown());
   files.set("error-model.md", errorModelMarkdown());
+  files.set("validation-order.md", validationOrderMarkdown());
+  files.set("outbox-states.md", outboxMarkdown());
   return files;
 }
 
@@ -169,6 +182,150 @@ function errorModelMarkdown(): string {
   for (const rejection of EVENT_REJECTIONS) {
     lines.push(`**\`${rejection.code}\`** — ${rejection.rationale}`, "");
   }
+  return lines.join("\n");
+}
+
+function validationOrderMarkdown(): string {
+  const lines: string[] = [BANNER("Local validation order — UE-OBS-005")];
+
+  lines.push(
+    "Three stages, and the split decides what the plugin can actually do.",
+    "",
+    "| Stage | Runs where | Why |",
+    "| --- | --- | --- |",
+    "| `structural` | **locally** | Shape, size and consistency need no server knowledge. |",
+    "| `privacy` | **locally** | The whole point of doing it locally is that a rejected value never leaves the machine. |",
+    "| `semantic` | server only | A plugin holds neither the event registry nor server time. Guessing would reject good events. |",
+    "",
+    "A plugin that runs the first two stages before an event enters the outbox turns a round",
+    "trip into an assertion at the call site, and never queues an event that was always going",
+    "to be quarantined.",
+    "",
+    "## The order",
+    "",
+    "| # | Stage | Step | Rejection | Local |",
+    "| --- | --- | --- | --- | --- |",
+  );
+  for (const step of LOCAL_VALIDATION_ORDER) {
+    lines.push(
+      `| ${step.order} | \`${step.stage}\` | ${escapePipes(step.name)} | \`${step.rejection}\` | ${step.local ? "yes" : "no"} |`,
+    );
+  }
+
+  lines.push("", "## What each step checks", "");
+  for (const step of LOCAL_VALIDATION_ORDER) {
+    lines.push(`### ${step.order}. ${step.name} — \`${step.rejection}\``, "");
+    for (const check of step.checks) lines.push(`- ${check}`);
+    lines.push("", step.note, "");
+  }
+
+  lines.push(
+    "## Two rules for the privacy stage",
+    "",
+    "**The validator must fail without logging the rejected value.** A diagnostic that quotes",
+    "the leaked email into a rejection record, a log line and a support ticket has tripled the",
+    "leak while appearing to prevent it. Name the key and the kind; never the value.",
+    "",
+    "**Heuristic detection is not the long-term policy.** It is a guardrail against accidents —",
+    "a debug field left in a build, an exception message pasted into a payload. The stronger",
+    "control is the per-event schema registry, which whitelists property keys by name and is a",
+    "later milestone (ADR-0013).",
+    "",
+  );
+  return lines.join("\n");
+}
+
+function outboxMarkdown(): string {
+  const lines: string[] = [BANNER("Durable outbox state semantics — UE-OBS-006")];
+
+  lines.push(
+    "The internal representation is the plugin's business. A status column, two files, an index",
+    "and a tombstone log — any of those is fine. What is contract is the **observable**",
+    "**behaviour**: given a response, does the event still get delivered, is it retried, and can",
+    "it be lost.",
+    "",
+    "> **Nothing is ever silently lost.** Every state either keeps trying or keeps the event on",
+    "> disk with a reason attached. A queue ceiling that drops an event must count it and report",
+    "> it.",
+    "",
+    "## States",
+    "",
+    "| State | Delivered again? | Meaning |",
+    "| --- | --- | --- |",
+    "| `pending` | yes | Waiting to be sent. Where retries return to. |",
+    "| `in_flight` | yes | Sent, no answer yet. **Optional** — an implementation may fold this into `pending`. |",
+    "| `retained` | yes | Kept after a retryable failure. |",
+    "| `accepted` | no | The server stored it. Delivery finished. |",
+    "| `duplicate` | no | The server already had it. Delivery finished — **this is a success**. |",
+    "| `quarantined` | no | Kept on disk with a reason, never retried. Needs a human. |",
+    "",
+    "An event in flight when the process dies must come back as `pending`, never as delivered.",
+    "A crash is not an acknowledgement.",
+    "",
+    "## The event remains locally when",
+    "",
+  );
+  for (const line of EVENT_REMAINS_LOCALLY) lines.push(`- ${line}`);
+
+  lines.push("", "## The event leaves pending delivery when", "");
+  for (const line of EVENT_LEAVES_PENDING_DELIVERY) lines.push(`- ${line}`);
+
+  lines.push(
+    "",
+    "Those two, and nothing else. A 503 is not an acknowledgement, a timeout is not an",
+    "acknowledgement, and a connection dying mid-response is not an acknowledgement.",
+    "",
+    "## The event is preserved but not retried when",
+    "",
+  );
+  for (const line of EVENT_PRESERVED_NOT_RETRIED) lines.push(`- ${line}`);
+
+  lines.push("", "## Every situation, derived from the error model", "");
+  lines.push("| Situation | State | Retried | Sending |", "| --- | --- | --- | --- |");
+
+  const rows: Array<[string, ReturnType<typeof outboxStateForEventResult>]> = [
+    ["per-event `accepted`", outboxStateForEventResult("accepted")],
+    ["per-event `duplicate`", outboxStateForEventResult("duplicate")],
+    ...EVENT_REJECTIONS.map(
+      (rejection) =>
+        [
+          `per-event \`${rejection.code}\``,
+          outboxStateForEventResult("rejected", rejection.code, rejection.retryable),
+        ] as [string, ReturnType<typeof outboxStateForEventResult>],
+    ),
+    [
+      "per-event code this build does not know",
+      outboxStateForEventResult("rejected", "a_future_code"),
+    ],
+    ...REQUEST_FAILURES.map(
+      (failure) =>
+        [
+          `whole request \`${failure.httpStatus} ${failure.code}\``,
+          outboxStateForRequestFailure(failure.httpStatus),
+        ] as [string, ReturnType<typeof outboxStateForEventResult>],
+    ),
+    ["whole request, unrecognised 5xx", outboxStateForRequestFailure(507)],
+    ["no response at all", outboxStateForTransportFailure()],
+  ];
+  for (const [situation, state] of rows) {
+    lines.push(
+      `| ${situation} | \`${state.state}\` | ${state.retried ? "yes" : "no"} | \`${state.sending}\` |`,
+    );
+  }
+
+  lines.push("", "## On restart", "");
+  for (const line of RESTART_INVARIANTS) lines.push(`- ${line}`);
+
+  lines.push(
+    "",
+    "## After 401 or 403 — PROPOSED",
+    "",
+    "Still a proposal: the operational and UX side has not been confirmed on the UE side. The",
+    "second line is the one that is not negotiable — the events were never the problem.",
+    "",
+  );
+  for (const line of UNAUTHORISED_OUTBOX_BEHAVIOUR) lines.push(`- ${line}`);
+  lines.push("");
   return lines.join("\n");
 }
 

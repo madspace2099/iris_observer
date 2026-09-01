@@ -14,11 +14,13 @@ document once said it would.
 | --- | --- |
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
+| `UE_IMPLEMENTATION_CONFIRMED` | 12 |
+| `DECIDED_BY_PRODUCT` | 2 |
 | `PROPOSED` | 22 |
-| `OPEN` | 12 |
+| `OPEN` | 14 |
 | `MOCK_ONLY` | 3 |
 
-**Total:** 82
+**Total:** 98
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -80,6 +82,30 @@ table exists to prevent.
 | `D-16` | The server parses the batch frame only: validating events at the batch level would turn one bad event into a whole-batch 400. | `L-16`, `L-17` | matthew | UE-OBS-006 | `ingestion.ts` |
 | `D-17` | Deduplication is scoped to the source, so a duplicate answer cannot reveal that another source stored an event. | `L-06`, `L-15` | matthew | UE-OBS-006 | `@observer/ue5-mock` |
 
+## UE_IMPLEMENTATION_CONFIRMED
+
+| Id | Rule | Authority | Owner | Blocks | Where |
+| --- | --- | --- | --- | --- | --- |
+| `U-01` | The current target engine is Unreal Engine 5.6. | — | akhilesh | — | `wire.ts` |
+| `U-02` | All hard-coded Supabase URLs and keys are removed from the V2 plugin; backend configuration comes through Unreal Project Settings. | — | akhilesh | — | `docs` |
+| `U-03` | The V2 plugin no longer depends on the legacy direct-table transport. | — | akhilesh | — | `docs` |
+| `U-04` | A one-time activation flow with source-token persistence and crash recovery is implemented. | — | akhilesh | — | `activation.ts` |
+| `U-05` | The source credential currently persists at Saved/Observer/source_credential.json. | — | akhilesh | — | `credential.ts` |
+| `U-06` | Mock activation codes currently use a DEV- prefix. A prefix is not semantic to the contract. | — | akhilesh | — | `@observer/ue5-mock` |
+| `U-07` | Multi-tenant and multi-source isolation has been exercised against mock activation behaviour. | — | akhilesh | — | `docs` |
+| `U-08` | FObserverEvent carries a stable identifier generated before the first send. | — | akhilesh | — | `ingestion.ts` |
+| `U-09` | FObserverEvent serialises UTC timestamps with millisecond precision as YYYY-MM-DDTHH:MM:SS.sssZ. | — | akhilesh | — | `wire.ts` |
+| `U-10` | Monotonic sequencing is implemented in the V2 event engine. | — | akhilesh | — | `ingestion.ts` |
+| `U-11` | JSON serialisation and deserialisation of the event envelope roundtrips inside Unreal. | — | akhilesh | — | `ingestion.ts` |
+| `U-12` | The legacy InsightAnalytics database holds only prototype snapshot blobs in user_sessions and global_analytics, written during Job 1 proof-of-concept testing. No live client analytics. | — | akhilesh | — | `docs` |
+
+## DECIDED_BY_PRODUCT
+
+| Id | Rule | Authority | Owner | Blocks | Where |
+| --- | --- | --- | --- | --- | --- |
+| `PD-01` | Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics. | — | product | — | `docs` |
+| `PD-02` | The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise. | — | product | — | `docs` |
+
 ## PROPOSED
 
 | Id | Rule | Authority | Owner | Blocks | Where |
@@ -100,7 +126,7 @@ table exists to prevent.
 | `P-14` | A dedicated heartbeat endpoint carries liveness and plugin health; an empty batch is not a heartbeat. | — | matthew | UE-OBS-010 | `heartbeat.ts` |
 | `P-15` | diagnostic.test in a reserved namespace proves the storage path end to end, once. | — | matthew | UE-OBS-010 | `diagnostic.ts` |
 | `P-16` | The limit field shape is contract; every value in this candidate is deliberately null. | — | matthew | UE-OBS-006 | `limits.ts` |
-| `P-17` | sequence is required for session facts and generated centrally by the subsystem, never by a Blueprint. | — | matthew_and_akhilesh | UE-OBS-004, UE-OBS-009 | `ingestion.ts` |
+| `P-17` | sequence is mandatory for every session-scoped event, cannot be overridden by a Blueprint caller, and has defined reset semantics at each new session_id. | — | matthew_and_akhilesh | UE-OBS-004, UE-OBS-009 | `ingestion.ts` |
 | `P-18` | Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which. | — | matthew | UE-OBS-005 | `validation.ts` |
 | `P-19` | The forbidden-content scan is a guardrail against accidents; the schema registry is the guarantee. | — | matthew | UE-OBS-005 | `privacy.ts` |
 | `P-20` | An empty batch is valid and processed, returning received: 0. It is not a heartbeat. | — | matthew | UE-OBS-006 | `ingestion.ts` |
@@ -120,9 +146,11 @@ table exists to prevent.
 | `O-07` | The platform matrix beyond Unreal Engine 5.6. | — | akhilesh | UE-OBS-002 | `docs` |
 | `O-08` | Identity handoff: how a stable agent_id and approved visitor references enter the UE session. | — | product | UE-OBS-009 | `docs` |
 | `O-09` | The schema support window: how long old IRIS builds remain accepted. | — | matthew | — | `docs` |
-| `O-10` | The legacy InsightAnalytics Supabase target and whether it holds data to preserve. | — | akhilesh | — | `docs` |
 | `O-11` | Credential internals: hash or KDF, prefix scheme, lookup index. | — | backend_review | — | `credential.ts` |
 | `O-12` | The numeric limit values, pending measurement on real showroom hardware. | — | akhilesh | UE-OBS-006 | `limits.ts` |
+| `O-13` | What protection is applied at rest to the persisted source credential, and whether a platform-appropriate protected store is practical for V1. | — | matthew_and_akhilesh | UE-OBS-003 | `credential.ts` |
+| `O-14` | The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits. | — | matthew_and_akhilesh | UE-OBS-007 | `wire.ts` |
+| `O-15` | Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
 
 ## MOCK_ONLY
 

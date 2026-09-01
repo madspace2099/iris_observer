@@ -29,5 +29,6 @@ export * from "./diagnostic";
 export * from "./credential";
 export * from "./privacy";
 export * from "./validation";
+export * from "./outbox";
 export * from "./projection";
 export * from "./traceability";

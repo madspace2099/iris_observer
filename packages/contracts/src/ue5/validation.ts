@@ -42,6 +42,171 @@ import { safeDetail, scanForForbiddenContent } from "./privacy";
  * `detail` says which ceiling it was.
  */
 
+/* ====================================================== the published order */
+
+/**
+ * THE VALIDATION ORDER, AS DATA — because UE-OBS-005 is being written now.
+ *
+ * Akhilesh is implementing the Local Validator and PII Privacy Guard against
+ * this, and a prose list in a handoff document drifts from the function that
+ * enforces it within two revisions. So the order is published here, rendered
+ * into `docs/ue5-contract/validation-order.md`, and walked by a test that makes
+ * each step fire in turn.
+ *
+ * Three stages, and the split matters for what the plugin can actually do:
+ *
+ *   `structural`  shape, size and consistency. **Implementable locally**, with
+ *                 no server knowledge at all.
+ *   `privacy`     reserved identity keys and forbidden content.
+ *                 **Implementable locally**, and the whole point of doing it
+ *                 locally is that a rejected value never leaves the machine.
+ *   `semantic`    the event registry and the clock window. **Server only** — a
+ *                 plugin holds neither the registry nor server time, and a
+ *                 client that guessed at either would reject good events.
+ *
+ * A plugin that implements the first two stages before an event enters the
+ * outbox turns a round trip into an assertion at the call site, and never
+ * queues an event that was always going to be quarantined.
+ */
+export type ValidationStage = "structural" | "privacy" | "semantic";
+
+export interface ValidationStep {
+  readonly order: number;
+  readonly stage: ValidationStage;
+  readonly name: string;
+  /** What the step checks, in the words a plugin author would use. */
+  readonly checks: readonly string[];
+  readonly rejection: EventRejectionCode;
+  /** Whether a plugin can perform this check before queueing. */
+  readonly local: boolean;
+  readonly note: string;
+}
+
+export const LOCAL_VALIDATION_ORDER: readonly ValidationStep[] = Object.freeze([
+  {
+    order: 1,
+    stage: "structural",
+    name: "nesting depth",
+    checks: ["maximum property depth, measured on the unparsed value"],
+    rejection: "event_too_large",
+    local: true,
+    note:
+      "First, and this order was earned: the size check serialises, serialisation recurses, " +
+      "and a deeply nested payload therefore crashes the guard meant to refuse it. Measure " +
+      "depth iteratively before anything walks the structure.",
+  },
+  {
+    order: 2,
+    stage: "structural",
+    name: "serialised size",
+    checks: ["maximum serialised size in UTF-8 bytes", "the value can be serialised at all"],
+    rejection: "event_too_large",
+    local: true,
+    note: "A value JSON cannot represent answers malformed_event rather than event_too_large.",
+  },
+  {
+    order: 3,
+    stage: "structural",
+    name: "envelope shape",
+    checks: [
+      "event_id is a UUID",
+      "event_name is canonical dotted lower_snake_case",
+      "schema_version is an integer",
+      "occurred_at is UTC with an offset and millisecond precision",
+      "properties is an object",
+      "no field outside the envelope",
+    ],
+    rejection: "malformed_event",
+    local: true,
+    note: "The envelope is closed. An unexpected field is a rejection, never a silent drop.",
+  },
+  {
+    order: 4,
+    stage: "structural",
+    name: "session and sequence consistency",
+    checks: ["session_id and sequence are both present or both null"],
+    rejection: "malformed_event",
+    local: true,
+    note: "A sequence without a session orders nothing; a session without one cannot be ordered.",
+  },
+  {
+    order: 5,
+    stage: "structural",
+    name: "schema version range",
+    checks: ["schema_version falls inside accepted_schema_versions from activation"],
+    rejection: "unsupported_version",
+    local: true,
+    note: "Local because the accepted range was handed to the plugin at activation.",
+  },
+  {
+    order: 6,
+    stage: "structural",
+    name: "property breadth",
+    checks: ["maximum keys at any single object level"],
+    rejection: "event_too_large",
+    local: true,
+    note: "The last structural step, so the privacy stage that follows is contiguous.",
+  },
+  {
+    order: 7,
+    stage: "privacy",
+    name: "reserved identity keys",
+    checks: [
+      "no tenant, project or source identifier at any depth",
+      "no server-assigned key such as ingested_at",
+      "no observer_ or __ namespace",
+      "matched case-insensitively across snake_case and camelCase",
+    ],
+    rejection: "reserved_property",
+    local: true,
+    note:
+      "Rejected rather than ignored. Silently dropping the key lets a plugin believe for a " +
+      "year that it was setting project_id.",
+  },
+  {
+    order: 8,
+    stage: "privacy",
+    name: "forbidden content",
+    checks: [
+      "email addresses",
+      "telephone numbers",
+      "activation codes and Observer source credentials",
+      "known secret-shaped values",
+      "key names that hold personal data by definition",
+    ],
+    rejection: "pii_suspected",
+    local: true,
+    note:
+      "A guardrail against accidents, not a guarantee. The schema registry is the stronger " +
+      "future control. The finding names the key and never carries the value.",
+  },
+  {
+    order: 9,
+    stage: "semantic",
+    name: "event registry",
+    checks: ["event_name is registered at this schema_version"],
+    rejection: "schema_unknown",
+    local: false,
+    note: "Server only: the plugin does not hold the registry, and guessing would reject good events.",
+  },
+  {
+    order: 10,
+    stage: "semantic",
+    name: "clock window",
+    checks: ["occurred_at falls inside the acceptance window in force"],
+    rejection: "clock_out_of_range",
+    local: false,
+    note:
+      "Server only, and the window itself is OPEN-3. The default policy accepts and flags; " +
+      "rejection is something a deployment switches on deliberately.",
+  },
+]);
+
+/** The steps a plugin can run before an event ever enters the outbox. */
+export function locallyEnforceableSteps(): readonly ValidationStep[] {
+  return LOCAL_VALIDATION_ORDER.filter((step) => step.local);
+}
+
 /* ============================================================ clock policy */
 
 /**
@@ -168,19 +333,6 @@ export function validateEvent(raw: unknown, context: ValidationContext): Validat
     );
   }
 
-  /*
-   * The identity-creep guard, at every level of the payload rather than only at
-   * the top: a `context: { project_id }` is exactly as wrong as a top-level one,
-   * and rather more likely to be written by accident.
-   */
-  const reserved = findReservedKey(event.properties);
-  if (reserved !== null) {
-    return reject(
-      "reserved_property",
-      `${reserved} is reserved; tenant, project and source are derived from the credential`,
-    );
-  }
-
   const propertyDepth = depthOf(event.properties);
   if (propertyDepth > context.limits.maxPropertyDepth) {
     return reject(
@@ -193,6 +345,25 @@ export function validateEvent(raw: unknown, context: ValidationContext): Validat
     return reject(
       "event_too_large",
       `an object carries ${widest} keys, past ${context.limits.maxPropertyCount}`,
+    );
+  }
+
+  /* ------------------------------------------- the privacy guard begins here */
+
+  /*
+   * The identity-creep guard, at every level of the payload rather than only at
+   * the top: a `context: { project_id }` is exactly as wrong as a top-level one,
+   * and rather more likely to be written by accident.
+   *
+   * It opens the privacy stage rather than closing the structural one, so that
+   * the two stages are contiguous and UE-OBS-005 can implement them as two
+   * passes rather than as a checklist interleaved with size arithmetic.
+   */
+  const reserved = findReservedKey(event.properties);
+  if (reserved !== null) {
+    return reject(
+      "reserved_property",
+      `${reserved} is reserved; tenant, project and source are derived from the credential`,
     );
   }
 

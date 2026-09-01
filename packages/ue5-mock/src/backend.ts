@@ -90,6 +90,15 @@ export interface BackendOptions {
   readonly clockPolicy?: ClockPolicy;
   readonly registry?: EventRegistry | null;
   readonly acceptedSchemaVersions?: { readonly min: number; readonly max: number };
+  /**
+   * The prefix on generated activation codes. Cosmetic, and deliberately so.
+   *
+   * Akhilesh's UE build tests against `DEV-` codes; this harness mints `OBS-`.
+   * **A prefix is not semantic to the contract** — the schema constrains length
+   * and nothing else — so the mock lets a test pick one rather than forcing the
+   * UE side to change something the protocol does not care about.
+   */
+  readonly codePrefix?: string;
   readonly fixture?: MockFixture;
 }
 
@@ -166,6 +175,7 @@ export class MockObserverBackend {
   private readonly registry: EventRegistry | null;
   private readonly acceptedSchemaVersions: { readonly min: number; readonly max: number };
   private readonly fixture: MockFixture;
+  private readonly codePrefix: string;
 
   private readonly sources = new Map<string, SourceRecord>();
   private readonly codes = new Map<string, CodeRecord>();
@@ -186,6 +196,7 @@ export class MockObserverBackend {
     this.registry = options.registry ?? null;
     this.acceptedSchemaVersions = options.acceptedSchemaVersions ?? { min: 1, max: 1 };
     this.fixture = options.fixture ?? MOCK_ONLY_FIXTURES.none();
+    this.codePrefix = options.codePrefix ?? "OBS";
   }
 
   /* ============================================================== operator */
@@ -205,11 +216,12 @@ export class MockObserverBackend {
       readonly tenantId?: string;
       readonly projectId?: string;
       readonly expiresInMs?: number;
+      readonly prefix?: string;
     } = {},
   ): string {
     const existing =
       options.forSourceId === undefined ? undefined : this.sources.get(options.forSourceId);
-    const code = this.ids.activationCode();
+    const code = this.ids.activationCode(options.prefix ?? this.codePrefix);
     this.codes.set(code, {
       code,
       forSourceId: options.forSourceId ?? null,
@@ -226,6 +238,17 @@ export class MockObserverBackend {
   expireCode(code: string): void {
     const record = this.codes.get(code);
     if (record) record.state = "expired";
+  }
+
+  /**
+   * Withdraw a code an operator issued and then thought better of.
+   *
+   * Answers exactly as an unknown or expired code does. A revoked code that
+   * failed differently would tell the holder that it had once been real.
+   */
+  revokeCode(code: string): void {
+    const record = this.codes.get(code);
+    if (record) record.state = "revoked";
   }
 
   revokeCredentialFor(sourceId: string): void {
@@ -425,6 +448,7 @@ export class MockObserverBackend {
       source_token: token,
       ingest_url: `${this.baseUrl}/observer-ingest`,
       heartbeat_url: `${this.baseUrl}/observer-heartbeat`,
+      token_expires_at: null,
       accepted_schema_versions: this.acceptedSchemaVersions,
       limits: this.statedLimits,
       config_refresh_after: new Date(this.clock.now().getTime() + 30 * 86_400_000).toISOString(),

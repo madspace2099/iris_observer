@@ -54,9 +54,9 @@ export class Deterministic {
   }
 
   /** An activation code in the shape Admin prints. */
-  activationCode(): string {
+  activationCode(prefix = "OBS"): string {
     const group = () => this.hex(4).toUpperCase();
-    return `OBS-${group()}-${group()}-${group()}`;
+    return `${prefix}-${group()}-${group()}-${group()}`;
   }
 
   /** An opaque source credential. Long enough for the contract's own bounds. */

@@ -149,6 +149,18 @@ export const ActivationSuccessSchema = z.strictObject({
    */
   source_token: z.string().min(32).max(512),
 
+  /**
+   * When this credential stops working, or `null` — which is what it always is
+   * in this candidate.
+   *
+   * The field exists precisely because the answer is "never". A client that
+   * reads it and finds `null` knows no expiry is stated; if a policy is ever
+   * introduced, the value arrives in a field the client already reads rather
+   * than in a new one that breaks every build parsing this response strictly.
+   * See `credential.ts` for why no expiry is proposed.
+   */
+  token_expires_at: z.iso.datetime({ offset: true }).nullable(),
+
   ingest_url: z.url(),
   heartbeat_url: z.url(),
 

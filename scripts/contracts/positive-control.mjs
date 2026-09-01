@@ -106,6 +106,34 @@ const MUTATIONS = [
     replace: "  events: z.array(EventEnvelopeSchema),\n});\nexport type BatchFrame",
     targets: [CONTRACT_TESTS, MOCK_TESTS],
   },
+  {
+    id: "unauthorised-discards-outbox",
+    defect: "Quarantine the batch on 401 instead of retaining it.",
+    breaks:
+      "LOCKED §5.5 — the events are not the problem. This is the mistake that turns a " +
+      "five-minute operator task into permanent data loss.",
+    file: "packages/contracts/src/ue5/errors.ts",
+    find:
+      '    meaning: "The credential is unknown, malformed, revoked or superseded.",\n' +
+      "    retryable: false,\n" +
+      '    outbox: "retain",',
+    replace:
+      '    meaning: "The credential is unknown, malformed, revoked or superseded.",\n' +
+      "    retryable: false,\n" +
+      '    outbox: "quarantine",',
+    targets: [CONTRACT_TESTS],
+  },
+  {
+    id: "size-checked-before-depth",
+    defect: "Drop the depth guard that has to run before the size check.",
+    breaks:
+      "The size check serialises and serialisation recurses, so the guard against a hostile " +
+      "payload is crashed by one. This is a real defect that was shipped and caught once.",
+    file: "packages/contracts/src/ue5/validation.ts",
+    find: "  if (depth > context.limits.maxPropertyDepth + 2) {",
+    replace: "  if (depth > 1_000_000) {",
+    targets: [CONTRACT_TESTS],
+  },
 ];
 
 const sha = (text) => createHash("sha256").update(text, "utf8").digest("hex");

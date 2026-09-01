@@ -122,13 +122,96 @@ describe("open items stay open", () => {
     }
   });
 
-  it("names the five decisions that genuinely need Unreal-side facts", () => {
-    const akhilesh = CONTRACT_RULES.filter(
-      (rule) => rule.owner === "akhilesh" || rule.owner === "matthew_and_akhilesh",
+  it("keeps the list of things genuinely needing Unreal-side facts short", () => {
+    /*
+     * Counted over UNRESOLVED rules only. Owner alone is no longer the right
+     * filter: after UE-OBS-001..004, twelve rules are owned by Akhilesh as
+     * *evidence* rather than as questions, and counting those would make the
+     * ask look four times larger than it is.
+     */
+    const asks = CONTRACT_RULES.filter(
+      (rule) =>
+        (rule.classification === "OPEN" || rule.classification === "PROPOSED") &&
+        (rule.owner === "akhilesh" || rule.owner === "matthew_and_akhilesh"),
     );
     /* Fewer is better; more means we are asking him to decide our work. */
-    expect(akhilesh.length).toBeLessThanOrEqual(6);
-    expect(akhilesh.length).toBeGreaterThan(0);
+    expect(asks.length).toBeLessThanOrEqual(8);
+    expect(asks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("implementation evidence is not architecture", () => {
+  const ueConfirmed = rulesByClassification("UE_IMPLEMENTATION_CONFIRMED");
+
+  it("records what completed UE work evidences", () => {
+    expect(ueConfirmed.length).toBeGreaterThan(0);
+    for (const rule of ueConfirmed) {
+      expect(rule.evidence, `${rule.id} must name its evidence`).not.toBeNull();
+      expect(rule.owner, rule.id).toBe("akhilesh");
+    }
+  });
+
+  it("never lets implementation evidence borrow the brief's authority", () => {
+    /*
+     * The mislabelling this class exists to prevent, and it runs the opposite
+     * way from the original one. That the engine is 5.6, that the credential
+     * sits at a particular path, that sequencing is monotonic — all true, none
+     * of them architecture rules, and all of them free to change next sprint.
+     */
+    for (const rule of ueConfirmed) {
+      expect(rule.briefSection, rule.id).toBeNull();
+      expect(rule.derivedFrom, rule.id).toHaveLength(0);
+    }
+  });
+
+  it("never rests a contract derivation on implementation evidence", () => {
+    const evidenceIds = new Set(ueConfirmed.map((rule) => rule.id));
+    for (const rule of rulesByClassification("DERIVED_FROM_LOCKED_RULE")) {
+      for (const antecedent of rule.derivedFrom) {
+        expect(evidenceIds.has(antecedent), `${rule.id} derives from evidence`).toBe(false);
+      }
+    }
+  });
+});
+
+describe("an approved decision has somewhere honest to sit", () => {
+  const decisions = rulesByClassification("DECIDED_BY_PRODUCT");
+
+  it("names who decided and when", () => {
+    expect(decisions.length).toBeGreaterThan(0);
+    for (const rule of decisions) {
+      expect(rule.evidence, `${rule.id} must name the decider`).toMatch(/\d{4}-\d{2}-\d{2}/);
+      expect(rule.briefSection, rule.id).toBeNull();
+    }
+  });
+
+  it("closes the legacy analytics question rather than leaving it open", () => {
+    /*
+     * OPEN-10 asked which legacy database held prototype analytics and whether
+     * any of it needed preserving. Answered on 2026-09-01: prototype blobs
+     * only, nothing to migrate. An answered question left in the OPEN list is a
+     * question somebody asks again.
+     */
+    expect(CONTRACT_RULES.some((rule) => rule.id === "O-10")).toBe(false);
+    expect(decisions.some((rule) => /clean slate/i.test(rule.statement))).toBe(true);
+    expect(decisions.some((rule) => /retired for V2/i.test(rule.statement))).toBe(true);
+  });
+
+  it("keeps a decision distinct from a proposal", () => {
+    for (const rule of decisions) {
+      expect(rule.classification).not.toBe("PROPOSED");
+      expect(rule.derivedFrom).toHaveLength(0);
+    }
+  });
+});
+
+describe("evidence is required exactly where it belongs", () => {
+  it("carries no evidence on a rule that is not a fact or a decision", () => {
+    for (const rule of CONTRACT_RULES) {
+      if (rule.classification === "UE_IMPLEMENTATION_CONFIRMED") continue;
+      if (rule.classification === "DECIDED_BY_PRODUCT") continue;
+      expect(rule.evidence, rule.id).toBeNull();
+    }
   });
 });
 

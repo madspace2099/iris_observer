@@ -1,18 +1,22 @@
 # UE5 integration handoff — what to build against
 
-**For:** Akhilesh · **From:** Observer backend · **Date:** 2026-09-01
+**For:** Akhilesh · **From:** Observer backend · **Updated:** 2026-09-01
 **Contract:** `1.0.0-candidate.1` — **PROPOSED**, not yet implemented
-**Machine-readable:** `docs/ue5-contract/openapi.json` and `docs/ue5-contract/schemas/*.json`
+**Machine-readable:** `docs/ue5-contract/openapi.json`, `schemas/*.json`
+**For the two packages you are starting:** [`validation-order.md`](ue5-contract/validation-order.md) · [`outbox-states.md`](ue5-contract/outbox-states.md)
 **Runnable mock:** `pnpm ue5:mock` (loopback only, no database, no network)
 
-This document is meant to be enough on its own. You should not have to read our TypeScript to build
-UE-OBS-003 through UE-OBS-010 against it, and if you find yourself needing to, tell us — that is a
-defect in this page rather than in your reading of it.
+This document is meant to be enough on its own. You should not have to read our TypeScript,
+and if you find yourself needing to, that is a defect in this page rather than in your
+reading of it.
 
-**What is settled and what is not.** The behaviour below is stable enough to build against: the
-request and response shapes, the error codes and what to do about each one, the outbox rules, and the
-state machine. What is _not_ settled is listed in §8, and none of it blocks you. The one thing that
-could still change shape is `sequence` (§6), and it needs your answer before it can.
+**What changed since the last version.** UE-OBS-001 to UE-OBS-004 are done, so this is now
+written against an implementation that exists rather than one that does not. Three things
+follow: §4 and §5 are expanded into implementable specifications for the two packages you
+are starting; §6 records the legacy transport as retired; and §9 lists five places where
+what you have already built may not parse against these schemas. None of those five is a
+complaint — they are coordination items, each with a test in
+`packages/contracts/test/ue5/ue-compatibility.test.ts` that demonstrates the exact refusal.
 
 ---
 
@@ -24,25 +28,26 @@ could still change shape is `sequence` (§6), and it needs your answer before it
 | Ingest    | `POST {base}/functions/v1/observer-ingest`    | `Authorization: Bearer <source_token>` |
 | Heartbeat | `POST {base}/functions/v1/observer-heartbeat` | `Authorization: Bearer <source_token>` |
 
-`base`, `ingest_url` and `heartbeat_url` all come back from activation. **Do not hard-code them into
-the build** — store what activation returned, beside the credential.
+`base`, `ingest_url` and `heartbeat_url` all come back from activation. **Do not hard-code
+them into the build** — store what activation returned, beside the credential. You have
+already done the harder half of this in UE-OBS-001.
 
 `Content-Type: application/json`. `Content-Encoding: gzip` is accepted on ingest.
 
 ---
 
-## 2. UE-OBS-003 — the activation state machine
+## 2. UE-OBS-003 — activation
 
 ### 2.1 What you send
 
 ```json
 {
-  "activation_code": "OBS-7K4M-2QX9-D3TA",
-  "reported_environment": "production",
+  "activation_code": "DEV-7K4M-2QX9-D3TA",
+  "reported_environment": "development",
   "installation_nonce": "6f1c9f6e-2c7a-4a4e-9b31-9b0f9a3f1a2b",
   "build": {
     "app_version": "IRIS 4.3.0",
-    "plugin_version": "ObserverUE 0.1.0",
+    "plugin_version": "ObserverUE 0.2.0",
     "build_id": "iris-4.3.0-win64-shipping-8821",
     "engine_version": "5.6"
   },
@@ -50,16 +55,21 @@ the build** — store what activation returned, beside the credential.
 }
 ```
 
-**`installation_nonce`** — generate a UUID **once**, the first time the plugin runs, and persist it
-beside the outbox. Never regenerate it, never derive it from hardware, and do not treat it as a
-secret. Its only job is to let the server say "this installation already has a source" instead of
-silently creating a second one.
+**The code prefix is not semantic.** `DEV-` is as valid as `OBS-`; the schema constrains
+length and nothing else. The mock mints whichever you ask it for —
+`new MockObserverBackend({ codePrefix: "DEV" })`.
 
-**`reported_environment`** — what this build believes it is. The server does not trust it; it compares
-it against the source record and tells you if they disagree.
+**`installation_nonce`** — a UUID generated **once**, the first time the plugin runs, and
+persisted beside the outbox. Never regenerated, never derived from hardware, not a secret.
+Its only job is to let the server say "this installation already has a source" instead of
+silently creating a second one. If UE-OBS-003 currently sends a hardware fingerprint or a
+hostname hint instead, those two fields were removed from the proposal — see §9.
 
-**The build block is metadata, not identity.** Changing any of it — including the engine version —
-never invalidates your credential and never requires reactivation.
+**`reported_environment`** — what this build believes it is. The server does not trust it;
+it compares against the source record and tells you if they disagree.
+
+**The build block is metadata, not identity.** Changing any of it — including the engine
+version — never invalidates your credential and never requires reactivation.
 
 ### 2.2 What comes back on success
 
@@ -71,6 +81,7 @@ never invalidates your credential and never requires reactivation.
   "environment": "production",
   "environment_mismatch": false,
   "source_token": "obs_9f2c7a1b4e6d8f0a2c4e6b8d0f2a4c6e8b0d2f4a6c8e0b2d",
+  "token_expires_at": null,
   "ingest_url": "https://example.supabase.co/functions/v1/observer-ingest",
   "heartbeat_url": "https://example.supabase.co/functions/v1/observer-heartbeat",
   "accepted_schema_versions": { "min": 1, "max": 1 },
@@ -86,40 +97,53 @@ never invalidates your credential and never requires reactivation.
 }
 ```
 
-**The token is returned once and never again.** Persist it before you do anything else. If you lose
-it, an operator has to issue a new code.
+**The token is returned once and never again.** Persist it before you do anything else.
 
-**Treat it as opaque.** Never parse it, split it, decode it, or write it to a log, a crash report or a
-telemetry field. It is the one secret this build holds.
+**Treat it as opaque.** Never parse it, split it, decode it, or write it to a log, a crash
+report or a telemetry field.
 
-**`limits` values may be `null`.** Null means the server states no limit and you should apply your own
-configured default. It never means unlimited. Every value is null today because the numbers are still
-being decided — see §8.
+**`token_expires_at` is `null`, and will stay null.** The field exists so that a future
+expiry policy would not be a breaking change. There is no refresh endpoint and none is
+planned: credential material reaches a device through exactly one door.
 
-**Do not send `source_id`, `tenant_id` or `project_id` anywhere.** `source_id` is for your diagnostic
-screen and for support conversations. The server derives all identity from the token on every request
-and will **reject** an event that carries any of them.
+**`limits` values may be `null`.** Null means the server states no limit and you should
+apply your own configured default. It never means unlimited. Every value is null today
+because the numbers are still yours to measure — see §10.
+
+**Do not send `source_id`, `tenant_id` or `project_id` anywhere.** `source_id` is for your
+diagnostic screen and support conversations. The server derives all identity from the token
+on every request and will **reject** an event that carries any of them.
 
 ### 2.3 Every other answer
 
-| HTTP                | `code`              | What it means                               | What you do                                                                 |
-| ------------------- | ------------------- | ------------------------------------------- | --------------------------------------------------------------------------- |
-| 200 `"activated"`   | —                   | New source registered                       | Store the token. Go to `Active`.                                            |
-| 200 `"reactivated"` | —                   | Same source, new credential                 | Replace the stored token. Keep the outbox. Go to `Active`.                  |
-| 400                 | `malformed_request` | Your request is wrong                       | Do not retry. This is a plugin bug.                                         |
-| 401                 | `activation_failed` | Unknown, expired, or already used           | Do not retry. Ask the operator for a new code.                              |
-| 409                 | `already_activated` | This installation already has a live source | Do not retry. Show `source_id` and ask the operator to rotate or retire it. |
-| 429                 | `rate_limited`      | Too many attempts                           | Wait `Retry-After`, then retry.                                             |
-| 503                 | `unavailable`       | Backend down                                | Retry with backoff.                                                         |
+| HTTP                | `code`              | What it means                               | What you do                                                              |
+| ------------------- | ------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
+| 200 `"activated"`   | —                   | New source registered                       | Store the token. Go to `Active`.                                         |
+| 200 `"reactivated"` | —                   | Same source, new credential                 | Replace the stored token. **Keep the outbox.** Go to `Active`.           |
+| 400                 | `malformed_request` | Your request is wrong                       | Do not retry. This is a plugin bug.                                      |
+| 401                 | `activation_failed` | Unknown, expired, consumed **or revoked**   | Do not retry. Ask the operator for a new code.                           |
+| 409                 | `already_activated` | This installation already has a live source | Do not retry. Show `source_id`; ask the operator to rotate or retire it. |
+| 429                 | `rate_limited`      | Too many attempts                           | Wait `Retry-After`, then retry.                                          |
+| 503                 | `unavailable`       | Backend down                                | Retry with backoff.                                                      |
 
-The `401` is deliberately identical for unknown, expired and consumed codes. Do not try to tell them
-apart; there is nothing there to read.
+Two things about that table that are easy to get backwards:
+
+**The `401` is byte-identical for all four unusable-code cases.** Unknown, expired,
+consumed and revoked answer the same status, the same body and the same `source_id: null`.
+Do not try to tell them apart; there is nothing there to read. A response that separated
+them would tell anyone holding a guessed code whether a source exists.
+
+**`409` never happens to an unusable code.** It is reachable only from a _valid_ code
+meeting an installation that already has a live source — at which point the caller has
+already proved possession, so returning `source_id` costs nothing. An unusable code never
+takes that path and never receives a `source_id`.
 
 ### 2.4 Recovery
 
-There is no refresh endpoint and no self-service recovery. If the credential is lost or revoked, an
-operator issues a **new code for the same source**, and you run the ordinary activation flow. You will
-get `status: "reactivated"` and the same `source_id`.
+There is no refresh endpoint and no self-service recovery. If the credential is lost or
+revoked, an operator issues a **new one-time code tied server-side to the existing source**,
+and you run the ordinary activation flow against the same endpoint. You get
+`status: "reactivated"` and the same `source_id`.
 
 **Keep your outbox across reactivation.** The events were never the problem.
 
@@ -139,29 +163,19 @@ get `status: "reactivated"` and the same `source_id`.
 }
 ```
 
-| Field            | Rule                                                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `event_id`       | UUID. Generate **before the first send** and never regenerate it. This is the whole idempotency mechanism.               |
-| `event_name`     | Dotted `lower_snake_case`, at least two segments. **The catalogue is not fixed yet** — the names above are illustrative. |
-| `schema_version` | Integer. Must be inside `accepted_schema_versions` from activation.                                                      |
-| `occurred_at`    | ISO-8601 **with an offset**. `Z` is fine. Never corrected by the server, never adjusted by you.                          |
-| `session_id`     | UUID, or `null` for events that belong to no meeting.                                                                    |
-| `sequence`       | Integer from 1, or `null`. **Null exactly when `session_id` is null.**                                                   |
-| `properties`     | Free-form object. See the two prohibitions below.                                                                        |
+| Field            | Rule                                                                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `event_id`       | UUID, **hyphenated lowercase or uppercase canonical form**. Generated before the first send, never regenerated. See §9 — this one needs a word. |
+| `event_name`     | Dotted `lower_snake_case`, at least two segments. **The catalogue is not fixed yet** — the names here are illustrative.                         |
+| `schema_version` | Integer, inside `accepted_schema_versions` from activation.                                                                                     |
+| `occurred_at`    | ISO-8601 **with an offset**. `YYYY-MM-DDTHH:MM:SS.sssZ` — exactly what you already emit.                                                        |
+| `session_id`     | UUID, or `null` for events belonging to no meeting.                                                                                             |
+| `sequence`       | Integer **from 1**, or `null`. Null exactly when `session_id` is null. A counter starting at 0 loses the first event of every session.          |
+| `properties`     | Free-form object. Two prohibitions, in §4.                                                                                                      |
 
-**The envelope is closed.** Any field not in that list is rejected — not ignored. If you send
-`ingested_at` or `project_id`, you get `malformed_event` and you find out on the first run rather than
-in two years.
-
-**Two prohibitions inside `properties`:**
-
-1. **No identity keys.** `tenant_id`, `project_id`, `source_id`, `tenant`, `project`, `source`,
-   `ingested_at`, `received_at`, `server_time`, and anything starting `observer_` or `__`. Matched in
-   any spelling — `projectId` and `project-id` are the same key. At **any** nesting depth. The
-   rejection is `reserved_property`.
-2. **No raw personal data.** No names, emails, phone numbers or addresses, as values _or_ as key
-   names. Events carry references; people live in the protected contacts store. The rejection is
-   `pii_suspected`, and the response will name the offending key without repeating its value.
+**Field names are snake_case on the wire.** Unreal's `FJsonObjectConverter` lowercases the
+first letter of each `UPROPERTY` by default, which produces `eventId`, not `event_id`. The
+envelope is closed, so a camelCase key is a rejection rather than a silent drop. See §9.
 
 A batch wraps events:
 
@@ -173,160 +187,287 @@ A batch wraps events:
 }
 ```
 
-`batch_id` is for correlating your log with ours. It has no other meaning — in particular it is not
-used for deduplication, so resending the same events under a new `batch_id` is fine and expected.
+`batch_id` is for correlating your log with ours. It is **not** used for deduplication, so
+resending the same events under a new `batch_id` is fine and expected.
 
 ---
 
-## 4. UE-OBS-005 — what to validate locally before queueing
+## 4. UE-OBS-005 — local validator and privacy guard
 
-Everything the server checks, you can check first, and doing so turns a round trip into an assertion
-at the call site. In rejection order:
+The full generated specification is [`validation-order.md`](ue5-contract/validation-order.md).
+This is the shape of it.
 
-1. Serialised size against `max_event_bytes`.
-2. Nesting depth against `max_property_depth`. **Check depth before size** — a recursive size
-   calculation crashes on a deeply nested payload, which is a bug we shipped in our own validator and
-   caught with a test.
-3. Envelope shape: every required field present, no extra fields.
-4. `session_id` and `sequence` both present or both null.
-5. `schema_version` inside the accepted range.
-6. No reserved property key, at any depth.
-7. Object breadth against `max_property_count`.
-8. No forbidden content.
+**Three stages, and the split decides what you can do.**
 
-An event that fails locally should never enter the outbox. Count it, name it on the diagnostic screen,
-and fix the caller.
+| Stage        | Runs where  | Why                                                                                     |
+| ------------ | ----------- | --------------------------------------------------------------------------------------- |
+| `structural` | **locally** | Shape, size and consistency need no server knowledge.                                   |
+| `privacy`    | **locally** | The point of doing it locally is that a rejected value never leaves the machine.        |
+| `semantic`   | server only | You hold neither the event registry nor server time. Guessing would reject good events. |
+
+### 4.1 Structural — steps 1 to 6
+
+| #   | Step                             | Rejection             |
+| --- | -------------------------------- | --------------------- |
+| 1   | nesting depth                    | `event_too_large`     |
+| 2   | serialised size                  | `event_too_large`     |
+| 3   | envelope shape                   | `malformed_event`     |
+| 4   | session and sequence consistency | `malformed_event`     |
+| 5   | schema version range             | `unsupported_version` |
+| 6   | property breadth                 | `event_too_large`     |
+
+**Depth before size, and this order was earned.** The size check has to serialise, and
+serialisation recurses — so a deeply nested payload crashes the guard that was meant to
+refuse it. We shipped that bug in our own validator and a test caught it. Measure depth
+iteratively, first, before anything walks the structure.
+
+Step 3 checks: `event_id` is a UUID; `event_name` is canonical dotted `lower_snake_case`;
+`schema_version` is an integer; `occurred_at` is UTC with an offset; `properties` is an
+object; and **no field outside the envelope**. Step 4 checks that `session_id` and
+`sequence` are both present or both null — a sequence without a session orders nothing, and
+a session without one cannot be ordered.
+
+### 4.2 Privacy guard — steps 7 and 8
+
+**Step 7 — reserved identity keys → `reserved_property`.** At _any_ depth, in any spelling:
+
+- `tenant_id`, `project_id`, `source_id`, `tenant`, `project`, `source`
+- `ingested_at`, `received_at`, `server_time`
+- anything starting `observer_` or `__`
+
+Matched case-insensitively across snake_case and camelCase, so `projectId` and `project-id`
+are the same key. Nobody writes `project_id` at the top of a payload on purpose; somebody
+writes `context: { ids: { projectId } }` because it was convenient in Blueprint, and that is
+the case this catches.
+
+**Step 8 — forbidden content → `pii_suspected`.** At minimum:
+
+- email addresses
+- telephone numbers
+- activation codes (**any prefix** — `DEV-`, `OBS-`, whatever comes next)
+- Observer source credentials
+- known secret shapes: `sk-…`, `Bearer …`, JWTs, PEM blocks, cloud key formats
+- key names that hold personal data by definition: `email`, `phone`, `first_name`,
+  `buyer_name`, `address`, and the rest of the published list
+
+A bare `name` is deliberately **not** flagged — `unit_name`, `preset_name` and `scene_name`
+are ordinary, and a guard that cried wolf on those would be switched off within a week.
+
+There is deliberately **no payment-card value detector**: strip the letters out of a UUID
+and seventeen grouped digits remain, and a false rejection loses a real event permanently.
+Card-shaped _keys_ are caught by name.
+
+**Two rules for this stage, and they matter more than the detection itself.**
+
+_Fail without logging the value._ Every finding names the **key path and the kind** and
+never carries what it found. A diagnostic that quotes the leaked email into a rejection
+record, a log line and a support ticket has tripled the leak while appearing to prevent it.
+
+_This is a guardrail, not the policy._ Heuristics catch accidents — a debug field left in a
+build, an exception message pasted into a payload. They cannot prove an absence of personal
+data, and anyone who says otherwise is selling something. The authoritative long-term
+control is the per-event schema registry, which whitelists property keys by name. That is a
+later milestone; until it exists, this is what stands between a payload and a person's
+email address.
+
+### 4.3 What a locally-rejected event does
+
+It never enters the outbox. Count it, name it on the diagnostic screen, and fix the caller.
+An event that fails locally would have been quarantined server-side anyway; catching it here
+turns a round trip into an assertion at the call site.
 
 ---
 
-## 5. UE-OBS-006 and UE-OBS-007 — the outbox and the transport
+## 5. UE-OBS-006 — the durable outbox
+
+The full generated specification is [`outbox-states.md`](ue5-contract/outbox-states.md).
 
 ### 5.1 The rule everything else follows from
 
-> **The HTTP status says whether the batch was processed. It never says whether the events were
-> accepted.**
+> **The HTTP status says whether the batch was processed. It never says whether the events
+> were accepted.**
 
-`200` means the batch was processed — read the per-event results, _even when every event in it was
-rejected_. Any non-2xx means the batch was **not** processed, nothing was stored, and the whole batch
-is safe to resend unchanged.
+`200` means the batch was processed — read the per-event results, _even when every event in
+it was rejected_. Any non-2xx means the batch was **not** processed, nothing was stored, and
+the whole batch is safe to resend unchanged.
 
-### 5.2 A response with all three outcomes
+### 5.2 Durable states
 
-```json
-{
-  "batch_id": "018f4c11-2a3b-4c5d-8e9f-0a1b2c3d4e5f",
-  "received": 3,
-  "accepted": 1,
-  "duplicate": 1,
-  "rejected": 1,
-  "results": [
-    {
-      "event_id": "b2a5f0c1-3d4e-4f7a-8c9b-0d1e2f3a4b5c",
-      "status": "accepted",
-      "code": null,
-      "retryable": null,
-      "detail": null
-    },
-    {
-      "event_id": "0c9f2d31-77a4-4b12-9e88-1f2a3b4c5d6e",
-      "status": "duplicate",
-      "code": null,
-      "retryable": null,
-      "detail": null
-    },
-    {
-      "event_id": "7c2f0a11-8b3d-4c5e-9f01-2a3b4c5d6e7f",
-      "status": "rejected",
-      "code": "schema_unknown",
-      "retryable": false,
-      "detail": "unit.hovered is not registered at schema_version 1"
-    }
-  ],
-  "warnings": [{ "code": "late_arrival", "detail": "occurred_at is 12 days behind server time" }]
-}
-```
+Your internal representation is your business — a status column, two files, an index and a
+tombstone log are all fine. What is contract is the observable behaviour. You need enough
+durable state to distinguish at least:
 
-One result per submitted event, **in submission order**. Match by `event_id` rather than by position
-if you can; the order is contract, but matching by id is one fewer thing to get wrong.
+| State         | Delivered again? | Meaning                                                                  |
+| ------------- | ---------------- | ------------------------------------------------------------------------ |
+| `pending`     | yes              | Waiting to be sent. Where retries return to.                             |
+| `in_flight`   | yes              | Sent, no answer yet. **Optional** — folding this into `pending` is fine. |
+| `retained`    | yes              | Kept after a retryable failure.                                          |
+| `accepted`    | no               | The server stored it. Delivery finished.                                 |
+| `duplicate`   | no               | The server already had it. **This is a success.**                        |
+| `quarantined` | no               | Kept on disk with a reason, never retried. Needs a human.                |
 
-`warnings` never change an outcome. Log them and show them on the diagnostic screen.
+### 5.3 The event **remains locally** when
 
-### 5.3 Outbox rules — the whole of it
+- it has never been sent
+- the request timed out
+- the connection was lost
+- `429` rate limited
+- any `5xx`
+- an unrecognised whole-request failure
+- **the client did not receive an acknowledgement**
+- a per-event `storage_error` — the one retryable rejection
 
-| What happened                                   | Event stays? | Retried?             | Deleted? | Quarantined?          | Sending continues? |
-| ----------------------------------------------- | ------------ | -------------------- | -------- | --------------------- | ------------------ |
-| `accepted`                                      | no           | —                    | **yes**  | no                    | yes                |
-| `duplicate`                                     | no           | —                    | **yes**  | no                    | yes                |
-| `rejected`, `retryable: false`                  | no           | no                   | no       | **yes**               | yes                |
-| `rejected`, `retryable: true` (`storage_error`) | **yes**      | yes                  | no       | no                    | yes                |
-| `400 malformed_request`                         | no           | no                   | no       | **yes** (whole batch) | yes                |
-| `401 unauthorised`                              | **yes**      | no                   | no       | no                    | **no — stop**      |
-| `403 source_suspended`                          | **yes**      | no                   | no       | no                    | **no — stop**      |
-| `413 batch_too_large`                           | **yes**      | yes, **split first** | no       | no                    | yes                |
-| `429 rate_limited`                              | **yes**      | after `Retry-After`  | no       | no                    | back off           |
-| `503` / other 5xx                               | **yes**      | with backoff         | no       | no                    | back off           |
-| Unknown 4xx                                     | no           | no                   | no       | **yes**               | yes                |
-| Unknown other status                            | **yes**      | with backoff         | no       | no                    | back off           |
-| No response at all                              | **yes**      | with backoff         | no       | no                    | back off           |
-| Rejection code you do not recognise             | no           | **no**               | no       | **yes**               | yes                |
+### 5.4 The event **leaves pending delivery** when
 
-Four things that are easy to get wrong and expensive to discover later:
+- the server explicitly **accepted** it
+- the server explicitly acknowledged it as a **duplicate**
 
-- **`duplicate` is a success.** The fact is stored, so the event is delivered and the outbox entry is
-  finished. A plugin that retries duplicates never drains.
-- **Quarantine is not delete.** Keep the event on disk with its reason. LOCKED: nothing is ever
-  discarded silently. A rising quarantine count is a defect somebody needs to see.
-- **A rejection code you do not recognise is non-retryable, whatever `retryable` says.** We will add
-  codes after your build ships. Retrying something you cannot interpret loops for ever.
-- **Never split an event.** Splitting either invents a second `event_id` — breaking idempotency — or
-  reuses the first, producing two facts from one. `event_too_large` is a producer bug, not a
-  transport problem. Splitting a _batch_ is fine and is what `413` asks for.
+Those two, and nothing else. A `503` is not an acknowledgement. A timeout is not an
+acknowledgement. A connection dying mid-response is not an acknowledgement. A crash is not
+an acknowledgement.
 
-### 5.4 The retry case that matters most
+### 5.5 The event is **preserved but not retried** when
+
+- a deterministic, non-retryable validation rejection
+- a rejection code this build does not recognise
+- an unsupported contract version needing an operator or a developer
+- a `400` on the whole request, which is a plugin bug
+
+**Preserved, not deleted.** A quarantined event with its reason attached is what tells an
+operator that a build is emitting something the contract refuses. A deleted one tells them
+nothing and destroys the evidence.
+
+### 5.6 Full mapping
+
+| What happened                       | State         | Retried              | Sending  |
+| ----------------------------------- | ------------- | -------------------- | -------- |
+| per-event `accepted`                | `accepted`    | no                   | continue |
+| per-event `duplicate`               | `duplicate`   | no                   | continue |
+| per-event `storage_error`           | `retained`    | yes                  | continue |
+| per-event any other rejection       | `quarantined` | no                   | continue |
+| per-event code you do not recognise | `quarantined` | **no**               | continue |
+| `400 malformed_request`             | `quarantined` | no                   | continue |
+| `401 unauthorised`                  | `pending`     | no                   | **stop** |
+| `403 source_suspended`              | `pending`     | no                   | **stop** |
+| `413 batch_too_large`               | `pending`     | yes, **split first** | continue |
+| `429 rate_limited`                  | `pending`     | after `Retry-After`  | backoff  |
+| `503` / other `5xx`                 | `pending`     | yes                  | backoff  |
+| unrecognised 4xx                    | `quarantined` | no                   | continue |
+| unrecognised other status           | `pending`     | yes                  | backoff  |
+| no response at all                  | `pending`     | yes                  | backoff  |
+
+**A rejection code you do not recognise is non-retryable whatever `retryable` says.** We
+will add codes after your build ships. Retrying something you cannot interpret loops for
+ever; a quarantined event an operator can see is a better failure than an infinite loop
+nobody notices.
+
+**Never split an event.** Splitting either invents a second `event_id` — breaking
+idempotency — or reuses the first, producing two facts from one. `event_too_large` is a
+producer bug. Splitting a _batch_ is fine and is what `413` asks for.
+
+### 5.7 On restart
+
+- Unacknowledged events are recoverable: anything not `accepted` or `duplicate` is offered
+  again.
+- **No event receives a new `event_id`.** Regenerating one turns a safe replay into a second
+  fact, and it is the single most damaging thing a restart can do.
+- Replay stays safe: resending what was already sent answers `duplicate`, never a second
+  accept.
+- The credential and source association an event was captured under does not silently
+  change. If a reactivation swapped the credential and the queued events quietly followed it
+  to a different source, a showroom's history would move between sources without anybody
+  deciding that it should.
+- Quarantined events survive with their reason. A restart is not a way to clear them.
+- An event in flight when the process died returns as `pending`, never as delivered.
+
+### 5.8 After `401` or `403` — still PROPOSED
+
+Not yet confirmed against your implementation, so it stays a proposal:
+
+1. Stop network delivery.
+2. **Retain the outbox in full.** The events are not the problem.
+3. Continue bounded local capture, so an authorisation problem does not also become a data
+   gap.
+4. Surface the unauthorised state as an operator-visible diagnostic, `401` and `403`
+   distinct — the operator's remedy differs: reactivate, versus resume the source.
+5. Never reactivate automatically.
+
+Rule 2 is the one that gets omitted in a hurry and costs the most. A plugin that clears its
+outbox on an authorisation failure turns a five-minute operator task into permanent data
+loss, silently.
+
+### 5.9 The retry case that matters most
 
 You send a batch. The connection dies. **You cannot tell whether the server processed it.**
 
-That is a property of networks and no amount of care on your side closes it. What closes it is that
-you do not need to know: resend the whole batch with the same `event_id`s, and the server answers
-`duplicate` for whatever it already holds. The totals come out identical either way.
+That is a property of networks and no amount of care on your side closes it. What closes it
+is that you do not need to know: resend the whole batch with the same `event_id`s, and the
+server answers `duplicate` for whatever it already holds. The totals come out identical
+either way.
 
-The mock reproduces both branches on demand — `drop_before_processing` and `drop_after_processing` —
-and from your side they are indistinguishable, which is exactly the point.
+The mock reproduces both branches on demand — `drop_before_processing` and
+`drop_after_processing` — and from your side they are indistinguishable, which is the point.
 
-### 5.5 Backoff
+### 5.10 Backoff
 
-- `Retry-After` is authoritative and overrides your schedule whenever it is present.
-- Otherwise exponential with **jitter**. Without jitter, every showroom that lost the same deployment
-  comes back at the same instant.
-- Bounded. Never block the game thread, and never crash IRIS because ingestion is unavailable.
-
----
-
-## 6. UE-OBS-009 — session identity and `sequence`
-
-`session_id` is yours: mint a UUID when the meeting starts and put it on every event that belongs to
-it. The server scopes it to your source, so it cannot collide with another installation's.
-
-`sequence` is the **proposal that needs your answer.** We would like it to be:
-
-- **required** for every event that carries a `session_id`;
-- **generated centrally** by `UObserverAnalyticsSubsystem` at event creation, before queueing;
-- **never settable from a Blueprint** — a Blueprint that can set it is a Blueprint that can corrupt
-  journey reconstruction;
-- monotonic from 1 within a session, unchanged across retries;
-- `null` for events with no session.
-
-The reason it matters: it is the only ordering signal that survives a wrong device clock, and how much
-we trust showroom clocks is still open (§8). Gaps are fine and informative — a gap means an event was
-quarantined. The server never rejects on gaps or out-of-order arrival.
-
-**If this is awkward in the subsystem as designed, say so and we will drop it back to optional.**
+`Retry-After` is authoritative and overrides your schedule whenever present. Otherwise
+exponential **with jitter** — without it, every showroom that lost the same deployment comes
+back at the same instant. Bounded. Never block the game thread, and never crash IRIS because
+ingestion is unavailable.
 
 ---
 
-## 7. UE-OBS-010 — diagnostics
+## 6. The legacy transport is retired
 
-### 7.1 Heartbeat
+Recorded here because no V2 code or document should imply otherwise.
+
+```
+LEGACY   interaction → mutable in-memory state → application/session close
+                     → one large snapshot blob → direct database tables
+
+V2       interaction → immutable event with UUID + UTC timestamp
+                     → durable local outbox
+                     → bounded HTTPS batch
+                     → protected ingestion backend
+                     → explicit acknowledgement
+                     → removed from the outbox only after accepted or duplicate
+```
+
+**There is no migration, and none is to be built.** The legacy database holds only prototype
+snapshot blobs in `user_sessions` and `global_analytics`, written during Job 1
+proof-of-concept testing. Observer V2 starts as a clean slate: no importer, no compatibility
+projection, no blob migration, no historical conversion layer. The old system is kept as
+historical prototype evidence where useful.
+
+The legacy adapter in UE-OBS-011 remains in scope — but it is about **Blueprint and API
+migration convenience**, not about moving historical analytics data.
+
+---
+
+## 7. UE-OBS-009 — session identity and `sequence`
+
+`session_id` is yours: mint a UUID when the meeting starts and put it on every event that
+belongs to it. The server scopes it to your source, so it cannot collide with another
+installation's.
+
+Monotonic sequencing already exists in your event engine, so the feasibility question is
+closed. What is still proposed is the **semantic guarantee**:
+
+- **mandatory** for every event carrying a `session_id`;
+- generated centrally by `UObserverAnalyticsSubsystem`, **never settable from a Blueprint** —
+  a Blueprint that can set it is a Blueprint that can corrupt journey reconstruction;
+- monotonic **from 1** within a session, unchanged across retries;
+- `null` for events with no session;
+- with defined reset semantics when a new `session_id` starts.
+
+Gaps are fine and informative — a gap means an event was quarantined. The server never
+rejects on gaps or out-of-order arrival.
+
+---
+
+## 8. UE-OBS-010 — diagnostics
+
+### 8.1 Heartbeat
 
 `POST {heartbeat_url}` with the credential, on a timer:
 
@@ -335,7 +476,7 @@ quarantined. The server never rejects on gaps or out-of-order arrival.
   "sent_at": "2026-09-01T09:14:02.881Z",
   "build": {
     "app_version": "IRIS 4.3.0",
-    "plugin_version": "ObserverUE 0.1.0",
+    "plugin_version": "ObserverUE 0.2.0",
     "build_id": "iris-4.3.0-win64-shipping-8821",
     "engine_version": "5.6"
   },
@@ -350,17 +491,16 @@ quarantined. The server never rejects on gaps or out-of-order arrival.
 }
 ```
 
-Answers `{ "status": "ok", "server_time": "…", "config_stale": false }`. `config_stale: true` means
-re-read configuration; it never changes identity or credentials.
+Answers `{ "status": "ok", "server_time": "…", "config_stale": false }`.
 
-**`last_error` is a code and a timestamp — there is no free-text message field, deliberately.** An
-exception string is the likeliest place in this whole protocol for a credential or a buyer's name to
-end up in a server log. Keep the detail in your local log.
+**`last_error` is a code and a timestamp — there is no free-text message field,
+deliberately.** An exception string is the likeliest place in this whole protocol for a
+credential or a buyer's name to end up in a server log. Keep the detail in your local log.
 
-`server_time` is useful on your diagnostic screen: the difference from your own clock is what an
-operator needs when timestamps look wrong.
+`server_time` is useful on your diagnostic screen: the difference from your own clock is what
+an operator needs when timestamps look wrong.
 
-### 7.2 The end-to-end test event
+### 8.2 The end-to-end test event
 
 To prove the whole storage path once, send a normal event named `diagnostic.test`:
 
@@ -376,64 +516,122 @@ To prove the whole storage path once, send a normal event named `diagnostic.test
 }
 ```
 
-`reason` is one of `activation_check`, `manual_check`, `support_check`. `note` is optional operator
-text, ≤120 characters, and the same content rules apply to it as to any other property.
+`reason` is one of `activation_check`, `manual_check`, `support_check`. `note` is optional
+operator text, ≤120 characters, and the privacy guard applies to it exactly as to anything
+else.
 
-`diagnostic.` is a **reserved namespace**. Any other name inside it is rejected, so do not invent
-`diagnostic.ping`.
+`diagnostic.` is a **reserved namespace**. Any other name inside it is rejected, so do not
+invent `diagnostic.ping`.
 
-### 7.3 What the diagnostic screen should show
+### 8.3 What the diagnostic screen should show
 
-Everything an operator needs before they phone anyone: `display_label`, `source_id`, the authorisation
-state (`Active` / `Unauthorised (401)` / `Suspended (403)`), the environment and whether it mismatched,
-pending and quarantined counts, the oldest pending timestamp, the last error code, and the clock
-difference from `server_time`.
+`display_label`, `source_id`, the authorisation state (`Active` / `Unauthorised (401)` /
+`Suspended (403)`), the environment and whether it mismatched, pending and quarantined
+counts, the oldest pending timestamp, the last error code, and the clock difference from
+`server_time`.
 
 ---
 
-## 8. What is still open — and none of it blocks you
+## 9. Five places what you have built may not parse
 
-|                                     | Effect on your work                                                                                     |
+Each has a test in `packages/contracts/test/ue5/ue-compatibility.test.ts` demonstrating the
+exact refusal. None is a complaint; each is a decision that should be taken deliberately
+rather than discovered when the first showroom quarantines everything it produces.
+
+**1. Event identifier format.** `FGuid::ToString()` defaults to `EGuidFormats::Digits` — 32
+hex characters, no hyphens. The contract requires the canonical hyphenated form; the
+conforming call is `ToString(EGuidFormats::DigitsWithHyphensLower)`. Uppercase is fine.
+
+**2. Event identifier RFC conformance.** The subtler half, and it cannot be fixed by
+choosing a format string. The schema enforces an RFC 4122 version nibble (1–8) and variant
+nibble (8/9/a/b). A 128-bit identifier from a source that does not set those is rejected
+roughly three times in four, at random. **This needs your answer** — see §11.
+
+**3. Field naming.** `FJsonObjectConverter` lowercases the first letter of each `UPROPERTY`,
+producing `eventId` rather than `event_id`. Roundtripping inside Unreal proves the two
+halves of your serialiser agree with each other; it says nothing about agreeing with this
+contract. The contract does not move here — the whole wire vocabulary, the OpenAPI document
+and the stored observation are snake_case.
+
+**4. Sequence starting value.** The contract says "from 1". A `counter++` and a `++counter`
+differ by exactly this, and a counter starting at 0 loses the first event of every session
+to `malformed_event`.
+
+**5. Activation request fields.** UE-OBS-003 was built before this contract existed, so its
+request body is not assumed to match. `machine_fingerprint` and `hostname_hint` were both
+removed from the proposal — the first because it blocks a legitimate reinstall on the same
+machine, the second because it was the only field able to carry a person's name into an
+operational store. `installation_nonce` replaced the first; a server-authored
+`display_label` replaced the second.
+
+---
+
+## 10. What is still open — and none of it blocks you
+
+| Item                                | Effect on your work                                                                                     |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Limit **values** (all `null` today) | Apply your own defaults; obey a server value when one arrives. We need your measurements.               |
-| Clock acceptance window             | Today nothing is rejected for its timestamp; you may see a `late_arrival` or `future_skew` **warning**. |
+| Clock acceptance window             | Nothing is rejected for its timestamp today; you may see a `late_arrival` or `future_skew` **warning**. |
 | Event name catalogue                | Names are not fixed. Build the envelope, not the catalogue.                                             |
 | Analytics and idempotency retention | No effect on the wire.                                                                                  |
 | Credential internals                | No effect: the token is opaque to you either way.                                                       |
+| Credential protection **at rest**   | A real follow-up on UE-OBS-003 — see §11.                                                               |
 | Platform matrix beyond UE 5.6       | Your call to make, and we need it.                                                                      |
-| Legacy `InsightAnalytics` data      | We need to know what it points at before anything is migrated.                                          |
 
 ---
 
-## 9. The mock
+## 11. What we need from you
+
+Five questions. The legacy analytics question is **closed** — thank you; it is recorded and
+will not be asked again.
+
+1. **Credential at rest.** `Saved/Observer/source_credential.json` is a perfectly reasonable
+   place to keep it, and JSON is not the problem. The question is what protection is applied
+   to the contents: is the token plaintext in that file, and does UE 5.6 on Windows give us a
+   practical protected store (DPAPI, Credential Manager, or similar) worth using for V1? The
+   architecture already accepts that a packaged secret is ultimately extractable, so this is
+   not about impossible secrecy — it is about not leaving it in the clearest possible form
+   when a cheap improvement exists. What must hold either way: source-scoped, revocable,
+   rotatable, never source-controlled, never logged, narrow authority, operator-visible
+   unauthorised state, revocation effective on the next request.
+
+2. **Event identifier.** Does `FObserverEvent` serialise the identifier hyphenated, and does
+   it carry RFC 4122 version and variant bits? If UE cannot guarantee the latter, say so and
+   we will relax the contract to "any canonical 128-bit identifier" — that is a decision we
+   can make, but not one we should assume.
+
+3. **Field naming.** Does the envelope serialise as `event_id` or as `eventId`?
+
+4. **Sequence semantics.** Three specifics: is it mandatory for every session-scoped event,
+   can a Blueprint caller override or manage it, and what happens to the counter when a new
+   `session_id` starts?
+
+5. **Platform matrix and limits.** What targets beyond Windows kiosk on UE 5.6, and what
+   batch, event and outbox ceilings are realistic on the actual showroom hardware and
+   connection?
+
+---
+
+## 12. The mock
 
 ```bash
 pnpm ue5:mock            # random port
 pnpm ue5:mock --port 8787
 ```
 
-Prints an activation code on start. Binds `127.0.0.1` only. Nothing is persisted, nothing reaches a
-network, and there is no database behind it. Stop the process and every source, credential and stored
-event is gone.
+Prints an activation code on start. Binds `127.0.0.1` only. Nothing is persisted, nothing
+reaches a network, and there is no database behind it.
 
-It reproduces, on demand: first activation, invalid / expired / consumed codes, reactivation, repeat
-installation, suspension, rate limiting, unavailability, all-accepted, duplicate, partial success,
-all-rejected, unsupported schema, malformed event, oversized event, oversized batch, unauthorised
-credential, superseded credential, suspended source, `429` with `Retry-After`, `503`, both transport
-drops, event-level storage error, and the empty batch.
+It reproduces, on demand: first activation, invalid / expired / consumed / revoked codes,
+reactivation, repeat installation, suspension, rate limiting, unavailability, all-accepted,
+duplicate, partial success, all-rejected, unsupported schema, malformed event, oversized
+event, oversized batch, unauthorised credential, superseded credential, suspended source,
+`429` with `Retry-After`, `503`, both transport drops, event-level storage error, and the
+empty batch.
 
-**None of its behaviour is protocol.** It does exactly what a test tells it to. Recurring patterns
-(`rate_limit_every_7th` and friends) exist only behind `MOCK_ONLY_FIXTURES` and are scaffolding.
+**None of its behaviour is protocol.** It does exactly what a test tells it to. Recurring
+patterns (`rate_limit_every_7th` and friends) exist only behind `MOCK_ONLY_FIXTURES` and are
+scaffolding.
 
-If you drain your outbox against it with no duplicates and no silent loss, the transport is done.
-
----
-
-## 10. Five questions we need from you
-
-1. **Which Supabase project does the hard-coded endpoint in the existing `InsightAnalytics` plugin
-   actually target, and does it contain live analytics that must be preserved or migrated?**
-2. Can `sequence` be mandatory for session events and generated by the subsystem (§6)?
-3. What is the platform matrix beyond UE 5.6 — Windows kiosk only, or Pixel Streaming / macOS / VR?
-4. What batch, event and outbox limits are realistic on the actual showroom hardware and connection?
-5. Is the 401/403 behaviour in §5.3 implementable as written — stop, keep the outbox, keep capturing?
+If you drain your outbox against it with no duplicates and no silent loss, the transport is
+done.
