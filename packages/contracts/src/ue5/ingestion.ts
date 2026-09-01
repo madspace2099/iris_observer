@@ -249,6 +249,82 @@ export const SESSION_SEQUENCE_RULES: readonly string[] = Object.freeze([
  * requires the id to exist before the first send.
  */
 export const EventKeySchema = z.looseObject({ event_id: WireUuidSchema });
+/* ================================= the implemented UE envelope — OPEN-20 */
+
+/**
+ * WHAT THE UE PLUGIN ACTUALLY SENDS, AND WHY IT DOES NOT PARSE YET.
+ *
+ * The implemented `FObserverEvent` carries four fields this envelope refuses:
+ * `app`, `agent_id`, `visitor_subject` and `entity`. Since the envelope is a
+ * `strictObject`, every real event is currently `malformed_event` on
+ * `unrecognized_keys` — which is exactly what the strictness is for, and exactly
+ * what blocks UE-OBS-007 until somebody decides.
+ *
+ * There are two honest resolutions and this file takes neither:
+ *
+ *   **Adopt them.** They are envelope-shaped rather than payload-shaped. `app`
+ *   records which build produced *this* event, which is a different fact from
+ *   which build the source is running *now* — and after a release the difference
+ *   is the whole story. `agent_id`, `visitor_subject` and `entity` are the
+ *   references every read model joins on, so burying them in an open bag means
+ *   every query reaches into `properties` and no schema ever describes them.
+ *
+ *   **Move them into `properties`.** Zero contract change, a small UE change,
+ *   and the envelope stays minimal. The cost is that four things every event
+ *   carries are modelled as though they were per-event trivia.
+ *
+ * The recommendation is to adopt, with one condition: `app.environment` is
+ * **reported, never authoritative**. The stored environment comes from the
+ * source record exactly as it does at activation, or a development build
+ * declaring itself production routes its data there. The sample sends
+ * `"Development"` capitalised, which the enum refuses — a second reason it
+ * cannot simply be copied across.
+ *
+ * Prepared and tested, deliberately **not wired into `EventEnvelopeSchema`**.
+ * Adopting it is a one-line swap once the decision is taken.
+ */
+export const AppMetadataSchema = z.strictObject({
+  version: z.string().min(1).max(64),
+  plugin: z.string().min(1).max(64),
+  build_id: z.string().min(1).max(128),
+  /** Reported. The stored environment always comes from the source record. */
+  environment: z.string().min(1).max(32),
+});
+
+/**
+ * A typed reference to the thing an event is about.
+ *
+ * `id` is the source's own vocabulary — `IT-A-12-07` is a unit code, not an
+ * Observer identifier — and is carried, never interpreted at this layer.
+ */
+export const EntityReferenceSchema = z.strictObject({
+  type: z.string().min(1).max(64),
+  id: z.string().min(1).max(128),
+});
+
+/**
+ * A pseudonymous subject reference.
+ *
+ * Bounded and opaque by intent. `lead_1042` is right; a value derived from a
+ * person's name turns a pseudonymous reference back into personal data, which
+ * is `OPEN-21`.
+ */
+export const SubjectReferenceSchema = z.string().min(1).max(128);
+
+/*
+ * `optional`, not `nullable`, and the source settled it rather than a guess:
+ * `FObserverEvent::ToJsonObject` writes `agent_id`, `visitor_subject` and
+ * `entity` only when they are non-empty, so an event without an agent omits the
+ * key entirely rather than sending null. `app` is always written.
+ */
+export const ExtendedEventEnvelopeSchema = EventEnvelopeSchema.extend({
+  app: AppMetadataSchema,
+  agent_id: SubjectReferenceSchema.optional(),
+  visitor_subject: SubjectReferenceSchema.optional(),
+  entity: EntityReferenceSchema.optional(),
+});
+export type ExtendedEventEnvelope = z.infer<typeof ExtendedEventEnvelopeSchema>;
+
 export const BatchFrameSchema = z.strictObject({
   batch_id: CorrelationIdSchema,
   sent_at: WireInstantSchema,

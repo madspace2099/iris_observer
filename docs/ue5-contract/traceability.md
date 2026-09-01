@@ -14,13 +14,13 @@ document once said it would.
 | --- | --- |
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
-| `UE_IMPLEMENTATION_CONFIRMED` | 22 |
-| `APPROVED_PRODUCT_DECISION` | 30 |
+| `UE_IMPLEMENTATION_CONFIRMED` | 27 |
+| `APPROVED_PRODUCT_DECISION` | 33 |
 | `PROPOSED` | 1 |
-| `OPEN` | 15 |
+| `OPEN` | 13 |
 | `MOCK_ONLY` | 3 |
 
-**Total:** 116
+**Total:** 122
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -86,6 +86,11 @@ table exists to prevent.
 
 | Id | Rule | Authority | Owner | Blocks | Where |
 | --- | --- | --- | --- | --- | --- |
+| `U-23` | V1 targets packaged Windows (Win64) showroom and kiosk PCs on Unreal Engine 5.6, and no other runtime platform. | — | akhilesh | — | `credential.ts` |
+| `U-24` | Event identifiers are FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower): canonical lower-case 36-character hyphenated form, generated once before enqueueing and immutable across retries. | — | akhilesh | — | `wire.ts` |
+| `U-25` | FObserverEvent serialises snake_case field names, matching the contract's wire vocabulary rather than Unreal's default camelCase. | — | akhilesh | — | `ingestion.ts` |
+| `U-26` | Exhausting Max Retry Attempts never deletes an event: it stays in queue.json on disk and is removed only on a confirmed delivery response. | — | akhilesh | — | `outbox.ts` |
+| `U-27` | Endpoint URLs are treated as entirely backend-owned; the UE side enters whatever final production URLs are supplied into Project Settings. | — | akhilesh | — | `openapi.ts` |
 | `U-01` | The current target engine is Unreal Engine 5.6. | — | akhilesh | — | `wire.ts` |
 | `U-02` | All hard-coded Supabase URLs and keys are removed from the V2 plugin; backend configuration comes through Unreal Project Settings. | — | akhilesh | — | `docs` |
 | `U-03` | The V2 plugin no longer depends on the legacy direct-table transport. | — | akhilesh | — | `docs` |
@@ -135,6 +140,9 @@ table exists to prevent.
 | `P-21` | SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero. | — | product | — | `projection.ts` |
 | `P-23` | Backend absolute ceilings: 200 events, 8 MiB per batch and 64 KiB per event, as three independent constraints a batch must satisfy simultaneously. Deliberately uncoupled from any Unreal configuration. | — | product | — | `client-config.ts` |
 | `P-24` | At the TOP LEVEL of properties only, a key may not shadow an envelope, identity or credential name. Nested domain keys are permitted; no payload value participates in identity resolution at any depth. | — | product | — | `ingestion.ts` |
+| `PD-11` | Windows DPAPI is the approved V1 production credential-at-rest mechanism, wrapped under #if PLATFORM_WINDOWS so a second platform can be added without unpicking it. | — | product | — | `credential.ts` |
+| `PD-12` | The strict RFC 4122 identifier schema stands for V1. It holds because CoCreateGuid backs FGuid on the confirmed Windows-only platform; CanonicalIdSchema stays prepared for the first non-Windows target. | — | product | — | `wire.ts` |
+| `PD-13` | The production endpoint names are /functions/v1/observer-activate, /observer-ingest and /observer-heartbeat. Namespaced because Edge Functions share one flat namespace with everything else the project deploys. | — | product | — | `openapi.ts` |
 | `PD-01` | Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics. | — | product | — | `docs` |
 | `PD-02` | The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise. | — | product | — | `docs` |
 | `PD-03` | V1 client delivery defaults are adopted: 25 events per batch, a 5 second flush, a 64 KiB event cap and a 50 MB outbox ceiling, with a supported batch range of 25-50. | — | product | — | `client-config.ts` |
@@ -160,15 +168,13 @@ table exists to prevent.
 | `O-04` | Batch-level clock skew: meaning, timestamp pair, diagnostic or validating. | — | matthew | — | `docs` |
 | `O-05` | Screenshot storage path and how events reference it. | — | matthew | — | `docs` |
 | `O-06` | event_schema_registry entries. The mechanism is contracted; the catalogue is not. | — | product | UE-OBS-012 | `validation.ts` |
-| `O-07` | The platform matrix beyond Unreal Engine 5.6. | — | akhilesh | UE-OBS-002 | `docs` |
 | `O-08` | Identity handoff: how a stable agent_id and approved visitor references enter the UE session. | — | product | UE-OBS-009 | `docs` |
 | `O-09` | The schema support window: how long old IRIS builds remain accepted. | — | matthew | — | `docs` |
 | `O-11` | Credential internals: hash or KDF, prefix scheme, lookup index. | — | backend_review | — | `credential.ts` |
-| `O-14` | The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits. | — | matthew_and_akhilesh | UE-OBS-007 | `wire.ts` |
-| `O-15` | Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
-| `O-16` | The exact semantics of Max Retry Attempts. Modelled as an attempt/backoff bound; it must never mean deletion, and exhausting it preserves the event. | — | matthew_and_akhilesh | UE-OBS-006 | `outbox.ts` |
-| `O-17` | Endpoint naming: the UE settings configure /functions/v1/activate and /ingest; the contract proposes /observer-activate and /observer-ingest. Not to be resolved silently. | — | matthew_and_akhilesh | UE-OBS-007 | `openapi.ts` |
+| `O-19` | Whether the outbox removes an event on the 2xx itself or on the per-event accepted/duplicate status inside it. Removing on the status alone would delete a non-retryable rejection that must be quarantined. | — | akhilesh | UE-OBS-006 | `outbox.ts` |
 | `O-18` | Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package. | — | akhilesh | UE-OBS-003 | `credential.ts` |
+| `O-20` | Whether app, agent_id, visitor_subject and entity become envelope fields or move into properties. The implemented UE envelope carries all four and the strict envelope refuses them, so UE-OBS-007 cannot pass a single event until this is settled. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
+| `O-21` | Whether agent_id may be derived from a person's name. The sample value agent_john carries one, which is the kind of identifier that turns a pseudonymous reference back into personal data. | — | product | UE-OBS-009 | `privacy.ts` |
 
 ## MOCK_ONLY
 

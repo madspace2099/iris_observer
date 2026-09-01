@@ -24,9 +24,13 @@ rendered to [`ue5-contract/traceability.md`](ue5-contract/traceability.md). Test
 nothing `PROPOSED` may cite the brief, and every `DERIVED` rule must name the locked rule it follows
 from. A convenient proposal cannot quietly acquire the authority of an approved decision.
 
-**Counts:** 28 LOCKED · 17 DERIVED · 22 UE-CONFIRMED · **30 APPROVED** · **1 PROPOSED** · 15 OPEN ·
-3 MOCK-ONLY — 116 rules. Almost everything that was a proposal is now a decision; see
-[`traceability.md`](ue5-contract/traceability.md).
+**Counts:** 28 LOCKED · 17 DERIVED · **27 UE-CONFIRMED** · **33 APPROVED** · 1 PROPOSED · **13 OPEN** ·
+3 MOCK-ONLY — 122 rules. See [`traceability.md`](ue5-contract/traceability.md).
+
+**One of the thirteen blocks work happening right now.** `OPEN-20`: the implemented UE envelope
+carries four fields — `app`, `agent_id`, `visitor_subject`, `entity` — that the strict envelope
+refuses, so no real event parses. UE-OBS-005 through UE-OBS-007 are being built against it today.
+See §4.5.
 
 **Rule identifiers are stable across reclassification.** A `P-` prefix means the rule was first
 recorded as a proposal, not that it still is one — the classification is the field, never the id.
@@ -289,6 +293,38 @@ An empty batch is valid and returns `received: 0`. It is **not** a heartbeat —
 `retryable` answers one question: _would sending this same event again, later and unchanged, plausibly
 succeed?_ It is a property of the **event**, not of the connection. Batch-level failures never appear
 in per-event results.
+
+---
+
+### 4.5 The implemented UE envelope carries four more fields — OPEN-20
+
+**This blocks UE-OBS-007 today.** The envelope is a strict object, and `FObserverEvent` sends
+`app`, `agent_id`, `visitor_subject` and `entity` in
+addition to the seven fields we agreed. Every real event is therefore `malformed_event` on
+`unrecognized_keys` — which is exactly what strictness is for, and exactly why it has to be
+resolved rather than noticed later.
+
+Nothing about the seven agreed fields is in dispute: strip the four additions and his published
+sample parses unchanged. Two honest resolutions, and this document takes neither.
+
+**Adopt them into the envelope.** They are envelope-shaped rather than payload-shaped. `app`
+records which build produced _this_ event, which is a different fact from which build the source
+is running _now_ — and after a release the difference is the whole story. `agent_id`,
+`visitor_subject` and `entity` are the references every read model joins on;
+burying them in an open bag means every query reaches into `properties` and no schema ever
+describes them.
+
+**Move them into `properties`.** Zero contract change, a small UE change, and the envelope
+stays minimal. The cost is that four things every event carries are modelled as per-event trivia.
+
+**Recommendation: adopt, with one condition.** `app.environment` is **reported, never**
+**authoritative** — the stored environment comes from the source record exactly as it does at
+activation, or a development build declaring itself production routes its data there. The sample
+sends `Development` capitalised, which the environment enum refuses, so `app` cannot
+simply be copied across in any case.
+
+`ExtendedEventEnvelopeSchema` is written and tested against his exact published sample.
+Adopting it is a one-line swap.
 
 ---
 

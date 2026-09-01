@@ -622,7 +622,18 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     ["UE-OBS-012"],
     "validation.ts",
   ),
-  open("O-07", "The platform matrix beyond Unreal Engine 5.6.", "akhilesh", ["UE-OBS-002"], "docs"),
+  ueConfirmed(
+    "U-23",
+    "V1 targets packaged Windows (Win64) showroom and kiosk PCs on Unreal Engine 5.6, and no other runtime platform.",
+    "Akhilesh, 2026-09-02 — platform matrix answered",
+    "credential.ts",
+  ),
+  decided(
+    "PD-11",
+    "Windows DPAPI is the approved V1 production credential-at-rest mechanism, wrapped under #if PLATFORM_WINDOWS so a second platform can be added without unpicking it.",
+    "Matthew, 2026-09-02 — on the confirmed Windows-only V1 platform",
+    "credential.ts",
+  ),
   open(
     "O-08",
     "Identity handoff: how a stable agent_id and approved visitor references enter the UE session.",
@@ -647,33 +658,48 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
   ),
   /* O-12 is closed by PD-03 (client values) and P-23 (the backend ceiling). */
   /* O-13 is closed by PD-06, on the evidence in U-18 and U-19. */
-  open(
-    "O-14",
-    "The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-007"],
+  ueConfirmed(
+    "U-24",
+    "Event identifiers are FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower): canonical lower-case 36-character hyphenated form, generated once before enqueueing and immutable across retries.",
+    "Akhilesh, 2026-09-02 — both published examples parse under the strict schema",
     "wire.ts",
   ),
-  open(
-    "O-15",
-    "Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-007"],
+  decided(
+    "PD-12",
+    "The strict RFC 4122 identifier schema stands for V1. It holds because CoCreateGuid backs FGuid on the confirmed Windows-only platform; CanonicalIdSchema stays prepared for the first non-Windows target.",
+    "Matthew, 2026-09-02 — contingent on the Windows-only platform matrix",
+    "wire.ts",
+  ),
+  ueConfirmed(
+    "U-25",
+    "FObserverEvent serialises snake_case field names, matching the contract's wire vocabulary rather than Unreal's default camelCase.",
+    "Akhilesh, 2026-09-02 — envelope sample supplied",
     "ingestion.ts",
   ),
 
-  open(
-    "O-16",
-    "The exact semantics of Max Retry Attempts. Modelled as an attempt/backoff bound; it must never mean deletion, and exhausting it preserves the event.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-006"],
+  ueConfirmed(
+    "U-26",
+    "Exhausting Max Retry Attempts never deletes an event: it stays in queue.json on disk and is removed only on a confirmed delivery response.",
+    "Akhilesh, 2026-09-02 — retry-exhaustion semantics answered",
     "outbox.ts",
   ),
   open(
-    "O-17",
-    "Endpoint naming: the UE settings configure /functions/v1/activate and /ingest; the contract proposes /observer-activate and /observer-ingest. Not to be resolved silently.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-007"],
+    "O-19",
+    "Whether the outbox removes an event on the 2xx itself or on the per-event accepted/duplicate status inside it. Removing on the status alone would delete a non-retryable rejection that must be quarantined.",
+    "akhilesh",
+    ["UE-OBS-006"],
+    "outbox.ts",
+  ),
+  ueConfirmed(
+    "U-27",
+    "Endpoint URLs are treated as entirely backend-owned; the UE side enters whatever final production URLs are supplied into Project Settings.",
+    "Akhilesh, 2026-09-02 — endpoint ownership answered",
+    "openapi.ts",
+  ),
+  decided(
+    "PD-13",
+    "The production endpoint names are /functions/v1/observer-activate, /observer-ingest and /observer-heartbeat. Namespaced because Edge Functions share one flat namespace with everything else the project deploys.",
+    "Matthew, 2026-09-02 — backend-owned, so decided here",
     "openapi.ts",
   ),
 
@@ -683,6 +709,21 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "akhilesh",
     ["UE-OBS-003"],
     "credential.ts",
+  ),
+
+  open(
+    "O-20",
+    "Whether app, agent_id, visitor_subject and entity become envelope fields or move into properties. The implemented UE envelope carries all four and the strict envelope refuses them, so UE-OBS-007 cannot pass a single event until this is settled.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-007"],
+    "ingestion.ts",
+  ),
+  open(
+    "O-21",
+    "Whether agent_id may be derived from a person's name. The sample value agent_john carries one, which is the kind of identifier that turns a pseudonymous reference back into personal data.",
+    "product",
+    ["UE-OBS-009"],
+    "privacy.ts",
   ),
 
   /* ------------------------------------- UE_IMPLEMENTATION_CONFIRMED */

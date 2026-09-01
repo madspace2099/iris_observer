@@ -6,6 +6,19 @@
 **For the two packages you are building:** [`validation-order.md`](ue5-contract/validation-order.md) · [`outbox-states.md`](ue5-contract/outbox-states.md) · [`v1-settings.md`](ue5-contract/v1-settings.md)
 **Runnable mock:** `pnpm ue5:mock` (loopback only, no database, no network)
 
+> **Read this first — it blocks UE-OBS-007.**
+>
+> Your envelope sends `app`, `agent_id`, `visitor_subject` and `entity` in
+> addition to the seven fields below. The envelope is a **strict** object, so those four are
+> currently refused and no real event parses. Everything else about your envelope matches:
+> snake_case, millisecond UTC, canonical hyphenated GUIDs, sequence from 1.
+>
+> **Do not change your code yet.** We think adopting all four is the right answer and the
+> extended schema is already written and tested against your exact sample. One condition if we
+> do: `app.environment` is reported metadata, never authoritative — the stored
+> environment comes from the source record. Your sample also sends `Development`
+> capitalised, and the enum is lower-case.
+
 This document is meant to be enough on its own. You should not have to read our TypeScript,
 and if you find yourself needing to, that is a defect in this page rather than in your
 reading of it.
@@ -597,58 +610,71 @@ counts, the oldest pending timestamp, the last error code, and the clock differe
 
 ---
 
-## 9. Six places what you have built may not parse
+## 9. What matched, and the one thing that does not
 
-Each has a test in `packages/contracts/test/ue5/ue-compatibility.test.ts` demonstrating the
-exact refusal. None is a complaint; each is a decision that should be taken deliberately
-rather than discovered when the first showroom quarantines everything it produces.
+Your answers of 2026-09-02 closed five of the six items that were here. Each still has a
+test in `packages/contracts/test/ue5/ue-compatibility.test.ts`, now asserting the
+agreement rather than the hazard — so if either side drifts, that file is what fails.
 
-**1. Event identifier format.** `FGuid::ToString()` defaults to `EGuidFormats::Digits` — 32
-hex characters, no hyphens. The contract requires the canonical hyphenated form; the
-conforming call is `ToString(EGuidFormats::DigitsWithHyphensLower)`. Uppercase is fine.
+### Resolved
 
-**2. Event identifier RFC conformance.** The subtler half, and it cannot be fixed by
-choosing a format string. The schema enforces an RFC 4122 version nibble (1–8) and variant
-nibble (8/9/a/b). A 128-bit identifier from a source that does not set those is rejected
-roughly three times in four, at random. **This needs your answer** — see §11.
+**Event identifier — matches.** `FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower)`,
+generated once before enqueueing and immutable across retries. Both your published samples
+parse under the strict schema, so nothing changes on either side. One thing worth keeping in
+view: that holds because `FGuid` is backed by `CoCreateGuid` on Windows, and
+Windows is now the confirmed sole V1 platform. The relaxed schema stays written and tested
+for the day a second platform appears.
 
-**3. Field naming.** `FJsonObjectConverter` lowercases the first letter of each `UPROPERTY`,
-producing `eventId` rather than `event_id`. Roundtripping inside Unreal proves the two
-halves of your serialiser agree with each other; it says nothing about agreeing with this
-contract. The contract does not move here — the whole wire vocabulary, the OpenAPI document
-and the stored observation are snake_case.
+**Field naming — matches.** snake_case throughout, as the contract publishes. The camelCase
+refusal is kept as a regression guard.
 
-**4. Sequence starting value.** The contract says "from 1". A `counter++` and a `++counter`
-differ by exactly this, and a counter starting at 0 loses the first event of every session
-to `malformed_event`.
+**Endpoint naming — ours to decide, and decided.** You treat endpoints as backend-owned, so
+the production names are `/functions/v1/observer-activate`, `observer-ingest`
+and `observer-heartbeat`. Prefixed because Edge Functions share one flat namespace
+with everything else the project ever deploys, and `ingest` is a name somebody else will
+eventually want. You will get the final URLs; nothing needs entering until then.
 
-**5. Activation request fields.** UE-OBS-003 was built before this contract existed, so its
-request body is not assumed to match. `machine_fingerprint` and `hostname_hint` were both
-removed from the proposal — the first because it blocks a legitimate reinstall on the same
-machine, the second because it was the only field able to carry a person's name into an
-operational store. `installation_nonce` replaced the first; a server-authored
-`display_label` replaced the second.
+**Retry exhaustion — matches.** Events stay in `queue.json` and are never deleted for
+running out of attempts. Exactly the contract.
 
-**6. Endpoint naming.** Your settings configure
-`https://observer.madspace.io/functions/v1/activate` and `/ingest`; the contract publishes
-`/observer-activate` and `/observer-ingest`. **Neither of us should pick this alone**, so
-nothing has been changed in either direction and no production routing is being built around
-either name. The endpoint is configurable in UE and both URLs come back from activation, so
-this blocks nothing today — it just needs deciding before the Edge Functions exist. The host
-is a separate, uncontroversial deployment detail.
+**Platform — confirmed.** Packaged Win64 on UE 5.6, and nothing else for V1. That is what
+makes Windows DPAPI the approved credential-at-rest mechanism rather than one option among
+several.
 
-**A seventh, in your favour, and narrower than it first was.** At the **top level of**
-**`properties`** only, a key may not shadow an envelope, identity or credential name —
-`event_id`, `event_name`, `schema_version`, `occurred_at`, `session_id`, `sequence`,
-`tenant_id`, `project_id`, `source_id`, `ingested_at`, `source_token`, `activation_code`,
-`authorization`, `credential`, `api_key`. If a current payload uses one at the top level,
-rename it — `step_index` rather than `sequence`.
+### Still open, and this one is live
 
-**Nested keys are fine.** `tour: { steps: [{ sequence }] }` is accepted; an earlier draft
-rejected these at every depth and that was too strict to live with. It is safe because the
-guarantee is structural, not lexical: no payload value participates in identity resolution
-at any depth, because the server takes identity from your credential and there is no code
-path from the payload to it.
+**Envelope shape — `OPEN-20`.** See the banner at the top of this document. Your
+envelope carries `app`, `agent_id`, `visitor_subject` and `entity`;
+the strict envelope refuses all four, so no real event parses today. Nothing about the seven
+agreed fields is in dispute. We recommend adopting all four and the extended schema is
+already tested against your exact sample — but it is a contract change, so it is being put
+rather than taken.
+
+**One question inside that one.** `agent_id` in your sample is `agent_john`. A
+pseudonymous reference that embeds a person's name is not pseudonymous, and no scanner can
+catch it because the giveaway is the convention rather than the value. If that string is
+generated rather than typed, an opaque form would be better before it reaches production
+(`OPEN-21`).
+
+**And one about the outbox.** You wrote that events are removed on a confirmed 2xx. The
+contract is narrower: removal follows the **per-event status inside** the 2xx — `accepted`
+or `duplicate` only. A 2xx can carry `rejected` results, and those must be
+quarantined rather than deleted, or the diagnostic goes with them (`OPEN-19`).
+
+### Unchanged, and in your favour
+
+**Top-level shadowing only.** At the **top level of** `properties`, a key may not shadow
+an envelope, identity or credential name — `event_id`, `event_name`, `schema_version`,
+`occurred_at`, `session_id`, `sequence`, `tenant_id`, `project_id`,
+`source_id`, `ingested_at`, `source_token`, `activation_code`,
+`authorization`, `credential`, `api_key`. Rename any that
+collide — `step_index` rather than `sequence`.
+
+**Nested keys are fine.** `tour: { steps: [{ sequence }] }` is accepted; an earlier
+draft rejected these at every depth and that was too strict to live with. It is safe because
+the guarantee is structural rather than lexical: no payload value participates in identity
+resolution at any depth, because the server takes identity from your credential and there is
+no code path from the payload to it.
 
 ---
 
@@ -675,7 +701,12 @@ Five questions, all narrow. **Six have closed** on your last two answers — the
 database, sequence feasibility, sequence semantics, credential-at-rest, the limit values and
 the 401/403 behaviour. Thank you; none of those will be asked again.
 
-1. **Event identifier.** Does `FObserverEvent` serialise the identifier hyphenated, and does
+1. ~~**Event identifier.**~~ **Answered 2026-09-02** — canonical lower-case hyphenated
+   FGuid::NewGuid(), generated once before enqueueing and immutable across retries. Both your
+   samples parse under the strict schema, so nothing changes. Kept in view: that holds because
+   FGuid is backed by CoCreateGuid on Windows, which is now the confirmed sole V1 platform.
+
+   ~~Does `FObserverEvent` serialise the identifier hyphenated, and does
    it carry RFC 4122 version and variant bits? **Do not change anything on your side for
    this yet.** The strictness came from a schema library default, not from the approved
    architecture — what is actually required is a stable, globally unique 128-bit identifier
