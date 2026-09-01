@@ -691,6 +691,24 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "outbox.ts",
   ),
   ueConfirmed(
+    "U-28",
+    "Outbox capacity exhaustion refuses new admission and returns false; the FIFO deletion of previously accepted unacknowledged events is gone from the source.",
+    "Akhilesh, 2026-09-02 — verified in ObserverDurableOutbox::Enqueue, second source drop",
+    "outbox.ts",
+  ),
+  ueConfirmed(
+    "U-29",
+    "Sequence is stamped in exactly one place, immediately before validation and enqueue, and resets to zero on session start so the first event is 1.",
+    "Akhilesh, 2026-09-02 — verified in ObserverAnalyticsSubsystem::TrackObserverEvent, second source drop",
+    "ingestion.ts",
+  ),
+  ueConfirmed(
+    "U-30",
+    "Windows DPAPI CryptProtectData persistence is implemented under PLATFORM_WINDOWS, writing source_credential.dat, and a legacy plaintext file is migrated then deleted on load.",
+    "Akhilesh, 2026-09-02 — verified in the second source drop; see O-22 for the fallback",
+    "credential.ts",
+  ),
+  ueConfirmed(
     "U-27",
     "Endpoint URLs are treated as entirely backend-owned; the UE side enters whatever final production URLs are supplied into Project Settings.",
     "Akhilesh, 2026-09-02 — endpoint ownership answered",
@@ -724,6 +742,28 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "product",
     ["UE-OBS-009"],
     "privacy.ts",
+  ),
+
+  open(
+    "O-22",
+    "The credential store falls back to plaintext silently when DPAPI fails or the platform is not Windows, with no log line and no state change. A production package must not be able to select plaintext at all.",
+    "akhilesh",
+    ["UE-OBS-003"],
+    "credential.ts",
+  ),
+  open(
+    "O-23",
+    "The client invents a 365-day credential expiry when the server omits expires_at, and refuses to send once it passes. The approved V1 decision is no mandatory expiry, so a working showroom would lock itself out after a year.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-003"],
+    "credential.ts",
+  ),
+  open(
+    "O-24",
+    "Capacity refusals and validation failures share one counter, so an operator cannot tell a full disk from a plugin emitting bad events. The two have different remedies.",
+    "akhilesh",
+    ["UE-OBS-006"],
+    "heartbeat.ts",
   ),
 
   /* ------------------------------------- UE_IMPLEMENTATION_CONFIRMED */

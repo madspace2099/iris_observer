@@ -14,13 +14,13 @@ document once said it would.
 | --- | --- |
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
-| `UE_IMPLEMENTATION_CONFIRMED` | 27 |
+| `UE_IMPLEMENTATION_CONFIRMED` | 30 |
 | `APPROVED_PRODUCT_DECISION` | 33 |
 | `PROPOSED` | 1 |
-| `OPEN` | 13 |
+| `OPEN` | 16 |
 | `MOCK_ONLY` | 3 |
 
-**Total:** 122
+**Total:** 128
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -90,6 +90,9 @@ table exists to prevent.
 | `U-24` | Event identifiers are FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower): canonical lower-case 36-character hyphenated form, generated once before enqueueing and immutable across retries. | — | akhilesh | — | `wire.ts` |
 | `U-25` | FObserverEvent serialises snake_case field names, matching the contract's wire vocabulary rather than Unreal's default camelCase. | — | akhilesh | — | `ingestion.ts` |
 | `U-26` | Exhausting Max Retry Attempts never deletes an event: it stays in queue.json on disk and is removed only on a confirmed delivery response. | — | akhilesh | — | `outbox.ts` |
+| `U-28` | Outbox capacity exhaustion refuses new admission and returns false; the FIFO deletion of previously accepted unacknowledged events is gone from the source. | — | akhilesh | — | `outbox.ts` |
+| `U-29` | Sequence is stamped in exactly one place, immediately before validation and enqueue, and resets to zero on session start so the first event is 1. | — | akhilesh | — | `ingestion.ts` |
+| `U-30` | Windows DPAPI CryptProtectData persistence is implemented under PLATFORM_WINDOWS, writing source_credential.dat, and a legacy plaintext file is migrated then deleted on load. | — | akhilesh | — | `credential.ts` |
 | `U-27` | Endpoint URLs are treated as entirely backend-owned; the UE side enters whatever final production URLs are supplied into Project Settings. | — | akhilesh | — | `openapi.ts` |
 | `U-01` | The current target engine is Unreal Engine 5.6. | — | akhilesh | — | `wire.ts` |
 | `U-02` | All hard-coded Supabase URLs and keys are removed from the V2 plugin; backend configuration comes through Unreal Project Settings. | — | akhilesh | — | `docs` |
@@ -175,6 +178,9 @@ table exists to prevent.
 | `O-18` | Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package. | — | akhilesh | UE-OBS-003 | `credential.ts` |
 | `O-20` | Whether app, agent_id, visitor_subject and entity become envelope fields or move into properties. The implemented UE envelope carries all four and the strict envelope refuses them, so UE-OBS-007 cannot pass a single event until this is settled. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
 | `O-21` | Whether agent_id may be derived from a person's name. The sample value agent_john carries one, which is the kind of identifier that turns a pseudonymous reference back into personal data. | — | product | UE-OBS-009 | `privacy.ts` |
+| `O-22` | The credential store falls back to plaintext silently when DPAPI fails or the platform is not Windows, with no log line and no state change. A production package must not be able to select plaintext at all. | — | akhilesh | UE-OBS-003 | `credential.ts` |
+| `O-23` | The client invents a 365-day credential expiry when the server omits expires_at, and refuses to send once it passes. The approved V1 decision is no mandatory expiry, so a working showroom would lock itself out after a year. | — | matthew_and_akhilesh | UE-OBS-003 | `credential.ts` |
+| `O-24` | Capacity refusals and validation failures share one counter, so an operator cannot tell a full disk from a plugin emitting bad events. The two have different remedies. | — | akhilesh | UE-OBS-006 | `heartbeat.ts` |
 
 ## MOCK_ONLY
 
