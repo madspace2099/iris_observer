@@ -1,0 +1,1386 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IRIS Observer — UE5 ingestion contract",
+    "version": "1.0.0-candidate.1",
+    "summary": "Activation, batch ingestion and heartbeat for the IRIS UE5 plugin (PROPOSED).",
+    "description": "**PROPOSED contract candidate. Not implemented; no endpoint exists.**\n\nThe one rule to read before any other:\n\n> The HTTP status says whether the batch was processed. It never says whether the events\n> were accepted.\n\n`200` means the batch was processed — consult the per-event `results`, even when every\nevent in it was rejected. Any non-2xx means the batch was **not** processed, nothing was\nstored, and the whole batch is safe to resend unchanged.\n\nTenant, project and source identity are derived by the server from the activated\ncredential. No request body carries them, and every envelope refuses them."
+  },
+  "servers": [
+    {
+      "url": "https://{projectRef}.supabase.co/functions/v1",
+      "description": "Observer Edge Functions. The project reference is deployment-specific.",
+      "variables": {
+        "projectRef": {
+          "default": "example"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "activation",
+      "description": "One-time exchange of a code for a source credential."
+    },
+    {
+      "name": "ingestion",
+      "description": "Batched, idempotent, per-event analytics submission."
+    },
+    {
+      "name": "diagnostics",
+      "description": "Liveness, plugin health, and the end-to-end test event."
+    }
+  ],
+  "paths": {
+    "/observer-activate": {
+      "post": {
+        "tags": [
+          "activation"
+        ],
+        "operationId": "activateSource",
+        "summary": "Exchange a one-time activation code for a source credential",
+        "description": "Unauthenticated. Unknown, expired and already-consumed codes answer an identical 401, so that nothing discloses whether a tenant, project or source exists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activated or reactivated. The token is returned once, here, and never again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request could not be parsed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationFailure"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The code could not be used. Unknown, expired and consumed are indistinguishable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationFailure"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "This installation already has a live source. No token is issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationFailure"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationFailure"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivationFailure"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/observer-ingest": {
+      "post": {
+        "tags": [
+          "ingestion"
+        ],
+        "operationId": "ingestBatch",
+        "summary": "Submit a batch of analytics events",
+        "description": "Identity is derived from the credential. An empty batch is valid and returns `received: 0`; it is not a heartbeat.",
+        "security": [
+          {
+            "sourceToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchEnvelope"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The batch was processed. Consult the per-event results.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The batch envelope is malformed or carries a forbidden field.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is unknown, revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The credential is valid; the source is suspended or archived.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Over the batch ceiling in force. Split and retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry-After is authoritative.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Nothing was stored. Retain and back off.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/observer-heartbeat": {
+      "post": {
+        "tags": [
+          "diagnostics"
+        ],
+        "operationId": "heartbeat",
+        "summary": "Report liveness and plugin health",
+        "description": "Writes to the source's operational record and never to analytics_events. Carries queue depth, quarantine count and the last error code — the things an operator needs when a showroom looks quiet, none of which are facts about a customer.",
+        "security": [
+          {
+            "sourceToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeartbeatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeartbeatResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The credential is unknown, revoked or superseded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The source is suspended or archived.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailureBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sourceToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The source credential from activation. Opaque: never parsed, decoded or logged. Scoped to appending events for one source, and able to read nothing."
+      }
+    },
+    "schemas": {
+      "ActivationRequest": {
+        "type": "object",
+        "properties": {
+          "activation_code": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 64
+          },
+          "reported_environment": {
+            "type": "string",
+            "enum": [
+              "production",
+              "staging",
+              "development"
+            ]
+          },
+          "installation_nonce": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "build": {
+            "type": "object",
+            "properties": {
+              "app_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "plugin_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "build_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "engine_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "app_version",
+              "plugin_version",
+              "build_id",
+              "engine_version"
+            ],
+            "additionalProperties": false
+          },
+          "os": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96
+          }
+        },
+        "required": [
+          "activation_code",
+          "reported_environment",
+          "installation_nonce",
+          "build",
+          "os"
+        ],
+        "additionalProperties": false
+      },
+      "ActivationSuccess": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "activated",
+              "reactivated"
+            ]
+          },
+          "source_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "display_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "production",
+              "staging",
+              "development"
+            ]
+          },
+          "environment_mismatch": {
+            "type": "boolean"
+          },
+          "source_token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 512
+          },
+          "ingest_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "heartbeat_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "accepted_schema_versions": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4096
+              },
+              "max": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4096
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ],
+            "additionalProperties": false
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "max_batch_events": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max_batch_bytes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1024,
+                    "maximum": 67108864
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max_event_bytes": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 256,
+                    "maximum": 4194304
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max_property_depth": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max_property_count": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "min_send_interval_ms": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 3600000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "max_batch_events",
+              "max_batch_bytes",
+              "max_event_bytes",
+              "max_property_depth",
+              "max_property_count",
+              "min_send_interval_ms"
+            ],
+            "additionalProperties": false
+          },
+          "config_refresh_after": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "status",
+          "source_id",
+          "display_label",
+          "environment",
+          "environment_mismatch",
+          "source_token",
+          "ingest_url",
+          "heartbeat_url",
+          "accepted_schema_versions",
+          "limits",
+          "config_refresh_after"
+        ],
+        "additionalProperties": false
+      },
+      "ActivationFailure": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "failed"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "activation_failed",
+              "already_activated",
+              "malformed_request",
+              "rate_limited",
+              "unavailable"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retry_after_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "code",
+          "message",
+          "source_id",
+          "retry_after_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "Limits": {
+        "type": "object",
+        "properties": {
+          "max_batch_events": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_batch_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 67108864
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_event_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 256,
+                "maximum": 4194304
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_property_depth": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_property_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "min_send_interval_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3600000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "max_batch_events",
+          "max_batch_bytes",
+          "max_event_bytes",
+          "max_property_depth",
+          "max_property_count",
+          "min_send_interval_ms"
+        ],
+        "additionalProperties": false
+      },
+      "EventEnvelope": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "event_name": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+          },
+          "schema_version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sequence": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "properties": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "event_id",
+          "event_name",
+          "schema_version",
+          "occurred_at",
+          "session_id",
+          "sequence",
+          "properties"
+        ],
+        "additionalProperties": false
+      },
+      "BatchEnvelope": {
+        "type": "object",
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "event_name": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 80,
+                  "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+                },
+                "schema_version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4096
+                },
+                "occurred_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "session_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sequence": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2147483647
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "properties": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "event_id",
+                "event_name",
+                "schema_version",
+                "occurred_at",
+                "session_id",
+                "sequence",
+                "properties"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "batch_id",
+          "sent_at",
+          "events"
+        ],
+        "additionalProperties": false
+      },
+      "EventResult": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "duplicate",
+              "rejected"
+            ]
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retryable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "event_id",
+          "status",
+          "code",
+          "retryable",
+          "detail"
+        ],
+        "additionalProperties": false
+      },
+      "BatchResponse": {
+        "type": "object",
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "received": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "accepted": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "duplicate": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "rejected": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "accepted",
+                    "duplicate",
+                    "rejected"
+                  ]
+                },
+                "code": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 3,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retryable": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "detail": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "event_id",
+                "status",
+                "code",
+                "retryable",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 64
+                },
+                "detail": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "code",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "batch_id",
+          "received",
+          "accepted",
+          "duplicate",
+          "rejected",
+          "results",
+          "warnings"
+        ],
+        "additionalProperties": false
+      },
+      "RequestFailureBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "malformed_request",
+              "unauthorised",
+              "source_suspended",
+              "batch_too_large",
+              "rate_limited",
+              "unavailable"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retry_after_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "batch_id",
+          "retry_after_seconds"
+        ],
+        "additionalProperties": false
+      },
+      "HeartbeatRequest": {
+        "type": "object",
+        "properties": {
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "build": {
+            "type": "object",
+            "properties": {
+              "app_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "plugin_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "build_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "engine_version": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              }
+            },
+            "required": [
+              "app_version",
+              "plugin_version",
+              "build_id",
+              "engine_version"
+            ],
+            "additionalProperties": false
+          },
+          "queue": {
+            "type": "object",
+            "properties": {
+              "pending_events": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "oldest_pending_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "quarantined_events": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "bytes_used": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "dropped_events": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "pending_events",
+              "oldest_pending_at",
+              "quarantined_events",
+              "bytes_used",
+              "dropped_events"
+            ],
+            "additionalProperties": false
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 64
+                  },
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                },
+                "required": [
+                  "code",
+                  "at"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "sent_at",
+          "build",
+          "queue",
+          "last_error"
+        ],
+        "additionalProperties": false
+      },
+      "HeartbeatResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          },
+          "config_stale": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status",
+          "server_time",
+          "config_stale"
+        ],
+        "additionalProperties": false
+      },
+      "DiagnosticTestProperties": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "activation_check",
+              "manual_check",
+              "support_check"
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reason",
+          "note"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "x-observer-contract": {
+    "status": "PROPOSED",
+    "version": "1.0.0-candidate.1",
+    "note": "Generated from Zod by `pnpm contracts:ue5`. Do not edit by hand.",
+    "requestFailures": [
+      {
+        "code": "malformed_request",
+        "httpStatus": 400,
+        "meaning": "The batch envelope could not be parsed, or carried a forbidden field.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "unauthorised",
+        "httpStatus": 401,
+        "meaning": "The credential is unknown, malformed, revoked or superseded.",
+        "retryable": false,
+        "outbox": "retain",
+        "sending": "stop",
+        "operatorRequired": true
+      },
+      {
+        "code": "source_suspended",
+        "httpStatus": 403,
+        "meaning": "The credential is valid; the source is suspended or archived.",
+        "retryable": false,
+        "outbox": "retain",
+        "sending": "stop",
+        "operatorRequired": true
+      },
+      {
+        "code": "batch_too_large",
+        "httpStatus": 413,
+        "meaning": "Over the batch event count or byte ceiling in force.",
+        "retryable": true,
+        "outbox": "retain_and_split",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "rate_limited",
+        "httpStatus": 429,
+        "meaning": "Too many requests. Retry-After states how long to wait.",
+        "retryable": true,
+        "outbox": "retain",
+        "sending": "backoff",
+        "operatorRequired": false
+      },
+      {
+        "code": "unavailable",
+        "httpStatus": 503,
+        "meaning": "The backend could not process the request.",
+        "retryable": true,
+        "outbox": "retain",
+        "sending": "backoff",
+        "operatorRequired": false
+      }
+    ],
+    "eventRejections": [
+      {
+        "code": "malformed_event",
+        "meaning": "The event envelope is unparseable, or a required envelope field is missing.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "schema_unknown",
+        "meaning": "This event name is not registered at this schema version.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": true
+      },
+      {
+        "code": "schema_invalid",
+        "meaning": "Properties do not satisfy the registered contract for this event.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "unsupported_version",
+        "meaning": "The schema version is outside the range the server accepts.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": true
+      },
+      {
+        "code": "event_too_large",
+        "meaning": "The serialised event exceeds the per-event ceiling.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "reserved_property",
+        "meaning": "A property key is reserved: identity, server-assigned, or the observer namespace.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": false
+      },
+      {
+        "code": "clock_out_of_range",
+        "meaning": "occurred_at falls outside the acceptance window in force.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": true
+      },
+      {
+        "code": "pii_suspected",
+        "meaning": "A property matched a forbidden-content heuristic.",
+        "retryable": false,
+        "outbox": "quarantine",
+        "sending": "continue",
+        "operatorRequired": true
+      },
+      {
+        "code": "storage_error",
+        "meaning": "A transient failure while writing this event.",
+        "retryable": true,
+        "outbox": "retain",
+        "sending": "continue",
+        "operatorRequired": false
+      }
+    ],
+    "unknownCodePolicy": "An unrecognised rejection code is non-retryable and quarantines, whatever the server says about retryable. An unrecognised non-2xx status retains the outbox and backs off."
+  }
+}

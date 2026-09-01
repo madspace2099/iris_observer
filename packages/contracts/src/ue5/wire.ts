@@ -1,0 +1,148 @@
+import { z } from "zod";
+
+/**
+ * THE UE5 WIRE LAYER — PRIMITIVES.
+ *
+ * This directory is the **transport encoding of the ingestion boundary that
+ * ADR-0015 already fixed**, not a second analytics architecture. The pipeline
+ * is unchanged:
+ *
+ * ```
+ * UE5 wire event → [server derives identity] → source observation
+ *                → adapter → canonical fact → projection → metric
+ * ```
+ *
+ * `observation.ts` describes the *stored* first box. This describes what
+ * travels over the wire to reach it, and `projection.ts` is the executable
+ * proof that one becomes the other with no second store in between.
+ *
+ * ## Two rules govern every schema here
+ *
+ * **The envelope is closed; the properties bag is open.** Every envelope is a
+ * `strictObject`, so an unexpected field is a rejection rather than a silent
+ * omission — a plugin that sends `project_id` must find out at the developer's
+ * desk, not by having it quietly ignored in production for a year. Event
+ * `properties` stay open because their shape belongs to the per-event schema
+ * registry (ADR-0013), which is a later milestone.
+ *
+ * **Nothing here is a security decision.** These schemas describe shape. Every
+ * authorisation fact — tenant, project, source, environment — is derived by the
+ * server from the activated credential and never read from a request body.
+ * `identity.test.ts` is the proof.
+ */
+
+/* ============================================================ versioning */
+
+/**
+ * The version of this wire contract.
+ *
+ * Deliberately marked a candidate. It is a **proposal awaiting sign-off**, not
+ * an approved interface, and `traceability.test.ts` fails if that claim is
+ * quietly upgraded while OPEN decisions remain.
+ */
+export const UE5_CONTRACT_VERSION = "1.0.0-candidate.1" as const;
+
+/** What the repository claims about the maturity of this contract. */
+export const UE5_CONTRACT_STATUS = "PROPOSED" as const;
+
+/**
+ * Event-schema versions this contract describes.
+ *
+ * A single integer, not a semver string: the plugin has to compare it against
+ * a server-supplied range on every activation, and integer comparison is the
+ * one form of that check nobody gets wrong. `SUPPORTED_SCHEMA_VERSIONS` in
+ * `version.ts` remains the application-level contract version; this is the
+ * per-event registry generation.
+ */
+export const UE5_SCHEMA_VERSION_MIN = 1;
+export const UE5_SCHEMA_VERSION_MAX = 1;
+
+export const SchemaVersionSchema = z.int().min(1).max(4096);
+
+/* ============================================================ primitives */
+
+/**
+ * An instant, always with an offset — the same rule the rest of the contract
+ * uses (`ids.ts`). A timestamp without one is a bug, and on a showroom PC in a
+ * country that changes its clocks twice a year it is a bug that only appears
+ * in October.
+ */
+export const WireInstantSchema = z.iso.datetime({ offset: true });
+
+/**
+ * A client-generated identifier. UUID, because the plugin must be able to mint
+ * one offline, before the first send, with no coordination (LOCKED §4.1).
+ *
+ * Note what this is *not*: the branded, prefixed identifiers in `ids.ts` are
+ * Observer's own vocabulary for entities the server owns. The wire deliberately
+ * uses bare UUIDs, so that nothing the client sends can ever be mistaken for a
+ * server-issued identity.
+ */
+export const WireUuidSchema = z.uuid();
+
+/**
+ * An event name, in the source's own vocabulary.
+ *
+ * Constrained to a dotted lowercase form so that a name is a legible key rather
+ * than free text, and so the reserved `diagnostic.` namespace can be recognised
+ * without a lookup. **No concrete business event names are fixed here** —
+ * ADR-0013 defers the catalogue, and this contract does not pre-empt it.
+ */
+export const EVENT_NAME_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
+
+export const EventNameSchema = z
+  .string()
+  .min(3)
+  .max(80)
+  .regex(EVENT_NAME_PATTERN, "must be a dotted lower_snake_case name, e.g. section.entered");
+
+/**
+ * A short opaque token used for log correlation only.
+ *
+ * Never an identity, never an authorisation input, never stored as a fact.
+ */
+export const CorrelationIdSchema = z.uuid();
+
+/* ============================================================ metadata */
+
+/**
+ * What a build says about itself.
+ *
+ * Every field here is **informational**. None of it is identity and none of it
+ * participates in an authorisation decision: a credential belongs to the
+ * registered source, not to a build, so changing any of these must never
+ * require reactivation. The backend records them so support can answer "which
+ * build is this showroom running", and so a schema-support window can be
+ * enforced later against something real.
+ */
+export const BuildMetadataSchema = z.strictObject({
+  /** The IRIS application version, as the application spells it. */
+  app_version: z.string().min(1).max(64),
+  /** The Observer plugin version. */
+  plugin_version: z.string().min(1).max(64),
+  /** The packaged build, so two machines on the same version are separable. */
+  build_id: z.string().min(1).max(128),
+  /**
+   * The Unreal Engine version this build was packaged with, e.g. `5.6`.
+   *
+   * Reported, never enforced. Which engine minors the plugin supports is an
+   * Unreal support-matrix question; the backend's only interest is recording
+   * what is in the field.
+   */
+  engine_version: z.string().min(1).max(32),
+});
+export type BuildMetadata = z.infer<typeof BuildMetadataSchema>;
+
+/* ============================================================ environments */
+
+/**
+ * Deployment environments.
+ *
+ * A client may *report* which one it believes it is in. The stored value always
+ * comes from the source record, because a misconfigured development build
+ * declaring itself production is precisely the failure this must not permit.
+ * See `activation.ts` for the reported/authoritative split.
+ */
+export const ENVIRONMENTS = ["production", "staging", "development"] as const;
+export const EnvironmentSchema = z.enum(ENVIRONMENTS);
+export type Environment = z.infer<typeof EnvironmentSchema>;

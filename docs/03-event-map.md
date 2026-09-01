@@ -269,6 +269,32 @@ UE5 ──batch (25 ev / 5 s)──▶ POST /v2/ingest ──▶ events (append-
 A live stream also enables something worth designing for later: the developer's dashboard can show a
 meeting **in progress**. Low priority, but it is free once ingest is streaming, and it demos extremely well.
 
+> **Amendment, 2026-09-01 — superseded by the UE5 contract candidate.**
+>
+> Three details in this section and in §7 predate the approved UE5 plugin architecture
+> brief and are now wrong:
+>
+> - **The endpoint.** `POST /v2/ingest` is superseded by
+>   `POST /functions/v1/observer-ingest`, with activation at `/observer-activate` and
+>   liveness at `/observer-heartbeat`. See [`ue5-ingestion-contract.md`](ue5-ingestion-contract.md)
+>   and the generated `docs/ue5-contract/openapi.json`.
+> - **The batch figures.** "25 events / 5 s" was a sketch, never an approved limit. Batch
+>   and event ceilings are stated by the server at activation and are deliberately
+>   **unset** in the contract candidate, pending measurement on real showroom hardware
+>   (`OPEN-12`).
+> - **Credential scope.** §7 rule 6 says a device credential is scoped to one _tenant_. The
+>   brief scopes it to one **project source** — narrower, and the difference matters: a
+>   tenant-scoped credential extracted from one showroom binary would reach every project
+>   that tenant owns.
+>
+> Everything else in §7 stands and is now contract rather than advice: no client
+> aggregation, client-generated `event_id` with server-side deduplication, buffer to disk
+> and flush in batches, never block the game thread, and per-device credentials rather than
+> a shared key in the binary.
+>
+> The event names in §2 remain **illustrative**. ADR-0013 defers the wire catalogue to the
+> schema registry, and the contract candidate fixes no business event names.
+
 ---
 
 ## 9. Changes this forces in `02-views.md`

@@ -14,5 +14,5 @@
     "lib": ["ES2023"],
     "types": ["node"]
   },
-  "include": ["scripts/release/**/*.ts"]
+  "include": ["scripts/release/**/*.ts", "scripts/contracts/**/*.ts"]
 }

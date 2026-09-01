@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://observer.madspace.dev/ue5/1.0.0-candidate.1/Limits.schema.json",
+  "title": "Limits",
+  "type": "object",
+  "properties": {
+    "max_batch_events": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_batch_bytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 67108864
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_event_bytes": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 4194304
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_property_depth": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_property_count": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "min_send_interval_ms": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600000
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "max_batch_events",
+    "max_batch_bytes",
+    "max_event_bytes",
+    "max_property_depth",
+    "max_property_count",
+    "min_send_interval_ms"
+  ],
+  "additionalProperties": false
+}

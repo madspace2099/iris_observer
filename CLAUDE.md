@@ -31,24 +31,26 @@ for Unreal is `docs/ue5-instrumentation-spec.md`, generated from the metric regi
 
 ## Read first
 
-| Document                       | What it settles                                                            |
-| ------------------------------ | -------------------------------------------------------------------------- |
-| `docs/01-foundation.md`        | Two-sided product, tenancy, CRM boundary, identity, privacy                |
-| `docs/02-views.md`             | Page pattern, semantic metric layer, the views, AI layer, sequencing       |
-| `docs/03-event-map.md`         | Showroom UX flow mapped to observable facts; the Unreal API surface        |
-| `docs/04-journey.md`           | The unified WEBIRIS → showroom → CRM journey, evidence tiers, attribution  |
-| `docs/05-identity.md`          | Identity architecture, and the awkward cases: duplicates, couples, erasure |
-| `docs/06-ownership.md`         | Which system owns which fact, and the read-model rule                      |
-| `docs/07-pre-meeting-brief.md` | The brief contract and what may never be inferred                          |
-| `docs/08-scenarios.md`         | Deterministic synthetic scenarios, Viktória first                          |
-| `docs/09-ingestion.md`         | Source observation → adapter → canonical fact. The trust boundary.         |
-| `docs/10-policies.md`          | Attribution, dwell, visitor identity, meeting identity, brief visibility   |
-| `docs/roadmap.md`              | Milestones, and what is deliberately not built yet                         |
-| `docs/coverage-report.md`      | **Generated.** Every source requirement and what covers it.                |
-| `docs/traceability.md`         | Requirement → where satisfied. Hand-maintained.                            |
-| `docs/measurement-matrix.md`   | **Generated.** Metric → facts → sources. Never edit by hand.               |
-| `docs/adr/`                    | Architecture decisions, numbered                                           |
-| `docs/references.md`           | External references (Figma, legacy system)                                 |
+| Document                          | What it settles                                                                   |
+| --------------------------------- | --------------------------------------------------------------------------------- |
+| `docs/01-foundation.md`           | Two-sided product, tenancy, CRM boundary, identity, privacy                       |
+| `docs/02-views.md`                | Page pattern, semantic metric layer, the views, AI layer, sequencing              |
+| `docs/03-event-map.md`            | Showroom UX flow mapped to observable facts; the Unreal API surface               |
+| `docs/04-journey.md`              | The unified WEBIRIS → showroom → CRM journey, evidence tiers, attribution         |
+| `docs/05-identity.md`             | Identity architecture, and the awkward cases: duplicates, couples, erasure        |
+| `docs/06-ownership.md`            | Which system owns which fact, and the read-model rule                             |
+| `docs/07-pre-meeting-brief.md`    | The brief contract and what may never be inferred                                 |
+| `docs/08-scenarios.md`            | Deterministic synthetic scenarios, Viktória first                                 |
+| `docs/09-ingestion.md`            | Source observation → adapter → canonical fact. The trust boundary.                |
+| `docs/10-policies.md`             | Attribution, dwell, visitor identity, meeting identity, brief visibility          |
+| `docs/roadmap.md`                 | Milestones, and what is deliberately not built yet                                |
+| `docs/coverage-report.md`         | **Generated.** Every source requirement and what covers it.                       |
+| `docs/traceability.md`            | Requirement → where satisfied. Hand-maintained.                                   |
+| `docs/measurement-matrix.md`      | **Generated.** Metric → facts → sources. Never edit by hand.                      |
+| `docs/adr/`                       | Architecture decisions, numbered                                                  |
+| `docs/ue5-ingestion-contract.md`  | **PROPOSED.** The UE5 wire contract candidate and why each proposal is what it is |
+| `docs/ue5-integration-handoff.md` | What Akhilesh builds UE-OBS-003..010 against, without reading our source          |
+| `docs/references.md`              | External references (Figma, legacy system)                                        |
 
 ## Commands
 
@@ -59,6 +61,8 @@ pnpm typecheck    # tsc --noEmit in every package
 pnpm lint         # eslint, whole repo
 pnpm test         # vitest
 pnpm matrix       # regenerate the measurement dependency matrix
+pnpm contracts:ue5 # regenerate docs/ue5-contract from the Zod schemas
+pnpm ue5:mock     # run the MOCK-ONLY UE5 reference backend on loopback
 pnpm build        # production build of @observer/web
 pnpm verify       # format, typecheck, lint, test, build
 ```
@@ -109,6 +113,7 @@ packages/ui/         design tokens, primitives, hand-built SVG charts
 packages/simulator/  integration simulator CLI
 packages/readmodels/ read-model shapes and the repository port
 packages/synthetic/  deterministic implementation of that port
+packages/ue5-mock/   MOCK-ONLY reference implementation of the UE5 wire contract
 docs/                concept documents, ADRs, generated specifications
 .claude/skills/      the iris-observer-product project skill
 ```

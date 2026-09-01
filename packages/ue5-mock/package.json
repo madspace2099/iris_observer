@@ -1,0 +1,20 @@
+{
+  "name": "@observer/ue5-mock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic, local, egress-free reference implementation of the proposed UE5 ingestion contract. Test scaffolding, never production.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observer/contracts": "workspace:*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}
