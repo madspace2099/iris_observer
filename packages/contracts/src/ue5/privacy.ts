@@ -94,9 +94,25 @@ export const PERSONAL_KEY_NAMES = [
 
 const PERSONAL_KEYS = new Set<string>(PERSONAL_KEY_NAMES);
 
-const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+/*
+ * BOUNDED, AND THE BOUNDS ARE NOT COSMETIC.
+ *
+ * This was `[A-Z0-9._%+-]+@…`, and the unbounded `+` made it quadratic: against
+ * a long value with no `@`, the engine consumes to the end from every start
+ * position and backtracks. On a 64 KB property — now explicitly legal, since
+ * that is the approved event cap — the scan took seconds, which is a denial of
+ * service inside the privacy guard rather than a slow test.
+ *
+ * Found by a boundary test that sized an event to exactly 64 KB. The same shape
+ * of defect as the recursive size check: a guard that a hostile input can turn
+ * against the thing it guards.
+ *
+ * The bounds are generous against real addresses — RFC 5321 caps a local part at
+ * 64 characters and a domain at 255 — so nothing legitimate is missed.
+ */
+const EMAIL = /[A-Z0-9._%+-]{1,64}@[A-Z0-9-]{1,63}(?:\.[A-Z0-9-]{1,63}){1,8}/i;
 /* +36 20 123 4567, +1 (555) 010-9999 — an international prefix and enough digits. */
-const PHONE = /\+\d[\d\s().-]{7,}\d/;
+const PHONE = /\+\d[\d\s().-]{7,32}\d/;
 /*
  * There is deliberately no payment-card *value* detector.
  *

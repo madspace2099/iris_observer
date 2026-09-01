@@ -208,6 +208,60 @@ export const EVENT_PRESERVED_NOT_RETRIED: readonly string[] = Object.freeze([
   "a 400 on the whole request, which is a plugin bug",
 ]);
 
+/* ================================================ retry attempts, and what they are not */
+
+/**
+ * `Max Retry Attempts = 5` is a **delivery-attempt configuration**, not a
+ * retention limit.
+ *
+ * The obvious reading — five failures and the event is deleted — would silently
+ * void the entire durable-outbox contract, and it would do it in exactly the
+ * circumstances the outbox exists for: a showroom that has been offline all
+ * afternoon fails far more than five times.
+ *
+ * So until the exact semantics are confirmed (OPEN-16), this is modelled as
+ * bounding an attempt sequence before backing off harder or surfacing the
+ * condition. **Exhausting it never erases anything.** An event leaves the queue
+ * on an explicit acknowledgement or is quarantined by an explicit non-retryable
+ * rejection; there is no third door, and "we tried a few times" is not one.
+ */
+export function outboxStateAfterRetryExhaustion(): OutboxVerdict {
+  return verdict(
+    "retained",
+    "backoff",
+    "the configured attempt sequence is exhausted; the event is preserved and surfaced, never erased",
+  );
+}
+
+/* ============================================================== capacity */
+
+/**
+ * What happens when the disk ceiling is reached.
+ *
+ * Three requirements, and the third is the one that separates a bounded queue
+ * from a lossy one:
+ *
+ *   1. **Bounded.** The queue is never allowed to grow without limit; an
+ *      analytics buffer that fills a showroom PC's disk has caused a worse
+ *      problem than the one it was solving.
+ *   2. **Never silent.** A refusal is counted and surfaced through diagnostics
+ *      (`dropped_events`, plus the queue bytes and ceiling). LOCKED §5.4.
+ *   3. **Never revealing.** The counted failure records that an event could not
+ *      be admitted; it does not record the event. A capacity log that quoted
+ *      payloads would be a payload store with no size limit of its own.
+ *
+ * The ceiling is enforced by **bytes actually used**. An event-count limit
+ * standing in for a byte limit overruns by however much events exceeded their
+ * assumed size, which at the 64 KB cap is roughly sixty times.
+ */
+export const OUTBOX_CAPACITY_RULES: readonly string[] = Object.freeze([
+  "The ceiling is enforced by bytes actually used, never by an assumed event count.",
+  "The queue is bounded. It is never allowed to grow without limit.",
+  "A refusal to admit is counted and exposed through diagnostics, never silent.",
+  "The counted failure records that admission failed, never the content of the event.",
+  "Diagnostics expose bytes used, event count, oldest pending age, and the configured ceiling.",
+]);
+
 /* ============================================================== on restart */
 
 /**
@@ -227,16 +281,39 @@ export const RESTART_INVARIANTS: readonly string[] = Object.freeze([
 ]);
 
 /**
- * Behaviour after `401` or `403`, still PROPOSED.
+ * Behaviour after `401` or `403` — **approved V1 behaviour**.
  *
- * Akhilesh has not yet confirmed the operational and UX side of this, so it
- * stays a proposal rather than being written up as though it were agreed. What
- * is not negotiable is the second line: the events are not the problem.
+ * Confirmed on the UE side as practical and intended, so this is no longer a
+ * proposal. The second line is the one that was always non-negotiable: the
+ * events are not the problem, and a plugin that clears its outbox on an
+ * authorisation failure turns a five-minute operator task into permanent data
+ * loss, silently.
+ *
+ * `401` and `403` stay distinct because the operator's remedy differs —
+ * reactivate a rejected credential, or resume a suspended source — and a plugin
+ * showing one message for both sends them down the wrong path.
  */
 export const UNAUTHORISED_OUTBOX_BEHAVIOUR: readonly string[] = Object.freeze([
-  "Stop network delivery.",
-  "Retain the outbox in full.",
-  "Continue bounded local capture, so an authorisation problem does not also become a data gap.",
-  "Surface the unauthorised state as an operator-visible diagnostic, with 401 and 403 distinct.",
-  "Never reactivate automatically.",
+  "Immediately pause network delivery. Do not keep calling the backend.",
+  "Preserve the entire durable outbox.",
+  "Continue bounded local capture up to the configured queue limits, so an authorisation problem does not also become a data gap.",
+  "Expose an operator-visible state, distinguishing 401 (credential rejected, reactivation required) from 403 (source suspended).",
+  "Never reactivate automatically. Reactivation requires an administrator entering a newly issued activation code.",
+]);
+
+/**
+ * What a reactivation must not do to the queue.
+ *
+ * The distinction that makes all three lines follow: **reactivation changes
+ * authentication material, not identity.** A new credential says who may write;
+ * it says nothing about which source the queued events belong to or what they
+ * are called. A plugin that regenerated identifiers on reactivation would turn
+ * every queued event into a second fact the moment delivery resumed — and it
+ * would look like a successful recovery while doing it.
+ */
+export const REACTIVATION_INVARIANTS: readonly string[] = Object.freeze([
+  "Queued events survive reactivation. None is discarded.",
+  "No queued event receives a new event_id.",
+  "Replay after reactivation is safe: what was already stored answers duplicate.",
+  "Credential rotation changes authentication material, not source or event identity.",
 ]);

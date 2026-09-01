@@ -562,19 +562,7 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     ["UE-OBS-006"],
     "limits.ts",
   ),
-  /*
-   * Narrowed after UE-OBS-004. Feasibility is no longer in question — U-10
-   * records that monotonic sequencing exists in the V2 event engine — so what
-   * remains is the semantic guarantee, which implementation evidence does not
-   * establish on its own.
-   */
-  proposed(
-    "P-17",
-    "sequence is mandatory for every session-scoped event, cannot be overridden by a Blueprint caller, and has defined reset semantics at each new session_id.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-004", "UE-OBS-009"],
-    "ingestion.ts",
-  ),
+  /* P-17 is superseded by PD-04: the sequence semantics are confirmed and approved. */
   proposed(
     "P-18",
     "Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which.",
@@ -602,6 +590,20 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "matthew",
     ["UE-OBS-004"],
     "projection.ts",
+  ),
+  proposed(
+    "P-23",
+    "Backend absolute ceilings: 200 events and 8 MiB per batch, 64 KiB per event. At or above the UE operating range, and distinct from it.",
+    "matthew",
+    ["UE-OBS-006"],
+    "client-config.ts",
+  ),
+  proposed(
+    "P-24",
+    "Property keys may not shadow an envelope field name, so a caller cannot build a second unauthoritative ordering beside the real one.",
+    "matthew",
+    ["UE-OBS-005"],
+    "ingestion.ts",
   ),
   proposed(
     "P-22",
@@ -665,20 +667,8 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     [],
     "credential.ts",
   ),
-  open(
-    "O-12",
-    "The numeric limit values, pending measurement on real showroom hardware.",
-    "akhilesh",
-    ["UE-OBS-006"],
-    "limits.ts",
-  ),
-  open(
-    "O-13",
-    "What protection is applied at rest to the persisted source credential, and whether a platform-appropriate protected store is practical for V1.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-003"],
-    "credential.ts",
-  ),
+  /* O-12 is closed by PD-03 (client values) and P-23 (the backend ceiling). */
+  /* O-13 is closed by PD-06, on the evidence in U-18 and U-19. */
   open(
     "O-14",
     "The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits.",
@@ -692,6 +682,21 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "matthew_and_akhilesh",
     ["UE-OBS-007"],
     "ingestion.ts",
+  ),
+
+  open(
+    "O-16",
+    "The exact semantics of Max Retry Attempts. Modelled as an attempt/backoff bound; it must never mean deletion, and exhausting it preserves the event.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-006"],
+    "outbox.ts",
+  ),
+  open(
+    "O-17",
+    "Endpoint naming: the UE settings configure /functions/v1/activate and /ingest; the contract proposes /observer-activate and /observer-ingest. Not to be resolved silently.",
+    "matthew_and_akhilesh",
+    ["UE-OBS-007"],
+    "openapi.ts",
   ),
 
   /* ------------------------------------- UE_IMPLEMENTATION_CONFIRMED */
@@ -763,6 +768,67 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "docs",
   ),
 
+  ueConfirmed(
+    "U-13",
+    "Project Settings configure Batch Size = 25 and Flush Interval Seconds = 5.0.",
+    "UE-OBS-006 settings",
+    "client-config.ts",
+  ),
+  ueConfirmed(
+    "U-14",
+    "The maximum single event payload is 64 KiB.",
+    "UE-OBS-006 settings",
+    "client-config.ts",
+  ),
+  ueConfirmed(
+    "U-15",
+    "The durable outbox has a 50 MB disk ceiling and lives at Saved/Observer/Outbox/.",
+    "UE-OBS-006 settings",
+    "client-config.ts",
+  ),
+  ueConfirmed(
+    "U-16",
+    "StartSession() mints a fresh session_id and resets the counter; the first emitted session event carries 1; stamping is central; Blueprint callers cannot override it.",
+    "UE-OBS-004",
+    "ingestion.ts",
+  ),
+  ueConfirmed(
+    "U-17",
+    "The proposed 401/403 pause-and-preserve behaviour is practical and intended on the UE side.",
+    "UE-OBS-006",
+    "outbox.ts",
+  ),
+  ueConfirmed(
+    "U-18",
+    "Development builds persist the credential as plain JSON at Saved/Observer/source_credential.json.",
+    "UE-OBS-003",
+    "credential.ts",
+  ),
+  ueConfirmed(
+    "U-19",
+    "The production Windows plan is Windows DPAPI: no hard-coded key in the binary, compatible with crash recovery, surviving ordinary updates.",
+    "UE-OBS-003",
+    "credential.ts",
+  ),
+  ueConfirmed(
+    "U-20",
+    "Endpoints, environment, app version, build id, batch size, flush interval, queue disk size, retry attempts, consent and debug logging are all configurable in Project Settings without a C++ edit.",
+    "UE-OBS-001",
+    "client-config.ts",
+  ),
+  ueConfirmed(
+    "U-21",
+    "The configured endpoints are https://observer.madspace.io/functions/v1/activate and /ingest, which differ from the contract's proposed names.",
+    "UE-OBS-001 settings",
+    "openapi.ts",
+  ),
+  ueConfirmed(
+    "U-22",
+    "Max Retry Attempts is configured to 5. Its exact semantics are not yet stated.",
+    "UE-OBS-006 settings",
+    "outbox.ts",
+  ),
+
   /* -------------------------------------------- DECIDED_BY_PRODUCT */
   decided(
     "PD-01",
@@ -775,6 +841,43 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise.",
     "Matthew, 2026-09-01, on the evidence in U-03",
     "docs",
+  ),
+
+  decided(
+    "PD-03",
+    "V1 client delivery defaults are adopted: 25 events per batch, a 5 second flush, a 64 KiB event cap and a 50 MB outbox ceiling, with a supported batch range of 25-50.",
+    "Matthew, 2026-09-01, on the evidence in U-13, U-14 and U-15",
+    "client-config.ts",
+  ),
+  decided(
+    "PD-04",
+    "Every session-scoped event carries a subsystem-generated monotonic sequence starting at 1; Blueprint callers cannot supply it; non-session events carry null; and 0 never represents a real emitted event.",
+    "Matthew, 2026-09-01, on the evidence in U-16. Supersedes P-17",
+    "ingestion.ts",
+  ),
+  decided(
+    "PD-05",
+    "On 401 or 403 the plugin pauses delivery, preserves the whole outbox, continues bounded local capture, surfaces an operator-visible state, and never reactivates automatically.",
+    "Matthew, 2026-09-01, on the evidence in U-17",
+    "outbox.ts",
+  ),
+  decided(
+    "PD-06",
+    "A production package may not persist a plaintext credential. Windows DPAPI is the approved platform mechanism; the contract is stated as a persistence abstraction, and no backend logic depends on it.",
+    "Matthew, 2026-09-01, on the evidence in U-18 and U-19",
+    "credential.ts",
+  ),
+  decided(
+    "PD-07",
+    "The outbox ceiling is enforced by bytes actually used. The ~50,000 event / one week figure is an expected operational capacity at typical event sizes, never a worst-case guarantee.",
+    "Matthew, 2026-09-01",
+    "client-config.ts",
+  ),
+  decided(
+    "PD-08",
+    "Operational configuration must remain changeable without editing plugin C++. Defaults may live in code; the deployment is authoritative within server-approved bounds, and a stricter server value always wins.",
+    "Matthew, 2026-09-01, on the evidence in U-20",
+    "client-config.ts",
   ),
 
   /* ------------------------------------------------------------- MOCK_ONLY */

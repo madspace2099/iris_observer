@@ -1,9 +1,9 @@
 # UE5 integration handoff — what to build against
 
-**For:** Akhilesh · **From:** Observer backend · **Updated:** 2026-09-01
+**For:** Akhilesh · **From:** Observer backend · **Updated:** 2026-09-01 (second pass, after your UE-OBS-001..004 report and settings)
 **Contract:** `1.0.0-candidate.1` — **PROPOSED**, not yet implemented
 **Machine-readable:** `docs/ue5-contract/openapi.json`, `schemas/*.json`
-**For the two packages you are starting:** [`validation-order.md`](ue5-contract/validation-order.md) · [`outbox-states.md`](ue5-contract/outbox-states.md)
+**For the two packages you are building:** [`validation-order.md`](ue5-contract/validation-order.md) · [`outbox-states.md`](ue5-contract/outbox-states.md) · [`v1-settings.md`](ue5-contract/v1-settings.md)
 **Runnable mock:** `pnpm ue5:mock` (loopback only, no database, no network)
 
 This document is meant to be enough on its own. You should not have to read our TypeScript,
@@ -197,6 +197,10 @@ resending the same events under a new `batch_id` is fine and expected.
 The full generated specification is [`validation-order.md`](ue5-contract/validation-order.md).
 This is the shape of it.
 
+**Validation runs before durable queue admission.** An event that fails locally never enters the
+outbox: it would have been quarantined server-side anyway, and catching it here turns a round trip
+into an assertion at the call site. Count it, name it on the diagnostic screen, and fix the caller.
+
 **Three stages, and the split decides what you can do.**
 
 | Stage        | Runs where  | Why                                                                                     |
@@ -210,7 +214,7 @@ This is the shape of it.
 | #   | Step                             | Rejection             |
 | --- | -------------------------------- | --------------------- |
 | 1   | nesting depth                    | `event_too_large`     |
-| 2   | serialised size                  | `event_too_large`     |
+| 2   | serialised size — **64 KiB**     | `event_too_large`     |
 | 3   | envelope shape                   | `malformed_event`     |
 | 4   | session and sequence consistency | `malformed_event`     |
 | 5   | schema version range             | `unsupported_version` |
@@ -270,17 +274,58 @@ control is the per-event schema registry, which whitelists property keys by name
 later milestone; until it exists, this is what stands between a payload and a person's
 email address.
 
-### 4.3 What a locally-rejected event does
+### 4.3 The size number is now real
 
-It never enters the outbox. Count it, name it on the diagnostic screen, and fix the caller.
-An event that fails locally would have been quarantined server-side anyway; catching it here
-turns a round trip into an assertion at the call site.
+`max_event_bytes` is **65536**, on both sides. It is inclusive: an event of exactly 64 KiB is
+accepted, and 64 KiB plus one byte is `event_too_large`. Both boundaries have a test.
+
+One caution worth a minute of your time: your serialisation and ours may differ by a few bytes on
+the same event — key order, whitespace, escaping. If you validate at exactly 65536 locally and we
+measure a slightly larger body, an event you passed could still be refused. Leaving a small margin
+locally costs nothing and avoids a class of confusing rejection.
+
+**An event is never split.** Splitting either invents a second `event_id` — breaking idempotency —
+or reuses the first, producing two facts from one. `event_too_large` is a producer bug.
 
 ---
 
 ## 5. UE-OBS-006 — the durable outbox
 
-The full generated specification is [`outbox-states.md`](ue5-contract/outbox-states.md).
+The full generated specification is [`outbox-states.md`](ue5-contract/outbox-states.md), and the
+numbers are in [`v1-settings.md`](ue5-contract/v1-settings.md).
+
+### 5.0 The confirmed V1 parameters
+
+|                       | Value                    |
+| --------------------- | ------------------------ |
+| directory             | `Saved/Observer/Outbox/` |
+| disk ceiling          | 50 MB (`52428800`)       |
+| default batch         | 25 events                |
+| supported batch range | 25–50 events             |
+| normal flush          | every 5 s                |
+| event cap             | 64 KiB (`65536`)         |
+
+**Three numbers that look like one.** The client _default_ is 25. The client _range_ is 25–50 — what
+an operator may configure without a code change. The _backend ceiling_ is a third number, proposed at
+200 events and 8 MiB, and deliberately above your range so that turning a legitimate dial never
+produces a `413`. Where a server-stated limit is stricter than your configured one, **the stricter
+wins**.
+
+**Capacity, stated carefully.** 50 MB is the ceiling. Roughly 50,000 events — about a week offline —
+is an _expected_ capacity at typical event sizes. It is not a guarantee: at the 64 KiB cap the same
+50 MB holds **800** events. So the ceiling must be enforced by **bytes actually used**, never by an
+assumed event count — a count-based limit would overrun the disk budget by roughly sixty times
+exactly when a showroom is producing the most.
+
+**Diagnostics to expose:** bytes used, event count, oldest pending event age, and the configured
+ceiling — the last so the fill percentage can be computed rather than asserted. The heartbeat carries
+all four (`queue.bytes_ceiling` is new).
+
+**When capacity is reached:** do not discard silently. Record a **counted** safe failure and surface
+the condition. The counter records that admission failed; it never records the event, because a
+capacity log that quoted payloads would be a payload store with no size limit of its own. And do not
+create an unbounded queue — an analytics buffer that fills a showroom PC's disk has caused a worse
+problem than the one it was solving.
 
 ### 5.1 The rule everything else follows from
 
@@ -380,9 +425,9 @@ producer bug. Splitting a _batch_ is fine and is what `413` asks for.
 - Quarantined events survive with their reason. A restart is not a way to clear them.
 - An event in flight when the process died returns as `pending`, never as delivered.
 
-### 5.8 After `401` or `403` — still PROPOSED
+### 5.8 After `401` or `403` — **approved V1 behaviour**
 
-Not yet confirmed against your implementation, so it stays a proposal:
+Confirmed by you as practical and intended, so this is contract now rather than a proposal:
 
 1. Stop network delivery.
 2. **Retain the outbox in full.** The events are not the problem.
@@ -392,9 +437,17 @@ Not yet confirmed against your implementation, so it stays a proposal:
    distinct — the operator's remedy differs: reactivate, versus resume the source.
 5. Never reactivate automatically.
 
-Rule 2 is the one that gets omitted in a hurry and costs the most. A plugin that clears its
-outbox on an authorisation failure turns a five-minute operator task into permanent data
-loss, silently.
+Rule 2 is the one that gets omitted in a hurry and costs the most. A plugin that clears its outbox on
+an authorisation failure turns a five-minute operator task into permanent data loss, silently.
+
+`Analytics Offline / Reactivation Needed` is a good showroom-facing string for the `401` case.
+Reactivation is an administrator entering a **newly issued** activation code — there is no automatic
+path, and that is what makes revoking a leaked build meaningful.
+
+**Reactivation changes authentication material, not identity.** Queued events keep their `event_id`,
+keep the source they were captured for, and replay safely: whatever reached us before the credential
+was revoked comes back `duplicate`, and whatever did not comes back `accepted`. There is a test that
+drives exactly that sequence end to end.
 
 ### 5.9 The retry case that matters most
 
@@ -407,6 +460,18 @@ either way.
 
 The mock reproduces both branches on demand — `drop_before_processing` and
 `drop_after_processing` — and from your side they are indistinguishable, which is the point.
+
+### 5.9a `Max Retry Attempts = 5` — what it is not
+
+It is a **delivery-attempt and backoff configuration**. It is **not** an event-retention limit.
+
+The obvious reading — five failures and the event is deleted — would void everything above in exactly
+the circumstances the outbox exists for: a showroom offline all afternoon fails far more than five
+times before anyone notices. Exhausting the configured sequence preserves the event and surfaces the
+condition; the only things that ever remove an event are an explicit acknowledgement and an explicit
+non-retryable rejection.
+
+Tell us what it actually bounds in your implementation and we will write it down properly (OPEN-16).
 
 ### 5.10 Backoff
 
@@ -532,7 +597,7 @@ counts, the oldest pending timestamp, the last error code, and the clock differe
 
 ---
 
-## 9. Five places what you have built may not parse
+## 9. Six places what you have built may not parse
 
 Each has a test in `packages/contracts/test/ue5/ue-compatibility.test.ts` demonstrating the
 exact refusal. None is a complaint; each is a decision that should be taken deliberately
@@ -564,51 +629,73 @@ machine, the second because it was the only field able to carry a person's name 
 operational store. `installation_nonce` replaced the first; a server-authored
 `display_label` replaced the second.
 
+**6. Endpoint naming.** Your settings configure
+`https://observer.madspace.io/functions/v1/activate` and `/ingest`; the contract publishes
+`/observer-activate` and `/observer-ingest`. **Neither of us should pick this alone**, so
+nothing has been changed in either direction and no production routing is being built around
+either name. The endpoint is configurable in UE and both URLs come back from activation, so
+this blocks nothing today — it just needs deciding before the Edge Functions exist. The host
+is a separate, uncontroversial deployment detail.
+
+**A seventh, in your favour.** Property keys may no longer shadow an envelope field name —
+`event_id`, `event_name`, `schema_version`, `occurred_at`, `session_id`, `sequence`. If any
+current payload uses one of those as a property, rename it (`step_index` rather than
+`sequence`). The point is to stop a caller building a second, unauthoritative ordering
+beside the real one.
+
 ---
 
 ## 10. What is still open — and none of it blocks you
 
 | Item                                | Effect on your work                                                                                     |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Limit **values** (all `null` today) | Apply your own defaults; obey a server value when one arrives. We need your measurements.               |
+| Backend ceiling (proposed, not set) | Your 25–50 range sits well inside it. A server value only ever tightens what you send.                  |
 | Clock acceptance window             | Nothing is rejected for its timestamp today; you may see a `late_arrival` or `future_skew` **warning**. |
 | Event name catalogue                | Names are not fixed. Build the envelope, not the catalogue.                                             |
 | Analytics and idempotency retention | No effect on the wire.                                                                                  |
 | Credential internals                | No effect: the token is opaque to you either way.                                                       |
-| Credential protection **at rest**   | A real follow-up on UE-OBS-003 — see §11.                                                               |
 | Platform matrix beyond UE 5.6       | Your call to make, and we need it.                                                                      |
+
+**Closed since the last version:** the legacy database, sequence feasibility _and_ semantics,
+credential-at-rest, the limit values, and the 401/403 behaviour. All six are now recorded
+decisions rather than questions.
 
 ---
 
 ## 11. What we need from you
 
-Five questions. The legacy analytics question is **closed** — thank you; it is recorded and
-will not be asked again.
+Five questions, all narrow. **Six have closed** on your last two answers — the legacy
+database, sequence feasibility, sequence semantics, credential-at-rest, the limit values and
+the 401/403 behaviour. Thank you; none of those will be asked again.
 
-1. **Credential at rest.** `Saved/Observer/source_credential.json` is a perfectly reasonable
-   place to keep it, and JSON is not the problem. The question is what protection is applied
-   to the contents: is the token plaintext in that file, and does UE 5.6 on Windows give us a
-   practical protected store (DPAPI, Credential Manager, or similar) worth using for V1? The
-   architecture already accepts that a packaged secret is ultimately extractable, so this is
-   not about impossible secrecy — it is about not leaving it in the clearest possible form
-   when a cheap improvement exists. What must hold either way: source-scoped, revocable,
-   rotatable, never source-controlled, never logged, narrow authority, operator-visible
-   unauthorised state, revocation effective on the next request.
-
-2. **Event identifier.** Does `FObserverEvent` serialise the identifier hyphenated, and does
+1. **Event identifier.** Does `FObserverEvent` serialise the identifier hyphenated, and does
    it carry RFC 4122 version and variant bits? If UE cannot guarantee the latter, say so and
    we will relax the contract to "any canonical 128-bit identifier" — that is a decision we
-   can make, but not one we should assume.
+   can make, but not one we should assume. This is the one most likely to bite on the first
+   real request, because a non-conforming identifier is refused roughly three times in four,
+   at random.
 
-3. **Field naming.** Does the envelope serialise as `event_id` or as `eventId`?
+2. **Field naming.** Does the envelope serialise as `event_id` or as `eventId`?
 
-4. **Sequence semantics.** Three specifics: is it mandatory for every session-scoped event,
-   can a Blueprint caller override or manage it, and what happens to the counter when a new
-   `session_id` starts?
+3. **Retry attempts.** What does `Max Retry Attempts = 5` actually bound in your
+   implementation? We have modelled it as a delivery-attempt and backoff configuration, and
+   written down explicitly that exhausting it **preserves** the event. If it currently means
+   something closer to "give up on this event", that is worth catching now.
 
-5. **Platform matrix and limits.** What targets beyond Windows kiosk on UE 5.6, and what
-   batch, event and outbox ceilings are realistic on the actual showroom hardware and
-   connection?
+4. **Endpoint naming.** `/activate` and `/ingest`, or `/observer-activate` and
+   `/observer-ingest`? Both are fine; picking one unilaterally is not. Tell us which you would
+   rather have baked into the defaults and we will make the contract match.
+
+5. **Platform matrix.** What targets beyond Windows kiosk on UE 5.6? This is the last thing
+   holding the credential-at-rest policy to Windows only — DPAPI is approved there, and no
+   mechanism is approved anywhere else because nothing else is committed to yet.
+
+**One thing to be aware of rather than answer.** Development builds keeping the credential as
+plain JSON is fine and expected. What the contract now refuses is a _production package_
+configured that way — `verifyCredentialStore()` fails it — because plaintext lowers the bar
+from "extract a secret from a packaged binary" to "read a file". DPAPI is the approved
+Windows mechanism, and it does not make the credential unextractable; nothing here assumes it
+does.
 
 ---
 

@@ -48,6 +48,14 @@ export const OutboxHealthSchema = z.strictObject({
   /** Bytes the outbox occupies on disk. */
   bytes_used: z.int().min(0),
   /**
+   * The configured disk ceiling, so an operator can see the fill percentage.
+   *
+   * Reported alongside `bytes_used` rather than as a precomputed percentage,
+   * because two numbers that can be checked beat one that cannot. Null when the
+   * deployment states no ceiling.
+   */
+  bytes_ceiling: z.int().min(0).nullable(),
+  /**
    * Events dropped because a local queue ceiling was reached.
    *
    * Reported rather than hidden. LOCKED §5.4 forbids silent discard, and a
@@ -57,6 +65,17 @@ export const OutboxHealthSchema = z.strictObject({
   dropped_events: z.int().min(0),
 });
 export type OutboxHealth = z.infer<typeof OutboxHealthSchema>;
+
+/**
+ * How full the outbox is, as a percentage of its configured ceiling.
+ *
+ * Null when no ceiling is configured — which is honest, and better than the
+ * alternative of reporting `0%` for a queue whose limit nobody set.
+ */
+export function outboxFillPercent(queue: OutboxHealth): number | null {
+  if (queue.bytes_ceiling === null || queue.bytes_ceiling === 0) return null;
+  return (queue.bytes_used / queue.bytes_ceiling) * 100;
+}
 
 export const LastErrorSchema = z.strictObject({
   /** A contract code, request-level or event-level. Never free text. */

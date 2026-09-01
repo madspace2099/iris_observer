@@ -58,6 +58,24 @@ export const RESERVED_PROPERTY_KEYS = [
   "ingested_at",
   "received_at",
   "server_time",
+  /*
+   * The envelope owns these names, so a property may not shadow one.
+   *
+   * `sequence` is the reason this group exists. The subsystem stamps it centrally
+   * and Blueprint callers cannot reach it — which is the guarantee — but nothing
+   * stopped a caller putting its own `sequence` in `properties` and building a
+   * second, unauthoritative ordering beside the real one. A read model would then
+   * have two answers to the same question, and no way to tell which was meant.
+   *
+   * The cost is that a payload wanting an unrelated `sequence` has to call it
+   * something else. `step_index` is a better name anyway.
+   */
+  "event_id",
+  "event_name",
+  "schema_version",
+  "occurred_at",
+  "session_id",
+  "sequence",
 ] as const;
 
 /**
@@ -134,6 +152,12 @@ export const EventEnvelopeSchema = z.strictObject({
    * precisely because OPEN-3 leaves clock trust deliberately weak. Null exactly
    * when `session_id` is null. Gaps are permitted and informative — a gap means
    * an event was quarantined, and diagnostics should say so.
+   *
+   * **The minimum is 1, and that is load-bearing.** `StartSession()` resets the
+   * counter to 0 and the first emitted event is 1, so a `0` on the wire means the
+   * counter was read before it was incremented. Accepting it would place that
+   * event before every real event in its session, for ever, in a way no read
+   * model could detect. See `SESSION_SEQUENCE_RULES`.
    */
   sequence: z.int().min(1).max(2_147_483_647).nullable(),
 
@@ -145,6 +169,37 @@ export const EventEnvelopeSchema = z.strictObject({
   properties: z.record(z.string(), z.unknown()),
 });
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
+
+/* ======================================================== session sequence */
+
+/**
+ * SESSION SEQUENCE — approved V1 behaviour, no longer a proposal.
+ *
+ * Akhilesh confirmed the subsystem's semantics, so the question is settled and
+ * is recorded here rather than argued again: `StartSession()` mints a fresh
+ * `session_id` and resets the counter, the first emitted session event carries
+ * `1`, stamping happens centrally, and a Blueprint caller cannot reach it.
+ *
+ * The rule that reads like pedantry and is not: **`sequence = 0` never
+ * represents a real emitted session event.** The counter resets to zero and the
+ * first event is one, so a zero on the wire means somebody read the counter
+ * before incrementing it. Accepting it would sort that event ahead of every
+ * genuine event in its session, permanently, and nothing downstream could tell.
+ *
+ * And one thing sequence does **not** mean: arrival order. A durable outbox
+ * delivers late and out of order by design — that is the point of it — so a
+ * server that assumed `sequence` matched receipt order would be wrong on the
+ * first reconnection after an outage.
+ */
+export const SESSION_SEQUENCE_RULES: readonly string[] = Object.freeze([
+  "StartSession() creates a fresh session_id and resets the internal counter.",
+  "The first event of a session carries sequence = 1.",
+  "Subsequent session events increment monotonically.",
+  "Stamping is performed centrally by the subsystem; Blueprint callers cannot supply or override it.",
+  "Non-session events carry sequence = null.",
+  "sequence = 0 never represents a real emitted session event.",
+  "Arrival order is not sequence order: durable delivery is late and out of order by design.",
+]);
 
 /* ========================================================== batch envelope */
 

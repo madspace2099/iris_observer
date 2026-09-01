@@ -132,6 +132,109 @@ export const UNAUTHORISED_RULES: readonly string[] = Object.freeze([
   "Never log the token, on failure least of all.",
 ]);
 
+/* ============================================== persistence, at rest */
+
+/**
+ * THE CREDENTIAL PERSISTENCE ABSTRACTION — behaviour, not platform.
+ *
+ * Four operations, and the contract is expressed in terms of them rather than in
+ * terms of any particular store. Windows DPAPI is the approved mechanism for the
+ * initial Windows implementation; it is **an implementation of this interface,
+ * not the interface**. Other platforms wait on the platform matrix, and nothing
+ * on the backend may depend on which one is in use — the token is opaque, and how
+ * a client keeps it is the client's business right up until it is plaintext.
+ */
+export const CREDENTIAL_PERSISTENCE_OPERATIONS = [
+  "SaveCredential",
+  "LoadCredential",
+  "DeleteCredential",
+  "ReplaceCredential",
+] as const;
+export type CredentialPersistenceOperation = (typeof CREDENTIAL_PERSISTENCE_OPERATIONS)[number];
+
+export const CREDENTIAL_STORE_MODES = [
+  /** Plain JSON on disk. The current development state, and only that. */
+  "plaintext_development",
+  /** Encrypted by a platform-provided mechanism with no key in the binary. */
+  "platform_protected",
+] as const;
+export type CredentialStoreMode = (typeof CREDENTIAL_STORE_MODES)[number];
+
+/**
+ * The approved platform mechanism, per platform.
+ *
+ * Windows is answered. Everything else is deliberately absent rather than
+ * guessed: the platform matrix is still open, and inventing a macOS Keychain
+ * requirement for a platform nobody has committed to shipping on would be
+ * inventing work.
+ */
+export const PLATFORM_PROTECTED_MECHANISM: Readonly<Record<string, string>> = Object.freeze({
+  windows: "Windows DPAPI",
+});
+
+/**
+ * What DPAPI does and does not buy, stated so nobody oversells it later.
+ *
+ * It removes a hard-coded key from the binary and encrypts the credential at
+ * rest with protection the OS manages, which meaningfully raises the bar: a
+ * backup, a shared machine or a support engineer with filesystem access no longer
+ * hands over a working token. That is a real improvement over plain JSON and it
+ * is worth doing.
+ *
+ * **It does not make the credential unextractable**, and the architecture never
+ * assumed it would. Anything the application can decrypt, code running as that
+ * user can decrypt. Security continues to rest on the same eight properties it
+ * always did — source scope, narrow authority, revocation, rotation, rate
+ * limiting, monitoring, no direct table access, and an operator-visible
+ * unauthorised state.
+ */
+export const CREDENTIAL_AT_REST_CAVEAT =
+  "Platform protection raises the bar against filesystem access. It does not make the " +
+  "credential unextractable, and no part of this contract depends on it doing so.";
+
+export interface CredentialStorePolicy {
+  readonly environment: "production" | "staging" | "development";
+  readonly mode: CredentialStoreMode;
+  readonly platform: string;
+}
+
+export type CredentialStoreVerdict =
+  { readonly ok: true } | { readonly ok: false; readonly refusal: string };
+
+/**
+ * The packaging gate: **a production package may not persist a plaintext
+ * credential.**
+ *
+ * Plain JSON is a perfectly reasonable development state and is not being
+ * criticised as one. What it must never be is shipped: it lowers the bar from
+ * "extract it from a packaged binary" to "read a file", and those are not the
+ * same threat however similar they sound.
+ *
+ * A function rather than a paragraph, because a paragraph is not something a
+ * packaging step can fail on.
+ */
+export function verifyCredentialStore(policy: CredentialStorePolicy): CredentialStoreVerdict {
+  if (policy.environment !== "production") return { ok: true };
+  if (policy.mode === "plaintext_development") {
+    return {
+      ok: false,
+      refusal:
+        "PLAINTEXT CREDENTIAL: a production package may not persist the source credential in " +
+        "plain text. Configure the platform-protected store for this platform.",
+    };
+  }
+  const mechanism = PLATFORM_PROTECTED_MECHANISM[policy.platform.toLowerCase()];
+  if (mechanism === undefined) {
+    return {
+      ok: false,
+      refusal:
+        `NO APPROVED MECHANISM: platform-protected storage is required in production, and no ` +
+        `mechanism is approved for "${policy.platform}". The platform matrix is still open.`,
+    };
+  }
+  return { ok: true };
+}
+
 /**
  * The security properties an implementation must provide. PROPOSED.
  *

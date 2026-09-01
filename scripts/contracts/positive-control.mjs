@@ -134,6 +134,64 @@ const MUTATIONS = [
     replace: "  if (depth > 1_000_000) {",
     targets: [CONTRACT_TESTS],
   },
+  {
+    id: "event-cap-raised-above-64k",
+    defect: "Raise the per-event ceiling above the approved 64 KiB.",
+    breaks: "PD-03 — 64 KiB is the approved V1 cap on both sides, and a gap helps nobody.",
+    file: "packages/contracts/src/ue5/client-config.ts",
+    find: "  maxEventBytes: 65_536,",
+    replace: "  maxEventBytes: 131_072,",
+    targets: [CONTRACT_TESTS],
+  },
+  {
+    id: "caller-controlled-sequence",
+    defect: "Let a caller set its own `sequence` inside event properties.",
+    breaks:
+      "PD-04 — a second, unauthoritative ordering beside the real one, leaving a read model " +
+      "with two answers to the same question.",
+    file: "packages/contracts/src/ue5/ingestion.ts",
+    find: '  "session_id",\n  "sequence",\n] as const;',
+    replace: '  "session_id",\n] as const;',
+    targets: [CONTRACT_TESTS],
+  },
+  {
+    id: "401-discards-the-outbox",
+    defect: "Let a 401 erase the queued events instead of retaining them.",
+    breaks:
+      "PD-05 and LOCKED §5.5 — the events are not the problem. This turns a five-minute " +
+      "operator task into permanent data loss.",
+    file: "packages/contracts/src/ue5/outbox.ts",
+    find: '    return verdict("quarantined", policy.sending, "the request itself was wrong");',
+    replace:
+      '    return verdict("quarantined", policy.sending, "the request itself was wrong", true);',
+    targets: [CONTRACT_TESTS],
+  },
+  {
+    id: "retry-exhaustion-deletes",
+    defect: "Delete an event once its retry attempts are exhausted.",
+    breaks:
+      "The durable outbox contract, in exactly the circumstances it exists for: a showroom " +
+      "offline all afternoon fails far more than five times.",
+    file: "packages/contracts/src/ue5/outbox.ts",
+    find:
+      '    "the configured attempt sequence is exhausted; the event is preserved and surfaced, never erased",\n' +
+      "  );",
+    replace:
+      '    "the configured attempt sequence is exhausted; the event is preserved and surfaced, never erased",\n' +
+      "    true,\n  );",
+    targets: [CONTRACT_TESTS],
+  },
+  {
+    id: "plaintext-marked-production-safe",
+    defect: "Allow a production package to persist a plaintext credential.",
+    breaks:
+      "PD-06 — it lowers the bar from extracting a secret out of a packaged binary to reading " +
+      "a file, and those are different threats.",
+    file: "packages/contracts/src/ue5/credential.ts",
+    find: '  if (policy.mode === "plaintext_development") {',
+    replace: "  if (false) {",
+    targets: [CONTRACT_TESTS],
+  },
 ];
 
 const sha = (text) => createHash("sha256").update(text, "utf8").digest("hex");

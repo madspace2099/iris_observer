@@ -96,8 +96,8 @@ acknowledgement, and a connection dying mid-response is not an acknowledgement.
 Still a proposal: the operational and UX side has not been confirmed on the UE side. The
 second line is the one that is not negotiable — the events were never the problem.
 
-- Stop network delivery.
-- Retain the outbox in full.
-- Continue bounded local capture, so an authorisation problem does not also become a data gap.
-- Surface the unauthorised state as an operator-visible diagnostic, with 401 and 403 distinct.
-- Never reactivate automatically.
+- Immediately pause network delivery. Do not keep calling the backend.
+- Preserve the entire durable outbox.
+- Continue bounded local capture up to the configured queue limits, so an authorisation problem does not also become a data gap.
+- Expose an operator-visible state, distinguishing 401 (credential rejected, reactivation required) from 403 (source suspended).
+- Never reactivate automatically. Reactivation requires an administrator entering a newly issued activation code.

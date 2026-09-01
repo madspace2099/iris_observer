@@ -96,6 +96,23 @@ describe("the scanner catches what it is aimed at", () => {
     expect(findings).toEqual([{ path: "share.recipients[0].to", kind: "email" }]);
   });
 
+  it("scans a maximum-size value without backtracking into next week", () => {
+    /*
+     * A regression guard on a real defect. The email pattern was unbounded, so a
+     * long value with no `@` made it quadratic — the engine consumed to the end
+     * from every start position and backtracked. A 64 KB property, which is the
+     * approved event cap and therefore entirely legal, took 3.4 seconds to scan.
+     * That is a denial of service inside the privacy guard.
+     *
+     * The bound is deliberately loose: the failure was three and a half seconds,
+     * so anything under a quarter of one is comfortably fixed without making
+     * this test sensitive to a slow machine.
+     */
+    const started = performance.now();
+    expect(scanForForbiddenContent({ blob: "x".repeat(65_536) })).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(250);
+  });
+
   it("survives a payload built with a cycle in it", () => {
     const cyclic: Record<string, unknown> = { name: "unit" };
     cyclic["self"] = cyclic;

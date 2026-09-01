@@ -14,13 +14,13 @@ document once said it would.
 | --- | --- |
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
-| `UE_IMPLEMENTATION_CONFIRMED` | 12 |
-| `DECIDED_BY_PRODUCT` | 2 |
-| `PROPOSED` | 22 |
+| `UE_IMPLEMENTATION_CONFIRMED` | 22 |
+| `DECIDED_BY_PRODUCT` | 8 |
+| `PROPOSED` | 23 |
 | `OPEN` | 14 |
 | `MOCK_ONLY` | 3 |
 
-**Total:** 98
+**Total:** 115
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -98,6 +98,16 @@ table exists to prevent.
 | `U-10` | Monotonic sequencing is implemented in the V2 event engine. | — | akhilesh | — | `ingestion.ts` |
 | `U-11` | JSON serialisation and deserialisation of the event envelope roundtrips inside Unreal. | — | akhilesh | — | `ingestion.ts` |
 | `U-12` | The legacy InsightAnalytics database holds only prototype snapshot blobs in user_sessions and global_analytics, written during Job 1 proof-of-concept testing. No live client analytics. | — | akhilesh | — | `docs` |
+| `U-13` | Project Settings configure Batch Size = 25 and Flush Interval Seconds = 5.0. | — | akhilesh | — | `client-config.ts` |
+| `U-14` | The maximum single event payload is 64 KiB. | — | akhilesh | — | `client-config.ts` |
+| `U-15` | The durable outbox has a 50 MB disk ceiling and lives at Saved/Observer/Outbox/. | — | akhilesh | — | `client-config.ts` |
+| `U-16` | StartSession() mints a fresh session_id and resets the counter; the first emitted session event carries 1; stamping is central; Blueprint callers cannot override it. | — | akhilesh | — | `ingestion.ts` |
+| `U-17` | The proposed 401/403 pause-and-preserve behaviour is practical and intended on the UE side. | — | akhilesh | — | `outbox.ts` |
+| `U-18` | Development builds persist the credential as plain JSON at Saved/Observer/source_credential.json. | — | akhilesh | — | `credential.ts` |
+| `U-19` | The production Windows plan is Windows DPAPI: no hard-coded key in the binary, compatible with crash recovery, surviving ordinary updates. | — | akhilesh | — | `credential.ts` |
+| `U-20` | Endpoints, environment, app version, build id, batch size, flush interval, queue disk size, retry attempts, consent and debug logging are all configurable in Project Settings without a C++ edit. | — | akhilesh | — | `client-config.ts` |
+| `U-21` | The configured endpoints are https://observer.madspace.io/functions/v1/activate and /ingest, which differ from the contract's proposed names. | — | akhilesh | — | `openapi.ts` |
+| `U-22` | Max Retry Attempts is configured to 5. Its exact semantics are not yet stated. | — | akhilesh | — | `outbox.ts` |
 
 ## DECIDED_BY_PRODUCT
 
@@ -105,6 +115,12 @@ table exists to prevent.
 | --- | --- | --- | --- | --- | --- |
 | `PD-01` | Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics. | — | product | — | `docs` |
 | `PD-02` | The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise. | — | product | — | `docs` |
+| `PD-03` | V1 client delivery defaults are adopted: 25 events per batch, a 5 second flush, a 64 KiB event cap and a 50 MB outbox ceiling, with a supported batch range of 25-50. | — | product | — | `client-config.ts` |
+| `PD-04` | Every session-scoped event carries a subsystem-generated monotonic sequence starting at 1; Blueprint callers cannot supply it; non-session events carry null; and 0 never represents a real emitted event. | — | product | — | `ingestion.ts` |
+| `PD-05` | On 401 or 403 the plugin pauses delivery, preserves the whole outbox, continues bounded local capture, surfaces an operator-visible state, and never reactivates automatically. | — | product | — | `outbox.ts` |
+| `PD-06` | A production package may not persist a plaintext credential. Windows DPAPI is the approved platform mechanism; the contract is stated as a persistence abstraction, and no backend logic depends on it. | — | product | — | `credential.ts` |
+| `PD-07` | The outbox ceiling is enforced by bytes actually used. The ~50,000 event / one week figure is an expected operational capacity at typical event sizes, never a worst-case guarantee. | — | product | — | `client-config.ts` |
+| `PD-08` | Operational configuration must remain changeable without editing plugin C++. Defaults may live in code; the deployment is authoritative within server-approved bounds, and a stricter server value always wins. | — | product | — | `client-config.ts` |
 
 ## PROPOSED
 
@@ -126,11 +142,12 @@ table exists to prevent.
 | `P-14` | A dedicated heartbeat endpoint carries liveness and plugin health; an empty batch is not a heartbeat. | — | matthew | UE-OBS-010 | `heartbeat.ts` |
 | `P-15` | diagnostic.test in a reserved namespace proves the storage path end to end, once. | — | matthew | UE-OBS-010 | `diagnostic.ts` |
 | `P-16` | The limit field shape is contract; every value in this candidate is deliberately null. | — | matthew | UE-OBS-006 | `limits.ts` |
-| `P-17` | sequence is mandatory for every session-scoped event, cannot be overridden by a Blueprint caller, and has defined reset semantics at each new session_id. | — | matthew_and_akhilesh | UE-OBS-004, UE-OBS-009 | `ingestion.ts` |
 | `P-18` | Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which. | — | matthew | UE-OBS-005 | `validation.ts` |
 | `P-19` | The forbidden-content scan is a guardrail against accidents; the schema registry is the guarantee. | — | matthew | UE-OBS-005 | `privacy.ts` |
 | `P-20` | An empty batch is valid and processed, returning received: 0. It is not a heartbeat. | — | matthew | UE-OBS-006 | `ingestion.ts` |
 | `P-21` | SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero. | — | matthew | UE-OBS-004 | `projection.ts` |
+| `P-23` | Backend absolute ceilings: 200 events and 8 MiB per batch, 64 KiB per event. At or above the UE operating range, and distinct from it. | — | matthew | UE-OBS-006 | `client-config.ts` |
+| `P-24` | Property keys may not shadow an envelope field name, so a caller cannot build a second unauthoritative ordering beside the real one. | — | matthew | UE-OBS-005 | `ingestion.ts` |
 | `P-22` | The credential security properties an implementation must provide, stated behaviourally. | — | backend_review | UE-OBS-003 | `credential.ts` |
 
 ## OPEN
@@ -147,10 +164,10 @@ table exists to prevent.
 | `O-08` | Identity handoff: how a stable agent_id and approved visitor references enter the UE session. | — | product | UE-OBS-009 | `docs` |
 | `O-09` | The schema support window: how long old IRIS builds remain accepted. | — | matthew | — | `docs` |
 | `O-11` | Credential internals: hash or KDF, prefix scheme, lookup index. | — | backend_review | — | `credential.ts` |
-| `O-12` | The numeric limit values, pending measurement on real showroom hardware. | — | akhilesh | UE-OBS-006 | `limits.ts` |
-| `O-13` | What protection is applied at rest to the persisted source credential, and whether a platform-appropriate protected store is practical for V1. | — | matthew_and_akhilesh | UE-OBS-003 | `credential.ts` |
 | `O-14` | The exact wire representation of the UE event identifier: hyphenated canonical form, and whether it carries RFC 4122 version and variant bits. | — | matthew_and_akhilesh | UE-OBS-007 | `wire.ts` |
 | `O-15` | Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
+| `O-16` | The exact semantics of Max Retry Attempts. Modelled as an attempt/backoff bound; it must never mean deletion, and exhausting it preserves the event. | — | matthew_and_akhilesh | UE-OBS-006 | `outbox.ts` |
+| `O-17` | Endpoint naming: the UE settings configure /functions/v1/activate and /ingest; the contract proposes /observer-activate and /observer-ingest. Not to be resolved silently. | — | matthew_and_akhilesh | UE-OBS-007 | `openapi.ts` |
 
 ## MOCK_ONLY
 

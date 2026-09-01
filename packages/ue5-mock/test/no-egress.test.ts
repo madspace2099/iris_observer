@@ -75,6 +75,7 @@ describe("the backend reaches nothing", () => {
         oldest_pending_at: null,
         quarantined_events: 0,
         bytes_used: 0,
+        bytes_ceiling: 52_428_800,
         dropped_events: 0,
       },
       last_error: null,

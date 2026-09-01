@@ -7,6 +7,17 @@ import {
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "../../packages/contracts/src/ue5/errors";
 import { LOCAL_VALIDATION_ORDER } from "../../packages/contracts/src/ue5/validation";
 import {
+  CONSENT_SETTING_MEANING,
+  OUTBOX_CAPACITY_STATEMENT,
+  PROPOSED_BACKEND_CEILINGS,
+  UE_BATCH_RANGE,
+  UE_CONFIGURABLE_SETTINGS,
+  UE_OUTBOX_DIRECTORY,
+  UE_V1_CLIENT_DEFAULTS,
+  expectedEventCapacity,
+  worstCaseEventCapacity,
+} from "../../packages/contracts/src/ue5/client-config";
+import {
   EVENT_LEAVES_PENDING_DELIVERY,
   EVENT_PRESERVED_NOT_RETRIED,
   EVENT_REMAINS_LOCALLY,
@@ -62,7 +73,70 @@ export function generatedArtefacts(): Map<string, string> {
   files.set("error-model.md", errorModelMarkdown());
   files.set("validation-order.md", validationOrderMarkdown());
   files.set("outbox-states.md", outboxMarkdown());
+  files.set("v1-settings.md", settingsMarkdown());
   return files;
+}
+
+function settingsMarkdown(): string {
+  const lines: string[] = [BANNER("V1 operating parameters")];
+
+  lines.push(
+    "Three numbers that look like one, and keeping them apart is the whole point.",
+    "",
+    "| | What it is | Value |",
+    "| --- | --- | --- |",
+    `| **client default** | what the plugin ships configured to do | ${UE_V1_CLIENT_DEFAULTS.defaultBatchEvents} events, every ${UE_V1_CLIENT_DEFAULTS.flushIntervalSeconds}s |`,
+    `| **client range** | what an operator may configure, without a code change | ${UE_BATCH_RANGE.min}–${UE_BATCH_RANGE.max} events |`,
+    `| **backend ceiling** | the absolute point of refusal — **PROPOSED** | ${PROPOSED_BACKEND_CEILINGS.maxBatchEvents} events, ${(PROPOSED_BACKEND_CEILINGS.maxBatchBytes / 1_048_576).toFixed(0)} MiB |`,
+    "",
+    "Collapsing any two of those produces a `413` on a legitimate setting, or a ceiling that",
+    "cannot be enforced. The backend ceiling sits **at or above** the top of the client range,",
+    "and it is still a proposal.",
+    "",
+    "## Confirmed V1 client settings",
+    "",
+    "| Setting | Value |",
+    "| --- | --- |",
+    `| \`default_batch_events\` | ${UE_V1_CLIENT_DEFAULTS.defaultBatchEvents} |`,
+    `| \`flush_interval_seconds\` | ${UE_V1_CLIENT_DEFAULTS.flushIntervalSeconds} |`,
+    `| \`max_event_bytes\` | ${UE_V1_CLIENT_DEFAULTS.maxEventBytes} (64 KiB) |`,
+    `| \`max_local_outbox_bytes\` | ${UE_V1_CLIENT_DEFAULTS.maxLocalOutboxBytes} (50 MB) |`,
+    `| outbox directory | \`${UE_OUTBOX_DIRECTORY}\` |`,
+    "",
+    "## Capacity",
+    "",
+    `> ${OUTBOX_CAPACITY_STATEMENT}`,
+    "",
+    "| At | 50 MB holds |",
+    "| --- | --- |",
+    `| typical event sizes | about ${expectedEventCapacity().toLocaleString("en-GB")} events |`,
+    `| the 64 KiB cap | **${worstCaseEventCapacity()}** events |`,
+    "",
+    "Two orders of magnitude apart, which is why the ceiling is enforced by bytes actually used.",
+    "A queue enforcing a fixed event count would overrun its disk budget by roughly sixty times",
+    "whenever events ran large — exactly when a showroom is producing the most.",
+    "",
+    "## Configurable without a code change",
+    "",
+    "Operational configuration must not require editing plugin C++. Defaults may live in code;",
+    "the deployment is authoritative within server-approved bounds, and **a stricter server value",
+    "always wins**.",
+    "",
+  );
+  for (const setting of UE_CONFIGURABLE_SETTINGS) lines.push(`- ${setting}`);
+
+  lines.push(
+    "",
+    "## Consent",
+    "",
+    `\`Consent Given\` is ${CONSENT_SETTING_MEANING}`,
+    "",
+    "There is no consent field anywhere on the wire, and no value of it relaxes the privacy",
+    "guard. An event carrying a raw email address is rejected whether or not somebody ticked a",
+    "box in Project Settings.",
+    "",
+  );
+  return lines.join("\n");
 }
 
 const BANNER = (what: string) =>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ActivationRequestSchema } from "../../src/ue5/activation";
 import { EventEnvelopeSchema } from "../../src/ue5/ingestion";
 import { scanForForbiddenContent } from "../../src/ue5/privacy";
+import { buildOpenApiDocument } from "../../src/ue5/openapi";
 
 /**
  * THE IMPLEMENTED UE5 BEHAVIOUR, PUT THROUGH THE CONTRACT.
@@ -141,6 +142,44 @@ describe("sequence — hazard", () => {
     expect(EventEnvelopeSchema.safeParse({ ...envelope, sequence: 2_147_483_647 }).success).toBe(
       true,
     );
+  });
+});
+
+describe("endpoint naming — mismatch, deliberately unresolved", () => {
+  it("records both names without picking one", () => {
+    /*
+     * MISMATCH. The UE Project Settings configure
+     * `https://observer.madspace.io/functions/v1/activate` and `/ingest`; this
+     * contract proposes `/observer-activate` and `/observer-ingest`.
+     *
+     * Neither is picked here. The endpoint is configurable in UE, so nothing is
+     * blocked — but resolving it silently in favour of whichever document was
+     * edited last is exactly how two teams end up each certain the other agreed.
+     * OPEN-17, and the routing is not to be implemented around either name until
+     * it is settled.
+     */
+    const contractPaths = Object.keys(
+      (buildOpenApiDocument() as { paths: Record<string, unknown> }).paths,
+    );
+    const ueConfigured = ["/activate", "/ingest"];
+
+    expect(contractPaths).toContain("/observer-activate");
+    expect(contractPaths).toContain("/observer-ingest");
+    for (const configured of ueConfigured) {
+      expect(contractPaths, `${configured} is not what the contract publishes`).not.toContain(
+        configured,
+      );
+    }
+  });
+
+  it("keeps the host out of the contract, which is why this is not urgent", () => {
+    /*
+     * `observer.madspace.io` versus a Supabase project reference is a deployment
+     * detail, and the plugin takes both URLs from the activation response
+     * anyway. The path *name* is the part that has to agree.
+     */
+    const servers = (buildOpenApiDocument() as { servers: { url: string }[] }).servers;
+    expect(servers[0]?.url).toContain("{projectRef}");
   });
 });
 

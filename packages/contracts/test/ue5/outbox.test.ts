@@ -10,7 +10,9 @@ import {
   UNAUTHORISED_OUTBOX_BEHAVIOUR,
   outboxStateForEventResult,
   outboxStateForRequestFailure,
+  outboxStateAfterRetryExhaustion,
   outboxStateForTransportFailure,
+  OUTBOX_CAPACITY_RULES,
 } from "../../src/ue5/outbox";
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "../../src/ue5/errors";
 
@@ -185,12 +187,55 @@ describe("what survives a restart", () => {
   });
 });
 
-describe("after 401 or 403 — still proposed", () => {
+describe("retry attempts are not a retention limit", () => {
+  it("preserves the event when the attempt sequence is exhausted", () => {
+    /*
+     * The obvious misreading of "Max Retry Attempts = 5" — five failures and the
+     * event is deleted — would void the durable outbox contract in exactly the
+     * circumstances it exists for. A showroom offline all afternoon fails far
+     * more than five times before anybody notices.
+     */
+    const verdict = outboxStateAfterRetryExhaustion();
+    expect(verdict.state).toBe("retained");
+    expect(verdict.mayBeErased).toBe(false);
+    expect(verdict.removedFromPendingDelivery).toBe(false);
+    expect(verdict.reason).toMatch(/never erased/);
+  });
+});
+
+describe("capacity", () => {
+  it("enforces the ceiling in bytes, never by an assumed event count", () => {
+    expect(OUTBOX_CAPACITY_RULES.join(" ")).toMatch(
+      /bytes actually used, never by an assumed event count/,
+    );
+  });
+
+  it("is bounded, counted and silent about content", () => {
+    const joined = OUTBOX_CAPACITY_RULES.join(" ");
+    expect(joined).toMatch(/never allowed to grow without limit/);
+    expect(joined).toMatch(/counted and exposed through diagnostics, never silent/);
+    expect(joined).toMatch(/never the content of the event/);
+  });
+
+  it("names the four diagnostics an operator needs", () => {
+    expect(OUTBOX_CAPACITY_RULES.join(" ")).toMatch(
+      /bytes used, event count, oldest pending age, and the configured ceiling/,
+    );
+  });
+});
+
+describe("after 401 or 403 — approved V1 behaviour", () => {
   it("keeps the outbox and stops the network, without automatic recovery", () => {
     const joined = UNAUTHORISED_OUTBOX_BEHAVIOUR.join(" ");
-    expect(joined).toMatch(/Stop network delivery/);
-    expect(joined).toMatch(/Retain the outbox in full/);
+    expect(joined).toMatch(/pause network delivery/i);
+    expect(joined).toMatch(/Preserve the entire durable outbox/);
     expect(joined).toMatch(/Never reactivate automatically/);
     expect(joined).toMatch(/bounded local capture/);
+  });
+
+  it("requires an administrator with a newly issued code, not a retry loop", () => {
+    expect(UNAUTHORISED_OUTBOX_BEHAVIOUR.join(" ")).toMatch(
+      /administrator entering a newly issued activation code/,
+    );
   });
 });

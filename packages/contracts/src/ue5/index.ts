@@ -20,6 +20,7 @@
  */
 
 export * from "./wire";
+export * from "./client-config";
 export * from "./limits";
 export * from "./errors";
 export * from "./activation";

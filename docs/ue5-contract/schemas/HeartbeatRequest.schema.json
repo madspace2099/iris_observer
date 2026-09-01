@@ -71,6 +71,18 @@
           "minimum": 0,
           "maximum": 9007199254740991
         },
+        "bytes_ceiling": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "dropped_events": {
           "type": "integer",
           "minimum": 0,
@@ -82,6 +94,7 @@
         "oldest_pending_at",
         "quarantined_events",
         "bytes_used",
+        "bytes_ceiling",
         "dropped_events"
       ],
       "additionalProperties": false

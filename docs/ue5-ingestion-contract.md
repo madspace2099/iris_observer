@@ -24,8 +24,8 @@ rendered to [`ue5-contract/traceability.md`](ue5-contract/traceability.md). Test
 nothing `PROPOSED` may cite the brief, and every `DERIVED` rule must name the locked rule it follows
 from. A convenient proposal cannot quietly acquire the authority of an approved decision.
 
-**Counts:** 28 LOCKED · 17 DERIVED · **12 UE-CONFIRMED** · **2 DECIDED** · 22 PROPOSED · 14 OPEN ·
-3 MOCK-ONLY. Ninety-eight rules in all.
+**Counts:** 28 LOCKED · 17 DERIVED · **22 UE-CONFIRMED** · **8 DECIDED** · 23 PROPOSED · 14 OPEN ·
+3 MOCK-ONLY. See [`traceability.md`](ue5-contract/traceability.md) for the current table.
 
 ---
 
@@ -351,7 +351,7 @@ is "never": a client that reads it and finds `null` knows no expiry is stated, a
 introduced the value arrives in a field every build already reads, rather than in a new one that
 breaks every strict parser on the day it appears.
 
-### 6.2 Credential at rest — a concrete UE-OBS-003 follow-up, OPEN-13
+### 6.2 Credential at rest — answered, and now a packaging gate
 
 UE-OBS-003 persists the credential at `Saved/Observer/source_credential.json` (`U-05`).
 
@@ -361,15 +361,27 @@ contract depends on pretending otherwise. What the contract requires is unchange
 behavioural: source-scoped, revocable, rotatable, never source-controlled, never logged, narrow
 authority, an operator-visible unauthorised state, and revocation effective on the next request.
 
-What is genuinely open is narrower and worth asking precisely: **is the token plaintext in that file,
-and what platform-appropriate protection is applied to it?** If it is plaintext, the residual risk is
-that anyone with filesystem access to a showroom PC — a support engineer, a backup, a shared machine —
-has the credential without needing to open a binary at all. That is a materially lower bar than
-extraction from a packaged build, which is the threat the architecture actually accepted.
+**Answered.** The credential is plaintext JSON in development (`U-18`), and the production Windows
+plan is **Windows DPAPI** (`U-19`) — no hard-coded key in the binary, compatible with crash recovery,
+surviving ordinary updates.
 
-The question is therefore whether UE 5.6 on Windows offers something practical for V1 — DPAPI, the
-Credential Manager, or an equivalent. **Not redesigned here**, because the answer depends on Unreal
-and platform facts we do not hold. Recorded as OPEN-13, owned jointly, and blocking nothing.
+That closes the question and opens a gate. Plain JSON is a reasonable development state; what it must
+never be is shipped, because it lowers the bar from _extract a secret from a packaged binary_ to _read
+a file_, and those are different threats however similar they sound. A backup, a shared machine or a
+support engineer with filesystem access clears the second and not the first.
+
+**`PD-06`: a production package may not persist a plaintext credential.** `verifyCredentialStore()`
+is that rule as a function rather than a paragraph, so a packaging step can fail on it.
+
+The contract is stated as a **persistence abstraction** — `SaveCredential`, `LoadCredential`,
+`DeleteCredential`, `ReplaceCredential` — and not as a Windows API. DPAPI is the approved mechanism
+for the initial Windows implementation; other platforms wait on the platform matrix, and no backend
+logic depends on which is in use.
+
+**DPAPI does not make the credential unextractable**, and nothing here assumes it does. Anything the
+application can decrypt, code running as that user can decrypt. Security continues to rest on source
+scope, narrow authority, revocation, rotation, rate limiting, monitoring, no direct table access, and
+an operator-visible unauthorised state.
 
 ### 6.3 After a 401 or a 403
 
@@ -410,10 +422,36 @@ numbers happen.
 
 ---
 
-## 8. Limits — shape is contract, numbers are OPEN
+## 8. Limits — the V1 numbers, and three of them are not one
 
-The **fields** are contract; every **value** in this candidate is `null`, which means "the server
-states no limit; use your configured default". It never means unlimited.
+The full table is generated to [`v1-settings.md`](ue5-contract/v1-settings.md).
+
+**Three numbers that look like one**, and collapsing any two of them produces a `413` on a legitimate
+setting or a ceiling nobody can enforce:
+
+|                 | What it is                                           | Value                |
+| --------------- | ---------------------------------------------------- | -------------------- |
+| client default  | what the plugin ships configured to do               | 25 events, every 5 s |
+| client range    | what an operator may configure, no code change       | 25–50 events         |
+| backend ceiling | the absolute point of refusal — **PROPOSED**, `P-23` | 200 events, 8 MiB    |
+
+**Approved V1 client defaults (`PD-03`):** `default_batch_events = 25`,
+`flush_interval_seconds = 5`, `max_event_bytes = 65536`, `max_local_outbox_bytes = 52428800`,
+outbox at `Saved/Observer/Outbox/`.
+
+**The capacity claim, kept honest (`PD-07`).** 50 MB is the ceiling. Roughly 50,000 events — about a
+week of offline showroom activity — is an _expected operational capacity at typical event sizes_, not
+a guarantee. At the 64 KiB cap the same 50 MB holds **800** events. A queue enforcing a fixed event
+count instead of a byte count would overrun its disk budget by roughly sixty times whenever events ran
+large, which is exactly when a showroom is producing the most and can least afford it. **The ceiling
+is enforced by bytes actually used.**
+
+**Configuration is not a code change (`PD-08`).** Every one of these is settable in Unreal Project
+Settings. Defaults may live in code; the deployment is authoritative within server-approved bounds,
+and where a server-stated limit is stricter than the local one, **the stricter wins**.
+
+The server-stated `limits` object still exists and every value in it is still `null` — the server
+states nothing yet, which means "use your configured default" and never "unlimited".
 
 | Field                                                                    | Direction                                                        |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------- |
@@ -494,21 +532,28 @@ diagnostic or validating, and what it means for a mixed-age backlog.
 
 ---
 
-## 11. Session sequence — feasibility CONFIRMED, semantics PROPOSED
+## 11. Session sequence — APPROVED, `PD-04`
 
-**UE implementation confirmed (`U-10`).** `FObserverEvent` implements monotonic sequencing. Central
-generation is demonstrably feasible, and that question is closed rather than re-asked.
+**Confirmed and approved.** `U-16` records the subsystem's semantics and `PD-04` adopts them, so all
+three details that were outstanding are now settled: mandatory for session-scoped events, unreachable
+from Blueprint, and `StartSession()` mints a fresh `session_id` and resets the counter.
 
-**Still to verify** — three details implementation evidence does not settle on its own, and which
-remain `P-17`:
+It matters because it is the only ordering signal that survives a wrong device clock, and §10 leaves
+clock trust deliberately weak.
 
-1. whether `sequence` is guaranteed **mandatory** for every session-scoped event;
-2. whether Blueprint callers are **completely unable** to override or manage it;
-3. the exact **reset semantics** when a new `session_id` starts.
+**`sequence = 0` never represents a real emitted session event.** The reset leaves the counter at zero
+and the first event is one, so a zero on the wire means the counter was read before it moved.
+Accepting it would sort that event ahead of every genuine event in its session, permanently, and
+nothing downstream could detect it.
 
-The brief marks `sequence` _Recommended_. **Proposal: required for session facts**, because it is the
-only ordering signal that survives a wrong device clock — and §10 leaves clock trust deliberately
-weak. This strengthens the public UE5 contract, so it needs Akhilesh's agreement.
+**Arrival order is not sequence order.** A durable outbox delivers late and out of order — that is
+what makes it durable — so a server assuming otherwise would be wrong on the first reconnection after
+an outage, which is the busiest moment it will ever see.
+
+**A caller cannot build a second ordering.** The subsystem owns the envelope's `sequence`, and a
+property key that shadows an envelope field name is now refused (`P-24`): a `sequence` inside
+`properties` would leave a read model with two answers to the same question and no way to know which
+was meant.
 
 - Generated **centrally by `UObserverAnalyticsSubsystem`** at event creation, before queueing.
 - **Never supplied by individual Blueprint callers.** A Blueprint that can set it is a Blueprint that
@@ -557,25 +602,33 @@ tell apart. See `packages/ue5-mock/src/scenarios.ts`.
 
 ## 13. Open items
 
-| Ref         | Item                                                                           | Owner                     |
-| ----------- | ------------------------------------------------------------------------------ | ------------------------- |
-| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events.  | Backend review            |
-| **OPEN-2**  | Analytics event retention. No policy exists.                                   | Product                   |
-| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                   | Matthew + Akhilesh        |
-| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                      | Matthew                   |
-| **OPEN-5**  | Screenshots: storage path and how events reference it.                         | Matthew                   |
-| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.       | Product                   |
-| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                      | Akhilesh                  |
-| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.               | Product + Akhilesh        |
-| **OPEN-9**  | Schema support window — how long old builds remain accepted.                   | Matthew                   |
-| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                         | Backend review            |
-| **OPEN-12** | Numeric limit values.                                                          | **Akhilesh measurements** |
-| **OPEN-13** | Protection applied to the persisted source credential at rest (§6.2).          | Matthew + Akhilesh        |
-| **OPEN-14** | UE event identifier: hyphenation, and RFC 4122 version/variant conformance.    | Matthew + Akhilesh        |
-| **OPEN-15** | Whether `FObserverEvent` serialises snake_case rather than Unreal's camelCase. | Matthew + Akhilesh        |
+| Ref         | Item                                                                           | Owner              |
+| ----------- | ------------------------------------------------------------------------------ | ------------------ |
+| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events.  | Backend review     |
+| **OPEN-2**  | Analytics event retention. No policy exists.                                   | Product            |
+| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                   | Matthew + Akhilesh |
+| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                      | Matthew            |
+| **OPEN-5**  | Screenshots: storage path and how events reference it.                         | Matthew            |
+| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.       | Product            |
+| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                      | Akhilesh           |
+| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.               | Product + Akhilesh |
+| **OPEN-9**  | Schema support window — how long old builds remain accepted.                   | Matthew            |
+| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                         | Backend review     |
+| **OPEN-14** | UE event identifier: hyphenation, and RFC 4122 version/variant conformance.    | Matthew + Akhilesh |
+| **OPEN-15** | Whether `FObserverEvent` serialises snake_case rather than Unreal's camelCase. | Matthew + Akhilesh |
+| **OPEN-16** | The exact semantics of `Max Retry Attempts = 5`. Never deletion.               | Matthew + Akhilesh |
+| **OPEN-17** | Endpoint naming: `/activate` and `/ingest` versus `/observer-*`.               | Matthew + Akhilesh |
 
-**OPEN-10 is closed.** It asked which legacy database held prototype analytics and whether any of it
-needed preserving. Answered on 2026-09-01: prototype snapshot blobs only, nothing to migrate. See §15.
+**Closed since the last revision.** OPEN-10 (legacy analytics — prototype blobs only, nothing to
+migrate), OPEN-12 (limit values — `PD-03` for the client, `P-23` for the backend ceiling) and
+OPEN-13 (credential at rest — `PD-06`, with DPAPI approved for Windows). See §15.
+
+**OPEN-16 exists to prevent a specific misreading.** `Max Retry Attempts = 5` is a delivery-attempt
+and backoff configuration, **not** an event-retention limit. Reading it as "five failures and the
+event is deleted" would void the durable outbox contract in exactly the circumstances it exists for:
+a showroom offline all afternoon fails far more than five times. Exhausting the sequence preserves
+the event and surfaces the condition; nothing but an explicit acknowledgement or an explicit
+non-retryable rejection ever removes one.
 
 ### Deliberately out of scope
 
@@ -588,23 +641,22 @@ only if ingestion is ever metered by event volume, which the approved architectu
 
 ## 14. What still needs a decision, and from whom
 
-**Akhilesh — five things.** Two questions were removed after the UE-OBS-001..004 report: the legacy
-database (answered, §15) and whether central sequence generation is feasible at all (`U-10` shows it
-already exists). Three are new, and all three come from having a real implementation to compare
-against rather than from anything going wrong.
+**Akhilesh — five things, and all five are narrow.** Six questions have closed: the legacy database,
+sequence feasibility, sequence semantics, credential-at-rest, the limit values and the 401/403
+behaviour. What remains is serialisation detail and two decisions nobody has taken yet.
 
-1. **Credential at rest** — is the token plaintext in `source_credential.json`, and does UE 5.6 on
-   Windows offer a practical protected store for V1? (§6.2, OPEN-13)
-2. **Event identifier** — hyphenated, and does it carry RFC 4122 version and variant bits? (OPEN-14)
-3. **Field naming** — `event_id` or `eventId` on the wire? (OPEN-15)
-4. **Sequence semantics** — mandatory for session-scoped events, unreachable from Blueprint, and what
-   happens to the counter at a new `session_id`? (§11, P-17)
-5. **Platform matrix and limits** — targets beyond Windows kiosk on 5.6, and realistic ceilings
-   measured on the actual hardware. (OPEN-7, OPEN-12)
+1. **Event identifier** — hyphenated, and does it carry RFC 4122 version and variant bits? (OPEN-14)
+2. **Field naming** — `event_id` or `eventId` on the wire? (OPEN-15)
+3. **Retry attempts** — what does `Max Retry Attempts = 5` bound, exactly? It must never mean
+   deletion. (OPEN-16)
+4. **Endpoint naming** — `/activate` and `/ingest`, or `/observer-activate` and `/observer-ingest`?
+   Neither side should pick this alone. (OPEN-17)
+5. **Platform matrix** — targets beyond Windows kiosk on 5.6. (OPEN-7)
 
 **Matthew — the proposals in this document.** Activation v1 (§3), Ingestion v1 (§4), the error model
-(§5), credential lifecycle and no-expiry (§6), heartbeat B + C (§7), limit field shape (§8),
-source-scoped deduplication (§9.1), and the `SourceObservation.sequence` amendment (§11).
+(§5), credential lifecycle and no-expiry (§6), heartbeat B + C (§7), the backend ceiling (§8, `P-23`),
+envelope-shadowing property keys (`P-24`), source-scoped deduplication (§9.1), and the
+`SourceObservation.sequence` amendment (§11).
 
 Everything else in §13 can wait for live ingestion without blocking UE-OBS-003 through UE-OBS-010.
 
@@ -644,7 +696,29 @@ through Unreal Project Settings, and V2 no longer depends on the direct-table tr
 `U-03`). No V2 code or document may imply that the legacy path remains a supported production route.
 `docs/01-foundation.md` §7 and `docs/03-event-map.md` §7–8 carry dated amendments to that effect.
 
-### 15.3 Central sequence generation is feasible. `U-10`
+### 15.3 V1 operating parameters. DECIDED, `PD-03`, `PD-07`, `PD-08`
+
+25 events per batch, a 5 second flush, a 64 KiB event cap, a 50 MB outbox at
+`Saved/Observer/Outbox/`, and a supported batch range of 25–50. The backend ceiling is separate and
+still `PROPOSED` (`P-23`). The capacity figure is operational, not a guarantee, and the ceiling is
+enforced in bytes. Configuration stays changeable without a C++ edit; a stricter server value wins.
+See §8.
+
+### 15.4 The 401/403 contract. DECIDED, `PD-05`
+
+Confirmed as practical and intended on the UE side. Pause delivery, preserve the whole outbox,
+continue bounded local capture, surface an operator-visible state — `Analytics Offline / Reactivation
+Needed` — and never reactivate automatically. Reactivation requires an administrator entering a newly
+issued code, and it changes **authentication material, not identity**: queued events keep their
+`event_id`, keep their source, and replay safely.
+
+### 15.5 Credential at rest. DECIDED, `PD-06`
+
+Plaintext JSON in development, Windows DPAPI in production, and a packaging gate that refuses a
+production package configured to persist plaintext. Stated as a persistence abstraction rather than a
+platform API. See §6.2.
+
+### 15.6 Central sequence generation is feasible. `U-10`
 
 `FObserverEvent` implements monotonic sequencing. The feasibility question is closed and is not to be
 reopened. What remains is the semantic guarantee — mandatory for session-scoped events, unreachable
