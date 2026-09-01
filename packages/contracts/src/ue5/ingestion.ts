@@ -36,17 +36,37 @@ import { EventRejectionCodeSchema, RequestFailureCodeSchema } from "./errors";
 /* ================================================== reserved property keys */
 
 /**
- * Property keys a client may never set.
+ * Property names a client may not use **at the top level of `properties`**.
  *
- * Two families, one reason. Identity keys are refused because the server derives
- * identity and a client-supplied copy would eventually be trusted by somebody.
- * Server-assigned keys are refused because a client that can set `ingested_at`
- * can lie about when a fact arrived.
+ * Three families, one reason. Identity keys are refused because the server
+ * derives identity and a client-supplied copy would eventually be trusted by
+ * somebody. Server-assigned keys are refused because a client that can set
+ * `ingested_at` can lie about when a fact arrived. Envelope names are refused
+ * because a `sequence` beside the real one leaves a read model with two answers
+ * to the same question and no way to know which was meant.
  *
- * Matched case-insensitively, and against both snake_case and camelCase, because
- * an Unreal implementation will naturally reach for `projectId` while this
- * document is written in `project_id` — and a guard that only catches one
- * spelling is a guard that catches nothing.
+ * Matched case-insensitively across snake_case and camelCase, because an Unreal
+ * implementation will naturally reach for `projectId` while this document is
+ * written in `project_id` — and a guard that catches one spelling catches
+ * nothing.
+ *
+ * ## Top level only, and that is a deliberate narrowing
+ *
+ * An earlier revision rejected these at every depth. That was too strict to
+ * live with: `sequence`, `source` and `project` are ordinary words, and a future
+ * event schema will legitimately want a `tour: { steps: [{ sequence }] }`
+ * without the transport having an opinion about it.
+ *
+ * The narrowing is safe because the guarantee it protects does not come from
+ * this list. **No value anywhere inside `properties` participates in identity
+ * resolution**, at any depth, because `projectEvent` takes identity as a
+ * separate argument and there is no code path from the payload to it. The
+ * top-level rule prevents *confusion* — a field that looks authoritative — not
+ * privilege escalation, which is structurally impossible either way.
+ *
+ * A per-event schema registry may impose stricter rules on an individual event
+ * later. That is the right place for it: the registry knows what a given event
+ * means, and the transport does not.
  */
 export const RESERVED_PROPERTY_KEYS = [
   "tenant_id",
@@ -58,24 +78,23 @@ export const RESERVED_PROPERTY_KEYS = [
   "ingested_at",
   "received_at",
   "server_time",
-  /*
-   * The envelope owns these names, so a property may not shadow one.
-   *
-   * `sequence` is the reason this group exists. The subsystem stamps it centrally
-   * and Blueprint callers cannot reach it — which is the guarantee — but nothing
-   * stopped a caller putting its own `sequence` in `properties` and building a
-   * second, unauthoritative ordering beside the real one. A read model would then
-   * have two answers to the same question, and no way to tell which was meant.
-   *
-   * The cost is that a payload wanting an unrelated `sequence` has to call it
-   * something else. `step_index` is a better name anyway.
-   */
+  /* The envelope owns these names, so a top-level property may not shadow one. */
   "event_id",
   "event_name",
   "schema_version",
   "occurred_at",
   "session_id",
   "sequence",
+  /*
+   * Credential and authentication names. The privacy guard already catches these
+   * by *value* at any depth; this catches them by *name*, which is what a field
+   * deliberately built to carry one looks like before it has anything in it.
+   */
+  "source_token",
+  "activation_code",
+  "authorization",
+  "credential",
+  "api_key",
 ] as const;
 
 /**

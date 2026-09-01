@@ -81,6 +81,47 @@ export const WireInstantSchema = z.iso.datetime({ offset: true });
 export const WireUuidSchema = z.uuid();
 
 /**
+ * THE IDENTIFIER QUESTION, PREPARED BUT NOT DECIDED — `OPEN-14`.
+ *
+ * `WireUuidSchema` is `z.uuid()`, which enforces an RFC 4122 version nibble
+ * (1–8) and variant nibble (8/9/a/b). **That strictness arrived from a schema
+ * library's default, not from the approved architecture**, and the difference
+ * matters enough to write down.
+ *
+ * The locked requirement is narrower than what is currently enforced: a *stable,
+ * globally unique 128-bit event identifier, generated once before queueing and
+ * preserved through retries* (§4.1, §5.4). Nothing downstream reads the version
+ * bits. Nothing in the security model depends on them. Deduplication is scoped
+ * to `(source_id, event_id)`, so the collision domain is one installation rather
+ * than the world, and 128 random bits are far beyond sufficient for that whether
+ * or not six of them are pinned to a constant.
+ *
+ * So the strict validator buys no security and no interoperability here, while
+ * costing a hard constraint on how Unreal mints identifiers. `FGuid` is
+ * platform-dependent in this respect — a Windows build and a generic build may
+ * not agree on whether the version and variant nibbles are set at all — and
+ * **that is precisely why it needs Akhilesh's measured answer rather than our
+ * assumption.** We have not verified what his serialisation emits.
+ *
+ * `CanonicalIdSchema` is the prepared alternative: the same canonical hyphenated
+ * 128-bit form, without an opinion about version semantics. It is deliberately
+ * **not wired into the envelope**. If the answer is that `FGuid` does not
+ * guarantee RFC bits, swapping `WireUuidSchema` for this is a one-line change
+ * with a test already describing exactly what it accepts.
+ */
+export const CANONICAL_128_BIT_ID =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export const CanonicalIdSchema = z
+  .string()
+  .regex(CANONICAL_128_BIT_ID, "must be a canonical hyphenated 128-bit identifier");
+
+/** What the architecture actually requires of an event identifier. */
+export const EVENT_ID_REQUIREMENT =
+  "A stable, globally unique 128-bit identifier, generated once before queueing and preserved " +
+  "through every retry. Version and variant semantics are not part of the requirement.";
+
+/**
  * An event name, in the source's own vocabulary.
  *
  * Constrained to a dotted lowercase form so that a name is a legible key rather

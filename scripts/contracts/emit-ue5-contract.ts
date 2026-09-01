@@ -9,7 +9,7 @@ import { LOCAL_VALIDATION_ORDER } from "../../packages/contracts/src/ue5/validat
 import {
   CONSENT_SETTING_MEANING,
   OUTBOX_CAPACITY_STATEMENT,
-  PROPOSED_BACKEND_CEILINGS,
+  APPROVED_BACKEND_CEILINGS,
   UE_BATCH_RANGE,
   UE_CONFIGURABLE_SETTINGS,
   UE_OUTBOX_DIRECTORY,
@@ -87,7 +87,7 @@ function settingsMarkdown(): string {
     "| --- | --- | --- |",
     `| **client default** | what the plugin ships configured to do | ${UE_V1_CLIENT_DEFAULTS.defaultBatchEvents} events, every ${UE_V1_CLIENT_DEFAULTS.flushIntervalSeconds}s |`,
     `| **client range** | what an operator may configure, without a code change | ${UE_BATCH_RANGE.min}–${UE_BATCH_RANGE.max} events |`,
-    `| **backend ceiling** | the absolute point of refusal — **PROPOSED** | ${PROPOSED_BACKEND_CEILINGS.maxBatchEvents} events, ${(PROPOSED_BACKEND_CEILINGS.maxBatchBytes / 1_048_576).toFixed(0)} MiB |`,
+    `| **backend ceiling** | the absolute point of refusal — **PROPOSED** | ${APPROVED_BACKEND_CEILINGS.maxBatchEvents} events, ${(APPROVED_BACKEND_CEILINGS.maxBatchBytes / 1_048_576).toFixed(0)} MiB |`,
     "",
     "Collapsing any two of those produces a `413` on a legitimate setting, or a ceiling that",
     "cannot be enforced. The backend ceiling sits **at or above** the top of the client range,",

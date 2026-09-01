@@ -233,6 +233,25 @@ export function outboxStateAfterRetryExhaustion(): OutboxVerdict {
   );
 }
 
+/**
+ * What exhausting the attempts may and may not do. **The timing policy after
+ * the fifth attempt is deliberately not invented here.**
+ *
+ * Five bounds and one gap. The bounds are what the durable outbox contract
+ * already requires and are not negotiable; the gap — how much slower, how long
+ * paused, whether an operator is prompted — is `OPEN-16`, and guessing at it
+ * would put a number in a document that an implementation then has to match for
+ * no reason.
+ */
+export const RETRY_EXHAUSTION_RULES: readonly string[] = Object.freeze([
+  "Exhausting the attempts may end the current retry cycle.",
+  "The event remains durable.",
+  "The event remains unacknowledged.",
+  "The event may enter a slower backoff, a paused state, or an operator-visible condition.",
+  "Only an explicit accepted or duplicate acknowledgement removes it.",
+  "An explicit non-retryable rejection moves it to durable quarantine.",
+]);
+
 /* ============================================================== capacity */
 
 /**

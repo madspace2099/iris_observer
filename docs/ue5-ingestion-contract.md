@@ -13,7 +13,7 @@ UE-OBS-010 against, with every unresolved product decision left visibly unresolv
 | ---------------- | ----------------------------------------------------------------------------------- |
 | **LOCKED**       | Approved in the architecture brief. Restated with a citation, never reopened here.  |
 | **UE-CONFIRMED** | Evidenced by completed UE work. True, and not an architecture rule.                 |
-| **DECIDED**      | An approved decision that is neither in the brief nor still a proposal.             |
+| **APPROVED**     | An approved product decision, neither in the brief nor still a proposal.            |
 | **DERIVED**      | Not in the brief, but follows from a rule that is. The derivation is named.         |
 | **PROPOSED**     | A concrete recommendation awaiting sign-off. Not yet contract.                      |
 | **OPEN**         | Genuinely unresolved, and left that way rather than filled with invented certainty. |
@@ -24,8 +24,12 @@ rendered to [`ue5-contract/traceability.md`](ue5-contract/traceability.md). Test
 nothing `PROPOSED` may cite the brief, and every `DERIVED` rule must name the locked rule it follows
 from. A convenient proposal cannot quietly acquire the authority of an approved decision.
 
-**Counts:** 28 LOCKED · 17 DERIVED · **22 UE-CONFIRMED** · **8 DECIDED** · 23 PROPOSED · 14 OPEN ·
-3 MOCK-ONLY. See [`traceability.md`](ue5-contract/traceability.md) for the current table.
+**Counts:** 28 LOCKED · 17 DERIVED · 22 UE-CONFIRMED · **30 APPROVED** · **1 PROPOSED** · 15 OPEN ·
+3 MOCK-ONLY — 116 rules. Almost everything that was a proposal is now a decision; see
+[`traceability.md`](ue5-contract/traceability.md).
+
+**Rule identifiers are stable across reclassification.** A `P-` prefix means the rule was first
+recorded as a proposal, not that it still is one — the classification is the field, never the id.
 
 ---
 
@@ -429,11 +433,18 @@ The full table is generated to [`v1-settings.md`](ue5-contract/v1-settings.md).
 **Three numbers that look like one**, and collapsing any two of them produces a `413` on a legitimate
 setting or a ceiling nobody can enforce:
 
-|                 | What it is                                           | Value                |
-| --------------- | ---------------------------------------------------- | -------------------- |
-| client default  | what the plugin ships configured to do               | 25 events, every 5 s |
-| client range    | what an operator may configure, no code change       | 25–50 events         |
-| backend ceiling | the absolute point of refusal — **PROPOSED**, `P-23` | 200 events, 8 MiB    |
+|                 | What it is                                           | Value                     |
+| --------------- | ---------------------------------------------------- | ------------------------- |
+| client default  | what the plugin ships configured to do               | 25 events, every 5 s      |
+| client range    | what an operator may configure, no code change       | 25–50 events              |
+| backend ceiling | the absolute point of refusal — **APPROVED**, `P-23` | 200 events, 8 MiB, 64 KiB |
+
+**The three backend ceilings are independent constraints, and a batch must satisfy all three.**
+200 × 64 KiB is 12.5 MiB, half as much again as the 8 MiB body ceiling allows — so the event count
+limit does not imply the bytes are available, and a client carrying large events reaches the byte
+ceiling first and must split on bytes. The count is deliberately uncoupled from any Unreal setting:
+200 leaves substantial headroom above the 25–50 operating range so a backlog drain after an outage
+is not throttled by a steady-state number.
 
 **Approved V1 client defaults (`PD-03`):** `default_batch_events = 25`,
 `flush_interval_seconds = 5`, `max_event_bytes = 65536`, `max_local_outbox_bytes = 52428800`,
@@ -550,10 +561,20 @@ nothing downstream could detect it.
 what makes it durable — so a server assuming otherwise would be wrong on the first reconnection after
 an outage, which is the busiest moment it will ever see.
 
-**A caller cannot build a second ordering.** The subsystem owns the envelope's `sequence`, and a
-property key that shadows an envelope field name is now refused (`P-24`): a `sequence` inside
-`properties` would leave a read model with two answers to the same question and no way to know which
-was meant.
+**A caller cannot build a second ordering — at the top level.** The subsystem owns the envelope's
+`sequence`, and a **top-level** property key that shadows an envelope, identity or credential name is
+refused (`P-24`): a top-level `sequence` would leave a read model with two answers to the same
+question and no way to know which was meant.
+
+The rule stops at the top level, deliberately. `sequence`, `source` and `project` are ordinary words,
+and a future event schema will legitimately carry `tour: { steps: [{ sequence }] }` without the
+transport having an opinion about it. The narrowing is safe because the guarantee is structural
+rather than lexical: **no payload value participates in identity resolution at any depth**, because
+`projectEvent` receives identity as a separate argument and no code path leads from the payload to
+it. The top-level rule prevents a field that _looks_ authoritative; it was never what made privilege
+escalation impossible. A per-event schema registry may impose stricter rules on an individual event
+later, which is the right place for them — the registry knows what a given event means, and the
+transport does not.
 
 - Generated **centrally by `UObserverAnalyticsSubsystem`** at event creation, before queueing.
 - **Never supplied by individual Blueprint callers.** A Blueprint that can set it is a Blueprint that
@@ -602,22 +623,23 @@ tell apart. See `packages/ue5-mock/src/scenarios.ts`.
 
 ## 13. Open items
 
-| Ref         | Item                                                                           | Owner              |
-| ----------- | ------------------------------------------------------------------------------ | ------------------ |
-| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events.  | Backend review     |
-| **OPEN-2**  | Analytics event retention. No policy exists.                                   | Product            |
-| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                   | Matthew + Akhilesh |
-| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                      | Matthew            |
-| **OPEN-5**  | Screenshots: storage path and how events reference it.                         | Matthew            |
-| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.       | Product            |
-| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                      | Akhilesh           |
-| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.               | Product + Akhilesh |
-| **OPEN-9**  | Schema support window — how long old builds remain accepted.                   | Matthew            |
-| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                         | Backend review     |
-| **OPEN-14** | UE event identifier: hyphenation, and RFC 4122 version/variant conformance.    | Matthew + Akhilesh |
-| **OPEN-15** | Whether `FObserverEvent` serialises snake_case rather than Unreal's camelCase. | Matthew + Akhilesh |
-| **OPEN-16** | The exact semantics of `Max Retry Attempts = 5`. Never deletion.               | Matthew + Akhilesh |
-| **OPEN-17** | Endpoint naming: `/activate` and `/ingest` versus `/observer-*`.               | Matthew + Akhilesh |
+| Ref         | Item                                                                            | Owner              |
+| ----------- | ------------------------------------------------------------------------------- | ------------------ |
+| **OPEN-1**  | Idempotency retention. Required before any retention deletes accepted events.   | Backend review     |
+| **OPEN-2**  | Analytics event retention. No policy exists.                                    | Product            |
+| **OPEN-3**  | Clock acceptance window — options A–D (§10).                                    | Matthew + Akhilesh |
+| **OPEN-4**  | Batch clock skew — meaning and use (§10).                                       | Matthew            |
+| **OPEN-5**  | Screenshots: storage path and how events reference it.                          | Matthew            |
+| **OPEN-6**  | `event_schema_registry` entries. Mechanism contracted; catalogue is not.        | Product            |
+| **OPEN-7**  | Platform matrix beyond Unreal Engine 5.6.                                       | Akhilesh           |
+| **OPEN-8**  | Identity handoff for `agent_id` and approved visitor references.                | Product + Akhilesh |
+| **OPEN-9**  | Schema support window — how long old builds remain accepted.                    | Matthew            |
+| **OPEN-11** | Credential internals: hash/KDF, prefix, lookup scheme.                          | Backend review     |
+| **OPEN-14** | UE event identifier: hyphenation, and RFC 4122 version/variant conformance.     | Matthew + Akhilesh |
+| **OPEN-15** | Whether `FObserverEvent` serialises snake_case rather than Unreal's camelCase.  | Matthew + Akhilesh |
+| **OPEN-16** | The exact semantics of `Max Retry Attempts = 5`. Never deletion.                | Matthew + Akhilesh |
+| **OPEN-17** | Endpoint naming: `/activate` and `/ingest` versus `/observer-*`.                | Matthew + Akhilesh |
+| **OPEN-18** | Evidence that the production credential store exists rather than being planned. | **Akhilesh**       |
 
 **Closed since the last revision.** OPEN-10 (legacy analytics — prototype blobs only, nothing to
 migrate), OPEN-12 (limit values — `PD-03` for the client, `P-23` for the backend ceiling) and
@@ -653,10 +675,11 @@ behaviour. What remains is serialisation detail and two decisions nobody has tak
    Neither side should pick this alone. (OPEN-17)
 5. **Platform matrix** — targets beyond Windows kiosk on 5.6. (OPEN-7)
 
-**Matthew — the proposals in this document.** Activation v1 (§3), Ingestion v1 (§4), the error model
-(§5), credential lifecycle and no-expiry (§6), heartbeat B + C (§7), the backend ceiling (§8, `P-23`),
-envelope-shadowing property keys (`P-24`), source-scoped deduplication (§9.1), and the
-`SourceObservation.sequence` amendment (§11).
+**Matthew — one proposal remains.** `P-22`, the behavioural credential security properties, awaits
+the backend credential review. Everything else in this document that was a proposal has been
+approved: Activation v1, Ingestion v1, the error model, no mandatory expiry, heartbeat B + C,
+source-scoped idempotency, nullable non-session sequence, the backend ceilings, and the narrowed
+top-level shadowing rule.
 
 Everything else in §13 can wait for live ingestion without blocking UE-OBS-003 through UE-OBS-010.
 

@@ -83,21 +83,58 @@ describe("the payload has no room for it either", () => {
     if (!verdict.ok) expect(verdict.rejection.code).toBe("reserved_property");
   });
 
-  it("refuses a reserved key three levels down", () => {
+  it("permits a nested domain key, because the guarantee is not lexical", () => {
     /*
-     * The realistic version of this mistake. Nobody writes `project_id` at the
-     * top of a payload on purpose; somebody writes `context: { ids: { … } }`
-     * because it was convenient in Blueprint.
+     * A DELIBERATE NARROWING, and worth understanding rather than assuming.
+     *
+     * An earlier revision rejected these names at every depth. That is too
+     * strict to live with: `sequence`, `source` and `project` are ordinary
+     * words, and a future event schema will legitimately carry something like
+     * `tour: { steps: [{ sequence }] }` without the transport having an opinion
+     * about it.
+     *
+     * The narrowing is safe because the guarantee comes from the projection, not
+     * from this list — see the structural test below, which hands the projection
+     * a payload full of identity and gets the server's identity back anyway.
+     * The top-level rule prevents a field that *looks* authoritative; it was
+     * never what made privilege escalation impossible.
      */
-    const verdict = validateEvent(
+    const nested = validateEvent(
       { ...base, properties: { context: { ids: { projectId: "prj_hostile" } } } },
       context,
     );
-    expect(verdict.ok).toBe(false);
-    if (!verdict.ok) {
-      expect(verdict.rejection.code).toBe("reserved_property");
-      expect(verdict.rejection.detail).toContain("context.ids.projectId");
+    expect(nested.ok, "nested is accepted").toBe(true);
+
+    /* And the top level, where it would look authoritative, still is not. */
+    const top = validateEvent({ ...base, properties: { projectId: "prj_hostile" } }, context);
+    expect(top.ok).toBe(false);
+    if (!top.ok) expect(top.rejection.code).toBe("reserved_property");
+  });
+
+  it("refuses a credential-shaped name at the top level", () => {
+    for (const key of ["source_token", "activation_code", "authorization", "api_key"]) {
+      const verdict = validateEvent({ ...base, properties: { [key]: "x" } }, context);
+      expect(verdict.ok, key).toBe(false);
+      if (!verdict.ok) expect(verdict.rejection.code, key).toBe("reserved_property");
     }
+  });
+
+  it("keeps a nested identity value inert once projected", () => {
+    /*
+     * The half of the narrowing that has to be proved rather than argued: a
+     * payload that now *parses* with identity buried in it must still have no
+     * effect on the identity that gets stored.
+     */
+    const nested = EventEnvelopeSchema.parse({
+      ...base,
+      properties: { context: { ids: { projectId: "prj_hostile", tenantId: "tnt_hostile" } } },
+    });
+    const projected = projectEvent(nested, SERVER);
+    expect(projected.tenantId).toBe(TENANT);
+    expect(projected.projectId).toBe(PROJECT);
+    expect(projected.payload).toEqual({
+      context: { ids: { projectId: "prj_hostile", tenantId: "tnt_hostile" } },
+    });
   });
 
   it("refuses the observer namespace", () => {

@@ -175,7 +175,7 @@ describe("implementation evidence is not architecture", () => {
 });
 
 describe("an approved decision has somewhere honest to sit", () => {
-  const decisions = rulesByClassification("DECIDED_BY_PRODUCT");
+  const decisions = rulesByClassification("APPROVED_PRODUCT_DECISION");
 
   it("names who decided and when", () => {
     expect(decisions.length).toBeGreaterThan(0);
@@ -209,7 +209,7 @@ describe("evidence is required exactly where it belongs", () => {
   it("carries no evidence on a rule that is not a fact or a decision", () => {
     for (const rule of CONTRACT_RULES) {
       if (rule.classification === "UE_IMPLEMENTATION_CONFIRMED") continue;
-      if (rule.classification === "DECIDED_BY_PRODUCT") continue;
+      if (rule.classification === "APPROVED_PRODUCT_DECISION") continue;
       expect(rule.evidence, rule.id).toBeNull();
     }
   });

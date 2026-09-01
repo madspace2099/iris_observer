@@ -38,7 +38,7 @@ export const CLASSIFICATIONS = [
   "LOCKED_FROM_BRIEF",
   "DERIVED_FROM_LOCKED_RULE",
   "UE_IMPLEMENTATION_CONFIRMED",
-  "DECIDED_BY_PRODUCT",
+  "APPROVED_PRODUCT_DECISION",
   "PROPOSED",
   "OPEN",
   "MOCK_ONLY",
@@ -57,7 +57,7 @@ export type Classification = (typeof CLASSIFICATIONS)[number];
  * sprint, which is precisely the mislabelling this table exists to prevent — in
  * the opposite direction from the one originally guarded against.
  *
- * **`DECIDED_BY_PRODUCT`** — an approved decision that is neither in the brief
+ * **`APPROVED_PRODUCT_DECISION`** — an approved decision that is neither in the brief
  * nor still a proposal. The legacy clean-slate decision is the first: nothing in
  * the brief speaks to it, and calling it PROPOSED would misrepresent a decision
  * that has been made. Without this class an approved decision has nowhere honest
@@ -88,7 +88,7 @@ export interface ContractRule {
   /** Required for DERIVED, empty for everything else. */
   readonly derivedFrom: readonly string[];
   /**
-   * Required for `UE_IMPLEMENTATION_CONFIRMED` and `DECIDED_BY_PRODUCT`, and
+   * Required for `UE_IMPLEMENTATION_CONFIRMED` and `APPROVED_PRODUCT_DECISION`, and
    * forbidden for everything else: which UE package evidences the fact, or who
    * decided and when. A claim of either kind without its source is exactly the
    * unattributed assertion this table exists to make impossible.
@@ -206,7 +206,7 @@ const ueConfirmed = (
 const decided = (id: string, statement: string, evidence: string, where: string): ContractRule => ({
   id,
   statement,
-  classification: "DECIDED_BY_PRODUCT",
+  classification: "APPROVED_PRODUCT_DECISION",
   briefSection: null,
   derivedFrom: [],
   evidence,
@@ -450,159 +450,137 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
   ),
 
   /* -------------------------------------------------------------- PROPOSED */
-  proposed(
+  decided(
     "P-01",
     "Activation endpoint, request shape and success body.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-02",
     "installation_nonce, plugin-generated, replaces a hardware machine fingerprint.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-03",
     "hostname_hint is removed; a server-authored display_label is returned instead.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-04",
     "environment is reported by the client but authoritative from the source record.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-05",
     "The activation response omits tenant_id and project_id; only source_id and a label return.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-06",
     "status distinguishes activated from reactivated; recovery reuses the ordinary flow.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "activation.ts",
   ),
-  proposed(
+  decided(
     "P-07",
     "Ingestion endpoint and batch envelope shape.",
-    "matthew",
-    ["UE-OBS-006", "UE-OBS-007"],
+    "Matthew, prior review 2026-09-01 — Batch Ingestion v1 architecture",
     "ingestion.ts",
   ),
-  proposed(
+  decided(
     "P-08",
     "Per-event result shape, submission order, and redundant batch counters.",
-    "matthew",
-    ["UE-OBS-006"],
+    "Matthew, prior review 2026-09-01 — Batch Ingestion v1 architecture",
     "ingestion.ts",
   ),
-  proposed(
+  decided(
     "P-09",
     "The rejection code vocabulary and each code's retry and outbox policy.",
-    "matthew",
-    ["UE-OBS-006", "UE-OBS-007"],
+    "Matthew, prior review 2026-09-01 — error model with durable fail-safe quarantine",
     "errors.ts",
   ),
-  proposed(
+  decided(
     "P-10",
     "An unrecognised code is non-retryable and quarantines, overriding the server's retryable flag.",
-    "matthew",
-    ["UE-OBS-007"],
+    "Matthew, prior review 2026-09-01 — error model with durable fail-safe quarantine",
     "errors.ts",
   ),
-  proposed(
+  decided(
     "P-11",
     "An unrecognised HTTP status retains the outbox and backs off; an unrecognised 4xx quarantines.",
-    "matthew",
-    ["UE-OBS-007"],
+    "Matthew, prior review 2026-09-01 — error model with durable fail-safe quarantine",
     "errors.ts",
   ),
-  proposed(
+  decided(
     "P-12",
     "Source credentials do not expire; revocation and rotation are the operator's controls.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — no mandatory expiry in V1, expires_at nullable",
     "credential.ts",
   ),
-  proposed(
+  decided(
     "P-13",
     "Credential and source lifecycle states and their observable transitions.",
-    "matthew",
-    ["UE-OBS-003"],
+    "Matthew, prior review 2026-09-01 — Activation v1 architecture",
     "credential.ts",
   ),
-  proposed(
+  decided(
     "P-14",
     "A dedicated heartbeat endpoint carries liveness and plugin health; an empty batch is not a heartbeat.",
-    "matthew",
-    ["UE-OBS-010"],
+    "Matthew, prior review 2026-09-01 — dedicated heartbeat and diagnostic.test",
     "heartbeat.ts",
   ),
-  proposed(
+  decided(
     "P-15",
     "diagnostic.test in a reserved namespace proves the storage path end to end, once.",
-    "matthew",
-    ["UE-OBS-010"],
+    "Matthew, prior review 2026-09-01 — dedicated heartbeat and diagnostic.test",
     "diagnostic.ts",
   ),
-  proposed(
+  decided(
     "P-16",
     "The limit field shape is contract; every value in this candidate is deliberately null.",
-    "matthew",
-    ["UE-OBS-006"],
+    "Matthew, 2026-09-01 — shape approved; the values are PD-03",
     "limits.ts",
   ),
   /* P-17 is superseded by PD-04: the sequence semantics are confirmed and approved. */
-  proposed(
+  decided(
     "P-18",
     "Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which.",
-    "matthew",
-    ["UE-OBS-005"],
+    "Matthew, prior review 2026-09-01 — error model with durable fail-safe quarantine",
     "validation.ts",
   ),
-  proposed(
+  decided(
     "P-19",
     "The forbidden-content scan is a guardrail against accidents; the schema registry is the guarantee.",
-    "matthew",
-    ["UE-OBS-005"],
+    "Matthew, prior review 2026-09-01 — error model with durable fail-safe quarantine",
     "privacy.ts",
   ),
-  proposed(
+  decided(
     "P-20",
     "An empty batch is valid and processed, returning received: 0. It is not a heartbeat.",
-    "matthew",
-    ["UE-OBS-006"],
+    "Matthew, prior review 2026-09-01 — Batch Ingestion v1 architecture",
     "ingestion.ts",
   ),
-  proposed(
+  decided(
     "P-21",
     "SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero.",
-    "matthew",
-    ["UE-OBS-004"],
+    "Matthew, prior review 2026-09-01 — nullable sequence for non-session events",
     "projection.ts",
   ),
-  proposed(
+  decided(
     "P-23",
-    "Backend absolute ceilings: 200 events and 8 MiB per batch, 64 KiB per event. At or above the UE operating range, and distinct from it.",
-    "matthew",
-    ["UE-OBS-006"],
+    "Backend absolute ceilings: 200 events, 8 MiB per batch and 64 KiB per event, as three independent constraints a batch must satisfy simultaneously. Deliberately uncoupled from any Unreal configuration.",
+    "Matthew, 2026-09-02",
     "client-config.ts",
   ),
-  proposed(
+  decided(
     "P-24",
-    "Property keys may not shadow an envelope field name, so a caller cannot build a second unauthoritative ordering beside the real one.",
-    "matthew",
-    ["UE-OBS-005"],
+    "At the TOP LEVEL of properties only, a key may not shadow an envelope, identity or credential name. Nested domain keys are permitted; no payload value participates in identity resolution at any depth.",
+    "Matthew, 2026-09-02 — narrowed from the recursive form",
     "ingestion.ts",
   ),
   proposed(
@@ -697,6 +675,14 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "matthew_and_akhilesh",
     ["UE-OBS-007"],
     "openapi.ts",
+  ),
+
+  open(
+    "O-18",
+    "Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package.",
+    "akhilesh",
+    ["UE-OBS-003"],
+    "credential.ts",
   ),
 
   /* ------------------------------------- UE_IMPLEMENTATION_CONFIRMED */
@@ -829,7 +815,7 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "outbox.ts",
   ),
 
-  /* -------------------------------------------- DECIDED_BY_PRODUCT */
+  /* -------------------------------------------- APPROVED_PRODUCT_DECISION */
   decided(
     "PD-01",
     "Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics.",

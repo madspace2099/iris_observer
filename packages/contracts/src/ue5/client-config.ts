@@ -112,26 +112,66 @@ export const OUTBOX_CAPACITY_STATEMENT =
 /* ================================================ the proposed backend ceiling */
 
 /**
- * What the backend would refuse. **PROPOSED — not reviewed.**
+ * What the backend refuses. **APPROVED V1.**
  *
- * `maxBatchEvents` is four times the top of the client's operating range. The
- * reason it is not 50 is backlog: a showroom returning after a week offline
- * wants to drain in larger batches than it accumulates in, and a ceiling equal
- * to the steady-state maximum turns recovery into a very long afternoon.
+ * ## Three independent constraints, and a batch must satisfy all of them
  *
- * `maxEventBytes` is exactly the client cap. There is no reason for the two to
- * differ, and a gap would only mean one side rejecting what the other allowed.
+ * This is the part that gets read wrongly. The ceilings are **not** a single
+ * budget expressed three ways, and 200 maximum-sized events emphatically do not
+ * fit: 200 × 64 KiB is 12.5 MiB against an 8 MiB body limit. A batch is accepted
+ * only when every one of the three holds independently —
  *
- * `maxBatchBytes` is not `maxBatchEvents × maxEventBytes` — that product is
- * 12.5 MB of worst-case events, which no real batch resembles. A client that
- * genuinely holds large events must split on bytes, which `413` already tells
- * it to do.
+ *   `events.length ≤ 200` **and**
+ *   `encoded batch bytes ≤ 8 MiB` **and**
+ *   every `encoded event bytes ≤ 64 KiB`
+ *
+ * — so a client carrying large events reaches the byte ceiling long before the
+ * count ceiling, and must split on bytes. `413` already tells it to.
+ *
+ * ## Why the count is 200 rather than 50
+ *
+ * Backlog. A showroom returning after a week offline wants to drain in larger
+ * batches than it accumulates in, and a ceiling equal to the client's
+ * steady-state maximum turns recovery into a very long afternoon. Deliberately
+ * uncoupled from any particular Unreal configuration: the client's default is
+ * 25 and its supported range is 25–50, which leaves substantial headroom without
+ * the server's limits tracking a plugin setting.
+ *
+ * `maxEventBytes` is exactly the client cap, because a gap would only ever mean
+ * one side rejecting what the other allowed.
  */
-export const PROPOSED_BACKEND_CEILINGS = Object.freeze({
+export const APPROVED_BACKEND_CEILINGS = Object.freeze({
   maxBatchEvents: 200,
   maxBatchBytes: 8 * 1_024 * 1_024,
   maxEventBytes: UE_V1_CLIENT_DEFAULTS.maxEventBytes,
 });
+
+/**
+ * How the three constraints combine, published so nobody has to infer it.
+ *
+ * The second line exists because the first invites exactly the wrong arithmetic.
+ */
+export const BATCH_ACCEPTANCE_RULES: readonly string[] = Object.freeze([
+  "A batch is accepted only if the event count, the total encoded batch bytes and every " +
+    "individual encoded event size are each within their own ceiling.",
+  "The three are independent. 200 events of 64 KiB would be 12.5 MiB, which the 8 MiB body " +
+    "ceiling refuses — the count ceiling does not imply the bytes are available.",
+  "A client holding large events reaches the byte ceiling first and must split on bytes.",
+]);
+
+/** Whether a batch satisfies all three ceilings. Each is checked on its own. */
+export function batchWithinCeilings(
+  eventCount: number,
+  batchBytes: number,
+  largestEventBytes: number,
+  ceilings = APPROVED_BACKEND_CEILINGS,
+): boolean {
+  return (
+    eventCount <= ceilings.maxBatchEvents &&
+    batchBytes <= ceilings.maxBatchBytes &&
+    largestEventBytes <= ceilings.maxEventBytes
+  );
+}
 
 /* ========================================================= the stricter rule */
 

@@ -3,6 +3,7 @@ import { ActivationRequestSchema } from "../../src/ue5/activation";
 import { EventEnvelopeSchema } from "../../src/ue5/ingestion";
 import { scanForForbiddenContent } from "../../src/ue5/privacy";
 import { buildOpenApiDocument } from "../../src/ue5/openapi";
+import { CanonicalIdSchema, EVENT_ID_REQUIREMENT, WireUuidSchema } from "../../src/ue5/wire";
 
 /**
  * THE IMPLEMENTED UE5 BEHAVIOUR, PUT THROUGH THE CONTRACT.
@@ -85,6 +86,31 @@ describe("event identifiers — hazard", () => {
     expect(
       EventEnvelopeSchema.safeParse({ ...envelope, event_id: variantNibbleWrong }).success,
     ).toBe(false);
+  });
+
+  it("has a prepared relaxation that accepts what FGuid would emit", () => {
+    /*
+     * The strictness came from a schema library's default, not from the approved
+     * architecture. What is actually locked is narrower: a *stable, globally
+     * unique 128-bit identifier generated once before queueing and preserved
+     * through retries*. Nothing downstream reads the version bits, nothing in
+     * the security model depends on them, and deduplication is scoped to
+     * (source_id, event_id) — so the collision domain is one installation.
+     *
+     * `CanonicalIdSchema` is therefore prepared and tested but deliberately NOT
+     * wired into the envelope. If Akhilesh's serialisation turns out not to set
+     * RFC bits, swapping it in is one line with this test already describing
+     * exactly what changes.
+     */
+    const nonRfc = "6f1c9f6e-2c7a-0a4e-2b31-9b0f9a3f1a2b";
+    expect(WireUuidSchema.safeParse(nonRfc).success, "today: refused").toBe(false);
+    expect(CanonicalIdSchema.safeParse(nonRfc).success, "prepared: accepted").toBe(true);
+
+    /* And the relaxation is not a licence for anything shorter or unstructured. */
+    expect(CanonicalIdSchema.safeParse("6f1c9f6e2c7a4a4e9b319b0f9a3f1a2b").success).toBe(false);
+    expect(CanonicalIdSchema.safeParse("not-an-id").success).toBe(false);
+
+    expect(EVENT_ID_REQUIREMENT).toMatch(/Version and variant semantics are not part/);
   });
 
   it("accepts uppercase hex, so casing is not part of the hazard", () => {

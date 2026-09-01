@@ -637,24 +637,31 @@ either name. The endpoint is configurable in UE and both URLs come back from act
 this blocks nothing today — it just needs deciding before the Edge Functions exist. The host
 is a separate, uncontroversial deployment detail.
 
-**A seventh, in your favour.** Property keys may no longer shadow an envelope field name —
-`event_id`, `event_name`, `schema_version`, `occurred_at`, `session_id`, `sequence`. If any
-current payload uses one of those as a property, rename it (`step_index` rather than
-`sequence`). The point is to stop a caller building a second, unauthoritative ordering
-beside the real one.
+**A seventh, in your favour, and narrower than it first was.** At the **top level of**
+**`properties`** only, a key may not shadow an envelope, identity or credential name —
+`event_id`, `event_name`, `schema_version`, `occurred_at`, `session_id`, `sequence`,
+`tenant_id`, `project_id`, `source_id`, `ingested_at`, `source_token`, `activation_code`,
+`authorization`, `credential`, `api_key`. If a current payload uses one at the top level,
+rename it — `step_index` rather than `sequence`.
+
+**Nested keys are fine.** `tour: { steps: [{ sequence }] }` is accepted; an earlier draft
+rejected these at every depth and that was too strict to live with. It is safe because the
+guarantee is structural, not lexical: no payload value participates in identity resolution
+at any depth, because the server takes identity from your credential and there is no code
+path from the payload to it.
 
 ---
 
 ## 10. What is still open — and none of it blocks you
 
-| Item                                | Effect on your work                                                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Backend ceiling (proposed, not set) | Your 25–50 range sits well inside it. A server value only ever tightens what you send.                  |
-| Clock acceptance window             | Nothing is rejected for its timestamp today; you may see a `late_arrival` or `future_skew` **warning**. |
-| Event name catalogue                | Names are not fixed. Build the envelope, not the catalogue.                                             |
-| Analytics and idempotency retention | No effect on the wire.                                                                                  |
-| Credential internals                | No effect: the token is opaque to you either way.                                                       |
-| Platform matrix beyond UE 5.6       | Your call to make, and we need it.                                                                      |
+| Item                                | Effect on your work                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend ceilings (now approved)     | 200 events, 8 MiB, 64 KiB — three independent limits, all of which a batch must satisfy. Your 25–50 range sits well inside the count. |
+| Clock acceptance window             | Nothing is rejected for its timestamp today; you may see a `late_arrival` or `future_skew` **warning**.                               |
+| Event name catalogue                | Names are not fixed. Build the envelope, not the catalogue.                                                                           |
+| Analytics and idempotency retention | No effect on the wire.                                                                                                                |
+| Credential internals                | No effect: the token is opaque to you either way.                                                                                     |
+| Platform matrix beyond UE 5.6       | Your call to make, and we need it.                                                                                                    |
 
 **Closed since the last version:** the legacy database, sequence feasibility _and_ semantics,
 credential-at-rest, the limit values, and the 401/403 behaviour. All six are now recorded
@@ -669,11 +676,14 @@ database, sequence feasibility, sequence semantics, credential-at-rest, the limi
 the 401/403 behaviour. Thank you; none of those will be asked again.
 
 1. **Event identifier.** Does `FObserverEvent` serialise the identifier hyphenated, and does
-   it carry RFC 4122 version and variant bits? If UE cannot guarantee the latter, say so and
-   we will relax the contract to "any canonical 128-bit identifier" — that is a decision we
-   can make, but not one we should assume. This is the one most likely to bite on the first
-   real request, because a non-conforming identifier is refused roughly three times in four,
-   at random.
+   it carry RFC 4122 version and variant bits? **Do not change anything on your side for
+   this yet.** The strictness came from a schema library default, not from the approved
+   architecture — what is actually required is a stable, globally unique 128-bit identifier
+   generated once before queueing and preserved through retries. Nothing downstream reads the
+   version bits, and deduplication is scoped to `(source_id, event_id)`, so the collision
+   domain is one installation rather than the world. If your GUIDs do not set those bits, we would rather relax the
+   schema than push arbitrary UUID-version semantics into Unreal. The relaxed form is already
+   written and tested; it is one line to switch. We just need to know what you emit first.
 
 2. **Field naming.** Does the envelope serialise as `event_id` or as `eventId`?
 

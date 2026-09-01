@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PROPOSED_BACKEND_CEILINGS } from "./client-config";
+import { APPROVED_BACKEND_CEILINGS } from "./client-config";
 
 /**
  * LIMITS — the shape is contract, the numbers are not. PROPOSED shape, OPEN values.
@@ -102,14 +102,14 @@ export interface EffectiveLimits {
  * decision register cites them.
  */
 export const HARNESS_LIMITS: EffectiveLimits = Object.freeze({
-  maxBatchEvents: PROPOSED_BACKEND_CEILINGS.maxBatchEvents,
-  maxBatchBytes: PROPOSED_BACKEND_CEILINGS.maxBatchBytes,
+  maxBatchEvents: APPROVED_BACKEND_CEILINGS.maxBatchEvents,
+  maxBatchBytes: APPROVED_BACKEND_CEILINGS.maxBatchBytes,
   /*
    * Not invented any more. 64 KB is the approved V1 event cap on both sides, so
    * the harness enforces the real number rather than a plausible one — which
    * means a boundary test here is a boundary test of the contract.
    */
-  maxEventBytes: PROPOSED_BACKEND_CEILINGS.maxEventBytes,
+  maxEventBytes: APPROVED_BACKEND_CEILINGS.maxEventBytes,
   maxPropertyDepth: 8,
   maxPropertyCount: 128,
 });

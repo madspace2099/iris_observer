@@ -150,8 +150,8 @@ const MUTATIONS = [
       "PD-04 — a second, unauthoritative ordering beside the real one, leaving a read model " +
       "with two answers to the same question.",
     file: "packages/contracts/src/ue5/ingestion.ts",
-    find: '  "session_id",\n  "sequence",\n] as const;',
-    replace: '  "session_id",\n] as const;',
+    find: '  "occurred_at",\n  "session_id",\n  "sequence",\n',
+    replace: '  "occurred_at",\n  "session_id",\n',
     targets: [CONTRACT_TESTS],
   },
   {

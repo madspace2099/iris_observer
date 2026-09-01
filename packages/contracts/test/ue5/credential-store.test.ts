@@ -3,7 +3,9 @@ import {
   CREDENTIAL_AT_REST_CAVEAT,
   CREDENTIAL_PERSISTENCE_OPERATIONS,
   CREDENTIAL_SECURITY_PROPERTIES,
+  CREDENTIAL_STORE_IMPLEMENTATION_STATUS,
   CREDENTIAL_STORE_MODES,
+  CREDENTIAL_STORE_VERIFICATION_REQUIRED,
   PLATFORM_PROTECTED_MECHANISM,
   verifyCredentialStore,
 } from "../../src/ue5/credential";
@@ -107,6 +109,25 @@ describe("the production packaging gate", () => {
         platform,
       ).toBe(false);
     }
+  });
+});
+
+describe("planned is not implemented", () => {
+  it("records the production store as planned and not yet verified", () => {
+    /*
+     * DPAPI is the confirmed plan, and a plan from a competent engineer usually
+     * does arrive — which is exactly why recording it as though it had is the
+     * more tempting version of the mistake this table exists to prevent.
+     */
+    expect(CREDENTIAL_STORE_IMPLEMENTATION_STATUS).toBe("PLANNED_NOT_YET_VERIFIED");
+  });
+
+  it("states what evidence would move it, so the bar cannot drift", () => {
+    const joined = CREDENTIAL_STORE_VERIFICATION_REQUIRED.join(" ");
+    expect(joined).toMatch(/implemented, not only planned/);
+    expect(joined).toMatch(/survives crash recovery/);
+    expect(joined).toMatch(/cannot select plaintext persistence/);
+    expect(joined).toMatch(/a test or an artefact demonstrating the above/);
   });
 });
 

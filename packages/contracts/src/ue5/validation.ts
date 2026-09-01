@@ -359,11 +359,11 @@ export function validateEvent(raw: unknown, context: ValidationContext): Validat
    * the two stages are contiguous and UE-OBS-005 can implement them as two
    * passes rather than as a checklist interleaved with size arithmetic.
    */
-  const reserved = findReservedKey(event.properties);
+  const reserved = findReservedTopLevelKey(event.properties);
   if (reserved !== null) {
     return reject(
       "reserved_property",
-      `${reserved} is reserved; tenant, project and source are derived from the credential`,
+      `${reserved} is reserved at the top level of properties; identity is derived from the credential`,
     );
   }
 
@@ -386,25 +386,22 @@ function reject(code: EventRejectionCode, detail: string): ValidationVerdict {
   return { ok: false, rejection: { code, detail } };
 }
 
-function findReservedKey(value: unknown): string | null {
-  const stack: Array<{ path: string; node: unknown }> = [{ path: "", node: value }];
-  const seen = new WeakSet<object>();
-  while (stack.length > 0) {
-    const frame = stack.pop();
-    if (frame === undefined) break;
-    const node = frame.node;
-    if (node === null || typeof node !== "object") continue;
-    if (seen.has(node)) continue;
-    seen.add(node);
-    if (Array.isArray(node)) {
-      node.forEach((child, index) => stack.push({ path: `${frame.path}[${index}]`, node: child }));
-      continue;
-    }
-    for (const [key, child] of Object.entries(node)) {
-      const path = frame.path === "" ? key : `${frame.path}.${key}`;
-      if (isReservedPropertyKey(key)) return path;
-      stack.push({ path, node: child });
-    }
+/**
+ * The first top-level property name that shadows an envelope or identity field.
+ *
+ * **Top level only.** An earlier revision walked every depth, which was too
+ * strict to live with — `sequence`, `source` and `project` are ordinary words,
+ * and a future event schema will legitimately carry
+ * `tour: { steps: [{ sequence }] }`.
+ *
+ * The narrowing costs nothing that matters, because the guarantee is structural
+ * rather than lexical: `projectEvent` receives identity as a separate argument
+ * and no code path leads from `properties` to it, at any depth. This check
+ * prevents a field that *looks* authoritative, not one that *is*.
+ */
+function findReservedTopLevelKey(properties: Record<string, unknown>): string | null {
+  for (const key of Object.keys(properties)) {
+    if (isReservedPropertyKey(key)) return key;
   }
   return null;
 }

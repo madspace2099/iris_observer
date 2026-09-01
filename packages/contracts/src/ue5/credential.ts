@@ -192,6 +192,30 @@ export const CREDENTIAL_AT_REST_CAVEAT =
   "Platform protection raises the bar against filesystem access. It does not make the " +
   "credential unextractable, and no part of this contract depends on it doing so.";
 
+/**
+ * How far the production credential store has actually got.
+ *
+ * DPAPI is the confirmed **plan**, and a plan is not an implementation. Recording
+ * it as though it were would be the same class of mistake this whole traceability
+ * exercise exists to prevent — and the more tempting one, because a plan from a
+ * competent engineer usually does arrive.
+ *
+ * `verifyCredentialStore` refuses a production package configured for plaintext
+ * today. What is still owed is **evidence** that the protected store exists,
+ * works across crash recovery and ordinary updates, and cannot be switched off
+ * by accident in a production build. Until that arrives, the readiness gate must
+ * treat production credential-at-rest as unproven.
+ */
+export const CREDENTIAL_STORE_IMPLEMENTATION_STATUS = "PLANNED_NOT_YET_VERIFIED" as const;
+
+/** What evidence would move the status, stated so the bar cannot drift. */
+export const CREDENTIAL_STORE_VERIFICATION_REQUIRED: readonly string[] = Object.freeze([
+  "The platform-protected store is implemented, not only planned.",
+  "It survives crash recovery and ordinary application updates.",
+  "A production package cannot select plaintext persistence, accidentally or otherwise.",
+  "There is a test or an artefact demonstrating the above, not a description of it.",
+]);
+
 export interface CredentialStorePolicy {
   readonly environment: "production" | "staging" | "development";
   readonly mode: CredentialStoreMode;

@@ -15,12 +15,12 @@ document once said it would.
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
 | `UE_IMPLEMENTATION_CONFIRMED` | 22 |
-| `DECIDED_BY_PRODUCT` | 8 |
-| `PROPOSED` | 23 |
-| `OPEN` | 14 |
+| `APPROVED_PRODUCT_DECISION` | 30 |
+| `PROPOSED` | 1 |
+| `OPEN` | 15 |
 | `MOCK_ONLY` | 3 |
 
-**Total:** 115
+**Total:** 116
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -109,10 +109,32 @@ table exists to prevent.
 | `U-21` | The configured endpoints are https://observer.madspace.io/functions/v1/activate and /ingest, which differ from the contract's proposed names. | — | akhilesh | — | `openapi.ts` |
 | `U-22` | Max Retry Attempts is configured to 5. Its exact semantics are not yet stated. | — | akhilesh | — | `outbox.ts` |
 
-## DECIDED_BY_PRODUCT
+## APPROVED_PRODUCT_DECISION
 
 | Id | Rule | Authority | Owner | Blocks | Where |
 | --- | --- | --- | --- | --- | --- |
+| `P-01` | Activation endpoint, request shape and success body. | — | product | — | `activation.ts` |
+| `P-02` | installation_nonce, plugin-generated, replaces a hardware machine fingerprint. | — | product | — | `activation.ts` |
+| `P-03` | hostname_hint is removed; a server-authored display_label is returned instead. | — | product | — | `activation.ts` |
+| `P-04` | environment is reported by the client but authoritative from the source record. | — | product | — | `activation.ts` |
+| `P-05` | The activation response omits tenant_id and project_id; only source_id and a label return. | — | product | — | `activation.ts` |
+| `P-06` | status distinguishes activated from reactivated; recovery reuses the ordinary flow. | — | product | — | `activation.ts` |
+| `P-07` | Ingestion endpoint and batch envelope shape. | — | product | — | `ingestion.ts` |
+| `P-08` | Per-event result shape, submission order, and redundant batch counters. | — | product | — | `ingestion.ts` |
+| `P-09` | The rejection code vocabulary and each code's retry and outbox policy. | — | product | — | `errors.ts` |
+| `P-10` | An unrecognised code is non-retryable and quarantines, overriding the server's retryable flag. | — | product | — | `errors.ts` |
+| `P-11` | An unrecognised HTTP status retains the outbox and backs off; an unrecognised 4xx quarantines. | — | product | — | `errors.ts` |
+| `P-12` | Source credentials do not expire; revocation and rotation are the operator's controls. | — | product | — | `credential.ts` |
+| `P-13` | Credential and source lifecycle states and their observable transitions. | — | product | — | `credential.ts` |
+| `P-14` | A dedicated heartbeat endpoint carries liveness and plugin health; an empty batch is not a heartbeat. | — | product | — | `heartbeat.ts` |
+| `P-15` | diagnostic.test in a reserved namespace proves the storage path end to end, once. | — | product | — | `diagnostic.ts` |
+| `P-16` | The limit field shape is contract; every value in this candidate is deliberately null. | — | product | — | `limits.ts` |
+| `P-18` | Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which. | — | product | — | `validation.ts` |
+| `P-19` | The forbidden-content scan is a guardrail against accidents; the schema registry is the guarantee. | — | product | — | `privacy.ts` |
+| `P-20` | An empty batch is valid and processed, returning received: 0. It is not a heartbeat. | — | product | — | `ingestion.ts` |
+| `P-21` | SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero. | — | product | — | `projection.ts` |
+| `P-23` | Backend absolute ceilings: 200 events, 8 MiB per batch and 64 KiB per event, as three independent constraints a batch must satisfy simultaneously. Deliberately uncoupled from any Unreal configuration. | — | product | — | `client-config.ts` |
+| `P-24` | At the TOP LEVEL of properties only, a key may not shadow an envelope, identity or credential name. Nested domain keys are permitted; no payload value participates in identity resolution at any depth. | — | product | — | `ingestion.ts` |
 | `PD-01` | Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics. | — | product | — | `docs` |
 | `PD-02` | The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise. | — | product | — | `docs` |
 | `PD-03` | V1 client delivery defaults are adopted: 25 events per batch, a 5 second flush, a 64 KiB event cap and a 50 MB outbox ceiling, with a supported batch range of 25-50. | — | product | — | `client-config.ts` |
@@ -126,28 +148,6 @@ table exists to prevent.
 
 | Id | Rule | Authority | Owner | Blocks | Where |
 | --- | --- | --- | --- | --- | --- |
-| `P-01` | Activation endpoint, request shape and success body. | — | matthew | UE-OBS-003 | `activation.ts` |
-| `P-02` | installation_nonce, plugin-generated, replaces a hardware machine fingerprint. | — | matthew_and_akhilesh | UE-OBS-003 | `activation.ts` |
-| `P-03` | hostname_hint is removed; a server-authored display_label is returned instead. | — | matthew | UE-OBS-003 | `activation.ts` |
-| `P-04` | environment is reported by the client but authoritative from the source record. | — | matthew | UE-OBS-003 | `activation.ts` |
-| `P-05` | The activation response omits tenant_id and project_id; only source_id and a label return. | — | matthew | UE-OBS-003 | `activation.ts` |
-| `P-06` | status distinguishes activated from reactivated; recovery reuses the ordinary flow. | — | matthew | UE-OBS-003 | `activation.ts` |
-| `P-07` | Ingestion endpoint and batch envelope shape. | — | matthew | UE-OBS-006, UE-OBS-007 | `ingestion.ts` |
-| `P-08` | Per-event result shape, submission order, and redundant batch counters. | — | matthew | UE-OBS-006 | `ingestion.ts` |
-| `P-09` | The rejection code vocabulary and each code's retry and outbox policy. | — | matthew | UE-OBS-006, UE-OBS-007 | `errors.ts` |
-| `P-10` | An unrecognised code is non-retryable and quarantines, overriding the server's retryable flag. | — | matthew | UE-OBS-007 | `errors.ts` |
-| `P-11` | An unrecognised HTTP status retains the outbox and backs off; an unrecognised 4xx quarantines. | — | matthew | UE-OBS-007 | `errors.ts` |
-| `P-12` | Source credentials do not expire; revocation and rotation are the operator's controls. | — | matthew | UE-OBS-003 | `credential.ts` |
-| `P-13` | Credential and source lifecycle states and their observable transitions. | — | matthew | UE-OBS-003 | `credential.ts` |
-| `P-14` | A dedicated heartbeat endpoint carries liveness and plugin health; an empty batch is not a heartbeat. | — | matthew | UE-OBS-010 | `heartbeat.ts` |
-| `P-15` | diagnostic.test in a reserved namespace proves the storage path end to end, once. | — | matthew | UE-OBS-010 | `diagnostic.ts` |
-| `P-16` | The limit field shape is contract; every value in this candidate is deliberately null. | — | matthew | UE-OBS-006 | `limits.ts` |
-| `P-18` | Byte, depth and breadth ceilings all answer event_too_large, with the detail naming which. | — | matthew | UE-OBS-005 | `validation.ts` |
-| `P-19` | The forbidden-content scan is a guardrail against accidents; the schema registry is the guarantee. | — | matthew | UE-OBS-005 | `privacy.ts` |
-| `P-20` | An empty batch is valid and processed, returning received: 0. It is not a heartbeat. | — | matthew | UE-OBS-006 | `ingestion.ts` |
-| `P-21` | SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero. | — | matthew | UE-OBS-004 | `projection.ts` |
-| `P-23` | Backend absolute ceilings: 200 events and 8 MiB per batch, 64 KiB per event. At or above the UE operating range, and distinct from it. | — | matthew | UE-OBS-006 | `client-config.ts` |
-| `P-24` | Property keys may not shadow an envelope field name, so a caller cannot build a second unauthoritative ordering beside the real one. | — | matthew | UE-OBS-005 | `ingestion.ts` |
 | `P-22` | The credential security properties an implementation must provide, stated behaviourally. | — | backend_review | UE-OBS-003 | `credential.ts` |
 
 ## OPEN
@@ -168,6 +168,7 @@ table exists to prevent.
 | `O-15` | Whether FObserverEvent serialises the envelope with the contract's snake_case field names rather than Unreal's default camelCase. | — | matthew_and_akhilesh | UE-OBS-007 | `ingestion.ts` |
 | `O-16` | The exact semantics of Max Retry Attempts. Modelled as an attempt/backoff bound; it must never mean deletion, and exhausting it preserves the event. | — | matthew_and_akhilesh | UE-OBS-006 | `outbox.ts` |
 | `O-17` | Endpoint naming: the UE settings configure /functions/v1/activate and /ingest; the contract proposes /observer-activate and /observer-ingest. Not to be resolved silently. | — | matthew_and_akhilesh | UE-OBS-007 | `openapi.ts` |
+| `O-18` | Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package. | — | akhilesh | UE-OBS-003 | `credential.ts` |
 
 ## MOCK_ONLY
 

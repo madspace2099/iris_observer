@@ -13,6 +13,7 @@ import {
   outboxStateAfterRetryExhaustion,
   outboxStateForTransportFailure,
   OUTBOX_CAPACITY_RULES,
+  RETRY_EXHAUSTION_RULES,
 } from "../../src/ue5/outbox";
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "../../src/ue5/errors";
 
@@ -200,6 +201,23 @@ describe("retry attempts are not a retention limit", () => {
     expect(verdict.mayBeErased).toBe(false);
     expect(verdict.removedFromPendingDelivery).toBe(false);
     expect(verdict.reason).toMatch(/never erased/);
+  });
+});
+
+describe("what exhaustion may do, and the gap left open", () => {
+  it("bounds the behaviour without inventing the timing policy", () => {
+    const joined = RETRY_EXHAUSTION_RULES.join(" ");
+    expect(joined).toMatch(/may end the current retry cycle/);
+    expect(joined).toMatch(/remains durable/);
+    expect(joined).toMatch(/remains unacknowledged/);
+    expect(joined).toMatch(/slower backoff, a paused state, or an operator-visible condition/);
+    expect(joined).toMatch(/Only an explicit accepted or duplicate acknowledgement removes it/);
+    expect(joined).toMatch(/non-retryable rejection moves it to durable quarantine/);
+  });
+
+  it("names no interval, because none has been decided", () => {
+    /* OPEN-16. A number here would be one an implementation then has to match. */
+    expect(RETRY_EXHAUSTION_RULES.join(" ")).not.toMatch(/[0-9]+ (seconds|minutes|hours)/);
   });
 });
 

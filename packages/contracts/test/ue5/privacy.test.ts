@@ -113,6 +113,42 @@ describe("the scanner catches what it is aimed at", () => {
     expect(performance.now() - started).toBeLessThan(250);
   });
 
+  it("stays bounded against inputs shaped to make each pattern backtrack", () => {
+    /*
+     * The email fix generalised. Every detector now runs against a 64 KiB input
+     * chosen to be adversarial *for that detector specifically* — a long local
+     * part with no `@`, a plus followed by digits, repeated `eyJ` at word
+     * boundaries, a `sk-` or `Bearer` prefix in front of a long run.
+     *
+     * A legal event may be 64 KiB, so any privacy or secret detector has to have
+     * bounded runtime on one. This is the guard for the whole family rather than
+     * for the one member that failed.
+     */
+    const n = 65_536;
+    const adversarial: Record<string, string> = {
+      plain: "x".repeat(n),
+      alphanumeric: "aZ9".repeat(n / 3),
+      jwtish: ("a eyJ" + "A".repeat(20)).repeat(Math.floor(n / 26)),
+      jwtPrefix: "eyJ" + "A".repeat(n),
+      secretPrefix: "sk-" + "A".repeat(n),
+      bearerPrefix: "Bearer " + "A".repeat(n),
+      plusDigits: "+" + "1".repeat(n),
+      dotted: "a.".repeat(n / 2),
+      tokenPrefix: "obs_" + "a".repeat(n),
+    };
+
+    const started = performance.now();
+    scanForForbiddenContent(adversarial);
+    const elapsed = performance.now() - started;
+
+    /*
+     * Nine adversarial values of 64 KiB each. The unbounded email pattern took
+     * 3.4 seconds on one of them, so a second for all nine is a loose bound that
+     * still fails loudly if any detector goes quadratic again.
+     */
+    expect(elapsed).toBeLessThan(1_000);
+  });
+
   it("survives a payload built with a cycle in it", () => {
     const cyclic: Record<string, unknown> = { name: "unit" };
     cyclic["self"] = cyclic;

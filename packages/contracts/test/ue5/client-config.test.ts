@@ -3,7 +3,9 @@ import {
   CONSENT_SETTING_MEANING,
   EXPECTED_TYPICAL_EVENT_BYTES,
   OUTBOX_CAPACITY_STATEMENT,
-  PROPOSED_BACKEND_CEILINGS,
+  APPROVED_BACKEND_CEILINGS,
+  BATCH_ACCEPTANCE_RULES,
+  batchWithinCeilings,
   UE_BATCH_RANGE,
   UE_CONFIGURABLE_SETTINGS,
   UE_OUTBOX_DIRECTORY,
@@ -84,23 +86,51 @@ describe("the backend ceiling is a different number", () => {
      * client's maximum means an operator turning a legitimate dial produces a
      * 413, and they would have no way of knowing they were allowed to.
      */
-    expect(PROPOSED_BACKEND_CEILINGS.maxBatchEvents).toBeGreaterThanOrEqual(UE_BATCH_RANGE.max);
+    expect(APPROVED_BACKEND_CEILINGS.maxBatchEvents).toBeGreaterThanOrEqual(UE_BATCH_RANGE.max);
   });
 
   it("matches the client exactly on the event cap, because a gap would help nobody", () => {
-    expect(PROPOSED_BACKEND_CEILINGS.maxEventBytes).toBe(UE_V1_CLIENT_DEFAULTS.maxEventBytes);
+    expect(APPROVED_BACKEND_CEILINGS.maxEventBytes).toBe(UE_V1_CLIENT_DEFAULTS.maxEventBytes);
+  });
+
+  it("holds all three constraints independently, and they do not imply each other", () => {
+    /*
+     * THE MISREADING THIS EXISTS TO PREVENT. "200 events" and "8 MiB" are not
+     * one budget expressed twice: 200 × 64 KiB is 12.5 MiB, half as much again
+     * as the body ceiling allows. A batch is accepted only when the count, the
+     * total bytes and every individual event size are each inside their own
+     * limit.
+     */
+    const cap = APPROVED_BACKEND_CEILINGS;
+    expect(cap.maxBatchEvents * cap.maxEventBytes).toBeGreaterThan(cap.maxBatchBytes);
+
+    /* Within the count, over the bytes. */
+    expect(batchWithinCeilings(200, cap.maxBatchBytes + 1, 1_024)).toBe(false);
+    /* Within the bytes, over the count. */
+    expect(batchWithinCeilings(201, 1_024, 1_024)).toBe(false);
+    /* Within both, but one event is too large. */
+    expect(batchWithinCeilings(2, 200_000, cap.maxEventBytes + 1)).toBe(false);
+    /* All three satisfied. */
+    expect(batchWithinCeilings(200, cap.maxBatchBytes, cap.maxEventBytes)).toBe(true);
+  });
+
+  it("says in words that the count ceiling does not imply the bytes are available", () => {
+    const joined = BATCH_ACCEPTANCE_RULES.join(" ");
+    expect(joined).toMatch(/each within their own ceiling/);
+    expect(joined).toMatch(/The three are independent/);
+    expect(joined).toMatch(/12\.5 MiB/);
   });
 
   it("does not set the batch byte ceiling to the worst-case product", () => {
     /* 200 × 64 KiB is 12.5 MB of maximal events, which no real batch resembles. */
     const worstCaseProduct =
-      PROPOSED_BACKEND_CEILINGS.maxBatchEvents * PROPOSED_BACKEND_CEILINGS.maxEventBytes;
-    expect(PROPOSED_BACKEND_CEILINGS.maxBatchBytes).toBeLessThan(worstCaseProduct);
+      APPROVED_BACKEND_CEILINGS.maxBatchEvents * APPROVED_BACKEND_CEILINGS.maxEventBytes;
+    expect(APPROVED_BACKEND_CEILINGS.maxBatchBytes).toBeLessThan(worstCaseProduct);
   });
 
   it("is what the harness enforces, so a boundary test is a contract test", () => {
-    expect(HARNESS_LIMITS.maxEventBytes).toBe(PROPOSED_BACKEND_CEILINGS.maxEventBytes);
-    expect(HARNESS_LIMITS.maxBatchEvents).toBe(PROPOSED_BACKEND_CEILINGS.maxBatchEvents);
+    expect(HARNESS_LIMITS.maxEventBytes).toBe(APPROVED_BACKEND_CEILINGS.maxEventBytes);
+    expect(HARNESS_LIMITS.maxBatchEvents).toBe(APPROVED_BACKEND_CEILINGS.maxBatchEvents);
   });
 });
 
