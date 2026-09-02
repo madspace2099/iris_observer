@@ -1,0 +1,638 @@
+/**
+ * THE IRIS SHELL — the visual language the whole application wears.
+ *
+ * Adopted from the Claude Design artefact "AI IRIS_OBSERVER PAGE"
+ * (`bf2bb7b8-f80c-4261-a172-f45cc881a52e`), which the user approved as the new
+ * design for the site. Every measurement here — the 70px header, the 24px nav
+ * gap, the 15.5px items, the 2px underline and its glow, the radial atmosphere,
+ * the radii and the text ramp — is read out of that file rather than
+ * approximated by eye.
+ *
+ * ## Two things were deliberately NOT adopted, and why
+ *
+ * **The typeface.** The artefact ships `Anthropic Sans` and `Inter`. Anthropic
+ * Sans is another company's corporate face and arrives here only because it is
+ * the design tool's default; Inter is the doctrine's named example of a generic
+ * choice. Manrope is brand-locked by ADR-0020 and by the Figma file, is already
+ * self-hosted, and carries the tabular figures every number in this product
+ * depends on. So the design's typography SCALE is taken and its font is not.
+ *
+ * **The accent.** The artefact uses `#2f97ff`; the brand is `#00a3ff`. The
+ * difference is small and the brand is not ours to move. What IS adopted is the
+ * artefact's atmosphere — the indigo grounds and glows below are its values
+ * exactly — so the accent sits on the ground the design intended, in the colour
+ * the brand requires.
+ *
+ * ## The prefix collides, and the fix is scoping rather than load order
+ *
+ * `iris.css` already owns `.irs-ask`, `.irs-brand`, `.irs-nav` and
+ * `.irs-suggestion` — the IRIS Spatial Intelligence layer this design will
+ * eventually replace. The first version of this file reused those names
+ * unscoped and inherited `border-radius: 999px` from the older sheet, which
+ * drew a 706px disc behind the whole page.
+ *
+ * Loading this sheet last would have fixed the disc and broken every existing
+ * surface that still uses those classes. So every rule below is scoped under
+ * `.irs-shell` instead: higher specificity where it should win, and no reach
+ * at all outside the shell. When the older layer retires, the scope can go with
+ * it.
+ *
+ * ## What this file is not
+ *
+ * Not a replacement for `tokens.css`. That file holds the vocabulary the
+ * analytical surfaces are built from — verdict colours, the metric ramp, the
+ * chart palette — and none of it changes. This adds the shell those surfaces
+ * now sit inside, and a handful of tokens the shell needs that did not exist.
+ */
+
+:root {
+  /* --- the ground ---------------------------------------------------------
+   *
+   * `#02050d` is the artefact's page colour: near-black with a blue cast, so
+   * that the atmosphere layered on top reads as depth rather than as a stain.
+   * `--surface-base` in `tokens.css` is `#07090c` — a neutral graphite — and
+   * both are kept: this one is the shell's ground, that one is the ground a
+   * panel sits on.
+   */
+  --iris-ground: #02050d;
+  --iris-header-veil: rgb(2 5 13 / 62%);
+  --iris-hairline: rgb(130 150 185 / 10%);
+
+  /* --- the text ramp, from the artefact ----------------------------------- */
+  --iris-text-primary: #f4f7fc;
+  --iris-text-secondary: rgb(244 247 252 / 72%);
+  --iris-text-tertiary: #98a4b8;
+  --iris-text-quiet: rgb(150 166 192 / 72%);
+  --iris-text-hover: #dfe7f3;
+
+  /* --- geometry ------------------------------------------------------------
+   *
+   * The content width is a clamp rather than a fixed column: the artefact holds
+   * its reading measure between 680 and 920px and then yields to the viewport,
+   * which is what keeps a long answer readable on a wide screen without
+   * stranding it in the middle of one.
+   */
+  --iris-content-width: min(clamp(680px, 49vw, 920px), calc(100vw - 48px));
+  --iris-shell-pad: 31px;
+  --iris-header-height: 70px;
+  --iris-nav-gap: 24px;
+
+  --iris-radius-hero: 24px;
+  --iris-radius-surface: 12px;
+  --iris-radius-control: 10px;
+  --iris-radius-pill: 999px;
+
+  --iris-icon-size: 18px;
+  --iris-icon-size-sm: 16px;
+  --iris-icon-stroke: 1.7;
+
+  /* --- the atmosphere ------------------------------------------------------
+   *
+   * TWO layers, which is what the artefact uses, and the count matters. The
+   * first draft of this had three: a wide indigo lift, a vignette, and a
+   * "halo". The halo was a mistake — it is the light INSIDE the prompt card,
+   * lifted out of a different element and wrongly promoted to the page — and it
+   * rendered as a visible dark disc behind the content, which is exactly what
+   * atmosphere must not do.
+   *
+   * The lift is paired with a vertical wash in the same layer, which is the
+   * part that keeps it from reading as a disc: the ellipse alone has an edge,
+   * and the linear gradient underneath gives it somewhere to end.
+   *
+   * The artefact also draws a faint grid on a `<canvas>` behind both. Not
+   * adopted: it is a continuously running animation frame for a texture, and
+   * the doctrine allows motion that communicates and forbids motion that
+   * decorates.
+   */
+  --iris-atmos-lift:
+    radial-gradient(
+      ellipse 52% 46% at 50% 40%,
+      rgb(0 73 180 / 13%) 0%,
+      rgb(0 42 105 / 5%) 44%,
+      transparent 74%
+    ),
+    linear-gradient(180deg, rgb(3 7 19 / 55%) 0%, rgb(2 5 13 / 75%) 100%);
+  --iris-atmos-vignette: radial-gradient(
+    ellipse 76% 84% at 50% 50%,
+    transparent 44%,
+    rgb(1 3 9 / 62%) 100%
+  );
+}
+
+/* --- the shell -------------------------------------------------------------- */
+
+.irs-shell {
+  position: relative;
+  min-height: 100vh;
+  background: var(--iris-ground);
+  color: var(--iris-text-primary);
+  /*
+   * NOT `overflow: hidden`, which the artefact uses. A design canvas is one
+   * fixed composition and can afford to clip; an application has pages taller
+   * than the viewport, and clipping here would make every one of them
+   * unscrollable. The atmosphere is contained by its own layer instead.
+   */
+  display: flex;
+  flex-direction: column;
+}
+
+/**
+ * The atmosphere, as one non-interactive layer behind everything.
+ *
+ * `position: fixed` rather than absolute, so a long page scrolls THROUGH the
+ * light instead of dragging it along — the glow belongs to the window, not to
+ * the document.
+ */
+.irs-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--iris-atmos-vignette), var(--iris-atmos-lift);
+}
+
+.irs-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- the header ------------------------------------------------------------- */
+
+.irs-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  height: var(--iris-header-height);
+  padding: 0 var(--iris-shell-pad);
+  column-gap: 20px;
+  background: var(--iris-header-veil);
+  border-bottom: 1px solid var(--iris-hairline);
+  /*
+   * Sticky rather than static: the navigation is how an operator moves between
+   * four surfaces, and a page long enough to scroll is a page where it would
+   * otherwise be gone exactly when it is wanted.
+   */
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  backdrop-filter: blur(10px);
+}
+
+.irs-brand {
+  justify-self: start;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.irs-brand-mark {
+  display: block;
+  height: 21px;
+  width: auto;
+}
+
+/**
+ * "by MADSPACE", as text rather than as an image.
+ *
+ * The artefact ships it as a 5967x434 PNG — 94KB for something drawn seven
+ * pixels tall, on every page load. It is letterspaced small caps and nothing
+ * more, so type reproduces it exactly, scales to any density, follows the
+ * theme, and can be read aloud.
+ */
+.irs-brand-sub {
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--iris-text-primary);
+  opacity: 0.8;
+  padding-bottom: 3px;
+  white-space: nowrap;
+}
+
+/* --- primary navigation ------------------------------------------------------ */
+
+.irs-nav {
+  justify-self: center;
+  display: flex;
+  align-items: stretch;
+  gap: var(--iris-nav-gap);
+  height: var(--iris-header-height);
+  min-width: 0;
+}
+
+.irs-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: var(--iris-header-height);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  color: var(--iris-text-tertiary);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 170ms ease-out;
+}
+
+.irs-nav-item:hover {
+  color: var(--iris-text-hover);
+}
+
+.irs-nav-item[aria-current="page"] {
+  color: #fff;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+}
+
+/**
+ * The active marker: a 2px rule with a soft bloom.
+ *
+ * Drawn as an element rather than a `border-bottom` so it can sit inside the
+ * header's 70px without moving the label, and so the glow has something to
+ * belong to. It is decorative — the state is already carried by
+ * `aria-current`, which is what a screen reader announces.
+ */
+.irs-nav-item[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--iris-accent), var(--iris-accent-dim));
+  box-shadow: 0 0 9px rgb(0 163 255 / 60%);
+}
+
+.irs-nav-icon {
+  flex: none;
+  color: var(--iris-accent);
+}
+
+.irs-header-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.irs-who {
+  text-align: right;
+  min-width: 0;
+}
+
+.irs-who-name {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--iris-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.irs-who-role {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--iris-text-quiet);
+  white-space: nowrap;
+}
+
+/* --- the main column --------------------------------------------------------- */
+
+.irs-main {
+  flex: 1;
+  width: var(--iris-content-width);
+  margin: 0 auto;
+  padding: 40px 0 96px;
+  min-width: 0;
+}
+
+/**
+ * A wide variant, for the analytical surfaces.
+ *
+ * The reading measure above is right for prose and for one column of answers,
+ * and wrong for a table of units or a chart that needs room. Those surfaces opt
+ * out rather than the shell guessing which they are.
+ */
+.irs-main--wide {
+  width: min(1440px, calc(100vw - 48px));
+}
+
+@media (width <= 768px) {
+  :root {
+    --iris-shell-pad: 18px;
+    --iris-nav-gap: 16px;
+  }
+
+  .irs-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0;
+    height: auto;
+    padding: 12px var(--iris-shell-pad);
+  }
+
+  /*
+   * The navigation moves below the brand rather than compressing beside it. At
+   * 390px four items at 15.5px cannot share a row with a wordmark and a name
+   * without one of them being truncated, and a truncated navigation item is a
+   * destination somebody cannot identify.
+   */
+  .irs-nav {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    height: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-top: 4px;
+  }
+
+  .irs-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .irs-nav-item {
+    height: 40px;
+    font-size: 14.5px;
+  }
+
+  .irs-nav-item[aria-current="page"]::after {
+    bottom: 2px;
+  }
+
+  .irs-main {
+    padding: 24px 0 64px;
+  }
+}
+
+/* ============================================================== Ask IRIS ==== */
+
+/**
+ * The landing composition: one prompt, and the questions worth asking.
+ *
+ * Every measurement below is the artefact's. The one thing that is not adopted
+ * is its `<canvas>` glow behind the card — a decorative animation the design
+ * runs continuously. The doctrine allows motion that communicates and forbids
+ * motion that decorates, and a permanent shimmer behind an input communicates
+ * nothing. The card's own inner light does the same work without a frame loop.
+ */
+
+/*
+ * One measure for the card and the list beneath it. The design sets
+ * `--iris-list-width: var(--iris-content-width)` precisely so the two edges
+ * line up; letting the list find its own width put the suggestions inside the
+ * card's shoulders and made the composition look like two unrelated blocks.
+ */
+.irs-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+}
+
+.irs-ask-card {
+  position: relative;
+  min-height: 181px;
+  border-radius: var(--iris-radius-hero);
+  border: 1px solid rgb(120 170 240 / 28%);
+  background: linear-gradient(
+    180deg,
+    rgb(13 40 96 / 55%) 0%,
+    rgb(5 15 38 / 90%) 34%,
+    rgb(2 7 18 / 96%) 100%
+  );
+  box-shadow: inset 0 0 34px rgb(12 60 160 / 16%);
+  overflow: hidden;
+}
+
+/** The light inside the card, from above. Static, and that is the point. */
+.irs-ask-card::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -72%;
+  width: 56%;
+  height: 140%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgb(30 96 215 / 20%), transparent 66%);
+}
+
+.irs-ask-field {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 27px 34px 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  min-height: 115px;
+  color: var(--iris-text-primary);
+  caret-color: #35c9ff;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  line-height: 1.34;
+}
+
+.irs-ask-field::placeholder {
+  color: var(--iris-text-quiet);
+}
+
+.irs-ask-field:focus-visible {
+  outline: none;
+}
+
+/** Focus lands on the card, not the bare textarea, so the ring follows the shape. */
+.irs-ask-card:focus-within {
+  border-color: rgb(0 163 255 / 55%);
+  box-shadow:
+    inset 0 0 34px rgb(12 60 160 / 16%),
+    0 0 0 1px rgb(0 163 255 / 35%);
+}
+
+.irs-ask-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 27px 17px 33px;
+}
+
+.irs-ask-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 165px;
+  height: 41px;
+  padding: 0 12px 0 14px;
+  border-radius: var(--iris-radius-control);
+  border: 1px solid rgb(143 163 197 / 30%);
+  background: rgb(4 13 32 / 62%);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: #e9eff8;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.irs-ask-model:hover {
+  border-color: rgb(172 195 232 / 46%);
+  background: rgb(8 22 50 / 70%);
+}
+
+.irs-ask-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 41px;
+  height: 41px;
+  border: 0;
+  border-radius: var(--iris-radius-control);
+  background: linear-gradient(180deg, var(--iris-accent), var(--iris-accent-dim));
+  color: #04121f;
+  cursor: pointer;
+  transition: filter 180ms ease-out;
+}
+
+.irs-ask-send:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.irs-ask-send:disabled {
+  background: rgb(4 13 32 / 62%);
+  border: 1px solid rgb(143 163 197 / 30%);
+  color: var(--iris-text-quiet);
+  cursor: not-allowed;
+}
+
+/* --- the questions worth asking ---------------------------------------------- */
+
+.irs-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.irs-suggestion {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 16px;
+  min-height: 58px;
+  padding: 0 20px;
+  border-radius: 11px;
+  border: 1px solid rgb(140 165 205 / 14%);
+  background: linear-gradient(180deg, rgb(140 175 235 / 3.5%) 0%, rgb(88 124 190 / 1.8%) 100%);
+  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: inset 0 1px 0 rgb(200 224 255 / 6%);
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 400;
+  color: rgb(156 168 188 / 90%);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out,
+    transform 180ms ease-out,
+    color 180ms ease-out;
+}
+
+.irs-suggestion:hover {
+  border-color: rgb(168 194 238 / 26%);
+  background: linear-gradient(180deg, rgb(150 185 240 / 6.5%) 0%, rgb(96 132 198 / 3.2%) 100%);
+  color: rgb(206 216 232 / 95%);
+  transform: translateY(-1px);
+}
+
+.irs-suggestion-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgb(148 172 212 / 16%);
+  background: rgb(150 185 240 / 4.5%);
+  color: rgb(148 161 182 / 82%);
+}
+
+.irs-suggestion-chevron {
+  flex: none;
+  opacity: 0.6;
+}
+
+/**
+ * What the reader is told when the model cannot be reached.
+ *
+ * Stated rather than hidden, and stated once. `docs/PROJECT-STATE.md` records
+ * that no model-backed answer has ever been produced here — the configured key
+ * is refused — so a prompt that looked ready to answer would be the screen
+ * telling its first lie.
+ */
+.irs-ask-notice {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--iris-radius-surface);
+  border: 1px solid rgb(140 165 205 / 14%);
+  background: rgb(140 175 235 / 3.5%);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--iris-text-quiet);
+}
+
+@media (width <= 768px) {
+  .irs-ask-field {
+    font-size: 20px;
+    letter-spacing: 0.06em;
+    padding: 20px 20px 0;
+    min-height: 96px;
+  }
+
+  .irs-ask-foot {
+    padding: 0 16px 14px 18px;
+  }
+
+  .irs-ask-model {
+    width: 140px;
+  }
+
+  .irs-suggestion {
+    grid-template-columns: 36px minmax(0, 1fr) 16px;
+    gap: 12px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+  }
+
+  .irs-suggestion-mark {
+    width: 32px;
+    height: 32px;
+  }
+}

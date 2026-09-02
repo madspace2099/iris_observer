@@ -12,7 +12,8 @@
     "./showroom.css": "./src/showroom.css",
     "./charts.css": "./src/charts.css",
     "./observer.css": "./src/observer.css",
-    "./madspace.css": "./src/madspace.css"
+    "./madspace.css": "./src/madspace.css",
+    "./iris-shell.css": "./src/iris-shell.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
