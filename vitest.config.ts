@@ -99,6 +99,40 @@ export default defineConfig({
      * unhandled error, and `pglite-lifecycle.test.ts` still proves every
      * database is closed. `minWorkers` is set too because the forks pool keeps
      * that many processes alive independently of the maximum.
+     *
+     * ## RE-MEASURED at nineteen PGlite suites, and left alone
+     *
+     * The matrix above was taken when six suites booted a database. There are
+     * now nineteen, and two full runs took 5.3 hours and 34 minutes against a
+     * ~170s baseline, with `Timeout calling "onTaskUpdate"` and five extra
+     * failures — the exact signature this bound exists to prevent. That looked
+     * like the number having gone stale.
+     *
+     * It had not. A twenty-five file subset of every PGlite suite plus the four
+     * git-heavy release suites that were the victims, on a 16-thread machine
+     * with 15.3GB:
+     *
+     *     workers   elapsed   free RAM low-water   node peak   timeouts
+     *     4          198.8s   0.81GB               3371MB      0
+     *     6          143.1s   0.53GB               4245MB      0
+     *     8          162.7s   0.44GB               4825MB      0
+     *     uncapped   136.8s   0.66GB               3490MB      0
+     *
+     * The subset reproduces nothing at any worker count. So the COMPLETE suite
+     * was measured at this exact setting: 92 files, 160.4s, 2904 passed, zero
+     * test timeouts, zero RPC timeouts, and only the four failures that come
+     * from local working-directory state rather than from code.
+     *
+     * Same configuration, same files, 160.4s against 2058s. The bound is
+     * therefore not the cause, and it is not changed here. Both slow runs
+     * happened minutes after multi-agent tooling had been running, with roughly
+     * 1GB free rather than the 2.4GB of the clean run — machine load, not
+     * configuration. Which process took the memory cannot be established after
+     * the fact, and is not guessed at here.
+     *
+     * What the low-water column does say is that the margin is thin: the full
+     * suite touched 0.15GB free. That is a reason to re-measure when the next
+     * database suites land, not a reason to change a measured number now.
      */
     maxWorkers: 4,
     minWorkers: 4,
