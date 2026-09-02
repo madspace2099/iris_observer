@@ -43,22 +43,65 @@ const CONFIG = readFileSync(join(ROOT, "vitest.config.ts"), "utf8");
 const code = (source: string): string =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-/** Every test file that boots a WASM Postgres, from the files themselves. */
+/**
+ * Where a suite that boots a WASM Postgres is allowed to live.
+ *
+ * Two directories, and the second one is the correction. This detector scanned
+ * only `supabase/test`, so when six PGlite-booting suites appeared under
+ * `packages/sources/test` the bound went from covering eight modules to
+ * covering eight of fourteen — and every assertion below went on passing,
+ * because it could not see the six.
+ *
+ * That is precisely the failure this file was written to prevent. Its own
+ * opening says a configuration that is right today and silently wrong tomorrow
+ * is worse than none; a detector that is right about one directory and silent
+ * about another is the same thing wearing a test's clothes.
+ */
+const SUITE_DIRECTORIES = [
+  join(ROOT, "supabase", "test"),
+  join(ROOT, "packages", "sources", "test"),
+] as const;
+
+/**
+ * Every test file that boots a WASM Postgres, from the files themselves.
+ *
+ * TWO SIGNALS, because there are now two ways to boot one. A suite in
+ * `supabase/test` imports the package directly. A suite in `packages/sources`
+ * cannot — the package is a root devDependency, not one of that workspace's —
+ * so it reaches the same instance through `openDatabase` in the shared harness.
+ * Matching only the direct import counts the second kind as zero.
+ *
+ * Both patterns are IMPORTS rather than substrings. This file names the package
+ * inside its own detector and would otherwise find itself, which is the same
+ * class of error as a scanner matching the comment that describes it.
+ */
+const BOOTS_PGLITE = [
+  /^import[^;]*"@electric-sql\/pglite";$/m,
+  /^import[\s\S]*?\bopenDatabase\b[\s\S]*?from\s+"[^"]*support\/pglite";$/m,
+];
+
 function pgliteSuitesOnDisk(): readonly string[] {
-  const dir = join(ROOT, "supabase", "test");
-  return (
+  return SUITE_DIRECTORIES.flatMap((dir) =>
     readdirSync(dir)
       .filter((f) => f.endsWith(".test.ts"))
-      /*
-       * An IMPORT, not a substring. This file names the package inside its own
-       * detector and would otherwise find itself — the same class of error as a
-       * scanner matching the comment that describes it.
-       */
-      .filter((f) =>
-        /^import[^;]*"@electric-sql\/pglite";$/m.test(readFileSync(join(dir, f), "utf8")),
-      )
-      .sort()
-  );
+      .filter((f) => {
+        const source = readFileSync(join(dir, f), "utf8");
+        return BOOTS_PGLITE.some((pattern) => pattern.test(source));
+      }),
+  ).sort();
+}
+
+/** The same files, with the directory that holds each — for the hook check. */
+function pgliteSuitePaths(): readonly string[] {
+  return SUITE_DIRECTORIES.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".test.ts"))
+      .filter((f) => {
+        const source = readFileSync(join(dir, f), "utf8");
+        return BOOTS_PGLITE.some((pattern) => pattern.test(source));
+      })
+      .map((f) => join(dir, f)),
+  ).sort();
 }
 
 describe("the worker bound is applied, and says why", () => {
@@ -115,13 +158,12 @@ describe("the PGlite suites cannot silently escape the bound", () => {
      * A file that opens a database and registers neither leaks it for the whole
      * run, which is the condition the bound exists to keep bounded.
      */
-    const dir = join(ROOT, "supabase", "test");
-    for (const suite of pgliteSuitesOnDisk()) {
-      const source = readFileSync(join(dir, suite), "utf8");
-      expect(source, `${suite}: afterEach(closeTestDatabases)`).toMatch(
+    for (const path of pgliteSuitePaths()) {
+      const source = readFileSync(path, "utf8");
+      expect(source, `${path}: afterEach(closeTestDatabases)`).toMatch(
         /afterEach\(closeTestDatabases\)/,
       );
-      expect(source, `${suite}: afterAll(closeSuiteDatabases)`).toMatch(
+      expect(source, `${path}: afterAll(closeSuiteDatabases)`).toMatch(
         /afterAll\(closeSuiteDatabases\)/,
       );
     }
@@ -132,10 +174,28 @@ describe("the PGlite suites cannot silently escape the bound", () => {
      * `new PGlite()` anywhere but `support/pglite.ts` is an instance nothing
      * will close, and nothing will count.
      */
-    const dir = join(ROOT, "supabase", "test");
-    for (const suite of pgliteSuitesOnDisk()) {
-      expect(code(readFileSync(join(dir, suite), "utf8")), suite).not.toMatch(/new PGlite\(/);
+    for (const path of pgliteSuitePaths()) {
+      expect(code(readFileSync(path, "utf8")), path).not.toMatch(/new PGlite\(/);
     }
+  });
+
+  it("counts the suites that reach PGlite through the shared harness", () => {
+    /*
+     * The regression that motivated widening the detector. Six suites under
+     * `packages/sources/test` boot a database through `openDatabase` without
+     * importing the package — they cannot import it, it is a root
+     * devDependency rather than one of that workspace's — and the original
+     * detector, which matched only the direct import, counted every one of them
+     * as zero.
+     *
+     * Asserted as a floor rather than an exact number so that adding a seventh
+     * does not fail here for the wrong reason; the exact-list assertion above
+     * is what catches an unregistered one.
+     */
+    const viaHarness = pgliteSuitePaths().filter((p) => p.includes("packages"));
+    expect(viaHarness.length, "suites reaching PGlite through the harness").toBeGreaterThanOrEqual(
+      5,
+    );
   });
 });
 

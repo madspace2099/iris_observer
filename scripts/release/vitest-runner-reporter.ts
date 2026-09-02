@@ -331,15 +331,21 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
  * `pglite-lifecycle.test.ts` is included — it opens real instances too.
  */
 export const PGLITE_SUITES: readonly string[] = [
+  "activate.test.ts",
   "activation-credential.test.ts",
+  "admin.test.ts",
   "ai-readiness.test.ts",
   "analytics-events.test.ts",
   "audit-contract.test.ts",
+  "authenticate.test.ts",
   "contract-readiness.test.ts",
   "credential-grants.test.ts",
   "cron-health.test.ts",
+  "heartbeat.test.ts",
   "http-proof.test.ts",
+  "ingest.test.ts",
   "model-budget-grants.test.ts",
+  "pglite-adapter.test.ts",
   "pglite-lifecycle.test.ts",
   "source-operations.test.ts",
   "source-spine-grants.test.ts",
