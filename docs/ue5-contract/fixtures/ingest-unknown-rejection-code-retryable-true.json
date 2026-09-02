@@ -6,8 +6,9 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
-    "name": "ingest-unknown-rejection-code",
-    "description": "A rejection code invented after this build shipped, which the server marks retryable.",
+    "kind": "exchange",
+    "name": "ingest-unknown-rejection-code-retryable-true",
+    "description": "A rejection code invented after this build shipped, which the server marks retryable: true.",
     "request": {
       "method": "POST",
       "path": "/functions/v1/observer-ingest",
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,8 +104,21 @@
       "e0000000-0000-4000-8000-000000000002": "quarantine"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row; the rejected event is not stored. What the backend claimed about retryability has no bearing on what it wrote, which is why the client's answer can ignore the flag without losing anything."
+    },
     "why": "An unrecognised code quarantines and is NOT retried, whatever the server said about retryable — retrying something unintelligible loops for ever.",
     "notes": [
+      "Half of a pair. ingest-unknown-rejection-code-retryable-false is the same batch, the same event and the same unknown code with the flag inverted, and the expected outbox action is identical.",
       "This is the one place the server's retryable flag is deliberately overridden. Everywhere else it is obeyed, subject to only ever being downgraded.",
       "The response still parses. code is a bounded string on the wire rather than the closed enum, precisely so a future code cannot make an otherwise-valid batch unreadable.",
       "Sending continues: one unknown event code says nothing about the credential, and stopping the outbox over it turns a small unknown into an outage."

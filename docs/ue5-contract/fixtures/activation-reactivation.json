@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "activation-reactivation",
     "description": "An operator issues a new code for a source that already exists; the installation re-credentials.",
     "request": {
@@ -28,6 +29,7 @@
       }
     },
     "requestSchema": "ActivationRequest",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -63,6 +65,19 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source with one live credential, the two events of ingest-all-accepted already stored, and a freshly issued code.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "consumed",
+      "assertion": "The credential row is REPLACED — the previous one superseded, exactly one left active — and nothing else moves. Both analytics_events rows survive, and ingestion_verified_at keeps the instant it already held. A backend that cascaded credential replacement into the source's stored events would answer this exchange correctly and destroy a showroom's history."
+    },
     "why": "Reactivation replaces the credential and nothing else: the outbox, its queued events and their event_ids all survive untouched.",
     "notes": [
       "The only difference from activation-success is status. Everything else is the same shape, deliberately.",

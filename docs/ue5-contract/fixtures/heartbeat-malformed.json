@@ -1,0 +1,79 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "heartbeat-malformed",
+    "description": "A heartbeat whose sent_at carries no UTC offset, refused by the schema before the credential is read.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-heartbeat",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "sent_at": "2026-01-01T09:15:30",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "queue": {
+          "pending_events": 12,
+          "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+          "quarantined_events": 1,
+          "bytes_used": 40960,
+          "bytes_ceiling": 52428800,
+          "dropped_events": 0
+        },
+        "last_error": {
+          "code": "unavailable",
+          "at": "2026-01-01T09:10:00+01:00"
+        }
+      }
+    },
+    "requestSchema": "HeartbeatRequest",
+    "requestValidates": false,
+    "response": {
+      "status": 400,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "code": "malformed_request",
+        "message": "The heartbeat payload does not satisfy the heartbeat schema: sent_at.",
+        "batch_id": null,
+        "retry_after_seconds": null
+      }
+    },
+    "responseSchema": "RequestFailureBody",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Nothing is written, and the credential is never even read: the schema check precedes authentication, so this answer is identical whether the bearer is valid, revoked or absent. last_heartbeat_at does not move — a heartbeat that failed to parse is not liveness."
+    },
+    "why": "A heartbeat that fails its own schema is malformed_request and nothing more: sending continues, the outbox is untouched, and no operational fact moves.",
+    "notes": [
+      "An instant without an offset is the defect this models because it is the one that ships: a client that drops the offset agrees with the server all summer and is an hour out on the last Sunday in October.",
+      "The response names the schema's field path and never quotes the value. sent_at arrived on a path that has not authenticated anybody, and echoing it would put caller-controlled text into a response body.",
+      "malformed_request is a 400 whose published policy is continue. A plugin reports the defect locally and keeps sending events; a bug in the liveness payload is not a reason to stop ingestion.",
+      "batch_id is null, and honestly so. A heartbeat has no batch to correlate, and inventing one would teach a reader that the field means something here.",
+      "This is the only fixture in the pack whose REQUEST is expected to fail validation alongside heartbeat-oversized. The test asserts both genuinely fail."
+    ]
+  }
+}

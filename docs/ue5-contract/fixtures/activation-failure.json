@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "activation-failure",
     "description": "An unknown, expired or already-consumed code. All three answer identically.",
     "request": {
@@ -28,6 +29,7 @@
       }
     },
     "requestSchema": "ActivationRequest",
+    "requestValidates": true,
     "response": {
       "status": 401,
       "headers": {
@@ -46,6 +48,16 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "stop",
+    "expectedBackendState": {
+      "precondition": "The presented code is unknown, expired, or already consumed — the backend cannot tell the caller which.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 0,
+      "activationCode": "unchanged",
+      "assertion": "Nothing is written. No credential is minted, and a code that was already consumed is not consumed a second time — a failed attempt must leave the table exactly as it found it, or the row's timestamps become an oracle for which of the three causes applied."
+    },
     "why": "One indistinguishable failure, so a guessed code cannot reveal whether a tenant, project or source exists.",
     "notes": [
       "source_id is always null here, including for a code that was genuinely consumed. Its presence is a required key, never a signal.",

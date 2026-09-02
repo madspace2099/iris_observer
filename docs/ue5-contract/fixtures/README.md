@@ -2,11 +2,15 @@
 
 # UE5 conformance fixture pack
 
-**Contract:** `1.0.0-candidate.1` · **Status:** PROPOSED · **Fixtures:** 21
+**Contract:** `1.0.0-candidate.1` · **Status:** PROPOSED · **Fixtures:** 27
 
-Every exchange a conforming plugin must handle, as data. `index.json` holds the whole pack;
-each fixture is also a standalone file named after it. Nothing here requires reading the
-backend source, and a drift test fails if these files and that source disagree.
+Every exchange a conforming plugin must handle, as data — with what the client does next and
+what the backend must hold afterwards. `index.json` holds the whole pack; each fixture is also
+a standalone file named after it. Nothing here requires reading the backend source, and a
+drift test fails if these files and that source disagree.
+
+Most fixtures are an exchange (`"kind": "exchange"`). One publishes a rule about stored rows
+instead (`"kind": "read-model"`); see below.
 
 ## How to run it
 
@@ -16,7 +20,45 @@ transport as if it came off the wire, and compare what the outbox did against
 sending loop's next state against `expectedSending`.
 
 Every response body validates against the published schema in `../schemas/`, with exactly
-one deliberate exception, marked `"responseValidates": false`.
+one deliberate exception, marked `"responseValidates": false`. Two heartbeat fixtures exist
+to show what the endpoint refuses and carry a request that deliberately fails validation,
+marked `"requestValidates": false`.
+
+## The other half: `expectedBackendState`
+
+`expectedOutboxActions` says what the **client** does. `expectedBackendState` says what the
+**server** must be holding when the exchange is over: which rows exist for this source, which
+operational facts moved, what became of the credential and the activation code.
+
+A pack describing only the client half lets a backend regression through unnoticed. A server
+that stops writing `ingestion_verified_at`, or that advances `last_heartbeat_at` for a
+credential it has just refused, answers every fixture here correctly on the wire — and both
+are defects an operator discovers by trusting a screen that is wrong.
+
+Read `storedEventIds` and `undeterminedEventIds` as different claims. The first is what the
+backend **certainly** holds; the second is what the response does not reveal, and it is
+non-empty only where the response is itself a server defect. That is what makes `retain` the
+derived answer in those cases rather than a rule to memorise.
+
+| Field | Meaning |
+| --- | --- |
+| `precondition` | What must already be true for the response in this fixture to be the correct one. |
+| `storedEventIds` | Every event_id `observer.analytics_events` certainly holds for this source afterwards, including rows the precondition put there. Idempotency is the (source_id, event_id) primary key, so this list is also the row count. |
+| `undeterminedEventIds` | Ids whose storage the response does not settle either way. Non-empty only where the response is itself a backend defect, and it is the reason those events are retained rather than removed: an outcome nobody can read cannot acknowledge anything. |
+| `connected` | `set` when the exchange writes `source_operations.last_heartbeat_at`, `unchanged` when it must not — including when the column already holds a value. |
+| `ingestionVerified` | `set` when the exchange writes `source_operations.ingestion_verified_at`, `unchanged` when it must not. A heartbeat never sets it and ingestion never sets `connected`. |
+| `activeCredentials` | Rows in `observer.source_credentials` for this source in state `active`. |
+| `activationCode` | `consumed` when this exchange spends the one-time code, `unchanged` when a presented code is left exactly as it was found, `not-presented` when the request carried none. |
+| `assertion` | One line. What a backend conformance run asserts, in words. |
+
+## Three states, kept apart
+
+**ACTIVATED** is a credential being issued. **CONNECTED** is a heartbeat succeeding.
+**INGESTION VERIFIED** is an event reaching storage through ordinary ingestion. No one of them
+implies another, and the pack has a fixture for each: `activation-success`,
+`heartbeat-success`, and `diagnostic-test-accepted`. Each records the two facts it does **not**
+set, because that is the half a single collapsed status destroys — a source can be INGESTION
+VERIFIED and never CONNECTED, and it is the one worth a phone call.
 
 ## The three outbox actions
 
@@ -56,6 +98,33 @@ A parser that binds `accepted_ids` to `accepted` reads a number where it expects
 and in every language that coerces, the failure is quiet: the outbox acknowledges nothing
 while the server stores everything.
 
+## One pair, because the rule is easy to half-implement
+
+`ingest-unknown-rejection-code-retryable-true` and
+`ingest-unknown-rejection-code-retryable-false` are the same batch, the same event and the
+same unrecognised code. The two responses differ in that one flag and **the correct client
+behaviour is identical**: quarantine, both times.
+
+An unrecognised code is never interpreted, so nothing the server said alongside it can be
+trusted either. A client that branches on `retryable` passes one of these fixtures and fails
+the other, and what it does in the field is retry a code nobody can read, for ever.
+
+## One fixture that is not an HTTP exchange
+
+`diagnostic-excluded-from-business-metrics` has `"kind": "read-model"` instead of a request
+and a response. It carries `storedRows` and `expectedReadModel`, because the rule it publishes
+— a diagnostic row is stored for ever and counted never — is a property of every read model in
+the product and there is no HTTP call that demonstrates it.
+
+The exclusion is a published predicate rather than a habit: `event_name NOT LIKE
+'diagnostic.%'`, matching the whole reserved `diagnostic.` namespace and not one name, so a
+diagnostic invented next year is excluded on the day it exists. The fixture records what the
+metric reports with the rule (`value`) and without it (`valueWithoutTheRule`), which is the
+difference between a correct number and a quietly inflated one.
+
+Faking it as an exchange would have meant inventing a query endpoint — publishing an interface
+that does not exist, inside the one document whose value is that its contents can be relied on.
+
 ## Credentials
 
 Every secret-shaped value in this pack is synthetic and fixed:
@@ -77,12 +146,15 @@ pack and fails if any other credential-shaped value appears in it.
 | [`heartbeat-success`](./heartbeat-success.json) | 200 | A heartbeat reports on the outbox and never changes it; config_stale is advisory and touches neither identity nor credential. |
 | [`heartbeat-unauthorised`](./heartbeat-unauthorised.json) | 401 | Sending stops until an operator reactivates, and every queued event is retained — the credential was the problem, never the events. |
 | [`heartbeat-forbidden`](./heartbeat-forbidden.json) | 403 | Distinct from 401 because the operator's next action differs: a suspended source is resumed, a rejected credential is reactivated. |
+| [`heartbeat-malformed`](./heartbeat-malformed.json) | 400 | A heartbeat that fails its own schema is malformed_request and nothing more: sending continues, the outbox is untouched, and no operational fact moves. |
+| [`heartbeat-oversized`](./heartbeat-oversized.json) | 400 | malformed_request and NOT batch_too_large: a heartbeat has no batch, so answering 413 would tell a client to split and resend something that cannot be divided. |
 | [`ingest-all-accepted`](./ingest-all-accepted.json) | 200 | An event leaves the outbox on a per-event accepted inside a 200, and on nothing else. |
 | [`ingest-all-duplicate`](./ingest-all-duplicate.json) | 200 | duplicate is a SUCCESS: the fact is stored, so delivery is finished — a plugin that retries duplicates never drains its queue. |
 | [`ingest-mixed-result`](./ingest-mixed-result.json) | 200 | Partial batch success is the normal case: each event is judged alone and one rejection never taints its neighbours. |
 | [`ingest-retryable-rejection`](./ingest-retryable-rejection.json) | 200 | storage_error is the only retryable event-level code — the event is fine and the backend is not, so it goes back in the queue. |
 | [`ingest-non-retryable-rejection`](./ingest-non-retryable-rejection.json) | 200 | Quarantine is keep-with-a-reason, never delete: the event stays on disk, stops being retried, and is counted in the heartbeat. |
-| [`ingest-unknown-rejection-code`](./ingest-unknown-rejection-code.json) | 200 | An unrecognised code quarantines and is NOT retried, whatever the server said about retryable — retrying something unintelligible loops for ever. |
+| [`ingest-unknown-rejection-code-retryable-true`](./ingest-unknown-rejection-code-retryable-true.json) | 200 | An unrecognised code quarantines and is NOT retried, whatever the server said about retryable — retrying something unintelligible loops for ever. |
+| [`ingest-unknown-rejection-code-retryable-false`](./ingest-unknown-rejection-code-retryable-false.json) | 200 | The twin of the retryable:true case: the two responses differ in that flag alone and the correct client behaviour is IDENTICAL, because an unknown code is never interpreted. |
 | [`ingest-missing-result`](./ingest-missing-result.json) | 200 | A submitted event with no result of its own is NOT acknowledged: silence is retain, never accept. |
 | [`ingest-foreign-result-id`](./ingest-foreign-result-id.json) | 200 | A result whose event_id was not submitted acknowledges NOTHING: it is ignored, and must never be matched to another queued event. |
 | [`ingest-conflicting-duplicate-result`](./ingest-conflicting-duplicate-result.json) | 200 | Two results for one event_id is a contradiction, so it is resolved by RETAINING — fail safe, because a redelivery costs a duplicate and a wrong acknowledgement costs the event. |
@@ -92,3 +164,6 @@ pack and fails if any other credential-shaped value appears in it.
 | [`ingest-unavailable`](./ingest-unavailable.json) | 503 | A 503 is not an acknowledgement: nothing was stored, so the whole batch is safe — and required — to resend unchanged. |
 | [`ingest-lost-acknowledgement-replay`](./ingest-lost-acknowledgement-replay.json) | 200 | This is the case the stable event_id exists for: the server had already stored both, and duplicate is how the client finds out without ever losing or double-counting a fact. |
 | [`ingest-accepted-is-a-count-not-a-list`](./ingest-accepted-is-a-count-not-a-list.json) | 200 | accepted is an INTEGER COUNT, never a list of ids — acknowledgement comes only from results[].event_id, and this is the live divergence with the UE client. |
+| [`diagnostic-test-accepted`](./diagnostic-test-accepted.json) | 200 | INGESTION VERIFIED is earned here and nowhere else: a real event travelled the whole path — envelope, registry, validation, insert — and was stored. |
+| [`diagnostic-test-replay-duplicate`](./diagnostic-test-replay-duplicate.json) | 200 | A diagnostic is idempotent exactly like any other event: the second send comes back duplicate, which removes it from the outbox and adds no second row. |
+| [`diagnostic-excluded-from-business-metrics`](./diagnostic-excluded-from-business-metrics.json) | read model | A diagnostic row is stored for ever and counted never: the exclusion is a published rule a test can enforce, not a convention every future read model has to remember. |

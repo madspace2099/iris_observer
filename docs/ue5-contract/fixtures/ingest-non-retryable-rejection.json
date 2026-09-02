@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-non-retryable-rejection",
     "description": "An event refused for a reason that resending cannot change.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,18 @@
       "e0000000-0000-4000-8000-000000000002": "quarantine"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row. The pii_suspected event is not stored, and neither is the value that tripped the heuristic: the response names the offending KEY, the backend keeps neither key nor value, and the quarantined copy lives on the showroom PC. A backend that logged the payload it refused would have moved the leak rather than stopped it."
+    },
     "why": "Quarantine is keep-with-a-reason, never delete: the event stays on disk, stops being retried, and is counted in the heartbeat.",
     "notes": [
       "detail names the offending KEY and never the offending VALUE. A diagnostic that quotes a leaked email has moved the leak rather than stopped it.",

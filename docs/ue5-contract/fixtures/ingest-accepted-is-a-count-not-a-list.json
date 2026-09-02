@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-accepted-is-a-count-not-a-list",
     "description": "ANTI-PATTERN. The canonical body beside the shape a client migrating from accepted_ids expects.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,19 @@
       "e0000000-0000-4000-8000-000000000002": "remove"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Two rows. The backend state is the same as ingest-all-accepted's, deliberately: the server is behaving perfectly and the whole defect lives in how the response is read. A client stuck on accepted_ids acknowledges nothing while these two rows sit there, and it resends them for ever without a single error appearing on either side."
+    },
     "why": "accepted is an INTEGER COUNT, never a list of ids — acknowledgement comes only from results[].event_id, and this is the live divergence with the UE client.",
     "notes": [
       "This fixture exists because of a real mismatch, not a hypothetical one. A client that once read accepted_ids: [\"...\"] binds cleanly to accepted and finds a number where it expects an array.",

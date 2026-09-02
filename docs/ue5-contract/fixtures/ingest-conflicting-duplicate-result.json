@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-conflicting-duplicate-result",
     "description": "Two results for the same event_id, disagreeing with each other.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -109,6 +111,20 @@
       "e0000000-0000-4000-8000-000000000002": "remove"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: one event_id carries two contradictory results.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "The uncontested second event is certainly stored. The first is undetermined — the response says both accepted and storage_error about it — and no ordering rule can settle that, which is precisely why the client retains. A contradiction about one event still says nothing about another, so the second row is a firm assertion and not a guess."
+    },
     "why": "Two results for one event_id is a contradiction, so it is resolved by RETAINING — fail safe, because a redelivery costs a duplicate and a wrong acknowledgement costs the event.",
     "notes": [
       "Not first-wins and not last-wins. Both are guesses, and last-wins here would happen to be safe while first-wins would lose the event — an implementation must not depend on which order a server happened to emit.",

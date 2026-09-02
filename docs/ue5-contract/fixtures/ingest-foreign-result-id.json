@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-foreign-result-id",
     "description": "The response carries a result for an event_id that was never in this batch.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,20 @@
       "e0000000-0000-4000-8000-000000000002": "retain"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: a result names an id this source never sent.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "undeterminedEventIds": [
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row is certain, and the foreign id appears NOWHERE — not in the stored list, not in the undetermined list, not in this source's table. A result for an id nobody sent is a defect to log, never a row to expect; a backend run that went looking for that id would be repeating the client's mistake at the other end."
+    },
     "why": "A result whose event_id was not submitted acknowledges NOTHING: it is ignored, and must never be matched to another queued event.",
     "notes": [
       "The foreign id is deadbeef-0000-4000-8000-000000000099. If it appears in any outbox decision, the implementation matched by position or by count rather than by id.",

@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "heartbeat-unauthorised",
     "description": "The credential is unknown, revoked or superseded.",
     "request": {
@@ -38,6 +39,7 @@
       }
     },
     "requestSchema": "HeartbeatRequest",
+    "requestValidates": true,
     "response": {
       "status": 401,
       "headers": {
@@ -55,6 +57,16 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "stop",
+    "expectedBackendState": {
+      "precondition": "The presented credential has been revoked, superseded, or never existed.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 0,
+      "activationCode": "not-presented",
+      "assertion": "Nothing is written. last_heartbeat_at does not move — a heartbeat the endpoint refused must never make a source look CONNECTED, and a backend that recorded liveness before checking the credential would show an operator a healthy showroom that has been locked out for a week."
+    },
     "why": "Sending stops until an operator reactivates, and every queued event is retained — the credential was the problem, never the events.",
     "notes": [
       "batch_id is echoed for log correlation only. A heartbeat submits no events, so no per-event action applies.",

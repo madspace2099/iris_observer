@@ -7,8 +7,8 @@
   },
   "fixture": {
     "kind": "exchange",
-    "name": "ingest-batch-too-large",
-    "description": "The batch is over the event-count or byte ceiling in force.",
+    "name": "ingest-unknown-rejection-code-retryable-false",
+    "description": "The same unrecognised code and the same event, with the server marking it retryable: false.",
     "request": {
       "method": "POST",
       "path": "/functions/v1/observer-ingest",
@@ -17,7 +17,7 @@
         "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
       },
       "body": {
-        "batch_id": "b0000000-0000-4000-8000-00000000000b",
+        "batch_id": "b0000000-0000-4000-8000-00000000000f",
         "sent_at": "2026-01-01T09:15:30+01:00",
         "events": [
           {
@@ -57,25 +57,6 @@
               "section_name": "kitchen",
               "dwell_ms": 4200
             }
-          },
-          {
-            "event_id": "e0000000-0000-4000-8000-000000000003",
-            "event_name": "section.entered",
-            "schema_version": 1,
-            "occurred_at": "2026-01-01T09:15:09+01:00",
-            "session_id": "5e551011-0000-4000-8000-000000000001",
-            "sequence": 3,
-            "app": {
-              "version": "1.4.0",
-              "plugin": "1.0.0",
-              "build_id": "fixture-build-0001",
-              "environment": "Development"
-            },
-            "agent_id": "agent_fixture_01",
-            "properties": {
-              "section_name": "bathroom",
-              "dwell_ms": 4200
-            }
           }
         ]
       }
@@ -83,45 +64,63 @@
     "requestSchema": "BatchEnvelope",
     "requestValidates": true,
     "response": {
-      "status": 413,
+      "status": 200,
       "headers": {
         "content-type": "application/json"
       },
       "body": {
-        "code": "batch_too_large",
-        "message": "The batch exceeds the ceiling in force. Split it and retry.",
-        "batch_id": "b0000000-0000-4000-8000-00000000000b",
-        "retry_after_seconds": null
+        "batch_id": "b0000000-0000-4000-8000-00000000000f",
+        "received": 2,
+        "accepted": 1,
+        "duplicate": 0,
+        "rejected": 1,
+        "results": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "status": "rejected",
+            "code": "quota_exhausted",
+            "retryable": false,
+            "detail": "a code this build has never heard of"
+          }
+        ],
+        "warnings": []
       }
     },
-    "responseSchema": "RequestFailureBody",
+    "responseSchema": "BatchResponse",
     "responseValidates": true,
     "submittedEventIds": [
       "e0000000-0000-4000-8000-000000000001",
-      "e0000000-0000-4000-8000-000000000002",
-      "e0000000-0000-4000-8000-000000000003"
+      "e0000000-0000-4000-8000-000000000002"
     ],
     "expectedOutboxActions": {
-      "e0000000-0000-4000-8000-000000000001": "retain",
-      "e0000000-0000-4000-8000-000000000002": "retain",
-      "e0000000-0000-4000-8000-000000000003": "retain"
+      "e0000000-0000-4000-8000-000000000001": "remove",
+      "e0000000-0000-4000-8000-000000000002": "quarantine"
     },
     "expectedSending": "continue",
     "expectedBackendState": {
       "precondition": "An active source holding one live credential, with nothing yet ingested.",
-      "storedEventIds": [],
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
       "undeterminedEventIds": [],
       "connected": "unchanged",
-      "ingestionVerified": "unchanged",
+      "ingestionVerified": "set",
       "activeCredentials": 1,
       "activationCode": "not-presented",
-      "assertion": "No rows are written at all. The request was refused at the ceiling before any event was read, so observer.analytics_events is untouched, ingestion_verified_at stays null, and the three events remain the client's alone. This is what non-2xx means everywhere in this contract, and it is why the whole batch is safe to resend."
+      "assertion": "One row; the rejected event is not stored. Byte for byte the same backend state as the retryable:true twin, which is the point of carrying both."
     },
-    "why": "Non-2xx means nothing was stored, so every event is retained; the only failure whose fix is arithmetic — halve the batch and send again.",
+    "why": "The twin of the retryable:true case: the two responses differ in that flag alone and the correct client behaviour is IDENTICAL, because an unknown code is never interpreted.",
     "notes": [
-      "The contract's own word for this is retain_and_split. The split is a property of the batch, not of an event, so each event's action is plainly retain.",
-      "A single event that is itself too large is an event-level event_too_large inside a 200 instead, because splitting cannot help it and an event is never split.",
-      "Do not re-mint event_ids when re-framing the batch. The ids are the idempotency mechanism and they survive any amount of re-batching."
+      "The pair exists because the rule is easy to half-implement. A client that quarantines on retryable:false and retries on retryable:true passes this fixture and fails its twin, and the failure it produces in the field is an infinite retry loop on a code nobody can read.",
+      "There is no case in which an unknown code is retried. classifyEventRejection ignores serverRetryable entirely once the code is unrecognised, and a test asserts these two fixtures resolve to the same action.",
+      "A retryable:false unknown code looks like the safe direction, and it is — which is exactly why it must not be the one an implementation branches on. Both halves reach quarantine by the same route: the code was unintelligible, so nothing about the flag could be trusted either."
     ]
   }
 }

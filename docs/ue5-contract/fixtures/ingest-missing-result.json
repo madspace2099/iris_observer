@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-missing-result",
     "description": "Two events submitted; the response reports on only one of them.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -95,6 +97,20 @@
       "e0000000-0000-4000-8000-000000000002": "retain"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: a conformant server emits one result per submitted event.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "undeterminedEventIds": [
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row is certain. Whether the second event was stored is UNKNOWABLE from this response, and that is not a gap in the fixture — it is the reason the client retains rather than removes. A backend conformance run asserts the first row exists and asserts nothing about the second, because the contract gives it nothing to assert with."
+    },
     "why": "A submitted event with no result of its own is NOT acknowledged: silence is retain, never accept.",
     "notes": [
       "The counters agree with results.length here, so nothing in the body looks wrong. Only comparing the submitted ids against the reported ids finds it.",

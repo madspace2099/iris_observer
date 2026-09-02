@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-all-duplicate",
     "description": "The same two events again. The server already holds both.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,19 @@
       "e0000000-0000-4000-8000-000000000002": "remove"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "The two events of ingest-all-accepted are already stored for this source.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Still exactly two rows. The (source_id, event_id) primary key absorbs the replay, so a second copy is not representable, and ingestion_verified_at keeps the instant of the first batch rather than advancing — the column is a coalesce, so the operator's screen shows when the path was proved and not when it was last exercised."
+    },
     "why": "duplicate is a SUCCESS: the fact is stored, so delivery is finished — a plugin that retries duplicates never drains its queue.",
     "notes": [
       "This is the most commonly mis-implemented result in the whole contract.",

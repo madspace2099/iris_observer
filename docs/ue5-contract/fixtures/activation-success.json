@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "activation-success",
     "description": "A fresh installation exchanges its one-time code and receives a source credential.",
     "request": {
@@ -28,6 +29,7 @@
       }
     },
     "requestSchema": "ActivationRequest",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -63,6 +65,16 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "One unspent, unexpired activation code for a registered active source, and no live credential.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "consumed",
+      "assertion": "One row in observer.source_credentials for this source in state active, the code marked consumed in the same transaction, and NOTHING else: no analytics_events row, and source_operations still holding null in both last_heartbeat_at and ingestion_verified_at. ACTIVATED is one fact; a source that has only activated is neither CONNECTED nor INGESTION VERIFIED, and a screen that says otherwise is guessing."
+    },
     "why": "The token is returned once, here, and never again — persist it before answering anything else.",
     "notes": [
       "The response carries no tenant_id and no project_id. A client that wants either has misread the contract.",

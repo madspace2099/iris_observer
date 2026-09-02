@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "heartbeat-success",
     "description": "Liveness plus queue health, on its own endpoint.",
     "request": {
@@ -38,6 +39,7 @@
       }
     },
     "requestSchema": "HeartbeatRequest",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -54,6 +56,16 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, which has never been heard from.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "set",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "last_heartbeat_at and last_seen_at advance and the reported build and queue counters land on the source's operational row. ingestion_verified_at stays null and observer.analytics_events gains no row: this is the CONNECTED fact alone. A heartbeat never earns INGESTION VERIFIED, and queue depth is not a fact about a visitor."
+    },
     "why": "A heartbeat reports on the outbox and never changes it; config_stale is advisory and touches neither identity nor credential.",
     "notes": [
       "server_time is what a plugin subtracts from its own clock to show drift on the diagnostic screen.",

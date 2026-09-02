@@ -17,8 +17,9 @@ import { UE5_CONTRACT_STATUS, UE5_CONTRACT_VERSION } from "../../packages/contra
  * The sibling of `emit-ue5-contract.ts`, with the same discipline and a
  * different job. That generator publishes the *shape* of the protocol — an
  * OpenAPI document and a JSON Schema per component. This one publishes the
- * *behaviour*: twenty-one complete exchanges, each with the per-event outbox
- * decision the response must produce.
+ * *behaviour*: every exchange a conforming plugin must handle, each with the
+ * per-event outbox decision the response must produce **and** the backend state
+ * the exchange must leave behind.
  *
  * The distinction is the reason both exist. A schema can say that a `200`
  * carries a `results` array. It cannot say that a submitted event absent from
@@ -26,6 +27,11 @@ import { UE5_CONTRACT_STATUS, UE5_CONTRACT_VERSION } from "../../packages/contra
  * acknowledges nothing, or that two results for one id must fail safe. Those are
  * the rules an implementation gets wrong, and they are only expressible as
  * worked examples.
+ *
+ * Nor can a schema say what the *server* must be holding afterwards, which is
+ * why every fixture carries `expectedBackendState`. A pack that described only
+ * the client half would pass a backend that had silently stopped writing
+ * `ingestion_verified_at`.
  *
  * Everything is written from `packages/contracts/src/ue5/fixtures.ts` and
  * nothing by hand. `fixtures.test.ts` regenerates the pack in memory and fails
@@ -56,6 +62,38 @@ const ACTION_MEANINGS: Readonly<Record<string, string>> = Object.freeze({
     "can see it. Never deleted.",
 });
 
+/**
+ * What the backend-state vocabulary means, published for the same reason.
+ *
+ * A conformance runner that only reads `index.json` has to be able to tell
+ * `unchanged` from `set` and, more importantly, `storedEventIds` from
+ * `undeterminedEventIds` — the second is the pack saying it does not know, and a
+ * runner that read it as "not stored" would assert something the contract never
+ * claimed.
+ */
+const BACKEND_STATE_MEANINGS: Readonly<Record<string, string>> = Object.freeze({
+  precondition: "What must already be true for the response in this fixture to be the correct one.",
+  storedEventIds:
+    "Every event_id `observer.analytics_events` certainly holds for this source afterwards, " +
+    "including rows the precondition put there. Idempotency is the (source_id, event_id) primary " +
+    "key, so this list is also the row count.",
+  undeterminedEventIds:
+    "Ids whose storage the response does not settle either way. Non-empty only where the response " +
+    "is itself a backend defect, and it is the reason those events are retained rather than " +
+    "removed: an outcome nobody can read cannot acknowledge anything.",
+  connected:
+    "`set` when the exchange writes `source_operations.last_heartbeat_at`, `unchanged` when it " +
+    "must not — including when the column already holds a value.",
+  ingestionVerified:
+    "`set` when the exchange writes `source_operations.ingestion_verified_at`, `unchanged` when it " +
+    "must not. A heartbeat never sets it and ingestion never sets `connected`.",
+  activeCredentials: "Rows in `observer.source_credentials` for this source in state `active`.",
+  activationCode:
+    "`consumed` when this exchange spends the one-time code, `unchanged` when a presented code is " +
+    "left exactly as it was found, `not-presented` when the request carried none.",
+  assertion: "One line. What a backend conformance run asserts, in words.",
+});
+
 /** Everything the generator produces, as text, keyed by path under `OUT`. */
 export function generatedFixtureFiles(): Map<string, string> {
   const files = new Map<string, string>();
@@ -84,6 +122,7 @@ function packIndex(): Record<string, unknown> {
     outboxActions: Object.fromEntries(
       FIXTURE_OUTBOX_ACTIONS.map((action) => [action, ACTION_MEANINGS[action] ?? ""]),
     ),
+    backendState: BACKEND_STATE_MEANINGS,
     /*
      * Published so a conformance runner can assert the same thing this
      * repository asserts: that no credential-shaped value in the pack is
@@ -109,9 +148,13 @@ function readme(): string {
     "",
     `**Contract:** \`${UE5_CONTRACT_VERSION}\` · **Status:** ${UE5_CONTRACT_STATUS} · **Fixtures:** ${CONFORMANCE_FIXTURES.length}`,
     "",
-    "Every exchange a conforming plugin must handle, as data. `index.json` holds the whole pack;",
-    "each fixture is also a standalone file named after it. Nothing here requires reading the",
-    "backend source, and a drift test fails if these files and that source disagree.",
+    "Every exchange a conforming plugin must handle, as data — with what the client does next and",
+    "what the backend must hold afterwards. `index.json` holds the whole pack; each fixture is also",
+    "a standalone file named after it. Nothing here requires reading the backend source, and a",
+    "drift test fails if these files and that source disagree.",
+    "",
+    'Most fixtures are an exchange (`"kind": "exchange"`). One publishes a rule about stored rows',
+    'instead (`"kind": "read-model"`); see below.',
     "",
     "## How to run it",
     "",
@@ -121,13 +164,49 @@ function readme(): string {
     "sending loop's next state against `expectedSending`.",
     "",
     "Every response body validates against the published schema in `../schemas/`, with exactly",
-    'one deliberate exception, marked `"responseValidates": false`.',
+    'one deliberate exception, marked `"responseValidates": false`. Two heartbeat fixtures exist',
+    "to show what the endpoint refuses and carry a request that deliberately fails validation,",
+    'marked `"requestValidates": false`.',
+    "",
+    "## The other half: `expectedBackendState`",
+    "",
+    "`expectedOutboxActions` says what the **client** does. `expectedBackendState` says what the",
+    "**server** must be holding when the exchange is over: which rows exist for this source, which",
+    "operational facts moved, what became of the credential and the activation code.",
+    "",
+    "A pack describing only the client half lets a backend regression through unnoticed. A server",
+    "that stops writing `ingestion_verified_at`, or that advances `last_heartbeat_at` for a",
+    "credential it has just refused, answers every fixture here correctly on the wire — and both",
+    "are defects an operator discovers by trusting a screen that is wrong.",
+    "",
+    "Read `storedEventIds` and `undeterminedEventIds` as different claims. The first is what the",
+    "backend **certainly** holds; the second is what the response does not reveal, and it is",
+    "non-empty only where the response is itself a server defect. That is what makes `retain` the",
+    "derived answer in those cases rather than a rule to memorise.",
+    "",
+    "| Field | Meaning |",
+    "| --- | --- |",
+  ];
+  for (const [field, meaning] of Object.entries(BACKEND_STATE_MEANINGS)) {
+    lines.push(`| \`${field}\` | ${escapePipes(meaning)} |`);
+  }
+
+  lines.push(
+    "",
+    "## Three states, kept apart",
+    "",
+    "**ACTIVATED** is a credential being issued. **CONNECTED** is a heartbeat succeeding.",
+    "**INGESTION VERIFIED** is an event reaching storage through ordinary ingestion. No one of them",
+    "implies another, and the pack has a fixture for each: `activation-success`,",
+    "`heartbeat-success`, and `diagnostic-test-accepted`. Each records the two facts it does **not**",
+    "set, because that is the half a single collapsed status destroys — a source can be INGESTION",
+    "VERIFIED and never CONNECTED, and it is the one worth a phone call.",
     "",
     "## The three outbox actions",
     "",
     "| Action | Meaning |",
     "| --- | --- |",
-  ];
+  );
   for (const action of FIXTURE_OUTBOX_ACTIONS) {
     lines.push(`| \`${action}\` | ${ACTION_MEANINGS[action] ?? ""} |`);
   }
@@ -164,6 +243,33 @@ function readme(): string {
     "and in every language that coerces, the failure is quiet: the outbox acknowledges nothing",
     "while the server stores everything.",
     "",
+    "## One pair, because the rule is easy to half-implement",
+    "",
+    "`ingest-unknown-rejection-code-retryable-true` and",
+    "`ingest-unknown-rejection-code-retryable-false` are the same batch, the same event and the",
+    "same unrecognised code. The two responses differ in that one flag and **the correct client",
+    "behaviour is identical**: quarantine, both times.",
+    "",
+    "An unrecognised code is never interpreted, so nothing the server said alongside it can be",
+    "trusted either. A client that branches on `retryable` passes one of these fixtures and fails",
+    "the other, and what it does in the field is retry a code nobody can read, for ever.",
+    "",
+    "## One fixture that is not an HTTP exchange",
+    "",
+    '`diagnostic-excluded-from-business-metrics` has `"kind": "read-model"` instead of a request',
+    "and a response. It carries `storedRows` and `expectedReadModel`, because the rule it publishes",
+    "— a diagnostic row is stored for ever and counted never — is a property of every read model in",
+    "the product and there is no HTTP call that demonstrates it.",
+    "",
+    "The exclusion is a published predicate rather than a habit: `event_name NOT LIKE",
+    "'diagnostic.%'`, matching the whole reserved `diagnostic.` namespace and not one name, so a",
+    "diagnostic invented next year is excluded on the day it exists. The fixture records what the",
+    "metric reports with the rule (`value`) and without it (`valueWithoutTheRule`), which is the",
+    "difference between a correct number and a quietly inflated one.",
+    "",
+    "Faking it as an exchange would have meant inventing a query endpoint — publishing an interface",
+    "that does not exist, inside the one document whose value is that its contents can be relied on.",
+    "",
     "## Credentials",
     "",
     "Every secret-shaped value in this pack is synthetic and fixed:",
@@ -184,11 +290,22 @@ function readme(): string {
   );
   for (const fixture of CONFORMANCE_FIXTURES) {
     lines.push(
-      `| [\`${fixture.name}\`](./${fixture.name}.json) | ${fixture.response.status} | ${escapePipes(fixture.why)} |`,
+      `| [\`${fixture.name}\`](./${fixture.name}.json) | ${statusColumn(fixture)} | ${escapePipes(fixture.why)} |`,
     );
   }
   lines.push("");
   return lines.join("\n");
+}
+
+/**
+ * What goes in the status column for a fixture that has no HTTP status.
+ *
+ * Spelled `read model` rather than left blank or filled with a dash. A blank
+ * cell reads as an omission, and the one fixture in this pack without a status
+ * is the one whose whole point is that it is not an exchange.
+ */
+function statusColumn(fixture: ConformanceFixture): string {
+  return fixture.kind === "exchange" ? String(fixture.response.status) : "read model";
 }
 
 function escapePipes(text: string): string {

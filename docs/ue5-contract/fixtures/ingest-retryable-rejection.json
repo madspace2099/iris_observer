@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-retryable-rejection",
     "description": "A transient server-side failure while writing one event.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,18 @@
       "e0000000-0000-4000-8000-000000000002": "retain"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row. The storage_error event left no partial row behind — a transient write failure must roll back cleanly, or the client's perfectly correct retry would come back duplicate for an event the server told it to resend, and the outbox would be right about a fact the operator can no longer see was ever in doubt."
+    },
     "why": "storage_error is the only retryable event-level code — the event is fine and the backend is not, so it goes back in the queue.",
     "notes": [
       "Sending continues. One retryable event says nothing about the credential or the rest of the queue."

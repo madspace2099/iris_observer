@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-mixed-result",
     "description": "One accepted, one duplicate, one rejected — in a single 200.",
     "request": {
@@ -80,6 +81,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -130,6 +132,19 @@
       "e0000000-0000-4000-8000-000000000003": "quarantine"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "The second event is already stored from an earlier batch; the third's properties do not satisfy its registered schema.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Two rows: the newly accepted first event and the pre-existing second. The rejected third event writes NOTHING — not a row, not a tombstone, not a partial insert. A batch is not one transaction whose failure rolls back its neighbours, and it is not three writes that leave wreckage behind either."
+    },
     "why": "Partial batch success is the normal case: each event is judged alone and one rejection never taints its neighbours.",
     "notes": [
       "This is why the server validates the batch FRAME and never the events inside it. Parsing the whole envelope strictly would turn one bad event into a 400 for all three.",

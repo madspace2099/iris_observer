@@ -1,0 +1,99 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "diagnostic-test-accepted",
+    "description": "A diagnostic.test event sent through ordinary ingestion, on the ordinary ingestion endpoint.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000010",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "d1a90057-0000-4000-8000-000000000010",
+            "event_name": "diagnostic.test",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:14:50+01:00",
+            "session_id": null,
+            "sequence": null,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "properties": {
+              "reason": "activation_check",
+              "note": null
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000010",
+        "received": 1,
+        "accepted": 1,
+        "duplicate": 0,
+        "rejected": 0,
+        "results": [
+          {
+            "event_id": "d1a90057-0000-4000-8000-000000000010",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "d1a90057-0000-4000-8000-000000000010"
+    ],
+    "expectedOutboxActions": {
+      "d1a90057-0000-4000-8000-000000000010": "remove"
+    },
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested. No heartbeat has ever been received.",
+      "storedEventIds": [
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "One row in observer.analytics_events with event_name diagnostic.test — a real row, on the real path, which is the only thing that could prove the path — and ingestion_verified_at set. last_heartbeat_at is STILL NULL: this source is INGESTION VERIFIED and not CONNECTED, and an Admin screen that cannot show that has collapsed two facts into one."
+    },
+    "why": "INGESTION VERIFIED is earned here and nowhere else: a real event travelled the whole path — envelope, registry, validation, insert — and was stored.",
+    "notes": [
+      "It goes to /functions/v1/observer-ingest like any other event, with the same credential and the same envelope. A diagnostic that needed its own endpoint would prove the endpoint rather than the path.",
+      "The canonical name is diagnostic.test. diagnostics.ping is a UE-side name and must never appear on this wire; a plugin that sends it gets schema_unknown, correctly.",
+      "session_id and sequence are both null, as the envelope requires them to be together. A diagnostic belongs to no visitor session — nobody is in the showroom when a commissioning engineer presses the button.",
+      "properties carry reason and note, and nothing else. reason is what lets an operator reading a source's history tell an activation check from a support engineer poking a live installation.",
+      "This is the fixture that separates INGESTION VERIFIED from CONNECTED. Its backend state records last_heartbeat_at untouched for exactly that reason, and heartbeat-success records the mirror image."
+    ]
+  }
+}

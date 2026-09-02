@@ -1,3 +1,4 @@
+import { DIAGNOSTIC_TEST_EVENT, READ_MODEL_EXCLUSION_RULE } from "./diagnostic";
 import type { SendingState } from "./errors";
 import { OBSERVER_ROUTES } from "./wire";
 
@@ -42,6 +43,55 @@ import { OBSERVER_ROUTES } from "./wire";
  * of the *batch*, not of an event: every event in a `413` is retained, and how
  * the sender re-frames them afterwards is its own business. The `413` fixture's
  * `why` says so.
+ *
+ * ## Both halves of the exchange
+ *
+ * `expectedOutboxActions` says what the **client** does. `expectedBackendState`
+ * says what the **server** must be holding once the exchange is over: which rows
+ * exist in `observer.analytics_events`, which of the operational facts moved,
+ * what became of the credential and the activation code.
+ *
+ * A pack carrying only the client half lets a backend regression through
+ * unnoticed. A server that quietly stops writing `ingestion_verified_at`, or
+ * that advances `last_heartbeat_at` for a credential it has just refused,
+ * answers every fixture in this pack correctly on the wire — and both are
+ * defects an operator finds out about by trusting a screen that is wrong.
+ *
+ * The two halves are cross-checked rather than merely filed side by side. An
+ * event whose action is `remove` must appear in `storedEventIds`, because
+ * removal is only ever justified by the server holding the fact; an event in
+ * `undeterminedEventIds` must be `retain`, because an outcome the response does
+ * not reveal cannot acknowledge anything. `fixtures.test.ts` asserts both, so a
+ * fixture whose two halves disagree fails here rather than teaching a plugin
+ * author to delete an event the server never stored.
+ *
+ * ## Three states, and why the pack keeps them apart
+ *
+ * ACTIVATED, CONNECTED and INGESTION VERIFIED are three separate facts and no
+ * one of them implies another:
+ *
+ *   ACTIVATED           a credential was issued. `activation-success`.
+ *   CONNECTED           a heartbeat succeeded. `heartbeat-success` — and it sets
+ *                       `last_heartbeat_at` and touches nothing else.
+ *   INGESTION VERIFIED  an event reached storage through ordinary ingestion.
+ *                       `diagnostic-test-accepted` is the fixture that earns it.
+ *
+ * Each of those fixtures records the two facts it does **not** set, because that
+ * is the half a collapsed status would destroy: a source can be INGESTION
+ * VERIFIED and never CONNECTED, and it can be ACTIVATED and neither.
+ *
+ * ## Two kinds of fixture
+ *
+ * Most fixtures are an `exchange`: a request, a response, and what each side
+ * holds afterwards. One rule this pack has to publish is not an exchange at all
+ * — a diagnostic row is stored for ever and counted never — so
+ * `diagnostic-excluded-from-business-metrics` is a `read-model` fixture
+ * carrying the stored rows and the metric they must produce.
+ *
+ * It could have been faked as an HTTP case by inventing a query endpoint. That
+ * would have published an endpoint that does not exist, in a document whose
+ * whole purpose is that its contents can be relied upon, so the type grew a
+ * second shape instead. `kind` discriminates them.
  *
  * ## Determinism
  *
@@ -100,6 +150,12 @@ export const FIXTURE_EVENT_IDS = Object.freeze({
    * implementation matched a foreign result to a queued event.
    */
   foreign: "deadbeef-0000-4000-8000-000000000099",
+  /**
+   * The `diagnostic.test` event, which is an ordinary event in every respect
+   * that matters to the transport and is separated here only so a reader can
+   * tell at a glance which row a diagnostic assertion is about.
+   */
+  diagnostic: "d1a90057-0000-4000-8000-000000000010",
 });
 
 const SOURCE_ID = "f1000000-0000-4000-8000-0000000000a1";
@@ -113,7 +169,7 @@ const BATCH = Object.freeze({
   mixed: "b0000000-0000-4000-8000-000000000003",
   retryable: "b0000000-0000-4000-8000-000000000004",
   nonRetryable: "b0000000-0000-4000-8000-000000000005",
-  unknownCode: "b0000000-0000-4000-8000-000000000006",
+  unknownCodeRetryableTrue: "b0000000-0000-4000-8000-000000000006",
   missing: "b0000000-0000-4000-8000-000000000007",
   foreign: "b0000000-0000-4000-8000-000000000008",
   conflicting: "b0000000-0000-4000-8000-000000000009",
@@ -122,6 +178,15 @@ const BATCH = Object.freeze({
   rateLimited: "b0000000-0000-4000-8000-00000000000c",
   unavailable: "b0000000-0000-4000-8000-00000000000d",
   countNotList: "b0000000-0000-4000-8000-00000000000e",
+  /*
+   * The unknown-code pair's two batches differ, and deliberately so. The
+   * fixtures exist to show that two responses differing only in `retryable`
+   * produce one behaviour; sharing a batch_id would let a reader think the
+   * pairing was an artefact of correlation rather than of the rule.
+   */
+  unknownCodeRetryableFalse: "b0000000-0000-4000-8000-00000000000f",
+  diagnosticAccepted: "b0000000-0000-4000-8000-000000000010",
+  diagnosticReplay: "b0000000-0000-4000-8000-000000000011",
 });
 
 /*
@@ -202,12 +267,129 @@ export interface FixtureCounterExample {
   readonly whyItIsWrong: string;
 }
 
-export interface ConformanceFixture {
+/* ------------------------------------------------- what the backend must hold */
+
+/**
+ * Whether an exchange writes an operational timestamp, or leaves it alone.
+ *
+ * A delta rather than an absolute, because a delta is true regardless of what a
+ * harness did before it and is therefore the only form a single fixture can
+ * honestly claim. `set` means this exchange writes the column; `unchanged`
+ * means it must not — including when the column already holds a value, which is
+ * the case `ingest-all-duplicate` and `diagnostic-test-replay-duplicate` exist
+ * to pin down.
+ */
+export const FIXTURE_STATE_EFFECTS = ["set", "unchanged"] as const;
+export type FixtureStateEffect = (typeof FIXTURE_STATE_EFFECTS)[number];
+
+/** What becomes of the one-time activation code a request presented, if any. */
+export const FIXTURE_ACTIVATION_CODE_STATES = ["consumed", "unchanged", "not-presented"] as const;
+export type FixtureActivationCodeState = (typeof FIXTURE_ACTIVATION_CODE_STATES)[number];
+
+/**
+ * What the server holds once the exchange is over.
+ *
+ * The other half of `expectedOutboxActions`, and the half without which a
+ * backend regression passes the pack unnoticed. Structured rather than prose so
+ * that a conformance run can compare it, with one prose field — `assertion` —
+ * for the part that is genuinely a sentence.
+ *
+ * ## `storedEventIds` and `undeterminedEventIds` are not the same claim
+ *
+ * The first is what the backend **certainly** holds. The second is what the
+ * response does not reveal, and it is non-empty in exactly the four cases where
+ * the response is itself a server defect: a missing result, a foreign result id,
+ * two results for one id, and an unreadable `2xx`. Naming that ignorance rather
+ * than guessing at it is what makes those four fixtures' `retain` the *derived*
+ * answer rather than a rule to memorise — an event whose fate is unknown cannot
+ * be acknowledged.
+ */
+export interface FixtureBackendState {
+  /** What must already be true for this response to be the correct one. */
+  readonly precondition: string;
+  /**
+   * Every `event_id` `observer.analytics_events` certainly holds for this source
+   * once the exchange has finished, including rows the precondition put there.
+   *
+   * Idempotency is the table's `(source_id, event_id)` primary key, so this list
+   * is also the row count: a second copy of an id is not representable, which is
+   * precisely the guarantee the duplicate fixtures assert.
+   */
+  readonly storedEventIds: readonly string[];
+  /** Ids whose storage the response does not settle either way. Usually empty. */
+  readonly undeterminedEventIds: readonly string[];
+  /** `source_operations.last_heartbeat_at` — the CONNECTED fact. */
+  readonly connected: FixtureStateEffect;
+  /** `source_operations.ingestion_verified_at` — the INGESTION VERIFIED fact. */
+  readonly ingestionVerified: FixtureStateEffect;
+  /** Rows in `observer.source_credentials` for this source in state `active`. */
+  readonly activeCredentials: number;
+  readonly activationCode: FixtureActivationCodeState;
+  /** One line. What a backend conformance run asserts, in words. */
+  readonly assertion: string;
+}
+
+/* ------------------------------------------------------ a stored row, read back */
+
+/**
+ * One `observer.analytics_events` row as a read model sees it.
+ *
+ * Only the columns a read-model rule can branch on. Deliberately not the
+ * server-derived identity columns: `account_id`, `project_id` and the stored
+ * environment come from the source record, and a fixture that restated them
+ * would invite a reader to think a read model chooses them.
+ */
+export interface FixtureStoredRow {
+  readonly event_id: string;
+  readonly event_name: string;
+  readonly session_id: string | null;
+  readonly sequence: number | null;
+  readonly occurred_at: string;
+}
+
+/** What a business read model must produce from a set of stored rows. */
+export interface FixtureReadModelOutcome {
+  /** The published predicate. Always `READ_MODEL_EXCLUSION_RULE`, never a copy of the prefix. */
+  readonly exclusionRule: string;
+  readonly countedEventIds: readonly string[];
+  /** Still on disk, still never counted. */
+  readonly excludedEventIds: readonly string[];
+  /** The metric these rows feed. */
+  readonly metric: string;
+  readonly value: number;
+  /** What the same query reports with the exclusion rule left out. The bug. */
+  readonly valueWithoutTheRule: number;
+}
+
+/* ------------------------------------------------------------- the two shapes */
+
+/** What every fixture carries, whether or not it is an HTTP exchange. */
+interface FixtureCommon {
   /** Stable kebab-case identifier. Also the file stem under `fixtures/`. */
   readonly name: string;
   readonly description: string;
+  /** What the server holds afterwards. See {@link FixtureBackendState}. */
+  readonly expectedBackendState: FixtureBackendState;
+  /** One line. The rule this case demonstrates. */
+  readonly why: string;
+  /** Anything a harness author needs that the fields above cannot carry. */
+  readonly notes?: readonly string[];
+}
+
+/** A request, its response, and what both sides hold afterwards. */
+export interface ExchangeFixture extends FixtureCommon {
+  readonly kind: "exchange";
   readonly request: FixtureExchange;
   readonly requestSchema: FixtureSchemaName;
+  /**
+   * Whether the request body is expected to validate.
+   *
+   * False only for the two heartbeat fixtures whose whole subject is what the
+   * endpoint refuses. Carried separately from `responseValidates` because they
+   * fail for opposite reasons: a malformed response is a server defect a client
+   * must survive, a malformed request is a client defect a server must name.
+   */
+  readonly requestValidates: boolean;
   readonly response: FixtureAnswer;
   /** Which published component the response body is judged against. */
   readonly responseSchema: FixtureSchemaName;
@@ -225,11 +407,30 @@ export interface ConformanceFixture {
   readonly expectedOutboxActions: Readonly<Record<string, FixtureOutboxAction>>;
   /** What the sending loop does next, which `expectedOutboxActions` cannot express. */
   readonly expectedSending: SendingState;
-  /** One line. The rule this case demonstrates. */
-  readonly why: string;
-  /** Anything a harness author needs that the fields above cannot carry. */
-  readonly notes?: readonly string[];
   readonly counterExample?: FixtureCounterExample;
+}
+
+/**
+ * A rule about stored rows, with no request and no response.
+ *
+ * The pack needs exactly one of these and the reason is worth stating: the
+ * diagnostic exclusion is a property of every read model in the product, for
+ * ever, and there is no HTTP call that demonstrates it. Modelling it as an
+ * exchange would have required inventing a query endpoint — publishing an
+ * interface that does not exist, inside the document whose value is that its
+ * contents can be relied on.
+ */
+export interface ReadModelFixture extends FixtureCommon {
+  readonly kind: "read-model";
+  /** The rows already in `observer.analytics_events` when the read model runs. */
+  readonly storedRows: readonly FixtureStoredRow[];
+  readonly expectedReadModel: FixtureReadModelOutcome;
+}
+
+export type ConformanceFixture = ExchangeFixture | ReadModelFixture;
+
+export function isExchangeFixture(fixture: ConformanceFixture): fixture is ExchangeFixture {
+  return fixture.kind === "exchange";
 }
 
 /* ============================================================ request builders */
@@ -293,6 +494,92 @@ function ingestRequest(batchId: string, events: readonly unknown[]): FixtureExch
  * fixture exists to make.
  */
 const ACCEPTED_BATCH_REQUEST = ingestRequest(BATCH.allAccepted, [EVENT_ONE, EVENT_TWO]);
+
+/**
+ * The `diagnostic.test` event, built by the same function as any other event
+ * would be if the builder took a name — which it deliberately does not, because
+ * a diagnostic differs from a business event in exactly two envelope fields and
+ * spelling them out is the point.
+ *
+ * `session_id` and `sequence` are null together, as the envelope requires: a
+ * diagnostic belongs to no visitor session. Nothing else is special, and that is
+ * the whole design — an onboarding check that needed special handling would
+ * prove the special handling rather than the ingestion path.
+ */
+const DIAGNOSTIC_EVENT = Object.freeze({
+  event_id: FIXTURE_EVENT_IDS.diagnostic,
+  event_name: DIAGNOSTIC_TEST_EVENT,
+  schema_version: 1,
+  occurred_at: "2026-01-01T09:14:50+01:00",
+  session_id: null,
+  sequence: null,
+  app: APP,
+  properties: { reason: "activation_check", note: null },
+});
+
+/* ============================================== the over-sized heartbeat body */
+
+/**
+ * The heartbeat byte ceiling, restated.
+ *
+ * Enforced by `HEARTBEAT_MAX_BODY_BYTES` in `packages/sources/src/heartbeat.ts`,
+ * which is the authority. It is restated rather than imported because the
+ * dependency runs the other way — `@observer/sources` depends on this package
+ * and never the reverse — and a contract that imported a service to describe
+ * itself would invert the only layering rule this repository has.
+ *
+ * `fixtures.test.ts` asserts the over-sized body genuinely exceeds this number,
+ * so the fixture cannot silently stop being over-sized. It cannot assert the two
+ * constants agree; `heartbeat.test.ts` is where the enforced ceiling is proved.
+ */
+export const HEARTBEAT_BODY_CEILING_BYTES = 4096;
+
+/**
+ * Filler that is legible, deterministic, and not credential-shaped.
+ *
+ * A run of random-looking base64 would trip this repository's own secret sweep —
+ * an opaque twenty-character run of the credential alphabet is exactly what that
+ * scanner is built to find — so the padding is an English sentence with spaces
+ * in it. It repeats rather than being written out because the generated document
+ * has to be diffable by a human.
+ */
+const OVERSIZED_FILLER = "heartbeat filler that cannot satisfy the schema. ".repeat(100);
+
+/* ==================================================== backend-state builder */
+
+/**
+ * One backend state, with the uninteresting answers defaulted.
+ *
+ * Every field is present in the generated document; the defaults exist only so
+ * that reading the table below shows what each fixture *claims* rather than a
+ * wall of eight fields repeating the same boring values. The defaults are the
+ * boring values: nothing stored, nothing undetermined, neither operational fact
+ * written, the source's one credential intact, and no activation code presented.
+ */
+function backendState(state: {
+  readonly precondition: string;
+  readonly storedEventIds?: readonly string[];
+  readonly undeterminedEventIds?: readonly string[];
+  readonly connected?: FixtureStateEffect;
+  readonly ingestionVerified?: FixtureStateEffect;
+  readonly activeCredentials?: number;
+  readonly activationCode?: FixtureActivationCodeState;
+  readonly assertion: string;
+}): FixtureBackendState {
+  return {
+    precondition: state.precondition,
+    storedEventIds: state.storedEventIds ?? [],
+    undeterminedEventIds: state.undeterminedEventIds ?? [],
+    connected: state.connected ?? "unchanged",
+    ingestionVerified: state.ingestionVerified ?? "unchanged",
+    activeCredentials: state.activeCredentials ?? 1,
+    activationCode: state.activationCode ?? "not-presented",
+    assertion: state.assertion,
+  };
+}
+
+/** The precondition almost every ingestion fixture starts from. */
+const LIVE_SOURCE = "An active source holding one live credential, with nothing yet ingested.";
 
 /* ============================================================ result builders */
 
@@ -373,6 +660,65 @@ const HEARTBEAT_REQUEST_BODY = Object.freeze({
 });
 
 /**
+ * A heartbeat with no offset on `sent_at`.
+ *
+ * Chosen over the dozen other ways to fail the schema because this is the one
+ * that ships. Every instant in this contract carries an offset, and a client
+ * that drops it passes its own tests all summer and starts disagreeing with the
+ * server by an hour on the last Sunday in October — the failure the rule exists
+ * for, in the fixture that shows it being refused.
+ */
+const MALFORMED_HEARTBEAT_BODY = Object.freeze({
+  ...HEARTBEAT_REQUEST_BODY,
+  sent_at: "2026-01-01T09:15:30",
+});
+
+/**
+ * A heartbeat past the byte ceiling.
+ *
+ * Over-sized by an unrecognised key rather than by an over-long known one, and
+ * that is not laziness: every string in `HeartbeatRequestSchema` is bounded, so
+ * there is no schema-valid way to build a body this large. That is exactly why
+ * the answer is `malformed_request` — see the fixture's `why`.
+ */
+const OVERSIZED_HEARTBEAT_BODY = Object.freeze({
+  ...HEARTBEAT_REQUEST_BODY,
+  diagnostic_dump: OVERSIZED_FILLER,
+});
+
+/**
+ * What one source's `observer.analytics_events` holds after the exchanges above:
+ * two business events and the diagnostic that proved the path.
+ *
+ * Written as stored rows rather than as wire envelopes on purpose. A read model
+ * queries the table, not the transport, and the three columns it can branch on
+ * — the name, the session, the instant — are the three carried here.
+ */
+const READ_MODEL_ROWS: readonly FixtureStoredRow[] = Object.freeze([
+  {
+    event_id: FIXTURE_EVENT_IDS.first,
+    event_name: "section.entered",
+    session_id: SESSION_ID,
+    sequence: 1,
+    occurred_at: "2026-01-01T09:15:00+01:00",
+  },
+  {
+    event_id: FIXTURE_EVENT_IDS.second,
+    event_name: "section.entered",
+    session_id: SESSION_ID,
+    sequence: 2,
+    occurred_at: "2026-01-01T09:15:04+01:00",
+  },
+  {
+    event_id: FIXTURE_EVENT_IDS.diagnostic,
+    event_name: DIAGNOSTIC_TEST_EVENT,
+    session_id: null,
+    sequence: null,
+    occurred_at: "2026-01-01T09:14:50+01:00",
+  },
+]);
+
+/**
  * Every case a conforming plugin must handle, in the order a reader should meet
  * them: get a credential, prove liveness, then the twenty ways a batch can come
  * back.
@@ -386,6 +732,7 @@ const HEARTBEAT_REQUEST_BODY = Object.freeze({
  */
 const FIXTURES: readonly ConformanceFixture[] = [
   {
+    kind: "exchange",
     name: "activation-success",
     description:
       "A fresh installation exchanges its one-time code and receives a source credential.",
@@ -396,12 +743,25 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: ACTIVATION_REQUEST_BODY,
     },
     requestSchema: "ActivationRequest",
+    requestValidates: true,
     response: { status: 200, headers: JSON_HEADERS, body: ACTIVATION_SUCCESS_BODY },
     responseSchema: "ActivationSuccess",
     responseValidates: true,
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "One unspent, unexpired activation code for a registered active source, and no live credential.",
+      activeCredentials: 1,
+      activationCode: "consumed",
+      assertion:
+        "One row in observer.source_credentials for this source in state active, the code marked " +
+        "consumed in the same transaction, and NOTHING else: no analytics_events row, and " +
+        "source_operations still holding null in both last_heartbeat_at and ingestion_verified_at. " +
+        "ACTIVATED is one fact; a source that has only activated is neither CONNECTED nor " +
+        "INGESTION VERIFIED, and a screen that says otherwise is guessing.",
+    }),
     why: "The token is returned once, here, and never again — persist it before answering anything else.",
     notes: [
       "The response carries no tenant_id and no project_id. A client that wants either has misread the contract.",
@@ -409,6 +769,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "activation-failure",
     description: "An unknown, expired or already-consumed code. All three answer identically.",
     request: {
@@ -418,6 +779,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: ACTIVATION_REQUEST_BODY,
     },
     requestSchema: "ActivationRequest",
+    requestValidates: true,
     response: {
       status: 401,
       headers: JSON_HEADERS,
@@ -434,6 +796,16 @@ const FIXTURES: readonly ConformanceFixture[] = [
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "stop",
+    expectedBackendState: backendState({
+      precondition:
+        "The presented code is unknown, expired, or already consumed — the backend cannot tell the caller which.",
+      activeCredentials: 0,
+      activationCode: "unchanged",
+      assertion:
+        "Nothing is written. No credential is minted, and a code that was already consumed is not " +
+        "consumed a second time — a failed attempt must leave the table exactly as it found it, or " +
+        "the row's timestamps become an oracle for which of the three causes applied.",
+    }),
     why: "One indistinguishable failure, so a guessed code cannot reveal whether a tenant, project or source exists.",
     notes: [
       "source_id is always null here, including for a code that was genuinely consumed. Its presence is a required key, never a signal.",
@@ -441,6 +813,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "activation-reactivation",
     description:
       "An operator issues a new code for a source that already exists; the installation re-credentials.",
@@ -451,6 +824,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: ACTIVATION_REQUEST_BODY,
     },
     requestSchema: "ActivationRequest",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -461,6 +835,18 @@ const FIXTURES: readonly ConformanceFixture[] = [
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "An active source with one live credential, the two events of ingest-all-accepted already stored, and a freshly issued code.",
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      activeCredentials: 1,
+      activationCode: "consumed",
+      assertion:
+        "The credential row is REPLACED — the previous one superseded, exactly one left active — and " +
+        "nothing else moves. Both analytics_events rows survive, and ingestion_verified_at keeps the " +
+        "instant it already held. A backend that cascaded credential replacement into the source's " +
+        "stored events would answer this exchange correctly and destroy a showroom's history.",
+    }),
     why: "Reactivation replaces the credential and nothing else: the outbox, its queued events and their event_ids all survive untouched.",
     notes: [
       "The only difference from activation-success is status. Everything else is the same shape, deliberately.",
@@ -469,6 +855,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "heartbeat-success",
     description: "Liveness plus queue health, on its own endpoint.",
     request: {
@@ -478,6 +865,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: HEARTBEAT_REQUEST_BODY,
     },
     requestSchema: "HeartbeatRequest",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -488,6 +876,16 @@ const FIXTURES: readonly ConformanceFixture[] = [
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "An active source holding one live credential, which has never been heard from.",
+      connected: "set",
+      assertion:
+        "last_heartbeat_at and last_seen_at advance and the reported build and queue counters land " +
+        "on the source's operational row. ingestion_verified_at stays null and observer.analytics_events " +
+        "gains no row: this is the CONNECTED fact alone. A heartbeat never earns INGESTION VERIFIED, " +
+        "and queue depth is not a fact about a visitor.",
+    }),
     why: "A heartbeat reports on the outbox and never changes it; config_stale is advisory and touches neither identity nor credential.",
     notes: [
       "server_time is what a plugin subtracts from its own clock to show drift on the diagnostic screen.",
@@ -495,6 +893,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "heartbeat-unauthorised",
     description: "The credential is unknown, revoked or superseded.",
     request: {
@@ -504,6 +903,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: HEARTBEAT_REQUEST_BODY,
     },
     requestSchema: "HeartbeatRequest",
+    requestValidates: true,
     response: {
       status: 401,
       headers: JSON_HEADERS,
@@ -518,6 +918,14 @@ const FIXTURES: readonly ConformanceFixture[] = [
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "stop",
+    expectedBackendState: backendState({
+      precondition: "The presented credential has been revoked, superseded, or never existed.",
+      activeCredentials: 0,
+      assertion:
+        "Nothing is written. last_heartbeat_at does not move — a heartbeat the endpoint refused must " +
+        "never make a source look CONNECTED, and a backend that recorded liveness before checking the " +
+        "credential would show an operator a healthy showroom that has been locked out for a week.",
+    }),
     why: "Sending stops until an operator reactivates, and every queued event is retained — the credential was the problem, never the events.",
     notes: [
       "batch_id is echoed for log correlation only. A heartbeat submits no events, so no per-event action applies.",
@@ -525,6 +933,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "heartbeat-forbidden",
     description: "The credential is valid; the source is suspended or archived.",
     request: {
@@ -534,6 +943,7 @@ const FIXTURES: readonly ConformanceFixture[] = [
       body: HEARTBEAT_REQUEST_BODY,
     },
     requestSchema: "HeartbeatRequest",
+    requestValidates: true,
     response: {
       status: 403,
       headers: JSON_HEADERS,
@@ -548,6 +958,14 @@ const FIXTURES: readonly ConformanceFixture[] = [
     submittedEventIds: [],
     expectedOutboxActions: {},
     expectedSending: "stop",
+    expectedBackendState: backendState({
+      precondition: "The credential is live and valid; the source itself is suspended.",
+      activeCredentials: 1,
+      assertion:
+        "Nothing is written. The credential is intact and stays intact — suspension is a property of " +
+        "the source, not of the token — and last_heartbeat_at must not advance, or an operator " +
+        "resuming the source would find a machine that appeared healthy throughout its suspension.",
+    }),
     why: "Distinct from 401 because the operator's next action differs: a suspended source is resumed, a rejected credential is reactivated.",
     notes: [
       "A plugin that shows one message for 401 and 403 sends the operator down the wrong path.",
@@ -555,10 +973,102 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
+    name: "heartbeat-malformed",
+    description:
+      "A heartbeat whose sent_at carries no UTC offset, refused by the schema before the credential is read.",
+    request: {
+      method: "POST",
+      path: OBSERVER_ROUTES.heartbeat,
+      headers: AUTHED_HEADERS,
+      body: MALFORMED_HEARTBEAT_BODY,
+    },
+    requestSchema: "HeartbeatRequest",
+    requestValidates: false,
+    response: {
+      status: 400,
+      headers: JSON_HEADERS,
+      body: {
+        code: "malformed_request",
+        message: "The heartbeat payload does not satisfy the heartbeat schema: sent_at.",
+        batch_id: null,
+        retry_after_seconds: null,
+      },
+    },
+    responseSchema: "RequestFailureBody",
+    responseValidates: true,
+    submittedEventIds: [],
+    expectedOutboxActions: {},
+    expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: "An active source holding one live credential.",
+      activeCredentials: 1,
+      assertion:
+        "Nothing is written, and the credential is never even read: the schema check precedes " +
+        "authentication, so this answer is identical whether the bearer is valid, revoked or absent. " +
+        "last_heartbeat_at does not move — a heartbeat that failed to parse is not liveness.",
+    }),
+    why: "A heartbeat that fails its own schema is malformed_request and nothing more: sending continues, the outbox is untouched, and no operational fact moves.",
+    notes: [
+      "An instant without an offset is the defect this models because it is the one that ships: a client that drops the offset agrees with the server all summer and is an hour out on the last Sunday in October.",
+      "The response names the schema's field path and never quotes the value. sent_at arrived on a path that has not authenticated anybody, and echoing it would put caller-controlled text into a response body.",
+      "malformed_request is a 400 whose published policy is continue. A plugin reports the defect locally and keeps sending events; a bug in the liveness payload is not a reason to stop ingestion.",
+      "batch_id is null, and honestly so. A heartbeat has no batch to correlate, and inventing one would teach a reader that the field means something here.",
+      "This is the only fixture in the pack whose REQUEST is expected to fail validation alongside heartbeat-oversized. The test asserts both genuinely fail.",
+    ],
+  },
+  {
+    kind: "exchange",
+    name: "heartbeat-oversized",
+    description:
+      "A heartbeat body past the four-kibibyte ceiling, refused before the parser is asked to read it.",
+    request: {
+      method: "POST",
+      path: OBSERVER_ROUTES.heartbeat,
+      headers: AUTHED_HEADERS,
+      body: OVERSIZED_HEARTBEAT_BODY,
+    },
+    requestSchema: "HeartbeatRequest",
+    requestValidates: false,
+    response: {
+      status: 400,
+      headers: JSON_HEADERS,
+      body: {
+        code: "malformed_request",
+        message: `A heartbeat may not exceed ${String(HEARTBEAT_BODY_CEILING_BYTES)} bytes.`,
+        batch_id: null,
+        retry_after_seconds: null,
+      },
+    },
+    responseSchema: "RequestFailureBody",
+    responseValidates: true,
+    submittedEventIds: [],
+    expectedOutboxActions: {},
+    expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: "An active source holding one live credential.",
+      activeCredentials: 1,
+      assertion:
+        "Nothing is written and nothing is parsed. The ceiling is applied to the body before " +
+        "JSON.parse is called, so a five-kilobyte payload never reaches the parser and never reaches " +
+        "the credential check either. last_heartbeat_at does not move.",
+    }),
+    why: "malformed_request and NOT batch_too_large: a heartbeat has no batch, so answering 413 would tell a client to split and resend something that cannot be divided.",
+    notes: [
+      "The code was chosen for what it means rather than for the status it carries. batch_too_large is a 413 whose published policy is retain_and_split; a plugin obeying it here would either loop trying to halve a liveness ping or quarantine one.",
+      "malformed_request is the honest answer because a heartbeat this large is not a large heartbeat. Every string in HeartbeatRequestSchema is bounded, so a schema-valid body comes to roughly 750 bytes — a body five times that cannot satisfy the schema, and the ceiling has merely discovered it early.",
+      "Its policy is also the one a client should follow: continue. The plugin has a defect worth surfacing locally, and stopping ingestion over a diagnostic payload would turn a reporting bug into an outage.",
+      "The ceiling is enforced as HEARTBEAT_MAX_BODY_BYTES in packages/sources/src/heartbeat.ts. HEARTBEAT_BODY_CEILING_BYTES restates it here because a contract package must not depend on a service package; the test asserts this body genuinely exceeds it.",
+      "The padding is a repeated English sentence rather than random bytes, so the generated document stays diffable and so the repository's own secret sweep does not see an opaque run of credential alphabet.",
+    ],
+  },
+  {
+    kind: "exchange",
     name: "ingest-all-accepted",
     description: "Two new events in one batch, both stored by the server.",
     request: ACCEPTED_BATCH_REQUEST,
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -583,13 +1093,25 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "remove",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "set",
+      assertion:
+        "Two rows in observer.analytics_events for this source, one per event_id, each carrying the " +
+        "account_id, project_id and environment the SERVER derived from the credential rather than " +
+        "anything the batch said. ingestion_verified_at is set; last_heartbeat_at is still null — " +
+        "ingestion earns INGESTION VERIFIED and never CONNECTED.",
+    }),
     why: "An event leaves the outbox on a per-event accepted inside a 200, and on nothing else.",
   },
   {
+    kind: "exchange",
     name: "ingest-all-duplicate",
     description: "The same two events again. The server already holds both.",
     request: ingestRequest(BATCH.allDuplicate, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -614,6 +1136,16 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "remove",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: "The two events of ingest-all-accepted are already stored for this source.",
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "unchanged",
+      assertion:
+        "Still exactly two rows. The (source_id, event_id) primary key absorbs the replay, so a " +
+        "second copy is not representable, and ingestion_verified_at keeps the instant of the first " +
+        "batch rather than advancing — the column is a coalesce, so the operator's screen shows when " +
+        "the path was proved and not when it was last exercised.",
+    }),
     why: "duplicate is a SUCCESS: the fact is stored, so delivery is finished — a plugin that retries duplicates never drains its queue.",
     notes: [
       "This is the most commonly mis-implemented result in the whole contract.",
@@ -621,10 +1153,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-mixed-result",
     description: "One accepted, one duplicate, one rejected — in a single 200.",
     request: ingestRequest(BATCH.mixed, [EVENT_ONE, EVENT_TWO, EVENT_THREE]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -656,6 +1190,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.third]: "quarantine",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "The second event is already stored from an earlier batch; the third's properties do not satisfy its registered schema.",
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "unchanged",
+      assertion:
+        "Two rows: the newly accepted first event and the pre-existing second. The rejected third " +
+        "event writes NOTHING — not a row, not a tombstone, not a partial insert. A batch is not one " +
+        "transaction whose failure rolls back its neighbours, and it is not three writes that leave " +
+        "wreckage behind either.",
+    }),
     why: "Partial batch success is the normal case: each event is judged alone and one rejection never taints its neighbours.",
     notes: [
       "This is why the server validates the batch FRAME and never the events inside it. Parsing the whole envelope strictly would turn one bad event into a 400 for all three.",
@@ -663,10 +1208,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-retryable-rejection",
     description: "A transient server-side failure while writing one event.",
     request: ingestRequest(BATCH.retryable, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -696,16 +1243,28 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      ingestionVerified: "set",
+      assertion:
+        "One row. The storage_error event left no partial row behind — a transient write failure must " +
+        "roll back cleanly, or the client's perfectly correct retry would come back duplicate for an " +
+        "event the server told it to resend, and the outbox would be right about a fact the operator " +
+        "can no longer see was ever in doubt.",
+    }),
     why: "storage_error is the only retryable event-level code — the event is fine and the backend is not, so it goes back in the queue.",
     notes: [
       "Sending continues. One retryable event says nothing about the credential or the rest of the queue.",
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-non-retryable-rejection",
     description: "An event refused for a reason that resending cannot change.",
     request: ingestRequest(BATCH.nonRetryable, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -735,6 +1294,16 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "quarantine",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      ingestionVerified: "set",
+      assertion:
+        "One row. The pii_suspected event is not stored, and neither is the value that tripped the " +
+        "heuristic: the response names the offending KEY, the backend keeps neither key nor value, " +
+        "and the quarantined copy lives on the showroom PC. A backend that logged the payload it " +
+        "refused would have moved the leak rather than stopped it.",
+    }),
     why: "Quarantine is keep-with-a-reason, never delete: the event stays on disk, stops being retried, and is counted in the heartbeat.",
     notes: [
       "detail names the offending KEY and never the offending VALUE. A diagnostic that quotes a leaked email has moved the leak rather than stopped it.",
@@ -742,16 +1311,18 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
-    name: "ingest-unknown-rejection-code",
+    kind: "exchange",
+    name: "ingest-unknown-rejection-code-retryable-true",
     description:
-      "A rejection code invented after this build shipped, which the server marks retryable.",
-    request: ingestRequest(BATCH.unknownCode, [EVENT_ONE, EVENT_TWO]),
+      "A rejection code invented after this build shipped, which the server marks retryable: true.",
+    request: ingestRequest(BATCH.unknownCodeRetryableTrue, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
       body: {
-        batch_id: BATCH.unknownCode,
+        batch_id: BATCH.unknownCodeRetryableTrue,
         received: 2,
         accepted: 1,
         duplicate: 0,
@@ -776,18 +1347,82 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "quarantine",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      ingestionVerified: "set",
+      assertion:
+        "One row; the rejected event is not stored. What the backend claimed about retryability has " +
+        "no bearing on what it wrote, which is why the client's answer can ignore the flag without " +
+        "losing anything.",
+    }),
     why: "An unrecognised code quarantines and is NOT retried, whatever the server said about retryable — retrying something unintelligible loops for ever.",
     notes: [
+      "Half of a pair. ingest-unknown-rejection-code-retryable-false is the same batch, the same event and the same unknown code with the flag inverted, and the expected outbox action is identical.",
       "This is the one place the server's retryable flag is deliberately overridden. Everywhere else it is obeyed, subject to only ever being downgraded.",
       "The response still parses. code is a bounded string on the wire rather than the closed enum, precisely so a future code cannot make an otherwise-valid batch unreadable.",
       "Sending continues: one unknown event code says nothing about the credential, and stopping the outbox over it turns a small unknown into an outage.",
     ],
   },
   {
+    kind: "exchange",
+    name: "ingest-unknown-rejection-code-retryable-false",
+    description:
+      "The same unrecognised code and the same event, with the server marking it retryable: false.",
+    request: ingestRequest(BATCH.unknownCodeRetryableFalse, [EVENT_ONE, EVENT_TWO]),
+    requestSchema: "BatchEnvelope",
+    requestValidates: true,
+    response: {
+      status: 200,
+      headers: JSON_HEADERS,
+      body: {
+        batch_id: BATCH.unknownCodeRetryableFalse,
+        received: 2,
+        accepted: 1,
+        duplicate: 0,
+        rejected: 1,
+        results: [
+          settled(FIXTURE_EVENT_IDS.first, "accepted"),
+          refused(
+            FIXTURE_EVENT_IDS.second,
+            "quota_exhausted",
+            false,
+            "a code this build has never heard of",
+          ),
+        ],
+        warnings: [],
+      },
+    },
+    responseSchema: "BatchResponse",
+    responseValidates: true,
+    submittedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+    expectedOutboxActions: {
+      [FIXTURE_EVENT_IDS.first]: "remove",
+      [FIXTURE_EVENT_IDS.second]: "quarantine",
+    },
+    expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      ingestionVerified: "set",
+      assertion:
+        "One row; the rejected event is not stored. Byte for byte the same backend state as the " +
+        "retryable:true twin, which is the point of carrying both.",
+    }),
+    why: "The twin of the retryable:true case: the two responses differ in that flag alone and the correct client behaviour is IDENTICAL, because an unknown code is never interpreted.",
+    notes: [
+      "The pair exists because the rule is easy to half-implement. A client that quarantines on retryable:false and retries on retryable:true passes this fixture and fails its twin, and the failure it produces in the field is an infinite retry loop on a code nobody can read.",
+      "There is no case in which an unknown code is retried. classifyEventRejection ignores serverRetryable entirely once the code is unrecognised, and a test asserts these two fixtures resolve to the same action.",
+      "A retryable:false unknown code looks like the safe direction, and it is — which is exactly why it must not be the one an implementation branches on. Both halves reach quarantine by the same route: the code was unintelligible, so nothing about the flag could be trusted either.",
+    ],
+  },
+  {
+    kind: "exchange",
     name: "ingest-missing-result",
     description: "Two events submitted; the response reports on only one of them.",
     request: ingestRequest(BATCH.missing, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -809,6 +1444,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: `${LIVE_SOURCE} The response is itself a backend defect: a conformant server emits one result per submitted event.`,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      undeterminedEventIds: [FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "set",
+      assertion:
+        "One row is certain. Whether the second event was stored is UNKNOWABLE from this response, " +
+        "and that is not a gap in the fixture — it is the reason the client retains rather than " +
+        "removes. A backend conformance run asserts the first row exists and asserts nothing about " +
+        "the second, because the contract gives it nothing to assert with.",
+    }),
     why: "A submitted event with no result of its own is NOT acknowledged: silence is retain, never accept.",
     notes: [
       "The counters agree with results.length here, so nothing in the body looks wrong. Only comparing the submitted ids against the reported ids finds it.",
@@ -817,10 +1463,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-foreign-result-id",
     description: "The response carries a result for an event_id that was never in this batch.",
     request: ingestRequest(BATCH.foreign, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -845,6 +1493,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: `${LIVE_SOURCE} The response is itself a backend defect: a result names an id this source never sent.`,
+      storedEventIds: [FIXTURE_EVENT_IDS.first],
+      undeterminedEventIds: [FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "set",
+      assertion:
+        "One row is certain, and the foreign id appears NOWHERE — not in the stored list, not in the " +
+        "undetermined list, not in this source's table. A result for an id nobody sent is a defect to " +
+        "log, never a row to expect; a backend run that went looking for that id would be repeating " +
+        "the client's mistake at the other end.",
+    }),
     why: "A result whose event_id was not submitted acknowledges NOTHING: it is ignored, and must never be matched to another queued event.",
     notes: [
       "The foreign id is deadbeef-0000-4000-8000-000000000099. If it appears in any outbox decision, the implementation matched by position or by count rather than by id.",
@@ -854,10 +1513,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-conflicting-duplicate-result",
     description: "Two results for the same event_id, disagreeing with each other.",
     request: ingestRequest(BATCH.conflicting, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -888,6 +1549,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "remove",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: `${LIVE_SOURCE} The response is itself a backend defect: one event_id carries two contradictory results.`,
+      storedEventIds: [FIXTURE_EVENT_IDS.second],
+      undeterminedEventIds: [FIXTURE_EVENT_IDS.first],
+      ingestionVerified: "set",
+      assertion:
+        "The uncontested second event is certainly stored. The first is undetermined — the response " +
+        "says both accepted and storage_error about it — and no ordering rule can settle that, which " +
+        "is precisely why the client retains. A contradiction about one event still says nothing " +
+        "about another, so the second row is a firm assertion and not a guess.",
+    }),
     why: "Two results for one event_id is a contradiction, so it is resolved by RETAINING — fail safe, because a redelivery costs a duplicate and a wrong acknowledgement costs the event.",
     notes: [
       "Not first-wins and not last-wins. Both are guesses, and last-wins here would happen to be safe while first-wins would lose the event — an implementation must not depend on which order a server happened to emit.",
@@ -896,10 +1568,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-malformed-2xx-body",
     description: "A 200 whose body does not validate against BatchResponse.",
     request: ingestRequest(BATCH.malformed, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -919,6 +1593,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "backoff",
+    expectedBackendState: backendState({
+      precondition: `${LIVE_SOURCE} Something between the client and the server is rewriting or truncating responses.`,
+      undeterminedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "unchanged",
+      assertion:
+        "NOTHING is certain, and that is the whole finding. The status was 200, so the batch probably " +
+        "WAS processed and rows probably do exist — an unreadable acknowledgement is not the same " +
+        "claim as no acknowledgement. A backend run asserts nothing here; the fixture's subject is " +
+        "the client, and the correct client behaviour is to assume the worst about its own knowledge " +
+        "rather than about the server's storage.",
+    }),
     why: "A 2xx whose body does not validate acknowledges ZERO events: an acknowledgement that cannot be read is not an acknowledgement.",
     notes: [
       "The only fixture in this pack whose response body is expected to FAIL schema validation. The test asserts that it does.",
@@ -928,10 +1613,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-batch-too-large",
     description: "The batch is over the event-count or byte ceiling in force.",
     request: ingestRequest(BATCH.tooLarge, [EVENT_ONE, EVENT_TWO, EVENT_THREE]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 413,
       headers: JSON_HEADERS,
@@ -950,6 +1637,14 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.third]: "retain",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      assertion:
+        "No rows are written at all. The request was refused at the ceiling before any event was " +
+        "read, so observer.analytics_events is untouched, ingestion_verified_at stays null, and the " +
+        "three events remain the client's alone. This is what non-2xx means everywhere in this " +
+        "contract, and it is why the whole batch is safe to resend.",
+    }),
     why: "Non-2xx means nothing was stored, so every event is retained; the only failure whose fix is arithmetic — halve the batch and send again.",
     notes: [
       "The contract's own word for this is retain_and_split. The split is a property of the batch, not of an event, so each event's action is plainly retain.",
@@ -958,10 +1653,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-rate-limited",
     description: "Too many requests. Retry-After states how long to wait.",
     request: ingestRequest(BATCH.rateLimited, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 429,
       headers: { "content-type": "application/json", "retry-after": "30" },
@@ -980,6 +1677,13 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "backoff",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      assertion:
+        "No rows are written. A rate limit is refused before the batch is processed, so a client that " +
+        "waits the stated interval and resends loses nothing — and a backend that stored a batch it " +
+        "then rate-limited would produce duplicates on every honest retry.",
+    }),
     why: "Retry-After is authoritative and overrides any local backoff schedule — a client that waits less than the server asked for is the reason the server asked.",
     notes: [
       "The header and retry_after_seconds carry the same number. The body copy exists because a client must still learn the interval when the header is stripped by an intermediary.",
@@ -987,10 +1691,12 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-unavailable",
     description: "The backend could not process the request at all.",
     request: ingestRequest(BATCH.unavailable, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 503,
       headers: JSON_HEADERS,
@@ -1008,6 +1714,14 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "retain",
     },
     expectedSending: "backoff",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      assertion:
+        "No rows are written. This is the fixture that defines what a 503 promises: the batch was not " +
+        "processed, so resending it unchanged cannot double-count anything — and a backend that " +
+        "answered 503 after a partial write would have broken the one guarantee the whole retry " +
+        "design rests on.",
+    }),
     why: "A 503 is not an acknowledgement: nothing was stored, so the whole batch is safe — and required — to resend unchanged.",
     notes: [
       "Bounded exponential backoff WITH JITTER. Without jitter every showroom that lost the same deployment returns at the same instant.",
@@ -1015,11 +1729,13 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-lost-acknowledgement-replay",
     description:
       "The first attempt received no response at all. The identical batch is sent again.",
     request: ACCEPTED_BATCH_REQUEST,
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -1044,6 +1760,17 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "remove",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "The first attempt was processed and both events stored; the response never reached the client.",
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "unchanged",
+      assertion:
+        "Still two rows, not four. The replay is absorbed by (source_id, event_id), and " +
+        "ingestion_verified_at keeps the instant of the lost first attempt. The backend cannot tell " +
+        "this request from the one whose answer was lost, and does not need to — that is what makes " +
+        "resending safe rather than merely tolerable.",
+    }),
     why: "This is the case the stable event_id exists for: the server had already stored both, and duplicate is how the client finds out without ever losing or double-counting a fact.",
     notes: [
       "The prior attempt was ingest-all-accepted's request. The server stored both events and the connection died before the response arrived, so the client learned nothing.",
@@ -1053,11 +1780,13 @@ const FIXTURES: readonly ConformanceFixture[] = [
     ],
   },
   {
+    kind: "exchange",
     name: "ingest-accepted-is-a-count-not-a-list",
     description:
       "ANTI-PATTERN. The canonical body beside the shape a client migrating from accepted_ids expects.",
     request: ingestRequest(BATCH.countNotList, [EVENT_ONE, EVENT_TWO]),
     requestSchema: "BatchEnvelope",
+    requestValidates: true,
     response: {
       status: 200,
       headers: JSON_HEADERS,
@@ -1082,6 +1811,16 @@ const FIXTURES: readonly ConformanceFixture[] = [
       [FIXTURE_EVENT_IDS.second]: "remove",
     },
     expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: LIVE_SOURCE,
+      storedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      ingestionVerified: "set",
+      assertion:
+        "Two rows. The backend state is the same as ingest-all-accepted's, deliberately: the server " +
+        "is behaving perfectly and the whole defect lives in how the response is read. A client stuck " +
+        "on accepted_ids acknowledges nothing while these two rows sit there, and it resends them for " +
+        "ever without a single error appearing on either side.",
+    }),
     why: "accepted is an INTEGER COUNT, never a list of ids — acknowledgement comes only from results[].event_id, and this is the live divergence with the UE client.",
     notes: [
       'This fixture exists because of a real mismatch, not a hypothetical one. A client that once read accepted_ids: ["..."] binds cleanly to accepted and finds a number where it expects an array.',
@@ -1104,6 +1843,134 @@ const FIXTURES: readonly ConformanceFixture[] = [
         "which is the accepted_ids shape a migrating parser expects; it fails BatchResponse validation, " +
         "and a lenient parser reading it against the real contract acknowledges nothing at all.",
     },
+  },
+  {
+    kind: "exchange",
+    name: "diagnostic-test-accepted",
+    description:
+      "A diagnostic.test event sent through ordinary ingestion, on the ordinary ingestion endpoint.",
+    request: ingestRequest(BATCH.diagnosticAccepted, [DIAGNOSTIC_EVENT]),
+    requestSchema: "BatchEnvelope",
+    requestValidates: true,
+    response: {
+      status: 200,
+      headers: JSON_HEADERS,
+      body: {
+        batch_id: BATCH.diagnosticAccepted,
+        received: 1,
+        accepted: 1,
+        duplicate: 0,
+        rejected: 0,
+        results: [settled(FIXTURE_EVENT_IDS.diagnostic, "accepted")],
+        warnings: [],
+      },
+    },
+    responseSchema: "BatchResponse",
+    responseValidates: true,
+    submittedEventIds: [FIXTURE_EVENT_IDS.diagnostic],
+    expectedOutboxActions: { [FIXTURE_EVENT_IDS.diagnostic]: "remove" },
+    expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition: `${LIVE_SOURCE} No heartbeat has ever been received.`,
+      storedEventIds: [FIXTURE_EVENT_IDS.diagnostic],
+      connected: "unchanged",
+      ingestionVerified: "set",
+      assertion:
+        "One row in observer.analytics_events with event_name diagnostic.test — a real row, on the " +
+        "real path, which is the only thing that could prove the path — and ingestion_verified_at " +
+        "set. last_heartbeat_at is STILL NULL: this source is INGESTION VERIFIED and not CONNECTED, " +
+        "and an Admin screen that cannot show that has collapsed two facts into one.",
+    }),
+    why: "INGESTION VERIFIED is earned here and nowhere else: a real event travelled the whole path — envelope, registry, validation, insert — and was stored.",
+    notes: [
+      "It goes to /functions/v1/observer-ingest like any other event, with the same credential and the same envelope. A diagnostic that needed its own endpoint would prove the endpoint rather than the path.",
+      "The canonical name is diagnostic.test. diagnostics.ping is a UE-side name and must never appear on this wire; a plugin that sends it gets schema_unknown, correctly.",
+      "session_id and sequence are both null, as the envelope requires them to be together. A diagnostic belongs to no visitor session — nobody is in the showroom when a commissioning engineer presses the button.",
+      "properties carry reason and note, and nothing else. reason is what lets an operator reading a source's history tell an activation check from a support engineer poking a live installation.",
+      "This is the fixture that separates INGESTION VERIFIED from CONNECTED. Its backend state records last_heartbeat_at untouched for exactly that reason, and heartbeat-success records the mirror image.",
+    ],
+  },
+  {
+    kind: "exchange",
+    name: "diagnostic-test-replay-duplicate",
+    description:
+      "The same diagnostic.test event again, because a support engineer pressed the button twice.",
+    request: ingestRequest(BATCH.diagnosticReplay, [DIAGNOSTIC_EVENT]),
+    requestSchema: "BatchEnvelope",
+    requestValidates: true,
+    response: {
+      status: 200,
+      headers: JSON_HEADERS,
+      body: {
+        batch_id: BATCH.diagnosticReplay,
+        received: 1,
+        accepted: 0,
+        duplicate: 1,
+        rejected: 0,
+        results: [settled(FIXTURE_EVENT_IDS.diagnostic, "duplicate")],
+        warnings: [],
+      },
+    },
+    responseSchema: "BatchResponse",
+    responseValidates: true,
+    submittedEventIds: [FIXTURE_EVENT_IDS.diagnostic],
+    expectedOutboxActions: { [FIXTURE_EVENT_IDS.diagnostic]: "remove" },
+    expectedSending: "continue",
+    expectedBackendState: backendState({
+      precondition:
+        "The diagnostic.test event of diagnostic-test-accepted is already stored for this source.",
+      storedEventIds: [FIXTURE_EVENT_IDS.diagnostic],
+      connected: "unchanged",
+      ingestionVerified: "unchanged",
+      assertion:
+        "Still one row. A diagnostic is deduplicated by (source_id, event_id) exactly like a business " +
+        "event, so pressing the button twice cannot produce two diagnostic facts, and " +
+        "ingestion_verified_at keeps the instant of the first send rather than advancing to this one.",
+    }),
+    why: "A diagnostic is idempotent exactly like any other event: the second send comes back duplicate, which removes it from the outbox and adds no second row.",
+    notes: [
+      "The batch_id differs from diagnostic-test-accepted's and the event_id does not. This is a fresh send rather than a replay of lost bytes, which is why it is not modelled on ingest-lost-acknowledgement-replay.",
+      "A plugin that minted a fresh event_id for the second press would store a second diagnostic row and prove nothing it had not already proved, while permanently overstating how many diagnostics a showroom has run.",
+      "duplicate still proves the path, so ingestion_verified_at stays set. It does not advance, because the column records when the path was first proved and not when it was last exercised — the heartbeat is what says a source is alive now.",
+    ],
+  },
+  {
+    kind: "read-model",
+    name: "diagnostic-excluded-from-business-metrics",
+    description:
+      "Not an HTTP exchange. Three stored rows, and the read model that must count exactly two of them.",
+    storedRows: READ_MODEL_ROWS,
+    expectedReadModel: {
+      exclusionRule: READ_MODEL_EXCLUSION_RULE,
+      countedEventIds: [FIXTURE_EVENT_IDS.first, FIXTURE_EVENT_IDS.second],
+      excludedEventIds: [FIXTURE_EVENT_IDS.diagnostic],
+      metric: "section_entries",
+      value: 2,
+      valueWithoutTheRule: 3,
+    },
+    expectedBackendState: backendState({
+      precondition:
+        "The two section.entered events and the diagnostic.test event of diagnostic-test-accepted are all stored for this source.",
+      storedEventIds: [
+        FIXTURE_EVENT_IDS.first,
+        FIXTURE_EVENT_IDS.second,
+        FIXTURE_EVENT_IDS.diagnostic,
+      ],
+      ingestionVerified: "unchanged",
+      assertion:
+        "Three rows stored and two counted. The diagnostic row is never deleted, never hidden and " +
+        "never moved to a second table — it is filtered at read time by " +
+        "`event_name NOT LIKE 'diagnostic.%'`, which every business read model carries, so that " +
+        "nothing anywhere has to remember to exclude it.",
+    }),
+    why: "A diagnostic row is stored for ever and counted never: the exclusion is a published rule a test can enforce, not a convention every future read model has to remember.",
+    notes: [
+      "READ_MODEL_EXCLUSION_RULE is the predicate, verbatim: event_name NOT LIKE 'diagnostic.%'. It is published as a constant so the rule is one edit rather than a habit spread across every query somebody writes next year.",
+      "A read model that omits it reports 3 where the truth is 2. That is the failure this fixture measures, which is why valueWithoutTheRule is carried beside value rather than described in prose.",
+      "The rule matches the whole reserved namespace and not the single name diagnostic.test. A future diagnostic.something is excluded on the day it is invented, without anybody editing a read model.",
+      "isDiagnosticEvent is the same rule for code rather than SQL, and countsAsBusinessFact in @observer/sources states it positively — filter(countsAsBusinessFact) survives a refactor in a way that a negation does not.",
+      "This fixture has no request and no response because there is no HTTP call that demonstrates the rule. Inventing a query endpoint to make it fit the exchange shape would have published an interface that does not exist.",
+    ],
   },
 ];
 
@@ -1130,4 +1997,21 @@ export function fixtureNames(): readonly string[] {
 /** One fixture by name, or undefined. */
 export function fixtureNamed(name: string): ConformanceFixture | undefined {
   return CONFORMANCE_FIXTURES.find((fixture) => fixture.name === name);
+}
+
+/**
+ * One fixture by name, narrowed to an exchange, or undefined.
+ *
+ * Exists because almost every caller wants a request and a response, and
+ * re-narrowing a union at each call site is the kind of ceremony that ends in
+ * somebody reaching for a cast.
+ */
+export function exchangeNamed(name: string): ExchangeFixture | undefined {
+  const fixture = fixtureNamed(name);
+  return fixture !== undefined && isExchangeFixture(fixture) ? fixture : undefined;
+}
+
+/** Every fixture that is an HTTP exchange, in pack order. */
+export function exchangeFixtures(): readonly ExchangeFixture[] {
+  return CONFORMANCE_FIXTURES.filter(isExchangeFixture);
 }

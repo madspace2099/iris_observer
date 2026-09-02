@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-all-accepted",
     "description": "Two new events in one batch, both stored by the server.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,19 @@
       "e0000000-0000-4000-8000-000000000002": "remove"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, with nothing yet ingested.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "set",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Two rows in observer.analytics_events for this source, one per event_id, each carrying the account_id, project_id and environment the SERVER derived from the credential rather than anything the batch said. ingestion_verified_at is set; last_heartbeat_at is still null — ingestion earns INGESTION VERIFIED and never CONNECTED."
+    },
     "why": "An event leaves the outbox on a per-event accepted inside a 200, and on nothing else."
   }
 }

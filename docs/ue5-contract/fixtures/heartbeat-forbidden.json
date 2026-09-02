@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "heartbeat-forbidden",
     "description": "The credential is valid; the source is suspended or archived.",
     "request": {
@@ -38,6 +39,7 @@
       }
     },
     "requestSchema": "HeartbeatRequest",
+    "requestValidates": true,
     "response": {
       "status": 403,
       "headers": {
@@ -55,6 +57,16 @@
     "submittedEventIds": [],
     "expectedOutboxActions": {},
     "expectedSending": "stop",
+    "expectedBackendState": {
+      "precondition": "The credential is live and valid; the source itself is suspended.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Nothing is written. The credential is intact and stays intact — suspension is a property of the source, not of the token — and last_heartbeat_at must not advance, or an operator resuming the source would find a machine that appeared healthy throughout its suspension."
+    },
     "why": "Distinct from 401 because the operator's next action differs: a suspended source is resumed, a rejected credential is reactivated.",
     "notes": [
       "A plugin that shows one message for 401 and 403 sends the operator down the wrong path.",

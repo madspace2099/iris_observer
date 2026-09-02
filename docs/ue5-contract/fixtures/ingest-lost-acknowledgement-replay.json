@@ -6,6 +6,7 @@
     "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
   },
   "fixture": {
+    "kind": "exchange",
     "name": "ingest-lost-acknowledgement-replay",
     "description": "The first attempt received no response at all. The identical batch is sent again.",
     "request": {
@@ -61,6 +62,7 @@
       }
     },
     "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
     "response": {
       "status": 200,
       "headers": {
@@ -102,6 +104,19 @@
       "e0000000-0000-4000-8000-000000000002": "remove"
     },
     "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "The first attempt was processed and both events stored; the response never reached the client.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Still two rows, not four. The replay is absorbed by (source_id, event_id), and ingestion_verified_at keeps the instant of the lost first attempt. The backend cannot tell this request from the one whose answer was lost, and does not need to — that is what makes resending safe rather than merely tolerable."
+    },
     "why": "This is the case the stable event_id exists for: the server had already stored both, and duplicate is how the client finds out without ever losing or double-counting a fact.",
     "notes": [
       "The prior attempt was ingest-all-accepted's request. The server stored both events and the connection died before the response arrived, so the client learned nothing.",
