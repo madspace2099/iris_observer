@@ -72,6 +72,7 @@
      * typo in a table name makes `has_table_privilege` answer about nothing at
      * all while the test goes green.
      */
-    "supabase/test/source-spine-grants.test.ts"
+    "supabase/test/source-spine-grants.test.ts",
+    "supabase/test/activation-credential.test.ts"
   ]
 }

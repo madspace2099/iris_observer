@@ -17,6 +17,9 @@ importers:
       '@eslint/js':
         specifier: ^9.17.0
         version: 9.39.5
+      '@observer/sources':
+        specifier: workspace:*
+        version: link:packages/sources
       '@playwright/test':
         specifier: ^1.62.1
         version: 1.62.1
