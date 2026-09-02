@@ -641,25 +641,41 @@ running out of attempts. Exactly the contract.
 makes Windows DPAPI the approved credential-at-rest mechanism rather than one option among
 several.
 
-### Still open, and this one is live
+### Settled since the last drop — nothing here needs an answer from you
 
-**Envelope shape — `OPEN-20`.** See the banner at the top of this document. Your
-envelope carries `app`, `agent_id`, `visitor_subject` and `entity`;
-the strict envelope refuses all four, so no real event parses today. Nothing about the seven
-agreed fields is in dispute. We recommend adopting all four and the extended schema is
-already tested against your exact sample — but it is a contract change, so it is being put
-rather than taken.
+**Envelope shape — `OPEN-20`, closed.** Your envelope carries `app`, `agent_id`,
+`visitor_subject` and `entity`. All four were **adopted** (`PD-25`), and folded into the
+envelope schema itself rather than into a parallel one, so the decision reaches validation, the
+batch schema and the published OpenAPI at once. Your published sample now parses unchanged.
+`app` is required; the other three are optional **and absent** rather than null, matching
+`FObserverEvent::ToJsonObject`, which omits empty keys.
 
-**One question inside that one.** `agent_id` in your sample is `agent_john`. A
-pseudonymous reference that embeds a person's name is not pseudonymous, and no scanner can
-catch it because the giveaway is the convention rather than the value. If that string is
-generated rather than typed, an opaque form would be better before it reaches production
-(`OPEN-21`).
+One binding condition, and it is the only part that constrains you: `app.environment` is
+**reported provenance, never authoritative**. The environment that governs a source is the one on
+its registered record. A development build declaring itself production changes nothing. Your
+capitalised `Development` is accepted — the value is case-folded, and a value outside the
+published vocabulary produces a warning rather than a rejection (`PD-26`), because a build label
+must never be able to refuse a batch.
 
-**And one about the outbox.** You wrote that events are removed on a confirmed 2xx. The
-contract is narrower: removal follows the **per-event status inside** the 2xx — `accepted`
-or `duplicate` only. A 2xx can carry `rejected` results, and those must be
-quarantined rather than deleted, or the diagnostic goes with them (`OPEN-19`).
+**Event identifier — `OPEN-14`, closed the other way.** The envelope previously required RFC 4122
+version and variant bits, which arrived from a schema library's default rather than from the
+architecture. It now accepts any canonical lowercase hyphenated 128-bit identifier, which is
+exactly what `FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower)` produces. Nothing
+downstream reads the version bits and deduplication is `(source_id, event_id)`-scoped, so the
+strictness bought nothing and cost a dependency on how Unreal happens to mint GUIDs on one
+platform. **Lowercase is now required** — an uppercase identifier is refused rather than
+normalised, because Postgres would fold it and hand you back an `event_id` in `results[]` that no
+longer matched your outbox row.
+
+**The outbox — `OPEN-19`, reported fixed, awaiting your source.** You have reported that HTTP 2xx
+alone no longer removes an event and that the client now reads a single `results` array. That
+matches the contract. It stays OPEN here only until we read it in the source drop, which is a
+statement about our evidence rather than any doubt about yours.
+
+**One question that remains yours.** `agent_id` in your sample is `agent_john`. A pseudonymous
+reference that embeds a person's name is not pseudonymous, and no scanner can catch it because
+the giveaway is the convention rather than the value. If that string is generated rather than
+typed, an opaque form would be better before it reaches production (`OPEN-21`).
 
 ### Unchanged, and in your favour
 

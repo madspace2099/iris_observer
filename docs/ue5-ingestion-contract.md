@@ -24,13 +24,13 @@ rendered to [`ue5-contract/traceability.md`](ue5-contract/traceability.md). Test
 nothing `PROPOSED` may cite the brief, and every `DERIVED` rule must name the locked rule it follows
 from. A convenient proposal cannot quietly acquire the authority of an approved decision.
 
-**Counts:** 28 LOCKED · 17 DERIVED · **27 UE-CONFIRMED** · **33 APPROVED** · 1 PROPOSED · **13 OPEN** ·
-3 MOCK-ONLY — 122 rules. See [`traceability.md`](ue5-contract/traceability.md).
+**Counts:** 28 LOCKED · 17 DERIVED · **30 UE-CONFIRMED** · **37 APPROVED** · 1 PROPOSED · **15 OPEN** ·
+2 MOCK-ONLY — 130 rules. See [`traceability.md`](ue5-contract/traceability.md).
 
-**One of the thirteen blocks work happening right now.** `OPEN-20`: the implemented UE envelope
-carries four fields — `app`, `agent_id`, `visitor_subject`, `entity` — that the strict envelope
-refuses, so no real event parses. UE-OBS-005 through UE-OBS-007 are being built against it today.
-See §4.5.
+**`OPEN-20` is closed — historical.** It recorded that the implemented UE envelope carried four
+fields the strict envelope refused, so no real event parsed. `PD-25` closed it by folding `app`,
+`agent_id`, `visitor_subject` and `entity` into `EventEnvelopeSchema` itself. §4.5 is kept as the
+record of how it was decided; it is not a live blocker and nothing waits on it.
 
 **Rule identifiers are stable across reclassification.** A `P-` prefix means the rule was first
 recorded as a proposal, not that it still is one — the classification is the field, never the id.
@@ -296,9 +296,13 @@ in per-event results.
 
 ---
 
-### 4.5 The implemented UE envelope carries four more fields — OPEN-20
+### 4.5 The implemented UE envelope carries four more fields — `OPEN-20`, closed by `PD-25`
 
-**This blocks UE-OBS-007 today.** The envelope is a strict object, and `FObserverEvent` sends
+**Historical.** This section is the record of a decision, not an open question. It is kept
+because the reasoning below is what `PD-25` chose between, and a decision whose alternatives have
+been deleted cannot be reviewed. The resolution is stated at the end of the section.
+
+**What it blocked at the time.** The envelope is a strict object, and `FObserverEvent` sends
 `app`, `agent_id`, `visitor_subject` and `entity` in
 addition to the seven fields we agreed. Every real event is therefore `malformed_event` on
 `unrecognized_keys` — which is exactly what strictness is for, and exactly why it has to be
@@ -325,6 +329,21 @@ simply be copied across in any case.
 
 `ExtendedEventEnvelopeSchema` is written and tested against his exact published sample.
 Adopting it is a one-line swap.
+
+**Resolved — `PD-25`, and not by the one-line swap.** All four fields were adopted, with the
+condition above binding. But they were folded into `EventEnvelopeSchema` **itself** rather than
+left in a parallel extended schema, because the parallel schema was only ever read by
+`ingestion.ts`: `validation.ts` parses with the base schema, `BatchEnvelopeSchema` embeds the base
+schema, and `openapi.ts` publishes the base schema. Swapping one reference would have adopted the
+decision in a quarter of the places that enforce it and left every real event still refusing to
+parse in the other three.
+
+`app` is required; `agent_id`, `visitor_subject` and `entity` are optional **and absent** rather
+than nullable, matching `FObserverEvent::ToJsonObject`, which omits empty keys rather than
+emitting nulls. The capitalisation problem was settled separately by `PD-26`: the environment
+vocabulary gained `demo`, and a reported value is case-folded and carried as provenance — a value
+outside the vocabulary produces a warning, never a rejection, because a build label must not be
+able to refuse a batch.
 
 ---
 

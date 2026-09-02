@@ -19,7 +19,7 @@ import { UNSTATED_LIMITS } from "../../src/ue5/limits";
  * the schema version somebody sent as `"1"` instead of `1`.
  *
  * Note what the identifier rule is and is not. It is **not** UUID-ness: since
- * `O-20` the envelope uses `CanonicalIdSchema`, which requires lowercase hex in
+ * `O-14` the envelope uses `CanonicalIdSchema`, which requires lowercase hex in
  * 8-4-4-4-12 form and has no opinion about RFC 4122 version or variant bits.
  */
 
@@ -182,7 +182,7 @@ describe("event envelope", () => {
 
   it("accepts a canonical id without RFC version and variant bits", () => {
     /*
-     * The behaviour that changed with `O-20`. `z.uuid()` would refuse this;
+     * The behaviour that changed with `O-14`. `z.uuid()` would refuse this;
      * `CanonicalIdSchema` accepts it, because what is locked is 128 stable bits
      * rather than RFC 4122 semantics. Asserted here so the relaxation has
      * coverage outside the compatibility suite that argued for it.

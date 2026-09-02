@@ -39,7 +39,7 @@ export class Deterministic {
    * A syntactically valid version-4 UUID.
    *
    * The version and variant nibbles are pinned for **realism, not compliance**.
-   * They used to be pinned because the envelope enforced RFC shape; since `O-20`
+   * They used to be pinned because the envelope enforced RFC shape; since `O-14`
    * it uses `CanonicalIdSchema`, which requires lowercase hex in 8-4-4-4-12 form
    * and has no opinion about version or variant semantics. Pinning them still
    * produces a valid identifier, and it keeps the mock's output shaped like what
