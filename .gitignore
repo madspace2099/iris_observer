@@ -50,3 +50,6 @@ _review/
 
 # Gate results, recorded by pnpm release:gates for the packager to render.
 .release/
+
+# Local control-plane database (dev only). Delete the directory to reset.
+.observer-local/

@@ -7,6 +7,7 @@ const config: NextConfig = {
     "@observer/contracts",
     "@observer/metrics",
     "@observer/readmodels",
+    "@observer/sources",
     "@observer/synthetic",
     "@observer/ui",
   ],
@@ -18,6 +19,14 @@ const config: NextConfig = {
    * Note that `tsc` needs `.next/types` to exist, so `typecheck` runs
    * `next typegen` first.
    */
+  /**
+   * PGlite is a WASM Postgres the DEV-ONLY local control plane runs in-process
+   * (`lib/sources/local-db.ts`). Marking it server-external keeps the bundler
+   * away from the .wasm entirely; the dynamic import in that file is the other
+   * half of the same guarantee.
+   */
+  serverExternalPackages: ["@electric-sql/pglite"],
+
   typedRoutes: true,
 
   /**

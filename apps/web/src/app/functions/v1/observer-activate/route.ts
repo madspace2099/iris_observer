@@ -1,6 +1,6 @@
 import { handleActivate, failure } from "@observer/sources";
 
-import { observerDeps } from "@/lib/sources/deps";
+import { observerDepsAsync } from "@/lib/sources/deps";
 
 /**
  * `POST /functions/v1/observer-activate`
@@ -23,7 +23,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request): Promise<Response> {
-  const deps = observerDeps();
+  const deps = await observerDepsAsync();
   if (deps === null) {
     return failure("unavailable", "This deployment is not configured to accept Observer traffic.");
   }

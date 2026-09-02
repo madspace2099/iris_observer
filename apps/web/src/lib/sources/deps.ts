@@ -4,6 +4,8 @@ import { postgrestDb, type HandlerDeps } from "@observer/sources";
 
 import { resolveServerSupabase } from "@/lib/supabase-env";
 
+import { localControlPlaneDb } from "./local-db";
+
 /**
  * What the three Observer endpoints are given in a deployment.
  *
@@ -31,7 +33,14 @@ import { resolveServerSupabase } from "@/lib/supabase-env";
  * instance is recycled. Reading it per request costs a property lookup and
  * means a corrected configuration takes effect on the next call rather than on
  * the next deployment.
+ *
+ * ## Two sources, and a strict order
+ *
+ * `observerDepsAsync` is what the routes and the operations screens call. It
+ * tries the hosted database first and only then the DEV-ONLY local one, so a
+ * configured deployment can never be shadowed by a stray environment variable.
  */
+
 /**
  * The platform's `fetch`, wrapped rather than handed over.
  *
@@ -50,6 +59,26 @@ import { resolveServerSupabase } from "@/lib/supabase-env";
  * correctly, so the receiver problem never arises and no global is named.
  */
 const platformFetch = (input: string, init?: RequestInit): Promise<Response> => fetch(input, init);
+
+/**
+ * The same dependencies, resolved asynchronously so the local database can be
+ * opened when there is no hosted one.
+ *
+ * Two sources, and the order is the point: a configured deployment always wins.
+ * The local control plane is a development affordance and must never be able to
+ * shadow a real database because somebody left an environment variable set —
+ * so it is reached only when `resolveServerSupabase()` has already answered
+ * null, and only when `localControlPlaneEnabled()` agrees.
+ */
+export async function observerDepsAsync(): Promise<HandlerDeps | null> {
+  const hosted = observerDeps();
+  if (hosted !== null) return hosted;
+
+  const db = await localControlPlaneDb();
+  if (db === null) return null;
+
+  return { db, env: process.env, now: () => new Date() };
+}
 
 export function observerDeps(): HandlerDeps | null {
   const supabase = resolveServerSupabase();
