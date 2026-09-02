@@ -139,6 +139,20 @@ export function localControlPlaneEnabled(): boolean {
   );
 }
 
+/**
+ * Where everything this machine keeps for the local control plane lives.
+ *
+ * Exported so that the demonstration estate's ledger and the source token
+ * activation hands back land BESIDE the database they describe rather than in
+ * a second directory with its own lifetime. That shared lifetime is what makes
+ * the ledger trustworthy: there is no facade that lists projects, so a ledger
+ * outliving its database would name a project id nothing could resolve, and
+ * `rm -rf .observer-local` has to be able to reset all of it at once.
+ */
+export function observerLocalDirectory(): string {
+  return join(repositoryRoot(), ".observer-local");
+}
+
 let cached: Promise<ObserverDb> | null = null;
 
 async function connect(): Promise<ObserverDb> {
