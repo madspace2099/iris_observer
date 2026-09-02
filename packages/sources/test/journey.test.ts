@@ -571,6 +571,34 @@ describe("one source, from an empty database to a verified installation and back
     expect(status?.state, "the credential is usable the moment the response is written").toBe(
       "active",
     );
+
+    /*
+     * THE THREE STATES, AT THE ONE MOMENT THEY ARE EASIEST TO CONFUSE.
+     *
+     * ACTIVATED is everything asserted above and nothing more: a credential was
+     * minted, exactly one, it resolves to this source, it is usable, and the
+     * response body carried it the single time it will ever be readable.
+     *
+     * Neither of the other two follows from it. CONNECTED means a heartbeat was
+     * accepted — that the showroom could still reach us *after* the exchange, on
+     * a credential it stored rather than one it was mid-conversation holding.
+     * INGESTION VERIFIED means an event went the whole way through normal
+     * ingestion and landed. An activation proves neither, and this is the exact
+     * instant a commissioning screen is most tempted to claim both: the operator
+     * has just watched a green response arrive, and the plugin's outbox may be
+     * entirely broken.
+     *
+     * So the two nulls are asserted here, before any heartbeat, rather than left
+     * to be inferred from the later legs. The rest of the journey moves them one
+     * at a time.
+     */
+    const row = await operationsOf(ACCOUNT_A, recall("sourceA"));
+    expect(row.last_heartbeat_at, "activation is not a heartbeat").toBeNull();
+    expect(row.ingestion_verified_at, "and issuing a credential stores no event").toBeNull();
+    expect(
+      classifyOperationalState(row),
+      "activated, and by that fact alone neither connected nor ingestion verified",
+    ).toEqual({ connected: false, ingestionVerified: false });
   });
 
   /* --- 5. the code is gone ------------------------------------------------------- */
@@ -623,12 +651,21 @@ describe("one source, from an empty database to a verified installation and back
     ).toBe(before);
 
     /*
-     * The two facts an operator needs, and the state a single collapsed status
-     * would hide: this installation can reach us and holds a valid credential,
-     * and has still never proved that an event can be stored.
+     * THE FIRST TRANSITION, and it moves one state only. Connected turns yes
+     * here because a heartbeat was accepted; ingestion verified is the same no
+     * it was after activation, because a heartbeat deliberately writes nothing
+     * to `analytics_events` and so can never be the thing that proves ingestion.
+     *
+     * This is also the state a single collapsed status would hide — an
+     * installation that can reach us, holds a valid credential, and has still
+     * never had one event stored — and it is the ordinary state of every
+     * commissioning that is halfway done.
      */
     const row = await operationsOf(ACCOUNT_A, recall("sourceA"));
-    expect(classifyOperationalState(row)).toEqual({ connected: true, ingestionVerified: false });
+    expect(
+      classifyOperationalState(row),
+      "the heartbeat moved connected, and connected is all it may move",
+    ).toEqual({ connected: true, ingestionVerified: false });
   });
 
   /* --- 8 & 9. the first event ---------------------------------------------------- */
@@ -662,11 +699,22 @@ describe("one source, from an empty database to a verified installation and back
     );
 
     /*
-     * The operational fact a heartbeat can never give: an event travelled the
-     * whole path — envelope, validation, insert — and was stored.
+     * THE SECOND TRANSITION, and the operational fact a heartbeat can never
+     * give: an event travelled the whole path — envelope, registry, validation,
+     * insert — through ordinary ingestion, and was stored. It was a
+     * `diagnostic.test`, which is what that reserved name exists for: the proof
+     * is a real event through the real door, not a special case the endpoint
+     * knows to treat kindly.
+     *
+     * Connected is still yes and was not re-earned here; the triple is now
+     * complete, each state having been turned on by the one thing that is
+     * allowed to turn it on.
      */
     const row = await operationsOf(ACCOUNT_A, recall("sourceA"));
-    expect(classifyOperationalState(row)).toEqual({ connected: true, ingestionVerified: true });
+    expect(
+      classifyOperationalState(row),
+      "the accepted diagnostic moved ingestion verified, and only it",
+    ).toEqual({ connected: true, ingestionVerified: true });
   });
 
   /* --- 10. the replay ------------------------------------------------------------ */

@@ -751,3 +751,93 @@ describe("the response shape is the one the contract publishes", () => {
     expect(await storedIds(ACCOUNT, source)).toEqual([stored["event_id"]]);
   });
 });
+
+describe("an event the facade did not account for is never reported accepted", () => {
+  /*
+   * THE ONE POSITIVE CONTROL THE SUITE DID NOT CATCH.
+   *
+   * `handleIngest` fills a hole in the per-event result array with a retryable
+   * `storage_error`, so a client keeps the event and sends it again. Changing
+   * that literal to `accepted` tells the client to DELETE an event the server
+   * never accounted for — silent data loss — and
+   * `docs/release/positive-controls-observer.md` records that the mutation
+   * passed 839 tests across every suite that exercises this handler.
+   *
+   * Nothing caught it because the branch is unreachable through the real
+   * facade: `observer_events_append` selects from `jsonb_array_elements(...)
+   * with ordinality`, so its row count IS the element count and a hole cannot
+   * occur. Defensive code with no route to it has no route to a test either.
+   *
+   * That makes the mutation invisible rather than harmless. The day the port
+   * and the SQL do disagree — a filter added to the insert, a `where` on the
+   * returning clause, a batching change — is the day this branch runs for the
+   * first time, and what it says then decides whether an operator loses events
+   * or retries them.
+   *
+   * So the port is stubbed instead of the database being coerced into
+   * misbehaving. The stub is the disagreement, stated directly.
+   */
+
+  /** A port that behaves normally except for losing rows on the way back. */
+  function dbLosingAppendRows(realDb: ObserverDb, keep: number): ObserverDb {
+    return {
+      ...realDb,
+      eventsAppend: async (input) => {
+        const rows = await realDb.eventsAppend(input);
+        return rows.slice(0, keep);
+      },
+    };
+  }
+
+  it("answers storage_error, retryable, for the event whose row went missing", async () => {
+    const { source, token } = await activatedSource(ACCOUNT);
+    const first = event();
+    const second = event();
+
+    const answer = await send(token, batch([first, second]), {
+      db: dbLosingAppendRows(db, 1),
+    });
+    const body = batchResponse(answer);
+
+    expect(body.results, "one result per submitted event, hole or no hole").toHaveLength(2);
+    expect(body.results[0]?.status).toBe("accepted");
+
+    const orphan = body.results[1];
+    expect(orphan?.event_id, "the hole keeps the id it was submitted under").toBe(
+      second["event_id"],
+    );
+    expect(orphan?.status, "never accepted — the client would delete it").toBe("rejected");
+    expect(orphan?.code).toBe("storage_error");
+    expect(orphan?.retryable, "retryable, so the event comes back rather than vanishing").toBe(
+      true,
+    );
+
+    /* And the accounting agrees with itself, which is what the counters are for. */
+    expect(body.received).toBe(2);
+    expect(body.accepted + body.duplicate + body.rejected).toBe(body.results.length);
+
+    /*
+     * The first event really was stored: the stub loses the REPORT, not the
+     * write. So the client will resend the second and get `duplicate` for the
+     * first, which is exactly the safe outcome.
+     */
+    expect(await storedIds(ACCOUNT, source)).toContain(first["event_id"]);
+  });
+
+  it("returns as many results as it received, for every batch in this suite", async () => {
+    /*
+     * The weaker guard beside the specific one, and the more general: a
+     * property rather than a case. It catches a whole family of accounting
+     * mistakes, including a future one that drops a result instead of
+     * mislabelling it.
+     */
+    const { token } = await activatedSource(ACCOUNT);
+
+    for (const size of [1, 2, 5]) {
+      const events = Array.from({ length: size }, () => event());
+      const body = batchResponse(await send(token, batch(events)));
+      expect(body.results.length, `a batch of ${size}`).toBe(body.received);
+      expect(body.received, `a batch of ${size}`).toBe(size);
+    }
+  });
+});

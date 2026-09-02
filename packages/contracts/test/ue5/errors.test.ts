@@ -140,6 +140,52 @@ describe("a code this build has never heard of", () => {
     expect(policy.outbox).toBe("quarantine");
   });
 
+  it("stays non-retryable when the server calls it non-retryable, and reports no disagreement", () => {
+    /*
+     * The agreeing half of the pair, and it is not the trivial case it looks
+     * like. The answer is right for the wrong reason if the flag was believed:
+     * `disagreement` is false because there is no contract policy for this code
+     * to disagree *with*, not because the client and the server were found to
+     * concur. An unknown code has no second opinion to record.
+     */
+    const policy = classifyEventRejection(FUTURE, false);
+    expect(policy.retryable).toBe(false);
+    expect(policy.outbox).toBe("quarantine");
+    expect(policy.operatorRequired).toBe(true);
+    expect(policy.disagreement).toBe(false);
+  });
+
+  it("answers the two flags identically, having read neither of them", () => {
+    /*
+     * THE PAIR IS THE PROPERTY. EITHER CASE ALONE IS ONLY HALF OF IT.
+     *
+     * Taken separately, each of the two tests above is satisfiable by a client
+     * that reads the flag and happens to land on the same answer — one that
+     * clamped `true` down to non-retryable, and one that simply obeyed `false`.
+     * Such a client passes both and is still wrong, because its behaviour is a
+     * function of a field a future backend controls.
+     *
+     * That is the failure this asserts against. A backend that starts sending a
+     * code this build has never heard of must not be able to move an already
+     * deployed client by flipping `retryable`, in either direction: not into a
+     * loop by claiming true, and not into a quarantine it would have reached
+     * anyway by claiming false. The flag is ignored, and "ignored" is only
+     * demonstrable by showing that both values, and no value at all, produce one
+     * indistinguishable policy.
+     */
+    const insisted = classifyEventRejection(FUTURE, true);
+    const conceded = classifyEventRejection(FUTURE, false);
+
+    expect(insisted.retryable).toBe(conceded.retryable);
+    expect(insisted.outbox).toBe(conceded.outbox);
+    expect(insisted.operatorRequired).toBe(conceded.operatorRequired);
+    /* Whole-policy equality, so a field added to the type joins this claim. */
+    expect(insisted).toEqual(conceded);
+    expect(conceded, "and saying nothing at all is the same answer again").toEqual(
+      classifyEventRejection(FUTURE),
+    );
+  });
+
   it("does not stop the whole outbox over one unfamiliar event", () => {
     /* Conservative about the event, not about the connection. */
     expect(classifyEventRejection(FUTURE).sending).toBe("continue");
