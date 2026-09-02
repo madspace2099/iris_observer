@@ -50,11 +50,18 @@
 /**
  * Timestamps cross this boundary as strings, never as `Date`.
  *
- * The facades already `to_char(... 'YYYY-MM-DD"T"HH24:MI:SS.MSTZ')` so that
- * PostgREST and PGlite cannot disagree about a serialisation the wire contract
- * pins to millisecond ISO-8601 with an offset. Parsing to `Date` here would
- * throw that away and hand every caller a value whose printed form depends on
- * the host's locale.
+ * The facades render every instant as `to_char(x at time zone 'utc',
+ * 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`, so PostgREST and PGlite cannot disagree
+ * about a serialisation the wire contract pins to millisecond ISO-8601. Parsing
+ * to `Date` here would throw that away and hand every caller a value whose
+ * printed form depends on the host's locale.
+ *
+ * The milliseconds arrived late. This docblock originally described a format
+ * string no migration used — the facades truncated to the second, which is
+ * fine for `created_at` and quietly destructive for `occurred_at`, since
+ * ADR-0016 derives dwell from exactly those values. Migration
+ * `20260902120000` corrected the SQL to match what was written here, rather
+ * than the other way round.
  */
 export type Instant = string;
 

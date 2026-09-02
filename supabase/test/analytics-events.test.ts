@@ -27,6 +27,8 @@ const FILES = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
   "20260902100000_observer_analytics_events.sql",
+  "20260902110000_observer_source_operations.sql",
+  "20260902120000_observer_instant_precision_and_ingest_mark.sql",
 ];
 
 const ACCOUNT_A = "acct_northgate";
@@ -462,5 +464,40 @@ describe("reading back", () => {
       [source],
     );
     expect(authoritative, "and the source row is the one that counts").toBe("production");
+  });
+
+  it("returns occurred_at with its milliseconds intact", async () => {
+    /*
+     * The regression this exists for. Every facade rendered instants with
+     * `HH24:MI:SS"Z"`, so an event submitted at `.124` read back as `.000` —
+     * data intact in the `timestamptz` column, destroyed on the way out.
+     *
+     * It survived because the fixture carrying `.124` was only ever written.
+     * Nothing compared it to what came back, so the truncation was invisible to
+     * a suite that otherwise covers this table closely. Migration
+     * `20260902120000` fixed the format; this is the assertion that would have
+     * caught it, and the one that stops it returning.
+     *
+     * Not cosmetic: ADR-0016 derives meaningful dwell at query time from the
+     * difference between two of these values. At second precision, a glance at
+     * a unit lasting 800ms measures as zero.
+     */
+    const source = await makeSource(ACCOUNT_A, "PC precision");
+    const precise = { ...event(), occurred_at: "2026-09-01T15:30:00.124Z" };
+    await append(source, [precise]);
+
+    const row = await db.query<{ occurred_at: string; ingested_at: string }>(
+      `select * from public.observer_events_for_source($1, $2, $3)`,
+      [ACCOUNT_A, source, 10],
+    );
+
+    expect(row.rows[0]?.occurred_at).toBe("2026-09-01T15:30:00.124Z");
+
+    /*
+     * And the server-assigned one too, which is a different guarantee: nothing
+     * submitted it, so its precision depends only on the facade. Asserted by
+     * shape rather than by value, since the clock decides the digits.
+     */
+    expect(row.rows[0]?.ingested_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 });
