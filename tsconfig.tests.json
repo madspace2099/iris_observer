@@ -73,6 +73,7 @@
      * all while the test goes green.
      */
     "supabase/test/source-spine-grants.test.ts",
-    "supabase/test/activation-credential.test.ts"
+    "supabase/test/activation-credential.test.ts",
+    "supabase/test/analytics-events.test.ts"
   ]
 }
