@@ -29,6 +29,7 @@ const FILES = [
   "20260902100000_observer_analytics_events.sql",
   "20260902110000_observer_source_operations.sql",
   "20260902120000_observer_instant_precision_and_ingest_mark.sql",
+  "20260902130000_observer_credential_resolve_precision.sql",
 ];
 
 const ACCOUNT_A = "acct_northgate";
