@@ -12,6 +12,10 @@ import "@observer/ui/iris.css";
 import "@observer/ui/showroom.css";
 import "@observer/ui/charts.css";
 import "@observer/ui/observer.css";
+// The MADSPACE operations surface. Last, because it is the newest layer and
+// because the only rules it needs to win are its own — nothing else in the
+// application uses a `.mad-` class.
+import "@observer/ui/madspace.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per

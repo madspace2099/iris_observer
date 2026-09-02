@@ -1,0 +1,708 @@
+/*
+ * MADSPACE operations — the control-plane surface.
+ *
+ * Loaded after `components.css`, and it adds one thing that sheet does not
+ * have: a way to render an operational FACT that is not a card. The M2.1 sheet
+ * gives a card, a metric card and a verdict strip, all of which are containers
+ * for an analytical claim. The operations screens carry none of those. They
+ * carry state — three independent booleans, a queue measurement, a lifecycle —
+ * and the mistake this sheet exists to avoid is the one the visual autopsy
+ * already recorded once: wrapping every fact in its own rounded panel until a
+ * dense control surface reads as a scrapbook.
+ *
+ * So the shapes below are planes and hairlines. A row is a row. A figure sits
+ * in a ruled cell. The only rails that carry colour are the three state rails,
+ * because those are the one place on these screens where a colour is doing
+ * work — and even there the WORD is the status and the colour only agrees with
+ * it (doctrine §3: status is never communicated by colour alone).
+ *
+ * Every value comes from `tokens.css`. No literal colour, no literal font size.
+ *
+ * Mobile-first throughout. The 390-wide failure mode on an operations screen is
+ * a grid whose columns were declared for the desktop and then fought back to
+ * one; declaring one column first and widening at `min-width` means the phone
+ * layout cannot overflow because it was never wide.
+ */
+
+/* --- the page head ---------------------------------------------------------- */
+
+.mad-head {
+  display: grid;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.mad-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mad-title {
+  margin: 0;
+  font-size: var(--text-h5);
+  line-height: var(--text-h5-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A title that is an identifier rather than a name.
+ *
+ * It stays at heading size instead of taking the desktop step up: thirty-six
+ * tracked characters set at the figure size stop reading as a title and start
+ * reading as a banner, and this is a page about a project, not about its uuid.
+ */
+.mad-title--id {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * The answer, in a sentence, directly under the title.
+ *
+ * On Source Detail this line is the two-second answer — composed from the same
+ * three booleans the state columns below it render, never from a fourth verdict
+ * somebody could set. It is deliberately prose: a reader who takes only one
+ * line off this screen should take a sentence, not a colour.
+ */
+.mad-lede {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-lg);
+  line-height: var(--text-lg-lh);
+  max-width: 68ch;
+  text-wrap: pretty;
+}
+
+.mad-head-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* --- the meta strip --------------------------------------------------------- */
+
+/*
+ * Identity facts, on one ruled band rather than in five little cards.
+ */
+.mad-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.mad-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.mad-meta-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-meta-value {
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.mad-meta-value[data-missing="true"] {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+}
+
+/* --- planes ------------------------------------------------------------------ */
+
+/*
+ * A section is a plane, separated from the one above it by a rule. It is not a
+ * card: it has no border on three sides, no radius and no shadow.
+ */
+.mad-plane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.mad-plane + .mad-plane {
+  border-top: 1px solid var(--line-strong);
+  padding-top: var(--space-6);
+}
+
+.mad-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: 1.55;
+  max-width: 92ch;
+}
+
+/* An inline run of facts, separated by hairlines rather than by bullets. */
+.mad-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+}
+
+.mad-inline > * + * {
+  border-left: 1px solid var(--line-subtle);
+  padding-left: var(--space-3);
+}
+
+.mad-inline strong {
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+/* An identifier. Tabular and tracked, so two of them can be compared by eye. */
+.mad-id {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.mad-idline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* --- rows -------------------------------------------------------------------- */
+
+/*
+ * The negative inset is on the container, not on the row.
+ *
+ * It was on the row first, which made every row a fraction wider than the rule
+ * above it — so the hover ground looked right and the hairlines did not line
+ * up. Insetting the container and padding the row keeps every rule on the same
+ * two vertical lines while the hover ground still runs past the text.
+ */
+.mad-rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-subtle);
+  margin-inline: calc(var(--space-3) * -1);
+}
+
+.mad-row {
+  display: grid;
+  gap: var(--space-3) var(--space-5);
+  align-items: center;
+  padding: var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+a.mad-row {
+  color: inherit;
+  transition:
+    background var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+a.mad-row:hover {
+  background: var(--surface-hover);
+  box-shadow: inset 2px 0 0 var(--iris-accent);
+}
+
+a.mad-row:focus-visible {
+  outline-offset: -2px;
+  background: var(--surface-hover);
+}
+
+.mad-row-id {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mad-row-name {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--text-lg-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.mad-row-tail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.mad-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* --- tallies ----------------------------------------------------------------- */
+
+/*
+ * A count and its denominator, together and inseparable.
+ *
+ * "4" connected sources means nothing; "4 of 6" is a fact. The denominator is
+ * rendered smaller and dimmer but it is never dropped — the page rule is no
+ * metric without a denominator, and a tally is exactly where that rule gets
+ * broken first.
+ */
+.mad-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+}
+
+.mad-tally-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 6rem;
+}
+
+.mad-tally-value {
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.mad-tally-of {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.mad-tally-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- the three states -------------------------------------------------------- */
+
+/*
+ * THE HEART OF SOURCE DETAIL.
+ *
+ * Three columns, each with its own rail, its own word and its own facts. The
+ * shape is chosen to make one reading impossible: they must never look like
+ * three stages of one progression. So there is no connector between them, no
+ * numbering, no shared track, and the rails are VERTICAL — a horizontal bar
+ * across three cells is a progress bar however it is captioned, and a source
+ * that is Activated and never Connected is not "one third of the way there".
+ *
+ * The colour on the rail agrees with the word above it and carries nothing on
+ * its own.
+ */
+.mad-states {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mad-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--verdict-unknown);
+  min-width: 0;
+}
+
+.mad-state[data-tone="affirmed"] {
+  border-left-color: var(--verdict-good);
+}
+
+.mad-state[data-tone="pending"] {
+  border-left-color: var(--verdict-watch);
+}
+
+.mad-state[data-tone="refused"] {
+  border-left-color: var(--verdict-weak);
+}
+
+.mad-state-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-state-word {
+  margin: 0;
+  font-size: var(--text-h5);
+  line-height: var(--text-h5-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.mad-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.mad-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.mad-facts dt {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * An absent measurement is dimmer and smaller than a present one, and it says a
+ * word. It is never a zero and never a blank: empty, unavailable and not
+ * reported are different situations and the reader has to be able to tell.
+ */
+.mad-facts dd[data-missing="true"],
+.mad-queue-value[data-missing="true"],
+.mad-figure-value[data-missing="true"] {
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+}
+
+/* --- operational figures ------------------------------------------------------ */
+
+/*
+ * A ruled field of measurements. One cell per figure, hairlines between them:
+ * the grid is the container, so no figure needs a container of its own.
+ */
+.mad-figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line-subtle);
+  border-left: 1px solid var(--line-subtle);
+}
+
+.mad-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-right: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+  min-height: 6.5rem;
+  min-width: 0;
+}
+
+.mad-figure-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-figure-value {
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.mad-figure-value[data-missing="true"] {
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  letter-spacing: 0;
+}
+
+.mad-figure-note {
+  margin: auto 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: 1.4;
+}
+
+/* A figure whose value is a counted refusal reads in the semantic colour. */
+.mad-figure-value[data-tone="watch"] {
+  color: var(--verdict-watch);
+}
+
+.mad-figure-value[data-tone="weak"] {
+  color: var(--verdict-weak);
+}
+
+/* --- the queue ---------------------------------------------------------------- */
+
+/*
+ * The one bar on these screens, and it is a fill, not a chart.
+ *
+ * A queue has a ceiling, so a proportion is a real measurement rather than a
+ * shape drawn to look busy. It appears only when both numbers are present: a
+ * bar drawn at 0% from a null measurement is the exact lie the doctrine names.
+ */
+.mad-queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.mad-queue-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  flex-wrap: wrap;
+}
+
+.mad-queue-value {
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.mad-queue-track {
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--viz-track);
+  overflow: hidden;
+}
+
+.mad-queue-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--iris-accent);
+}
+
+.mad-queue[data-level="high"] .mad-queue-fill {
+  background: var(--verdict-watch);
+}
+
+.mad-queue[data-level="critical"] .mad-queue-fill {
+  background: var(--verdict-weak);
+}
+
+.mad-queue-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- operations ---------------------------------------------------------------- */
+
+/*
+ * What may be done to this source in the state it is in.
+ *
+ * Rendered as a list rather than as a row of buttons while the action module is
+ * absent: a control that does nothing is worse than no control, and an operator
+ * who clicks Suspend and sees nothing happen has learned something false about
+ * the estate.
+ */
+.mad-ops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.mad-ops > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-5);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.mad-op-name {
+  font-weight: var(--weight-semibold);
+}
+
+.mad-op-detail {
+  margin: 0;
+  color: var(--text-secondary);
+  max-width: 82ch;
+}
+
+/* --- the copy control ------------------------------------------------------------ */
+
+.mad-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.mad-copy:hover {
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border-color: var(--line-strong);
+}
+
+.mad-copy-said {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+}
+
+/* --- the shell's own context ------------------------------------------------------ */
+
+.mad-scope {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mad-scope-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-scope-value {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/*
+ * The header clips rather than wraps below 48rem — `components.css` sets
+ * `overflow: hidden` there deliberately, after a phone header ate a fifth of
+ * the viewport. Four items do not fit at 390, and the one that must survive is
+ * the way back to Observer, so the scope statement stands down. It is repeated
+ * in words on the Projects screen, which is where an operator arrives.
+ */
+@media (max-width: 48rem) {
+  .mad-scope {
+    display: none;
+  }
+}
+
+/* --- widening ---------------------------------------------------------------------- */
+
+@media (min-width: 48rem) {
+  .mad-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mad-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3) var(--space-5);
+  }
+
+  .mad-ops > li {
+    grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
+  }
+
+  .mad-row--project {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+@media (min-width: 64rem) {
+  .mad-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mad-title {
+    font-size: var(--text-figure);
+    line-height: var(--text-figure-lh);
+    letter-spacing: -0.03em;
+  }
+
+  .mad-title--id {
+    font-size: var(--text-h5);
+    line-height: var(--text-h5-lh);
+    letter-spacing: 0.02em;
+  }
+
+  .mad-states {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  /* Inside a state column the facts read better stacked than side by side. */
+  .mad-states .mad-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .mad-figures {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .mad-row--project {
+    grid-template-columns: minmax(14rem, 2fr) minmax(0, 3fr) minmax(9rem, auto) auto;
+  }
+
+  .mad-row--source {
+    grid-template-columns: minmax(14rem, 2fr) minmax(0, 2fr) minmax(11rem, auto);
+  }
+}
