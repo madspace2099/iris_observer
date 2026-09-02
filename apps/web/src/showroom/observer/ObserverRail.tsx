@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ObserverOrb } from "../orb/ObserverOrb";
-import { ObserverAnswer } from "./Answer";
+import { ParticleOrb } from "../orb/ParticleOrb";
+import { ObserverAnswerPanel } from "./Answer";
 import { suggestionsFor } from "./suggestions";
 import { useObserver } from "./useObserver";
+import { useSharedVoice } from "./ObserverVoiceProvider";
 import type { ObserverContext } from "./types";
 
 /**
@@ -16,11 +17,41 @@ import type { ObserverContext } from "./types";
  * the URL, so selecting an agent or a unit changes what it offers to answer
  * without the reader typing the name of the thing they are already looking at.
  */
-export function ObserverRail({ projectLabel, root }: { projectLabel: string; root: string }) {
+export function ObserverRail({
+  projectLabel,
+  root,
+  role,
+  models,
+  activeModel,
+}: {
+  projectLabel: string;
+  root: string;
+  role: ObserverContext["role"];
+  /**
+   * The models this ACCOUNT can actually use, resolved on the server.
+   *
+   * Empty when no provider is connected, and the picker is then not rendered:
+   * a menu whose every entry fails is worse than no menu. The server decides
+   * this list — a browser cannot add to it, and naming a model outside it is
+   * refused before a request is made.
+   */
+  models: readonly { id: string; label: string }[];
+  /** What this question will use unless the reader says otherwise. */
+  activeModel: { id: string; label: string } | null;
+}) {
   const pathname = usePathname();
   const params = useSearchParams();
   const field = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
+
+  /*
+   * The model for the next question, when the reader has picked one.
+   *
+   * Null means "whatever the account's settings say", which is what the server
+   * would decide anyway — so the default costs no round trip and the picker
+   * starts on the truth rather than on a guess.
+   */
+  const [chosen, setChosen] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   const [, tenantSlug = "", projectSlug = ""] = root.split("/");
@@ -28,6 +59,7 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     tenantSlug,
     projectSlug,
     projectLabel,
+    role,
     period: params.get("period") ?? "quarter_to_date",
     unitCode: params.get("unit"),
     meetingId: /\/meetings\/([^/?]+)/.exec(pathname)?.[1] ?? null,
@@ -38,7 +70,8 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     segment: params.get("segment"),
   };
 
-  const observer = useObserver(context, () => setOpen(true));
+  const observer = useObserver(context);
+  const voice = useSharedVoice();
   const suggestions = suggestionsFor(context);
 
   /*
@@ -50,11 +83,26 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
    */
   const onBriefing = pathname.endsWith("/showroom");
 
+  /*
+   * Any settled outcome opens the sheet, not only a successful one.
+   *
+   * The sheet used to open from an `onInsight` callback that fires only when an
+   * answer validates. A refusal — an expired session, a rate limit, an
+   * unreachable model — left the reader looking at a rail that had visibly
+   * accepted their question and then did nothing at all.
+   */
+  useEffect(() => {
+    if (observer.outcome !== null) setOpen(true);
+  }, [observer.outcome]);
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
-      if ((event.key === "k" && (event.metaKey || event.ctrlKey)) || (event.key === "/" && !typing)) {
+      if (
+        (event.key === "k" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "/" && !typing)
+      ) {
         event.preventDefault();
         field.current?.focus();
       }
@@ -69,17 +117,36 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
     void observer.ask(question);
   };
 
-  const state = observer.outcome === null && !observer.busy ? "idle" : observer.state;
+  /*
+   * A live conversation outranks a settled answer.
+   *
+   * While voice is connected the presence follows the conversation — listening,
+   * thinking, speaking — because that is what is actually true at that moment,
+   * and it is the same rule the console applies. An orb still showing the last
+   * answer while somebody is talking to it is the one reading that is wrong.
+   */
+  const voiceLive =
+    voice.phase === "listening" || voice.phase === "speaking" || voice.phase === "thinking";
+  const state = voiceLive
+    ? voice.orbState
+    : observer.outcome === null && !observer.busy
+      ? "idle"
+      : observer.state;
 
   if (onBriefing) return null;
 
   return (
     <>
-      <div className="obs-rail" data-busy={observer.busy ? "true" : undefined} data-shifted={open ? "true" : undefined}>
-        <ObserverOrb
+      <div
+        className="obs-rail"
+        data-busy={observer.busy ? "true" : undefined}
+        data-shifted={open ? "true" : undefined}
+      >
+        <ParticleOrb
           state={state}
-          intensity={observer.busy ? 0.7 : 0.1}
-          size={38}
+          intensity={observer.busy || voiceLive ? 0.7 : 0.1}
+          frequencies={voice.frequencies}
+          size={60}
           compact
           onActivate={() => field.current?.focus()}
           activateLabel="Focus the Observer prompt"
@@ -102,7 +169,7 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
           className="obs-rail-form"
           onSubmit={(e) => {
             e.preventDefault();
-            void observer.ask(value);
+            void observer.ask(value, "standard", chosen);
           }}
         >
           <label className="iris-sr" htmlFor="observer-rail-prompt">
@@ -118,12 +185,74 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
           <kbd>⌘K</kbd>
         </form>
 
+        {/*
+         * WHICH MODEL IS ABOUT TO ANSWER, AND A WAY TO CHANGE IT.
+         *
+         * Named rather than implied: a reader who does not know which model
+         * wrote a sentence cannot judge it, and Observer's whole argument is
+         * that the reader should be able to. The select changes THIS question
+         * only; the account's standing choice lives in Settings.
+         *
+         * Absent entirely when the account has connected no provider — the
+         * answer sheet's own notice is the right place to say so, and a
+         * disabled dropdown beside an empty one would say it twice.
+         */}
+        {activeModel !== null && (
+          <div className="obs-model">
+            <label className="iris-sr" htmlFor="observer-model">
+              Model for this question
+            </label>
+            {models.length > 1 ? (
+              <select
+                id="observer-model"
+                className="obs-model-select"
+                value={chosen ?? activeModel.id}
+                onChange={(e) => setChosen(e.target.value)}
+              >
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="obs-model-static">{activeModel.label}</span>
+            )}
+          </div>
+        )}
+
+        {/*
+         * Talking has to be startable from here too.
+         *
+         * The session now outlives navigation, but the only control that opened
+         * one lived on the briefing — so anywhere else the presence could show a
+         * conversation it gave the reader no way to begin. Same control, same
+         * class, same rule: the microphone is requested on a click and nowhere
+         * else.
+         */}
+        {voice.phase === "unavailable" ? null : (
+          <button
+            className="obs-mic"
+            type="button"
+            onClick={() => (voiceLive ? voice.disconnect() : void voice.connect())}
+            aria-pressed={voiceLive}
+            aria-label={voiceLive ? "Stop talking to Observer" : "Talk to Observer"}
+            data-live={voiceLive ? "true" : undefined}
+          >
+            <span aria-hidden="true">●</span>
+          </button>
+        )}
+
         {observer.busy ? (
           <button className="iris-action" type="button" onClick={observer.cancel}>
             Stop
           </button>
         ) : (
-          <button className="iris-action" type="button" onClick={() => send(suggestions[0] as string)}>
+          <button
+            className="iris-action"
+            type="button"
+            onClick={() => send(suggestions[0] as string)}
+          >
             {suggestions[0]}
           </button>
         )}
@@ -142,7 +271,13 @@ export function ObserverRail({ projectLabel, root }: { projectLabel: string; roo
               ×
             </button>
           </div>
-          <ObserverAnswer outcome={observer.outcome} followUps={suggestions} onFollowUp={send} />
+          <ObserverAnswerPanel
+            outcome={observer.outcome}
+            draft={observer.draft}
+            followUps={suggestions}
+            onFollowUp={send}
+            onRetry={() => void observer.retry()}
+          />
         </aside>
       )}
     </>

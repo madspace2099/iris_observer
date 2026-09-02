@@ -16,8 +16,10 @@ export const ORB_STATES = [
   "thinking",
   "speaking",
   "insight",
+  "contradictory_evidence",
+  "waiting_for_human",
   "success",
-  "unavailable",
+  "error",
 ] as const;
 
 export type OrbState = (typeof ORB_STATES)[number];
@@ -55,7 +57,7 @@ export interface OrbProfile {
  *
  * `attention` and `insight` are the only states brighter than idle, and neither
  * pulses more than once per cycle: a presence that flashes is a notification,
- * and a notification that cannot be dismissed is an irritation. `unavailable`
+ * and a notification that cannot be dismissed is an irritation. `error`
  * desaturates rather than turning red — nothing has gone wrong with the
  * evidence, only with the interpretation of it.
  */
@@ -133,6 +135,45 @@ const PROFILES: Readonly<Record<OrbState, OrbProfile>> = {
     saturation: 1,
     label: "Observer has surfaced an observation.",
   },
+  /*
+   * The evidence disagrees with itself.
+   *
+   * Wide open like `insight`, because something genuinely was found — but
+   * turned down the cool end of the accent and given a faster, shallower wave.
+   * It should read as *unsettled*, not as an error and not as a discovery. The
+   * product's whole claim is that it says so when the data does not agree, and
+   * a state that looked identical to `insight` would quietly undo that.
+   */
+  contradictory_evidence: {
+    aperture: 0.74,
+    halo: 1.44,
+    luminance: 0.8,
+    wave: 0.155,
+    spin: -0.034,
+    breath: 3.1,
+    filaments: 0.95,
+    warmth: 0.14,
+    saturation: 0.86,
+    label: "Observer found evidence that disagrees with itself.",
+  },
+  /*
+   * The data cannot settle this; a person has to decide.
+   *
+   * Open and still. Nothing is wrong, nothing is being computed, and the next
+   * move belongs to the reader — so the orb waits rather than working.
+   */
+  waiting_for_human: {
+    aperture: 0.68,
+    halo: 1.2,
+    luminance: 0.46,
+    wave: 0.008,
+    spin: 0.008,
+    breath: 8.5,
+    filaments: 0.42,
+    warmth: 0.3,
+    saturation: 0.7,
+    label: "Observer cannot settle this from the data and is waiting for a person.",
+  },
   success: {
     aperture: 0.7,
     halo: 1.34,
@@ -145,7 +186,7 @@ const PROFILES: Readonly<Record<OrbState, OrbProfile>> = {
     saturation: 1,
     label: "Observer has finished.",
   },
-  unavailable: {
+  error: {
     aperture: 0.52,
     halo: 1.06,
     luminance: 0.22,
@@ -237,7 +278,7 @@ export function orbColour(warmth: number, saturation: number): { r: number; g: n
   };
 
   // Desaturation pulls towards the interface's own grey rather than to black,
-  // so an unavailable orb reads as dormant instead of as a hole in the page.
+  // so a failed orb reads as dormant instead of as a hole in the page.
   const s = Math.min(1, Math.max(0, saturation));
   const grey = (raw.r + raw.g + raw.b) / 3;
   return {

@@ -3,7 +3,7 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-08-24 · **Branch:** `main` · **Never pushed.**
+**Last updated:** 2026-08-25 · **Branch:** `release/observer-demo-rc1` · **Pushed. Not merged.**
 
 ---
 
@@ -20,27 +20,88 @@ whatever it points at. Update this file at the end of every meaningful session.
 | M2.2 Visual reboot — concepts                | 🟡 built; awaiting the user's selection                |
 | **M2.3 Showroom Intelligence refocus**       | 🟡 **built; awaiting visual and product approval**     |
 | **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**           |
+| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`** |
+| **Demo release candidate**                   | 🟡 **on Preview; model live, audit rebuilt**           |
 | M3 Remaining intelligence surfaces           | ⛔ blocked on approval                                 |
 
 ## Cloud resources — do not ask for these again
 
 Full runbook in `docs/18-deployment.md`. No secret value is recorded anywhere in this repository.
 
-|                  |                                                                                                           |
-| ---------------- | --------------------------------------------------------------------------------------------------------- |
-| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                              |
-| Supabase org     | `LEGALIZALJUK` (`cjmkiuszyotwjhbcbviq`)                                                                   |
-| Supabase staging | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf`, `eu-central-1`, `ACTIVE_HEALTHY`, €0/mo, zero tables |
-| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                              |
-| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                   |
-| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                      |
-| **Live URL**     | **https://iris-observer.vercel.app**                                                                      |
+|                  |                                                                                                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                                                                                                                              |
+| Supabase preview | **`IRIS OBSERVER`, ref `tfcchobwobpadenampyh`, `eu-west-1`, `ACTIVE_HEALTHY`, €0/mo** — the project the Preview actually reaches                                                                          |
+| Supabase unused  | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf` — provisioned first, holds the same migrations, never reached by the Preview. Left alone.                                                             |
+| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                                                                                                                              |
+| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                                                                                                                   |
+| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                                                                                                                      |
+| **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                                                                                                                           |
+| **Preview URL**  | **https://iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app** — the release candidate                                                                                             |
+| Vercel variables | `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` — reaching Preview builds and working. The Supabase pair is supplied by the Supabase–Vercel integration, which is why hand-set values never took. |
 
 **One thing to know.** The deployment landed on **Production**, not Preview: `create_git_project`
 deploys from the linked repository's production branch, and `main` is it. That was not the intent and
 is recorded rather than glossed over. It is harmless in this state — synthetic data, `noindex`, the
 staging badge on every screen, a sign-in that states it is not authentication — and nothing was
 deleted to undo it. Push any non-`main` branch to get a genuine Preview.
+
+## The release blocker, and how it closed
+
+**`SUPABASE_URL` on the Vercel Preview pointed at a Supabase project that was not in this
+account.** The deployment's own log named it: `PostgREST at tfcchobwobpadenampyh.supabase.co
+matched no such function`. Five rounds of diagnosis went into establishing that — 406 from an
+unexposed schema, 404 from the wrong project, 401 from an unrecognised key, `PGRST202` from a
+role that could not match the function, and finally `observer_whoami()` answering 200 to one
+caller and 404 to another, which is only possible against two different PostgREST instances.
+The fault was the host, never the key.
+
+It came from the Supabase–Vercel integration, which injects `SUPABASE_URL` for whichever
+project _it_ is linked to and overrides hand-set values on every sync.
+
+**Resolved on 2026-08-25 by moving the schema rather than the variable.** `tfcchobwobpadenampyh`
+(`IRIS OBSERVER`, eu-west-1) is now the official Preview database. The four migrations were
+applied there through the SQL Editor — each part verified byte-identical to its source file
+first, because the Supabase MCP tools are write-blocked from this session. The Supabase CLI has
+no record of them; see `supabase/README.md` for the `migration repair` reconciliation.
+
+Verified afterwards on the deployment itself, not by SQL alone: the shared counters move
+(`project/day` climbing, `session/minute` reaching its ceiling of 10 under a burst) and the
+audit records rows. Both are only reachable through PostgREST with the server-side secret
+key, so their movement is proof the real transport works.
+
+## What that verification then found
+
+Two defects in the audit, neither visible from the code alone.
+
+**It could not say who wrote the answer.** `answered · gpt-5.6-sol` was recorded whether a
+model had written a word or the deterministic composer had — while the screen said "written
+by the tools" for the same request. Migration `20260825205000` adds `response_source`
+(`model` · `deterministic_composer` · `refusal` · `failure`), a nullable `author_model`, a
+separate `attempted_model`, and a `fallback_reason` code. `model_authored` is derived from the
+same `live` flag the answer sheet renders, and a test asserts they agree on every branch.
+
+**It lost requests: 153 admitted, 133 recorded.** The write was fired and forgotten after the
+response, and a serverless instance may freeze once it has responded. Awaiting it would only
+have narrowed the window, so the invariant is structural: the row is inserted inside the same
+transaction that consumes the quota. A request interrupted before its terminal result stays
+visible as `started` rather than vanishing.
+
+A refused request has no audit row and should not — the ceiling declines before any work — so
+an admitted-request count and an audit-row count are the same number, which is what makes
+reconciling them meaningful.
+
+The `observer_whoami` diagnostic is revoked from the browser roles. The two superseded façades
+are **kept** during the expand phase and dropped by a separate contract migration — Vercel keeps
+every build reachable at its own URL, and twelve Preview deployments of this branch were READY
+and still calling them by name. See [ADR-0028](adr/0028-demo-release-candidate.md) and
+[supabase/README.md](../supabase/README.md) for the audit contract.
+
+An independent review of the first draft found four release blockers, all fixed before any
+Supabase write: it would have dropped façades a live deployment still calls; it would have
+relabelled every historical row as an interrupted request with authorship `false`; admission
+consumed quota _before_ its conflict clause, so a retry spent a second unit of the daily budget
+and left one row; and completion rewrote an already-completed record, timestamp included.
 
 ## The correction that reshaped the product
 
@@ -57,9 +118,10 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
 ## What is true right now
 
 - 82 metrics in the registry, **62 source requirements**, 0 uncovered, 0 open decisions, 1 review gate.
-- **25 ADRs. 235 unit tests, 256 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
-  (12 skipped: the desktop-only concepts), **zero axe violations on every showroom
-  surface at every viewport**, production build green.
+- **28 ADRs. 385 unit tests, 480 Playwright tests** across 1920×1080, 1440×900 and Pixel 7
+  (65 skipped: the desktop-only concepts and the wide-only review sets), **zero axe violations
+  on every showroom surface at every viewport**, production build green. The Playwright suite
+  has been run against the Vercel Preview as well as locally.
 - **Thirteen chart shapes**, all hand-drawn SVG, documented in `docs/17-showroom-intelligence.md`
   §5a. Sales Flow carries the summary window, the weekday×hour heatmap, the annotated trend, the
   stacked composition, the nested behaviour funnel and two ranked lists; Project carries the
@@ -70,16 +132,25 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
 - **Observer is the interface** (ADR-0025). The opening surface is a briefing: the orb, a
   first-person sentence, a prominent prompt and context-aware offers, above the fold at
   1920×1080, 1440×900 and on a phone. The orb is canvas-drawn, state-driven and has no
-  runtime asset; its state mapping is asserted by the unit suite. No voice control is shown,
-  because voice is not implemented.
-- **Ask Observer is live**, running the controlled tool architecture. Without `FAL_KEY` the
-  deterministic provider answers from the same tools; the answer sheet says which produced
-  the prose. No live-model smoke test has been run — no key is present on this machine.
-- **132 synthetic showroom meetings**, four agents, two comparable periods, 16 sessions
-  carrying no per-step timing so the honest gap has to be rendered.
+  runtime asset; its state mapping is asserted by the unit suite. A microphone appears only when
+  the realtime layer can actually be reached; otherwise one reader-facing sentence says so, and
+  the operator diagnosis behind it goes to the server log.
+- **Ask Observer is live**, running the controlled tool architecture against OpenAI's Responses
+  API with `store: false`. When the model cannot be reached the deterministic composer answers
+  from the same tools, and `status.live` says which produced the prose — a claim that now
+  describes the answer rather than the deployment. **No model-backed answer has been produced
+  yet:** the configured key returns `401 invalid_api_key`. See the release blocker above.
+- **A shared ceiling above the in-process limiter** (ADR-0028). Four ceilings consumed atomically
+  from Postgres, the last of them the per-project daily budget that bounds the bill. Verified
+  against the live database; not active on the Preview, which holds no Supabase variables.
+- **Three synthetic projects with three separate datasets** — Northgate (CRM connected, two
+  comparable periods), Riverside (no CRM, so every outcome rate renders as unavailable) and
+  Kingsford (three weeks old, so no baseline exists). Northgate carries 16 sessions with no
+  per-step timing, so the honest gap has to be rendered.
 - Three laboratory routes exist and no production route has changed: `/lab/sign-in`,
   `/lab/overview-a`, `/lab/overview-b`. They are declared in `SURFACES` as MADSPACE-only.
-- No database, no ingestion, no LLM, no production authentication. All deliberate; see the roadmap.
+- No ingestion and no production authentication. All deliberate; see the roadmap. The database
+  now holds exactly one thing: the shared rate-limit counters and a contentless request audit.
 - The synthetic repository is the only data source and sits behind `ObserverRepository`.
 
 ## The one decision waiting on the user
@@ -95,13 +166,15 @@ The critique, the defects found and fixed by inspection, and a recommendation
 
 ## Next recommended action
 
-1. User reviews the Showroom Intelligence surfaces on **https://iris-observer.vercel.app** and
-   approves the product direction.
-2. Set the Vercel environment variables from `docs/18-deployment.md` §4. The application runs
-   correctly without them — `env.ts` defaults to synthetic and treats Supabase as optional — so this
-   is a refinement, not a fault.
-3. A live-model smoke test once `FAL_KEY` is available, to confirm ADR-0024's route in practice.
-4. Only then M3.
+Two of these are the user's and cannot be done from here.
+
+1. **Tick "Preview" on all three Vercel variables.** They are set but not reaching preview
+   deployments; the environment checkboxes are the one setting that explains it.
+2. **Confirm the compromised OpenAI key is revoked** in the OpenAI dashboard. Paste the
+   replacement's value alone: the one on this machine is wrapped in `<` and `>`, which the
+   API rejects on every call.
+3. User reviews the release candidate on the Preview URL and approves or rejects it.
+4. Only then: merge, tag, promote, and M3. None of those has been done.
 
 ---
 

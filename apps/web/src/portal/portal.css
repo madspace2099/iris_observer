@@ -1,0 +1,1214 @@
+/*
+ * THE MADSPACE CLIENT PORTAL SURFACES: SIGN IN, AND PROJECTS.
+ *
+ * Everything here is scoped under `.mp` so it cannot reach the Observer
+ * analytics screens, which are frozen (docs/observer-visual-baseline.md). Two
+ * surfaces live in this layer and nothing else: the account sign-in and the
+ * project selector a reader lands on afterwards.
+ *
+ * ## Where the values come from
+ *
+ * The token block below is transcribed from the Client Portal reference build
+ * (`Klient Portál.zip`) rather than approximated: the same six border levels,
+ * the same surface ramp, the same type scale, the same 12px radius. It is the
+ * same system the Observer screens already use — the design-system document
+ * describes one product family, and these two pages are the family's front
+ * door.
+ *
+ * ## Light first, dark by token swap
+ *
+ * The portal is a light surface; the Observer application behind it is dark.
+ * The inverse theme is a redeclaration of the same names, never a filter on
+ * `body` — a filter makes body the containing block for `position: fixed` and
+ * breaks every overlay in the product. That is the reference's own note, and it
+ * is right.
+ */
+
+.mp {
+  /* ---------------------------------------------------------------- ink */
+  --ink: #111111;
+  --ink-900: #1e1e1e;
+  --ink-800: #2a2a2a;
+  --ink-700: #3a3a3a;
+  --ink-2: #4a4a4a;
+  --ink-3: #5c5c5c;
+  --ink-4: #6b6b6b;
+  --ink-5: #767676;
+  --ink-deep: #0b0b0b;
+  --ink-on-dark: #ffffff;
+
+  /* ----------------------------------------------------------- surfaces */
+  --surface-page: #f6f5f3;
+  --surface-card: #ffffff;
+  --surface-raised: #fafaf9;
+  --surface-tint: #edebe7;
+  --surface-inset: rgb(17 17 17 / 4%);
+  --surface-chip: rgb(17 17 17 / 7%);
+  --surface-ph-1: #e9e7e3;
+  --surface-ph-2: #e0ddd8;
+  --surface-ph-3: #d3cfc9;
+
+  /* ------------------------------------------- borders, the six levels */
+  --border-hairline: rgb(17 17 17 / 6%);
+  --border-subtle: rgb(17 17 17 / 8%);
+  --border-panel: rgb(17 17 17 / 9%);
+  --border-track: rgb(17 17 17 / 10%);
+  --border-line: rgb(17 17 17 / 12%);
+  --border-field: rgb(17 17 17 / 16%);
+  --border-emphasis: rgb(17 17 17 / 20%);
+  --border-dashed: rgb(17 17 17 / 24%);
+  --border-dashed-strong: rgb(17 17 17 / 28%);
+  --border-hover: rgb(17 17 17 / 35%);
+
+  /* --------------------------------------------------------------- type */
+  --text-display-1: clamp(30px, 4.4vw, 44px);
+  --text-heading-1: clamp(24px, 2.9vw, 30px);
+  --text-heading-3: 22px;
+  --text-value-2: 17px;
+  --text-lead: 16px;
+  --text-body-strong: 15px;
+  --text-body: 14px;
+  --text-caption: 13px;
+  --text-micro: 12px;
+
+  /* -------------------------------------------------------------- shape */
+  --radius: 12px;
+  --radius-sm: 8px;
+
+  /* --------------------------------------------------------- accents */
+  --link: #0f6fd0;
+  --link-hover: #0e6fcb;
+  --status-critical: #b3261e;
+  --status-critical-border-2: rgb(179 38 30 / 28%);
+  --status-critical-bg-2: rgb(179 38 30 / 5%);
+
+  /*
+   * Approved, from the design system's own value.
+   *
+   * Used for one dot beside the word "Connected" — and the word is what
+   * carries the meaning. Colour is never the only channel: remove the dot and
+   * the panel still says connected, in text, at full contrast.
+   */
+  --status-approved: #2f8f5b;
+  --status-approved-bg: rgb(47 143 91 / 8%);
+  --status-approved-border: rgb(47 143 91 / 26%);
+
+  /*
+   * THE HERO SCRIM, four stages.
+   *
+   * Dark at the top so a white logo holds, almost clear through the upper
+   * third so the photograph is actually visible, then deepening to nearly
+   * opaque at the bottom where the copy sits. Declared on the overlay element,
+   * never baked into the image, so the image can be replaced without it.
+   */
+  --scrim-hero-1: rgb(11 11 11 / 55%);
+  --scrim-hero-2: rgb(11 11 11 / 10%);
+  --scrim-hero-3: rgb(11 11 11 / 75%);
+  --scrim-hero-4: rgb(11 11 11 / 92%);
+  --on-dark-a80: rgb(255 255 255 / 80%);
+  --on-dark-a78: rgb(255 255 255 / 78%);
+
+  /* ------------------------------------------------------------- layout */
+  --page-max: 1440px;
+  --gutter: 40px;
+
+  min-height: 100vh;
+  background: var(--surface-page);
+  color: var(--ink);
+  font-family:
+    Inter,
+    "Inter Variable",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: var(--text-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.mp *,
+.mp *::before,
+.mp *::after {
+  box-sizing: border-box;
+}
+
+/*
+ * A visible ring on everything focusable, at an offset, never removed. The
+ * reference leaves `outline:none` on its inputs; that is the one thing here
+ * not copied from it.
+ */
+.mp a:focus-visible,
+.mp button:focus-visible,
+.mp input:focus-visible,
+.mp [tabindex]:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.mp-skip {
+  position: absolute;
+  left: 16px;
+  top: -60px;
+  z-index: 200;
+  padding: 11px 18px;
+  background: var(--ink);
+  color: var(--ink-on-dark);
+  font-size: var(--text-body);
+  font-weight: 500;
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: top 0.12s ease;
+}
+
+.mp-skip:focus {
+  top: 12px;
+}
+
+/* ==================================================================== sign in */
+
+.mp-login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+/*
+ * THE HERO, AS A SLOT.
+ *
+ * The image is temporary and will be replaced with an Observer photograph. It
+ * is addressed through one custom property, so replacing it is one value —
+ * nothing here depends on its dimensions, and the focal point is configurable
+ * because "cover" crops and the interesting part of a photograph is rarely its
+ * centre.
+ */
+.mp-hero {
+  position: relative;
+  background-color: var(--ink-deep);
+  background-image: var(--hero-image, none);
+  background-size: cover;
+  background-position: var(--hero-focus, center top);
+  background-repeat: no-repeat;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+/* Separate from the image, so one can change without the other. */
+.mp-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--scrim-hero-1) 0%,
+    var(--scrim-hero-2) 32%,
+    var(--scrim-hero-3) 78%,
+    var(--scrim-hero-4) 100%
+  );
+}
+
+.mp-hero-logo {
+  position: relative;
+  align-self: flex-start;
+  height: 16px;
+  width: auto;
+  object-fit: contain;
+}
+
+.mp-hero-body {
+  position: relative;
+}
+
+.mp-hero-line {
+  font-size: var(--text-heading-1);
+  line-height: 1.25;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink-on-dark);
+  max-width: 420px;
+  margin: 0 0 28px;
+}
+
+/*
+ * THE CAPTION UNDER THE HERO LINE.
+ *
+ * The reference's own figures: a 13px uppercase label at 0.16em, then the
+ * people in a row with a 40px gap, name at 17px and role at 14px. It wraps,
+ * because two names at a narrow column width are two lines and the reference
+ * says so with flex-wrap rather than by hoping.
+ */
+.mp-hero-caption {
+  font-size: var(--text-caption);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-dark-a80);
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.mp-hero-people {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mp-hero-person-name {
+  display: block;
+  font-size: var(--text-value-2);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink-on-dark);
+}
+
+.mp-hero-person-role {
+  display: block;
+  font-size: var(--text-body);
+  color: var(--on-dark-a78);
+  margin-top: 4px;
+}
+
+.mp-login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.mp-form {
+  width: 100%;
+  max-width: 360px;
+}
+
+.mp-eyebrow {
+  margin-bottom: 12px;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-title {
+  margin: 0 0 28px;
+  font-size: var(--text-heading-1);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.mp-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/*
+ * A real label, not a placeholder standing in for one.
+ *
+ * The reference labels its inputs with `aria-label` and shows the name only
+ * until the reader types. A visible label that stays is the accessible version
+ * of the same design, and it costs the composition nothing.
+ */
+.mp-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.mp-input {
+  padding: 12px 14px;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--ink);
+  background: var(--surface-card);
+}
+
+.mp-input::placeholder {
+  color: var(--ink-5);
+}
+
+.mp-input[aria-invalid="true"] {
+  border-color: var(--status-critical);
+}
+
+.mp-btn {
+  padding: 13px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface-page);
+}
+
+.mp-btn[data-weight="secondary"] {
+  border-color: var(--border-emphasis);
+  background: var(--surface-card);
+  color: var(--ink);
+}
+
+.mp-btn[data-weight="link"] {
+  padding: 11px 0;
+  border: none;
+  background: none;
+  color: var(--link);
+  text-align: left;
+  font-weight: 400;
+}
+
+.mp-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-field);
+  background: var(--surface-inset);
+  color: var(--ink-5);
+}
+
+.mp-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+}
+
+.mp-divider::before,
+.mp-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border-track);
+}
+
+.mp-divider span {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.mp-note {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  line-height: 1.5;
+}
+
+.mp-alert {
+  font-size: var(--text-body);
+  color: var(--status-critical);
+  line-height: 1.5;
+  padding: 11px 13px;
+  border: 1px solid var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  border-radius: var(--radius);
+}
+
+/* What the demonstration offers, stated where a reader needs it. */
+.mp-demo {
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius);
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  line-height: 1.6;
+}
+
+.mp-demo strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-size: var(--text-micro);
+  margin-bottom: 6px;
+}
+
+.mp-demo code {
+  color: var(--ink);
+  font-size: var(--text-micro);
+}
+
+/* =================================================================== projects */
+
+.mp-bar {
+  border-bottom: 1px solid var(--border-panel);
+  background: var(--surface-page);
+}
+
+.mp-bar-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 18px var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mp-bar-brand {
+  font-size: var(--text-body);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mp-bar-product {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+  padding-left: 16px;
+  border-left: 1px solid var(--border-line);
+}
+
+.mp-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mp-bar-who {
+  text-align: right;
+  line-height: 1.3;
+}
+
+.mp-bar-who strong {
+  display: block;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.mp-bar-who span {
+  display: block;
+  font-size: var(--text-micro);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-banner {
+  background: var(--surface-tint);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.mp-banner-inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 12px var(--gutter);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--text-caption);
+  /*
+   * --ink-3, not --ink-4.
+   *
+   * The banner sits on --surface-tint rather than on the page, and the
+   * secondary ink measures 4.48:1 against it — a fiftieth short of the
+   * contrast floor, which is exactly the kind of miss that survives every
+   * review that trusts a token to be safe everywhere. One step darker is
+   * 5.62:1 on the tint and still reads as secondary.
+   */
+  color: var(--ink-3);
+}
+
+.mp-chip {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.mp-main {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 64px var(--gutter) 96px;
+}
+
+.mp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.mp-head-eyebrow {
+  margin-bottom: 14px;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mp-head h1 {
+  margin: 0;
+  font-size: var(--text-display-1);
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.mp-count {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+}
+
+.mp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  align-items: stretch;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mp-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 140ms ease;
+}
+
+.mp-card:hover {
+  border-color: var(--border-hover);
+}
+
+/*
+ * The cover, and what stands there until there is a photograph.
+ *
+ * Every demonstration project is currently without one, so this shows the
+ * reference's own placeholder: a soft 150deg gradient across three placeholder
+ * tints, not a flat tile. A flat tile reads as an image that failed to load; a
+ * gradient reads as a surface waiting for one.
+ *
+ * Sized by aspect ratio rather than by the image, and the image is a custom
+ * property — so a cover arriving later changes neither the grid nor this rule.
+ */
+.mp-cover {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background-color: var(--surface-ph-1);
+  background-image: var(
+    --cover-image,
+    linear-gradient(
+      150deg,
+      var(--surface-ph-1) 0%,
+      var(--surface-ph-2) 55%,
+      var(--surface-ph-3) 100%
+    )
+  );
+  background-size: cover;
+  background-position: center;
+}
+
+.mp-cover-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(0 0 0 / 0%) 55%, rgb(0 0 0 / 45%) 100%);
+}
+
+.mp-card-body {
+  flex: 1;
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mp-developer {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.mp-project {
+  margin: 0 0 22px;
+  font-size: var(--text-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: pretty;
+}
+
+.mp-card-action {
+  margin-top: auto;
+}
+
+.mp-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface-page);
+  font-size: var(--text-body);
+  font-weight: 500;
+  border-radius: var(--radius);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mp-open:hover {
+  background: var(--ink-900);
+}
+
+.mp-empty {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  padding: 56px 40px;
+  text-align: center;
+}
+
+.mp-empty strong {
+  display: block;
+  font-size: var(--text-lead);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.mp-empty p {
+  font-size: var(--text-body);
+  color: var(--ink-4);
+  line-height: 1.55;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+/* ================================================================== settings */
+
+/*
+ * ACCOUNT SETTINGS — ONE COLUMN, BECAUSE IT IS A FORM AND A STATE.
+ *
+ * The projects page is a gallery and uses the full 1440. This is a page a
+ * reader reads: a paragraph, a form, a list of facts. Held at 720 so the line
+ * length stays somewhere a person can follow.
+ */
+.mp-main-narrow {
+  max-width: 720px;
+}
+
+.mp-lede {
+  font-size: var(--text-lead);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 28px;
+  max-width: 60ch;
+}
+
+.mp-panel {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  padding: 28px;
+}
+
+.mp-panel h2 {
+  margin: 0 0 12px;
+  font-size: var(--text-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.mp-panel-body {
+  font-size: var(--text-body);
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin: 0 0 20px;
+  max-width: 60ch;
+}
+
+/*
+ * The alert grows a second line here — a title and a detail — so it stacks.
+ * Same colours, same border, same radius as the sign-in's single-sentence one.
+ */
+.mp-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.mp-alert strong {
+  font-weight: 600;
+}
+
+.mp-alert span {
+  color: var(--ink-2);
+}
+
+.mp-ok {
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--status-approved);
+  background: var(--status-approved-bg);
+  border: 1px solid var(--status-approved-border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin: 0 0 20px;
+}
+
+.mp-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mp-status h2 {
+  margin: 0;
+}
+
+/* A dot, not a meaning. The word beside it carries that. */
+.mp-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-approved);
+  flex: none;
+}
+
+.mp-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 24px 0;
+  padding: 20px 0;
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mp-facts dt {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.mp-facts dd {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+
+/* Tabular, so four bullets and four characters line up under the label. */
+.mp-mask {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.mp-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+/* A link that has to sit in a row of buttons and match their box. */
+.mp-btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.mp-btn[data-weight="danger"] {
+  border-color: var(--status-critical-border-2);
+  background: var(--surface-card);
+  color: var(--status-critical);
+}
+
+.mp-confirm {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  border-radius: var(--radius);
+}
+
+.mp-confirm strong {
+  display: block;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mp-confirm p {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin: 0 0 16px;
+  max-width: 60ch;
+}
+
+/*
+ * The first step, while there is one.
+ *
+ * Not a banner and not an alert: nothing has gone wrong, the account is simply
+ * new. It reads as the sentence it is, one notch darker than the paragraph
+ * above it so the eye lands there first.
+ */
+.mp-first-step {
+  margin-top: 16px;
+  color: var(--ink-900);
+}
+
+.mp-first-step strong {
+  font-weight: 600;
+}
+
+.mp-advice {
+  margin-top: 24px;
+  padding: 20px;
+  background: var(--surface-tint);
+  border-radius: var(--radius);
+}
+
+.mp-advice strong {
+  display: block;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mp-advice p,
+.mp-advice li {
+  font-size: var(--text-caption);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.mp-advice p {
+  margin: 0 0 10px;
+}
+
+.mp-advice ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.mp-link {
+  color: var(--link);
+}
+
+/* The settings entry in the account bar. A link, sized like the text beside it. */
+.mp-bar-link {
+  font-size: var(--text-caption);
+  color: var(--ink-3);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-line);
+  padding-bottom: 1px;
+}
+
+.mp-bar-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--border-hover);
+}
+
+/* ========================================================== models and budget */
+
+/*
+ * The panels stack, because they are read in order: what may be spent, what
+ * spends it, and the keys that make either possible.
+ */
+.mp-panel + .mp-panel {
+  margin-top: 24px;
+}
+
+.mp-panel h3 {
+  margin: 0;
+  font-size: var(--text-body-strong);
+  font-weight: 600;
+}
+
+/*
+ * THE BUDGET METER.
+ *
+ * A bar, and a percentage beside it in text. Colour is never the only channel:
+ * the threshold sentence below says the same thing in words, so a reader who
+ * cannot distinguish the fills is told in full.
+ */
+.mp-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-inset);
+  overflow: hidden;
+  margin: 4px 0 20px;
+}
+
+.mp-meter-fill {
+  height: 100%;
+  background: var(--status-approved);
+  border-radius: 999px;
+}
+
+.mp-meter[data-threshold="most"] .mp-meter-fill {
+  background: #b8860b;
+}
+
+.mp-meter[data-threshold="exhausted"] .mp-meter-fill {
+  background: var(--status-critical);
+}
+
+.mp-percent {
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.mp-threshold {
+  font-size: var(--text-body);
+  line-height: 1.55;
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin: 0 0 20px;
+  border: 1px solid var(--border-line);
+  background: var(--surface-tint);
+  color: var(--ink-2);
+}
+
+.mp-threshold[data-threshold="most"] {
+  border-color: rgb(184 134 11 / 32%);
+  background: rgb(184 134 11 / 7%);
+}
+
+.mp-threshold[data-threshold="exhausted"] {
+  border-color: var(--status-critical-border-2);
+  background: var(--status-critical-bg-2);
+  color: var(--status-critical);
+}
+
+/* ------------------------------------------------------------ model choices */
+
+.mp-choices {
+  border: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-choice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.mp-choice:hover {
+  border-color: var(--border-hover);
+}
+
+/* A model whose provider is not connected. Dimmed, and it says why in text. */
+.mp-choice[data-usable="false"] {
+  opacity: 0.62;
+}
+
+.mp-choice input {
+  margin-top: 3px;
+  flex: none;
+}
+
+.mp-choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mp-choice-name {
+  font-size: var(--text-body-strong);
+  font-weight: 500;
+}
+
+.mp-choice-flag {
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+.mp-choice-summary {
+  font-size: var(--text-caption);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+.mp-choice-price {
+  font-size: var(--text-micro);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- providers */
+
+.mp-provider {
+  padding: 20px 0;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mp-provider-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.mp-provider-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+  color: var(--ink-2);
+}
+
+.mp-provider-state[data-muted="true"] {
+  color: var(--ink-4);
+}
+
+/* ================================================================ responsive */
+
+/*
+ * The documented gutters — 40, 24, 16 — and the reference's own grid steps.
+ * The login is the one place this layer improves on the reference, which has
+ * no mobile breakpoint at all: below 900px the two columns become one, the
+ * photograph becomes a band rather than half the screen, and the form stays
+ * the thing a reader came for.
+ */
+@media (max-width: 1023px) {
+  .mp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .mp-login {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .mp-hero {
+    min-height: 220px;
+    padding: 28px 24px;
+  }
+
+  /*
+   * The band needs its own scrim, not the panel's.
+   *
+   * The four-stage gradient is tuned to a half-screen photograph: it stays
+   * almost clear until 32% and only deepens at 78%, which on a 220px band puts
+   * the copy across two faces at their brightest. Same idea, different
+   * distances — clear where the photograph is, dark where the words are.
+   */
+  .mp-hero-scrim {
+    background: linear-gradient(
+      180deg,
+      var(--scrim-hero-1) 0%,
+      var(--scrim-hero-2) 26%,
+      var(--scrim-hero-3) 62%,
+      var(--scrim-hero-4) 100%
+    );
+  }
+
+  .mp-hero-line {
+    font-size: var(--text-lead);
+    margin-bottom: 0;
+    max-width: none;
+  }
+
+  /*
+   * The caption goes with the half-screen photograph, not with the band.
+   * At 220px tall the panel holds a mark and a line; a name list under them
+   * would be three things fighting for the same 60px, and the names are not
+   * what a reader opened this page to do.
+   */
+  .mp-hero-caption,
+  .mp-hero-people {
+    display: none;
+  }
+
+  .mp-login-panel {
+    padding: 40px 24px 56px;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767px) {
+  .mp {
+    --gutter: 24px;
+  }
+
+  .mp-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .mp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mp-main {
+    padding-top: 40px;
+  }
+
+  .mp-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .mp-bar-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .mp-bar-right {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 479px) {
+  .mp {
+    --gutter: 16px;
+  }
+
+  .mp-hero {
+    min-height: 168px;
+  }
+
+  .mp-login-panel {
+    padding: 32px 16px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp *,
+  .mp *::before,
+  .mp *::after {
+    transition-duration: 0.001ms !important;
+  }
+}

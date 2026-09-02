@@ -31,10 +31,19 @@
 
 /* --- the console, at the top of the briefing --------------------------------- */
 
+/*
+ * The orb is anchored, not centred.
+ *
+ * `align-items: center` measured the whole right column, so the moment an
+ * answer expanded it the grid re-centred and the orb slid a long way down the
+ * page — a presence that lurches when it starts speaking does not read as
+ * stable. Anchoring to the top means the answer grows *below* the prompt and
+ * the orb does not move at all.
+ */
 .obs-console {
   display: grid;
   grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
-  align-items: center;
+  align-items: start;
   gap: 3.5rem;
   padding-block: 2.25rem 2rem;
   position: relative;
@@ -64,6 +73,13 @@
   place-items: center;
   /* Reserved, so the first canvas frame does not move the column. */
   min-height: 21rem;
+  /*
+   * Held level with the greeting and the prompt, and kept there while a long
+   * answer scrolls past. `sticky` moves it with the reader, never with the
+   * answer.
+   */
+  position: sticky;
+  top: 5.5rem;
 }
 
 .obs-console-body {
@@ -177,8 +193,17 @@
   margin-top: 0.25rem;
 }
 
+/*
+ * Suggestions are a primary way in, so they are sized like one.
+ *
+ * 34px high is below every published minimum for a pointer target and well
+ * below one for a thumb.
+ */
 .obs-chip {
-  padding: 0.375rem 0.75rem;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.875rem;
   border-radius: 999px;
   border: 1px solid var(--rule);
   background: none;
@@ -356,7 +381,8 @@
 .obs-rail {
   position: fixed;
   left: 50%;
-  bottom: 1.25rem;
+  /* The same offset the stage reserves, and a phone's home indicator. */
+  bottom: calc(var(--rail-offset) + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 40;
   display: flex;
@@ -407,6 +433,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * The orb keeps its square.
+ *
+ * .obs-orb-canvas carries max-width: 100%, which is right everywhere else and
+ * wrong inside a tight flex row: the width collapses to whatever is left over
+ * while the height holds, and a circle drawn to a square buffer arrives as an
+ * ellipse. Refusing to shrink is cheaper than teaching the canvas an aspect
+ * ratio, and the rail has room for it.
+ */
+.obs-rail > .obs-orb {
+  flex: none;
 }
 
 .obs-rail-form {
@@ -555,6 +594,58 @@
   margin-top: -0.375rem;
 }
 
+/*
+ * The one evidence-only reason a reader can fix, on the answer sheet.
+ *
+ * Quiet by design. They asked a question and got an answer built from measured
+ * facts; this says why the prose is plainer than it could be and where to
+ * change that. Secondary ink, not a warning colour — nothing has gone wrong.
+ */
+/*
+ * WHICH MODEL IS ABOUT TO ANSWER.
+ *
+ * On the rail, beside the prompt, in the rail's own quiet ink. Named rather
+ * than implied: a reader who cannot tell which model wrote a sentence cannot
+ * judge it, and that judgement is what this whole product asks them to make.
+ */
+.obs-model {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.obs-model-select,
+.obs-model-static {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.25rem 0.5rem;
+  max-width: 12rem;
+}
+
+.obs-model-select {
+  cursor: pointer;
+}
+
+.obs-model-select:hover {
+  color: var(--ink-2);
+}
+
+.obs-answer-setup {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+.obs-answer-setup + .obs-answer-said {
+  margin-top: 0.5rem;
+}
+
 /* --- Observer, embodied ------------------------------------------------------ */
 
 /*
@@ -612,4 +703,300 @@ button.obs-orb:focus-visible {
  */
 .obs-page > .iris-doors {
   padding-inline: 0;
+}
+
+/* --- the intelligence layer: states, voice, deep reports ---------------------- */
+
+/*
+ * Added with the OpenAI intelligence layer (ADR-0027).
+ *
+ * Nothing here introduces a new colour, a new font or a new surface treatment.
+ * The answer gained structure — a state, a headline, ranked actions, a
+ * provisional draft — and structure is expressed the way the rest of this
+ * system expresses it: type scale, hairlines and space. No cards.
+ */
+
+/*
+ * What kind of answer this is, before the answer itself.
+ *
+ * The reader needs to know in one glance whether Observer found something,
+ * found two things that disagree, or cannot settle it — and that is a
+ * different question from what the answer says. Set in the kicker treatment so
+ * it labels without competing.
+ */
+.obs-answer-state {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/*
+ * Only two states take a colour, and neither is red.
+ *
+ * Disagreeing evidence is the product working correctly, not a fault. Amber
+ * says "look closer"; a failure stays grey because nothing is wrong with the
+ * measured evidence, only with the interpretation of it.
+ */
+.obs-answer-state[data-state="contradictory_evidence"] {
+  color: var(--verdict-watch);
+}
+
+.obs-answer-state[data-state="waiting_for_human"] {
+  color: var(--ink-2);
+}
+
+.obs-answer-headline {
+  margin: -0.375rem 0 0;
+  font-size: clamp(1.125rem, 1.6vw, 1.375rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.obs-answer-said[data-tone="refusal"] {
+  color: var(--ink-2);
+}
+
+.obs-answer-cite {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+/* Ranked, because at most three of them arrive and the order is the advice. */
+.obs-answer-actions {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.obs-answer-actions li {
+  display: grid;
+  gap: 0.1875rem;
+  justify-items: start;
+}
+
+.obs-answer-actions span {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/*
+ * The draft, while it is still arriving.
+ *
+ * Deliberately dimmer and set on a dashed left rule, so it does not read as a
+ * finished answer for the second and a half it exists. It has not passed the
+ * schema, the causal guard or the evidence check yet, and it is replaced
+ * wholesale — never edited into — the validated answer.
+ */
+.obs-answer-draft {
+  border-left: 1px dashed var(--rule-firm);
+  border-top: 0;
+  padding: 0 0 0 0.875rem;
+  margin-top: 1rem;
+  color: var(--ink-2);
+}
+
+.obs-answer-draft .obs-answer-said {
+  color: var(--ink-2);
+}
+
+.obs-retry {
+  justify-self: start;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--rule-firm);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.obs-retry:hover {
+  background: var(--surface-hover);
+}
+
+.obs-retry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- the prompt's second row -------------------------------------------------- */
+
+.obs-prompt-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 0.375rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.obs-deep {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  cursor: pointer;
+}
+
+.obs-deep input {
+  accent-color: var(--accent);
+  /* 16px, so the hit target survives a touch screen and a shaky hand. */
+  inline-size: 1rem;
+  block-size: 1rem;
+  margin: 0;
+}
+
+.obs-deep input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Said plainly, permanently, and not as a badge.
+ *
+ * A consultation runs on this data in front of a real developer. That the
+ * figures are synthetic is a fact about the answer, so it sits with the
+ * controls rather than in a corner someone can crop out of a screenshot.
+ */
+.obs-demo-note {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.obs-demo-note::before {
+  content: "· ";
+}
+
+/* --- the microphone ------------------------------------------------------------ */
+
+.obs-mic {
+  flex: none;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule-firm);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition:
+    color 0.14s,
+    border-color 0.14s;
+}
+
+.obs-mic:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+
+.obs-mic[data-live="true"] {
+  color: var(--accent);
+  border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+  background: var(--iris-accent-wash);
+}
+
+.obs-mic:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- progress, tools and voice ------------------------------------------------- */
+
+/*
+ * One region, reserving its own height.
+ *
+ * Without a minimum the whole column jumped every time a stage label appeared
+ * and vanished, which moved the suggestion chips under the reader's cursor
+ * mid-click.
+ */
+.obs-progress-region {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-block-size: 1.125rem;
+}
+
+.obs-tools {
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.obs-voice-blocker {
+  margin: 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--rule-firm);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  max-width: 44rem;
+}
+
+.obs-voice-transcript {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid color-mix(in oklab, var(--accent) 40%, transparent);
+  max-width: 44rem;
+}
+
+.obs-voice-transcript div {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.625rem;
+}
+
+.obs-voice-transcript dt {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  padding-top: 0.125rem;
+}
+
+.obs-voice-transcript dd {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* --- the handset --------------------------------------------------------------- */
+
+@media (max-width: 60rem) {
+  .obs-answer-headline {
+    font-size: 1.125rem;
+  }
+
+  /*
+   * The transcript stacks rather than keeping its label column.
+   *
+   * A 4.5rem gutter out of 390px leaves the sentence in a 12-character
+   * ribbon, which is unreadable at any font size.
+   */
+  .obs-voice-transcript div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.125rem;
+  }
+
+  .obs-prompt-help {
+    gap: 0.5rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-mic {
+    transition: none;
+  }
 }

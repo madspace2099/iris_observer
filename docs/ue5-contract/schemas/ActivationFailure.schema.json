@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://observer.madspace.dev/ue5/1.0.0-candidate.1/ActivationFailure.schema.json",
+  "title": "ActivationFailure",
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "const": "failed"
+    },
+    "code": {
+      "type": "string",
+      "enum": [
+        "activation_failed",
+        "malformed_request",
+        "rate_limited",
+        "unavailable"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "source_id": {
+      "type": "null"
+    },
+    "retry_after_seconds": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "status",
+    "code",
+    "message",
+    "source_id",
+    "retry_after_seconds"
+  ],
+  "additionalProperties": false
+}

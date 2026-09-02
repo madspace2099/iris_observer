@@ -16,7 +16,7 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
-import { RAW_CATALOGUE, type RawUnit } from "../pulse";
+import { catalogueFor, type RawUnit } from "../pulse";
 
 /**
  * The synthetic showroom, generated deterministically.
@@ -144,10 +144,55 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     outcomeBias: 0.02,
     meetingShare: 0.18,
   },
+  /*
+   * Beta Development's own people.
+   *
+   * A different developer, a different agency, different presenters. Reusing
+   * Meridian's team across both tenants would put one developer's staff on
+   * another developer's screens, which is the same leak as sharing the figures
+   * and reads as more obviously wrong.
+   */
+  {
+    id: "agt_tomas_r",
+    name: "Tomáš Rypák",
+    organisationName: "Kingsford Sales",
+    surroundingsEarly: 0.58,
+    amenitiesSkip: 0.11,
+    compareUse: 0.44,
+    returnToShortlist: 0.47,
+    coverageBias: 0.66,
+    homeDwell: 1.1,
+    unitsShownMean: 4.1,
+    outcomeBias: 0.04,
+    meetingShare: 0.55,
+  },
+  {
+    id: "agt_eva",
+    name: "Eva Lindqvist",
+    organisationName: "Kingsford Sales",
+    surroundingsEarly: 0.37,
+    amenitiesSkip: 0.22,
+    compareUse: 0.29,
+    returnToShortlist: 0.24,
+    coverageBias: 0.49,
+    homeDwell: 1.5,
+    unitsShownMean: 3.4,
+    outcomeBias: -0.02,
+    meetingShare: 0.45,
+  },
 ];
 
 export function agentById(id: string): SyntheticAgent | undefined {
   return SYNTHETIC_AGENTS.find((a) => a.id === id);
+}
+
+/** The people who present on one project. Never the whole roster. */
+export function agentsForProject(projectId: string): readonly SyntheticAgent[] {
+  const dataset = PROJECT_DATASETS.find((d) => d.projectId === projectId);
+  if (dataset === undefined) return [];
+  return dataset.agentIds
+    .map((id) => agentById(id))
+    .filter((a): a is SyntheticAgent => a !== undefined);
 }
 
 /* --- named content inside sections ----------------------------------------- */
@@ -213,24 +258,97 @@ export const PERIOD_BOUNDS = {
 } as const;
 
 /**
- * Sessions imported from the legacy analytics.
+ * What each project actually is.
  *
- * The first sessions of the previous quarter carry no per-step timing, because
- * the legacy source records only the order of sections. They exist so the
- * product has to render the honest gap rather than a comfortable fiction.
+ * The generator once stamped `prj_northgate` — an id belonging to no project —
+ * onto every session, and `sessionsInPeriod` filtered on dates alone. Three
+ * developments therefore reported one set of figures, and a reader had no way
+ * to tell. Each project now has its own volume, its own presenters, its own
+ * sources and its own seed.
+ *
+ * The differences are the point. Riverside has no CRM, so no outcome was ever
+ * recorded and every rate below the meeting must render as unavailable rather
+ * than as nil. Kingsford has been selling for three weeks, so every verdict on
+ * it must be suppressed for want of sample.
  */
-const LEGACY_IMPORT_COUNT = 16;
+export interface ProjectDataset {
+  readonly projectId: string;
+  /** Two letters, used in meeting ids so one id names one meeting. */
+  readonly code: string;
+  /** Distinct per project, so no two developments share a random stream. */
+  readonly seed: number;
+  /** Who presents here. An Alpha agent must never appear on a Beta project. */
+  readonly agentIds: readonly string[];
+  readonly periods: readonly {
+    readonly phase: "previous" | "current";
+    readonly from: string;
+    readonly to: string;
+    readonly meetings: number;
+  }[];
+  /** Without a CRM there is no outcome to record — not a nil one. */
+  readonly crmConnected: boolean;
+  /** Sessions imported from legacy analytics, carrying no per-step timing. */
+  readonly legacyImports: number;
+}
+
+export const PROJECT_DATASETS: readonly ProjectDataset[] = [
+  {
+    projectId: "prj_northgate01",
+    code: "ng",
+    seed: 0x1a15,
+    agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
+    periods: [
+      { phase: "previous", ...PERIOD_BOUNDS.previous },
+      { phase: "current", ...PERIOD_BOUNDS.current },
+    ],
+    crmConnected: true,
+    legacyImports: 16,
+  },
+  {
+    projectId: "prj_riversidew1",
+    code: "rw",
+    seed: 0x5c31,
+    // A smaller team on a smaller scheme, and only two of them.
+    agentIds: ["agt_monika", "agt_lucia"],
+    periods: [
+      { phase: "previous", from: "2026-04-01", to: "2026-06-30", meetings: 37 },
+      { phase: "current", from: "2026-07-01", to: "2026-08-24", meetings: 29 },
+    ],
+    // No CRM connected. This project exists to prove the unavailable state.
+    crmConnected: false,
+    legacyImports: 0,
+  },
+  {
+    projectId: "prj_beta0000001",
+    code: "ky",
+    seed: 0x9f07,
+    // A different developer entirely, and therefore different people.
+    agentIds: ["agt_tomas_r", "agt_eva"],
+    // Three weeks live. There is no previous period to compare against.
+    periods: [{ phase: "current", from: "2026-08-03", to: "2026-08-24", meetings: 41 }],
+    crmConnected: false,
+    legacyImports: 0,
+  },
+];
 
 /* --- generation ------------------------------------------------------------ */
 
-function chooseAgent(r: () => number): SyntheticAgent {
-  const x = r();
+/**
+ * Which of this project's presenters took the meeting.
+ *
+ * Weighted by each agent's share, renormalised over the roster actually working
+ * on the project — a two-person team whose shares sum to 0.48 would otherwise
+ * send half its meetings to the fallback.
+ */
+function chooseAgent(r: () => number, roster: readonly SyntheticAgent[]): SyntheticAgent {
+  const total = roster.reduce((sum, a) => sum + a.meetingShare, 0);
+  const x = r() * total;
   let acc = 0;
-  for (const agent of SYNTHETIC_AGENTS) {
+  for (const agent of roster) {
     acc += agent.meetingShare;
     if (x <= acc) return agent;
   }
-  return SYNTHETIC_AGENTS[SYNTHETIC_AGENTS.length - 1] as SyntheticAgent;
+  return roster[roster.length - 1] as SyntheticAgent;
 }
 
 /**
@@ -457,7 +575,11 @@ function buildPlaces(
   const out: ShowroomPlaceInteraction[] = [];
   const bias = PROFILE_BIAS[profile];
 
-  const draw = (pool: readonly Place[], count: number, availability: "legacy_available" | "requires_ue5_v2_event") => {
+  const draw = (
+    pool: readonly Place[],
+    count: number,
+    availability: "legacy_available" | "requires_ue5_v2_event",
+  ) => {
     const weights = pool.map((p) => (PLACE_WEIGHT[p.category] ?? 1) * (bias[p.category] ?? 1));
     const total = weights.reduce((a, b) => a + b, 0);
     const chosen = new Set<string>();
@@ -487,7 +609,8 @@ function buildPlaces(
   };
 
   if (order.includes("amenities")) draw(AMENITIES, 2 + Math.floor(r() * 4), "legacy_available");
-  if (order.includes("surroundings")) draw(SURROUNDINGS, 2 + Math.floor(r() * 5), "requires_ue5_v2_event");
+  if (order.includes("surroundings"))
+    draw(SURROUNDINGS, 2 + Math.floor(r() * 5), "requires_ue5_v2_event");
   return out;
 }
 
@@ -628,87 +751,109 @@ let cache: readonly ShowroomSession[] | null = null;
 export function showroomSessions(): readonly ShowroomSession[] {
   if (cache !== null) return cache;
 
-  const catalogue = RAW_CATALOGUE;
   const sessions: ShowroomSession[] = [];
-  let index = 0;
 
-  for (const [phase, bounds] of Object.entries(PERIOD_BOUNDS)) {
-    const from = new Date(`${bounds.from}T09:00:00.000Z`).getTime();
-    const to = new Date(`${bounds.to}T18:00:00.000Z`).getTime();
+  for (const dataset of PROJECT_DATASETS) {
+    const catalogue = catalogueFor(dataset.projectId);
+    const roster = agentsForProject(dataset.projectId);
+    let index = 0;
 
-    for (let i = 0; i < bounds.meetings; i += 1) {
-      index += 1;
-      const r = rng(0x1a15 ^ (index * 2654435761));
-      const agent = chooseAgent(r);
+    for (const bounds of dataset.periods) {
+      const phase = bounds.phase;
+      const from = new Date(`${bounds.from}T09:00:00.000Z`).getTime();
+      const to = new Date(`${bounds.to}T18:00:00.000Z`).getTime();
 
-      // Meetings land on working days, spread across the period, weighted
-      // toward late morning and mid-afternoon.
-      const at = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
-      at.setUTCHours(9 + Math.floor(r() * 8), Math.floor(r() * 60), 0, 0);
+      for (let i = 0; i < bounds.meetings; i += 1) {
+        index += 1;
+        const r = rng(dataset.seed ^ (index * 2654435761));
+        const agent = chooseAgent(r, roster);
 
-      const timingUnavailable = phase === "previous" && i < LEGACY_IMPORT_COUNT;
-      const order = buildSequence(r, agent);
-      const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
+        // Meetings land on working days, spread across the period, weighted
+        // toward late morning and mid-afternoon.
+        const at = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
+        at.setUTCHours(9 + Math.floor(r() * 8), Math.floor(r() * 60), 0, 0);
 
-      const usedCompare = order.includes("compare");
-      const units = buildUnits(r, agent, catalogue, usedCompare);
+        const timingUnavailable = phase === "previous" && i < dataset.legacyImports;
+        const order = buildSequence(r, agent);
+        const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
 
-      const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
-      const coverage = coreReached / CORE_SECTION_IDS.length;
-      const surroundingsIndex = order.indexOf("surroundings");
-      const surroundingsEarly =
-        surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
-      const returned = steps.some((s) => s.isReturn);
+        const usedCompare = order.includes("compare");
+        const units = buildUnits(r, agent, catalogue, usedCompare);
 
-      const outcome = chooseOutcome(r, agent, {
-        coverage,
-        surroundingsEarly,
-        compared: usedCompare,
-        returned,
-      });
+        const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
+        const coverage = coreReached / CORE_SECTION_IDS.length;
+        const surroundingsIndex = order.indexOf("surroundings");
+        const surroundingsEarly =
+          surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
+        const returned = steps.some((s) => s.isReturn);
 
-      // Roughly a third of meetings are with a contact Observer already knows.
-      const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
+        /*
+         * No CRM means no outcome — not a nil one.
+         *
+         * `skipped` is this product's word for "nothing recorded it". Drawing an
+         * outcome for a project with no CRM connected would invent the one fact
+         * that project cannot have, and every progression rate computed from it
+         * would be fiction presented as measurement.
+         */
+        const outcome = dataset.crmConnected
+          ? chooseOutcome(r, agent, {
+              coverage,
+              surroundingsEarly,
+              compared: usedCompare,
+              returned,
+            })
+          : "skipped";
 
-      /*
-       * A returning buyer is a different sales situation.
-       *
-       * Only a contact Observer knows can be counted as returning; a walk-in has
-       * no history to have. Averaging first and third meetings together hides
-       * the thing an agent most wants to see.
-       */
-      const priorMeetings =
-        contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
+        // Roughly a third of meetings are with a contact Observer already knows.
+        const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
 
-      const profile = chooseProfile(r);
+        /*
+         * A returning buyer is a different sales situation.
+         *
+         * Only a contact Observer knows can be counted as returning; a walk-in has
+         * no history to have. Averaging first and third meetings together hides
+         * the thing an agent most wants to see.
+         */
+        const priorMeetings =
+          contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
 
-      /*
-       * The agent's rating of IRIS, 1-5, taken at the end of the session.
-       * MADSPACE only: it is feedback on the software, not on the meeting.
-       * Agents skip it often, and a skipped rating is null rather than a three.
-       */
-      const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
+        const profile = chooseProfile(r);
 
-      sessions.push({
-        sessionId: `ses_${String(index).padStart(4, "0")}`,
-        meetingId: `mtg_${String(index).padStart(4, "0")}`,
-        projectId: "prj_northgate",
-        agentId: agent.id,
-        contactId,
-        startedAt: at.toISOString(),
-        endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
-        durationSeconds,
-        outcome,
-        steps,
-        units,
-        environment: buildEnvironment(r, order),
-        filters: buildFilters(r, profile, catalogue),
-        places: buildPlaces(r, profile, order),
-        screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
-        irisRating,
-        priorMeetings,
-        timingUnavailable,
-      });
+        /*
+         * The agent's rating of IRIS, 1-5, taken at the end of the session.
+         * MADSPACE only: it is feedback on the software, not on the meeting.
+         * Agents skip it often, and a skipped rating is null rather than a three.
+         */
+        const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
+
+        /*
+         * Identifiers carry the project.
+         *
+         * `mtg_0004` existed once under all three developments at the same time.
+         * A meeting id has to name exactly one meeting, or a deep link opens
+         * somebody else's presentation.
+         */
+        sessions.push({
+          sessionId: `ses_${dataset.code}${String(index).padStart(4, "0")}`,
+          meetingId: `mtg_${dataset.code}${String(index).padStart(4, "0")}`,
+          projectId: dataset.projectId,
+          agentId: agent.id,
+          contactId,
+          startedAt: at.toISOString(),
+          endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
+          durationSeconds,
+          outcome,
+          steps,
+          units,
+          environment: buildEnvironment(r, order),
+          filters: buildFilters(r, profile, catalogue),
+          places: buildPlaces(r, profile, order),
+          screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
+          irisRating,
+          priorMeetings,
+          timingUnavailable,
+        });
+      }
     }
   }
 
@@ -716,18 +861,43 @@ export function showroomSessions(): readonly ShowroomSession[] {
   return sessions;
 }
 
-/** Sessions inside one period. The only slicing the read models need. */
-export function sessionsInPeriod(fromIso: string, toIso: string): readonly ShowroomSession[] {
+/** Every session belonging to one project. */
+export function sessionsForProject(projectId: string): readonly ShowroomSession[] {
+  return showroomSessions().filter((s) => s.projectId === projectId);
+}
+
+/**
+ * Sessions inside one period, for one project.
+ *
+ * The project is not optional and has no default. The previous signature took
+ * a date range alone, so every project read every project's meetings — three
+ * developments, one set of figures, and nothing on screen to say so.
+ */
+export function sessionsInPeriod(
+  projectId: string,
+  fromIso: string,
+  toIso: string,
+): readonly ShowroomSession[] {
   const from = Date.parse(fromIso);
   const to = Date.parse(toIso);
   return showroomSessions().filter((s) => {
+    if (s.projectId !== projectId) return false;
     const at = Date.parse(s.startedAt);
     return at >= from && at <= to;
   });
 }
 
-export function sessionById(meetingId: string): ShowroomSession | undefined {
-  return showroomSessions().find((s) => s.meetingId === meetingId);
+/**
+ * One meeting, scoped to the project that owns it.
+ *
+ * Looking a meeting up by id alone is how a deep link crosses a tenant
+ * boundary: ids are guessable, and the reader who guesses one should get a
+ * refusal rather than another developer's presentation.
+ */
+export function sessionById(meetingId: string, projectId?: string): ShowroomSession | undefined {
+  return showroomSessions().find(
+    (s) => s.meetingId === meetingId && (projectId === undefined || s.projectId === projectId),
+  );
 }
 
 export { SECTION_IDS, sectionLabel };

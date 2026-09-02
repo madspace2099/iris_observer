@@ -147,9 +147,17 @@ export interface SegmentInterest {
   readonly index: number;
   readonly meetings: number;
   /** What buyers looking at this segment attended to, in order. */
-  readonly attendedTo: readonly { readonly label: string; readonly category: string; readonly share: number }[];
+  readonly attendedTo: readonly {
+    readonly label: string;
+    readonly category: string;
+    readonly share: number;
+  }[];
   /** The sections these meetings spent longest in. */
-  readonly sections: readonly { readonly sectionId: SectionId; readonly label: string; readonly share: number }[];
+  readonly sections: readonly {
+    readonly sectionId: SectionId;
+    readonly label: string;
+    readonly share: number;
+  }[];
   /**
    * How buyers examined these units, as a rate per unit opened.
    *
@@ -159,7 +167,12 @@ export interface SegmentInterest {
    * the floor plan" call for different campaigns, and averaging them into
    * "engagement" loses exactly that.
    */
-  readonly examinedHow: readonly { readonly id: string; readonly label: string; readonly rate: number; readonly otherRate: number }[];
+  readonly examinedHow: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly rate: number;
+    readonly otherRate: number;
+  }[];
   readonly soWhat: string;
 }
 
@@ -191,7 +204,12 @@ export interface ProjectView {
   readonly selectedSegment: SegmentInterest | null;
   readonly demand: readonly StatedDemand[];
   readonly places: readonly PlaceInterest[];
-  readonly placeCategories: readonly { readonly category: PlaceCategory; readonly label: string; readonly share: number; readonly meetings: number }[];
+  readonly placeCategories: readonly {
+    readonly category: PlaceCategory;
+    readonly label: string;
+    readonly share: number;
+    readonly meetings: number;
+  }[];
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
   readonly evidence: EvidenceRef;

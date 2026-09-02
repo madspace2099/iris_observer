@@ -62,7 +62,7 @@ document. Reading further into the Figma file — the project browser `6964:245`
 does use cards, in exactly one situation: browsing a collection of real things you choose between,
 each led by an image. A card there is image-first, with a bottom scrim carrying a type chip, the
 name, a stat pair and a circular arrow. That is a legitimate card, and Observer reuses it verbatim
-for the profile picker and the project chooser.
+for its project selector — the one collection a reader chooses from.
 
 What produced the M2.1 rejection was not the card shape. It was using a card for **analytical
 content** — wrapping a number in a bordered box and calling the layout done.
@@ -170,11 +170,25 @@ later call. **No LLM before its milestone.**
 
 ---
 
-## 9. The way in — the profile picker
+## 9. The way in — sign in, then choose a project
+
+> **Superseded, and kept for the record.** This section described a Netflix-style profile chooser as
+> Observer's front door. It is no longer the way in and must not be built or described as one.
+>
+> The flow is **account → projects → Observer**: a reader signs in with an email address and a
+> credential, lands on the projects their account has been granted, and opens one. There is no
+> profile step between them, and none behind a redirect. The reasoning is in §9.1; the composition
+> that replaced this one is the MADSPACE Client Portal sign-in, transcribed in
+> `apps/web/src/portal/`.
+>
+> The profile picker component survives only inside the design laboratory at `/lab/sign-in`, which
+> is internal, MADSPACE-only and not part of any product journey.
+
+The description below is what that superseded screen was:
 
 The showroom opens on a Netflix-style profile chooser: an agent picks themselves, then steps into
-IRIS. Observer opens the same way, on the same component, because an agent who uses both products in
-one day should not meet two different front doors.
+IRIS. Observer once opened the same way, on the same component, on the reasoning that an agent who
+uses both products in one day should not meet two different front doors.
 
 - The ground is the splash atmosphere from `6620:1840` — a soft gradient, the wordmark, `IRIS BY
 MADSPACE` at the foot. It is the one place a gradient is allowed, because there is no data on it.
@@ -189,7 +203,24 @@ MADSPACE` at the foot. It is the one place a gradient is allowed, because there 
   guess at the difference between five entries.
 
 In the laboratory this is a scenario selector and is labelled as one. It is not authentication and
-must never be described as such; the session adapter behind it is unchanged (ADR-0022).
+must never be described as such.
+
+### 9.1 What replaced it
+
+A profile chooser answers "which perspective would you like to see". A front door has to answer
+"who are you", and those are not the same question — which is why the chooser could never be
+hardened into authentication: there was no credential in it to check.
+
+|               | The way in                                                                                                                               |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Screen        | Sign in — the Client Portal composition: photograph and mark on the left, a 360px form on the right                                      |
+| Identity      | An account: an email address and a credential, checked on the server                                                                     |
+| Session       | A signed cookie carrying an **account** identifier, and nothing else — no role, no tenant, no project                                    |
+| Next screen   | `/projects`, always, including for an account granted exactly one project                                                                |
+| Authorisation | Per-project grants read from the account on the server, enforced again by the route, the repository and every API endpoint including Ask |
+
+The session adapter behind it is a stateless signed token (ADR-0022), unchanged in shape by this
+work; what changed is what the token's subject means.
 
 ---
 

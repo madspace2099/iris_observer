@@ -70,6 +70,27 @@ comparison possible without a hand-written reconciliation somewhere downstream.
 
 Observations are stored immutably. Nothing downstream is a source of truth.
 
+> **Amendment, 2026-09-01 — identity is derived, not submitted.**
+>
+> The row above describing `tenantId` and `projectId` as something a client supplies is
+> obsolete for the UE5 showroom source. The approved UE5 plugin architecture brief (§3.2,
+> §4.2, §9.2) requires the backend to **derive** tenant, project and source from the
+> activated source credential, and states that the client cannot select them. The table
+> describes the **stored** `SourceObservation`, which is composed server-side; it does not
+> describe what travels over the wire.
+>
+> The wire form is [`docs/ue5-ingestion-contract.md`](ue5-ingestion-contract.md) and
+> `packages/contracts/src/ue5/`. `projection.ts` is the executable mapping from a UE5 wire
+> event plus server-derived identity to this `SourceObservation`, and `identity.test.ts`
+> proves that no payload can influence the identity fields. Nothing about the pipeline in
+> §1 changes: this is still the first box, reached through a credential rather than through
+> a client-asserted scope.
+>
+> One genuine disagreement remains open. `SourceObservation.sequence` is required; the UE5
+> envelope needs it null for events that belong to no session. The recommended resolution
+> is to make it nullable here rather than to default such events to zero, and it is
+> recorded as a proposal (`P-21`) rather than applied.
+
 ---
 
 ## 4. What the adapter produces

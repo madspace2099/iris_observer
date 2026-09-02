@@ -1,0 +1,171 @@
+IRIS OBSERVER — RATE-BUCKET RETENTION
+Rendered for commit {{HEAD_SHORT}}. Every hash below is COMPUTED from the packaged
+file, and every live number comes from the one snapshot in
+`scripts/release/live-snapshot.ts`. Nothing here was typed by hand.
+
+Two editions of this file were wrong, in the same way both times: prose carried
+forward without recomputing what it asserted.
+
+  * it gave two different ages for the same bucket in two different sections;
+  * it called Migration 4 "untouched and byte-identical" while listing hashes
+    from before a comment-only correction — values the archive did not contain.
+
+Both are fixed by rendering this file from computed values, and by a
+generation-time check that refuses to build an archive in which an evidence
+file names a hash the package cannot account for.
+
+
+================================================================================
+1. THE LIVE DATABASE — ONE READ-ONLY QUERY, ONE TIMESTAMP
+================================================================================
+
+{{SNAPSHOT_PROVENANCE}}
+
+A single read-only query produced the six values below it. No write was issued.
+Nothing here exposes a subject, a fingerprint, a key or the contents of any row.
+
+WHAT THAT QUERY SELECTED, exactly — an observation time, a bucket count, two
+bucket ages and two audit-row counts:
+
+  rate buckets present                                     {{BUCKETS}}
+  oldest bucket, by window_start                           {{OLDEST_H}} hours
+  newest bucket, by window_start                           {{NEWEST_H}} hours
+  audit rows                                               {{AUDIT_ROWS}}
+  of which audit_version = 1                               {{AUDIT_V1}}
+
+WHAT IT DID NOT SELECT. The catalogue values below were carried forward from
+earlier rounds and nothing records which query produced them or when. An earlier
+edition printed them in the same block as the five above, under the heading of
+that one query — which is how five unsourced numbers came to be presented as
+fields of a measurement. They are marked for what they are:
+
+  pseudonym_version column present                         {{PSEUDONYM_COL}}
+  pg_cron installed                                        {{PG_CRON}}
+  observer.run_rate_bucket_retention exists                {{RETENTION_FN}}
+
+No query is run here to settle them. This milestone makes no external access,
+and an unsourced number is reported as unknown rather than dressed as a reading.
+
+AT THAT OBSERVATION THE OLDEST BUCKET WAS PAST THE THRESHOLD.
+{{THRESHOLD_H}} is the deletion threshold migration 4 will enforce, and nothing
+had removed the row when it got there — because nothing prunes. The claim this
+evidence exists to support was not hypothetical at {{OBSERVED_AT}}: the table
+was holding data past the age the documentation promises. Whether it still is,
+is UNKNOWN here.
+
+EARLIER RECORDED AGES: {{BUCKET_HISTORY}} hours. These were
+{{BUCKET_HISTORY_PROVENANCE}}. The previous wording, "recorded at N hours across
+successive rounds", presented them as a measured series and they are not one.
+
+THIS IS THE ONLY PLACE THE LIVE NUMBERS ARE STATED IN FULL. Every other file in
+this package renders the same fields from the same snapshot object and refers
+back here, so two documents cannot disagree about an hour.
+
+
+================================================================================
+2. MIGRATION 4 — WHAT CHANGED, WHEN, AND WHAT DID NOT
+================================================================================
+
+  packaged source file        {{M4_SOURCE_SHA}}
+  packaged paste wrapper      {{M4_WRAPPER_SHA}}
+
+  executable SQL, comments stripped, now
+                              {{M4_EXEC_SHA}}
+
+{{M4_HISTORY_BLOCK}}
+
+CRON-HEALTH IS BYTE-IDENTICAL to its wrapper, and here is the value from this
+package rather than from memory:
+
+  supabase/verifiers/observer-cron-health.sql   {{CRON_HEALTH_SHA}}
+  _sql-to-paste/observer-cron-health.sql        {{CRON_HEALTH_WRAPPER_SHA}}
+
+  {{CRON_HEALTH_VERDICT}}
+
+EVERY MIGRATION SOURCE, compared against the last delivered bundle:
+
+{{MIGRATIONS_BLOCK}}
+
+
+================================================================================
+3. WHAT MIGRATION 20260826140000 DOES — STILL NOT APPLIED
+================================================================================
+
+  observer.maintenance                  one row: when retention last ran, how
+                                        many buckets it removed, under what
+                                        threshold. RLS enabled, revoked from
+                                        anon, authenticated and public.
+
+  observer.run_rate_bucket_retention()  the delete plus the record of it.
+                                        SECURITY DEFINER, fixed search_path,
+                                        revoked from every browser role, no
+                                        public façade.
+
+  cron job "observer-prune-ai-rate-buckets"
+                                        schedule  0 * * * *
+                                        command   select observer.run_rate_bucket_retention({{THRESHOLD_H}});
+
+  observer.prune_if_due                 DROPPED. The traffic-driven cleanup is
+                                        removed, not kept as defence in depth.
+
+  observer.admit_ai_request             NOT TOUCHED by this migration.
+
+It belongs to the CRON PREREQUISITE PHASE, which comes AFTER the
+application-readiness phase — not first, as an earlier edition's "step 1" said.
+Operator SQL carries phase names precisely because a stale number inside a file
+is how somebody runs the database work before the application is known to
+answer.
+
+
+================================================================================
+4. THE OWNERSHIP RULE
+================================================================================
+
+THIS MIGRATION OWNS ONE JOB NAME: observer-prune-ai-rate-buckets.
+
+  4a. A DIFFERENTLY NAMED JOB whose command mentions an Observer retention
+      function stops the migration BEFORE IT WRITES ANYTHING.
+  4b. A JOB HOLDING OUR NAME under another owner or database is refused rather
+      than deleted.
+  4c. ONLY THEN does it unschedule — filtered by jobname AND database AND
+      username — and schedule one job. cron.unschedule appears exactly once in
+      the file.
+  4d. The postcondition is asserted in the transaction; otherwise everything
+      rolls back, including the cleanup function.
+
+WHAT THE DETECTOR CANNOT SEE. It is a substring scan over cron.command. It
+catches the realistic collision and cannot catch a wrapper function, a quoted
+identifier, a run-time EXECUTE, or a longhand DELETE. A guard, not a proof.
+
+
+================================================================================
+5. WHAT MAY HONESTLY BE CLAIMED
+================================================================================
+
+Once applied and while the scheduler is healthy:
+
+  deletion threshold          {{THRESHOLD_H}} hours
+  scheduled frequency         hourly, on the hour (UTC)
+  expected maximum row age    approximately {{EXPECTED_MAX_H}} hours
+  monitoring                  separate, and required
+  legal retention             a pre-production review gate, unresolved
+
+NOT an unconditional guarantee. A stopped pg_cron worker stops deleting and
+nothing in the database notices on its own. Section 1 is what that looked like
+in practice at {{OBSERVED_AT}}: {{OLDEST_H}} hours, with the threshold already
+behind it.
+
+
+================================================================================
+6. WHAT REMAINS UNPROVEN
+================================================================================
+
+  1. That pg_cron executes anything. PGlite has no postmaster and no background
+     worker, so every local result about scheduling is about the CONTENT of a
+     cron.job row.
+  2. That cron.schedule and cron.unschedule behave as Supabase documents.
+  3. That the pg_cron scheduler process stays alive on this project.
+  4. Advisory-lock behaviour under real concurrency.
+  5. Cost at scale. {{BUCKETS}} rows measures nothing.
+  6. cron.job_run_details growth — pg_cron does not clean it up and nothing in
+     this release prunes it.

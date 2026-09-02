@@ -1,4 +1,5 @@
 import { test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Review artefacts.
@@ -13,19 +14,6 @@ const OUT =
   process.env["OBSERVER_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-webiris/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/review";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
-  // Sign-in lands on the Showroom since ADR-0023. This review set is about the
-  // demoted executive surface, so it navigates on from there.
-  await page.waitForURL(/\/(showroom|overview)/);
-  await page.goto("/alpha/northgate/overview");
-  await page.evaluate(() => document.fonts.ready);
-}
 
 async function shoot(page: Page, name: string, project: string) {
   // The fold shot is the ten-second test made visible; the full shot is the

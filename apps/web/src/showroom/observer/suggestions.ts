@@ -18,6 +18,25 @@ const PROJECT_LEVEL = [
   "Which units are losing attention?",
 ] as const;
 
+/**
+ * What a sales agent is offered instead.
+ *
+ * Their own patterns and their own preparation, because that is what a person
+ * running meetings comes here to ask about — not because they may not ask
+ * anything else. The comparison of named colleagues was closed to them by role
+ * and is now bounded by the project instead (ADR-0029); an agent who wants it
+ * opens the Sales Agents surface for a project they hold.
+ *
+ * These stay their own list because an offer is a promise about what the next
+ * screen will contain, and a list is a short one by design.
+ */
+const AGENT_LEVEL = [
+  "What changed in my meetings this month?",
+  "How do my presentations differ from the team average?",
+  "Which units are losing attention?",
+  "What should I prepare for my next meeting?",
+] as const;
+
 export function suggestionsFor(context: ObserverContext): readonly string[] {
   if (context.meetingId !== null) {
     return [
@@ -58,7 +77,7 @@ export function suggestionsFor(context: ObserverContext): readonly string[] {
     ];
   }
 
-  return PROJECT_LEVEL;
+  return context.role === "sales_agent" ? AGENT_LEVEL : PROJECT_LEVEL;
 }
 
 /**

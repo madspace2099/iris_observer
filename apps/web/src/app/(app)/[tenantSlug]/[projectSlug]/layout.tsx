@@ -3,7 +3,12 @@ import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import { DetailNav, PrimaryNav } from "@/components/PrimaryNav";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
+import { PeriodSwitcher } from "@/components/PeriodSwitcher";
+import { currentAccount } from "@/lib/session";
+import { activeModelFor, connectedProviders } from "@/lib/ai/admission";
+import { modelsForProviders } from "@/lib/models/catalogue";
 import { ObserverRail } from "@/showroom/observer/ObserverRail";
+import { ObserverVoiceProvider } from "@/showroom/observer/ObserverVoiceProvider";
 import { SyntheticBadge } from "@/showroom/parts";
 import { PRIMARY_NAV, SECONDARY_NAV, SURFACES } from "@/lib/routes";
 import { repository } from "@/lib/repository";
@@ -20,13 +25,6 @@ import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
  * The chrome is thin by design: a top rail and a bottom command rail, with the
  * whole middle given to the subject. `docs/14-design-system.md` §3.
  */
-
-const PERIOD_LABELS = [
-  ["quarter_to_date", "Quarter to date"],
-  ["last_28_days", "Last 28 days"],
-  ["last_quarter", "Last completed quarter"],
-  ["year_to_date", "Year to date"],
-] as const;
 
 export default async function ProjectLayout({
   children,
@@ -66,8 +64,45 @@ export default async function ProjectLayout({
     throw error;
   }
 
+  /*
+   * WHICH MODELS THIS ACCOUNT MAY ASK WITH, RESOLVED ON THE SERVER.
+   *
+   * The rail renders a picker from this list and nothing else. A browser
+   * cannot add to it, and the gate re-checks any model named in a request
+   * against the same grants — so the list is a convenience for the reader
+   * rather than the thing that enforces anything.
+   */
+  const account = await currentAccount();
+  const connected = account === null ? [] : await connectedProviders(account.accountId);
+  const usable = modelsForProviders(connected).map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+  }));
+  const chosen =
+    account === null ? null : (await activeModelFor(account.accountId, "standard")).model;
+  const active = chosen === null ? null : (usable.find((m) => m.id === chosen) ?? null);
+
   const projects = await repository.listProjects(viewer, tenant.id);
   const tenants = await repository.listTenants(viewer);
+
+  /*
+   * The first project of each developer this viewer holds.
+   *
+   * Tomáš works for two developers and the shell offered no way to reach the
+   * second — the grant existed, the navigation did not, and the only route was
+   * typing a URL. Never a combined view: two developers are two businesses, and
+   * one aggregated screen would show each of them the other's numbers.
+   */
+  const developers = await Promise.all(
+    tenants.map(async (t) => {
+      const held = await repository.listProjects(viewer, t.id);
+      const first = held[0];
+      return first === undefined
+        ? null
+        : { value: t.slug, label: t.name, href: `/${t.slug}/${first.slug}/showroom` };
+    }),
+  );
+  const developerOptions = developers.filter((d): d is NonNullable<typeof d> => d !== null);
   const root = `/${tenant.slug}/${project.slug}`;
 
   const permits = (key: string) => {
@@ -100,6 +135,9 @@ export default async function ProjectLayout({
         <PrimaryNav root={root} allowed={allowedSections} />
 
         <div className="iris-ambient">
+          {developerOptions.length > 1 ? (
+            <ContextSwitcher label="Developer" value={tenant.slug} options={developerOptions} />
+          ) : null}
           <ContextSwitcher
             label="Project"
             value={project.slug}
@@ -109,15 +147,26 @@ export default async function ProjectLayout({
               href: `/${tenant.slug}/${p.slug}/showroom`,
             }))}
           />
-          <ContextSwitcher
-            label="Period"
-            value="quarter_to_date"
-            options={PERIOD_LABELS.map(([value, label]) => ({
-              value,
-              label,
-              href: `${root}/showroom?period=${value}`,
-            }))}
-          />
+          <PeriodSwitcher />
+          {/*
+            The way back to the selector.
+            One link, using the control class the header already has. The
+            project switcher beside it moves between grants; this is how a
+            reader leaves the workspace without signing out.
+          */}
+          <a className="iris-action" href="/projects">
+            Projects
+          </a>
+          {/*
+            And the way to the account's own settings, from inside a project.
+            A reader who is told their questions are answered from evidence
+            because they have no OpenAI connection has to be able to reach the
+            place that fixes it without leaving through the browser's Back
+            button.
+          */}
+          <a className="iris-action" href="/settings/ai">
+            Settings
+          </a>
           {viewer.role === "madspace_admin" ? (
             <a className="iris-action" href="/madspace">
               Administration
@@ -140,10 +189,6 @@ export default async function ProjectLayout({
 
       <DetailNav root={root} allowed={allowedDetail} />
 
-      <main className="iris-stage" id="main" style={{ display: "block", overflowY: "auto" }}>
-        {children}
-      </main>
-
       {/*
        * Observer is chrome, not a page.
        *
@@ -151,8 +196,24 @@ export default async function ProjectLayout({
        * a question about the agent or the unit already on screen does not have
        * to name it. The briefing renders the same entity at full size; here it
        * is collapsed to a presence and a prompt.
+       *
+       * The voice session is held out here rather than inside either body, so
+       * it survives navigation and both of them read the same conversation.
+       * Holding it is not starting it — that still takes a click.
        */}
-      <ObserverRail projectLabel={project.name} root={root} />
+      <ObserverVoiceProvider projectLabel={project.name} root={root} role={viewer.role}>
+        <main className="iris-stage" id="main" style={{ display: "block", overflowY: "auto" }}>
+          {children}
+        </main>
+
+        <ObserverRail
+          projectLabel={project.name}
+          root={root}
+          role={viewer.role}
+          models={usable}
+          activeModel={active}
+        />
+      </ObserverVoiceProvider>
     </div>
   );
 }

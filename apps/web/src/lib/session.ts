@@ -2,7 +2,8 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Viewer } from "@observer/readmodels";
-import { VIEWERS, viewerByKey, type ViewerKey } from "@observer/synthetic";
+import { VIEWERS, type ViewerKey } from "@observer/synthetic";
+import { accountById, viewerForAccount, type Account } from "@/lib/accounts";
 
 /**
  * The scenario session adapter.
@@ -69,10 +70,10 @@ function sign(payload: string): string {
  * ADR-0022 rather than glossed over — a scenario selector over synthetic data
  * can carry it; production authentication cannot, and will not be built on this.
  */
-export function createSession(viewerKey: ViewerKey): string {
+export function createAccountSession(accountId: string): string {
   const expiresAt = Date.now() + SESSION_TTL_MS;
   const nonce = randomUUID().replace(/-/g, "").slice(0, 16);
-  const payload = `${viewerKey}.${expiresAt}.${nonce}`;
+  const payload = `${accountId}.${expiresAt}.${nonce}`;
   return `${payload}.${sign(payload)}`;
 }
 
@@ -88,20 +89,27 @@ export function destroySession(id: string | undefined): void {
 }
 
 /**
- * Resolves a token to a viewer.
+ * Resolves a token to the ACCOUNT that signed in.
  *
- * Returns null for anything this server did not sign, for anything expired, and
- * for anything malformed. The signature is compared in constant time, so the
- * comparison cannot be used to guess a valid one byte at a time.
+ * Returns null for anything this server did not sign, for anything expired, for
+ * anything malformed, and for any account the directory no longer holds. The
+ * signature is compared in constant time, so the comparison cannot be used to
+ * guess a valid one byte at a time.
+ *
+ * What it deliberately does NOT return is a role. The token carries an account
+ * identifier; the capacity that account holds is looked up on the server. An
+ * earlier version put the viewer key in the token, which meant the only thing
+ * standing between a reader and an administrator's view was a signature. Now
+ * there is nothing in the cookie to promote.
  */
-export function resolveSession(token: string | undefined): Viewer | null {
+export function resolveSession(token: string | undefined): Account | null {
   if (token === undefined) return null;
 
   const parts = token.split(".");
   if (parts.length !== 4) return null;
-  const [viewerKey, expiresAt, nonce, signature] = parts as [string, string, string, string];
+  const [accountId, expiresAt, nonce, signature] = parts as [string, string, string, string];
 
-  const expected = sign(`${viewerKey}.${expiresAt}.${nonce}`);
+  const expected = sign(`${accountId}.${expiresAt}.${nonce}`);
   const given = Buffer.from(signature);
   const want = Buffer.from(expected);
   if (given.length !== want.length || !timingSafeEqual(given, want)) return null;
@@ -109,15 +117,40 @@ export function resolveSession(token: string | undefined): Viewer | null {
   const expiry = Number(expiresAt);
   if (!Number.isFinite(expiry) || expiry <= Date.now()) return null;
 
-  return viewerByKey(viewerKey) ?? null;
+  /*
+   * A validly signed token for an account that no longer exists is not a
+   * session. With the synthetic directory switched off this is every token,
+   * which is the fail-closed posture the directory promises.
+   */
+  return accountById(accountId);
 }
 
-export async function currentViewer(): Promise<Viewer | null> {
+/** The account this request is signed in as, if any. */
+export async function currentAccount(): Promise<Account | null> {
   const store = await cookies();
   return resolveSession(store.get(SESSION_COOKIE)?.value);
 }
 
-/** Every authenticated screen starts here. There is no unauthenticated read. */
+/** Every signed-in surface starts here. There is no unauthenticated read. */
+export async function requireAccount(): Promise<Account> {
+  const account = await currentAccount();
+  if (account === null) redirect("/sign-in");
+  return account;
+}
+
+/**
+ * The capacity the signed-in account holds.
+ *
+ * Kept as the name every screen already calls, so the twelve protected pages
+ * did not have to change when the account layer arrived beneath them. What
+ * changed is where the answer comes from: an account, on the server, rather
+ * than a key in a cookie.
+ */
+export async function currentViewer(): Promise<Viewer | null> {
+  const account = await currentAccount();
+  return account === null ? null : viewerForAccount(account);
+}
+
 export async function requireViewer(): Promise<Viewer> {
   const viewer = await currentViewer();
   if (viewer === null) redirect("/sign-in");
@@ -133,7 +166,19 @@ export const SESSION_COOKIE_OPTIONS = {
   maxAge: SESSION_TTL_MS / 1000,
 } as const;
 
-export const SIGN_IN_OPTIONS: readonly { key: ViewerKey; viewer: Viewer; blurb: string }[] = [
+/**
+ * The design laboratory's profile list — NOT A SIGN-IN.
+ *
+ * It was called `SIGN_IN_OPTIONS` while a profile picker stood at `/sign-in`
+ * and minting a session was what choosing one did. Neither is true: the way in
+ * is `/sign-in` then `/projects`, and the only page that reads this list is
+ * `/lab/sign-in`, which is internal, MADSPACE-only and renders a component
+ * rather than authenticating anybody.
+ *
+ * The blurbs describe what each capacity sees, because a picker that says only
+ * "Sales agent" makes a reader guess at the difference between the entries.
+ */
+export const LAB_PROFILES: readonly { key: ViewerKey; viewer: Viewer; blurb: string }[] = [
   {
     key: "developer",
     viewer: VIEWERS.developer,
@@ -148,7 +193,7 @@ export const SIGN_IN_OPTIONS: readonly { key: ViewerKey; viewer: Viewer; blurb: 
   {
     key: "salesAgent",
     viewer: VIEWERS.salesAgent,
-    blurb: "Runs the meetings. Gets briefs and follow-ups, and no league table.",
+    blurb: "Runs the meetings. Sees their own project's team, and no other project.",
   },
   {
     key: "madspace",
@@ -168,6 +213,7 @@ export function viewerFor(key: ViewerKey): Viewer {
   return VIEWERS[key];
 }
 
+/** Used by the design laboratory, which renders a viewer without a session. */
 export function isKnownViewerKey(value: string): value is ViewerKey {
-  return SIGN_IN_OPTIONS.some((option) => option.key === value);
+  return LAB_PROFILES.some((option) => option.key === value);
 }

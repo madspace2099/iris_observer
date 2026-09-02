@@ -41,7 +41,21 @@ export function SourceChips({ sources }: { sources: readonly InsightSource[] }) 
  * would make decisions on them.
  */
 export function SyntheticBadge() {
-  return <span className="iris-synthetic">Synthetic demonstration data</span>;
+  /*
+   * Two words at every width.
+   *
+   * "Synthetic demonstration data" wrapped into a three-line pill on a
+   * small-desktop header and dragged the whole bar down with it. The full
+   * phrase stays as the accessible name, because the reader must be able to
+   * learn that these figures are a demonstration — it is the shortest honest
+   * label, not a shorter claim.
+   */
+  return (
+    <span className="iris-synthetic" title="Synthetic demonstration data">
+      <span className="iris-sr">Synthetic demonstration data</span>
+      <span aria-hidden="true">Demo data</span>
+    </span>
+  );
 }
 
 /* --- findings -------------------------------------------------------------- */
@@ -138,7 +152,7 @@ export function DnaLane({
   const peakDwell = Math.max(1, ...lane.steps.map((s) => s.medianDwellSeconds ?? 0));
 
   return (
-    <div className="iris-dna-lane">
+    <div className="iris-dna-lane" data-compact={compact ? "true" : undefined}>
       <div className="iris-dna-name">
         <b>{lane.label}</b>
         <span>
@@ -148,7 +162,20 @@ export function DnaLane({
             : ` · ${Math.round(lane.medianDurationSeconds / 60)}m median`}
         </span>
       </div>
-      <div className="iris-dna-track">
+      {/*
+       * A scrollable region needs a keyboard route into it.
+       *
+       * The lane scrolls inside itself when a panel is too narrow for nine
+       * sections, and a region that only a pointer can reach is a region a
+       * keyboard reader cannot read at all. `tabindex` makes it focusable and
+       * the group label says what they have landed on.
+       */}
+      <div
+        className="iris-dna-track"
+        tabIndex={0}
+        role="group"
+        aria-label={`${lane.label}: presentation sequence`}
+      >
         {lane.steps.map((step) => (
           <span
             key={step.sectionId}
@@ -168,11 +195,59 @@ export function DnaLane({
                 : ` · median ${step.medianDwellSeconds}s`
             }${step.returnRate > 0 ? ` · returned to in ${Math.round(step.returnRate * 100)}%` : ""}`}
           >
-            {compact ? step.label.slice(0, 3) : step.label}
+            {/*
+             * Both labels, and the container decides which is shown.
+             *
+             * The step is a flex item sized by how often the section was
+             * reached, so how much room it has is not knowable from the
+             * viewport — at 1366 more than thirty of these were clipped
+             * mid-word, turning "Surroundings" into "Surroundi" and
+             * "Compare" into "Comp". A container query on the step itself
+             * asks the only question that matters: does *this* box fit its
+             * name?
+             *
+             * The short form is a three-letter code, never a truncation: two
+             * letters cannot be told apart, and an ellipsis is not a label.
+             * The full name stays reachable through the code's own title, the
+             * step's tooltip and the key beneath the lane.
+             */}
+            <span className="iris-dna-full">{step.label}</span>
+            <abbr className="iris-dna-code" title={step.label}>
+              {shortCode(step.label)}
+            </abbr>
           </span>
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * A three-letter code for a section, stable and pronounceable.
+ *
+ * Not `slice(0, 3)`: "Time & weather" would become "Tim" and "Shortlist"
+ * "Sho", which are neither memorable nor distinct from one another at a
+ * glance. Consonant-led codes read as abbreviations rather than as damage.
+ */
+const SECTION_CODES: Readonly<Record<string, string>> = {
+  Home: "HOM",
+  Residences: "RES",
+  Amenities: "AMN",
+  Surroundings: "SUR",
+  Gallery: "GAL",
+  Maps: "MAP",
+  "Time & weather": "TWX",
+  Compare: "CMP",
+  Shortlist: "SHL",
+};
+
+export function shortCode(label: string): string {
+  return (
+    SECTION_CODES[label] ??
+    label
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 3)
+      .toUpperCase()
   );
 }
 
@@ -338,7 +413,6 @@ export function OutcomeContext({
         ))}
         <span style={{ marginLeft: "auto" }}>of {total} meetings</span>
       </div>
-
     </div>
   );
 }

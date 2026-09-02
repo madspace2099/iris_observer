@@ -38,7 +38,12 @@ import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse } from "./pulse";
-import { SYNTHETIC_AGENTS, sessionById, sessionsInPeriod, showroomSessions } from "./showroom/sessions";
+import {
+  SYNTHETIC_AGENTS,
+  sessionById,
+  sessionsForProject,
+  sessionsInPeriod,
+} from "./showroom/sessions";
 import { buildAgentCharts, buildFlowCharts, buildProjectCharts } from "./showroom/charts";
 import {
   buildAgentsView,
@@ -221,50 +226,98 @@ export class SyntheticObserverRepository implements ObserverRepository {
   private async slices(query: OverviewQuery) {
     const context = await this.context(query);
     /*
-     * A third slice, running to the end of today.
+     * One slice for the period. Not two.
      *
-     * "Quarter to date" ends at midnight this morning, which is right for a
-     * period comparison and wrong for a bucket called Today: the flow view was
-     * reporting zero meetings today because the period had already excluded
-     * them. The named buckets are their own windows and must not be filtered
-     * twice.
+     * There used to be two: `current`, running to the period's stated end, and
+     * `throughToday`, running to the end of today. "Quarter to date" ends at
+     * midnight this morning, so a bucket called Today was empty on a period
+     * that had already excluded today — which is what the second slice was
+     * for.
+     *
+     * Two slices meant two answers to "how many meetings are in this period",
+     * and both reached the screen: the briefing said "I reviewed 74 showroom
+     * presentations quarter to date" while Presentation DNA said "73 meetings"
+     * about the same quarter. Worse, `throughToday` ignored the period's end
+     * entirely, so **Last completed quarter reported 132 meetings** — every
+     * meeting in the dataset — on the three surfaces that read it.
+     *
+     * So the period's window is extended through today when the period is
+     * still running, and left alone when it is not. A period that ended within
+     * the last day is still running; anything older is history and does not
+     * grow.
      */
     const endOfToday = new Date(this.today);
     endOfToday.setUTCHours(23, 59, 59, 999);
 
+    const stillRunning =
+      new Date(context.period.to).getTime() >= this.today.getTime() - 24 * 60 * 60 * 1000;
+    const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
+
+    /*
+     * Every slice is scoped to the project the viewer resolved.
+     *
+     * `context.project` came from `resolveProject`, which checked the tenant and
+     * the viewer's grants before returning it — so passing its id here is what
+     * makes the authorisation reach the data rather than stopping at the page.
+     */
+    const project = context.project.id as string;
+
     return {
       context,
-      current: sessionsInPeriod(context.period.from, context.period.to),
-      previous: sessionsInPeriod(context.period.baselineFrom, context.period.baselineTo),
-      throughToday: sessionsInPeriod(context.period.from, endOfToday.toISOString()),
+      current: sessionsInPeriod(project, context.period.from, periodEnd),
+      previous: sessionsInPeriod(project, context.period.baselineFrom, context.period.baselineTo),
     };
   }
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
-    const { context, throughToday, previous } = await this.slices(query);
-    return buildHome(context, throughToday, previous, this.today);
+    const { context, current, previous } = await this.slices(query);
+    return buildHome(context, current, previous, this.today);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
-    const { context, throughToday } = await this.slices(query);
-    return buildSalesFlow(context, throughToday, this.today);
+    const { context, current } = await this.slices(query);
+    return buildSalesFlow(context, current, this.today);
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
-    const { context, throughToday } = await this.slices(query);
+    const { context, current } = await this.slices(query);
     /*
-     * The KPI window reads the whole dataset, not the selected period.
+     * The KPI window ignores the selected *period*. It does not ignore the
+     * project.
      *
      * "All time" inside a quarter-to-date period would be the quarter, which is
-     * not what the control says. The rest of the page stays on the period.
+     * not what the control says — so the window reads outside the period, and
+     * the rest of the page stays on it.
+     *
+     * It used to read `showroomSessions()`: every meeting in every project of
+     * every tenant. Northgate's Sales Flow therefore reported 98 presentations
+     * this month above a chart reading 32, and the 98 included Riverside and —
+     * a different developer entirely — Beta Development's Kingsford. A
+     * developer was being shown a competitor's volume inside their own
+     * headline figure.
+     *
+     * `sessionsForProject` is the same unfiltered-by-period set, scoped to the
+     * project the viewer already resolved. That scoping is what makes the
+     * authorisation reach the data rather than stopping at the page.
      */
-    return buildFlowCharts(context, throughToday, showroomSessions(), this.today, window);
+    return buildFlowCharts(
+      context,
+      current,
+      sessionsForProject(context.project.id as string),
+      this.today,
+      window,
+    );
   }
 
   async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
     // `current`, matching getProjectView for the same reason.
     const { context, current } = await this.slices(query);
-    return buildProjectCharts(current, this.today, context.project.locale);
+    return buildProjectCharts(
+      context.project.id as string,
+      current,
+      this.today,
+      context.project.locale,
+    );
   }
 
   async getAgentCharts(query: OverviewQuery): Promise<AgentCharts> {
@@ -282,6 +335,19 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getAgentsView(query: OverviewQuery): Promise<AgentsView> {
     const { context, current } = await this.slices(query);
+
+    /*
+     * Every role that holds the project reads this, sales agents included
+     * (ADR-0029). The refusal that used to stand here was a ROLE check; the
+     * check that matters is the project one, and it has already happened —
+     * `this.slices` resolves the project through the viewer's grants and
+     * throws before any session is counted if the grant is missing.
+     *
+     * So there is no branch here at all, and that is the point: an agent on
+     * Northgate sees Northgate's agents because Northgate is theirs, and sees
+     * nothing of Kingsford because Kingsford is not.
+     */
+
     // The IRIS rating is feedback on the software, so only MADSPACE sees it.
     return buildAgentsView(context, current, context.viewer.role === "madspace_admin");
   }
@@ -292,6 +358,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {
+    // One slice, like every other read model. See `slices()` for why there
+    // used to be two and what having two put on the screen.
     const { context, current, previous } = await this.slices(query);
     return buildShowroomOverview(context, current, previous);
   }

@@ -1,0 +1,67 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "activation-failure",
+    "description": "An unknown, expired or already-consumed code. All three answer identically.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-activate",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+        "reported_environment": "development",
+        "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "os": "Windows 11 (build 26100)"
+      }
+    },
+    "requestSchema": "ActivationRequest",
+    "requestValidates": true,
+    "response": {
+      "status": 401,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "failed",
+        "code": "activation_failed",
+        "message": "The activation code could not be used.",
+        "source_id": null,
+        "retry_after_seconds": null
+      }
+    },
+    "responseSchema": "ActivationFailure",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "stop",
+    "expectedBackendState": {
+      "precondition": "The presented code is unknown, expired, or already consumed — the backend cannot tell the caller which.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 0,
+      "activationCode": "unchanged",
+      "assertion": "Nothing is written. No credential is minted, and a code that was already consumed is not consumed a second time — a failed attempt must leave the table exactly as it found it, or the row's timestamps become an oracle for which of the three causes applied."
+    },
+    "why": "One indistinguishable failure, so a guessed code cannot reveal whether a tenant, project or source exists.",
+    "notes": [
+      "source_id is always null here, including for a code that was genuinely consumed. Its presence is a required key, never a signal.",
+      "The plugin must not retry activation automatically. Only an operator issuing a fresh code changes the answer."
+    ]
+  }
+}

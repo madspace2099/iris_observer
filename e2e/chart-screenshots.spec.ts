@@ -1,4 +1,5 @@
 import { test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Review artefacts for the chart vocabulary.
@@ -11,15 +12,6 @@ const OUT =
   process.env["OBSERVER_CHART_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/charts";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
 async function shoot(page: Page, name: string, project: string) {
   await page.evaluate(() => document.fonts.ready);

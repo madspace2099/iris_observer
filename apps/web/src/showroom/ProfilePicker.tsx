@@ -3,12 +3,32 @@
 import { useState } from "react";
 
 /**
- * The profile picker.
+ * The profile picker — NOT PART OF THE PRODUCT.
+ *
+ * ## Read this before using it anywhere
+ *
+ * This component is not authentication, is not a step in any user journey, and
+ * must not be reintroduced into one. Observer's way in is:
+ *
+ *     ACCOUNT  →  PROJECTS  →  OBSERVER
+ *
+ * A reader signs in at `/sign-in` with an email address and a credential, lands
+ * on `/projects`, and opens a project. There is no profile selection between
+ * those steps and none behind a redirect. Choosing a card here mints nothing:
+ * the only route that renders this component is `/lab/sign-in`, declared
+ * `audience: "internal"` and `requiresRole: ["madspace_admin"]` in
+ * `src/lib/routes.ts`, and a test asserts that no other route imports it.
+ *
+ * What it remains is a design laboratory exhibit — the record of an adopted
+ * Figma anatomy, and a fixture the visual suite photographs. That is the whole
+ * of its purpose.
+ *
+ * ## The anatomy it records
  *
  * The showroom opens on a Netflix-style profile chooser: the agent picks
- * themselves and steps into IRIS. Observer opens the same way, and the point of
- * this component is that it invents **nothing** — every element is taken from
- * the Figma file:
+ * themselves and steps into IRIS. Observer once opened the same way, and the
+ * point of this component is that it invents **nothing** — every element is
+ * taken from the Figma file:
  *
  *  - the whole anatomy — a segmented control over labelled category rows of
  *    image-led cards — from the Welcome project browser `6964:245`;
@@ -38,7 +58,19 @@ export interface Profile {
    * real link is navigable, middle-clickable and readable by assistive
    * technology without any of that being arranged separately.
    */
-  readonly href: string;
+  /** Where the card goes, when it is a link. */
+  readonly href?: string;
+  /**
+   * The viewer key this card submits, when the picker is a form.
+   *
+   * Nothing passes one any more. It existed for the moment this component was
+   * the sign-in and a card had to be a submit button so a server action could
+   * mint a session; the sign-in is now a credential form and the only caller,
+   * the laboratory, hands each card an `href` instead. Kept because the two
+   * shapes are what the adopted anatomy supports, and removing one would be a
+   * change to the record rather than to the product.
+   */
+  readonly submitValue?: string;
 }
 
 export type ProfileGroup = "sales" | "management" | "madspace";
@@ -118,8 +150,17 @@ function monogramHue(name: string): number {
 }
 
 function ProfileCard({ profile }: { profile: Profile }) {
-  return (
-    <a className="iris-card" href={profile.href}>
+  /*
+   * One accessible name per card, and it says who.
+   *
+   * Five buttons all called "Continue" are five identical announcements to a
+   * screen reader, and the reader has to infer the target from the card they
+   * cannot see.
+   */
+  const label = `Continue as ${profile.name}, ${profile.role}`;
+
+  const inner = (
+    <>
       <span className="iris-card-media">
         <span
           className="iris-card-image"
@@ -158,11 +199,38 @@ function ProfileCard({ profile }: { profile: Profile }) {
       </span>
 
       <span className="iris-card-blurb">{profile.blurb}</span>
+    </>
+  );
+
+  if (profile.submitValue !== undefined) {
+    return (
+      <button
+        className="iris-card"
+        type="submit"
+        name="viewer"
+        value={profile.submitValue}
+        aria-label={label}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <a className="iris-card" href={profile.href ?? "#"} aria-label={label}>
+      {inner}
     </a>
   );
 }
 
-export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
+export function ProfilePicker({
+  profiles,
+  note,
+}: {
+  profiles: readonly Profile[];
+  /** One line of demonstration context. Product language, never a disclaimer. */
+  note?: string;
+}) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
   const shown = profiles.filter((p) => filter === "all" || p.group === filter);
 
@@ -174,6 +242,7 @@ export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
         <div className="iris-brand">
           <b>IRIS</b>
           <span>Observer</span>
+          {note === undefined ? null : <span className="iris-welcome-note">{note}</span>}
         </div>
 
         <div className="iris-segmented" role="tablist" aria-label="Profile group">
@@ -190,10 +259,18 @@ export function ProfilePicker({ profiles }: { profiles: readonly Profile[] }) {
           ))}
         </div>
 
-        <span className="iris-code iris-welcome-note">Scenario selector, not authentication</span>
+        {/*
+         * The demonstration status, in product language.
+         *
+         * "Scenario selector, not authentication" described the
+         * implementation to a reader who had not asked, and told a developer
+         * in a consultation they were looking at scaffolding. What matters to
+         * them is that the figures are synthetic, which the header now says.
+         */}
+        <span className="iris-code iris-welcome-badge">Demo data</span>
       </header>
 
-      <main className="iris-welcome-body">
+      <main className="iris-welcome-body" id="main">
         <p className="iris-kicker">Choose your profile</p>
         <h1 className="iris-verdict">Each profile sees a different Observer.</h1>
 

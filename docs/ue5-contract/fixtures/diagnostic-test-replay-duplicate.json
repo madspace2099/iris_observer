@@ -1,0 +1,97 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "diagnostic-test-replay-duplicate",
+    "description": "The same diagnostic.test event again, because a support engineer pressed the button twice.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000011",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "d1a90057-0000-4000-8000-000000000010",
+            "event_name": "diagnostic.test",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:14:50+01:00",
+            "session_id": null,
+            "sequence": null,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "properties": {
+              "reason": "activation_check",
+              "note": null
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "requestValidates": true,
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000011",
+        "received": 1,
+        "accepted": 0,
+        "duplicate": 1,
+        "rejected": 0,
+        "results": [
+          {
+            "event_id": "d1a90057-0000-4000-8000-000000000010",
+            "status": "duplicate",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "d1a90057-0000-4000-8000-000000000010"
+    ],
+    "expectedOutboxActions": {
+      "d1a90057-0000-4000-8000-000000000010": "remove"
+    },
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "The diagnostic.test event of diagnostic-test-accepted is already stored for this source.",
+      "storedEventIds": [
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Still one row. A diagnostic is deduplicated by (source_id, event_id) exactly like a business event, so pressing the button twice cannot produce two diagnostic facts, and ingestion_verified_at keeps the instant of the first send rather than advancing to this one."
+    },
+    "why": "A diagnostic is idempotent exactly like any other event: the second send comes back duplicate, which removes it from the outbox and adds no second row.",
+    "notes": [
+      "The batch_id differs from diagnostic-test-accepted's and the event_id does not. This is a fresh send rather than a replay of lost bytes, which is why it is not modelled on ingest-lost-acknowledgement-replay.",
+      "A plugin that minted a fresh event_id for the second press would store a second diagnostic row and prove nothing it had not already proved, while permanently overstating how many diagnostics a showroom has run.",
+      "duplicate still proves the path, so ingestion_verified_at stays set. It does not advance, because the column records when the path was first proved and not when it was last exercised — the heartbeat is what says a source is alive now."
+    ]
+  }
+}

@@ -8,7 +8,8 @@ test.skip(
 /**
  * Laboratory review artefacts.
  *
- * The two isolated Executive Overview concepts and the profile picker, each in
+ * The two isolated Executive Overview concepts and the superseded profile
+ * picker — a laboratory record, not a product screen — each in
  * repose and mid-interaction, at the two desktop viewports the concepts are to
  * be judged at. Not assertions — these produce the images a human looks at.
  *

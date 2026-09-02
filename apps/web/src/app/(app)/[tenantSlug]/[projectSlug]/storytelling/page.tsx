@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
@@ -28,6 +29,8 @@ export default async function StorytellingPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "storytelling", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const query = {
@@ -112,7 +115,9 @@ export default async function StorytellingPage({
               .sort((a, b) => a.meanPosition - b.meanPosition)
               .map((s) => (
                 <div className="iris-bar" key={`pos-${s.sectionId}`}>
-                  <span className="iris-bar-label">{s.label}</span>
+                  <span className="iris-bar-label" title={s.label}>
+                    {s.label}
+                  </span>
                   <span className="iris-position-row" aria-hidden="true">
                     <i style={{ left: `${s.meanPosition * 100}%` }} />
                   </span>
@@ -159,7 +164,7 @@ export default async function StorytellingPage({
           <div className="iris-bars">
             {view.pairings.map((p) => (
               <div className="iris-bar" key={`${p.a}-${p.b}`}>
-                <span className="iris-bar-label">
+                <span className="iris-bar-label" title={`${p.a} + ${p.b}`}>
                   {p.a} + {p.b}
                 </span>
                 <span
@@ -201,7 +206,9 @@ export default async function StorytellingPage({
               .sort((a, b) => b.count - a.count)
               .map((t) => (
                 <div className="iris-bar" key={t.preset}>
-                  <span className="iris-bar-label">{t.label}</span>
+                  <span className="iris-bar-label" title={t.label}>
+                    {t.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={
@@ -221,7 +228,9 @@ export default async function StorytellingPage({
               .sort((a, b) => b.count - a.count)
               .map((w) => (
                 <div className="iris-bar" key={w.preset}>
-                  <span className="iris-bar-label">{w.label}</span>
+                  <span className="iris-bar-label" title={w.label}>
+                    {w.label}
+                  </span>
                   <span
                     className="iris-bar-track"
                     style={
@@ -247,7 +256,9 @@ export default async function StorytellingPage({
           <div className="iris-bars">
             {view.beforeShortlist.slice(0, 6).map((b) => (
               <div className="iris-bar" key={b.sectionId}>
-                <span className="iris-bar-label">{b.label}</span>
+                <span className="iris-bar-label" title={b.label}>
+                  {b.label}
+                </span>
                 <span
                   className="iris-bar-track"
                   style={{ "--v": b.rate.toFixed(3) } as React.CSSProperties}

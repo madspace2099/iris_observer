@@ -12,6 +12,36 @@ import type { SurfaceDescriptor } from "@observer/readmodels";
 export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/sign-in", audience: "internal", requiresRole: [] },
 
+  /*
+   * The project selector, between the account and the workspace.
+   *
+   * Every signed-in role reaches it, because every account has to choose a
+   * project before Observer has anything to show. What it lists is not a
+   * function of the role but of the account grants, which is why the role list
+   * here is every role rather than a subset.
+   */
+  {
+    route: "/projects",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
+  /*
+   * Account settings. Every signed-in role, because the thing being configured
+   * is the reader's own OpenAI connection and every role asks questions.
+   *
+   * It is not a project surface and takes no tenant or project: a credential
+   * belongs to the account and is used across every project that account may
+   * open. Putting it under a project route would have been the first step
+   * towards a per-project key, which is exactly the ownership model ADR-0030
+   * rejects.
+   */
+  {
+    route: "/settings/ai",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
   /* --- Showroom Intelligence, the primary surfaces (ADR-0023) ------------- */
 
   {
@@ -19,6 +49,25 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /*
+   * Sales Agents names colleagues beside one another, WITHIN ONE PROJECT.
+   *
+   * This surface was closed to sales agents on the reasoning that a comparison
+   * naming colleagues is a performance ranking whoever reads it. That is now
+   * reversed for the people actually working a project together: an agent
+   * assigned to it sees every agent assigned to it, because the team's own
+   * figures are what a meeting is prepared against. ADR-0029 records the
+   * reversal and what it deliberately did not open.
+   *
+   * The boundary that did not move is the project. Two agents on the same
+   * project see one another; an agent on one project sees nothing of another,
+   * whether by this route, the read model, a tool call or Ask. And the IRIS
+   * rating stays MADSPACE-only — it is feedback on the software, and it is not
+   * part of what this opened.
+   *
+   * Enforced on the server by `requireSurface`, not by omitting a link — the
+   * route was reachable by typing it.
+   */
   {
     route: "/[tenantSlug]/[projectSlug]/agents",
     audience: "internal",

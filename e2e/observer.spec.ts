@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The two M2 slices, end to end.
@@ -10,17 +11,6 @@ import { expect, test, type Page } from "@playwright/test";
  * zero, and that a figure below its minimum sample shows no trend.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
-  // Sign-in lands on the Showroom since ADR-0023. These tests navigate on from
-  // there rather than assuming where they arrive.
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
 /**
  * Signs in and opens the executive overview.
@@ -113,12 +103,23 @@ test.describe("sales agent", () => {
      * All four are open to a sales agent — the doors are the product, not a
      * management report.
      */
-    for (const section of ["Briefing", "Sales Flow", "Project", "Sales Agents"]) {
+    for (const section of ["Briefing", "Sales Flow", "Project"]) {
       await expect(nav.getByRole("link", { name: section })).toBeVisible();
     }
 
+    /*
+     * Sales Agents is among them now (ADR-0029).
+     *
+     * It names colleagues beside one another, and the people it names are the
+     * team on the project the agent is looking at. What is still enforced on
+     * the server is the project: another developer's Sales Agents surface is a
+     * refusal, not a redirect to a thinner version of it.
+     */
+    await expect(nav.getByRole("link", { name: "Sales Agents" })).toBeVisible();
+
     // A nav item the role cannot open is not rendered at all: a disabled one
-    // advertises something they will never be given.
+    // advertises something they will never be given. Administration is the
+    // remaining one for this role, and peer visibility did not open it.
     await expect(nav.getByRole("link", { name: "Administration" })).toHaveCount(0);
     await expect(nav.getByRole("link")).toHaveCount(4);
   });
@@ -173,6 +174,8 @@ test.describe("isolation", () => {
     await page.context().clearCookies();
     await page.goto("/alpha/northgate/overview");
     await page.waitForURL(/\/sign-in/);
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    /* The account sign-in: a credential form, not a list of people. */
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.getByLabel("Work email address")).toBeVisible();
   });
 });

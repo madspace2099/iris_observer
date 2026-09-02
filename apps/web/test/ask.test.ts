@@ -2,31 +2,41 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
 import { ask } from "../src/lib/ai/agent";
 import { TOOL_NAMES } from "../src/lib/ai/tools";
+import { resetEnvironmentCache } from "../src/lib/env";
 
 /**
  * Ask Observer, against the ten questions the product must answer.
  *
- * Run with the deterministic provider so the suite is offline, reproducible and
- * free. A test that spends money on every run is a test people delete, and a
- * test that depends on a model's mood is one they stop trusting.
+ * Run in evidence-only mode so the suite is offline, reproducible and free. A
+ * test that spends money on every run is a test people delete, and a test that
+ * depends on a model's mood is one they stop trusting.
  *
  * What is asserted is the part that must never vary: which tool ran, that the
- * answer is rooted in showroom evidence, that a figure came from a tool rather
- * than from prose, and that no causal claim survives.
+ * answer is rooted in showroom evidence, that every figure came from a tool
+ * rather than from prose, and that no causal claim survives. The live path adds
+ * wording on top of exactly this; it cannot add a number.
  */
 
 beforeAll(() => {
-  process.env["OBSERVER_LLM_PROVIDER"] = "deterministic";
+  // Evidence-only: no key, no network, the tools' own prose. A supported mode
+  // rather than a degraded one, which is why the whole suite can run in it.
+  process.env["OBSERVER_AI_ENABLED"] = "false";
+  delete process.env["OPENAI_API_KEY"];
+  resetEnvironmentCache();
 });
 
 const CONTEXT = {
   viewer: VIEWERS.developer,
   tenantSlug: "alpha",
   projectSlug: "northgate",
+  projectLabel: "Northgate",
+  periodLabel: "Quarter to date",
   period: "quarter_to_date" as const,
   agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
   unitCode: null,
   meetingId: null,
+  safetyIdentifier: "obs_test",
+  depth: "standard" as const,
 };
 
 const CAUSAL =
@@ -47,7 +57,7 @@ const QUESTIONS: readonly { question: string; tool: string; context?: Partial<ty
     {
       question: "Show me how this meeting developed step by step.",
       tool: "explain_meeting_journey",
-      context: { meetingId: "mtg_0100" },
+      context: { meetingId: "mtg_ng0100" },
     },
     { question: "Why is interest in apartment A-402 changing?", tool: "analyze_unit_attention" },
     {
@@ -87,16 +97,19 @@ describe("the ten questions", () => {
       const answer = outcome.answer;
       if (answer === null) return;
 
-      // Every figure came from a tool, so there is always something observed.
-      expect(answer.observed.length).toBeGreaterThan(0);
+      // Every figure came from a tool, so there is always something measured.
+      expect(answer.findings.length).toBeGreaterThan(0);
       // Prose exists, and says something.
       expect(answer.interpretation.length).toBeGreaterThan(20);
       // Rooted in the showroom, per ADR-0023.
       expect(
-        answer.sources.some((s) => s === "IRIS_SHOWROOM_OBSERVED" || s === "IRIS_SHOWROOM_DERIVED"),
+        outcome.sources.some(
+          (s) => s === "IRIS_SHOWROOM_OBSERVED" || s === "IRIS_SHOWROOM_DERIVED",
+        ),
       ).toBe(true);
       // And never a causal claim.
       expect(CAUSAL.test(answer.interpretation), answer.interpretation).toBe(false);
+      expect(CAUSAL.test(answer.answer), answer.answer).toBe(false);
     });
   }
 });
@@ -119,7 +132,7 @@ describe("the boundary holds", () => {
     if (outcome.answer !== null) {
       expect(outcome.answer.interpretation.toLowerCase()).not.toMatch(/forecast|rain tomorrow|°c/);
       expect(
-        outcome.answer.sources.some(
+        outcome.sources.some(
           (s) => s === "IRIS_SHOWROOM_OBSERVED" || s === "IRIS_SHOWROOM_DERIVED",
         ),
       ).toBe(true);
@@ -132,27 +145,49 @@ describe("the boundary holds", () => {
     expect(outcome.refusal).not.toBeNull();
   });
 
-  it("always states confidence, completeness and evidence", async () => {
+  it("carries a traceable evidence bundle on every answer", async () => {
     const outcome = await ask(
       "Summarize the most important showroom behavior changes this month.",
       CONTEXT,
     );
-    expect(outcome.answer?.confidence).toMatch(/high|moderate|low/);
-    expect(outcome.answer?.dataCompleteness).toMatch(/meeting/);
-    expect(outcome.answer?.evidence.length).toBeGreaterThan(0);
-    for (const ref of outcome.answer?.evidence ?? []) {
-      expect(ref.href.length).toBeGreaterThan(1);
-      expect(ref.observationCount).toBeGreaterThanOrEqual(0);
+    const answer = outcome.answer;
+    expect(answer).not.toBeNull();
+    if (answer === null) return;
+
+    expect(answer.evidence.length).toBeGreaterThan(0);
+    const known = new Set(answer.evidence.map((bundle) => bundle.bundleId));
+
+    for (const bundle of answer.evidence) {
+      // Project, period, fact, source, sample size and level — the six things
+      // that make a figure checkable by somebody who does not trust it.
+      expect(bundle.projectSlug).toBe("northgate");
+      expect(bundle.period.length).toBeGreaterThan(0);
+      expect(bundle.factId.length).toBeGreaterThan(0);
+      expect(bundle.sampleSize).toBeGreaterThanOrEqual(0);
+      expect(["observed_sequence", "attributed_conversion", "statistical_association"]).toContain(
+        bundle.evidenceLevel,
+      );
+    }
+
+    // And no finding cites a bundle that was never supplied.
+    for (const finding of answer.findings) {
+      expect(finding.evidenceRefs.length).toBeGreaterThan(0);
+      for (const ref of finding.evidenceRefs) expect(known.has(ref)).toBe(true);
     }
   });
 
-  it("reports which provider produced the prose", async () => {
+  it("reports that the tools wrote the prose when no model is configured", async () => {
     const outcome = await ask("Which IRIS sections are being skipped most frequently?", CONTEXT);
-    expect(outcome.status.provider).toBe("deterministic");
+    expect(outcome.status.provider).toBe("evidence-only");
     expect(outcome.status.live).toBe(false);
     // Without a live model, no interpretation source is claimed — the prose is
     // the tool's own draft, and saying otherwise would misattribute it.
-    expect(outcome.answer?.sources).not.toContain("AI_INTERPRETATION");
+    expect(outcome.sources).not.toContain("AI_INTERPRETATION");
+  });
+
+  it("states that this deployment runs on demonstration data", async () => {
+    const outcome = await ask("Which IRIS sections are being skipped most frequently?", CONTEXT);
+    expect(outcome.demoData).toBe(true);
   });
 
   it("exposes exactly the tools the product specified", () => {

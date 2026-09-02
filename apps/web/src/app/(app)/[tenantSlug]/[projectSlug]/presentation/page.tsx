@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { DnaLane, Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -35,6 +36,8 @@ export default async function PresentationPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "presentation", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const mode: Mode = MODES.some((m) => m.id === search.mode) ? (search.mode as Mode) : "agents";
@@ -101,7 +104,7 @@ export default async function PresentationPage({
               .slice(0, 6)
               .map((t) => (
                 <div className="iris-bar" key={`${t.from}-${t.to}`}>
-                  <span className="iris-bar-label">
+                  <span className="iris-bar-label" title={`${t.from} → ${t.to}`}>
                     {t.from} → {t.to}
                   </span>
                   <span

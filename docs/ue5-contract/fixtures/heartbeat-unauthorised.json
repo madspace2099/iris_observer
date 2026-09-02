@@ -1,0 +1,76 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "heartbeat-unauthorised",
+    "description": "The credential is unknown, revoked or superseded.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-heartbeat",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "queue": {
+          "pending_events": 12,
+          "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+          "quarantined_events": 1,
+          "bytes_used": 40960,
+          "bytes_ceiling": 52428800,
+          "dropped_events": 0
+        },
+        "last_error": {
+          "code": "unavailable",
+          "at": "2026-01-01T09:10:00+01:00"
+        }
+      }
+    },
+    "requestSchema": "HeartbeatRequest",
+    "requestValidates": true,
+    "response": {
+      "status": 401,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "code": "unauthorised",
+        "message": "The credential is unknown, revoked or superseded.",
+        "batch_id": "b0000000-0000-4000-8000-000000000001",
+        "retry_after_seconds": null
+      }
+    },
+    "responseSchema": "RequestFailureBody",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "stop",
+    "expectedBackendState": {
+      "precondition": "The presented credential has been revoked, superseded, or never existed.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 0,
+      "activationCode": "not-presented",
+      "assertion": "Nothing is written. last_heartbeat_at does not move — a heartbeat the endpoint refused must never make a source look CONNECTED, and a backend that recorded liveness before checking the credential would show an operator a healthy showroom that has been locked out for a week."
+    },
+    "why": "Sending stops until an operator reactivates, and every queued event is retained — the credential was the problem, never the events.",
+    "notes": [
+      "batch_id is echoed for log correlation only. A heartbeat submits no events, so no per-event action applies.",
+      "The plugin reports Unauthorised. A failure of the LOCAL credential store is an Error instead: the credential may be perfectly valid, and reporting it as Unauthorised sends an operator to reactivate a source that never needed it."
+    ]
+  }
+}

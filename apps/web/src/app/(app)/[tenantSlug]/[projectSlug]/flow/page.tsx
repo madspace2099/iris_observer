@@ -3,6 +3,7 @@ import Link from "next/link";
 import { KPI_WINDOWS, type KpiWindowId, type PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -44,6 +45,8 @@ export default async function FlowPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "flow", `/${tenantSlug}/${projectSlug}`);
   const { period, window: windowParam } = await searchParams;
 
   const query = {

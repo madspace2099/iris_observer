@@ -1,0 +1,188 @@
+import { askStream } from "@/lib/ai/agent";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  recordModelUnavailable,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
+import { admittedHeaders, gate } from "@/lib/ai/gate";
+import { LIMITS } from "@/lib/ai/limits";
+import { publicOutcome, reportOutcome } from "../route";
+
+/**
+ * Ask Observer — the streamed route.
+ *
+ * Server-sent events, not a WebSocket: the traffic is one-way, the client is a
+ * browser that already has `fetch`, and a socket would add a connection
+ * lifecycle to maintain for no capability this needs.
+ *
+ * Four event types, and the distinction between them is the honest part:
+ *
+ * - `stage` — what the tool layer is doing, in words, while it does it. Real
+ *   progress, not a timer counting to three.
+ * - `tool` — a named analysis that actually ran.
+ * - `delta` — characters of the answer as the model produces them. **Not
+ *   trusted.** The interface shows them and then replaces them with the
+ *   validated answer, or discards them entirely if validation fails.
+ * - `final` — the validated outcome. The only thing a reader keeps.
+ *
+ * Every request passes the same gate as the JSON route, before a single byte of
+ * the stream is written.
+ */
+
+export const runtime = "nodejs";
+
+const encoder = new TextEncoder();
+
+function frame(event: string, data: unknown): Uint8Array {
+  return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-store, no-transform",
+  Connection: "keep-alive",
+  // Vercel and several proxies buffer responses without this, which turns a
+  // stream into one slow response and defeats the entire point.
+  "X-Accel-Buffering": "no",
+} as const;
+
+export async function POST(request: Request) {
+  const started = Date.now();
+  const admitted = await gate(await request.json().catch(() => null), request);
+
+  if (!admitted.ok) {
+    /*
+     * A refusal is an ordinary JSON response, not an event stream.
+     *
+     * The client checks `response.ok` before it starts reading, so a 401 or a
+     * 429 arrives as a status code it can act on rather than as an error
+     * message buried in a stream it has already committed to consuming.
+     */
+    return new Response(JSON.stringify({ error: admitted.message }), {
+      status: admitted.httpStatus,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        ...(admitted.retryAfterSeconds === null
+          ? {}
+          : { "Retry-After": String(admitted.retryAfterSeconds) }),
+      },
+    });
+  }
+
+  /*
+   * Two abort sources, joined.
+   *
+   * The reader pressing Stop closes the request, and the deadline stops a turn
+   * that has gone quiet. Either must reach the upstream call, or a cancelled
+   * question keeps costing money after nobody is listening.
+   */
+  /*
+   * Model, credential and budget, decided together and before anything is
+   * spent. A refusal still streams: the reader gets every measured figure the
+   * tools produced, with the model stage skipped and the status saying why.
+   */
+  const admission = await admitModelRequest(
+    admitted.accountId,
+    admitted.question,
+    admitted.context.depth,
+    parseOverride(admitted.modelOverride),
+  );
+
+  /* Non-refundable from here. See the same block in the POST route. */
+  let dispatched = false;
+  if (admission.ok) {
+    dispatched = await dispatchAdmission(admission.reservation);
+  }
+  const resolved = admission.ok && dispatched ? admission.access : null;
+  const access =
+    resolved !== null
+      ? resolved
+      : admission.ok
+        ? { blocked: "unavailable" as const }
+        : blockFor(admission.refusal);
+
+  const deadline = AbortSignal.timeout(LIMITS.requestTimeoutMs * 2);
+  const signal = AbortSignal.any([request.signal, deadline]);
+
+  /* Whether the budget hold has already become a charge. */
+  let settled = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const event of askStream(admitted.question, admitted.context, access, signal)) {
+          if (signal.aborted) break;
+          switch (event.type) {
+            case "stage":
+              controller.enqueue(frame("stage", { label: event.label }));
+              break;
+            case "tool":
+              controller.enqueue(frame("tool", { name: event.name }));
+              break;
+            case "delta":
+              controller.enqueue(frame("delta", { field: event.field, delta: event.delta }));
+              break;
+            case "final":
+              /*
+               * The reader first, then the record — but the record before the
+               * stream closes.
+               *
+               * `reportOutcome` now waits on a database write, and putting that
+               * ahead of the final frame would make every answer land later for
+               * no reader-visible gain. Putting it after, but inside the
+               * generator, keeps it inside the request's lifetime: the runtime
+               * cannot freeze this instance while the stream is still open, and
+               * an unawaited write is exactly how the Preview lost 20 of 153
+               * records.
+               */
+              controller.enqueue(frame("final", publicOutcome(event.outcome)));
+              await reportOutcome(event.outcome, admitted, started);
+              /*
+               * The hold becomes a charge, here, where the token counts are.
+               * Marked settled so the catch below cannot release a reservation
+               * that has already been paid.
+               */
+              if (admission.ok) {
+                /* Entitlement is durable; see the same block in the POST route. */
+                if (event.outcome.diagnostics.modelUnavailable) {
+                  await recordModelUnavailable(admitted.accountId, admission.access.model);
+                }
+                await settleAdmission(
+                  admission.reservation,
+                  event.outcome.diagnostics.usage ?? null,
+                );
+                settled = true;
+              }
+              break;
+          }
+        }
+      } catch {
+        /*
+         * One fixed sentence, whatever happened.
+         *
+         * No stack trace, no upstream body, no provider message. The detail is
+         * already in the server log; the reader gets a state they can act on.
+         */
+        controller.enqueue(
+          frame("failure", {
+            error: "Observer could not complete this answer. The measured evidence is unchanged.",
+          }),
+        );
+        /* No answer, no charge. The reader asked and got nothing. */
+        if (admission.ok && !settled) await abandonAdmission(admission.reservation, dispatched);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  // The request id goes out with the response head, before the first frame, so
+  // a reader that never finishes consuming the stream can still name the audit
+  // row its request created.
+  return new Response(stream, { headers: { ...SSE_HEADERS, ...admittedHeaders(admitted) } });
+}

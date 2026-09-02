@@ -112,9 +112,17 @@ describe("no component reads fixtures directly", () => {
       .filter((file) => readFileSync(file, "utf8").includes("@observer/synthetic"))
       .map((file) => file.slice(resolve(import.meta.dirname, "..").length).replace(/\\/g, "/"));
 
-    // Only the composition root and the session adapter. A surface that needs
-    // agents, units or meetings asks the repository port for them.
-    expect(offenders.sort()).toEqual(["/src/lib/repository.ts", "/src/lib/session.ts"]);
+    /*
+     * Only the composition root, the session adapter and the account directory.
+     * The directory is where an account becomes a viewer, so it is the one
+     * other place that may name the synthetic world; a surface that needs
+     * agents, units or meetings asks the repository port for them.
+     */
+    expect(offenders.sort()).toEqual([
+      "/src/lib/accounts.ts",
+      "/src/lib/repository.ts",
+      "/src/lib/session.ts",
+    ]);
   });
 
   it("has no mock data module anywhere in the application", () => {
@@ -136,7 +144,14 @@ describe("accessibility foundations", () => {
   it("marks the main landmark on every shell", () => {
     expect(read("src/app/(app)/[tenantSlug]/[projectSlug]/layout.tsx")).toContain('id="main"');
     expect(read("src/app/madspace/page.tsx")).toContain('id="main"');
+    /*
+     * The two portal surfaces mark their own landmark. Sign-in no longer
+     * delegates its shell to the profile picker — that component renders only
+     * in the laboratory now — so the landmark is asserted on the pages
+     * themselves.
+     */
     expect(read("src/app/sign-in/page.tsx")).toContain('id="main"');
+    expect(read("src/app/projects/page.tsx")).toContain('id="main"');
   });
 
   it("labels the primary navigation and marks the current page", () => {
@@ -145,10 +160,24 @@ describe("accessibility foundations", () => {
     expect(nav).toContain("aria-current");
   });
 
-  it("labels the context switchers, which are icon-free but unlabelled visually", () => {
-    const switcher = read("src/components/ContextSwitcher.tsx");
-    expect(switcher).toContain("aria-label");
-    expect(switcher).toContain('className="obs-sr"');
+  it("gives every context switcher one exact accessible name", () => {
+    /*
+     * `aria-label` alone, not a wrapping label with hidden text.
+     *
+     * A `<label>` folds its own text *and* the option list into the control's
+     * accessible name — "PeriodQuarter to dateLast 28 days…" — which is both
+     * wrong for a screen reader and ambiguous for anything querying by name.
+     */
+    for (const file of [
+      "src/components/ContextSwitcher.tsx",
+      "src/components/PeriodSwitcher.tsx",
+    ]) {
+      const switcher = read(file);
+      expect(switcher, `${file} must name its control`).toContain("aria-label");
+      // The closing tag, not the opening one — the comment above each control
+      // explains why a wrapping label is wrong, and says "<label>" doing it.
+      expect(switcher, `${file} must not wrap the select in a label`).not.toContain("</label>");
+    }
   });
 
   it("announces loading and error states to assistive technology", () => {

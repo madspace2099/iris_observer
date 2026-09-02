@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 test.skip(
   ({ isMobile }) => isMobile === true,
@@ -14,7 +15,12 @@ test.skip(
  * product. Contrast and semantics are checked here, not after the choice.
  */
 const ROUTES = [
-  ["profile picker", "/lab/sign-in"],
+  /*
+   * The profile picker is a laboratory exhibit, not a way in (ADR-0029 and
+   * docs/observer-visual-baseline.md). It is still checked here because an
+   * inaccessible page is an inaccessible page wherever it lives.
+   */
+  ["profile picker, superseded", "/lab/sign-in"],
   ["concept A", "/lab/overview-a"],
   ["concept B", "/lab/overview-b"],
 ] as const;
@@ -60,9 +66,7 @@ test("Ask Observer answers against the current selection", async ({ page }) => {
 });
 
 test("every figure on the unit list can explain itself", async ({ page }) => {
-  await page.goto("/sign-in");
-  await page.getByRole("listitem").filter({ hasText: "Petra Novák" }).getByRole("button", { name: "Continue" }).click();
-  await page.waitForURL(/\/showroom/);
+  await signInAs(page, "Petra Novák");
   await page.goto("/alpha/northgate/units");
 
   // No abbreviated headers. A reader should not have to guess what a column is.

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The visual review set for Observer.
@@ -12,16 +13,6 @@ const OUT =
   process.env["OBSERVER_REVIEW_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/observer";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
-  await page.waitForURL(/\/showroom/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 /** Long enough for the cross-fade to land, short enough to keep the run quick. */
 async function settle(page: Page, ms = 1400) {
@@ -84,6 +75,11 @@ test.describe("Observer review set", () => {
 
   test("Observer on an agent comparison", async ({ page }, info) => {
     test.skip(info.project.name !== "wide", "One viewport is enough.");
+    // Fifteen seconds was calibrated against a deterministic answer. A
+    // two-agent comparison is the heaviest question in this file — several
+    // tool calls before a word is written — and against a live model it ran
+    // past that while the page still read `Observer is answering.`
+    test.setTimeout(150_000);
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/agents?agent=agt_monika");
     await settle(page, 900);
@@ -91,7 +87,7 @@ test.describe("Observer review set", () => {
       .getByPlaceholder("Ask Observer…")
       .fill("Compare Monika and Akhilesh's presentation flows.");
     await page.getByPlaceholder("Ask Observer…").press("Enter");
-    await expect(page.getByRole("dialog", { name: "Observer" })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("dialog", { name: "Observer" })).toBeVisible({ timeout: 90_000 });
     await settle(page);
     await shoot(page, "09-observer-agents");
   });

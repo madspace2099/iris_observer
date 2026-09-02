@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The Showroom Intelligence surfaces, asserted.
@@ -10,12 +11,6 @@ import { expect, test, type Page } from "@playwright/test";
  * measures.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("listitem").filter({ hasText: name }).getByRole("button", { name: "Continue" }).click();
-  await page.waitForURL(/\/showroom/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 const ROUTES = [
   ["showroom overview", "/alpha/northgate/showroom"],
@@ -31,7 +26,7 @@ const ROUTES = [
   ["unit attention, selected", "/alpha/northgate/units?unit=A-402"],
   ["storytelling", "/alpha/northgate/storytelling"],
   ["meetings", "/alpha/northgate/meetings"],
-  ["meeting replay", "/alpha/northgate/meetings/mtg_0100"],
+  ["meeting replay", "/alpha/northgate/meetings/mtg_ng0100"],
 ] as const;
 
 for (const [name, route] of ROUTES) {
@@ -90,7 +85,7 @@ test.describe("the three views", () => {
 test.describe("the product rules, at the surface", () => {
   test("a replay states its gaps rather than leaving blanks", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    await page.goto("/alpha/northgate/meetings/mtg_0002");
+    await page.goto("/alpha/northgate/meetings/mtg_ng0002");
     // The legacy import has no per-step timing. It has to say so.
     await expect(page.getByText(/What this source cannot say/i)).toBeVisible();
   });
@@ -115,6 +110,18 @@ test.describe("the product rules, at the surface", () => {
   });
 
   test("Ask Observer answers from evidence, on any surface", async ({ page }) => {
+    /*
+     * A model turn, not a render.
+     *
+     * This waited five seconds — the default — because for most of this
+     * project's life the answer came from the deterministic composer and
+     * arrived in the same tick. Against a deployment with a working key it is
+     * a real Responses API call: the measured average is 5.7s and the tail is
+     * longer. The page said so at the moment of failure — `status: Observer is
+     * answering.` — so the assertion was not catching a missing sheet, it was
+     * outrunning one.
+     */
+    test.setTimeout(150_000);
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/storytelling");
     const ask = page.getByPlaceholder("Ask Observer…");
@@ -122,7 +129,7 @@ test.describe("the product rules, at the surface", () => {
     await ask.press("Enter");
 
     const sheet = page.getByRole("dialog", { name: "Observer" });
-    await expect(sheet).toBeVisible();
+    await expect(sheet).toBeVisible({ timeout: 90_000 });
     /*
      * Measured and interpreted stay labelled and stay apart.
      *
@@ -133,7 +140,16 @@ test.describe("the product rules, at the surface", () => {
      */
     await expect(sheet.getByText("Measured", { exact: true })).toBeVisible();
     await expect(sheet.getByText(/Observer.s reading/)).toBeVisible();
-    await sheet.getByText(/Confidence and evidence/i).click();
-    await expect(sheet.getByText(/records ·/).first()).toBeVisible();
+    // The disclosure that holds what qualifies the answer. Matched on the
+    // property — evidence and its limits — rather than on one wording.
+    await sheet.getByText(/Evidence and limits/i).click();
+    /*
+     * Every evidence reference carries its own sample size.
+     *
+     * The wording moved from "N records" to a bundle line that names the fact,
+     * the sample and the period. The property asserted is the same: a citation
+     * that cannot say how many observations it rests on is not a citation.
+     */
+    await expect(sheet.locator(".iris-evidence").first()).toContainText(/n=[0-9]+/);
   });
 });

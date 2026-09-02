@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  /*
+   * A type-check target for the tests this milestone touched, and only those.
+   *
+   * `apps/web/tsconfig.json` includes `src/**` and nothing else, so no test file
+   * has ever been type-checked. That is how `telemetrySubject(USER)` kept
+   * passing after the function grew a second parameter: JavaScript filled the
+   * tenant with `undefined`, every assertion still held, and the suite happily
+   * proved that a subject derived from nothing is stable.
+   *
+   * Turning the whole test tree on surfaces 39 errors across four files, almost
+   * all of them pre-existing looseness — partial `ProcessEnv` literals, a
+   * `FakeModel` cast, a viewer role narrowed to one tenant. Repairing those is
+   * real work and none of it is this change, so this target is deliberately
+   * narrow: the files this milestone edited, checked under exactly the same
+   * strictness as the source they exercise.
+   *
+   * **It is meant to grow.** Every file added here is one that can no longer
+   * drift from the code it tests. Adding the rest is a milestone of its own.
+   */
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "paths": { "@/*": ["./apps/web/src/*"] }
+  },
+  "include": [
+    "apps/web/test/ai-audit.test.ts",
+    "apps/web/test/ai-config.test.ts",
+    "supabase/test/audit-contract.test.ts",
+    "supabase/test/cron-health.test.ts",
+    "supabase/test/http-proof.test.ts",
+    "supabase/test/ai-readiness.test.ts",
+    "supabase/test/rollout-order.test.ts",
+    "supabase/test/contract-readiness.test.ts",
+    "supabase/test/no-secret-recipes.test.ts",
+    "supabase/test/contract-policy.test.ts",
+    "supabase/test/artefact-consistency.test.ts",
+    "supabase/test/package-generation.test.ts",
+    "supabase/test/project-mapping.test.ts",
+    "supabase/test/supabase-resolver.test.ts",
+    "supabase/test/gate-runner.test.ts",
+    "supabase/test/gate-contract.test.ts",
+    "supabase/test/control-chars.test.ts",
+
+    /*
+     * THE RELEASE SUITES, ADDED BECAUSE THE GAP WAS REAL.
+     *
+     * `release-operation.test.ts` was not in this list, so a test file that
+     * called an undefined `gitAsync` nine times type-checked clean and would
+     * have failed only when the case ran. These four exercise the release
+     * apparatus itself, which is the part of this repository whose whole job is
+     * refusing to describe something it has not measured.
+     */
+    "supabase/test/release-operation.test.ts",
+    "supabase/test/gate-evidence.test.ts",
+    "supabase/test/staged-module.test.ts",
+    "supabase/test/worker-bound.test.ts",
+    "supabase/test/terminal-phase.test.ts",
+    "supabase/test/crash-recovery.test.ts",
+    "apps/web/test/request-id-header.test.ts",
+
+    /*
+     * THE INGESTION SPINE.
+     *
+     * A grants suite is exactly the kind of file that must not drift: it asks
+     * PostgreSQL who can do what, and every one of its assertions is a string —
+     * a role name, a function signature, a privilege. A typo in a signature
+     * makes `regprocedure` throw at run time rather than at check time, and a
+     * typo in a table name makes `has_table_privilege` answer about nothing at
+     * all while the test goes green.
+     */
+    "supabase/test/source-spine-grants.test.ts",
+    "supabase/test/activation-credential.test.ts",
+    "supabase/test/analytics-events.test.ts"
+  ]
+}

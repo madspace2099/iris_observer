@@ -1,0 +1,2714 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "outboxActions": {
+    "remove": "Acknowledged. The server holds the fact and the outbox row may be erased. Reached by a per-event `accepted` and by a per-event `duplicate`, and by nothing else.",
+    "retain": "Not acknowledged. The event stays queued and will be offered to the transport again.",
+    "quarantine": "Kept on disk with its reason and never retried. Counted in the heartbeat so an operator can see it. Never deleted."
+  },
+  "backendState": {
+    "precondition": "What must already be true for the response in this fixture to be the correct one.",
+    "storedEventIds": "Every event_id `observer.analytics_events` certainly holds for this source afterwards, including rows the precondition put there. Idempotency is the (source_id, event_id) primary key, so this list is also the row count.",
+    "undeterminedEventIds": "Ids whose storage the response does not settle either way. Non-empty only where the response is itself a backend defect, and it is the reason those events are retained rather than removed: an outcome nobody can read cannot acknowledge anything.",
+    "connected": "`set` when the exchange writes `source_operations.last_heartbeat_at`, `unchanged` when it must not — including when the column already holds a value.",
+    "ingestionVerified": "`set` when the exchange writes `source_operations.ingestion_verified_at`, `unchanged` when it must not. A heartbeat never sets it and ingestion never sets `connected`.",
+    "activeCredentials": "Rows in `observer.source_credentials` for this source in state `active`.",
+    "activationCode": "`consumed` when this exchange spends the one-time code, `unchanged` when a presented code is left exactly as it was found, `not-presented` when the request carried none.",
+    "assertion": "One line. What a backend conformance run asserts, in words."
+  },
+  "syntheticSecrets": [
+    "obs_FIXTURE_selector.FIXTURE_secret_not_real",
+    "FIXTURE-ACTIVATION-CODE-NOT-REAL"
+  ],
+  "fixtureCount": 27,
+  "fixtures": [
+    {
+      "kind": "exchange",
+      "name": "activation-success",
+      "description": "A fresh installation exchanges its one-time code and receives a source credential.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-activate",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+          "reported_environment": "development",
+          "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "os": "Windows 11 (build 26100)"
+        }
+      },
+      "requestSchema": "ActivationRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "activated",
+          "source_id": "f1000000-0000-4000-8000-0000000000a1",
+          "display_label": "Fixture Showroom, Bay 1",
+          "environment": "development",
+          "environment_mismatch": false,
+          "source_token": "obs_FIXTURE_selector.FIXTURE_secret_not_real",
+          "token_expires_at": null,
+          "ingest_url": "https://fixture.observer.invalid/functions/v1/observer-ingest",
+          "heartbeat_url": "https://fixture.observer.invalid/functions/v1/observer-heartbeat",
+          "accepted_schema_versions": {
+            "min": 1,
+            "max": 1
+          },
+          "limits": {
+            "max_batch_events": null,
+            "max_batch_bytes": null,
+            "max_event_bytes": null,
+            "max_property_depth": null,
+            "max_property_count": null,
+            "min_send_interval_ms": null
+          },
+          "config_refresh_after": "2026-01-08T08:15:31+00:00"
+        }
+      },
+      "responseSchema": "ActivationSuccess",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "One unspent, unexpired activation code for a registered active source, and no live credential.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "consumed",
+        "assertion": "One row in observer.source_credentials for this source in state active, the code marked consumed in the same transaction, and NOTHING else: no analytics_events row, and source_operations still holding null in both last_heartbeat_at and ingestion_verified_at. ACTIVATED is one fact; a source that has only activated is neither CONNECTED nor INGESTION VERIFIED, and a screen that says otherwise is guessing."
+      },
+      "why": "The token is returned once, here, and never again — persist it before answering anything else.",
+      "notes": [
+        "The response carries no tenant_id and no project_id. A client that wants either has misread the contract.",
+        "token_expires_at is null and is expected to stay null; the field exists so a future policy needs no new field."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "activation-failure",
+      "description": "An unknown, expired or already-consumed code. All three answer identically.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-activate",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+          "reported_environment": "development",
+          "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "os": "Windows 11 (build 26100)"
+        }
+      },
+      "requestSchema": "ActivationRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "failed",
+          "code": "activation_failed",
+          "message": "The activation code could not be used.",
+          "source_id": null,
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "ActivationFailure",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "stop",
+      "expectedBackendState": {
+        "precondition": "The presented code is unknown, expired, or already consumed — the backend cannot tell the caller which.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 0,
+        "activationCode": "unchanged",
+        "assertion": "Nothing is written. No credential is minted, and a code that was already consumed is not consumed a second time — a failed attempt must leave the table exactly as it found it, or the row's timestamps become an oracle for which of the three causes applied."
+      },
+      "why": "One indistinguishable failure, so a guessed code cannot reveal whether a tenant, project or source exists.",
+      "notes": [
+        "source_id is always null here, including for a code that was genuinely consumed. Its presence is a required key, never a signal.",
+        "The plugin must not retry activation automatically. Only an operator issuing a fresh code changes the answer."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "activation-reactivation",
+      "description": "An operator issues a new code for a source that already exists; the installation re-credentials.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-activate",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+          "reported_environment": "development",
+          "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "os": "Windows 11 (build 26100)"
+        }
+      },
+      "requestSchema": "ActivationRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "reactivated",
+          "source_id": "f1000000-0000-4000-8000-0000000000a1",
+          "display_label": "Fixture Showroom, Bay 1",
+          "environment": "development",
+          "environment_mismatch": false,
+          "source_token": "obs_FIXTURE_selector.FIXTURE_secret_not_real",
+          "token_expires_at": null,
+          "ingest_url": "https://fixture.observer.invalid/functions/v1/observer-ingest",
+          "heartbeat_url": "https://fixture.observer.invalid/functions/v1/observer-heartbeat",
+          "accepted_schema_versions": {
+            "min": 1,
+            "max": 1
+          },
+          "limits": {
+            "max_batch_events": null,
+            "max_batch_bytes": null,
+            "max_event_bytes": null,
+            "max_property_depth": null,
+            "max_property_count": null,
+            "min_send_interval_ms": null
+          },
+          "config_refresh_after": "2026-01-08T08:15:31+00:00"
+        }
+      },
+      "responseSchema": "ActivationSuccess",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source with one live credential, the two events of ingest-all-accepted already stored, and a freshly issued code.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "consumed",
+        "assertion": "The credential row is REPLACED — the previous one superseded, exactly one left active — and nothing else moves. Both analytics_events rows survive, and ingestion_verified_at keeps the instant it already held. A backend that cascaded credential replacement into the source's stored events would answer this exchange correctly and destroy a showroom's history."
+      },
+      "why": "Reactivation replaces the credential and nothing else: the outbox, its queued events and their event_ids all survive untouched.",
+      "notes": [
+        "The only difference from activation-success is status. Everything else is the same shape, deliberately.",
+        "The previous token stops working the moment this one is issued. There is no refresh endpoint; credential material reaches a device through one door.",
+        "A plugin that clears its outbox on reactivation loses every event queued during the outage that caused the reactivation."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "heartbeat-success",
+      "description": "Liveness plus queue health, on its own endpoint.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-heartbeat",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "queue": {
+            "pending_events": 12,
+            "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+            "quarantined_events": 1,
+            "bytes_used": 40960,
+            "bytes_ceiling": 52428800,
+            "dropped_events": 0
+          },
+          "last_error": {
+            "code": "unavailable",
+            "at": "2026-01-01T09:10:00+01:00"
+          }
+        }
+      },
+      "requestSchema": "HeartbeatRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "status": "ok",
+          "server_time": "2026-01-01T08:15:31+00:00",
+          "config_stale": false
+        }
+      },
+      "responseSchema": "HeartbeatResponse",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, which has never been heard from.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "set",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "last_heartbeat_at and last_seen_at advance and the reported build and queue counters land on the source's operational row. ingestion_verified_at stays null and observer.analytics_events gains no row: this is the CONNECTED fact alone. A heartbeat never earns INGESTION VERIFIED, and queue depth is not a fact about a visitor."
+      },
+      "why": "A heartbeat reports on the outbox and never changes it; config_stale is advisory and touches neither identity nor credential.",
+      "notes": [
+        "server_time is what a plugin subtracts from its own clock to show drift on the diagnostic screen.",
+        "A heartbeat is not an empty batch. received: 0 cannot tell a healthy ping from a client bug that sends empty batches."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "heartbeat-unauthorised",
+      "description": "The credential is unknown, revoked or superseded.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-heartbeat",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "queue": {
+            "pending_events": 12,
+            "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+            "quarantined_events": 1,
+            "bytes_used": 40960,
+            "bytes_ceiling": 52428800,
+            "dropped_events": 0
+          },
+          "last_error": {
+            "code": "unavailable",
+            "at": "2026-01-01T09:10:00+01:00"
+          }
+        }
+      },
+      "requestSchema": "HeartbeatRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "unauthorised",
+          "message": "The credential is unknown, revoked or superseded.",
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "stop",
+      "expectedBackendState": {
+        "precondition": "The presented credential has been revoked, superseded, or never existed.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 0,
+        "activationCode": "not-presented",
+        "assertion": "Nothing is written. last_heartbeat_at does not move — a heartbeat the endpoint refused must never make a source look CONNECTED, and a backend that recorded liveness before checking the credential would show an operator a healthy showroom that has been locked out for a week."
+      },
+      "why": "Sending stops until an operator reactivates, and every queued event is retained — the credential was the problem, never the events.",
+      "notes": [
+        "batch_id is echoed for log correlation only. A heartbeat submits no events, so no per-event action applies.",
+        "The plugin reports Unauthorised. A failure of the LOCAL credential store is an Error instead: the credential may be perfectly valid, and reporting it as Unauthorised sends an operator to reactivate a source that never needed it."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "heartbeat-forbidden",
+      "description": "The credential is valid; the source is suspended or archived.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-heartbeat",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "queue": {
+            "pending_events": 12,
+            "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+            "quarantined_events": 1,
+            "bytes_used": 40960,
+            "bytes_ceiling": 52428800,
+            "dropped_events": 0
+          },
+          "last_error": {
+            "code": "unavailable",
+            "at": "2026-01-01T09:10:00+01:00"
+          }
+        }
+      },
+      "requestSchema": "HeartbeatRequest",
+      "requestValidates": true,
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "source_suspended",
+          "message": "The source is suspended or archived.",
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "stop",
+      "expectedBackendState": {
+        "precondition": "The credential is live and valid; the source itself is suspended.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Nothing is written. The credential is intact and stays intact — suspension is a property of the source, not of the token — and last_heartbeat_at must not advance, or an operator resuming the source would find a machine that appeared healthy throughout its suspension."
+      },
+      "why": "Distinct from 401 because the operator's next action differs: a suspended source is resumed, a rejected credential is reactivated.",
+      "notes": [
+        "A plugin that shows one message for 401 and 403 sends the operator down the wrong path.",
+        "Reactivating a suspended source does not resume it, and resuming a source does not fix a revoked credential."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "heartbeat-malformed",
+      "description": "A heartbeat whose sent_at carries no UTC offset, refused by the schema before the credential is read.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-heartbeat",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "sent_at": "2026-01-01T09:15:30",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "queue": {
+            "pending_events": 12,
+            "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+            "quarantined_events": 1,
+            "bytes_used": 40960,
+            "bytes_ceiling": 52428800,
+            "dropped_events": 0
+          },
+          "last_error": {
+            "code": "unavailable",
+            "at": "2026-01-01T09:10:00+01:00"
+          }
+        }
+      },
+      "requestSchema": "HeartbeatRequest",
+      "requestValidates": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "malformed_request",
+          "message": "The heartbeat payload does not satisfy the heartbeat schema: sent_at.",
+          "batch_id": null,
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Nothing is written, and the credential is never even read: the schema check precedes authentication, so this answer is identical whether the bearer is valid, revoked or absent. last_heartbeat_at does not move — a heartbeat that failed to parse is not liveness."
+      },
+      "why": "A heartbeat that fails its own schema is malformed_request and nothing more: sending continues, the outbox is untouched, and no operational fact moves.",
+      "notes": [
+        "An instant without an offset is the defect this models because it is the one that ships: a client that drops the offset agrees with the server all summer and is an hour out on the last Sunday in October.",
+        "The response names the schema's field path and never quotes the value. sent_at arrived on a path that has not authenticated anybody, and echoing it would put caller-controlled text into a response body.",
+        "malformed_request is a 400 whose published policy is continue. A plugin reports the defect locally and keeps sending events; a bug in the liveness payload is not a reason to stop ingestion.",
+        "batch_id is null, and honestly so. A heartbeat has no batch to correlate, and inventing one would teach a reader that the field means something here.",
+        "This is the only fixture in the pack whose REQUEST is expected to fail validation alongside heartbeat-oversized. The test asserts both genuinely fail."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "heartbeat-oversized",
+      "description": "A heartbeat body past the four-kibibyte ceiling, refused before the parser is asked to read it.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-heartbeat",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "build": {
+            "app_version": "1.4.0",
+            "plugin_version": "1.0.0",
+            "build_id": "fixture-build-0001",
+            "engine_version": "5.6"
+          },
+          "queue": {
+            "pending_events": 12,
+            "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+            "quarantined_events": 1,
+            "bytes_used": 40960,
+            "bytes_ceiling": 52428800,
+            "dropped_events": 0
+          },
+          "last_error": {
+            "code": "unavailable",
+            "at": "2026-01-01T09:10:00+01:00"
+          },
+          "diagnostic_dump": "heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. "
+        }
+      },
+      "requestSchema": "HeartbeatRequest",
+      "requestValidates": false,
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "malformed_request",
+          "message": "A heartbeat may not exceed 4096 bytes.",
+          "batch_id": null,
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [],
+      "expectedOutboxActions": {},
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Nothing is written and nothing is parsed. The ceiling is applied to the body before JSON.parse is called, so a five-kilobyte payload never reaches the parser and never reaches the credential check either. last_heartbeat_at does not move."
+      },
+      "why": "malformed_request and NOT batch_too_large: a heartbeat has no batch, so answering 413 would tell a client to split and resend something that cannot be divided.",
+      "notes": [
+        "The code was chosen for what it means rather than for the status it carries. batch_too_large is a 413 whose published policy is retain_and_split; a plugin obeying it here would either loop trying to halve a liveness ping or quarantine one.",
+        "malformed_request is the honest answer because a heartbeat this large is not a large heartbeat. Every string in HeartbeatRequestSchema is bounded, so a schema-valid body comes to roughly 750 bytes — a body five times that cannot satisfy the schema, and the ceiling has merely discovered it early.",
+        "Its policy is also the one a client should follow: continue. The plugin has a defect worth surfacing locally, and stopping ingestion over a diagnostic payload would turn a reporting bug into an outage.",
+        "The ceiling is enforced as HEARTBEAT_MAX_BODY_BYTES in packages/sources/src/heartbeat.ts. HEARTBEAT_BODY_CEILING_BYTES restates it here because a contract package must not depend on a service package; the test asserts this body genuinely exceeds it.",
+        "The padding is a repeated English sentence rather than random bytes, so the generated document stays diffable and so the repository's own secret sweep does not see an opaque run of credential alphabet."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-all-accepted",
+      "description": "Two new events in one batch, both stored by the server.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "received": 2,
+          "accepted": 2,
+          "duplicate": 0,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Two rows in observer.analytics_events for this source, one per event_id, each carrying the account_id, project_id and environment the SERVER derived from the credential rather than anything the batch said. ingestion_verified_at is set; last_heartbeat_at is still null — ingestion earns INGESTION VERIFIED and never CONNECTED."
+      },
+      "why": "An event leaves the outbox on a per-event accepted inside a 200, and on nothing else."
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-all-duplicate",
+      "description": "The same two events again. The server already holds both.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000002",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000002",
+          "received": 2,
+          "accepted": 0,
+          "duplicate": 2,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "The two events of ingest-all-accepted are already stored for this source.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Still exactly two rows. The (source_id, event_id) primary key absorbs the replay, so a second copy is not representable, and ingestion_verified_at keeps the instant of the first batch rather than advancing — the column is a coalesce, so the operator's screen shows when the path was proved and not when it was last exercised."
+      },
+      "why": "duplicate is a SUCCESS: the fact is stored, so delivery is finished — a plugin that retries duplicates never drains its queue.",
+      "notes": [
+        "This is the most commonly mis-implemented result in the whole contract.",
+        "Deduplication is scoped to (source_id, event_id), which is why the event_id must be minted once and preserved through every retry."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-mixed-result",
+      "description": "One accepted, one duplicate, one rejected — in a single 200.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000003",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000003",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:09+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 3,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "bathroom",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000003",
+          "received": 3,
+          "accepted": 1,
+          "duplicate": 1,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000003",
+              "status": "rejected",
+              "code": "schema_invalid",
+              "retryable": false,
+              "detail": "properties do not satisfy the registered contract for this event name"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002",
+        "e0000000-0000-4000-8000-000000000003"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "remove",
+        "e0000000-0000-4000-8000-000000000003": "quarantine"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "The second event is already stored from an earlier batch; the third's properties do not satisfy its registered schema.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Two rows: the newly accepted first event and the pre-existing second. The rejected third event writes NOTHING — not a row, not a tombstone, not a partial insert. A batch is not one transaction whose failure rolls back its neighbours, and it is not three writes that leave wreckage behind either."
+      },
+      "why": "Partial batch success is the normal case: each event is judged alone and one rejection never taints its neighbours.",
+      "notes": [
+        "This is why the server validates the batch FRAME and never the events inside it. Parsing the whole envelope strictly would turn one bad event into a 400 for all three.",
+        "detail is for a human reading a log. Never branch on it; branch on code."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-retryable-rejection",
+      "description": "A transient server-side failure while writing one event.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000004",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000004",
+          "received": 2,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "rejected",
+              "code": "storage_error",
+              "retryable": true,
+              "detail": "a transient failure while writing this event"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row. The storage_error event left no partial row behind — a transient write failure must roll back cleanly, or the client's perfectly correct retry would come back duplicate for an event the server told it to resend, and the outbox would be right about a fact the operator can no longer see was ever in doubt."
+      },
+      "why": "storage_error is the only retryable event-level code — the event is fine and the backend is not, so it goes back in the queue.",
+      "notes": [
+        "Sending continues. One retryable event says nothing about the credential or the rest of the queue."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-non-retryable-rejection",
+      "description": "An event refused for a reason that resending cannot change.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000005",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000005",
+          "received": 2,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "rejected",
+              "code": "pii_suspected",
+              "retryable": false,
+              "detail": "property key visitor_note matched a forbidden-content heuristic"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "quarantine"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row. The pii_suspected event is not stored, and neither is the value that tripped the heuristic: the response names the offending KEY, the backend keeps neither key nor value, and the quarantined copy lives on the showroom PC. A backend that logged the payload it refused would have moved the leak rather than stopped it."
+      },
+      "why": "Quarantine is keep-with-a-reason, never delete: the event stays on disk, stops being retried, and is counted in the heartbeat.",
+      "notes": [
+        "detail names the offending KEY and never the offending VALUE. A diagnostic that quotes a leaked email has moved the leak rather than stopped it.",
+        "A rising quarantined_events in the heartbeat is a defect signal, which is the entire reason quarantined events are counted rather than dropped."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-unknown-rejection-code-retryable-true",
+      "description": "A rejection code invented after this build shipped, which the server marks retryable: true.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000006",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000006",
+          "received": 2,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "rejected",
+              "code": "quota_exhausted",
+              "retryable": true,
+              "detail": "a code this build has never heard of"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "quarantine"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row; the rejected event is not stored. What the backend claimed about retryability has no bearing on what it wrote, which is why the client's answer can ignore the flag without losing anything."
+      },
+      "why": "An unrecognised code quarantines and is NOT retried, whatever the server said about retryable — retrying something unintelligible loops for ever.",
+      "notes": [
+        "Half of a pair. ingest-unknown-rejection-code-retryable-false is the same batch, the same event and the same unknown code with the flag inverted, and the expected outbox action is identical.",
+        "This is the one place the server's retryable flag is deliberately overridden. Everywhere else it is obeyed, subject to only ever being downgraded.",
+        "The response still parses. code is a bounded string on the wire rather than the closed enum, precisely so a future code cannot make an otherwise-valid batch unreadable.",
+        "Sending continues: one unknown event code says nothing about the credential, and stopping the outbox over it turns a small unknown into an outage."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-unknown-rejection-code-retryable-false",
+      "description": "The same unrecognised code and the same event, with the server marking it retryable: false.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000f",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000f",
+          "received": 2,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "rejected",
+              "code": "quota_exhausted",
+              "retryable": false,
+              "detail": "a code this build has never heard of"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "quarantine"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row; the rejected event is not stored. Byte for byte the same backend state as the retryable:true twin, which is the point of carrying both."
+      },
+      "why": "The twin of the retryable:true case: the two responses differ in that flag alone and the correct client behaviour is IDENTICAL, because an unknown code is never interpreted.",
+      "notes": [
+        "The pair exists because the rule is easy to half-implement. A client that quarantines on retryable:false and retries on retryable:true passes this fixture and fails its twin, and the failure it produces in the field is an infinite retry loop on a code nobody can read.",
+        "There is no case in which an unknown code is retried. classifyEventRejection ignores serverRetryable entirely once the code is unrecognised, and a test asserts these two fixtures resolve to the same action.",
+        "A retryable:false unknown code looks like the safe direction, and it is — which is exactly why it must not be the one an implementation branches on. Both halves reach quarantine by the same route: the code was unintelligible, so nothing about the flag could be trusted either."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-missing-result",
+      "description": "Two events submitted; the response reports on only one of them.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000007",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000007",
+          "received": 2,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: a conformant server emits one result per submitted event.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row is certain. Whether the second event was stored is UNKNOWABLE from this response, and that is not a gap in the fixture — it is the reason the client retains rather than removes. A backend conformance run asserts the first row exists and asserts nothing about the second, because the contract gives it nothing to assert with."
+      },
+      "why": "A submitted event with no result of its own is NOT acknowledged: silence is retain, never accept.",
+      "notes": [
+        "The counters agree with results.length here, so nothing in the body looks wrong. Only comparing the submitted ids against the reported ids finds it.",
+        "An implementation that pairs results to queued events by ARRAY POSITION acknowledges the wrong event in this case, and does so silently. Pair by event_id.",
+        "The second event is resent in the next batch and comes back duplicate if it was in fact stored. That is the mechanism working, not a fault."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-foreign-result-id",
+      "description": "The response carries a result for an event_id that was never in this batch.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000008",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000008",
+          "received": 2,
+          "accepted": 2,
+          "duplicate": 0,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "deadbeef-0000-4000-8000-000000000099",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: a result names an id this source never sent.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "undeterminedEventIds": [
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row is certain, and the foreign id appears NOWHERE — not in the stored list, not in the undetermined list, not in this source's table. A result for an id nobody sent is a defect to log, never a row to expect; a backend run that went looking for that id would be repeating the client's mistake at the other end."
+      },
+      "why": "A result whose event_id was not submitted acknowledges NOTHING: it is ignored, and must never be matched to another queued event.",
+      "notes": [
+        "The foreign id is deadbeef-0000-4000-8000-000000000099. If it appears in any outbox decision, the implementation matched by position or by count rather than by id.",
+        "The counters say accepted: 2 and there are two results, so a client that trusts either number acknowledges two events while only one was really stored.",
+        "The unreported second event retains, exactly as in ingest-missing-result. The two rules compose; they are not alternatives.",
+        "Log the foreign id. It is a server defect and an operator needs to see it — but a defect on their side must never cost data on ours."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-conflicting-duplicate-result",
+      "description": "Two results for the same event_id, disagreeing with each other.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000009",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000009",
+          "received": 2,
+          "accepted": 2,
+          "duplicate": 0,
+          "rejected": 1,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "rejected",
+              "code": "storage_error",
+              "retryable": true,
+              "detail": "a transient failure while writing this event"
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "retain",
+        "e0000000-0000-4000-8000-000000000002": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested. The response is itself a backend defect: one event_id carries two contradictory results.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [
+          "e0000000-0000-4000-8000-000000000001"
+        ],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "The uncontested second event is certainly stored. The first is undetermined — the response says both accepted and storage_error about it — and no ordering rule can settle that, which is precisely why the client retains. A contradiction about one event still says nothing about another, so the second row is a firm assertion and not a guess."
+      },
+      "why": "Two results for one event_id is a contradiction, so it is resolved by RETAINING — fail safe, because a redelivery costs a duplicate and a wrong acknowledgement costs the event.",
+      "notes": [
+        "Not first-wins and not last-wins. Both are guesses, and last-wins here would happen to be safe while first-wins would lose the event — an implementation must not depend on which order a server happened to emit.",
+        "The uncontested second event is unaffected. A contradiction about one event says nothing about another.",
+        "The retained event is resent and comes back duplicate if it was stored. That is the cheap half of the trade."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-malformed-2xx-body",
+      "description": "A 200 whose body does not validate against BatchResponse.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000a",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000a",
+          "received": 2,
+          "accepted": "2",
+          "results": "ok"
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": false,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "retain",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "backoff",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested. Something between the client and the server is rewriting or truncating responses.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "NOTHING is certain, and that is the whole finding. The status was 200, so the batch probably WAS processed and rows probably do exist — an unreadable acknowledgement is not the same claim as no acknowledgement. A backend run asserts nothing here; the fixture's subject is the client, and the correct client behaviour is to assume the worst about its own knowledge rather than about the server's storage."
+      },
+      "why": "A 2xx whose body does not validate acknowledges ZERO events: an acknowledgement that cannot be read is not an acknowledgement.",
+      "notes": [
+        "The only fixture in this pack whose response body is expected to FAIL schema validation. The test asserts that it does.",
+        "A body that does not parse as JSON at all is the same case and takes the same action. Truncation by a proxy looks exactly like this.",
+        "Do not salvage. Reading accepted: 2 out of an otherwise invalid body and removing two events by position is the worst available outcome.",
+        "Back off rather than continue: an unreadable 200 usually means something between the client and the server is rewriting responses, and hammering it does not help."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-batch-too-large",
+      "description": "The batch is over the event-count or byte ceiling in force.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000b",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000003",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:09+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 3,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "bathroom",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 413,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "batch_too_large",
+          "message": "The batch exceeds the ceiling in force. Split it and retry.",
+          "batch_id": "b0000000-0000-4000-8000-00000000000b",
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002",
+        "e0000000-0000-4000-8000-000000000003"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "retain",
+        "e0000000-0000-4000-8000-000000000002": "retain",
+        "e0000000-0000-4000-8000-000000000003": "retain"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "No rows are written at all. The request was refused at the ceiling before any event was read, so observer.analytics_events is untouched, ingestion_verified_at stays null, and the three events remain the client's alone. This is what non-2xx means everywhere in this contract, and it is why the whole batch is safe to resend."
+      },
+      "why": "Non-2xx means nothing was stored, so every event is retained; the only failure whose fix is arithmetic — halve the batch and send again.",
+      "notes": [
+        "The contract's own word for this is retain_and_split. The split is a property of the batch, not of an event, so each event's action is plainly retain.",
+        "A single event that is itself too large is an event-level event_too_large inside a 200 instead, because splitting cannot help it and an event is never split.",
+        "Do not re-mint event_ids when re-framing the batch. The ids are the idempotency mechanism and they survive any amount of re-batching."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-rate-limited",
+      "description": "Too many requests. Retry-After states how long to wait.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000c",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 429,
+        "headers": {
+          "content-type": "application/json",
+          "retry-after": "30"
+        },
+        "body": {
+          "code": "rate_limited",
+          "message": "Too many requests. Retry after the stated interval.",
+          "batch_id": "b0000000-0000-4000-8000-00000000000c",
+          "retry_after_seconds": 30
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "retain",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "backoff",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "No rows are written. A rate limit is refused before the batch is processed, so a client that waits the stated interval and resends loses nothing — and a backend that stored a batch it then rate-limited would produce duplicates on every honest retry."
+      },
+      "why": "Retry-After is authoritative and overrides any local backoff schedule — a client that waits less than the server asked for is the reason the server asked.",
+      "notes": [
+        "The header and retry_after_seconds carry the same number. The body copy exists because a client must still learn the interval when the header is stripped by an intermediary.",
+        "retry_after_seconds is populated for rate_limited alone. It is null on every other failure."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-unavailable",
+      "description": "The backend could not process the request at all.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000d",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 503,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "code": "unavailable",
+          "message": "The backend could not process the request.",
+          "batch_id": "b0000000-0000-4000-8000-00000000000d",
+          "retry_after_seconds": null
+        }
+      },
+      "responseSchema": "RequestFailureBody",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "retain",
+        "e0000000-0000-4000-8000-000000000002": "retain"
+      },
+      "expectedSending": "backoff",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "No rows are written. This is the fixture that defines what a 503 promises: the batch was not processed, so resending it unchanged cannot double-count anything — and a backend that answered 503 after a partial write would have broken the one guarantee the whole retry design rests on."
+      },
+      "why": "A 503 is not an acknowledgement: nothing was stored, so the whole batch is safe — and required — to resend unchanged.",
+      "notes": [
+        "Bounded exponential backoff WITH JITTER. Without jitter every showroom that lost the same deployment returns at the same instant.",
+        "batch_id is echoed because the envelope parsed far enough to read it. On a 400 it may be null."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-lost-acknowledgement-replay",
+      "description": "The first attempt received no response at all. The identical batch is sent again.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "received": 2,
+          "accepted": 0,
+          "duplicate": 2,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "The first attempt was processed and both events stored; the response never reached the client.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Still two rows, not four. The replay is absorbed by (source_id, event_id), and ingestion_verified_at keeps the instant of the lost first attempt. The backend cannot tell this request from the one whose answer was lost, and does not need to — that is what makes resending safe rather than merely tolerable."
+      },
+      "why": "This is the case the stable event_id exists for: the server had already stored both, and duplicate is how the client finds out without ever losing or double-counting a fact.",
+      "notes": [
+        "The prior attempt was ingest-all-accepted's request. The server stored both events and the connection died before the response arrived, so the client learned nothing.",
+        "The replayed request body is byte-identical to ingest-all-accepted's, batch_id and sent_at included. A test asserts that, because resend-unchanged is the property under test.",
+        "The client cannot tell a lost response from a request that never arrived, and does not need to. Retain everything, resend, let the server answer.",
+        "A plugin that re-mints event_ids on retry turns this 200 into two stored copies of every event, and no read model downstream can undo it."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "ingest-accepted-is-a-count-not-a-list",
+      "description": "ANTI-PATTERN. The canonical body beside the shape a client migrating from accepted_ids expects.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000e",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:00+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "atrium",
+                "dwell_ms": 4200
+              }
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "event_name": "section.entered",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:15:04+01:00",
+              "session_id": "5e551011-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "agent_id": "agent_fixture_01",
+              "properties": {
+                "section_name": "kitchen",
+                "dwell_ms": 4200
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000e",
+          "received": 2,
+          "accepted": 2,
+          "duplicate": 0,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000001",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            },
+            {
+              "event_id": "e0000000-0000-4000-8000-000000000002",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "expectedOutboxActions": {
+        "e0000000-0000-4000-8000-000000000001": "remove",
+        "e0000000-0000-4000-8000-000000000002": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Two rows. The backend state is the same as ingest-all-accepted's, deliberately: the server is behaving perfectly and the whole defect lives in how the response is read. A client stuck on accepted_ids acknowledges nothing while these two rows sit there, and it resends them for ever without a single error appearing on either side."
+      },
+      "why": "accepted is an INTEGER COUNT, never a list of ids — acknowledgement comes only from results[].event_id, and this is the live divergence with the UE client.",
+      "notes": [
+        "This fixture exists because of a real mismatch, not a hypothetical one. A client that once read accepted_ids: [\"...\"] binds cleanly to accepted and finds a number where it expects an array.",
+        "The failure mode is quiet in every language that coerces. A length check on a number yields undefined, an iteration over it yields nothing, and the outbox acknowledges zero events for ever while the server stores every one of them.",
+        "There is no field anywhere in BatchResponse that lists accepted ids. received, accepted, duplicate and rejected are all counters, present so that a mismatch against results.length is a loud, cheap signal that something truncated the response.",
+        "Counters are for logging and for that mismatch check. They are never the acknowledgement."
+      ],
+      "counterExample": {
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-00000000000e",
+          "received": 2,
+          "accepted": [
+            "e0000000-0000-4000-8000-000000000001",
+            "e0000000-0000-4000-8000-000000000002"
+          ],
+          "duplicate": [],
+          "rejected": [],
+          "results": [],
+          "warnings": []
+        },
+        "whyItIsWrong": "accepted, duplicate and rejected are integer counts. This body puts id arrays in all three, which is the accepted_ids shape a migrating parser expects; it fails BatchResponse validation, and a lenient parser reading it against the real contract acknowledges nothing at all."
+      }
+    },
+    {
+      "kind": "exchange",
+      "name": "diagnostic-test-accepted",
+      "description": "A diagnostic.test event sent through ordinary ingestion, on the ordinary ingestion endpoint.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000010",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "d1a90057-0000-4000-8000-000000000010",
+              "event_name": "diagnostic.test",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:14:50+01:00",
+              "session_id": null,
+              "sequence": null,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "properties": {
+                "reason": "activation_check",
+                "note": null
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000010",
+          "received": 1,
+          "accepted": 1,
+          "duplicate": 0,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "d1a90057-0000-4000-8000-000000000010",
+              "status": "accepted",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "expectedOutboxActions": {
+        "d1a90057-0000-4000-8000-000000000010": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "An active source holding one live credential, with nothing yet ingested. No heartbeat has ever been received.",
+        "storedEventIds": [
+          "d1a90057-0000-4000-8000-000000000010"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "set",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "One row in observer.analytics_events with event_name diagnostic.test — a real row, on the real path, which is the only thing that could prove the path — and ingestion_verified_at set. last_heartbeat_at is STILL NULL: this source is INGESTION VERIFIED and not CONNECTED, and an Admin screen that cannot show that has collapsed two facts into one."
+      },
+      "why": "INGESTION VERIFIED is earned here and nowhere else: a real event travelled the whole path — envelope, registry, validation, insert — and was stored.",
+      "notes": [
+        "It goes to /functions/v1/observer-ingest like any other event, with the same credential and the same envelope. A diagnostic that needed its own endpoint would prove the endpoint rather than the path.",
+        "The canonical name is diagnostic.test. diagnostics.ping is a UE-side name and must never appear on this wire; a plugin that sends it gets schema_unknown, correctly.",
+        "session_id and sequence are both null, as the envelope requires them to be together. A diagnostic belongs to no visitor session — nobody is in the showroom when a commissioning engineer presses the button.",
+        "properties carry reason and note, and nothing else. reason is what lets an operator reading a source's history tell an activation check from a support engineer poking a live installation.",
+        "This is the fixture that separates INGESTION VERIFIED from CONNECTED. Its backend state records last_heartbeat_at untouched for exactly that reason, and heartbeat-success records the mirror image."
+      ]
+    },
+    {
+      "kind": "exchange",
+      "name": "diagnostic-test-replay-duplicate",
+      "description": "The same diagnostic.test event again, because a support engineer pressed the button twice.",
+      "request": {
+        "method": "POST",
+        "path": "/functions/v1/observer-ingest",
+        "headers": {
+          "content-type": "application/json",
+          "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000011",
+          "sent_at": "2026-01-01T09:15:30+01:00",
+          "events": [
+            {
+              "event_id": "d1a90057-0000-4000-8000-000000000010",
+              "event_name": "diagnostic.test",
+              "schema_version": 1,
+              "occurred_at": "2026-01-01T09:14:50+01:00",
+              "session_id": null,
+              "sequence": null,
+              "app": {
+                "version": "1.4.0",
+                "plugin": "1.0.0",
+                "build_id": "fixture-build-0001",
+                "environment": "Development"
+              },
+              "properties": {
+                "reason": "activation_check",
+                "note": null
+              }
+            }
+          ]
+        }
+      },
+      "requestSchema": "BatchEnvelope",
+      "requestValidates": true,
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "batch_id": "b0000000-0000-4000-8000-000000000011",
+          "received": 1,
+          "accepted": 0,
+          "duplicate": 1,
+          "rejected": 0,
+          "results": [
+            {
+              "event_id": "d1a90057-0000-4000-8000-000000000010",
+              "status": "duplicate",
+              "code": null,
+              "retryable": null,
+              "detail": null
+            }
+          ],
+          "warnings": []
+        }
+      },
+      "responseSchema": "BatchResponse",
+      "responseValidates": true,
+      "submittedEventIds": [
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "expectedOutboxActions": {
+        "d1a90057-0000-4000-8000-000000000010": "remove"
+      },
+      "expectedSending": "continue",
+      "expectedBackendState": {
+        "precondition": "The diagnostic.test event of diagnostic-test-accepted is already stored for this source.",
+        "storedEventIds": [
+          "d1a90057-0000-4000-8000-000000000010"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Still one row. A diagnostic is deduplicated by (source_id, event_id) exactly like a business event, so pressing the button twice cannot produce two diagnostic facts, and ingestion_verified_at keeps the instant of the first send rather than advancing to this one."
+      },
+      "why": "A diagnostic is idempotent exactly like any other event: the second send comes back duplicate, which removes it from the outbox and adds no second row.",
+      "notes": [
+        "The batch_id differs from diagnostic-test-accepted's and the event_id does not. This is a fresh send rather than a replay of lost bytes, which is why it is not modelled on ingest-lost-acknowledgement-replay.",
+        "A plugin that minted a fresh event_id for the second press would store a second diagnostic row and prove nothing it had not already proved, while permanently overstating how many diagnostics a showroom has run.",
+        "duplicate still proves the path, so ingestion_verified_at stays set. It does not advance, because the column records when the path was first proved and not when it was last exercised — the heartbeat is what says a source is alive now."
+      ]
+    },
+    {
+      "kind": "read-model",
+      "name": "diagnostic-excluded-from-business-metrics",
+      "description": "Not an HTTP exchange. Three stored rows, and the read model that must count exactly two of them.",
+      "storedRows": [
+        {
+          "event_id": "e0000000-0000-4000-8000-000000000001",
+          "event_name": "section.entered",
+          "session_id": "5e551011-0000-4000-8000-000000000001",
+          "sequence": 1,
+          "occurred_at": "2026-01-01T09:15:00+01:00"
+        },
+        {
+          "event_id": "e0000000-0000-4000-8000-000000000002",
+          "event_name": "section.entered",
+          "session_id": "5e551011-0000-4000-8000-000000000001",
+          "sequence": 2,
+          "occurred_at": "2026-01-01T09:15:04+01:00"
+        },
+        {
+          "event_id": "d1a90057-0000-4000-8000-000000000010",
+          "event_name": "diagnostic.test",
+          "session_id": null,
+          "sequence": null,
+          "occurred_at": "2026-01-01T09:14:50+01:00"
+        }
+      ],
+      "expectedReadModel": {
+        "exclusionRule": "event_name NOT LIKE 'diagnostic.%'",
+        "countedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "excludedEventIds": [
+          "d1a90057-0000-4000-8000-000000000010"
+        ],
+        "metric": "section_entries",
+        "value": 2,
+        "valueWithoutTheRule": 3
+      },
+      "expectedBackendState": {
+        "precondition": "The two section.entered events and the diagnostic.test event of diagnostic-test-accepted are all stored for this source.",
+        "storedEventIds": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002",
+          "d1a90057-0000-4000-8000-000000000010"
+        ],
+        "undeterminedEventIds": [],
+        "connected": "unchanged",
+        "ingestionVerified": "unchanged",
+        "activeCredentials": 1,
+        "activationCode": "not-presented",
+        "assertion": "Three rows stored and two counted. The diagnostic row is never deleted, never hidden and never moved to a second table — it is filtered at read time by `event_name NOT LIKE 'diagnostic.%'`, which every business read model carries, so that nothing anywhere has to remember to exclude it."
+      },
+      "why": "A diagnostic row is stored for ever and counted never: the exclusion is a published rule a test can enforce, not a convention every future read model has to remember.",
+      "notes": [
+        "READ_MODEL_EXCLUSION_RULE is the predicate, verbatim: event_name NOT LIKE 'diagnostic.%'. It is published as a constant so the rule is one edit rather than a habit spread across every query somebody writes next year.",
+        "A read model that omits it reports 3 where the truth is 2. That is the failure this fixture measures, which is why valueWithoutTheRule is carried beside value rather than described in prose.",
+        "The rule matches the whole reserved namespace and not the single name diagnostic.test. A future diagnostic.something is excluded on the day it is invented, without anybody editing a read model.",
+        "isDiagnosticEvent is the same rule for code rather than SQL, and countsAsBusinessFact in @observer/sources states it positively — filter(countsAsBusinessFact) survives a refactor in a way that a negation does not.",
+        "This fixture has no request and no response because there is no HTTP call that demonstrates the rule. Inventing a query endpoint to make it fit the exchange shape would have published an interface that does not exist."
+      ]
+    }
+  ]
+}

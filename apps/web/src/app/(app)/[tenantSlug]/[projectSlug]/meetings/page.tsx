@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 
@@ -24,6 +25,8 @@ export default async function MeetingsPage({
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "meetings", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
   const meetings = await repository.listMeetings({
@@ -43,29 +46,32 @@ export default async function MeetingsPage({
           the units opened inside them, and what the source could not record.
         </p>
 
-        <div className="iris-matrix" style={{ marginTop: ".75rem" }}>
+        <div className="iris-matrix" data-columns="meetings" style={{ marginTop: ".75rem" }}>
           <div className="iris-matrix-head">
             <span>when</span>
             <span>agent</span>
             <span style={{ textAlign: "right" }}>length</span>
             <span style={{ textAlign: "right" }}>sect</span>
             <span style={{ textAlign: "right" }}>units</span>
-            <span />
-            <span />
             <span style={{ textAlign: "right" }}>outcome</span>
           </div>
           {meetings.map((m) => (
             <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
               <span className="iris-matrix-code">{m.label}</span>
-              <span className="iris-bar-label">{m.agentName}</span>
+              <span className="iris-bar-label" title={m.agentName}>
+                {m.agentName}
+              </span>
               <span className="iris-matrix-num">{m.durationDisplay}</span>
               <span className="iris-matrix-num">{m.sectionCount}</span>
               <span className="iris-matrix-num">{m.unitCount}</span>
-              <span />
-              <span />
-              <span className="iris-matrix-num" style={{ textAlign: "right" }}>
-                {m.outcomeLabel}
-              </span>
+              {/*
+               * The outcome is a phrase, not a figure.
+               *
+               * It sat in a 4.5rem numeric column and "Presentation only" was
+               * cut to "Presentation onl" at every width, including 1920 —
+               * two empty placeholder cells were holding the space it needed.
+               */}
+              <span className="iris-matrix-outcome">{m.outcomeLabel}</span>
             </Link>
           ))}
         </div>

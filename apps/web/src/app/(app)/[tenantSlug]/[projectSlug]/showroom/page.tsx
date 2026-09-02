@@ -3,10 +3,14 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
-import { presetFrom } from "@/lib/period";
+import { requireSurface } from "@/lib/authz";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Measure } from "@/showroom/Measure";
 import { ObserverConsole } from "@/showroom/observer/ObserverConsole";
+import { currentAccount } from "@/lib/session";
+import { activeModelFor, connectedProviders } from "@/lib/ai/admission";
+import { modelsForProviders } from "@/lib/models/catalogue";
 import { greetingFor } from "@/showroom/observer/suggestions";
 
 export const metadata: Metadata = { title: "Briefing" };
@@ -38,7 +42,27 @@ export default async function BriefingPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const viewer = await requireViewer();
+
+  /*
+   * Which models this account may ask with, resolved on the server.
+   *
+   * The same two facts the project layout resolves for the rail. The briefing
+   * hides the rail and shows the console instead, so it has to answer the
+   * question itself rather than inherit the answer.
+   */
+  const account = await currentAccount();
+  const connected = account === null ? [] : await connectedProviders(account.accountId);
+  const usableModels = modelsForProviders(connected).map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+  }));
+  const preferred =
+    account === null ? null : (await activeModelFor(account.accountId, "standard")).model;
+  const activeModel =
+    preferred === null ? null : (usableModels.find((m) => m.id === preferred) ?? null);
   const { tenantSlug, projectSlug } = await params;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "showroom", `/${tenantSlug}/${projectSlug}`);
   const { period } = await searchParams;
 
   const home = await repository.getHome({
@@ -75,10 +99,13 @@ export default async function BriefingPage({
   return (
     <div className="iris-one obs-page">
       <ObserverConsole
+        models={usableModels}
+        activeModel={activeModel}
         context={{
           tenantSlug,
           projectSlug,
           projectLabel: home.context.project.name,
+          role: viewer.role,
           period: presetFrom(period),
           unitCode: null,
           meetingId: null,
@@ -106,7 +133,11 @@ export default async function BriefingPage({
           {home.figures.map((f) => (
             <div key={f.id}>
               <dt>
-                {f.measurementId === null ? f.label : <Measure id={f.measurementId} label={f.label} />}
+                {f.measurementId === null ? (
+                  f.label
+                ) : (
+                  <Measure id={f.measurementId} label={f.label} />
+                )}
               </dt>
               <dd>
                 <b>{f.value}</b>
@@ -129,14 +160,20 @@ export default async function BriefingPage({
       </section>
 
       {/*
-        * Where to go next.
-        *
-        * Each carries the single most useful thing behind it, already computed,
-        * so choosing is an informed decision rather than a guess at a label.
-        */}
+       * Where to go next.
+       *
+       * Each carries the single most useful thing behind it, already computed,
+       * so choosing is an informed decision rather than a guess at a label.
+       */}
       <nav className="iris-doors" aria-label="Views">
         {home.doors.map((door) => (
-          <Link key={door.id} className="iris-door" href={dynamicRoute(door.href)}>
+          // The doors carry the period too: a briefing read for the last 28
+          // days must open a view of the last 28 days.
+          <Link
+            key={door.id}
+            className="iris-door"
+            href={dynamicRoute(withPeriod(door.href, presetFrom(period)))}
+          >
             <span className="iris-door-label">{door.label}</span>
             <span className="iris-door-question">{door.question}</span>
             <span className="iris-door-headline">{door.headline}</span>

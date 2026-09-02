@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { PRIMARY_NAV, SECONDARY_NAV } from "@/lib/routes";
 import { dynamicRoute } from "@/lib/href";
+import { presetFrom, withPeriod } from "@/lib/period";
 
 /**
  * The four customer sections, and the detail surfaces beneath them.
@@ -17,6 +18,14 @@ import { dynamicRoute } from "@/lib/href";
  */
 export function PrimaryNav({ root, allowed }: { root: string; allowed: readonly string[] }) {
   const pathname = usePathname();
+  /*
+   * Navigation carries the period.
+   *
+   * Choosing "Last 28 days" and then opening Project silently returned to the
+   * quarter, so the reader compared two screens measuring different spans
+   * without being told they had changed.
+   */
+  const period = presetFrom(useSearchParams().get("period") ?? undefined);
 
   return (
     <nav className="iris-nav" aria-label="Sections">
@@ -27,7 +36,7 @@ export function PrimaryNav({ root, allowed }: { root: string; allowed: readonly 
           <Link
             className="iris-nav-item"
             key={item.key}
-            href={dynamicRoute(href)}
+            href={dynamicRoute(withPeriod(href, period))}
             aria-current={active ? "page" : undefined}
           >
             {item.label}
@@ -49,6 +58,7 @@ export function PrimaryNav({ root, allowed }: { root: string; allowed: readonly 
  */
 export function DetailNav({ root, allowed }: { root: string; allowed: readonly string[] }) {
   const pathname = usePathname();
+  const period = presetFrom(useSearchParams().get("period") ?? undefined);
   const items = SECONDARY_NAV.filter((item) => allowed.includes(item.key));
   if (items.length === 0) return null;
 
@@ -61,7 +71,7 @@ export function DetailNav({ root, allowed }: { root: string; allowed: readonly s
           <Link
             className="iris-subnav-item"
             key={item.key}
-            href={dynamicRoute(href)}
+            href={dynamicRoute(withPeriod(href, period))}
             aria-current={active ? "page" : undefined}
           >
             {item.label}

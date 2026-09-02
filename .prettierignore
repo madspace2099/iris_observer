@@ -12,3 +12,9 @@ docs/coverage-report.md
 docs/coverage-report.json
 e2e/
 playwright.config.ts
+
+# Screenshots, contact sheets and comparison output. Generated, not authored.
+artifacts/
+
+# Generated from packages/contracts/src/ue5 by "pnpm contracts:ue5".
+docs/ue5-contract/

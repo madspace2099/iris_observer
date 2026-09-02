@@ -1,0 +1,114 @@
+-- Observer — contract. The superseded façades go.
+--
+-- **Do not apply this until no deployment *can* call these names, and no
+-- deployment *can* write a version-1 pseudonym.**
+--
+-- Absence of traffic is not permission. It is evidence about the past and says
+-- nothing about capability: a Preview deployment nobody has opened for a week
+-- is exactly as reachable as one opened a minute ago. Somebody following an old
+-- link, a bookmarked review URL or a stale Slack message brings it back. The
+-- condition is **capability**, not activity.
+--
+-- ## Two independent capabilities, classified separately
+--
+-- An earlier edition of this comment described one capability and one remedy.
+-- There are two, they are not the same shape, and this migration only closes
+-- one of them.
+--
+--   (a) LEGACY-FAÇADE CALLER — the build calls `public.consume_ai_quota` or
+--       `public.record_ai_request`. Those are the functions dropped below, so
+--       the drop genuinely removes the RPC. Such a deployment may be
+--       **deleted OR protected**; either is sufficient, because after this
+--       migration the name it calls does not exist.
+--
+--   (b) VERSION-1-CAPABLE ADMISSION WRITER — the build reaches
+--       `public.admit_ai_request` with THIRTEEN arguments and therefore writes
+--       `pseudonym_version = 1`: a pseudonym derived without tenant scope, and
+--       so linkable across tenants. Such a deployment **MUST BE DELETED.**
+--
+-- ## Why (b) cannot be satisfied by protection
+--
+-- **THIS MIGRATION DOES NOT DISABLE THIRTEEN-ARGUMENT ADMISSION.** It drops two
+-- façades and nothing else. The expand migration gave `admit_ai_request` two
+-- defaulted parameters precisely so the thirteen-key body keeps resolving, and
+-- that is still true after this file commits.
+--
+-- Protection is therefore not a substitute for deletion here. Vercel
+-- Authentication still admits authorised users, protection-bypass mechanisms
+-- exist for automation, and neither this migration nor any other closes the
+-- path. A protected version-1-capable build that anybody can sign in to still
+-- writes a cross-tenant-linkable pseudonym.
+--
+-- Moving an alias is not a remedy at all. It retires a name, never a
+-- deployment: the immutable per-deployment URL survives any alias change.
+--
+-- ## The inventory this actually applies to
+--
+-- Not "every build older than admission/completion". That was the wrong
+-- inventory: it selected on age, and capability does not follow age.
+--
+--   * EVERY `3f298a6` DEPLOYMENT IS VERSION-1-CAPABLE — case (b) — including
+--     the fresh proof Preview created during the rollout to prove the legacy
+--     path answers. That one is built from the same commit as the original, so
+--     it carries the same capability, and it must be deleted too.
+--   * `1ee5d2d` is NEITHER. It calls `admit_ai_request`, `complete_ai_request`
+--     and `observer_whoami` — so it is not a façade caller — and its
+--     TWELVE-ARGUMENT admission stopped resolving the moment the expand
+--     migration added `p_key_id`. It writes nothing. Classifying it as a
+--     façade caller "to be conservative" was simply wrong.
+--   * The twelve older `release/observer-demo-rc1` builds are case (a).
+--   * `3515402` on `main` contains no quota module at all and calls neither
+--     façade, whatever database it points at.
+--
+-- ## Enumerate to exhaustion, then enumerate again
+--
+--   vercel ls iris-observer            # then follow --next until it is empty
+--
+-- `vercel ls` is PAGINATED. This project has exactly twenty READY deployments,
+-- which is the page size — the shape of a list that looks complete and is not.
+-- Follow `--next` to exhaustion, record every immutable URL, state and source
+-- SHA, and classify capability from the SOURCE rather than from the age.
+--
+-- **Repeat the whole enumeration after the deletions** and prove no
+-- version-1-capable deployment remains. A deletion you did not verify is a
+-- deletion you did not make.
+--
+-- ## What the database can and cannot tell you
+--
+-- Run `supabase/verifiers/observer-contract-readiness.sql` with the
+-- `retirement_floor_ts` recorded at the moment the last deletion completed. It
+-- checks BOTH version axes independently — `audit_version = 1` for the legacy
+-- façade shape, `pseudonym_version = 1` for the unscoped pseudonym — because a
+-- row can carry the second without the first, and the single-axis question
+-- returned a clean answer over exactly that row.
+--
+-- **THAT VERIFIER CAN RETURN ONLY NO-GO, UNUSABLE OR INCONCLUSIVE. IT CAN
+-- NEVER RETURN READY.**
+--
+--   NO-GO         a row at or after the floor on either axis. Something is
+--                 still writing through a door that should be shut.
+--   UNUSABLE      a null or future floor. A future floor makes every row
+--                 "before" it, which is the one way to turn a dirty database
+--                 clean by typing a date. It is refused, not answered.
+--   INCONCLUSIVE  the best result available. Necessary, never sufficient: a
+--                 quiet table proves nothing about capability, and capability
+--                 is the condition. Readiness is established by the deployment
+--                 inventory, not by this query.
+--
+-- ## Nothing here touches data
+--
+-- The rows those functions wrote stay exactly as they are, labelled version 1
+-- with authorship unknown, which is what they are. Only the doors close.
+
+drop function if exists public.consume_ai_quota(text, text, text, integer, integer, integer, integer);
+drop function if exists public.record_ai_request(text, text, text, text, text, text, text, text[], integer, integer, integer, integer, integer);
+
+-- PostgREST caches the schema. Dropping a function it still remembers leaves it
+-- offering an RPC that no longer exists, and answering something other than a
+-- clean 404 to whatever calls it. Inside the transaction, so the notification
+-- is delivered only if this commits.
+notify pgrst, 'reload schema';
+
+-- `observer.consume_ai_quota` is deliberately **not** dropped. It is the single
+-- implementation of the ceiling and `observer.admit_ai_request` calls it. Only
+-- the reachable façade goes.

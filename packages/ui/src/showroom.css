@@ -191,7 +191,16 @@
 .iris-dna-step {
   position: relative;
   flex: var(--reach) 1 0;
-  min-width: 0;
+  /*
+   * Wide enough for a three-letter code, always.
+   *
+   * `min-width: 0` let a rarely-reached section shrink to a few pixels and
+   * clip its own abbreviation, which is worse than the full name being cut:
+   * "S" names nothing.
+   */
+  min-width: 3.25rem;
+  container-type: inline-size;
+  container-name: dnastep;
   height: 2.25rem;
   border: 1px solid var(--rule-firm);
   border-radius: 3px;
@@ -204,8 +213,61 @@
   letter-spacing: -0.01em;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
   cursor: default;
+}
+
+/*
+ * The full name while it fits; the code once it does not.
+ *
+ * Asked of the step's own box rather than of the viewport, because a step's
+ * width comes from how often the section was reached — two steps on the same
+ * screen can need different answers.
+ */
+.iris-dna-code {
+  display: none;
+  text-decoration: none;
+  border-bottom: 0;
+  letter-spacing: 0.04em;
+}
+
+@container dnastep (max-width: 5.5rem) {
+  .iris-dna-full {
+    display: none;
+  }
+
+  .iris-dna-code {
+    display: inline;
+  }
+}
+
+/* The comparison panel is narrow by design and always uses codes. */
+.iris-dna-lane[data-compact="true"] .iris-dna-full {
+  display: none;
+}
+
+.iris-dna-lane[data-compact="true"] .iris-dna-code {
+  display: inline;
+}
+
+/* A code needs less floor than a name. */
+.iris-dna-lane[data-compact="true"] .iris-dna-step {
+  min-width: 2.5rem;
+}
+
+/*
+ * The lane scrolls inside itself rather than widening the page.
+ *
+ * Nine sections have a floor below which their codes stop being readable, and
+ * a panel narrower than that floor has to give somewhere. Scrolling the lane
+ * keeps every step legible and leaves the document's own width alone — the
+ * alternative was steps squeezed to one letter, or a horizontal scrollbar on
+ * the whole surface.
+ */
+.iris-dna-track {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-firm) transparent;
+  padding-bottom: 0.125rem;
 }
 
 .iris-dna-step[data-timing="unknown"] {
@@ -800,14 +862,37 @@
  * has to leave room for it. Without this the last finding on a page sits under
  * a floating pill and looks broken.
  */
-.iris-stage > .iris-two > .iris-plane,
-.iris-stage > .iris-one > .iris-plane {
-  padding-bottom: 6rem;
+/*
+ * Every surface clears the Observer rail, not only the ones that remembered to.
+ *
+ * The clearance was applied to `.iris-plane` children of the two page shells,
+ * so anything else at the foot of a page — a table's own footer, a doors row,
+ * an evidence card, the last finding on a replay — sat underneath a floating
+ * pill. Putting it on the scrolling container covers every surface, including
+ * ones not written yet.
+ *
+ * `--rail-clearance` is the rail's height plus its offset plus a phone's home
+ * indicator. Named so the rail and the space reserved for it cannot drift.
+ */
+:root {
+  --rail-height: 3.25rem;
+  --rail-offset: 1.25rem;
+  --rail-clearance: calc(
+    var(--rail-height) + var(--rail-offset) * 2 + env(safe-area-inset-bottom, 0px)
+  );
 }
 
-/* The doors are the last thing on the opening screen, so they clear the rail. */
-.iris-doors {
-  margin-bottom: 6rem;
+.iris-stage {
+  padding-bottom: var(--rail-clearance);
+}
+
+/*
+ * The briefing renders the console instead of the rail, so it needs none.
+ * Reserving space for a control that is not there leaves a hole at the foot of
+ * the first screen a reader ever sees.
+ */
+.iris-stage:has(.obs-console) {
+  padding-bottom: var(--space-6, 2rem);
 }
 
 /*
@@ -831,7 +916,15 @@
   justify-self: center;
 }
 
-@media (max-width: 78rem) {
+/*
+ * Stacked at 90rem, not 78rem.
+ *
+ * The threshold was set from the shell rather than from what the planes hold.
+ * A presentation lane needs roughly 640px to write nine section names; below
+ * 90rem (1440px) the left plane drops under that and the labels start to go.
+ * The content decides when the composition stops working, not the frame.
+ */
+@media (max-width: 90rem) {
   .iris-two {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -941,26 +1034,51 @@
   white-space: nowrap;
 }
 
+/*
+ * A 16px dot with a 44px reach.
+ *
+ * The control has to stay small — it sits inside a column heading and must not
+ * push the figure it explains out of line — but a 16×16 hit area is unusable
+ * with a thumb and hard with a trackpad. The pseudo-element extends the target
+ * without changing anything visible.
+ */
 .iris-measure-info {
   flex: none;
+  /* A 16px mark inside a 40px target: the padding is the hit area and the
+     negative margin keeps the layout exactly where it was. */
+  padding: 0.75rem;
+  margin: -0.75rem;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+
+/* The visible mark. The button around it is the target. */
+.iris-measure-dot {
+  display: grid;
+  place-items: center;
   width: 1rem;
   height: 1rem;
   border-radius: 999px;
   border: 1px solid var(--rule-firm);
-  background: none;
-  color: var(--ink-2);
   font-family: var(--mono);
   font-size: 0.625rem;
-  font-style: italic;
   line-height: 1;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  padding: 0;
+  color: var(--ink-2);
 }
 
-.iris-measure-info:hover,
-.iris-measure-info[aria-expanded="true"] {
+.iris-measure-info:hover .iris-measure-dot {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.iris-measure-info:focus-visible .iris-measure-dot {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.iris-measure-info[aria-expanded="true"] .iris-measure-dot {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1015,12 +1133,112 @@
   color: var(--ink-3);
 }
 
-/* Six columns, none of them an abbreviation. */
+/*
+ * Six columns, none of them an abbreviation — and none of them optional.
+ *
+ * Sized against the *panel*, not the viewport. The table lives in the left
+ * plane of a two-plane layout, so at 1363px it had roughly 850px to work with
+ * while its media query was still reading 1363 — rows ran under the detail
+ * plane and the Trend column lost "+200%" and "no change" off its right edge.
+ */
+.iris-matrix {
+  container-type: inline-size;
+  container-name: matrix;
+}
+
+/*
+ * The meeting list: five figures and a phrase.
+ *
+ * The outcome shared the numeric track with counts but is not one — it needs
+ * room for "Presentation only", which a 4.5rem column cut off at every width,
+ * 1920 included. Two empty placeholder cells were holding the space it needed.
+ */
+.iris-matrix[data-columns="meetings"] .iris-matrix-head,
+.iris-matrix[data-columns="meetings"] .iris-matrix-row {
+  grid-template-columns: 5.5rem minmax(6rem, 1fr) 4.5rem 3.25rem 3.5rem minmax(9rem, auto);
+}
+
+.iris-matrix-outcome {
+  font-size: 0.75rem;
+  text-align: right;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+@container matrix (max-width: 40rem) {
+  .iris-matrix[data-columns="meetings"] .iris-matrix-head {
+    display: none;
+  }
+
+  .iris-matrix[data-columns="meetings"] .iris-matrix-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+  }
+
+  .iris-matrix-outcome {
+    text-align: left;
+  }
+}
+
 .iris-matrix[data-columns="6"] .iris-matrix-head,
 .iris-matrix[data-columns="6"] .iris-matrix-row {
   grid-template-columns: 9rem minmax(5rem, 1fr) 7.5rem 8.5rem 8.5rem 8rem;
   gap: 1rem;
   padding: 0.5625rem 0.5rem;
+}
+
+/*
+ * Below the width six columns need, the row becomes two lines.
+ *
+ * Never fewer metrics. Hiding Shortlisted and Trend at narrow widths took two
+ * measurements away from the sales agent most likely to be on a laptop, and
+ * left no way to reach them at all.
+ */
+@container matrix (max-width: 54rem) {
+  /*
+   * The header becomes a legend, not nothing.
+   *
+   * Hiding it took the six info controls with it, and those are the only place
+   * a reader can find out what "Typical look" measures or what it does not
+   * say. The columns move into the rows; their explanations stay above them.
+   */
+  .iris-matrix[data-columns="6"] .iris-matrix-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.6875rem;
+    color: var(--ink-3);
+  }
+
+  .iris-matrix[data-columns="6"] .iris-matrix-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.375rem;
+    padding: 0.75rem 0.5rem;
+  }
+
+  /* Each figure carries the label the header would have given it. */
+  .iris-matrix[data-columns="6"] .iris-matrix-row > * + *::before {
+    content: attr(data-label) " ";
+    color: var(--ink-3);
+    font-family: var(--sans, inherit);
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+  }
+
+  .iris-matrix[data-columns="6"] .iris-matrix-row > * + * {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    text-align: left;
+  }
+
+  .iris-matrix-code {
+    font-weight: 600;
+  }
 }
 
 .iris-matrix[data-columns="6"] .iris-matrix-head {
@@ -1059,14 +1277,55 @@
   margin-top: 1rem;
 }
 
-@media (max-width: 75rem) {
-  .iris-matrix[data-columns="6"] .iris-matrix-head,
-  .iris-matrix[data-columns="6"] .iris-matrix-row {
-    grid-template-columns: 8rem minmax(4rem, 1fr) 5.5rem 6rem;
+/*
+ * The shell between a phone and a wide desktop.
+ *
+ * The top bar went straight from a three-column desktop grid to a stacked
+ * phone layout at 48rem, leaving everything from 769px to 1200px unsupported:
+ * the nav wrapped onto two lines, the badge became a three-line pill, the
+ * viewer's name was truncated mid-word and the whole document gained a 36px
+ * horizontal scrollbar. This is the state that was missing.
+ */
+@media (max-width: 80rem) {
+  .iris-top {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "brand ambient"
+      "nav   nav";
+    row-gap: 0.5rem;
+    padding-inline: 1.25rem;
   }
 
-  .iris-matrix[data-columns="6"] .iris-matrix-head > :nth-child(n + 5),
-  .iris-matrix[data-columns="6"] .iris-matrix-row > :nth-child(n + 5) {
+  .iris-brand {
+    grid-area: brand;
+  }
+
+  .iris-ambient {
+    grid-area: ambient;
+    justify-self: end;
+    min-width: 0;
+  }
+
+  /* The section rail gets a full row, so its labels never wrap. */
+  .iris-top .iris-nav {
+    grid-area: nav;
+    justify-self: stretch;
+    padding: 0;
+    border-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .iris-top .iris-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iris-nav a {
+    white-space: nowrap;
+  }
+
+  /* Identity is the first thing to go: the role is on the title attribute. */
+  .iris-ambient > .iris-code {
     display: none;
   }
 }
@@ -1718,7 +1977,9 @@
   top: 2rem;
   right: 1.75rem;
   color: var(--ink-3);
-  transition: transform var(--fast) var(--ease), color var(--fast) var(--ease);
+  transition:
+    transform var(--fast) var(--ease),
+    color var(--fast) var(--ease);
 }
 
 .iris-door:hover .iris-door-go {
@@ -1937,7 +2198,11 @@
 }
 
 .iris-subnav-item {
-  padding: 0.25rem 0.625rem;
+  /* 30px was below a comfortable pointer target, and far below a thumb's. */
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
   border-radius: 999px;
   color: var(--ink-3);
   font-size: 0.75rem;
@@ -1970,4 +2235,66 @@
   .iris-subnav-item {
     white-space: nowrap;
   }
+}
+
+/* --- the shape a surface reserves while it loads ----------------------------- */
+
+/*
+ * Geometry, not decoration.
+ *
+ * The skeleton's job is to be the same size as what replaces it. These blocks
+ * are measured against the real surfaces: a three-figure row and two
+ * analytical bands is the shape every view arrives in.
+ */
+.iris-load-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1.5rem;
+  max-width: 46rem;
+  margin-top: 0.5rem;
+}
+
+.iris-load-figure {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.iris-load-band {
+  height: 19rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    100deg,
+    rgb(255 255 255 / 3%) 30%,
+    rgb(255 255 255 / 6%) 50%,
+    rgb(255 255 255 / 3%) 70%
+  );
+  background-size: 220% 100%;
+  animation: iris-load-sweep 1.6s linear infinite;
+}
+
+.iris-load-band[data-short="true"] {
+  height: 11rem;
+}
+
+@keyframes iris-load-sweep {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+/*
+ * A reader who has asked for less motion still gets the shape.
+ *
+ * The reserved space is the useful part; the sweep is not.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .iris-load-band {
+    animation: none;
+  }
+}
+
+/* The lane is focusable, so it has to show that it is. */
+.iris-dna-track:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }

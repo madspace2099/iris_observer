@@ -86,6 +86,11 @@ on size.
 
 ## 5. Addendum — the profile picker and the assistant's name
 
+> **The picker is no longer the way in.** Observer's front door is the account sign-in, and the
+> screen after it is `/projects`. This section records which Figma nodes the picker adopted and is
+> kept for that reason; the component now lives only in the design laboratory. See
+> `docs/14-design-system.md` §9.
+
 Added after the file `IRIS sales user login.fig` was supplied with the instruction to reuse as many
 existing UI elements as possible rather than to invent new ones.
 

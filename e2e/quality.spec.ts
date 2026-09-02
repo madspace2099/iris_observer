@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The checks that keep M2.1's corrections from regressing.
@@ -7,16 +8,6 @@ import { expect, test, type Page } from "@playwright/test";
  * screen. Each of these was wrong once; each is now a test.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: name })
-    .getByRole("button", { name: "Continue" })
-    .click();
-  // The front door is the Showroom overview since ADR-0023.
-  await page.waitForURL(/\/showroom/);
-}
 
 test.describe("typography", () => {
   test("actually renders in Manrope, not the system fallback", async ({ page }) => {
@@ -69,7 +60,12 @@ test.describe("session boundary", () => {
     ]);
     await page.goto("/alpha/northgate/showroom");
     await page.waitForURL(/\/sign-in/);
-    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    // What arrives is the account sign-in — a credential form, not a list of
+    // people to pick from. A forged cookie lands exactly where an anonymous
+    // reader lands, with no shortcut past it and no profile step behind it.
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.getByLabel("Work email address")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
   });
 
   /*
@@ -121,9 +117,22 @@ test.describe("session boundary", () => {
     await page.waitForURL(/\/sign-in/);
   });
 
-  test("calls itself a scenario selector, not authentication", async ({ page }) => {
+  test("says it is a demonstration without explaining its own implementation", async ({ page }) => {
     await page.goto("/sign-in");
-    await expect(page.getByText(/not production authentication/i)).toBeVisible();
+
+    /*
+     * The status must be clear; the mechanism is not the reader's problem.
+     *
+     * "This is a scenario selector, not production authentication" told a
+     * developer in a consultation that they were looking at scaffolding. The
+     * demonstration status is still stated — it has to be — in product
+     * language: what the data is, and that the addresses on the screen are not
+     * credentials for anything real.
+     */
+    await expect(page.getByText(/synthetic data/i).first()).toBeVisible();
+    await expect(page.getByText(/not credentials for anything real/i)).toBeVisible();
+    await expect(page.getByText(/not production authentication/i)).toHaveCount(0);
+    await expect(page.getByText(/scenario selector/i)).toHaveCount(0);
   });
 });
 
@@ -169,7 +178,14 @@ test.describe("the ten-second test", () => {
     const info = page.locator(".iris-home-figures .iris-measure-info");
     await expect(info.first()).toBeVisible();
     await info.first().click();
-    const panel = page.getByRole("note").first();
+    /*
+     * Scoped to the figures, not to "the first note on the page".
+     *
+     * A deployment with no model key renders a second `role="note"` — the
+     * voice notice — above these, and the unscoped locator picked that up. The
+     * assertion is about the panel this button opened, so it says so.
+     */
+    const panel = page.locator(".iris-home-figures .iris-measure-panel").first();
     await expect(panel).toContainText("What it measures");
     await expect(panel).toContainText("What it does not say");
   });
@@ -295,5 +311,32 @@ test.describe("the chart vocabulary", () => {
       // surface on it scroll sideways too.
       expect(overflow, `${path} overflows by ${overflow}px`).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+test.describe("one label, one window", () => {
+  /*
+   * The Sales Flow page carries a rolling summary window above calendar
+   * buckets. Both used the same words: "This month: 41" in the summary and
+   * "This month: 32" in the chart, three inches apart, both correct and
+   * neither reconcilable by the reader.
+   *
+   * The rolling windows now say how long they are. This asserts that no
+   * duration word appears twice on the page meaning two different spans.
+   */
+  test("the summary window never borrows a calendar bucket's name", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow");
+
+    const windowLabels = await page.locator(".iris-window .iris-chip").allInnerTexts();
+    const bucketLabels = await page.locator(".iris-step-label").allInnerTexts();
+
+    const normalise = (s: string) => s.trim().toLowerCase();
+    const windows = new Set(windowLabels.map(normalise).filter((s) => s.length > 0));
+    const buckets = new Set(bucketLabels.map(normalise).filter((s) => s.length > 0));
+
+    // "Today" is the one word that means the same thing in both, and does.
+    const shared = [...windows].filter((w) => buckets.has(w) && w !== "today");
+    expect(shared, `both a rolling window and a calendar bucket are called: ${shared.join(", ")}`).toEqual([]);
   });
 });
