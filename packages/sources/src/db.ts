@@ -159,6 +159,27 @@ export interface StoredEventRow {
 }
 
 /**
+ * One project an account holds, with the rollups an operations list needs.
+ *
+ * The counts come from one scan of that account's sources, so they cannot
+ * disagree with each other. `source_count` is zero — not one — for a project
+ * with no sources, which is the state this row exists to make visible: every
+ * other read in this port enumerates sources, so a project created moments
+ * before a process died was invisible to all of them.
+ */
+export interface ProjectSummaryRow {
+  readonly project_id: string;
+  readonly name: string;
+  readonly slug: string | null;
+  readonly status: string;
+  readonly created_at: Instant;
+  readonly source_count: number;
+  readonly connected_count: number;
+  readonly verified_count: number;
+  readonly last_activity_at: Instant | null;
+}
+
+/**
  * A source's operational state — what a heartbeat writes and Admin reads.
  *
  * Two fields carry a distinction the milestone insists on and which nothing
@@ -265,6 +286,9 @@ export interface ObserverDb {
     readonly state: string;
   }): Promise<boolean>;
 
+  /** Every project this account holds, most recently active first. */
+  projectsForAccount(account: string): Promise<readonly ProjectSummaryRow[]>;
+
   sourceStatus(input: {
     readonly account: string;
     readonly project: string;
@@ -355,6 +379,7 @@ export interface ObserverDb {
  */
 export const FACADE_NAMES = [
   "observer_project_create",
+  "observer_projects_for_account",
   "observer_source_create",
   "observer_source_set_state",
   "observer_source_status",

@@ -1,6 +1,13 @@
 import { ENVIRONMENTS } from "@observer/contracts/ue5";
 
-import type { Instant, ObserverDb, SourceOperationsRow, SourceStatusRow } from "./db";
+import type {
+  CredentialStatusRow,
+  ProjectSummaryRow,
+  Instant,
+  ObserverDb,
+  SourceOperationsRow,
+  SourceStatusRow,
+} from "./db";
 import type { Clock } from "./http";
 import { issueActivationCode as mintActivationCode, type EnvSource } from "./secrets";
 
@@ -313,10 +320,31 @@ export interface ObserverAdmin {
   resumeSource(input: SourceInput): Promise<AdminResult<null>>;
   archiveSource(input: SourceInput): Promise<AdminResult<null>>;
   revokeCredential(input: SourceInput): Promise<AdminResult<null>>;
+  /**
+   * Every project this account holds, with its source rollups.
+   *
+   * The only read that can see a project holding no sources — every other one
+   * enumerates sources, so a project created moments before a process died was
+   * invisible to all of them and had to be remembered in a file instead.
+   */
+  projectsForAccount(input: {
+    readonly account: string;
+  }): Promise<AdminResult<readonly ProjectSummaryRow[]>>;
+
   sourceStatus(input: ProjectScopeInput): Promise<AdminResult<readonly SourceStatusRow[]>>;
   sourceOperations(
     input: OperationsScopeInput,
   ): Promise<AdminResult<readonly SourceOperationsRow[]>>;
+  /**
+   * The credential's lifecycle, metadata only.
+   *
+   * This is the authoritative answer to "is this source ACTIVATED", and it
+   * exists because the alternative was worse: an operations screen with no
+   * credential read has to infer activation from a heartbeat or an ingestion,
+   * which collapses three independent states into two and hides the case the
+   * operator most needs — activated, and never heard from since.
+   */
+  credentialStatus(input: SourceInput): Promise<AdminResult<CredentialStatusRow | null>>;
 }
 
 /**
@@ -516,6 +544,12 @@ export function observerAdmin(deps: AdminDeps): ObserverAdmin {
       return revoked ? succeed(null) : refuse<null>("unknown_source", "source");
     },
 
+    async projectsForAccount(input) {
+      const problem = badAccount(input.account);
+      if (problem !== null) return { ok: false, refusal: problem };
+      return succeed(await db.projectsForAccount(input.account));
+    },
+
     async sourceStatus(input) {
       const problem = firstProblem([
         badAccount(input.account),
@@ -540,6 +574,25 @@ export function observerAdmin(deps: AdminDeps): ObserverAdmin {
       if (problem !== null) return { ok: false, refusal: problem };
 
       return succeed(await db.sourceOperations({ account: input.account, project: input.project }));
+    },
+
+    async credentialStatus(input) {
+      const problem = firstProblem([
+        badAccount(input.account),
+        badIdentifier(input.source, "source"),
+      ]);
+      if (problem !== null) return { ok: false, refusal: problem };
+
+      /*
+       * Null for a source that has never been activated, and null for a source
+       * belonging to somebody else. The same answer on purpose: a read must not
+       * become the way one account learns another's source exists.
+       *
+       * Metadata only. The facade returns lifecycle timestamps and a state; the
+       * verifier is not among its columns and there is no code path from here
+       * to one.
+       */
+      return succeed(await db.credentialStatus({ account: input.account, source: input.source }));
     },
   };
 }

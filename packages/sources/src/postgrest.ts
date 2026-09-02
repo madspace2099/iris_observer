@@ -42,6 +42,7 @@
  */
 
 import type {
+  ProjectSummaryRow,
   ActivationConsumeRow,
   CredentialResolveRow,
   CredentialStatusRow,
@@ -347,6 +348,12 @@ export function postgrestDb(config: PostgrestConfig): ObserverDb {
         isBoolean,
         "a boolean",
       );
+    },
+
+    projectsForAccount(account: string): Promise<readonly ProjectSummaryRow[]> {
+      return callRows<ProjectSummaryRow>(config, "observer_projects_for_account", {
+        p_account: account,
+      });
     },
 
     sourceStatus(input: {

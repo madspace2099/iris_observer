@@ -1,4 +1,5 @@
 import type {
+  ProjectSummaryRow,
   ActivationConsumeRow,
   CredentialResolveRow,
   CredentialStatusRow,
@@ -189,6 +190,11 @@ export function pgliteDb(query: SqlQuery): ObserverDb {
         input.source,
         input.state,
       ]),
+
+    projectsForAccount: async (account) =>
+      (await callTable(query, "observer_projects_for_account", "$1", [
+        account,
+      ])) as readonly ProjectSummaryRow[],
 
     sourceStatus: async (input) =>
       (await callTable(query, "observer_source_status", "$1, $2", [
