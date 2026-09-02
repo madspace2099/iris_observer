@@ -6,6 +6,7 @@ import {
 } from "./activation";
 import {
   BatchEnvelopeSchema,
+  BatchFrameSchema,
   BatchResponseSchema,
   EventEnvelopeSchema,
   EventResultSchema,
@@ -15,7 +16,12 @@ import { HeartbeatRequestSchema, HeartbeatResponseSchema } from "./heartbeat";
 import { DiagnosticTestPropertiesSchema } from "./diagnostic";
 import { LimitsSchema } from "./limits";
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "./errors";
-import { UE5_CONTRACT_STATUS, UE5_CONTRACT_VERSION } from "./wire";
+import {
+  OBSERVER_ROUTE_NAMES,
+  OBSERVER_ROUTE_PREFIX,
+  UE5_CONTRACT_STATUS,
+  UE5_CONTRACT_VERSION,
+} from "./wire";
 
 /**
  * THE OPENAPI 3.1 DESCRIPTION, BUILT FROM THE SCHEMAS RATHER THAN BESIDE THEM.
@@ -33,7 +39,7 @@ import { UE5_CONTRACT_STATUS, UE5_CONTRACT_VERSION } from "./wire";
  * for the measurement matrix.
  */
 
-const SERVER_PLACEHOLDER = "https://{projectRef}.supabase.co/functions/v1";
+const SERVER_PLACEHOLDER = `https://{projectRef}.supabase.co${OBSERVER_ROUTE_PREFIX}`;
 
 function jsonSchema(schema: z.ZodType): Record<string, unknown> {
   const generated = z.toJSONSchema(schema, {
@@ -54,6 +60,16 @@ export const COMPONENT_SCHEMAS: Readonly<Record<string, z.ZodType>> = Object.fre
   Limits: LimitsSchema,
   EventEnvelope: EventEnvelopeSchema,
   BatchEnvelope: BatchEnvelopeSchema,
+  /**
+   * Published deliberately, and it is not the same shape as `BatchEnvelope`.
+   *
+   * The server parses the frame FIRST — `batch_id`, `sent_at`, and events as
+   * loose objects carrying only `event_id` — so that one malformed event cannot
+   * turn a processable batch into a whole-request `400`. An implementer building
+   * from `openapi.json` who only sees `BatchEnvelope` would parse strictly and
+   * lose per-event results for the entire batch.
+   */
+  BatchFrame: BatchFrameSchema,
   EventResult: EventResultSchema,
   BatchResponse: BatchResponseSchema,
   RequestFailureBody: RequestFailureBodySchema,
@@ -118,7 +134,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
       },
     ],
     paths: {
-      "/observer-activate": {
+      [OBSERVER_ROUTE_NAMES.activate]: {
         post: {
           tags: ["activation"],
           operationId: "activateSource",
@@ -142,16 +158,12 @@ export function buildOpenApiDocument(): Record<string, unknown> {
                 "The code could not be used. Unknown, expired and consumed are indistinguishable.",
               ...json("ActivationFailure"),
             },
-            "409": {
-              description: "This installation already has a live source. No token is issued.",
-              ...json("ActivationFailure"),
-            },
             "429": { description: "Rate limited.", ...json("ActivationFailure") },
             "503": { description: "Temporarily unavailable.", ...json("ActivationFailure") },
           },
         },
       },
-      "/observer-ingest": {
+      [OBSERVER_ROUTE_NAMES.ingest]: {
         post: {
           tags: ["ingestion"],
           operationId: "ingestBatch",
@@ -193,7 +205,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
-      "/observer-heartbeat": {
+      [OBSERVER_ROUTE_NAMES.heartbeat]: {
         post: {
           tags: ["diagnostics"],
           operationId: "heartbeat",

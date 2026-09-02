@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { MockObserverBackend, MockOutcome } from "./backend";
+import { OBSERVER_ROUTES } from "@observer/contracts/ue5";
 
 /**
  * AN HTTP SKIN OVER THE REFERENCE BACKEND. MOCK-ONLY.
@@ -31,11 +32,12 @@ export interface MockServer {
   close(): Promise<void>;
 }
 
-const ROUTES = {
-  activate: "/functions/v1/observer-activate",
-  ingest: "/functions/v1/observer-ingest",
-  heartbeat: "/functions/v1/observer-heartbeat",
-} as const;
+/**
+ * Imported, not restated. These path strings used to be written here as well as
+ * inside `buildOpenApiDocument()`, which is one fact in two places — and the one
+ * place a divergence would show up is a deployment, not a test.
+ */
+const ROUTES = OBSERVER_ROUTES;
 
 export async function startMockServer(backend: MockObserverBackend, port = 0): Promise<MockServer> {
   const server = createServer((request, response) => {
@@ -122,11 +124,24 @@ async function handle(
 
 function readBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
-    let body = "";
+    const chunks: Buffer[] = [];
     let bytes = 0;
-    request.setEncoding("utf8");
-    request.on("data", (chunk: string) => {
-      bytes += chunk.length;
+    /*
+     * BYTES, NOT CHARACTERS — and the difference is not pedantry.
+     *
+     * This used to call `setEncoding("utf8")` and accumulate `chunk.length`,
+     * which counts UTF-16 code units, against a ceiling named in bytes. Every
+     * non-ASCII character in a payload is then undercounted: a body of Hungarian
+     * or Japanese property values passes a limit it exceeds, and — worse for the
+     * contract — a client computing `max_batch_bytes` in real UTF-8 and a server
+     * checking code units disagree about whether the same batch fits.
+     *
+     * `serialisedBytes()` in `ingestion.ts` counts real UTF-8. This now agrees
+     * with it. Any adapter copying this function inherits the agreement rather
+     * than the bug.
+     */
+    request.on("data", (chunk: Buffer) => {
+      bytes += chunk.byteLength;
       /* A hard ceiling before anything is parsed. The harness is not a target,
        * but a mock that can be exhausted by one request is a mock that will be. */
       if (bytes > 32 * 1_024 * 1_024) {
@@ -134,9 +149,9 @@ function readBody(request: IncomingMessage): Promise<string> {
         reject(new Error("body too large"));
         return;
       }
-      body += chunk;
+      chunks.push(chunk);
     });
-    request.on("end", () => resolve(body));
+    request.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     request.on("error", reject);
   });
 }

@@ -156,6 +156,47 @@ export const EventNameSchema = z
  */
 export const CorrelationIdSchema = z.uuid();
 
+/* ================================================================ routes */
+
+/**
+ * THE V1 ROUTE PATHS, IN ONE PLACE.
+ *
+ * They lived as literals inside `buildOpenApiDocument()` and again as a separate
+ * `ROUTES` const in the reference server — one fact in two places, where the
+ * only place a divergence surfaces is a deployment rather than a test. A third
+ * implementation had no way to reach either.
+ *
+ * Two forms, because two callers need different things and deriving one from the
+ * other is what keeps them honest:
+ *
+ *   `OBSERVER_ROUTE_NAMES`  the OpenAPI path keys, relative to the server URL,
+ *                           which already carries the prefix.
+ *   `OBSERVER_ROUTES`       absolute paths, which is what an HTTP adapter
+ *                           actually dispatches on.
+ *
+ * The `/functions/v1` prefix is part of the path, not decoration: it is where a
+ * Supabase Edge Function is served from, so a local adapter that drops it passes
+ * its own tests and fails against a deployment. The names are backend-owned
+ * (`PD-13`); the UE side reads them from Project Settings and never hard-codes
+ * them.
+ */
+export const OBSERVER_ROUTE_PREFIX = "/functions/v1" as const;
+
+export const OBSERVER_ROUTE_NAMES = Object.freeze({
+  activate: "/observer-activate",
+  ingest: "/observer-ingest",
+  heartbeat: "/observer-heartbeat",
+} as const);
+
+export const OBSERVER_ROUTES = Object.freeze({
+  activate: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.activate}`,
+  ingest: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.ingest}`,
+  heartbeat: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.heartbeat}`,
+} as const);
+
+export type ObserverRouteKey = keyof typeof OBSERVER_ROUTES;
+export type ObserverRoute = (typeof OBSERVER_ROUTES)[ObserverRouteKey];
+
 /* ============================================================ metadata */
 
 /**
