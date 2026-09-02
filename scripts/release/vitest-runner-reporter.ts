@@ -341,6 +341,7 @@ export const PGLITE_SUITES: readonly string[] = [
   "http-proof.test.ts",
   "model-budget-grants.test.ts",
   "pglite-lifecycle.test.ts",
+  "source-operations.test.ts",
   "source-spine-grants.test.ts",
 ];
 
