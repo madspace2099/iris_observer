@@ -331,7 +331,9 @@ export function summarizeUnhandled(errors: readonly unknown[]): UnhandledSummary
  * `pglite-lifecycle.test.ts` is included — it opens real instances too.
  */
 export const PGLITE_SUITES: readonly string[] = [
+  "activation-credential.test.ts",
   "ai-readiness.test.ts",
+  "analytics-events.test.ts",
   "audit-contract.test.ts",
   "contract-readiness.test.ts",
   "credential-grants.test.ts",
@@ -339,6 +341,7 @@ export const PGLITE_SUITES: readonly string[] = [
   "http-proof.test.ts",
   "model-budget-grants.test.ts",
   "pglite-lifecycle.test.ts",
+  "source-spine-grants.test.ts",
 ];
 
 /** True when a Vitest module is one of {@link PGLITE_SUITES}. */
