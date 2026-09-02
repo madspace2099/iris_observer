@@ -85,18 +85,62 @@ const REFERENCE_ROUTES: readonly string[] = [
   "/[tenantSlug]/[projectSlug]/overview",
 ];
 
+/**
+ * Routes this repository has added since the reference, each one on purpose.
+ *
+ * The assertion below used to say the application serves the reference set and
+ * nothing else, on the true observation that there were no extra routes yet.
+ * There are now, and the guarantee worth keeping is not "no new routes" — it is
+ * "no route arrives without somebody writing it down". So a new surface is
+ * declared here, with its reason, and an undeclared one still fails exactly as
+ * the generic demo creeping back would.
+ */
+const ADDED_SINCE_REFERENCE: readonly string[] = [
+  /*
+   * The MADSPACE operations surface. Not customer product: it answers whether
+   * an installation is activated, connected and delivering, and it is gated to
+   * `madspace_admin` in `SURFACES` and again in each page.
+   */
+  "/madspace/projects",
+  "/madspace/projects/new",
+  "/madspace/projects/[projectId]",
+  "/madspace/projects/[projectId]/sources/new",
+  "/madspace/sources/[sourceId]",
+  "/madspace/diagnostics",
+
+  /*
+   * Ask IRIS — the approved design's flagship, at a real URL and under review.
+   * It renders the new shell against the real read model without disturbing the
+   * surfaces above, which is what lets both exist while the design is judged.
+   */
+  "/iris/[tenantSlug]/[projectSlug]",
+];
+
 describe("every route the reference served is still served", () => {
   it.each(REFERENCE_ROUTES)("serves %s", (route) => {
     expect(routes).toContain(route);
   });
 
-  it("serves nothing the reference did not, beyond declared API handlers", () => {
+  it("serves nothing undeclared, beyond declared API handlers", () => {
     /*
-     * A page route that is not in the reference is either a deliberate later
-     * surface or the generic demo creeping back. There are none, and this is
-     * what keeps it that way.
+     * A page route that is in neither list is either an accident or the generic
+     * demo creeping back. Both fail here, and the failure names the file: the
+     * fix is to add it to `ADDED_SINCE_REFERENCE` with the reason it exists, or
+     * to delete it.
      */
-    expect([...routes].sort()).toEqual([...REFERENCE_ROUTES].sort());
+    const declared = [...REFERENCE_ROUTES, ...ADDED_SINCE_REFERENCE].sort();
+    expect([...routes].sort()).toEqual(declared);
+  });
+
+  it("declares no route twice, and none it does not serve", () => {
+    /*
+     * The companion property. Without it the list above could accumulate names
+     * of routes that were deleted, or the same route in both lists, and go on
+     * passing — a route inventory that is wrong in the quiet direction.
+     */
+    const declared = [...REFERENCE_ROUTES, ...ADDED_SINCE_REFERENCE];
+    expect(declared.filter((r, i) => declared.indexOf(r) !== i)).toEqual([]);
+    expect(ADDED_SINCE_REFERENCE.filter((r) => !routes.includes(r))).toEqual([]);
   });
 });
 

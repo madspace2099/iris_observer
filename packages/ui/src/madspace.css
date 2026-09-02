@@ -114,6 +114,11 @@
   font-weight: var(--weight-semibold);
 }
 
+/* Same `dd` indent as the tally, same reset — see `.mad-tally-item dd`. */
+.mad-meta-item dd {
+  margin: 0;
+}
+
 .mad-meta-value {
   font-size: var(--text-md);
   line-height: var(--text-md-lh);
@@ -283,6 +288,23 @@ a.mad-row:focus-visible {
   flex-direction: column;
   gap: var(--space-1);
   min-width: 6rem;
+}
+
+/*
+ * The figure sits under its own label.
+ *
+ * A tally item is `<dd>` then `<dt>`, and every browser gives `dd` a
+ * 40px `margin-inline-start` — so on the projects list, project detail and
+ * source detail alike, every figure was indented 40px past the label naming it
+ * while the labels stayed on the true left edge. Measured rather than guessed:
+ * each item reported `itemLeft` 880 and `valueLeft` 920.
+ *
+ * It read as a small raggedness with numbers and became obvious the moment a
+ * value was a word. `.mad-meta--tallies` already carried this reset for its own
+ * `dd`; the vocabulary the three head blocks actually use never got it.
+ */
+.mad-tally-item dd {
+  margin: 0;
 }
 
 .mad-tally-value {
@@ -705,4 +727,1328 @@ a.mad-row:focus-visible {
   .mad-row--source {
     grid-template-columns: minmax(14rem, 2fr) minmax(0, 2fr) minmax(11rem, auto);
   }
+}
+
+/* ============================================== the lifecycle driver ======== */
+
+/**
+ * Development only, and it should look it.
+ *
+ * Deliberately quieter than everything around it: a dashed rule rather than a
+ * solid plane, no accent, no elevation. It is scaffolding standing beside the
+ * real screen, and the moment it reads as part of the product somebody will
+ * expect to find it in a deployment.
+ */
+.mad-driver {
+  margin-top: var(--space-7);
+  padding: var(--space-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 1.5%);
+}
+
+.mad-driver-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.mad-driver-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--text-tertiary);
+}
+
+.mad-driver-note {
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  color: var(--text-secondary);
+}
+
+.mad-driver-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.mad-driver-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease-out,
+    background 160ms ease-out;
+}
+
+.mad-driver-step:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-panel);
+}
+
+.mad-driver-step:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.mad-driver-step-label {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.mad-driver-step-detail {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+}
+
+.mad-driver-said {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  color: var(--text-tertiary);
+}
+
+.mad-driver-said[data-tone="good"] {
+  color: var(--verdict-good);
+}
+
+.mad-driver-said[data-tone="weak"] {
+  color: var(--verdict-weak);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mad-driver-step {
+    transition: none;
+  }
+}
+
+/* --- registration forms ------------------------------------------------------------ */
+
+/*
+ * THE TWO CREATION FLOWS, AND WHY THEY ARE A COLUMN.
+ *
+ * A form is the easiest surface in this product to make ugly, and the failure
+ * mode is always the same one: fields laid into a two- or three-column grid
+ * because the viewport happened to be wide. A registration form is a sequence
+ * of decisions — name it, say what it is, say where it runs — and a reader who
+ * has to scan horizontally to find the next decision loses the sequence. So:
+ * one column, always, capped at a comfortable measure, and the width of the
+ * page is spent on the explanation beside each field rather than on a second
+ * column of fields.
+ *
+ * The controls are the only place on this surface with a visible box, and that
+ * is not a contradiction of the no-cards rule at the top of this sheet. A card
+ * is a container invented for a fact that did not need one; an input's border
+ * is the affordance that says a value goes here. The screens either side of
+ * these forms have no boxes at all, which is exactly what makes the boxed
+ * things here read unmistakably as the things you type into.
+ */
+
+.mad-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  /*
+   * 46rem, not the plane's full width. A text input stretched across a 1440
+   * viewport looks like it wants a paragraph, and the operator types eleven
+   * characters into it. The measure states the expected size of the answer.
+   */
+  max-width: 46rem;
+}
+
+.mad-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/*
+ * A real <label for>, and the radio group's <legend>, share one appearance.
+ * They make the same promise to the reader — this names the control below it —
+ * and a legend that looked different would read as a section heading instead.
+ */
+.mad-field-label {
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  padding: 0;
+}
+
+/*
+ * The sentence that says what the field is FOR, above the control rather than
+ * below it. Below, it is read after the answer has already been typed, which is
+ * too late to have helped.
+ */
+.mad-field-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  max-width: 72ch;
+  text-wrap: pretty;
+}
+
+.mad-input {
+  width: 100%;
+  /*
+   * 3rem. The operations rows above are deliberately dense; a field is not.
+   * This is the one place an operator is being asked to do something rather
+   * than read something, and the target should be unmistakable on a laptop
+   * trackpad in a site office.
+   */
+  min-height: 3rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.mad-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.mad-input:hover {
+  border-color: var(--text-tertiary);
+}
+
+.mad-input:focus-visible {
+  border-color: var(--iris-accent);
+  background: var(--surface-panel);
+}
+
+/* A fact stated where a control would be, because there is nothing to choose. */
+.mad-stated {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--iris-accent);
+  background: var(--surface-raised);
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+/* --- a choice between named options ------------------------------------------------ */
+
+.mad-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+/*
+ * Radios in a ruled stack rather than a select.
+ *
+ * The four environments are not interchangeable words: each one changes what
+ * every event from that source means for the rest of its life, and each needs a
+ * sentence the operator reads BEFORE choosing. A <select> hides every option
+ * but one and has nowhere to put those sentences.
+ */
+.mad-choices {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.mad-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) var(--space-4);
+  min-height: 3rem;
+  cursor: pointer;
+  background: var(--surface-raised);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.mad-choice + .mad-choice {
+  border-top: 1px solid var(--line-subtle);
+}
+
+.mad-choice:hover {
+  background: var(--surface-overlay);
+}
+
+.mad-choice input {
+  /*
+   * The browser's own radio. A drawn one loses the platform's focus ring and
+   * its forced-colours behaviour, and this is a control that must stay
+   * operable rather than one that must look bespoke.
+   */
+  margin: 0;
+  accent-color: var(--iris-accent);
+  width: 1rem;
+  height: 1rem;
+  align-self: center;
+}
+
+.mad-choice-name {
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.mad-choice-detail {
+  grid-column: 2;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.mad-choice:has(input:checked) {
+  background: var(--surface-overlay);
+  box-shadow: inset 2px 0 0 var(--iris-accent);
+}
+
+.mad-choice:has(input:focus-visible) {
+  background: var(--surface-overlay);
+  outline: 2px solid var(--iris-accent);
+  outline-offset: -2px;
+}
+
+/* --- refusals ---------------------------------------------------------------------- */
+
+/*
+ * The refusal sits beside the field it belongs to, and it is a sentence.
+ *
+ * The rail is the only decoration: the colour agrees with the words rather than
+ * carrying them, so the message is still legible as a refusal with every hue
+ * removed.
+ */
+.mad-field-error {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--verdict-weak);
+  color: var(--verdict-weak);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  max-width: 72ch;
+}
+
+/* A refusal that belongs to the whole form rather than to any one field. */
+.mad-form-problem {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--verdict-weak);
+  background: var(--verdict-weak-wash);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
+.mad-field[data-invalid="true"] .mad-input,
+.mad-fieldset[data-invalid="true"] .mad-choices {
+  border-color: var(--verdict-weak);
+}
+
+/* --- committing -------------------------------------------------------------------- */
+
+/*
+ * One primary action and one quiet way out, on a ruled band.
+ *
+ * The rule is what separates deciding from committing. Cancel is a link and
+ * looks like one: two buttons of equal weight side by side is how an operator
+ * creates the project they meant to abandon.
+ */
+.mad-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line-subtle);
+}
+
+.mad-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-6);
+  border: 1px solid var(--iris-accent);
+  border-radius: var(--radius-md);
+  background: var(--iris-accent);
+  color: var(--text-inverse);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--text-md-lh);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.mad-submit:hover:not(:disabled) {
+  background: var(--iris-accent-strong);
+  border-color: var(--iris-accent-strong);
+}
+
+/*
+ * The submitting state is visible, not merely inert.
+ *
+ * `disabled` on its own is how a form gets double-fired anyway: the operator
+ * sees nothing change, presses Enter, and the browser posts a second time. The
+ * button says what it is doing, and that label change is the acknowledgement.
+ */
+.mad-submit:disabled {
+  cursor: progress;
+  background: var(--surface-overlay);
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+.mad-quiet {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  font-weight: var(--weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  text-decoration-color: var(--line-strong);
+}
+
+.mad-quiet:hover {
+  color: var(--text-primary);
+  text-decoration-color: var(--text-tertiary);
+}
+
+/* --- operator controls ------------------------------------------------------------- */
+
+/*
+ * The vocabulary for DOING something, added when the operations stopped being
+ * described and started being performed.
+ *
+ * The note above `.mad-ops` said a control that does nothing is worse than no
+ * control, which was true while there was no action module. There is one now,
+ * so what this block has to get right is the other half of the same argument:
+ * a control that does something IRREVERSIBLE must not look like the one beside
+ * it that does not.
+ *
+ * Hence one button shape and four weights, and the escalation is deliberate.
+ * Suspend is a plain control because it is a switch. Archive is marked on the
+ * page — its word in the refusal colour, nothing filled — and only the
+ * CONFIRMING button inside the terminal dialog is filled, at the one moment the
+ * operator has read what it does and is about to do it. Painting Suspend red
+ * would teach an operator that the red ones are routine, which is exactly the
+ * training that makes the terminal one dangerous.
+ */
+
+:root {
+  /*
+   * The activation code's face. A system stack rather than a webfont: no
+   * monospace is self-hosted yet, and a code is read character by character —
+   * pulling one over the network would mean the single value on this surface
+   * that must be transcribed exactly is the one rendered in a fallback while
+   * it loads.
+   */
+  --mad-font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+.mad-actionbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.mad-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.mad-action:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-overlay);
+}
+
+/*
+ * Busy, said two ways.
+ *
+ * `aria-disabled` rather than `disabled` wherever a control is temporarily
+ * working: a disabled element cannot hold focus, so disabling the button the
+ * operator has just pressed throws their focus to `<body>` mid-operation and
+ * the dialog that follows has nothing to return them to. The guard lives in the
+ * handler; this only makes the state visible.
+ */
+.mad-action:disabled,
+.mad-action[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* The intended action: issuing a code, and confirming a reversible operation. */
+.mad-action[data-weight="primary"],
+.mad-action[data-weight="confirm"] {
+  background: var(--iris-accent);
+  border-color: var(--iris-accent);
+  color: var(--text-inverse);
+}
+
+.mad-action[data-weight="primary"]:hover:not(:disabled):not([aria-disabled="true"]),
+.mad-action[data-weight="confirm"]:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--iris-accent-strong);
+  border-color: var(--iris-accent-strong);
+}
+
+/*
+ * Archive, on the page. Marked but not filled: the word carries the meaning and
+ * the colour agrees with it, which is the rule this whole surface is built on.
+ */
+.mad-action[data-weight="terminal-quiet"] {
+  color: var(--verdict-weak);
+  border-color: color-mix(in srgb, var(--verdict-weak) 45%, transparent);
+}
+
+.mad-action[data-weight="terminal-quiet"]:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--verdict-weak-wash);
+  border-color: var(--verdict-weak);
+}
+
+/* Archive, inside its own dialog, after the consequences have been read. */
+.mad-action[data-weight="terminal"] {
+  background: var(--verdict-weak);
+  border-color: var(--verdict-weak);
+  color: var(--text-inverse);
+}
+
+.mad-action[data-weight="terminal"]:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--verdict-weak) 86%, #fff);
+}
+
+.mad-action-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+/*
+ * What just happened, in a sentence, in a live region that is always present.
+ *
+ * `min-height` so the layout does not jump when the first answer arrives, and
+ * the tone only ever agrees with words that are already there — an empty region
+ * is a quiet one, never a coloured bar meaning something on its own.
+ */
+.mad-said {
+  margin: 0;
+  min-height: var(--text-sm-lh);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  color: var(--text-secondary);
+  max-width: 72ch;
+  text-wrap: pretty;
+}
+
+.mad-said[data-tone="good"] {
+  color: var(--verdict-good);
+}
+
+.mad-said[data-tone="weak"] {
+  color: var(--verdict-weak);
+}
+
+.mad-issue,
+.mad-lifecycle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* --- the modal ---------------------------------------------------------------------- */
+
+/*
+ * A real `<dialog>` in the top layer, so the panel below is chrome rather than
+ * machinery: the inertness, the focus trap and the Escape key are the
+ * platform's, and nothing here reimplements them.
+ *
+ * The element itself is stripped to nothing and the visible panel is its child,
+ * because a `<dialog>` carries a UA border, padding and background that would
+ * otherwise have to be fought at every breakpoint.
+ */
+.mad-dialog {
+  inset: 0;
+  margin: auto;
+  width: min(38rem, calc(100vw - 2rem));
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  overflow: visible;
+}
+
+.mad-dialog::backdrop {
+  /* The ground the surface already stands on, made nearly opaque. Not a blur:
+     a frosted backdrop is decoration, and it leaves the text behind legible
+     enough to keep reading — the opposite of what a modal is for. */
+  background: color-mix(in srgb, var(--surface-base) 84%, transparent);
+}
+
+.mad-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(85vh, 46rem);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.mad-dialog-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.mad-dialog-kicker {
+  margin: 0;
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-dialog-title {
+  margin: 0;
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.mad-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow-y: auto;
+}
+
+.mad-dialog-line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+/*
+ * The single strongest treatment on the surface, and it appears in exactly one
+ * place: the sentence saying an operation cannot be undone.
+ */
+.mad-dialog-terminal {
+  margin: 0;
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--verdict-weak);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  font-weight: var(--weight-medium);
+  max-width: 62ch;
+}
+
+.mad-dialog .mad-said {
+  padding: 0 var(--space-5);
+}
+
+.mad-dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--line-subtle);
+}
+
+/* --- the activation code ------------------------------------------------------------- */
+
+/*
+ * The code itself, in a ruled well on the darkest ground the palette has.
+ *
+ * NOT set at figure size. The plaintext is `obs.` plus two base64url segments —
+ * about seventy characters — and at 2.25rem that is five ragged lines of
+ * indistinguishable glyphs. At the heading step it is two lines and every
+ * character is separable, which is the only thing that matters about a value
+ * somebody has to transcribe.
+ *
+ * `user-select: all` because the failure mode here is real: an operator drags a
+ * selection across two lines, misses the last three characters, and the machine
+ * refuses a code that was issued correctly. One click takes the whole value.
+ */
+.mad-activation-code {
+  display: block;
+  padding: var(--space-4);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-h6);
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  user-select: all;
+}
+
+.mad-activation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/*
+ * The facts about the code, ruled rather than boxed — the same shape the rest
+ * of this surface uses for a run of identity facts.
+ */
+.mad-activation-meta,
+.mad-activation-receipt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line-subtle);
+}
+
+.mad-activation-meta > div,
+.mad-activation-receipt > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-subtle);
+  min-width: 0;
+}
+
+.mad-activation-meta dt,
+.mad-activation-receipt dt {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-activation-meta dd,
+.mad-activation-receipt dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.mad-activation-aside {
+  color: var(--text-tertiary);
+}
+
+/*
+ * The sentence that makes the whole moment trustworthy. It is body copy, not a
+ * warning banner: nothing dangerous is happening, and an operator who is
+ * shouted at once stops reading the next one.
+ */
+.mad-once {
+  margin: 0;
+  padding-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+@media (min-width: 48rem) {
+  .mad-activation-meta > div,
+  .mad-activation-receipt > div {
+    grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
+    gap: var(--space-1) var(--space-5);
+    align-items: baseline;
+  }
+}
+
+/* --- diagnostics ------------------------------------------------------------------- */
+
+/*
+ * The Diagnostics screen adds three shapes and nothing else: a filter band, an
+ * alert list whose rows carry a SENTENCE, and a ruled table.
+ *
+ * The table is the one that matters. Six sections of operational facts rendered
+ * as cards is the scrapbook the sheet above already refuses once — an operator
+ * scanning for the one wrong row needs the figures on a shared baseline with
+ * hairlines between them, which is what a table is and what a grid of panels
+ * cannot be however it is spaced.
+ */
+
+/* The tally band's terms are a description list, so its values need the reset. */
+.mad-meta--tallies dd {
+  margin: 0;
+}
+
+/* A count that is not zero reads in the semantic colour; the label still says what it is. */
+.mad-meta-value[data-tone="watch"] {
+  color: var(--verdict-watch);
+}
+
+/* --- the filter band ---------------------------------------------------------------- */
+
+/*
+ * A band, not a toolbar and not a card.
+ *
+ * It sits on the same two hairlines the meta strip uses, because it IS a strip
+ * of facts — the three that decide which estate the rest of the screen is
+ * describing. Its state is in the URL, so the band is also the only honest
+ * place to say when a narrowing is in force.
+ */
+.mad-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-4) var(--space-5);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.mad-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.mad-filter-label {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+}
+
+/*
+ * The native control, dressed rather than replaced.
+ *
+ * A custom listbox here would be a component to maintain, a keyboard model to
+ * get wrong and a second way to be inaccessible, in exchange for a chevron.
+ */
+.mad-filter-select {
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  font-weight: var(--weight-medium);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.mad-filter-select:hover:enabled {
+  border-color: var(--line-strong);
+  background: var(--surface-overlay);
+}
+
+.mad-filter-select:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.mad-filters-tail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-height: 2.25rem;
+}
+
+.mad-filters-state {
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+}
+
+.mad-filters-clear,
+.mad-filters-apply {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.mad-filters-clear:hover,
+.mad-filters-apply:hover {
+  color: var(--text-primary);
+  border-color: var(--line-strong);
+  background: var(--surface-overlay);
+}
+
+/* --- sources requiring attention ----------------------------------------------------- */
+
+/*
+ * The one section that matters on a bad day.
+ *
+ * Each row carries a vertical rail whose colour agrees with the WORD beside it
+ * and carries nothing on its own — the same rule the three state rails follow.
+ * The rail is vertical for the same reason too: a horizontal bar across a list
+ * of failures reads as a progression, and these are unrelated faults.
+ */
+.mad-alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.mad-alert {
+  display: grid;
+  gap: var(--space-2) var(--space-5);
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--verdict-unknown);
+  min-width: 0;
+}
+
+.mad-alert[data-tone="weak"] {
+  border-left-color: var(--verdict-weak);
+}
+
+.mad-alert[data-tone="watch"] {
+  border-left-color: var(--verdict-watch);
+}
+
+.mad-alert-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.mad-alert-word {
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.mad-alert[data-tone="weak"] .mad-alert-word {
+  color: var(--verdict-weak);
+}
+
+.mad-alert[data-tone="watch"] .mad-alert-word {
+  color: var(--verdict-watch);
+}
+
+.mad-alert-name {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--text-lg-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.mad-alert-name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mad-alert-name a:hover {
+  color: var(--iris-accent);
+}
+
+/* The reason. Prose, because a colour cannot say "no heartbeat for three days". */
+.mad-alert-reason {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  max-width: 78ch;
+  text-wrap: pretty;
+}
+
+.mad-alert-when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* --- ruled tables --------------------------------------------------------------------- */
+
+/*
+ * The scroll lives on the wrapper, so a wide table cannot make the PAGE scroll
+ * sideways on a phone. It is the table that overflows, not the document.
+ */
+.mad-table-wrap {
+  overflow-x: auto;
+  margin-inline: calc(var(--space-3) * -1);
+  padding-inline: var(--space-3);
+}
+
+.mad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+}
+
+.mad-table thead th {
+  text-align: left;
+  padding: 0 var(--space-4) var(--space-2) 0;
+  border-bottom: 1px solid var(--line-strong);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  letter-spacing: var(--text-kicker-ls);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.mad-table tbody th,
+.mad-table tbody td {
+  padding: var(--space-3) var(--space-4) var(--space-3) 0;
+  border-bottom: 1px solid var(--line-subtle);
+  vertical-align: baseline;
+  text-align: left;
+  font-weight: var(--weight-medium);
+}
+
+.mad-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.mad-table th:last-child,
+.mad-table td:last-child {
+  padding-right: 0;
+}
+
+/*
+ * The row header is the source, and it is a `th` rather than a `td`: every
+ * figure on the row is a measurement OF it, which is exactly what a row header
+ * means, and it is what a screen reader announces before each cell.
+ */
+.mad-td-source {
+  min-width: 12rem;
+}
+
+.mad-td-source a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: var(--weight-semibold);
+}
+
+.mad-td-source a:hover {
+  color: var(--iris-accent);
+}
+
+/* The second line of a cell: the context a figure is meaningless without. */
+.mad-td-sub {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-tertiary);
+  font-size: var(--text-kicker);
+  line-height: var(--text-kicker-lh);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * Figures are tabular so a column can be compared down its length, and they do
+ * not wrap: a timestamp broken across two lines stops being one value.
+ */
+.mad-td-figure {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mad-table td[data-missing="true"],
+.mad-table th[data-missing="true"] {
+  color: var(--text-tertiary);
+}
+
+.mad-table td[data-tone="watch"] {
+  color: var(--verdict-watch);
+}
+
+.mad-table td[data-tone="weak"] {
+  color: var(--verdict-weak);
+}
+
+/* A verdict inside a cell. The word is the status; the colour only agrees. */
+.mad-word {
+  font-weight: var(--weight-semibold);
+}
+
+.mad-word[data-tone="good"] {
+  color: var(--verdict-good);
+}
+
+.mad-word[data-tone="watch"] {
+  color: var(--verdict-watch);
+}
+
+/*
+ * An error CODE, set apart so nobody mistakes it for prose.
+ *
+ * It is tracked and boxed because it is a token to be quoted verbatim in a
+ * support conversation. There is deliberately no message beside it: the column
+ * behind this cell cannot hold one.
+ */
+.mad-code {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-kicker);
+  line-height: 1.6rem;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 64rem) {
+  /*
+   * The alert widens to put the timestamp beside the sentence rather than under
+   * it, so the list reads down the left edge in one column of words.
+   */
+  .mad-alert {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, auto);
+    align-items: start;
+  }
+
+  .mad-alert-head {
+    grid-column: 1;
+  }
+
+  .mad-alert-reason {
+    grid-column: 1;
+  }
+
+  .mad-alert-when {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+
+/* --- diagnostics: section heads and empty bands -------------------------------------- */
+
+/*
+ * A section head that stacks.
+ *
+ * `obs-section-head` sets its title and its aside on one baseline, which is
+ * right when the aside is three words. Here the aside is a sentence explaining
+ * what the section counts and how it is ordered, and on that shared row the
+ * flex line squeezed every heading to two words a line — "Recent" over
+ * "heartbeats". Stacking gives the sentence the width it needs and gives the
+ * heading back a single line.
+ */
+.mad-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.mad-section-head h2 {
+  margin: 0;
+  font-size: var(--text-h6);
+  line-height: var(--text-h6-lh);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.mad-section-head p {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  max-width: 92ch;
+  text-wrap: pretty;
+}
+
+/*
+ * An empty corroborating section, as a ruled band.
+ *
+ * It occupies the same two hairlines the table would have, so a page whose
+ * estate has not been activated yet still reads as a control surface rather
+ * than as a column of empty panels. The sentence is a statement about the
+ * estate — never "no data", and never a zero standing in for a measurement
+ * nobody took.
+ */
+.mad-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.mad-empty strong {
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.mad-empty span {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm-lh);
+  max-width: 92ch;
+  text-wrap: pretty;
+}
+
+/*
+ * On a phone the three fields sit one per line.
+ * Sharing a row with the tail left the last select at half width beside a
+ * sentence, which reads as a broken control rather than a narrow one.
+ */
+@media (max-width: 48rem) {
+  .mad-filter,
+  .mad-filters-tail {
+    flex: 1 1 100%;
+  }
+
+  /*
+   * Section heads stack on a phone.
+   *
+   * `obs-section-head` puts a title and its aside on one baseline, which is
+   * right at a laptop width and wrong at 412px: "The three states" was squeezed
+   * into two words a line beside its sentence, exactly the failure that
+   * `.mad-section-head` was written for on the diagnostics screen.
+   *
+   * Scoped to `.mad-plane` on purpose. `obs-` is the shared component
+   * vocabulary and Ask IRIS is frozen pending review, so this changes the
+   * MADSPACE planes and reaches nothing outside them.
+   */
+  .mad-plane .obs-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+}
+
+/*
+ * The driver, mounted inside a plane rather than beside one.
+ *
+ * `.mad-driver` carries its own surface — border, ground, radius — because it
+ * normally sits on the page background. Inside `.mad-plane` that surface lands
+ * on an identical one and reads as a double frame, so the inline variant drops
+ * the chrome and keeps only the rhythm.
+ */
+.mad-driver--inline {
+  margin-top: var(--space-6);
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+/*
+ * The badge sits on the first line of the sentence it labels.
+ *
+ * `.mad-idline` centres its children, which is right for a value and a copy
+ * button of equal height and wrong for a badge beside a paragraph: the badge
+ * drifted to the vertical middle of a two-line note and broke the left edge
+ * the title and lede above it share.
+ */
+.mad-idline--top {
+  align-items: flex-start;
+}
+
+.mad-idline--top .obs-badge {
+  /* Optical, not geometric: the badge's cap-height meets the note's first line. */
+  margin-top: 1px;
+}
+
+/*
+ * The identifier, quieter than the facts beside it.
+ *
+ * It sat at the same size and weight as Created and Last seen, on a row of its
+ * own, which made the value an operator needs least the most prominent thing
+ * on the strip. It is still selectable, still copyable, and no longer shouting.
+ */
+.mad-meta-item--quiet .mad-meta-value {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
 }

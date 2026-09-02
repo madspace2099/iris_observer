@@ -30,8 +30,12 @@ import {
   sourceTypeWord,
   type Reading,
 } from "@/lib/madspace/format";
+import { ActivationCodeDialog } from "@/components/madspace/ActivationCodeDialog";
 import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
 import { CopyValue } from "@/components/madspace/CopyValue";
+import { SourceActions } from "@/components/madspace/SourceActions";
+import { LifecycleDriver } from "@/components/madspace/LifecycleDriver";
+import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 
 export const metadata: Metadata = { title: "Source" };
 
@@ -120,6 +124,23 @@ export default async function MadspaceSourcePage({
   });
   const credential = credentialResult.ok ? credentialResult.value : null;
 
+  /*
+   * The project's NAME, because "Project 9cc04ea5-915a-4726-a908-597decb07b9e"
+   * is not an answer to "which project is this". The identifier is still the
+   * link target and still copyable from the project's own page; what belongs at
+   * the top of a source is the name an operator would say out loud.
+   *
+   * A separate read, and a tolerant one: the facade is account-scoped rather
+   * than project-scoped, so this finds the row among the account's projects. A
+   * failure falls back to the identifier rather than to nothing, because a
+   * source whose project name cannot be read is still a source worth showing.
+   */
+  const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
+  const projectName =
+    projects.ok === true
+      ? (projects.value.find((row) => row.project_id === view.status.project_id)?.name ?? null)
+      : null;
+
   const answer = installationAnswer(view, now);
 
   return (
@@ -129,7 +150,13 @@ export default async function MadspaceSourcePage({
           <Kicker>{sourceTypeWord(view.status.source_type)}</Kicker>
           <h1 className="mad-title">{view.status.display_label}</h1>
           <p className="mad-lede">{answer.sentence}</p>
-          <div className="mad-idline">
+          {/*
+           * Top-aligned rather than centred. The note beside the badge runs to
+           * two lines, and centring floated the badge against the middle of
+           * them — reading as a vertical misalignment against the title and
+           * lede stacked above, which are both set from the same left edge.
+           */}
+          <div className="mad-idline mad-idline--top">
             <Badge state={answer.tone}>{HEALTH_LABEL[view.health]}</Badge>
             <span className="mad-note">
               One word for the whole source, by strict precedence: lifecycle before liveness,
@@ -137,6 +164,41 @@ export default async function MadspaceSourcePage({
             </span>
           </div>
         </div>
+
+        {/*
+         * The three words an operator asks for before any figure: whose estate,
+         * which environment, and whether the source is switched on at all.
+         *
+         * `.mad-head` is a two-column grid above 64rem, and this screen was the
+         * only one of the three leaving the second column empty — so the hero of
+         * the surface had a blank right half while the projects list and project
+         * detail both carry a tally there. It is the same element in the same
+         * place doing the same job; the values are words rather than counts,
+         * which project detail's own Status figure already established.
+         */}
+        <dl className="mad-tally">
+          <div className="mad-tally-item">
+            {/*
+             * The name IS the way to the project. A separate "Open the project"
+             * row below repeated the label and the name within a centimetre of
+             * this one, which is two answers to a question asked once.
+             */}
+            <dd className="mad-tally-value">
+              <Link href={dynamicRoute(`/madspace/projects/${view.status.project_id}`)}>
+                {projectName ?? "Unknown project"}
+              </Link>
+            </dd>
+            <dt className="mad-tally-label">Project</dt>
+          </div>
+          <div className="mad-tally-item">
+            <dd className="mad-tally-value">{environmentWord(view.status.environment)}</dd>
+            <dt className="mad-tally-label">Environment</dt>
+          </div>
+          <div className="mad-tally-item">
+            <dd className="mad-tally-value">{lifecycleWord(view.status.state)}</dd>
+            <dt className="mad-tally-label">Lifecycle</dt>
+          </div>
+        </dl>
       </header>
 
       <Identity view={view} sourceId={sourceId} now={now} />
@@ -146,6 +208,13 @@ export default async function MadspaceSourcePage({
       <OperationalHealth view={view} now={now} />
 
       <Operations view={view} credential={credential} />
+
+      {/*
+       * The driver is gated HERE, on the server, so a deployment never sends
+       * the component to a browser at all. Gating it inside the component would
+       * ship the buttons and hide them, which is a different and weaker claim.
+       */}
+      {localControlPlaneEnabled() ? <LifecycleDriver /> : null}
     </>
   );
 }
@@ -169,28 +238,17 @@ function Identity({ view, sourceId, now }: { view: SourceView; sourceId: string;
   const seen = instant(status.last_seen_at);
   const seenAge = ageSince(status.last_seen_at, now);
 
+  /*
+   * This strip carries what the head above does not already say. Project,
+   * environment and lifecycle moved up into the head's tally, and repeating
+   * them here would make the strip a second answer to a question answered a
+   * centimetre higher. The source type went the same way, into the kicker
+   * standing directly above the title. What is left is the two timestamps and
+   * the identifier — quietest and last.
+   */
+
   return (
     <dl className="mad-meta">
-      <div className="mad-meta-item">
-        <dt className="mad-meta-label">Project</dt>
-        <dd className="mad-meta-value">
-          <Link className="mad-id" href={dynamicRoute(`/madspace/projects/${status.project_id}`)}>
-            {status.project_id}
-          </Link>
-        </dd>
-      </div>
-      <div className="mad-meta-item">
-        <dt className="mad-meta-label">Source type</dt>
-        <dd className="mad-meta-value">{sourceTypeWord(status.source_type)}</dd>
-      </div>
-      <div className="mad-meta-item">
-        <dt className="mad-meta-label">Environment</dt>
-        <dd className="mad-meta-value">{environmentWord(status.environment)}</dd>
-      </div>
-      <div className="mad-meta-item">
-        <dt className="mad-meta-label">Lifecycle</dt>
-        <dd className="mad-meta-value">{lifecycleWord(status.state)}</dd>
-      </div>
       <div className="mad-meta-item">
         <dt className="mad-meta-label">Created</dt>
         <dd className="mad-meta-value" data-missing={created.missing}>
@@ -204,7 +262,15 @@ function Identity({ view, sourceId, now }: { view: SourceView; sourceId: string;
           {seenAge === null ? null : <span className="mad-note"> · {seenAge}</span>}
         </dd>
       </div>
-      <div className="mad-meta-item">
+      {/*
+       * Quieter than everything beside it, and deliberately last.
+       *
+       * It is needed perhaps once a week — for a support conversation or a
+       * plugin configuration — and it was set at the same size as the facts an
+       * operator reads every time, on its own full-width row, which made the
+       * least-used value on the screen the most prominent one.
+       */}
+      <div className="mad-meta-item mad-meta-item--quiet">
         <dt className="mad-meta-label">Source identifier</dt>
         <dd className="mad-meta-value">
           <span className="mad-idline">
@@ -435,7 +501,7 @@ function OperationalHealth({ view, now }: { view: SourceView; now: Date }) {
     fill === null ? "unknown" : fill >= 95 ? "critical" : fill >= 80 ? "high" : "normal";
   const queueWord =
     fill === null
-      ? "Not reported — the last heartbeat carried no outbox measurement"
+      ? "The last heartbeat carried no outbox measurement"
       : fill >= 95
         ? "At the ceiling — further events will be refused for capacity"
         : fill >= 80
@@ -467,9 +533,16 @@ function OperationalHealth({ view, now }: { view: SourceView; now: Date }) {
         <div className="mad-queue-head">
           <div className="mad-meta-item">
             <span className="mad-meta-label">Outbox</span>
+            {/*
+             * The ceiling clause appears only when there IS a ceiling. With
+             * one number missing this read "0 B of Not reported", which is not
+             * a proportion and not a sentence — and the two halves are
+             * genuinely independent, because a plugin may measure its outbox
+             * without knowing the limit it is measured against.
+             */}
             <span className="mad-queue-value" data-missing={used.missing}>
               {used.text}
-              <span className="mad-tally-of"> of {ceiling.text}</span>
+              {ceiling.missing ? null : <span className="mad-tally-of"> of {ceiling.text}</span>}
             </span>
           </div>
           <div className="mad-meta-item">
@@ -642,10 +715,31 @@ function Operations({
         </ul>
       )}
 
+      {/*
+       * Offered as well as described. The controls are mounted here rather than
+       * beside each list entry so the reading — what is valid in this state —
+       * and the doing stay separable; only the operations valid in the current
+       * lifecycle render a control at all.
+       */}
+      <ActivationCodeDialog
+        sourceId={view.status.source_id}
+        sourceLabel={view.status.display_label}
+        activated={view.states.activated}
+        lifecycle={view.status.state}
+        credentialCreatedAt={credential?.created_at ?? null}
+        credentialRevokedAt={credential?.revoked_at ?? null}
+      />
+
+      <SourceActions
+        sourceId={view.status.source_id}
+        lifecycle={view.status.state}
+        credentialActive={credential?.state === "active"}
+      />
+
       <p className="mad-note">
-        Described, not offered. The module that performs these operations is not present in this
-        build, and a button that does nothing teaches an operator something false about the estate —
-        so the list says what is valid here and stops.
+        Every control above performs the real operation through `ObserverAdmin` and re-reads this
+        page from the database afterwards. Nothing here sets a display value, so what the states say
+        after a press is what Postgres now holds.
       </p>
     </section>
   );

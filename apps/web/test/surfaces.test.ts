@@ -143,7 +143,17 @@ describe("accessibility foundations", () => {
 
   it("marks the main landmark on every shell", () => {
     expect(read("src/app/(app)/[tenantSlug]/[projectSlug]/layout.tsx")).toContain('id="main"');
-    expect(read("src/app/madspace/page.tsx")).toContain('id="main"');
+    /*
+     * The MADSPACE landmark is on the LAYOUT, not the page.
+     *
+     * It was on `madspace/page.tsx` while administration was the only screen
+     * under `/madspace`. The operations screens arrived beside it and three
+     * surfaces cannot each own a header, so the shell — and with it the single
+     * `<main id="main">` a skip link may target — moved up to the layout they
+     * share. Asserting it on the page would now demand a second landmark inside
+     * the first, which is the accessibility defect rather than the fix.
+     */
+    expect(read("src/app/madspace/layout.tsx")).toContain('id="main"');
     /*
      * The two portal surfaces mark their own landmark. Sign-in no longer
      * delegates its shell to the profile picker — that component renders only

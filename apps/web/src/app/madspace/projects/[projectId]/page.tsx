@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Badge, Kicker, StateMessage } from "@observer/ui";
+import { ActionLink, Badge, Kicker, StateMessage } from "@observer/ui";
 import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
 import {
@@ -69,44 +69,76 @@ export default async function MadspaceProjectPage({
           <Kicker>Project</Kicker>
           <h1 className="mad-title">{project?.name ?? "Unknown project"}</h1>
           <p className="mad-lede">{lede(views)}</p>
+          {/*
+           * The identifier is SHOWN, not merely copyable.
+           *
+           * `CopyValue` renders a button and a status message and no value —
+           * Source Detail pairs it with the identifier in a sibling span, and
+           * this screen did not. The sentence beside it therefore read "Copy —
+           * the identifier, for a support conversation", pointing at nothing,
+           * and an operator reading a UUID aloud down a phone line had no UUID
+           * to read. Quiet, in the same way and for the same reason as the
+           * source identifier: needed rarely, and never the loudest thing here.
+           */}
+          <p className="mad-note mad-idline">
+            <span className="mad-id">{projectId}</span>
+            <CopyValue value={projectId} label="Copy the project identifier" />
+          </p>
           <p className="mad-note">
-            <CopyValue value={projectId} label="Copy the project identifier" /> — the identifier,
-            for a support conversation or a plugin configuration. The name above is what the estate
-            is known by.
+            The identifier, for a support conversation or a plugin configuration. The name above is
+            what the estate is known by.
           </p>
         </div>
 
-        <dl className="mad-tallies">
-          <div className="mad-tally">
-            <dt className="mad-tally-label">Status</dt>
+        {/*
+         * `mad-tally` is the CONTAINER and `mad-tally-item` the figure, which is
+         * the vocabulary the projects list already uses. An earlier version of
+         * this header invented `mad-tallies` and used `mad-tally` as the item —
+         * a class that exists nowhere, so the figures fell back to default `dl`
+         * flow and stacked loosely down the right-hand side.
+         */}
+        <dl className="mad-tally">
+          <div className="mad-tally-item">
             <dd className="mad-tally-value">
               {project === null ? "Unknown" : project.status === "active" ? "Active" : "Archived"}
             </dd>
+            <dt className="mad-tally-label">Status</dt>
           </div>
-          <div className="mad-tally">
-            <dt className="mad-tally-label">Sources</dt>
+          <div className="mad-tally-item">
             <dd className="mad-tally-value">{views?.length ?? 0}</dd>
+            <dt className="mad-tally-label">Sources</dt>
           </div>
-          <div className="mad-tally">
+          <div className="mad-tally-item">
+            <dd className="mad-tally-value">
+              {(views ?? []).filter((v) => v.states.connected).length}
+              <span className="mad-tally-of"> of {views?.length ?? 0}</span>
+            </dd>
             <dt className="mad-tally-label">Connected</dt>
-            <dd className="mad-tally-value">
-              {(views ?? []).filter((v) => v.states.connected).length} of {views?.length ?? 0}
-            </dd>
           </div>
-          <div className="mad-tally">
-            <dt className="mad-tally-label">Ingestion verified</dt>
+          <div className="mad-tally-item">
             <dd className="mad-tally-value">
-              {(views ?? []).filter((v) => v.states.ingestionVerified).length} of{" "}
-              {views?.length ?? 0}
+              {(views ?? []).filter((v) => v.states.ingestionVerified).length}
+              <span className="mad-tally-of"> of {views?.length ?? 0}</span>
             </dd>
+            <dt className="mad-tally-label">Ingestion verified</dt>
           </div>
         </dl>
       </header>
 
       <section className="mad-plane" aria-labelledby="sources-heading">
         <div className="obs-section-head">
-          <h2 id="sources-heading">Sources</h2>
-          <p className="obs-dim">Each row opens the installation it describes.</p>
+          <div>
+            <h2 id="sources-heading">Sources</h2>
+            <p className="obs-dim">Each row opens the installation it describes.</p>
+          </div>
+          {/*
+           * The action sits on the plane it changes rather than in the page
+           * head. A source is added TO this list, and a reader who has just
+           * counted six rows is standing where the seventh would go.
+           */}
+          <ActionLink href={`/madspace/projects/${projectId}/sources/new`} emphasis="primary">
+            Add source
+          </ActionLink>
         </div>
 
         <div className="mad-rows">

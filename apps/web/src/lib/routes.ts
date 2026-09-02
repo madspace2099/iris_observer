@@ -135,6 +135,54 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/madspace", audience: "internal", requiresRole: ["madspace_admin"] },
 
   /*
+   * The MADSPACE operations surface.
+   *
+   * Every one is `madspace_admin` and every one says so twice: here, and again
+   * in the page, which redirects a viewer holding any other role. The duplication
+   * is deliberate — this table is what the audit reads, and the redirect is what
+   * actually refuses somebody who types the URL.
+   *
+   * Nothing on these screens is analytics. They answer whether an installation
+   * is activated, connected and delivering; what it observed belongs to the
+   * customer's surfaces and is not readable from here.
+   */
+  { route: "/madspace/projects", audience: "internal", requiresRole: ["madspace_admin"] },
+  { route: "/madspace/projects/new", audience: "internal", requiresRole: ["madspace_admin"] },
+  {
+    route: "/madspace/projects/[projectId]",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
+  {
+    route: "/madspace/projects/[projectId]/sources/new",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
+  { route: "/madspace/sources/[sourceId]", audience: "internal", requiresRole: ["madspace_admin"] },
+  { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
+
+  /*
+   * Ask IRIS, the flagship of the approved design — under review, at a real URL.
+   *
+   * Declared with the same audience and the same roles as the project surfaces
+   * it mirrors, because it reads the same project through the same repository
+   * and enforces access the same way: `resolveProject` refuses, and forbidden
+   * and missing redirect identically so the route cannot confirm that somebody
+   * else's project exists.
+   *
+   * Not `/lab`. Those are working drawings with no customer data and are
+   * MADSPACE-only for that reason; this renders a real project for the people
+   * whose project it is, which is the whole point of reviewing it. When the
+   * design is accepted this composition moves into
+   * `(app)/[tenantSlug]/[projectSlug]` and this entry goes with it.
+   */
+  {
+    route: "/iris/[tenantSlug]/[projectSlug]",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
+  /*
    * The design laboratory.
    *
    * Isolated visual concepts, reachable only by typing the URL and carrying no
