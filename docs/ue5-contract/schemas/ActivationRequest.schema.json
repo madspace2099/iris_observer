@@ -14,7 +14,8 @@
       "enum": [
         "production",
         "staging",
-        "development"
+        "development",
+        "demo"
       ]
     },
     "installation_nonce": {

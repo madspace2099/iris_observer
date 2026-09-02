@@ -567,9 +567,15 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
   ),
   decided(
     "P-21",
-    "SourceObservation.sequence should become nullable, rather than defaulting non-session events to zero.",
-    "Matthew, prior review 2026-09-01 — nullable sequence for non-session events",
-    "projection.ts",
+    "SourceObservation.sequence is nullable with a minimum of 1, rather than defaulting non-session events to zero. APPLIED TO CODE 2026-09-02: the decision was recorded as approved on 2026-09-01 while observation.ts still declared it required and non-negative, which is why toSourceObservation refused every non-session event. Null is the honest value for an event belonging to no session; zero is not a neutral placeholder, because it sorts before every real event in its session, permanently, in a way no read model could detect.",
+    "Matthew, prior review 2026-09-01 — applied to observation.ts 2026-09-02",
+    "observation.ts",
+  ),
+  decided(
+    "PD-29",
+    "max_property_depth 8 and max_property_count 128 are approved protocol values, not harness fixtures. They were the last two invented numbers in HARNESS_LIMITS, which declared itself MOCK_ONLY while UE-OBS-005 validated against it and validateEvent could not run without it. A number a client validates against and a server enforces is a protocol value whatever the comment above it says. They bound WORK rather than size: the byte ceilings already bound size, but a small payload nested very deeply still costs a recursive validator its stack, which is why depth is checked iteratively before any recursive pass. M-01 is retired: every HARNESS_LIMITS field now sources from APPROVED_BACKEND_CEILINGS.",
+    "Matthew, 2026-09-02",
+    "client-config.ts",
   ),
   decided(
     "P-23",
@@ -665,9 +671,9 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "wire.ts",
   ),
   decided(
-    "PD-12",
-    "The strict RFC 4122 identifier schema stands for V1. It holds because CoCreateGuid backs FGuid on the confirmed Windows-only platform; CanonicalIdSchema stays prepared for the first non-Windows target.",
-    "Matthew, 2026-09-02 — contingent on the Windows-only platform matrix",
+    "PD-12a",
+    "SUPERSEDES PD-12. The event and session identifier schema is CanonicalIdSchema: canonical lowercase hex in 8-4-4-4-12 form, with no RFC 4122 version or variant requirement. PD-12 kept the strict schema on the reasoning that CoCreateGuid backs FGuid on the Windows-only V1 platform — true, but it made the contract depend on a platform accident that the first non-Windows target, or a change inside the engine, would silently break. Lowercase is required in the other direction because PostgreSQL's native uuid type normalises case, so an uppercase identifier would be echoed back in results[] altered and never pair with its outbox entry.",
+    "Matthew, 2026-09-02 — identifier requirement is 128 stable bits, not RFC semantics",
     "wire.ts",
   ),
   ueConfirmed(
@@ -685,7 +691,7 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
   ),
   open(
     "O-19",
-    "Whether the outbox removes an event on the 2xx itself or on the per-event accepted/duplicate status inside it. Removing on the status alone would delete a non-retryable rejection that must be quarantined.",
+    "Whether the outbox removes an event on the 2xx itself or on the per-event accepted/duplicate status inside it. Removing on the status alone would delete a non-retryable rejection that must be quarantined. REPORTED FIXED by Akhilesh 2026-09-02, PENDING SOURCE VERIFICATION in the next drop — not yet evidence, and this stays OPEN until the source is read: Only explicit per-event acknowledgement removes an event; HTTP 2xx alone no longer does. NOTE the residual divergence: the reported client still reads accepted_ids/duplicate_ids, which BatchResponseSchema forbids (additionalProperties false) and never emits. Until the client reads results[], it would acknowledge nothing at all.",
     "akhilesh",
     ["UE-OBS-006"],
     "outbox.ts",
@@ -723,18 +729,29 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
 
   open(
     "O-18",
-    "Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package.",
+    "Evidence that the production credential store is implemented rather than planned, survives crash recovery and updates, and cannot be switched to plaintext in a production package. REPORTED FIXED by Akhilesh 2026-09-02, PENDING SOURCE VERIFICATION in the next drop — not yet evidence, and this stays OPEN until the source is read: Six Unreal Automation Tests are reported passing, covering activation, envelope serialisation, validation and privacy, outbox persistence and recovery, acknowledgement handling, and retry/backoff. Crash-recovery evidence specifically remains the thing to check.",
     "akhilesh",
     ["UE-OBS-003"],
     "credential.ts",
   ),
 
-  open(
-    "O-20",
-    "Whether app, agent_id, visitor_subject and entity become envelope fields or move into properties. The implemented UE envelope carries all four and the strict envelope refuses them, so UE-OBS-007 cannot pass a single event until this is settled.",
-    "matthew_and_akhilesh",
-    ["UE-OBS-007"],
+  decided(
+    "PD-25",
+    "CLOSES O-20. app, agent_id, visitor_subject and entity are envelope fields, folded into EventEnvelopeSchema itself rather than into a parallel schema. app is required; the other three are optional and absent rather than null, matching FObserverEvent::ToJsonObject, which omits empty keys. Folding them into the base schema is what makes the decision reach validation.ts, BatchEnvelopeSchema and the published OpenAPI at once — a parallel schema would have left three of those four still refusing every real event. Binding condition: app.environment is reported provenance, never authoritative and never an authorisation input; the stored environment comes from the source record. A reported value outside the published vocabulary is carried and warned about, never a rejection.",
+    "Matthew, 2026-09-02 — the four fields are envelope fields",
     "ingestion.ts",
+  ),
+  decided(
+    "PD-26",
+    "The published environment vocabulary is production, staging, development and demo. demo was added with PD-25; the set is authoritative for the source record only. normaliseReportedEnvironment folds client case, which resolves the shipped client's capitalised Development without the envelope having to refuse it.",
+    "Matthew, 2026-09-02",
+    "wire.ts",
+  ),
+  decided(
+    "PD-27",
+    "NARROWS the activation failure vocabulary. already_activated is removed, 409 is not an activation outcome, and ActivationFailureSchema.source_id is typed null. The earlier carve-out cited LOCKED §9.1 for indistinguishability and then broke it: a 409 carrying a source_id turned a guessed code into an unauthenticated existence oracle, confirming the code was genuine and handing over the source identifier. It also authorised on installation_nonce, which the architecture defines as operational metadata and never an authorisation input. The installation-clash branch is removed entirely, not merely restatused.",
+    "Matthew, 2026-09-02 — more faithful to §9.1 than the shipped contract was",
+    "activation.ts",
   ),
   open(
     "O-21",
@@ -746,21 +763,21 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
 
   open(
     "O-22",
-    "The credential store falls back to plaintext silently when DPAPI fails or the platform is not Windows, with no log line and no state change. A production package must not be able to select plaintext at all.",
+    "The credential store falls back to plaintext silently when DPAPI fails or the platform is not Windows, with no log line and no state change. A production package must not be able to select plaintext at all. REPORTED FIXED by Akhilesh 2026-09-02, PENDING SOURCE VERIFICATION in the next drop — not yet evidence, and this stays OPEN until the source is read: The plaintext fallback is removed; a DPAPI failure now refuses to persist, logs an error, and the legacy .json is deleted only after the encrypted .dat is written. NOTE the state correction Matthew issued: a LOCAL credential-storage failure must set Error, not Unauthorised — Unauthorised is reserved for a backend 401.",
     "akhilesh",
     ["UE-OBS-003"],
     "credential.ts",
   ),
   open(
     "O-23",
-    "The client invents a 365-day credential expiry when the server omits expires_at, and refuses to send once it passes. The approved V1 decision is no mandatory expiry, so a working showroom would lock itself out after a year.",
+    "The client invents a 365-day credential expiry when the server omits expires_at, and refuses to send once it passes. The approved V1 decision is no mandatory expiry, so a working showroom would lock itself out after a year. REPORTED FIXED by Akhilesh 2026-09-02, PENDING SOURCE VERIFICATION in the next drop — not yet evidence, and this stays OPEN until the source is read: The invented 365-day expiry is removed; absent or null expires_at means non-expiring, stored as null. This matches the V1 decision that there is no mandatory credential expiry.",
     "matthew_and_akhilesh",
     ["UE-OBS-003"],
     "credential.ts",
   ),
   open(
     "O-24",
-    "Capacity refusals and validation failures share one counter, so an operator cannot tell a full disk from a plugin emitting bad events. The two have different remedies.",
+    "Capacity refusals and validation failures share one counter, so an operator cannot tell a full disk from a plugin emitting bad events. The two have different remedies. REPORTED FIXED by Akhilesh 2026-09-02, PENDING SOURCE VERIFICATION in the next drop — not yet evidence, and this stays OPEN until the source is read: Validation failures, capacity/disk refusals and backend-quarantined events now have separate counters, with the combined TotalEventsFailed retained. This is what makes the heartbeat contract able to distinguish a full disk from a malformed-event bug.",
     "akhilesh",
     ["UE-OBS-006"],
     "heartbeat.ts",
@@ -948,11 +965,6 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
   ),
 
   /* ------------------------------------------------------------- MOCK_ONLY */
-  mock(
-    "M-01",
-    "HARNESS_LIMITS: finite ceilings so the reference implementation has something to refuse.",
-    "limits.ts",
-  ),
   mock(
     "M-02",
     "Named fixtures such as rate_limit_every_nth. Test scaffolding, never protocol behaviour.",

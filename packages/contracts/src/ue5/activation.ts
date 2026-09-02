@@ -183,14 +183,33 @@ export type ActivationSuccess = z.infer<typeof ActivationSuccessSchema>;
 /**
  * Codes activation can fail with.
  *
- * `activation_failed` covers unknown, expired **and** already-consumed codes
- * with one indistinguishable answer. That is not tidiness: a response which
- * separates them tells anyone holding a guessed code whether a tenant, a project
- * or a source exists (LOCKED §9.1).
+ * `activation_failed` covers unknown, malformed-after-safe-parsing, expired,
+ * revoked, already-consumed **and** tied-to-an-ineligible-source codes with one
+ * indistinguishable answer. That is not tidiness: a response which separates
+ * them tells anyone holding a guessed code whether a tenant, a project or a
+ * source exists (LOCKED §9.1).
+ *
+ * ## `already_activated` was removed, and why that is a narrowing rather than a loss
+ *
+ * An earlier draft carried `already_activated`, answered it with `409`, and
+ * populated `source_id` so an operator could find the existing source in Admin.
+ * The docblock above it cited §9.1 for indistinguishability and then broke §9.1
+ * two fields later.
+ *
+ * The cost was real: a `409` carrying a `source_id` turns a guessed code into an
+ * **existence oracle**. It confirms that the code was genuine, that a source
+ * exists, and hands over that source's identifier — to a caller who has, by
+ * definition, not authenticated. Operator convenience is not worth an
+ * unauthenticated enumeration path, and the operator already has a better route
+ * to the same fact: they are signed in to Admin, where the source is listed.
+ *
+ * A second installation presenting a consumed code now receives exactly what an
+ * attacker with a guessed code receives — `activation_failed`, `401`, no
+ * `source_id`. Reactivation is the supported path, and it is initiated by an
+ * operator issuing a fresh one-time code, never by the client asking.
  */
 export const ACTIVATION_FAILURE_CODES = [
   "activation_failed",
-  "already_activated",
   "malformed_request",
   "rate_limited",
   "unavailable",
@@ -209,11 +228,14 @@ export const ActivationFailureSchema = z.strictObject({
   code: ActivationFailureCodeSchema,
   message: z.string().min(1).max(300),
   /**
-   * Present only for `already_activated`, so an operator can find the existing
-   * source in Admin. No token accompanies it — that is precisely what stops a
-   * second source being created for one installation.
+   * **Always `null`.** Retained as a required key so that the failure body has
+   * one fixed shape and a client cannot infer anything from a field's presence
+   * or absence — including by measuring the response length.
+   *
+   * It previously carried the existing source for `already_activated`. That was
+   * an unauthenticated existence oracle; see `ACTIVATION_FAILURE_CODES`.
    */
-  source_id: WireUuidSchema.nullable(),
+  source_id: z.null(),
   /** Present only for `rate_limited`. Seconds. */
   retry_after_seconds: z.int().min(1).max(86_400).nullable(),
 });
@@ -227,7 +249,6 @@ export const ACTIVATION_HTTP_STATUS: Readonly<Record<ActivationFailureCode | "ok
   Object.freeze({
     ok: 200,
     activation_failed: 401,
-    already_activated: 409,
     malformed_request: 400,
     rate_limited: 429,
     unavailable: 503,

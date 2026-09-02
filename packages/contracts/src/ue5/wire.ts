@@ -81,40 +81,52 @@ export const WireInstantSchema = z.iso.datetime({ offset: true });
 export const WireUuidSchema = z.uuid();
 
 /**
- * THE IDENTIFIER QUESTION, PREPARED BUT NOT DECIDED — `OPEN-14`.
+ * THE IDENTIFIER QUESTION — DECIDED. `OPEN-14` is closed, and `PD-12` is
+ * superseded by `PD-12a`.
  *
  * `WireUuidSchema` is `z.uuid()`, which enforces an RFC 4122 version nibble
  * (1–8) and variant nibble (8/9/a/b). **That strictness arrived from a schema
- * library's default, not from the approved architecture**, and the difference
- * matters enough to write down.
+ * library's default, not from the approved architecture.**
  *
- * The locked requirement is narrower than what is currently enforced: a *stable,
- * globally unique 128-bit event identifier, generated once before queueing and
- * preserved through retries* (§4.1, §5.4). Nothing downstream reads the version
- * bits. Nothing in the security model depends on them. Deduplication is scoped
- * to `(source_id, event_id)`, so the collision domain is one installation rather
+ * `PD-12` previously kept it, reasoning that `CoCreateGuid` backs `FGuid` on the
+ * confirmed Windows-only V1 platform, so the bits are set in practice. That is
+ * true and it is also the problem: **the guarantee rests on a platform accident
+ * rather than on the contract.** Nothing in this repository enforces that Unreal
+ * keeps routing through `CoCreateGuid`, and the first non-Windows target — or a
+ * change inside the engine — begins silently rejecting valid event identifiers
+ * at the ingestion boundary, roughly three times in four, at random.
+ *
+ * What is actually locked is narrower: a *stable, globally unique 128-bit event
+ * identifier, generated once before queueing and preserved through retries*
+ * (§4.1, §5.4). Nothing downstream reads the version bits. Nothing in the
+ * security model depends on them. Deduplication is scoped to
+ * `(source_id, event_id)`, so the collision domain is one installation rather
  * than the world, and 128 random bits are far beyond sufficient for that whether
  * or not six of them are pinned to a constant.
  *
- * So the strict validator buys no security and no interoperability here, while
- * costing a hard constraint on how Unreal mints identifiers. `FGuid` is
- * platform-dependent in this respect — a Windows build and a generic build may
- * not agree on whether the version and variant nibbles are set at all — and
- * **that is precisely why it needs Akhilesh's measured answer rather than our
- * assumption.** We have not verified what his serialisation emits.
+ * So `CanonicalIdSchema` is now wired into the envelope. It is a **relaxation**
+ * of what was accepted before, so no identifier that parsed yesterday stops
+ * parsing today.
  *
- * `CanonicalIdSchema` is the prepared alternative: the same canonical hyphenated
- * 128-bit form, without an opinion about version semantics. It is deliberately
- * **not wired into the envelope**. If the answer is that `FGuid` does not
- * guarantee RFC bits, swapping `WireUuidSchema` for this is a one-line change
- * with a test already describing exactly what it accepts.
+ * ## Why lowercase, when the previous schema accepted either case
+ *
+ * This one direction *is* a narrowing, and it is deliberate. PostgreSQL's native
+ * `uuid` type normalises its input to lowercase on output. An uppercase
+ * `event_id` would therefore be stored, read back **altered**, and echoed in
+ * `results[]` in a form the client never sent — so a UE outbox matching results
+ * to pending entries by string would fail to pair them, and a successfully
+ * stored event would stay pending for ever.
+ *
+ * Accepting only what round-trips unchanged is what makes native `uuid` storage
+ * safe. `FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower)` emits
+ * lowercase, so this costs the confirmed client nothing.
  */
 export const CANONICAL_128_BIT_ID =
-  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export const CanonicalIdSchema = z
   .string()
-  .regex(CANONICAL_128_BIT_ID, "must be a canonical hyphenated 128-bit identifier");
+  .regex(CANONICAL_128_BIT_ID, "must be a canonical lowercase hyphenated 128-bit identifier");
 
 /** What the architecture actually requires of an event identifier. */
 export const EVENT_ID_REQUIREMENT =
@@ -184,6 +196,26 @@ export type BuildMetadata = z.infer<typeof BuildMetadataSchema>;
  * declaring itself production is precisely the failure this must not permit.
  * See `activation.ts` for the reported/authoritative split.
  */
-export const ENVIRONMENTS = ["production", "staging", "development"] as const;
+export const ENVIRONMENTS = ["production", "staging", "development", "demo"] as const;
 export const EnvironmentSchema = z.enum(ENVIRONMENTS);
 export type Environment = z.infer<typeof EnvironmentSchema>;
+
+/**
+ * Fold a client-reported environment to canonical case, without asserting it is
+ * one of `ENVIRONMENTS`.
+ *
+ * The shipped UE client sends `"Development"` capitalised. Case folding alone
+ * resolves the only mismatch the confirmed client actually has, and it is
+ * deliberately separate from validation: a reported value outside the set is
+ * carried and warned about, never a reason to reject an event. Nothing
+ * authorises on it — the source record's environment is the authoritative one —
+ * so refusing an event here would break delivery over a diagnostic.
+ */
+export function normaliseReportedEnvironment(reported: string): string {
+  return reported.trim().toLowerCase();
+}
+
+/** Whether a reported environment matches the published vocabulary, case-folded. */
+export function isCanonicalEnvironment(reported: string): boolean {
+  return (ENVIRONMENTS as readonly string[]).includes(normaliseReportedEnvironment(reported));
+}

@@ -144,6 +144,27 @@ export const APPROVED_BACKEND_CEILINGS = Object.freeze({
   maxBatchEvents: 200,
   maxBatchBytes: 8 * 1_024 * 1_024,
   maxEventBytes: UE_V1_CLIENT_DEFAULTS.maxEventBytes,
+
+  /**
+   * STRUCTURAL CEILINGS ON `properties`, approved as protocol values (`PD-29`).
+   *
+   * These were `HARNESS_LIMITS`, labelled "MOCK-ONLY, not proposed protocol
+   * values". That label could not survive contact with the ingestion service:
+   * `validateEvent` cannot run without an `EffectiveLimits`, so the only finite
+   * pair available was a fixture that declared itself not to be a protocol
+   * value — and UE-OBS-005 was already validating against it. A number that a
+   * client validates against and a server enforces is a protocol value whatever
+   * the comment above it says.
+   *
+   * They are structural guards, not budget: the byte ceilings already bound
+   * size. What these bound is *work* — a 64 KiB payload nested ten thousand
+   * levels deep is small and still costs a recursive validator its stack. So
+   * depth is checked iteratively, before any recursive pass, and `8` and `128`
+   * are set where no plausible showroom payload reaches them and a fuzz case
+   * does.
+   */
+  maxPropertyDepth: 8,
+  maxPropertyCount: 128,
 });
 
 /**

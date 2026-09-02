@@ -15,8 +15,12 @@ import { UNSTATED_LIMITS } from "../../src/ue5/limits";
  *
  * Happy paths are the cheap half. What earns its keep here is the other half:
  * the field a plugin adds because it seemed useful, the timestamp without an
- * offset, the identifier that is a string but not a UUID, and the schema version
- * somebody sent as `"1"` instead of `1`.
+ * offset, the identifier that is a string but not a canonical 128-bit id, and
+ * the schema version somebody sent as `"1"` instead of `1`.
+ *
+ * Note what the identifier rule is and is not. It is **not** UUID-ness: since
+ * `O-20` the envelope uses `CanonicalIdSchema`, which requires lowercase hex in
+ * 8-4-4-4-12 form and has no opinion about RFC 4122 version or variant bits.
  */
 
 const UUID_A = "6f1c9f6e-2c7a-4a4e-9b31-9b0f9a3f1a2b";
@@ -44,6 +48,12 @@ const event = {
   occurred_at: WHEN,
   session_id: UUID_C,
   sequence: 1,
+  app: {
+    version: "1.0.0",
+    plugin: "0.2.0",
+    build_id: "BUILD-2026-09-01",
+    environment: "development",
+  },
   properties: { path: ["home"] },
 };
 
@@ -161,8 +171,40 @@ describe("event envelope", () => {
     expect(parsed.success ? null : parsed.error.issues).toBeNull();
   });
 
-  it("refuses an identifier that is not a UUID", () => {
+  it("refuses an identifier that is not a canonical 128-bit id", () => {
     expect(EventEnvelopeSchema.safeParse({ ...event, event_id: "evt-1" }).success).toBe(false);
+    expect(
+      EventEnvelopeSchema.safeParse({ ...event, event_id: "6f1c9f6e2c7a4a4e9b319b0f9a3f1a2b" })
+        .success,
+      "the unhyphenated 32-digit FGuid default form",
+    ).toBe(false);
+  });
+
+  it("accepts a canonical id without RFC version and variant bits", () => {
+    /*
+     * The behaviour that changed with `O-20`. `z.uuid()` would refuse this;
+     * `CanonicalIdSchema` accepts it, because what is locked is 128 stable bits
+     * rather than RFC 4122 semantics. Asserted here so the relaxation has
+     * coverage outside the compatibility suite that argued for it.
+     */
+    expect(
+      EventEnvelopeSchema.safeParse({ ...event, event_id: "6f1c9f6e-2c7a-1a4e-1b31-9b0f9a3f1a2b" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("refuses uppercase hex, because storage would alter it", () => {
+    /*
+     * The other half of the same amendment, and the one direction that narrowed:
+     * PostgreSQL's native `uuid` normalises to lowercase, so an uppercase id
+     * would be echoed back in `results[]` in a form the client never sent.
+     */
+    expect(
+      EventEnvelopeSchema.safeParse({ ...event, event_id: UUID_A.toUpperCase() }).success,
+    ).toBe(false);
+    expect(
+      EventEnvelopeSchema.safeParse({ ...event, session_id: UUID_C.toUpperCase() }).success,
+    ).toBe(false);
   });
 
   it("refuses a timestamp with no offset", () => {

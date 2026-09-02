@@ -40,6 +40,12 @@ export function event(over: Record<string, unknown> = {}): Record<string, unknow
     occurred_at: WHEN,
     session_id: null,
     sequence: null,
+    app: {
+      version: "1.0.0",
+      plugin: "0.2.0",
+      build_id: "BUILD-2026-09-01",
+      environment: "development",
+    },
     properties: { unit_code: "A-402" },
     ...over,
   };

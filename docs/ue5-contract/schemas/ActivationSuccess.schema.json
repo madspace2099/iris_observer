@@ -26,7 +26,8 @@
       "enum": [
         "production",
         "staging",
-        "development"
+        "development",
+        "demo"
       ]
     },
     "environment_mismatch": {

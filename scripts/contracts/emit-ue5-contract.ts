@@ -87,11 +87,10 @@ function settingsMarkdown(): string {
     "| --- | --- | --- |",
     `| **client default** | what the plugin ships configured to do | ${UE_V1_CLIENT_DEFAULTS.defaultBatchEvents} events, every ${UE_V1_CLIENT_DEFAULTS.flushIntervalSeconds}s |`,
     `| **client range** | what an operator may configure, without a code change | ${UE_BATCH_RANGE.min}–${UE_BATCH_RANGE.max} events |`,
-    `| **backend ceiling** | the absolute point of refusal — **PROPOSED** | ${APPROVED_BACKEND_CEILINGS.maxBatchEvents} events, ${(APPROVED_BACKEND_CEILINGS.maxBatchBytes / 1_048_576).toFixed(0)} MiB |`,
+    `| **backend ceiling** | the absolute point of refusal — **APPROVED** (\`P-23\`) | ${APPROVED_BACKEND_CEILINGS.maxBatchEvents} events, ${(APPROVED_BACKEND_CEILINGS.maxBatchBytes / 1_048_576).toFixed(0)} MiB |`,
     "",
     "Collapsing any two of those produces a `413` on a legitimate setting, or a ceiling that",
-    "cannot be enforced. The backend ceiling sits **at or above** the top of the client range,",
-    "and it is still a proposal.",
+    "cannot be enforced. The backend ceiling sits **at or above** the top of the client range.",
     "",
     "## Confirmed V1 client settings",
     "",
@@ -355,7 +354,19 @@ function outboxMarkdown(): string {
   for (const line of EVENT_PRESERVED_NOT_RETRIED) lines.push(`- ${line}`);
 
   lines.push("", "## Every situation, derived from the error model", "");
-  lines.push("| Situation | State | Retried | Sending |", "| --- | --- | --- | --- |");
+  lines.push(
+    "**Read the two columns as separate questions.** `Still deliverable` asks whether the event",
+    "remains something the outbox will send eventually; `Sending` asks whether the transport is",
+    "allowed to send right now. They disagree exactly where they should: after `401` or `403`",
+    "the event is still perfectly deliverable — the credential was the problem, never the event —",
+    "but sending stops until an operator reactivates the source.",
+    "",
+    "`error-model.md` answers a third question, `Retryable`, which is about the FAILURE rather",
+    "than the event: whether repeating the same request unchanged could succeed. For `401` and",
+    "`403` that is `no`, and it is not a contradiction of `yes` in the first column here.",
+    "",
+  );
+  lines.push("| Situation | State | Still deliverable | Sending |", "| --- | --- | --- | --- |");
 
   const rows: Array<[string, ReturnType<typeof outboxStateForEventResult>]> = [
     ["per-event `accepted`", outboxStateForEventResult("accepted")],
@@ -392,10 +403,16 @@ function outboxMarkdown(): string {
 
   lines.push(
     "",
-    "## After 401 or 403 — PROPOSED",
+    "## After 401 or 403 — APPROVED (`PD-05`)",
     "",
-    "Still a proposal: the operational and UX side has not been confirmed on the UE side. The",
+    "Confirmed on the UE side: `401` and `403` pause delivery and preserve the outbox. The",
     "second line is the one that is not negotiable — the events were never the problem.",
+    "",
+    "Note the state distinction, which is a client concern rather than a wire one: a backend",
+    "`401` means Unauthorised and a backend `403` means Suspended or Disabled, but a **local**",
+    "credential-storage failure is an Error. It is not an authorisation outcome, the credential",
+    "may be perfectly valid, and reporting it as Unauthorised sends an operator to reactivate a",
+    "source that never needed it while hiding a failing credential store.",
     "",
   );
   for (const line of UNAUTHORISED_OUTBOX_BEHAVIOUR) lines.push(`- ${line}`);

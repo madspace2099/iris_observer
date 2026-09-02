@@ -7,6 +7,8 @@ import {
   CanonicalIdSchema,
   EnvironmentSchema,
   EVENT_ID_REQUIREMENT,
+  isCanonicalEnvironment,
+  normaliseReportedEnvironment,
   WireUuidSchema,
 } from "../../src/ue5/wire";
 
@@ -38,6 +40,12 @@ const envelope = {
   occurred_at: REPORTED_TIMESTAMP,
   session_id: "0c9f2d31-77a4-4b12-9e88-1f2a3b4c5d6e",
   sequence: 1,
+  app: {
+    version: "1.0.0",
+    plugin: "0.2.0",
+    build_id: "BUILD-2026-09-01",
+    environment: "development",
+  },
   properties: {},
 };
 
@@ -56,24 +64,23 @@ describe("timestamps — match", () => {
 });
 
 describe("event identifiers — resolved for V1", () => {
-  it("accepts both published UE identifiers under the strict schema", () => {
+  it("accepts both published UE identifiers", () => {
     /*
      * ANSWERED, 2026-09-02:
      * `FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower)`,
      * generated once before enqueueing and immutable across retries.
      *
-     * Both samples carry RFC version and variant bits, so the strict schema
-     * stands and nothing has to change. **The reason it holds is worth keeping
-     * in view**: `FGuid` is backed by `CoCreateGuid` on Windows, and Windows is
-     * now the confirmed sole V1 platform. On a platform whose GUID source does
-     * not set those bits this would silently start failing, which is why the
-     * relaxation below stays prepared rather than deleted.
+     * Both samples happen to carry RFC version and variant bits, so they parse
+     * under either schema. That is a fact about these two samples, not a
+     * guarantee about `FGuid` — see the next test for why the envelope no
+     * longer depends on it.
      */
     for (const id of [
       "c7a8b4f2-39d1-4e8a-b851-923f0dc841e1",
       "550e8400-e29b-41d4-a716-446655440000",
     ]) {
-      expect(WireUuidSchema.safeParse(id).success, id).toBe(true);
+      expect(CanonicalIdSchema.safeParse(id).success, id).toBe(true);
+      expect(EventEnvelopeSchema.safeParse({ ...envelope, event_id: id }).success, id).toBe(true);
     }
   });
 
@@ -92,60 +99,71 @@ describe("event identifiers — resolved for V1", () => {
     ).toBe(false);
   });
 
-  it("refuses a hyphenated identifier without RFC version and variant bits", () => {
+  it("accepts a hyphenated identifier without RFC version and variant bits", () => {
     /*
-     * The subtler half of the same hazard, and the one that cannot be fixed by
-     * choosing a format string. `z.uuid()` enforces a version nibble of 1–8 and
-     * a variant nibble of 8/9/a/b. A 128-bit identifier from a source that does
-     * not set those — which some platform GUID implementations do not — is
-     * rejected roughly three times in four, at random.
+     * THE RELAXATION, NOW ADOPTED. `PD-12` is superseded by `PD-12a`.
      *
-     * OPEN-14 is closed for V1 — the implemented identifiers do carry those
-     * bits — but the refusal is asserted so that the day a non-Windows target
-     * appears, this file is what fails.
+     * `z.uuid()` enforced a version nibble of 1–8 and a variant nibble of
+     * 8/9/a/b. `PD-12` kept that, reasoning that `CoCreateGuid` backs `FGuid` on
+     * the confirmed Windows-only platform so the bits are set in practice.
+     *
+     * True, and exactly the problem: the guarantee rested on a platform accident
+     * rather than on the contract. A 128-bit identifier from a GUID source that
+     * does not set those bits would have been rejected roughly three times in
+     * four, at random, the day a non-Windows target appeared.
+     *
+     * What is locked is narrower — a stable, globally unique 128-bit identifier
+     * generated once before queueing and preserved through retries. Nothing
+     * downstream reads the version bits, nothing in the security model depends
+     * on them, and deduplication is scoped to `(source_id, event_id)`, so the
+     * collision domain is one installation rather than the world.
      */
     const versionNibbleZero = "6f1c9f6e-2c7a-0a4e-9b31-9b0f9a3f1a2b";
     const variantNibbleWrong = "6f1c9f6e-2c7a-4a4e-2b31-9b0f9a3f1a2b";
-    expect(
-      EventEnvelopeSchema.safeParse({ ...envelope, event_id: versionNibbleZero }).success,
-    ).toBe(false);
-    expect(
-      EventEnvelopeSchema.safeParse({ ...envelope, event_id: variantNibbleWrong }).success,
-    ).toBe(false);
-  });
+    const neither = "6f1c9f6e-2c7a-0a4e-2b31-9b0f9a3f1a2b";
 
-  it("has a prepared relaxation that accepts what FGuid would emit", () => {
-    /*
-     * The strictness came from a schema library's default, not from the approved
-     * architecture. What is actually locked is narrower: a *stable, globally
-     * unique 128-bit identifier generated once before queueing and preserved
-     * through retries*. Nothing downstream reads the version bits, nothing in
-     * the security model depends on them, and deduplication is scoped to
-     * (source_id, event_id) — so the collision domain is one installation.
-     *
-     * `CanonicalIdSchema` is therefore prepared and tested but deliberately NOT
-     * wired into the envelope. If Akhilesh's serialisation turns out not to set
-     * RFC bits, swapping it in is one line with this test already describing
-     * exactly what changes.
-     */
-    const nonRfc = "6f1c9f6e-2c7a-0a4e-2b31-9b0f9a3f1a2b";
-    expect(WireUuidSchema.safeParse(nonRfc).success, "today: refused").toBe(false);
-    expect(CanonicalIdSchema.safeParse(nonRfc).success, "prepared: accepted").toBe(true);
+    for (const id of [versionNibbleZero, variantNibbleWrong, neither]) {
+      expect(WireUuidSchema.safeParse(id).success, `${id}: refused by the old schema`).toBe(false);
+      expect(EventEnvelopeSchema.safeParse({ ...envelope, event_id: id }).success, id).toBe(true);
+    }
 
-    /* And the relaxation is not a licence for anything shorter or unstructured. */
+    /* The relaxation is not a licence for anything shorter or unstructured. */
     expect(CanonicalIdSchema.safeParse("6f1c9f6e2c7a4a4e9b319b0f9a3f1a2b").success).toBe(false);
     expect(CanonicalIdSchema.safeParse("not-an-id").success).toBe(false);
 
     expect(EVENT_ID_REQUIREMENT).toMatch(/Version and variant semantics are not part/);
   });
 
-  it("accepts uppercase hex, so casing is not part of the hazard", () => {
+  it("refuses uppercase hex, because Postgres would alter it on the round trip", () => {
+    /*
+     * THE ONE DIRECTION THAT NARROWED, AND IT IS DELIBERATE.
+     *
+     * `z.uuid()` accepted either case, and a previous assertion here recorded
+     * that "casing is not part of the hazard". Storage makes it part of the
+     * hazard: PostgreSQL's native `uuid` type normalises its input to lowercase
+     * on output. An uppercase `event_id` would be stored, read back ALTERED, and
+     * echoed in `results[]` in a form the client never sent — so a UE outbox
+     * pairing results to pending entries by string would fail to match, and a
+     * successfully stored event would stay pending for ever.
+     *
+     * Accepting only what round-trips unchanged is what makes native `uuid`
+     * storage safe. `EGuidFormats::DigitsWithHyphensLower` emits lowercase, so
+     * this costs the confirmed client nothing.
+     */
     expect(
       EventEnvelopeSchema.safeParse({
         ...envelope,
         event_id: "6F1C9F6E-2C7A-4A4E-9B31-9B0F9A3F1A2B",
       }).success,
-    ).toBe(true);
+    ).toBe(false);
+
+    expect(
+      EventEnvelopeSchema.safeParse({
+        ...envelope,
+        session_id: "0C9F2D31-77A4-4B12-9E88-1F2A3B4C5D6E",
+      }).success,
+      "session_id is minted by the same FGuid path and stored in the same column type",
+    ).toBe(false);
   });
 });
 
@@ -175,28 +193,29 @@ describe("the envelope Akhilesh actually sends", () => {
     },
   };
 
-  it("is refused today, on exactly four unrecognised keys", () => {
+  it("parses, because the four fields are now envelope fields — O-20 closed", () => {
     /*
-     * THE BLOCKING MISMATCH. Not a naming disagreement and not a hazard that
-     * might bite — every real event fails right now, because the envelope is
-     * strict and his carries four fields it does not know. UE-OBS-007 cannot
-     * pass a single event until OPEN-20 is decided.
+     * THE BLOCKING MISMATCH, RESOLVED. This assertion is the inverse of what it
+     * used to be, and the inversion is the point: every real event used to fail
+     * with `unrecognized_keys` on `app`, `agent_id`, `visitor_subject` and
+     * `entity`, so UE-OBS-007 could not pass a single event.
+     *
+     * OPEN-20 was decided by adopting them into `EventEnvelopeSchema` itself
+     * rather than into a parallel schema — which is what makes the decision
+     * reach `validation.ts`, `BatchEnvelopeSchema` and the published OpenAPI at
+     * the same time.
      */
     const parsed = EventEnvelopeSchema.safeParse(implemented);
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      const issue = parsed.error.issues[0];
-      expect(issue?.code).toBe("unrecognized_keys");
-      expect(JSON.stringify(issue)).toContain("app");
-      expect(JSON.stringify(issue)).toContain("agent_id");
-      expect(JSON.stringify(issue)).toContain("visitor_subject");
-      expect(JSON.stringify(issue)).toContain("entity");
-    }
+    expect(parsed.success ? null : parsed.error.issues).toBeNull();
   });
 
-  it("parses under the prepared extension, so adopting it is a one-line swap", () => {
-    const parsed = ExtendedEventEnvelopeSchema.safeParse(implemented);
-    expect(parsed.success ? null : parsed.error.issues).toBeNull();
+  it("no longer distinguishes the extension from the envelope", () => {
+    /*
+     * `ExtendedEventEnvelopeSchema` survives as a deprecated alias so existing
+     * imports keep naming the thing they were written to describe. Asserting the
+     * identity keeps a future reader from believing there are still two shapes.
+     */
+    expect(ExtendedEventEnvelopeSchema).toBe(EventEnvelopeSchema);
   });
 
   it("accepts the three optional fields being absent rather than null", () => {
@@ -218,29 +237,59 @@ describe("the envelope Akhilesh actually sends", () => {
     ).toBe(false);
   });
 
-  it("keeps the seven fields we already agreed on unchanged", () => {
+  it("keeps the seven original fields unchanged, and now requires app", () => {
     /*
-     * The reassuring half: nothing about the existing envelope is in dispute.
-     * Strip the four additions and it parses exactly as specified — snake_case,
-     * millisecond UTC, sequence from 1.
+     * The reassuring half: nothing about the pre-existing envelope is in
+     * dispute — snake_case, millisecond UTC, sequence from 1 all still parse.
+     *
+     * What changed is that `app` became REQUIRED while the other three
+     * additions did not. Asserting both halves keeps the asymmetry deliberate:
+     * an event always knows which build produced it, but need not have an
+     * agent, a visitor or an entity.
      */
-    const core = { ...implemented };
-    delete (core as Partial<typeof implemented>).app;
-    delete (core as Partial<typeof implemented>).agent_id;
-    delete (core as Partial<typeof implemented>).visitor_subject;
-    delete (core as Partial<typeof implemented>).entity;
-    expect(EventEnvelopeSchema.safeParse(core).success).toBe(true);
+    const withoutOptionalThree = { ...implemented };
+    delete (withoutOptionalThree as Partial<typeof implemented>).agent_id;
+    delete (withoutOptionalThree as Partial<typeof implemented>).visitor_subject;
+    delete (withoutOptionalThree as Partial<typeof implemented>).entity;
+    expect(EventEnvelopeSchema.safeParse(withoutOptionalThree).success).toBe(true);
+
+    const withoutApp = { ...withoutOptionalThree };
+    delete (withoutApp as Partial<typeof implemented>).app;
+    expect(
+      EventEnvelopeSchema.safeParse(withoutApp).success,
+      "app is required — build provenance is not optional",
+    ).toBe(false);
   });
 
-  it("refuses the capitalised environment, whichever envelope is used", () => {
+  it("carries the capitalised environment rather than rejecting the event", () => {
     /*
-     * A second reason `app` cannot simply be copied across. `Development` is
-     * not `development`, and the value is reported metadata in any case — the
-     * stored environment comes from the source record, or a development build
-     * declaring itself production routes its data there.
+     * `Development` is not `development`, and a first reading of this made the
+     * envelope refuse it. That would have been the wrong trade: the value is
+     * REPORTED metadata — the stored environment comes from the source record,
+     * assigned at registration, or a development build declaring itself
+     * production routes its data there.
+     *
+     * So nothing authorises on this field, and refusing a whole event over a
+     * diagnostic would break delivery for no gain. The envelope carries it as a
+     * bounded string; `normaliseReportedEnvironment` folds the case; and a value
+     * outside the published set is a batch-level warning, not a rejection.
      */
+    expect(
+      EventEnvelopeSchema.safeParse(implemented).success,
+      "the capitalised value must not cost the event",
+    ).toBe(true);
+
+    /* The published vocabulary is still exact, and still case-sensitive. */
     expect(EnvironmentSchema.safeParse(implemented.app.environment).success).toBe(false);
     expect(EnvironmentSchema.safeParse("development").success).toBe(true);
+
+    /* Folding case is what reconciles the two. */
+    expect(normaliseReportedEnvironment(implemented.app.environment)).toBe("development");
+    expect(isCanonicalEnvironment(implemented.app.environment)).toBe(true);
+    expect(isCanonicalEnvironment("kiosk")).toBe(false);
+
+    /* `demo` joined the vocabulary in the same amendment. */
+    expect(EnvironmentSchema.safeParse("demo").success).toBe(true);
   });
 
   it("carries an agent identifier derived from a person's name", () => {

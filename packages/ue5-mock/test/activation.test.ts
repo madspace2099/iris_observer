@@ -124,13 +124,20 @@ describe("a code that cannot be used", () => {
     });
   });
 
-  it("never answers 409 with a source_id for a code that simply cannot be used", () => {
+  it("never returns a source_id for a code that cannot be used", () => {
     /*
-     * The correction, pinned. `409 already_activated` is reachable only from a
-     * VALID code meeting an installation that already has a live source — the
-     * caller has already proved possession. An unusable code must never take
-     * that path, because `409 + source_id` would hand a source identifier to
-     * somebody holding nothing but a guess.
+     * The correction, pinned — and now stronger than when it was written.
+     *
+     * This test used to defend a narrower claim: that `409 already_activated`
+     * was reachable only from a VALID code meeting an installation that already
+     * had a live source, so an unusable code could never be handed a source
+     * identifier. That branch no longer exists at all. `409` is not an
+     * activation outcome, `already_activated` is not a code, and
+     * `ActivationFailureSchema.source_id` is typed `z.null()`.
+     *
+     * The assertion is kept rather than deleted because it guards the property
+     * the removal was for: nothing a caller can send makes a failure carry a
+     * source identifier.
      */
     const consumed = backend.issueActivationCode();
     response(backend.activate(activationRequest({ activation_code: consumed })));
@@ -161,36 +168,35 @@ describe("a code that cannot be used", () => {
   });
 });
 
-describe("an installation that already has a source", () => {
-  it("answers 409 and issues no token", () => {
+describe("installation_nonce is not an authorisation input", () => {
+  /*
+   * THIS BLOCK ASSERTS THE INVERSE OF WHAT IT USED TO.
+   *
+   * There was an installation-clash branch: a second code presented from an
+   * `installation_nonce` that already had a source answered `409
+   * already_activated` and returned that source's id, deliberately without
+   * consuming the code.
+   *
+   * It is gone, for two independent reasons.
+   *
+   * It was an unauthenticated existence oracle. A caller holding a guessed code
+   * learned that the code was genuine, that a source existed, and its
+   * identifier — while failing to authenticate. LOCKED §9.1 requires every
+   * activation failure to be indistinguishable, and the branch broke it for
+   * operator convenience the operator did not need: they are signed in to Admin,
+   * where the source is already listed.
+   *
+   * And it authorised on `installation_nonce`. The architecture defines that
+   * value as operational metadata and never an authorisation input, so a
+   * client-supplied field deciding an outcome was a category error regardless of
+   * the oracle.
+   */
+
+  it("lets a valid code activate whichever installation presents it", () => {
     const backend = new MockObserverBackend();
     const nonce = uuid();
-    const first = backend.issueActivationCode();
-    const created = response(
-      backend.activate(activationRequest({ activation_code: first, installation_nonce: nonce })),
-    );
-    expect(created.status).toBe(200);
 
-    const second = backend.issueActivationCode();
-    const clash = response(
-      backend.activate(activationRequest({ activation_code: second, installation_nonce: nonce })),
-    );
-
-    expect(clash.status).toBe(409);
-    expect(clash.body["code"]).toBe("already_activated");
-    expect(clash.body["source_id"]).toBe(created.body["source_id"]);
-    /* No token. This is what stops a second source per installation. */
-    expect(clash.body).not.toHaveProperty("source_token");
-  });
-
-  it("does not burn the code it refused", () => {
-    /*
-     * Nothing was exchanged for it. Consuming it would make the operator issue
-     * another code to fix a problem they have not been told about yet.
-     */
-    const backend = new MockObserverBackend();
-    const nonce = uuid();
-    response(
+    const first = response(
       backend.activate(
         activationRequest({
           activation_code: backend.issueActivationCode(),
@@ -198,18 +204,57 @@ describe("an installation that already has a source", () => {
         }),
       ),
     );
-    const spare = backend.issueActivationCode();
+    expect(first.status).toBe(200);
+
+    /* Same installation, a second freshly issued code. A one-time code is
+     * one-time; it is not scoped to whoever has not used one yet. */
+    const second = response(
+      backend.activate(
+        activationRequest({
+          activation_code: backend.issueActivationCode(),
+          installation_nonce: nonce,
+        }),
+      ),
+    );
+    expect(second.status).toBe(200);
+    expect(second.body["source_id"]).not.toBe(first.body["source_id"]);
+  });
+
+  it("answers a consumed code identically however it is presented", () => {
+    /*
+     * The indistinguishability that replaced the clash branch. A replayed code
+     * and a code that never existed produce byte-identical failures, from a
+     * known installation and an unknown one alike.
+     */
+    const backend = new MockObserverBackend();
+    const code = backend.issueActivationCode();
+    const nonce = uuid();
+
     expect(
       response(
-        backend.activate(activationRequest({ activation_code: spare, installation_nonce: nonce })),
-      ).status,
-    ).toBe(409);
-    /* Still usable by a different installation. */
-    expect(
-      response(
-        backend.activate(activationRequest({ activation_code: spare, installation_nonce: uuid() })),
+        backend.activate(activationRequest({ activation_code: code, installation_nonce: nonce })),
       ).status,
     ).toBe(200);
+
+    const replayedSameInstallation = response(
+      backend.activate(activationRequest({ activation_code: code, installation_nonce: nonce })),
+    );
+    const replayedOtherInstallation = response(
+      backend.activate(activationRequest({ activation_code: code, installation_nonce: uuid() })),
+    );
+    const neverExisted = response(
+      backend.activate(activationRequest({ activation_code: "OBS-0000-0000-0000" })),
+    );
+
+    for (const answer of [replayedSameInstallation, replayedOtherInstallation, neverExisted]) {
+      expect(answer.status).toBe(401);
+      expect(answer.body["code"]).toBe("activation_failed");
+      expect(answer.body["source_id"], "no existence oracle").toBeNull();
+      expect(answer.body).not.toHaveProperty("source_token");
+    }
+
+    expect(JSON.stringify(replayedSameInstallation.body)).toBe(JSON.stringify(neverExisted.body));
+    expect(JSON.stringify(replayedOtherInstallation.body)).toBe(JSON.stringify(neverExisted.body));
   });
 });
 

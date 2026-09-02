@@ -26,6 +26,12 @@ const base = {
   occurred_at: "2026-09-01T09:14:02.881Z",
   session_id: "0c9f2d31-77a4-4b12-9e88-1f2a3b4c5d6e",
   sequence: 1,
+  app: {
+    version: "1.0.0",
+    plugin: "0.2.0",
+    build_id: "BUILD-2026-09-01",
+    environment: "development",
+  },
   properties: { unit_code: "A-402" } as Record<string, unknown>,
 };
 

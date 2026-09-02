@@ -30,6 +30,12 @@ const event = (over: Record<string, unknown> = {}) => ({
   occurred_at: "2026-09-01T09:14:02.881Z",
   session_id: SESSION,
   sequence: 1,
+  app: {
+    version: "1.0.0",
+    plugin: "0.2.0",
+    build_id: "BUILD-2026-09-01",
+    environment: "development",
+  },
   properties: {} as Record<string, unknown>,
   ...over,
 });

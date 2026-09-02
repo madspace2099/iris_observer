@@ -38,9 +38,18 @@ export class Deterministic {
   /**
    * A syntactically valid version-4 UUID.
    *
-   * The version and variant nibbles are pinned because the contract's schema
-   * enforces RFC shape, and a mock that emitted identifiers its own contract
-   * would reject is a mock that proves nothing.
+   * The version and variant nibbles are pinned for **realism, not compliance**.
+   * They used to be pinned because the envelope enforced RFC shape; since `O-20`
+   * it uses `CanonicalIdSchema`, which requires lowercase hex in 8-4-4-4-12 form
+   * and has no opinion about version or variant semantics. Pinning them still
+   * produces a valid identifier, and it keeps the mock's output shaped like what
+   * `CoCreateGuid` actually emits on the confirmed V1 platform — so a reader
+   * comparing mock traffic to a real capture is not distracted by a difference
+   * that does not exist in the field.
+   *
+   * What the contract does require, and what this must not break, is
+   * **lowercase**: `hex()` emits lowercase and the pinned nibbles are lowercase,
+   * so every identifier round-trips through a native `uuid` column unchanged.
    */
   uuid(): string {
     const variant = "89ab"[Math.floor(this.next() * 4)] ?? "8";

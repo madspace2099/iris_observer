@@ -93,25 +93,25 @@ export interface EffectiveLimits {
 }
 
 /**
- * Defensive ceilings for a reference implementation and a test harness.
+ * The effective ceilings a reference implementation and a test harness enforce.
  *
- * **MOCK-ONLY. These are not proposed protocol values.** They exist so the mock
- * and the validator have *something* finite to refuse, and they are deliberately
- * generous — large enough that no plausible real batch meets them, small enough
- * that a fuzz case does. Nothing in the contract, the handoff document or the
- * decision register cites them.
+ * **No longer MOCK-ONLY, and no longer partly invented.** Every one of the five
+ * now sources from `APPROVED_BACKEND_CEILINGS`, so a boundary test here is a
+ * boundary test of the contract rather than of a fixture.
+ *
+ * The name is kept because it is what the mock and the suites already call it,
+ * and renaming a widely-referenced constant to record a change of status would
+ * be churn. What changed is upstream: `maxPropertyDepth` and `maxPropertyCount`
+ * were the last two invented numbers, and `PD-29` approved them as protocol
+ * values — which they had in practice already become, since UE-OBS-005
+ * validates against them and the ingestion service enforces them.
  */
 export const HARNESS_LIMITS: EffectiveLimits = Object.freeze({
   maxBatchEvents: APPROVED_BACKEND_CEILINGS.maxBatchEvents,
   maxBatchBytes: APPROVED_BACKEND_CEILINGS.maxBatchBytes,
-  /*
-   * Not invented any more. 64 KB is the approved V1 event cap on both sides, so
-   * the harness enforces the real number rather than a plausible one — which
-   * means a boundary test here is a boundary test of the contract.
-   */
   maxEventBytes: APPROVED_BACKEND_CEILINGS.maxEventBytes,
-  maxPropertyDepth: 8,
-  maxPropertyCount: 128,
+  maxPropertyDepth: APPROVED_BACKEND_CEILINGS.maxPropertyDepth,
+  maxPropertyCount: APPROVED_BACKEND_CEILINGS.maxPropertyCount,
 });
 
 /** Apply server-stated limits over a floor of defaults, null meaning "unstated". */

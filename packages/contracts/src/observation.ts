@@ -97,8 +97,23 @@ export const SourceObservationSchema = z.strictObject({
 
   /** When the source says it happened. */
   occurredAt: InstantSchema,
-  /** Monotonic within one session or meeting; orders events inside a millisecond. */
-  sequence: z.number().int().nonnegative(),
+  /**
+   * Monotonic within one session or meeting; orders events inside a millisecond.
+   *
+   * **Nullable, and null is the honest answer for a non-session event** (`P-21`).
+   * This was `nonnegative()` and required, which forced every event belonging to
+   * no session — application start before anybody arrives, diagnostics — to be
+   * stored with `sequence: 0`. That is not a neutral placeholder: `0` sorts
+   * before every real event, so a diagnostic emitted at closing time would
+   * appear to precede the whole day's session, permanently, in a way no read
+   * model could detect. `toSourceObservation` refused those events outright
+   * rather than invent the zero, which is why nothing has yet been mis-ordered.
+   *
+   * Non-null values start at 1, matching the wire rule in `ue5/ingestion.ts`:
+   * the UE subsystem stamps the first session event with 1, so a `0` arriving
+   * from a client means a counter was read before it was incremented.
+   */
+  sequence: z.number().int().min(1).nullable(),
 
   payload: z.record(z.string(), z.unknown()),
 });

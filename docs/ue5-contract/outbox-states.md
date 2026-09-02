@@ -59,7 +59,17 @@ acknowledgement, and a connection dying mid-response is not an acknowledgement.
 
 ## Every situation, derived from the error model
 
-| Situation | State | Retried | Sending |
+**Read the two columns as separate questions.** `Still deliverable` asks whether the event
+remains something the outbox will send eventually; `Sending` asks whether the transport is
+allowed to send right now. They disagree exactly where they should: after `401` or `403`
+the event is still perfectly deliverable — the credential was the problem, never the event —
+but sending stops until an operator reactivates the source.
+
+`error-model.md` answers a third question, `Retryable`, which is about the FAILURE rather
+than the event: whether repeating the same request unchanged could succeed. For `401` and
+`403` that is `no`, and it is not a contradiction of `yes` in the first column here.
+
+| Situation | State | Still deliverable | Sending |
 | --- | --- | --- | --- |
 | per-event `accepted` | `accepted` | no | `continue` |
 | per-event `duplicate` | `duplicate` | no | `continue` |
@@ -91,10 +101,16 @@ acknowledgement, and a connection dying mid-response is not an acknowledgement.
 - Quarantined events survive with their reason; a restart is not a way to clear them.
 - An event that was in flight when the process died returns as pending, never as delivered.
 
-## After 401 or 403 — PROPOSED
+## After 401 or 403 — APPROVED (`PD-05`)
 
-Still a proposal: the operational and UX side has not been confirmed on the UE side. The
+Confirmed on the UE side: `401` and `403` pause delivery and preserve the outbox. The
 second line is the one that is not negotiable — the events were never the problem.
+
+Note the state distinction, which is a client concern rather than a wire one: a backend
+`401` means Unauthorised and a backend `403` means Suspended or Disabled, but a **local**
+credential-storage failure is an Error. It is not an authorisation outcome, the credential
+may be perfectly valid, and reporting it as Unauthorised sends an operator to reactivate a
+source that never needed it while hiding a failing credential store.
 
 - Immediately pause network delivery. Do not keep calling the backend.
 - Preserve the entire durable outbox.

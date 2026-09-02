@@ -14,11 +14,10 @@ Three numbers that look like one, and keeping them apart is the whole point.
 | --- | --- | --- |
 | **client default** | what the plugin ships configured to do | 25 events, every 5s |
 | **client range** | what an operator may configure, without a code change | 25–50 events |
-| **backend ceiling** | the absolute point of refusal — **PROPOSED** | 200 events, 8 MiB |
+| **backend ceiling** | the absolute point of refusal — **APPROVED** (`P-23`) | 200 events, 8 MiB |
 
 Collapsing any two of those produces a `413` on a legitimate setting, or a ceiling that
-cannot be enforced. The backend ceiling sits **at or above** the top of the client range,
-and it is still a proposal.
+cannot be enforced. The backend ceiling sits **at or above** the top of the client range.
 
 ## Confirmed V1 client settings
 

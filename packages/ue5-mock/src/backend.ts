@@ -339,25 +339,20 @@ export class MockObserverBackend {
     }
 
     if (code.forSourceId === null) {
-      const clash = [...this.sources.values()].find(
-        (source) =>
-          source.installationNonce === request.installation_nonce && source.state !== "archived",
-      );
-      if (clash !== undefined) {
-        /*
-         * The code is deliberately NOT consumed. Nothing was exchanged for it,
-         * and burning it would make the operator issue another to fix a problem
-         * the operator has not been told about yet.
-         */
-        return json(
-          ACTIVATION_HTTP_STATUS.already_activated,
-          this.activationFailure(
-            "already_activated",
-            "This installation is already registered. Ask an operator to rotate or retire it.",
-            clash.sourceId,
-          ),
-        );
-      }
+      /*
+       * NO INSTALLATION-CLASH BRANCH. This used to look for an existing source
+       * carrying the same `installation_nonce` and answer `409 already_activated`
+       * with that source's id.
+       *
+       * Two reasons it is gone. It was an unauthenticated existence oracle — a
+       * guessed code that collided told the caller a source existed and handed
+       * over its identifier. And it authorised on `installation_nonce`, which the
+       * architecture defines as operational metadata and never an authorisation
+       * input; branching on it made a client-supplied value decide an outcome.
+       *
+       * A one-time code is now exactly that: whoever presents it first, from
+       * whatever installation, consumes it. The nonce is recorded for diagnostics.
+       */
       const source: SourceRecord = {
         sourceId: this.ids.uuid(),
         tenantId: code.tenantId,
@@ -397,12 +392,7 @@ export class MockObserverBackend {
       case "rate_limit":
         return json(
           ACTIVATION_HTTP_STATUS.rate_limited,
-          this.activationFailure(
-            "rate_limited",
-            "Too many attempts.",
-            null,
-            directive.retryAfterSeconds,
-          ),
+          this.activationFailure("rate_limited", "Too many attempts.", directive.retryAfterSeconds),
           { "retry-after": String(directive.retryAfterSeconds) },
         );
       case "unavailable":
@@ -417,17 +407,25 @@ export class MockObserverBackend {
     }
   }
 
+  /**
+   * `source_id` takes no parameter and is always `null`.
+   *
+   * Deliberately not a defaulted argument: a failure body that *can* carry a
+   * source identifier is one refactor away from carrying one, and the whole
+   * point of the §9.1 narrowing is that no unauthenticated caller learns whether
+   * a source exists. Making it structurally unreachable is cheaper than trusting
+   * every future caller to pass `null`.
+   */
   private activationFailure(
     code: ActivationFailure["code"],
     message: string,
-    sourceId: string | null = null,
     retryAfterSeconds: number | null = null,
   ): ActivationFailure {
     return {
       status: "failed",
       code,
       message,
-      source_id: sourceId,
+      source_id: null,
       retry_after_seconds: retryAfterSeconds,
     };
   }
