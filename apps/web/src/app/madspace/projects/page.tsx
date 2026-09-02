@@ -10,6 +10,8 @@ import {
 import { projectSummaries, type ProjectSummary } from "@/lib/madspace/estate";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
+import { BuildEstate } from "@/components/madspace/BuildEstate";
+import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -48,6 +50,19 @@ export default async function MadspaceProjectsPage() {
             {runningLocally() ? "local development" : "hosted"} control plane. Every figure on this
             screen is scoped to that account.
           </p>
+        </div>
+
+        {/*
+         * The one write on this screen, and it sits beside the sentence that
+         * says how much of the estate there is. It is offered whether or not
+         * the control plane opened: the form behind it states the absence
+         * itself, which is a better answer than a button that has silently
+         * disappeared.
+         */}
+        <div className="mad-head-actions">
+          <ActionLink href="/madspace/projects/new" emphasis="primary">
+            New project
+          </ActionLink>
         </div>
       </header>
 
@@ -98,6 +113,14 @@ function Estate({ summaries }: { summaries: readonly ProjectSummary[] }) {
           title="Empty — this account holds no sources"
           detail="Projects are listed here through the sources they own, and the control plane exposes no project read, so a project created without a source cannot appear yet. Create a source under a project to see it."
         />
+        {/*
+         * The way out of this screen, on this screen. Every other route into
+         * the demonstration estate runs through Source Detail, which is reached
+         * only through the list above — so an empty list was a dead end, and
+         * the reset `seed.ts` recommends in its own error message led straight
+         * into it.
+         */}
+        {localControlPlaneEnabled() ? <BuildEstate /> : null}
       </section>
     );
   }

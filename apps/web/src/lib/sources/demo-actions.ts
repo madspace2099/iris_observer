@@ -754,3 +754,34 @@ export async function resumeAction(): Promise<{ readonly ok: true } | Refused> {
   revalidatePath(REVIEW_SURFACE, "layout");
   return { ok: true };
 }
+
+/* --- 0. build the estate ---------------------------------------------------------- */
+
+/**
+ * Build the demonstration estate, from a screen that can be reached with none.
+ *
+ * `operatorEstate()` already ensures the estate as a side effect of finding it,
+ * so this is that call and a revalidation — it deliberately adds no second
+ * creation path that could drift from the one every other action here uses.
+ *
+ * ## Why it exists at all
+ *
+ * `.observer-local/` is the reset button, and `seed.ts` says so in an error
+ * message: delete the directory to rebuild the estate from nothing. That
+ * sentence was untrue. Every caller of `demonstrationEstate` was a lifecycle
+ * button, all of them on Source Detail, which is reachable only through the
+ * projects list — and after a reset the projects list is empty, because the
+ * control plane lists projects through the sources they own. The documented
+ * recovery led to a screen with no way forward.
+ *
+ * So the door goes where the dead end was. The action is offered from the empty
+ * state of the projects list, under the same development-only gate as the
+ * lifecycle driver, and nowhere else.
+ */
+export async function buildEstateAction(): Promise<{ readonly ok: true } | Refused> {
+  const estate = await operatorEstate();
+  if (isRefused(estate)) return estate;
+
+  revalidatePath(REVIEW_SURFACE, "layout");
+  return { ok: true };
+}

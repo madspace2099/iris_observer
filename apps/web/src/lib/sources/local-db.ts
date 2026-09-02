@@ -46,13 +46,23 @@ import { pgliteDb, type ObserverDb, type SqlQuery } from "@observer/sources";
  * no "wipe" action in the UI, because a button that destroys an operator's
  * state is not something to put beside the buttons that do real work.
  *
- * ## No `globalThis`
+ * ## Why the connection IS on `globalThis`
  *
- * The cache below is a module-level promise, not a process global. Hot reload
- * replaces the module and the new one reconnects to the same directory, which
- * is the behaviour that actually matters — and `credentials.test.ts` keeps a
- * short, deliberate list of files allowed to reach for process-global state.
- * This is not one of them, and it does not need to be.
+ * It began as a module-level promise, on the reasoning that a process global is
+ * a thing to avoid and hot reload would reconnect to the same directory anyway.
+ * That was wrong, and the frontend found it.
+ *
+ * Next gives the server-action bundle and the RSC bundle separate module
+ * registries, so this file was evaluated TWICE in one process and opened TWO
+ * PGlite instances on the same data directory. Activation, heartbeat and
+ * ingestion all answered 200 — the writer worked perfectly — while every screen
+ * kept reading "not activated", because the reader was a different instance
+ * that had loaded the directory before those writes and never saw them.
+ *
+ * A database connection has to be one per process, and `globalThis` is the only
+ * thing in Node that spans bundles. `ai/limits.ts` is on the same allow-list for
+ * the same bundle-boundary reason, which is what that list is for: making each
+ * such file a deliberate, reviewed decision rather than a habit.
  */
 
 /** The three roles Supabase provides, which the migrations grant against. */
@@ -153,7 +163,19 @@ export function observerLocalDirectory(): string {
   return join(repositoryRoot(), ".observer-local");
 }
 
-let cached: Promise<ObserverDb> | null = null;
+/**
+ * The one connection, keyed on a symbol so nothing else can collide with it.
+ *
+ * Typed through a narrow interface rather than `any`: what is stored is a
+ * promise for the port, and nothing else about `globalThis` is assumed.
+ */
+const CONNECTION = Symbol.for("observer.local-control-plane.connection");
+
+interface ConnectionHolder {
+  [CONNECTION]?: Promise<ObserverDb> | undefined;
+}
+
+const holder = globalThis as unknown as ConnectionHolder;
 
 async function connect(): Promise<ObserverDb> {
   /*
@@ -205,11 +227,19 @@ async function connect(): Promise<ObserverDb> {
  */
 export async function localControlPlaneDb(): Promise<ObserverDb | null> {
   if (!localControlPlaneEnabled()) return null;
-  if (cached === null) {
-    cached = connect().catch((error: unknown) => {
-      cached = null;
-      throw error;
-    });
-  }
-  return cached;
+
+  const existing = holder[CONNECTION];
+  if (existing !== undefined) return existing;
+
+  const opening = connect().catch((error: unknown) => {
+    /*
+     * A failure is not cached: a missing directory or a half-written migration
+     * should be retryable by reloading the page rather than by restarting the
+     * server.
+     */
+    holder[CONNECTION] = undefined;
+    throw error;
+  });
+  holder[CONNECTION] = opening;
+  return opening;
 }
