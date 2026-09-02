@@ -154,6 +154,19 @@ const CASES: readonly Case[] = [
     body: { p_account: ACCOUNT, p_source: SOURCE, p_state: "suspended" },
   },
   {
+    method: "projectsForAccount",
+    facade: "observer_projects_for_account",
+    reply: [],
+    /*
+     * The one method on the port taking a bare string rather than an object.
+     * It reads the account and nothing else, so an options object would be a
+     * container for a single field — and the argument order it might protect
+     * against does not exist with one argument.
+     */
+    invoke: (db) => db.projectsForAccount(ACCOUNT),
+    body: { p_account: ACCOUNT },
+  },
+  {
     method: "sourceStatus",
     facade: "observer_source_status",
     reply: [],

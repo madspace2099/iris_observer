@@ -629,6 +629,27 @@ describe("nothing that leaves the server carries the key", () => {
 
 /* ====================================================== the shape of the source */
 
+/**
+ * A file's code, with its prose removed.
+ *
+ * Two separate scans below look for a forbidden identifier by reading the file
+ * as text, and a comment naming the forbidden thing is not the forbidden thing.
+ * Both were fooled by exactly that: the `globalThis` scan matched the paragraph
+ * explaining which files are allowed on `globalThis`, and the browser-storage
+ * scan flagged `ActivationCodeDialog.tsx` for a sentence promising the
+ * activation code never reaches `localStorage` — the file was reported for
+ * saying it does not do the thing. `worker-bound.test.ts` met the same problem
+ * with its own detector and solved it the same way.
+ *
+ * One definition rather than one per scan, because two guards in the same
+ * repository quietly disagreeing about whether prose counts as code is how the
+ * second one gets fixed a year late. This makes both scans more precise and
+ * neither more permissive: a comment cannot hold a secret or open a connection.
+ */
+function executable(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
 describe("the source cannot grow a client-side secret path", () => {
   const src = resolve(import.meta.dirname, "../src");
 
@@ -650,7 +671,7 @@ describe("the source cannot grow a client-side secret path", () => {
      * a future contributor cannot reach for it and explain why theirs is fine.
      */
     const offenders = files
-      .filter((f) => /localStorage|sessionStorage|indexedDB/.test(read(f)))
+      .filter((f) => /localStorage|sessionStorage|indexedDB/.test(executable(read(f))))
       .map(rel);
     expect(offenders).toEqual([]);
   });
@@ -870,8 +891,10 @@ describe("the test store is not a development convenience", () => {
 
   it("keeps globalThis to itself", () => {
     /*
-     * One file in the application may touch `globalThis`, and it is the one
-     * that exists to be deleted when the harness is no longer wanted.
+     * A short, closed list may touch `globalThis`, and every entry is argued
+     * for below. It was one file when this was written — the harness that
+     * exists to be deleted — and the list grew twice, which is exactly the
+     * event this test is here to make visible.
      */
     const src = resolve(import.meta.dirname, "../src");
     const every = (dir: string): string[] =>
@@ -880,38 +903,29 @@ describe("the test store is not a development convenience", () => {
         return statSync(path).isDirectory() ? every(path) : [path];
       });
 
-    /*
-     * COMMENTS STRIPPED FIRST, because a comment describing the forbidden thing
-     * is not the forbidden thing.
-     *
-     * This scan read raw file text, so a file whose only mention of the global
-     * was a paragraph explaining why it deliberately avoids it was reported as
-     * an offender. `worker-bound.test.ts` had already met this exact problem —
-     * its own detector named the package it was looking for and found itself —
-     * and solved it the same way. Two guards in one repository should not
-     * disagree about whether prose counts as code.
-     *
-     * The list below is unchanged, and deliberately so: this makes the scan
-     * more precise, never more permissive. A comment cannot hold state.
-     */
-    const executable = (source: string): string =>
-      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-
     const offenders = every(src)
       .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))
       .filter((f) => executable(readFileSync(f, "utf8")).includes("globalThis"))
       .map((f) => f.slice(src.length).split("\\").join("/"));
 
     /*
-     * Four, and every one deliberate.
+     * Five, and every one deliberate.
      *
-     * `ai/limits.ts` keeps the Ask limiter's counters there for the same
-     * bundle-boundary reason and predates all of this. The other three are the
-     * browser harness — credentials, ledger, preferences — each isolated in its
-     * own file so the whole harness is deleted in three pieces rather than
-     * unpicked from the product.
+     * `ai/limits.ts` keeps the Ask limiter's counters there for a bundle-boundary
+     * reason and predates all of this. Three are the browser harness —
+     * credentials, ledger, preferences — each isolated in its own file so the
+     * whole harness is deleted in three pieces rather than unpicked from the
+     * product.
      *
-     * A fifth entry appearing here means somebody reached for process-global
+     * `sources/local-db.ts` is the newest, and it earned its place by failing
+     * without it. Next gives the server-action bundle and the RSC bundle
+     * separate module registries, so a module-level cache opened TWO PGlite
+     * instances on one data directory: every write answered 200 and every screen
+     * kept reading the state from before those writes. A database connection has
+     * to be one per process, and `globalThis` is the only thing that spans
+     * bundles. It is DEVELOPMENT-ONLY and never evaluated in production.
+     *
+     * A sixth entry appearing here means somebody reached for process-global
      * state in the product itself, which is what this list exists to catch.
      */
     expect(offenders.sort()).toEqual([
@@ -919,10 +933,17 @@ describe("the test store is not a development convenience", () => {
       "/lib/budget/test-ledger.ts",
       "/lib/credentials/test-store.ts",
       "/lib/models/test-preferences.ts",
+      "/lib/sources/local-db.ts",
     ]);
 
-    /* Every one of the three is a test store, by name and by isolation. */
-    for (const harness of offenders.filter((f) => f !== "/lib/ai/limits.ts")) {
+    /*
+     * The three harness files are test stores, by name and by isolation. The
+     * other two are named exceptions with their reasons above, and listing them
+     * here rather than loosening the pattern keeps the shape check meaningful
+     * for everything else.
+     */
+    const NAMED_EXCEPTIONS = ["/lib/ai/limits.ts", "/lib/sources/local-db.ts"];
+    for (const harness of offenders.filter((f) => !NAMED_EXCEPTIONS.includes(f))) {
       expect(harness, harness).toMatch(/test-(store|ledger|preferences).ts$/);
     }
   });

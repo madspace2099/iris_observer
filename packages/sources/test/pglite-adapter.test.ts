@@ -521,6 +521,7 @@ describe("the adapter implements the whole port and nothing else", () => {
     "heartbeatRecord",
     "ingestionVerified",
     "projectCreate",
+    "projectsForAccount",
     "sourceCreate",
     "sourceOperations",
     "sourceSetState",
@@ -530,7 +531,7 @@ describe("the adapter implements the whole port and nothing else", () => {
   /* No database: this asks what the object has, not what the object can do. */
   const adapter = pgliteDb(() => Promise.resolve({ rows: [] }));
 
-  it("exposes exactly the fourteen methods the port declares", () => {
+  it("exposes exactly the fifteen methods the port declares", () => {
     expect(Object.keys(adapter).sort()).toEqual([...PORT_METHODS]);
   });
 
