@@ -1,0 +1,119 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "name": "ingest-conflicting-duplicate-result",
+    "description": "Two results for the same event_id, disagreeing with each other.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000009",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:00+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "atrium",
+              "dwell_ms": 4200
+            }
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:04+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 2,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "kitchen",
+              "dwell_ms": 4200
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000009",
+        "received": 2,
+        "accepted": 2,
+        "duplicate": 0,
+        "rejected": 1,
+        "results": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "rejected",
+            "code": "storage_error",
+            "retryable": true,
+            "detail": "a transient failure while writing this event"
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "e0000000-0000-4000-8000-000000000001",
+      "e0000000-0000-4000-8000-000000000002"
+    ],
+    "expectedOutboxActions": {
+      "e0000000-0000-4000-8000-000000000001": "retain",
+      "e0000000-0000-4000-8000-000000000002": "remove"
+    },
+    "expectedSending": "continue",
+    "why": "Two results for one event_id is a contradiction, so it is resolved by RETAINING — fail safe, because a redelivery costs a duplicate and a wrong acknowledgement costs the event.",
+    "notes": [
+      "Not first-wins and not last-wins. Both are guesses, and last-wins here would happen to be safe while first-wins would lose the event — an implementation must not depend on which order a server happened to emit.",
+      "The uncontested second event is unaffected. A contradiction about one event says nothing about another.",
+      "The retained event is resent and comes back duplicate if it was stored. That is the cheap half of the trade."
+    ]
+  }
+}

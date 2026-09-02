@@ -1,0 +1,113 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "name": "ingest-foreign-result-id",
+    "description": "The response carries a result for an event_id that was never in this batch.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000008",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:00+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "atrium",
+              "dwell_ms": 4200
+            }
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:04+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 2,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "kitchen",
+              "dwell_ms": 4200
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000008",
+        "received": 2,
+        "accepted": 2,
+        "duplicate": 0,
+        "rejected": 0,
+        "results": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "deadbeef-0000-4000-8000-000000000099",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "e0000000-0000-4000-8000-000000000001",
+      "e0000000-0000-4000-8000-000000000002"
+    ],
+    "expectedOutboxActions": {
+      "e0000000-0000-4000-8000-000000000001": "remove",
+      "e0000000-0000-4000-8000-000000000002": "retain"
+    },
+    "expectedSending": "continue",
+    "why": "A result whose event_id was not submitted acknowledges NOTHING: it is ignored, and must never be matched to another queued event.",
+    "notes": [
+      "The foreign id is deadbeef-0000-4000-8000-000000000099. If it appears in any outbox decision, the implementation matched by position or by count rather than by id.",
+      "The counters say accepted: 2 and there are two results, so a client that trusts either number acknowledges two events while only one was really stored.",
+      "The unreported second event retains, exactly as in ingest-missing-result. The two rules compose; they are not alternatives.",
+      "Log the foreign id. It is a server defect and an operator needs to see it — but a defect on their side must never cost data on ours."
+    ]
+  }
+}

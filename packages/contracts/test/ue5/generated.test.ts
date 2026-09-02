@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { generatedArtefacts } from "../../../../scripts/contracts/emit-ue5-contract";
 import { buildOpenApiDocument } from "../../src/ue5/openapi";
+import { UE5_FIXTURE_DIRECTORY } from "../../src/ue5/fixtures";
 
 /**
  * THE PUBLISHED CONTRACT MATCHES THE CODE THAT ENFORCES IT.
@@ -41,7 +42,14 @@ describe("the generated contract is current", () => {
     for (const entry of readdirSync(OUT, { withFileTypes: true, recursive: true })) {
       if (entry.isFile()) {
         const parent = entry.parentPath.slice(OUT.length + 1).replace(/\\/g, "/");
-        onDisk.add(parent === "" ? entry.name : `${parent}/${entry.name}`);
+        const relative = parent === "" ? entry.name : `${parent}/${entry.name}`;
+        /*
+         * `fixtures/` is a second generator's output (`pnpm contracts:fixtures`)
+         * and has its own drift test in `fixtures.test.ts`. Counting it here
+         * would make this file fail for a pack it does not produce.
+         */
+        if (relative.startsWith(`${UE5_FIXTURE_DIRECTORY}/`)) continue;
+        onDisk.add(relative);
       }
     }
     expect([...onDisk].sort()).toEqual([...artefacts.keys()].sort());

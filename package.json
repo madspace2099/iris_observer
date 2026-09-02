@@ -32,6 +32,7 @@
     "release:recover": "tsx scripts/release/recover.ts",
     "release:readiness": "tsx scripts/release/readiness.ts",
     "contracts:ue5": "tsx scripts/contracts/emit-ue5-contract.ts",
+    "contracts:fixtures": "tsx scripts/contracts/emit-fixtures.ts",
     "ue5:mock": "tsx packages/ue5-mock/src/cli.ts",
     "contracts:control": "node scripts/contracts/positive-control.mjs"
   },

@@ -1,0 +1,107 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "name": "ingest-all-accepted",
+    "description": "Two new events in one batch, both stored by the server.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000001",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:00+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "atrium",
+              "dwell_ms": 4200
+            }
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:04+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 2,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "kitchen",
+              "dwell_ms": 4200
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-000000000001",
+        "received": 2,
+        "accepted": 2,
+        "duplicate": 0,
+        "rejected": 0,
+        "results": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "e0000000-0000-4000-8000-000000000001",
+      "e0000000-0000-4000-8000-000000000002"
+    ],
+    "expectedOutboxActions": {
+      "e0000000-0000-4000-8000-000000000001": "remove",
+      "e0000000-0000-4000-8000-000000000002": "remove"
+    },
+    "expectedSending": "continue",
+    "why": "An event leaves the outbox on a per-event accepted inside a 200, and on nothing else."
+  }
+}

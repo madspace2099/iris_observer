@@ -1,0 +1,128 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "name": "ingest-accepted-is-a-count-not-a-list",
+    "description": "ANTI-PATTERN. The canonical body beside the shape a client migrating from accepted_ids expects.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-ingest",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-00000000000e",
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "events": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:00+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 1,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "atrium",
+              "dwell_ms": 4200
+            }
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "event_name": "section.entered",
+            "schema_version": 1,
+            "occurred_at": "2026-01-01T09:15:04+01:00",
+            "session_id": "5e551011-0000-4000-8000-000000000001",
+            "sequence": 2,
+            "app": {
+              "version": "1.4.0",
+              "plugin": "1.0.0",
+              "build_id": "fixture-build-0001",
+              "environment": "Development"
+            },
+            "agent_id": "agent_fixture_01",
+            "properties": {
+              "section_name": "kitchen",
+              "dwell_ms": 4200
+            }
+          }
+        ]
+      }
+    },
+    "requestSchema": "BatchEnvelope",
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-00000000000e",
+        "received": 2,
+        "accepted": 2,
+        "duplicate": 0,
+        "rejected": 0,
+        "results": [
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000001",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          },
+          {
+            "event_id": "e0000000-0000-4000-8000-000000000002",
+            "status": "accepted",
+            "code": null,
+            "retryable": null,
+            "detail": null
+          }
+        ],
+        "warnings": []
+      }
+    },
+    "responseSchema": "BatchResponse",
+    "responseValidates": true,
+    "submittedEventIds": [
+      "e0000000-0000-4000-8000-000000000001",
+      "e0000000-0000-4000-8000-000000000002"
+    ],
+    "expectedOutboxActions": {
+      "e0000000-0000-4000-8000-000000000001": "remove",
+      "e0000000-0000-4000-8000-000000000002": "remove"
+    },
+    "expectedSending": "continue",
+    "why": "accepted is an INTEGER COUNT, never a list of ids — acknowledgement comes only from results[].event_id, and this is the live divergence with the UE client.",
+    "notes": [
+      "This fixture exists because of a real mismatch, not a hypothetical one. A client that once read accepted_ids: [\"...\"] binds cleanly to accepted and finds a number where it expects an array.",
+      "The failure mode is quiet in every language that coerces. A length check on a number yields undefined, an iteration over it yields nothing, and the outbox acknowledges zero events for ever while the server stores every one of them.",
+      "There is no field anywhere in BatchResponse that lists accepted ids. received, accepted, duplicate and rejected are all counters, present so that a mismatch against results.length is a loud, cheap signal that something truncated the response.",
+      "Counters are for logging and for that mismatch check. They are never the acknowledgement."
+    ],
+    "counterExample": {
+      "body": {
+        "batch_id": "b0000000-0000-4000-8000-00000000000e",
+        "received": 2,
+        "accepted": [
+          "e0000000-0000-4000-8000-000000000001",
+          "e0000000-0000-4000-8000-000000000002"
+        ],
+        "duplicate": [],
+        "rejected": [],
+        "results": [],
+        "warnings": []
+      },
+      "whyItIsWrong": "accepted, duplicate and rejected are integer counts. This body puts id arrays in all three, which is the accepted_ids shape a migrating parser expects; it fails BatchResponse validation, and a lenient parser reading it against the real contract acknowledges nothing at all."
+    }
+  }
+}

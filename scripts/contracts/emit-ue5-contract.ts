@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { UE5_FIXTURE_DIRECTORY } from "../../packages/contracts/src/ue5/fixtures";
 import {
   buildOpenApiDocument,
   componentJsonSchemas,
@@ -431,7 +432,23 @@ function yesNo(value: boolean): string {
 /* ============================================================ the CLI body */
 
 function write(): void {
-  rmSync(OUT, { recursive: true, force: true });
+  /*
+   * Everything under `OUT` except `fixtures/`, which belongs to a second
+   * generator (`pnpm contracts:fixtures`).
+   *
+   * This was `rmSync(OUT)`, which is right for a directory one generator owns
+   * outright and wrong the moment a second one writes into it: running
+   * `pnpm contracts:ue5` deleted a conformance pack this generator never
+   * produced and could not restore. Two generators must not be able to erase
+   * each other's output, and the boundary is named in one place —
+   * `UE5_FIXTURE_DIRECTORY` — rather than spelled here as a literal.
+   */
+  if (existsSync(OUT)) {
+    for (const entry of readdirSync(OUT)) {
+      if (entry === UE5_FIXTURE_DIRECTORY) continue;
+      rmSync(join(OUT, entry), { recursive: true, force: true });
+    }
+  }
   const files = generatedArtefacts();
   for (const [relative, contents] of files) {
     const target = join(OUT, relative);
