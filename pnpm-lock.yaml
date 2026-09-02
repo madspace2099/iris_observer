@@ -59,6 +59,9 @@ importers:
       '@observer/readmodels':
         specifier: workspace:*
         version: link:../../packages/readmodels
+      '@observer/sources':
+        specifier: workspace:*
+        version: link:../../packages/sources
       '@observer/synthetic':
         specifier: workspace:*
         version: link:../../packages/synthetic

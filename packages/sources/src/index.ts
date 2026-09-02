@@ -21,3 +21,8 @@ export * from "./db";
 export * from "./http";
 export * from "./pglite";
 export * from "./postgrest";
+export * from "./authenticate";
+export * from "./admin";
+export * from "./activate";
+export * from "./ingest";
+export * from "./heartbeat";

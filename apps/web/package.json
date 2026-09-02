@@ -15,6 +15,7 @@
     "@observer/contracts": "workspace:*",
     "@observer/metrics": "workspace:*",
     "@observer/readmodels": "workspace:*",
+    "@observer/sources": "workspace:*",
     "@observer/synthetic": "workspace:*",
     "@observer/ui": "workspace:*",
     "@supabase/ssr": "^0.7.0",
