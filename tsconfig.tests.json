@@ -60,6 +60,18 @@
     "supabase/test/worker-bound.test.ts",
     "supabase/test/terminal-phase.test.ts",
     "supabase/test/crash-recovery.test.ts",
-    "apps/web/test/request-id-header.test.ts"
+    "apps/web/test/request-id-header.test.ts",
+
+    /*
+     * THE INGESTION SPINE.
+     *
+     * A grants suite is exactly the kind of file that must not drift: it asks
+     * PostgreSQL who can do what, and every one of its assertions is a string —
+     * a role name, a function signature, a privilege. A typo in a signature
+     * makes `regprocedure` throw at run time rather than at check time, and a
+     * typo in a table name makes `has_table_privilege` answer about nothing at
+     * all while the test goes green.
+     */
+    "supabase/test/source-spine-grants.test.ts"
   ]
 }
