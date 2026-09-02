@@ -880,9 +880,26 @@ describe("the test store is not a development convenience", () => {
         return statSync(path).isDirectory() ? every(path) : [path];
       });
 
+    /*
+     * COMMENTS STRIPPED FIRST, because a comment describing the forbidden thing
+     * is not the forbidden thing.
+     *
+     * This scan read raw file text, so a file whose only mention of the global
+     * was a paragraph explaining why it deliberately avoids it was reported as
+     * an offender. `worker-bound.test.ts` had already met this exact problem —
+     * its own detector named the package it was looking for and found itself —
+     * and solved it the same way. Two guards in one repository should not
+     * disagree about whether prose counts as code.
+     *
+     * The list below is unchanged, and deliberately so: this makes the scan
+     * more precise, never more permissive. A comment cannot hold state.
+     */
+    const executable = (source: string): string =>
+      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
     const offenders = every(src)
       .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))
-      .filter((f) => readFileSync(f, "utf8").includes("globalThis"))
+      .filter((f) => executable(readFileSync(f, "utf8")).includes("globalThis"))
       .map((f) => f.slice(src.length).split("\\").join("/"));
 
     /*

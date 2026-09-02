@@ -32,6 +32,25 @@ import { resolveServerSupabase } from "@/lib/supabase-env";
  * means a corrected configuration takes effect on the next call rather than on
  * the next deployment.
  */
+/**
+ * The platform's `fetch`, wrapped rather than handed over.
+ *
+ * `postgrest.ts` warns that a detached `fetch` throws `Illegal invocation` in
+ * several runtimes because it needs its receiver, so the obvious
+ * `globalThis.fetch.bind(globalThis)` was the first version of this.
+ *
+ * It was also the fifth file in the application to mention `globalThis`, and
+ * `credentials.test.ts` refused it. That guard is right and the code was wrong:
+ * it exists to catch somebody reaching for process-global STATE in the product,
+ * and widening its allow-list to admit a file that only wanted the platform's
+ * own API would have blunted it for the next reader who really did stash
+ * something there.
+ *
+ * A closure calls `fetch` as a free identifier, which the runtime binds
+ * correctly, so the receiver problem never arises and no global is named.
+ */
+const platformFetch = (input: string, init?: RequestInit): Promise<Response> => fetch(input, init);
+
 export function observerDeps(): HandlerDeps | null {
   const supabase = resolveServerSupabase();
   if (supabase === null) return null;
@@ -40,13 +59,7 @@ export function observerDeps(): HandlerDeps | null {
     db: postgrestDb({
       url: supabase.url,
       key: supabase.key,
-      /*
-       * BOUND, not passed bare. `fetch` needs its receiver, and handing over
-       * `globalThis.fetch` detached throws `Illegal invocation` in several
-       * runtimes — a failure that appears only once a request is in flight and
-       * reads like a network fault rather than a wiring mistake.
-       */
-      fetch: globalThis.fetch.bind(globalThis),
+      fetch: platformFetch,
     }),
     env: process.env,
     now: () => new Date(),
