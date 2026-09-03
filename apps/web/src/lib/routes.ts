@@ -174,7 +174,7 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
    */
   { route: "/design-lab", audience: "internal", requiresRole: ["madspace_admin"] },
   {
-    route: "/design-lab/source-detail/[variant]",
+    route: "/design-lab/[screen]/[variant]",
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },

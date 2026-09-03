@@ -117,11 +117,11 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
 
   /*
    * The design lab, which exists to be deleted. Three candidate compositions
-   * for one screen; when a direction is chosen the winner moves into the real
-   * screen and these three routes go with the branch.
+   * for five screens; when a direction is chosen the winner moves into the real
+   * screens and these two routes go with the branch.
    */
   "/design-lab",
-  "/design-lab/source-detail/[variant]",
+  "/design-lab/[screen]/[variant]",
 ];
 
 describe("every route the reference served is still served", () => {
