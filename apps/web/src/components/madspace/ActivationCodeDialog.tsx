@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { InfoNote } from "@/components/madspace/InfoNote";
 import { ModalDialog } from "@/components/madspace/ConfirmDialog";
+import { StatusChip, type MarkTone } from "@/components/madspace/StatusMark";
 import { duration, instant } from "@/lib/madspace/format";
 import { issueActivationCodeAction } from "@/lib/madspace/source-actions";
 
@@ -78,36 +80,67 @@ function atOrAfter(later: string | null, earlier: string): boolean {
  * "Unused" means unused as at that read. That is why `dismiss` refreshes: a
  * code carried to a machine and entered there becomes Consumed on the next read
  * rather than by anything this component decides.
+ *
+ * `detail` is what changes what the operator does next; what the four words
+ * MEAN is a definition, and definitions live behind the disclosure beside the
+ * label. Consumed is the one status with nothing left to say once its own word
+ * is on the screen.
  */
 function codeStatus(
   receipt: Receipt,
   credentialCreatedAt: string | null,
   credentialRevokedAt: string | null,
   now: number,
-): { readonly word: string; readonly detail: string } {
+): { readonly word: string; readonly tone: MarkTone; readonly detail: string } {
   if (atOrAfter(credentialRevokedAt, receipt.issuedAt)) {
     return {
       word: "Revoked",
+      /* A person revoked it, and a person can issue another. Not a fault. */
+      tone: "operator",
       detail: "The credential this code minted has since been revoked.",
     };
   }
   if (atOrAfter(credentialCreatedAt, receipt.issuedAt)) {
     return {
       word: "Consumed",
-      detail: "An installation exchanged this code for a credential.",
+      tone: "good",
+      detail: "",
     };
   }
   const expires = Date.parse(receipt.expiresAt);
   if (Number.isFinite(expires) && now >= expires) {
     return {
       word: "Expired",
+      tone: "wrong",
       detail: "It was never exchanged, and it can no longer be. Issue another.",
     };
   }
   return {
     word: "Unused",
-    detail: "As at the last read of this page. No credential has been minted since it was issued.",
+    /* The ring: nothing is wrong, and we are waiting on the installation. */
+    tone: "await",
+    detail: "As at the last read of this page.",
   };
+}
+
+/**
+ * What the four status words mean, once, beside the label they qualify.
+ *
+ * Written out here rather than beside each status because it is a definition of
+ * the vocabulary and not a fact about this code, and because Unused and
+ * Consumed are the pair a reader actually has to tell apart.
+ */
+function StatusMeaning() {
+  return (
+    <InfoNote label="what each status means" align="end">
+      <p>
+        <strong>Consumed</strong> means an installation exchanged this code for a credential.
+      </p>
+      <p>
+        <strong>Unused</strong> means no credential has been minted since it was issued.
+      </p>
+    </InfoNote>
+  );
 }
 
 /** "in 12 min", or how long ago it lapsed. Never a bare timestamp on its own. */
@@ -200,7 +233,7 @@ export function ActivationCodeDialog({
       await navigator.clipboard.writeText(code);
       setSaid("Activation code copied to the clipboard.");
     } catch {
-      setSaid("The clipboard is unavailable here — select the code above and copy it.");
+      setSaid("The clipboard is unavailable here. Select the code above and copy it.");
     }
   }
 
@@ -209,26 +242,36 @@ export function ActivationCodeDialog({
 
   return (
     <div className="mad-issue">
+      {/*
+       * NOT filled. The filled button in this component is Copy, inside the
+       * dialog, at the one moment the code can still be taken; two filled
+       * buttons would make the surface's strongest treatment mean nothing at
+       * the moment it has to mean something.
+       */}
       <div className="mad-actionbar">
-        <button
-          className="mad-action"
-          type="button"
-          data-weight="primary"
-          onClick={issue}
-          aria-disabled={busy}
-        >
+        <button className="mad-action" type="button" onClick={issue} aria-disabled={busy}>
           {busy ? "Generating…" : `Generate ${word} code`}
         </button>
-        <p className="mad-action-note">
-          {activated
-            ? "This source has been activated before, so the next code is recorded as a reactivation — a machine that was reimaged and came back is not a first activation."
-            : "Single-use and short-lived. It is accepted unauthenticated and mints the long-lived credential the installation then uses."}
-        </p>
+        <InfoNote
+          label={activated ? "why the next code is a reactivation" : "what an activation code is"}
+        >
+          {activated ? (
+            <p>
+              This source has been activated before, so the next code is recorded as a reactivation.
+              A machine that was reimaged and came back is not a first activation.
+            </p>
+          ) : (
+            <p>
+              Single-use and short-lived. It is accepted unauthenticated and mints the long-lived
+              credential the installation then uses.
+            </p>
+          )}
+        </InfoNote>
       </div>
 
       {problem === null ? null : (
         <p className="mad-said" data-tone="weak" role="alert">
-          {problem}
+          <StatusChip tone="wrong">Refused</StatusChip> {problem}
         </p>
       )}
 
@@ -270,16 +313,21 @@ function ModalCode({
   readonly onCopy: (code: string) => Promise<void>;
   readonly onDismiss: () => void;
 }) {
-  const expires = issued === null ? null : instant(issued.expiresAt);
+  /*
+   * "Not stated" rather than the formatter's default "Never". A code always
+   * expires; a missing value here means this screen was not told when, which is
+   * a different fact from one that never lapses.
+   */
+  const expires = issued === null ? null : instant(issued.expiresAt, "Not stated");
 
   return (
     <ModalDialog open={issued !== null} onDismiss={onDismiss} labelledBy="activation-code-title">
       {issued === null ? null : (
         <>
           <header className="mad-dialog-head">
-            <p className="mad-dialog-kicker" id="activation-code-title">
+            <h2 className="mad-dialog-title" id="activation-code-title">
               Activation code
-            </p>
+            </h2>
           </header>
 
           <div className="mad-dialog-body">
@@ -311,7 +359,12 @@ function ModalCode({
               </span>
             </div>
 
-            <dl className="mad-activation-meta">
+            {/*
+             * The data panel: a 1px grid over a border-coloured ground, with
+             * two lines reserved for every label so the values share a baseline
+             * however long a label gets.
+             */}
+            <dl className="mad-datapanel">
               <div>
                 <dt>Source</dt>
                 <dd>{sourceLabel}</dd>
@@ -322,7 +375,7 @@ function ModalCode({
               </div>
               <div>
                 <dt>Expires</dt>
-                <dd>
+                <dd data-missing={expires?.missing === true ? "true" : undefined}>
                   {expires?.text ?? "Not stated"}
                   {expiresRelative === null ? null : (
                     <span className="mad-activation-aside"> · {expiresRelative}</span>
@@ -362,19 +415,26 @@ function IssuedReceipt({
   readonly now: number;
 }) {
   const status = codeStatus(receipt, credentialCreatedAt, credentialRevokedAt, now);
-  const issuedAt = instant(receipt.issuedAt);
-  const expiresAt = instant(receipt.expiresAt);
+  /*
+   * Both instants carry `missing` through to the markup rather than being
+   * flattened to a string. An absent instant is a different fact from a
+   * recorded one and the panel renders it differently; discarding the half of
+   * the pair that says so is how a missing value starts reading as a real one.
+   * "Not stated" rather than "Never", because a code always expires.
+   */
+  const issuedAt = instant(receipt.issuedAt, "Not stated");
+  const expiresAt = instant(receipt.expiresAt, "Not stated");
   const expiresRelative = relativeToNow(receipt.expiresAt, now);
 
   return (
-    <dl className="mad-activation-receipt">
+    <dl className="mad-datapanel">
       <div>
         <dt>Issued</dt>
-        <dd>{issuedAt.text}</dd>
+        <dd data-missing={issuedAt.missing ? "true" : undefined}>{issuedAt.text}</dd>
       </div>
       <div>
         <dt>Expires</dt>
-        <dd>
+        <dd data-missing={expiresAt.missing ? "true" : undefined}>
           {expiresAt.text}
           {expiresRelative === null ? null : (
             <span className="mad-activation-aside"> · {expiresRelative}</span>
@@ -382,10 +442,15 @@ function IssuedReceipt({
         </dd>
       </div>
       <div>
-        <dt>Status</dt>
+        <dt>
+          Status
+          <StatusMeaning />
+        </dt>
         <dd>
-          {status.word}
-          <span className="mad-activation-aside"> · {status.detail}</span>
+          <StatusChip tone={status.tone}>{status.word}</StatusChip>
+          {status.detail === "" ? null : (
+            <span className="mad-activation-aside"> · {status.detail}</span>
+          )}
         </dd>
       </div>
     </dl>

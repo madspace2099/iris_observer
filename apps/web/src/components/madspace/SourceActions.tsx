@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ConfirmDialog } from "@/components/madspace/ConfirmDialog";
+import { StatusChip, type MarkTone } from "@/components/madspace/StatusMark";
 import {
   archiveSourceAction,
   resumeSourceAction,
@@ -35,6 +36,15 @@ import {
  * and what they need is what happens to the installation, to the events it is
  * holding, and to the record. Three plain statements, written out in
  * {@link OPERATIONS}.
+ *
+ * ## Consequence in front, doctrine behind
+ *
+ * `paragraphs` holds those three statements and they stay on the screen.
+ * `notes` holds the reasoning underneath them — where a refusal is enforced,
+ * why a revoked credential row is kept rather than deleted — and that moves
+ * behind the disclosure beside the dialog's title. The test is whether an
+ * operator would act differently for having read it: if they would, it is a
+ * paragraph.
  */
 
 interface Operation {
@@ -43,10 +53,21 @@ interface Operation {
   readonly label: string;
   readonly kicker: string;
   readonly title: string;
+  /** The consequences of the press. Never hidden. */
   readonly paragraphs: readonly string[];
+  /** The doctrine behind them, behind the `i` beside the title. */
+  readonly notes: readonly string[];
+  /** What that disclosure explains, as a phrase, for its accessible name. */
+  readonly noteLabel: string;
   readonly confirmLabel: string;
   readonly weight: "reversible" | "terminal";
-  /** What the operator sees, politely, once it has landed. */
+  /**
+   * What the operator sees, politely, once it has landed: the resulting state
+   * as a word, the mark that agrees with it, and the sentence that says what
+   * the word means for this source.
+   */
+  readonly doneWord: string;
+  readonly doneTone: MarkTone;
   readonly done: string;
   readonly run: (sourceId: string) => Promise<{ readonly ok: boolean; readonly problem?: string }>;
 }
@@ -57,14 +78,24 @@ const SUSPEND: Operation = {
   kicker: "Reversible",
   title: "Suspend this source",
   paragraphs: [
-    "Observer stops accepting heartbeats and events from this source. Anything the installation sends while it is suspended is refused at the boundary rather than stored.",
+    "Observer stops accepting heartbeats and events from this source.",
     "The IRIS installation keeps its pending events locally. They stay in its own outbox and are delivered when the source is resumed, subject to whatever ceiling that outbox has.",
     "Nothing is deleted. Every event already accepted stays exactly where it is, the credential remains valid, and the source's record is unchanged.",
-    "Resume returns it to active whenever you are ready.",
   ],
+  notes: [
+    "Anything the installation sends while it is suspended is refused at the boundary rather than stored.",
+  ],
+  noteLabel: "how suspension is enforced",
   confirmLabel: "Suspend",
   weight: "reversible",
-  done: "Suspended. Observer is no longer accepting from this source.",
+  /*
+   * The diamond, not the triangle: a suspended source is an operator's
+   * decision and a person can undo it. Drawing it as a health state would say
+   * something went wrong, and nothing did.
+   */
+  doneWord: "Suspended",
+  doneTone: "operator",
+  done: "Observer is no longer accepting from this source.",
   run: suspendSourceAction,
 };
 
@@ -75,12 +106,17 @@ const RESUME: Operation = {
   title: "Resume this source",
   paragraphs: [
     "Observer begins accepting heartbeats and events from this source again, on the credential it already holds.",
+  ],
+  notes: [
     "The installation flushes its outbox on its next attempt, so whatever it held during the suspension arrives shortly afterwards rather than being lost.",
     "Nothing else changes. Suspension altered no stored event and no credential, so there is nothing to restore.",
   ],
+  noteLabel: "what resuming restores",
   confirmLabel: "Resume",
   weight: "reversible",
-  done: "Resumed. Observer is accepting from this source again.",
+  doneWord: "Resumed",
+  doneTone: "good",
+  done: "Observer is accepting from this source again.",
   run: resumeSourceAction,
 };
 
@@ -90,13 +126,19 @@ const ARCHIVE: Operation = {
   kicker: "Terminal",
   title: "Archive this source",
   paragraphs: [
-    "This retires the source permanently. Observer stops accepting from it, and it can never afterwards be resumed, suspended, or issued an activation code.",
-    "Events already accepted are kept. Archival decides the source's future, not its history — nothing in storage is removed and every figure computed from it stays computable.",
+    "This retires the source permanently.",
+    "Events already accepted are kept.",
     "The installation keeps whatever is in its outbox and will never be able to deliver it. If that machine is still running, stop it before archiving the source it sends to.",
   ],
+  notes: [
+    "Archival decides the source's future, not its history. Nothing in storage is removed and every figure computed from it stays computable.",
+  ],
+  noteLabel: "what archival keeps",
   confirmLabel: "Archive permanently",
   weight: "terminal",
-  done: "Archived. This source is terminal and nothing further is expected from it.",
+  doneWord: "Archived",
+  doneTone: "settled",
+  done: "This source is terminal and nothing further is expected from it.",
   run: archiveSourceAction,
 };
 
@@ -107,13 +149,19 @@ const REVOKE: Operation = {
   title: "Revoke this source's credential",
   paragraphs: [
     "The credential the installation authenticates with stops working immediately. Its next heartbeat and its next batch are both refused.",
-    "The source stays Activated in the record. Activated-then-revoked has to look different from never-activated, so the credential row is kept and marked rather than removed.",
+    "The source stays Activated in the record.",
     "The installation keeps its pending events locally, and nothing already accepted is deleted.",
     "To bring the machine back, issue a reactivation code and enter it there. That is a visit to the machine, so revoke only when the credential itself is the problem.",
   ],
+  notes: [
+    "Activated-then-revoked has to look different from never-activated, so the credential row is kept and marked rather than removed.",
+  ],
+  noteLabel: "why the credential row is kept",
   confirmLabel: "Revoke",
   weight: "reversible",
-  done: "Revoked. The installation can no longer authenticate until it is reactivated.",
+  doneWord: "Revoked",
+  doneTone: "operator",
+  done: "The installation can no longer authenticate until it is reactivated.",
   run: revokeCredentialAction,
 };
 
@@ -147,7 +195,7 @@ export function SourceActions({
   const [chosen, setChosen] = useState<Operation | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const [said, setSaid] = useState<string | null>(null);
+  const [said, setSaid] = useState<Operation | null>(null);
 
   const operations = operationsFor(lifecycle, credentialActive);
   if (operations.length === 0) return null;
@@ -175,7 +223,7 @@ export function SourceActions({
         return;
       }
       setChosen(null);
-      setSaid(operation.done);
+      setSaid(operation);
       /*
        * The action revalidated its own path; this is what makes THIS page
        * re-render with the new lifecycle. Without it the operator would read
@@ -213,6 +261,8 @@ export function SourceActions({
         kicker={chosen?.kicker ?? ""}
         title={chosen?.title ?? ""}
         paragraphs={chosen?.paragraphs ?? []}
+        notes={chosen?.notes ?? []}
+        noteLabel={chosen?.noteLabel}
         confirmLabel={chosen?.confirmLabel ?? ""}
         weight={chosen?.weight ?? "reversible"}
         busy={busy}
@@ -223,13 +273,22 @@ export function SourceActions({
         onCancel={cancel}
       />
 
-      <p
-        className="mad-said"
-        data-tone={said === null ? "quiet" : "good"}
-        role="status"
-        aria-live="polite"
-      >
-        {said ?? ""}
+      {/*
+       * The landing state, as a shape, a colour and a spelled-out word.
+       *
+       * The word is the chip and the sentence beside it says what that word
+       * means for this source. Neither is decoration: an operator reading the
+       * page back a minute later has to be able to tell Suspended from
+       * Archived without matching two shades of ink.
+       */}
+      <p className="mad-said" role="status" aria-live="polite">
+        {said === null ? (
+          ""
+        ) : (
+          <>
+            <StatusChip tone={said.doneTone}>{said.doneWord}</StatusChip> {said.done}
+          </>
+        )}
       </p>
     </div>
   );

@@ -8,7 +8,7 @@ import {
   queueFill,
   type SourceHealth,
 } from "@/lib/sources/control-plane";
-import { duration } from "@/lib/madspace/format";
+import { count, duration, percent } from "@/lib/madspace/format";
 
 /**
  * What the Diagnostics screen reads.
@@ -232,18 +232,24 @@ function reasonFor(row: SourceOperationsRow, health: SourceHealth, now: Date): s
   const local = row.quarantine_count ?? 0;
   const backend = row.backend_quarantine_count ?? 0;
   if (local + backend > 0) {
+    /*
+     * Through `count` and `percent`, which hold the one pinned `Intl` these
+     * screens share. Interpolated raw, a four-figure quarantine printed "1024"
+     * in this sentence and "1,024" in the table cell beside it, which is the
+     * same measurement written two ways on one row.
+     */
     const parts: string[] = [];
-    if (local > 0) parts.push(`${local} held in the installation's own quarantine`);
-    if (backend > 0) parts.push(`${backend} refused at the backend`);
+    if (local > 0) parts.push(`${count(local).text} held in the installation's own quarantine`);
+    if (backend > 0) parts.push(`${count(backend).text} refused at the backend`);
     clauses.push(
-      `Quarantine rising — ${parts.join(", ")}. Counts from this source are incomplete until it is cleared.`,
+      `Quarantine rising: ${parts.join(", ")}. Counts from this source are incomplete until it is cleared.`,
     );
   }
 
   const fill = queueFill(row.queue_bytes_used, row.queue_bytes_ceiling);
   if (fill !== null && fill >= 80) {
     clauses.push(
-      `Outbox at ${Math.round(fill)}% of its ceiling. If the fill keeps climbing, events start being refused for capacity.`,
+      `Outbox at ${percent(fill).text} of its ceiling. If the fill keeps climbing, events start being refused for capacity.`,
     );
   }
 

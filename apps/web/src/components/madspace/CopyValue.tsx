@@ -23,7 +23,7 @@ export function CopyValue({ value, label }: { value: string; label: string }) {
       await navigator.clipboard.writeText(value);
       setSaid("Copied");
     } catch {
-      setSaid("Copy unavailable — select the identifier to copy it");
+      setSaid("Copy unavailable. Select the identifier to copy it.");
     }
   }
 

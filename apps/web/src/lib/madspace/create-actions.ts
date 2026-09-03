@@ -211,7 +211,7 @@ function sourceRefusal(refusal: AdminRefusal): {
     return {
       field: null,
       problem:
-        "This project is no longer open to new sources — it may have been archived since this page was loaded. Nothing was created. Go back to Projects and open it again.",
+        "This project is no longer open to new sources. It may have been archived since this page was loaded. Nothing was created. Go back to Projects and open it again.",
     };
   }
   if (refusal.code === "invalid_input") {

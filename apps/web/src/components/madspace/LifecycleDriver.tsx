@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { InfoNote } from "@/components/madspace/InfoNote";
+import { StatusChip } from "@/components/madspace/StatusMark";
 import {
   activateAction,
   diagnosticAction,
@@ -68,8 +70,7 @@ const STEPS: readonly Step[] = [
   {
     key: "activate",
     label: "Activate",
-    detail:
-      "Issues a one-time code and exchanges it at the activation endpoint, as the plugin would.",
+    detail: "Issues a one-time code and exchanges it at the activation endpoint.",
     run: () =>
       attempt(async () => {
         const issued = await issueCodeAction();
@@ -80,14 +81,13 @@ const STEPS: readonly Step[] = [
   {
     key: "heartbeat",
     label: "Send heartbeat",
-    detail: "Posts a real bounded heartbeat. Proves CONNECTED and nothing else.",
+    detail: "Posts a real bounded heartbeat.",
     run: () => attempt(() => heartbeatAction()),
   },
   {
     key: "diagnostic",
     label: "Send diagnostic.test",
-    detail:
-      "Posts a real event batch through ingestion. The only thing that proves INGESTION VERIFIED.",
+    detail: "Posts a real event batch through ingestion.",
     run: () => attempt(() => diagnosticAction()),
   },
   {
@@ -108,17 +108,29 @@ export function LifecycleDriver() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
-  const [said, setSaid] = useState<{ readonly ok: boolean; readonly text: string } | null>(null);
+  const [said, setSaid] = useState<{
+    readonly ok: boolean;
+    /** The chip's word: what happened, or which step it was. */
+    readonly word: string;
+    readonly text: string;
+  } | null>(null);
 
   function press(step: Step) {
+    /*
+     * The guard is here rather than on the elements. `aria-disabled` says the
+     * step is unavailable without taking focus off the button that was just
+     * pressed, which is the same argument the sheet makes beside `.mad-action`
+     * and the one `ActivationCodeDialog` already follows.
+     */
+    if (busy !== null || pending) return;
     setBusy(step.key);
     setSaid(null);
     void step.run().then((answer) => {
       setBusy(null);
       setSaid(
         answer.ok
-          ? { ok: true, text: `${step.label} — done. The page below is re-read from the database.` }
-          : { ok: false, text: answer.problem },
+          ? { ok: true, word: step.label, text: "completed." }
+          : { ok: false, word: "Refused", text: answer.problem },
       );
       /*
        * `router.refresh()`, not `window.location.reload()`.
@@ -139,16 +151,41 @@ export function LifecycleDriver() {
   return (
     <section className="mad-driver" aria-labelledby="driver-heading">
       <div className="mad-driver-head">
-        <h2 id="driver-heading" className="mad-driver-title">
-          Lifecycle driver
-        </h2>
+        {/*
+         * The control is a SIBLING of the heading, never inside it.
+         *
+         * A button nested in the `h2` joins that heading's accessible name, so
+         * a reader moving by heading heard "Lifecycle driver About what each
+         * step proves" and the heading stopped naming the section. Wrapping the
+         * words in a span moved the id off the heading but left the heading's
+         * own name alone, so it fixed nothing a reader could hear. With the
+         * control outside, the id sits on the `h2` itself and one element
+         * carries both names.
+         */}
+        <div className="mad-idline">
+          <h2 id="driver-heading">Lifecycle driver</h2>
+          <InfoNote label="what each step proves">
+            <p>Activation runs as the plugin would: it is what proves ACTIVATED.</p>
+            <p>A heartbeat proves CONNECTED and nothing else.</p>
+            <p>A diagnostic.test batch is the only thing that proves INGESTION VERIFIED.</p>
+            <p>
+              Nothing here sets a display value, so the states below are read back from the database
+              exactly as an installation would have left them.
+            </p>
+          </InfoNote>
+        </div>
+
         <p className="mad-driver-note">
-          Development only. Every button performs the real operation through the real endpoints —
-          nothing here sets a display value, so the states below are read back from the database
-          exactly as an installation would have left them.
+          Development only. Every button performs the real operation through the real endpoints.
         </p>
       </div>
 
+      {/*
+       * No `title` attribute. A native tooltip is hover-only, unreachable by
+       * touch and unreliable for a screen reader, and it was carrying the same
+       * string the button already renders. What was worth keeping out of the
+       * label moved to the disclosure beside the heading instead.
+       */}
       <div className="mad-driver-steps">
         {STEPS.map((step) => (
           <button
@@ -156,8 +193,7 @@ export function LifecycleDriver() {
             type="button"
             className="mad-driver-step"
             onClick={() => press(step)}
-            disabled={busy !== null || pending}
-            title={step.detail}
+            aria-disabled={busy !== null || pending}
           >
             <span className="mad-driver-step-label">
               {busy === step.key ? `${step.label}…` : step.label}
@@ -173,7 +209,13 @@ export function LifecycleDriver() {
         role="status"
         aria-live="polite"
       >
-        {said?.text ?? "No operation has been run from here yet."}
+        {said === null ? (
+          "No operation has been run from here yet."
+        ) : (
+          <>
+            <StatusChip tone={said.ok ? "good" : "wrong"}>{said.word}</StatusChip> {said.text}
+          </>
+        )}
       </p>
     </section>
   );

@@ -4,6 +4,7 @@ import { useActionState, useId, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { createProjectAction, type CreateProjectState } from "@/lib/madspace/create-actions";
+import { InfoNote } from "@/components/madspace/InfoNote";
 
 /**
  * One field, because a project is one fact.
@@ -21,6 +22,14 @@ import { createProjectAction, type CreateProjectState } from "@/lib/madspace/cre
  * this component is not a gate — and its refusals arrive through
  * `useActionState` and render in exactly the same place. One message slot, two
  * possible authors, so the reader never has to learn two error vocabularies.
+ *
+ * ## Where the sentences went
+ *
+ * What the name is for, and what pressing the button does, are both behind an
+ * `i`. Neither is a refusal, a state or a date, and both were standing in front
+ * of the control they described. The example the definition carried did not go
+ * with them: an example belongs in the placeholder, which is the one thing a
+ * placeholder is allowed to hold.
  */
 const IDLE: CreateProjectState = { problem: null, field: null, name: "" };
 
@@ -35,7 +44,6 @@ export function CreateProjectForm() {
   const nameRef = useRef<HTMLInputElement>(null);
 
   const fieldId = useId();
-  const hintId = `${fieldId}-hint`;
   const errorId = `${fieldId}-error`;
 
   const problem = local ?? (state.field === "name" ? state.problem : null);
@@ -65,13 +73,23 @@ export function CreateProjectForm() {
   return (
     <form className="mad-form" action={submit} onSubmit={check} noValidate>
       <div className="mad-field" data-invalid={problem === null ? undefined : "true"}>
-        <label className="mad-field-label" htmlFor={fieldId}>
-          Project name
-        </label>
-        <p className="mad-field-hint" id={hintId}>
-          What the development is known by — the name an operator would say out loud, such as ISTER
-          TOWER. It heads every operations screen for this project, and it can be changed later.
-        </p>
+        {/*
+         * The disclosure sits BESIDE the label, never inside it.
+         *
+         * A `label` lends its whole text content to the input as an accessible
+         * name, so a button nested in it would have the screen reader announce
+         * the field as "Project name About the project name". The row is what
+         * keeps the two on one line without putting one inside the other.
+         */}
+        <div className="mad-idline">
+          <label className="mad-field-label" htmlFor={fieldId}>
+            Project name
+          </label>
+          <InfoNote label="the project name">
+            <p>What the development is known by. It is the name an operator would say out loud.</p>
+            <p>It heads every operations screen for this project, and it can be changed later.</p>
+          </InfoNote>
+        </div>
         <input
           className="mad-input"
           id={fieldId}
@@ -79,10 +97,11 @@ export function CreateProjectForm() {
           type="text"
           ref={nameRef}
           defaultValue={state.name}
+          placeholder="ISTER TOWER"
           maxLength={200}
           autoComplete="off"
           spellCheck={false}
-          aria-describedby={problem === null ? hintId : `${hintId} ${errorId}`}
+          aria-describedby={problem === null ? undefined : errorId}
           aria-invalid={problem === null ? undefined : true}
           onChange={() => setLocal(null)}
         />
@@ -104,10 +123,32 @@ export function CreateProjectForm() {
          * Disabled AND relabelled. Disabling alone leaves the operator with no
          * evidence anything happened, so they press Enter and the browser posts
          * a second time; the label is what tells them to wait.
+         *
+         * Ink, not accent. The blue in this system means "waiting for
+         * MADSPACE", and a blue button would be the only place it did not, so
+         * the fill comes from the portal's primary button rather than from
+         * `mad-submit`'s own accent. `mad-submit` still carries the geometry.
          */}
-        <button className="mad-submit" type="submit" disabled={pending}>
+        <button
+          className="mad-submit mad-button"
+          data-emphasis="primary"
+          type="submit"
+          disabled={pending}
+        >
           {pending ? "Creating project…" : "Create project"}
         </button>
+        {/*
+         * What pressing the button does, under the button rather than beside
+         * the heading. `obs-section-head` justifies its aside to the far edge,
+         * which on a page whose form is capped at a readable measure left this
+         * sentence stranded half a screen away from anything it described. It
+         * is behind the `i` now for the further reason that the destination is
+         * discovered by pressing the button, so the sentence was never the
+         * answer to anything.
+         */}
+        <InfoNote label="what creating the project does">
+          <p>Creating the project opens it, ready for its first source.</p>
+        </InfoNote>
         <a className="mad-quiet" href="/madspace/projects">
           Cancel
         </a>

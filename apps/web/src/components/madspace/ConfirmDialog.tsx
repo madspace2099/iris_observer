@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { InfoNote } from "@/components/madspace/InfoNote";
+import { StatusChip } from "@/components/madspace/StatusMark";
+
 /**
  * THE MODAL MECHANICS, WRITTEN ONCE.
  *
@@ -103,7 +106,21 @@ export function ModalDialog({
 
     const escaped = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || !isOpen.current) return;
+      /*
+       * The native close is cancelled either way, because the security
+       * property above depends on React performing every close.
+       */
       event.preventDefault();
+      /*
+       * An open information disclosure inside the dialog takes the key first.
+       * Both controls answer Escape, and the innermost one has to win: an
+       * operator who opened an explanation and pressed Escape to put it away
+       * meant to close the explanation, not to abandon the operation they were
+       * in the middle of reading about. `InfoNote` listens on the document, so
+       * its listener fires after this one; leaving `dismiss` uncalled is what
+       * lets it through.
+       */
+      if (element.querySelector('.mad-info-button[aria-expanded="true"]') !== null) return;
       dismiss.current();
     };
     const closed = () => {
@@ -184,6 +201,15 @@ export function ModalDialog({
  * surface has. A red button on Suspend would teach an operator that the red
  * ones are routine, which is exactly the training that makes the terminal one
  * dangerous.
+ *
+ * ## Why the consequences are split in two
+ *
+ * `paragraphs` is what the press does: the state it produces, what happens to
+ * the events the installation is holding, and what happens to the record. Those
+ * stay in front of the operator and may never move behind a control.
+ * `notes` is the doctrine underneath them — why the record is shaped as it is,
+ * where a refusal is enforced — and that is what the disclosure beside the
+ * title is for.
  */
 export function ConfirmDialog({
   open,
@@ -191,6 +217,8 @@ export function ConfirmDialog({
   kicker,
   title,
   paragraphs,
+  notes = [],
+  noteLabel,
   confirmLabel,
   cancelLabel = "Cancel",
   weight,
@@ -204,7 +232,12 @@ export function ConfirmDialog({
   readonly id: string;
   readonly kicker: string;
   readonly title: string;
+  /** The consequences. Always on screen, never behind the disclosure. */
   readonly paragraphs: readonly string[];
+  /** The doctrine behind them, shown only if the operator asks for it. */
+  readonly notes?: readonly string[];
+  /** What the disclosure explains, as a phrase. Required when `notes` is set. */
+  readonly noteLabel?: string;
   readonly confirmLabel: string;
   readonly cancelLabel?: string;
   readonly weight: "reversible" | "terminal";
@@ -223,9 +256,29 @@ export function ConfirmDialog({
     >
       <header className="mad-dialog-head">
         <p className="mad-dialog-kicker">{kicker}</p>
-        <h2 className="mad-dialog-title" id={`${id}-title`}>
-          {title}
-        </h2>
+        {/*
+         * The control is a SIBLING of the heading, never inside it.
+         *
+         * `aria-labelledby` takes the whole subtree of whatever it points at,
+         * so a dialog announced as "Suspend this source About how suspension is
+         * enforced" has had its name written by a control that is not part of
+         * it. Moving the id onto an inner span fixed the DIALOG's name and left
+         * the HEADING's alone, so a reader moving by heading still heard both.
+         * With the control outside, the id sits on the `h2` itself and one
+         * element carries both names.
+         */}
+        <div className="mad-idline">
+          <h2 className="mad-dialog-title" id={`${id}-title`}>
+            {title}
+          </h2>
+          {notes.length === 0 || noteLabel === undefined ? null : (
+            <InfoNote label={noteLabel}>
+              {notes.map((note) => (
+                <p key={note}>{note}</p>
+              ))}
+            </InfoNote>
+          )}
+        </div>
       </header>
 
       <div className="mad-dialog-body" id={`${id}-body`}>
@@ -247,9 +300,19 @@ export function ConfirmDialog({
        * it to the page behind would put the answer somewhere the operator is
        * not looking, and closing the dialog to show it would throw away the
        * choice they were in the middle of making.
+       *
+       * The mark carries the shape and the colour; the chip's word carries the
+       * state in letters, because the sentence beside it comes from the service
+       * and cannot be relied on to name one. Colour is never the only signal.
        */}
       <p className="mad-said" data-tone={problem === null ? "quiet" : "weak"} role="alert">
-        {problem ?? ""}
+        {problem === null ? (
+          ""
+        ) : (
+          <>
+            <StatusChip tone="wrong">Refused</StatusChip> {problem}
+          </>
+        )}
       </p>
 
       <footer className="mad-dialog-foot">

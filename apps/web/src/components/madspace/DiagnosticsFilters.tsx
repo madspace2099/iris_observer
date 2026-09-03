@@ -24,6 +24,14 @@ import { dynamicRoute } from "@/lib/href";
  * navigation rather than to nothing — and the submit button that drives it is
  * inside `<noscript>`, where it costs a reader with JavaScript nothing at all.
  *
+ * ## Which of the two actions is filled
+ *
+ * The system allows one filled button per view, and where two actions sit
+ * together the more frequent one is filled while the other loses its border.
+ * The pair here never faces the same reader: Apply exists only for a reader
+ * without JavaScript, and for that reader it is the only way to narrow
+ * anything, so it takes the fill. Clearing is a link and now looks like one.
+ *
  * ## Why the options come from the server
  *
  * The lists are the values the estate actually holds, computed beside the rows
@@ -85,6 +93,7 @@ export function DiagnosticsFilters(props: DiagnosticsFiltersProps) {
         value={props.project}
         anyLabel="Every project"
         options={props.projects}
+        whenEmpty="The estate holds no project to narrow by."
         onPick={go}
       />
       <Field
@@ -93,6 +102,7 @@ export function DiagnosticsFilters(props: DiagnosticsFiltersProps) {
         value={props.environment}
         anyLabel="Every environment"
         options={props.environments}
+        whenEmpty="The estate holds no environment to narrow by."
         onPick={go}
       />
       <Field
@@ -101,19 +111,20 @@ export function DiagnosticsFilters(props: DiagnosticsFiltersProps) {
         value={props.health}
         anyLabel="Every verdict"
         options={props.healths}
+        whenEmpty="The estate holds no verdict to narrow by."
         onPick={go}
       />
 
       <div className="mad-filters-tail">
         {narrowed ? (
-          <Link className="mad-filters-clear" href={dynamicRoute(props.action)}>
+          <Link className="mad-quiet" href={dynamicRoute(props.action)}>
             Clear the filter
           </Link>
         ) : (
-          <span className="mad-filters-state">Showing the whole estate</span>
+          <span className="mad-field-hint">Showing the whole estate</span>
         )}
         <noscript>
-          <button className="mad-filters-apply" type="submit">
+          <button className="obs-action" data-emphasis="primary" type="submit">
             Apply
           </button>
         </noscript>
@@ -128,6 +139,7 @@ function Field({
   value,
   anyLabel,
   options,
+  whenEmpty,
   onPick,
 }: {
   name: string;
@@ -140,12 +152,26 @@ function Field({
    */
   anyLabel: string;
   options: readonly FilterOption[];
+  /*
+   * Why the control is inert, in a word rather than in its absence. A greyed
+   * select beside two working ones reads as a permission the reader does not
+   * have; the sentence says it is the estate that holds nothing, not them.
+   */
+  whenEmpty: string;
   onPick: (key: string, value: string) => void;
 }) {
   const id = `mad-filter-${name}`;
+  const reasonId = `${id}-reason`;
+  const empty = options.length === 0;
+
   return (
     <div className="mad-filter">
-      <label className="mad-filter-label" htmlFor={id}>
+      {/*
+       * `mad-meta-label` rides along for the portal's micro-label treatment:
+       * 12px uppercase tracked to 0.09em rather than the 0.25em display value
+       * the shared kicker carries.
+       */}
+      <label className="mad-filter-label mad-meta-label" htmlFor={id}>
         {label}
       </label>
       <select
@@ -153,7 +179,8 @@ function Field({
         id={id}
         name={name}
         value={value ?? ""}
-        disabled={options.length === 0}
+        disabled={empty}
+        aria-describedby={empty ? reasonId : undefined}
         onChange={(event) => {
           onPick(name, event.target.value);
         }}
@@ -165,6 +192,11 @@ function Field({
           </option>
         ))}
       </select>
+      {empty ? (
+        <p className="mad-field-hint" id={reasonId}>
+          {whenEmpty}
+        </p>
+      ) : null}
     </div>
   );
 }

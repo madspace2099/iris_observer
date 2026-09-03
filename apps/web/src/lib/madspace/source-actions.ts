@@ -81,7 +81,7 @@ function sentenceFor(refusal: AdminRefusal, operation: string): string {
     return `${operation} was refused: the ${refusal.field ?? "request"} is not in a form this control plane accepts.`;
   }
   if (refusal.code === "unknown_source") {
-    return `${operation} was refused: no source is operable under this identifier. It does not exist, it belongs to another account, it is archived and therefore terminal, or — for a revocation — it holds no active credential.`;
+    return `${operation} was refused: no source is operable under this identifier. It does not exist, it belongs to another account, or it is archived and therefore terminal. A revocation is refused this way as well when the source holds no active credential.`;
   }
   return `${operation} was refused: no project is readable under this identifier.`;
 }
