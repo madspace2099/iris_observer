@@ -3,7 +3,7 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-08-25 · **Branch:** `release/observer-demo-rc1` · **Pushed. Not merged.**
+**Last updated:** 2026-09-03 · **Branch:** `feature/observer-reference-parity` · **PR #1 open. Not merged.**
 
 ---
 
@@ -249,3 +249,65 @@ Review screenshots and Figma renders live outside the repository, under the sess
 
 The scratchpad root is recorded in `e2e/review-screenshots.spec.ts` and can be overridden with
 `OBSERVER_SHOTS`. Screenshots are never committed — there is no visual-baseline policy yet.
+
+---
+
+## MADSPACE admin on the client-portal design system
+
+**2026-09-03.** Branch `feature/observer-reference-parity`. PR #1 open, not merged.
+
+The reviewer read the operations screenshots and gave two notes: there is a great deal of
+superfluous description, which could go behind an information button beside the big titles, and
+here is the MADSPACE client portal's design system, rework the pages onto it.
+
+The specification, extracted from the PDF plus the decisions taken in adopting it, is
+`docs/20-madspace-admin-design-system.md`. Read that before touching a `/madspace` screen.
+
+### What changed
+
+|               |                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Ground        | Graphite dark to warm paper, through a token swap on `.mad-portal`. Observer stays dark; the boundary is one class.                    |
+| Type          | Inter with tabular figures on `/madspace`; Manrope everywhere else.                                                                    |
+| Prose         | 94 sentences behind an `InfoNote`, 20 deleted, 38 dashes rewritten. The screens lead with the state, the party waited on and the date. |
+| States        | `StatusMark` gives six states six shapes. `StatusChip` has no prop to drop its word. One verdict-to-mark table, beside `HEALTH_LABEL`. |
+| Absent values | Words matched to the field: Not set, None scheduled, Never, No delay, Not readable. Never a dash, never a zero.                        |
+| Numbers       | Pinned `Intl` formatters, so one count does not print two ways on one row.                                                             |
+
+### Defects the pass found, which were not design
+
+- The header asserted "Hosted control plane" for any process that merely was not local, including
+  one with no control plane at all. `runningLocally()` reads the environment; it never asked
+  whether a database answered.
+- A project with any non-active status was told it was "Archived" and that the decision was
+  terminal. A suspended project was being told something untrue about something reversible.
+- The head tally set `data-missing` on a class with no rule behind it, so "Not reported" rendered
+  at the full weight of a real count in the largest type on the page.
+- An unparseable timestamp fell into the same branch as an empty column and claimed "Never".
+- Two screens each declared their own verdict-to-mark table and disagreed about three of seven, so
+  one installation wore two shapes depending on which screen you opened.
+
+### Verification
+
+`pnpm test`: 94 files, 2981 passed, 1 skipped, 0 failed. Typecheck, lint and `format:check` clean.
+`apps/web/test/madspace-design-system.test.ts` holds 13 of the system's literal rules and says in
+its own docblock why it does not attempt the rest.
+
+Screenshots: 46 images, six screens at 1920 / 1440 / 412 plus the five-state lifecycle record at
+1440, under `…/scratchpad/madspace`. The lifecycle record is only truthful on a fresh estate, and
+the spec asserts that precondition rather than assuming it.
+
+### Next recommended action
+
+**The user reviews the screenshots.** Everything below is held until they do.
+
+Three things are worth their opinion rather than another pass:
+
+1. The scope band is on every `/madspace` screen, stating the account and which control plane
+   answered. It is correct by the specification and it is heavy. The alternative is the header
+   chip it replaced, which disappeared below 768px and took the fact with it.
+2. Source detail's head carries project, environment and lifecycle on the right. If those belong
+   in the strip below the title instead, it is a small change.
+3. The `i` sits beside a title only where something needed explaining, so some headings have none.
+   The reviewer asked for it beside "the big titles"; this reads it as "wherever there is doctrine
+   to move", which is not quite the same request.
