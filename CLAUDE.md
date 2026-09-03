@@ -101,6 +101,15 @@ Run `pnpm matrix` after any registry change. A test fails if the committed matri
   development project; data tests use PGlite. See ADR-0008.
 - `pnpm-workspace.yaml` carries an `allowBuilds` entry for esbuild. pnpm 11 treats unapproved build
   scripts as a hard error, so do not remove it.
+- **Run `pnpm test` from a shell that has Git's `/usr/bin` on PATH** — Git Bash does; PowerShell
+  does not. The release packaging suites shell out to `unzip` and `sha256sum` to open and verify a
+  built archive, and without them four cases fail with `spawnSync unzip ENOENT` and an unreadable
+  bundle inventory. That reads like a packaging defect and is a missing tool on the caller's path.
+- The **release suites also need a clean working tree**. `requireCleanHead` refuses to build a
+  package from an uncommitted tree, because the package would describe a commit that does not
+  contain what it ships — untracked files count. Inbound delivery artefacts (the plugin zips, the
+  architecture brief) therefore belong in `.git/info/exclude` rather than merely untracked;
+  `.gitignore` is shared and this is one desk's situation.
 
 ## Layout
 
