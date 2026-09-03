@@ -11,6 +11,7 @@ import {
   heartbeatAction,
   issueCodeAction,
   resumeAction,
+  seedReviewEstateAction,
   simulateBusyInstallationAction,
   suspendAction,
 } from "@/lib/sources/demo-actions";
@@ -90,6 +91,13 @@ const STEPS: readonly Step[] = [
     label: "Send diagnostic.test",
     detail: "Posts a real event batch through ingestion.",
     run: () => attempt(() => diagnosticAction()),
+  },
+  {
+    key: "seed",
+    label: "Add the review estate",
+    detail:
+      "Registers three more projects and six more sources through the real admin services, so a list has something to be judged on.",
+    run: () => attempt(() => seedReviewEstateAction()),
   },
   {
     key: "busy",

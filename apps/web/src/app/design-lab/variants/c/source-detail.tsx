@@ -1,7 +1,7 @@
 import { StatusChip, StatusMark, type MarkTone } from "@/components/madspace/StatusMark";
 
-import type { LabSource } from "../lab-data";
-import { labFields, type LabFigure, type LabState } from "./lab-fields";
+import type { LabScreenProps, LabSource } from "../../lab-data";
+import { labFields, type LabFigure, type LabState } from "../../lab-fields";
 
 /**
  * VARIANT C. HYBRID EXECUTIVE.
@@ -141,7 +141,15 @@ function Bay({ state }: { state: LabState }) {
   );
 }
 
-export function VariantC({ source, name }: { source: LabSource; name: string }) {
+export function SourceDetailC({ estate, variantName }: LabScreenProps) {
+  /*
+   * The estate arrives whole and this screen takes the source from it. Every
+   * screen in the lab receives the same single prop, so no two can be handed
+   * different readings of the same moment.
+   */
+  const source: LabSource = estate.source;
+  const name = variantName;
+
   const f = labFields(source);
 
   return (

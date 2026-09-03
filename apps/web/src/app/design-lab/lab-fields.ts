@@ -1,4 +1,4 @@
-import type { LabSource } from "../lab-data";
+import type { LabSource } from "./lab-data";
 import {
   ageSeconds,
   ageSince,

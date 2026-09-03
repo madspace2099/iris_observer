@@ -27,7 +27,7 @@ import { currentViewer } from "@/lib/session";
 
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "./control-plane";
 import { observerLocalDirectory } from "./local-db";
-import { demonstrationEstate } from "./seed";
+import { DEMONSTRATION_SOURCE_TYPE, demonstrationEstate } from "./seed";
 
 /**
  * WALKING THE SOURCE LIFECYCLE, THROUGH THE REAL PATH AND NOTHING ELSE.
@@ -878,4 +878,142 @@ export async function simulateBusyInstallationAction(): Promise<{ readonly ok: t
 
   revalidatePath(REVIEW_SURFACE, "layout");
   return { ok: true };
+}
+
+/* --- 7. a reviewable estate -------------------------------------------------------- */
+
+/**
+ * The estate a LIST design can actually be judged against.
+ *
+ * ## Why this exists
+ *
+ * `demonstrationEstate` creates one project holding one source, which is the
+ * right minimum for walking a lifecycle and useless for reviewing a projects
+ * index or a diagnostics screen. A list with a single row does not show whether
+ * its typography holds, whether its columns align, whether a sorted set reads,
+ * or what it looks like when half the estate is waiting and half is delivering.
+ * Three visual directions compared on a one-row table would be compared on
+ * nothing.
+ *
+ * ## Why it is not a fixture
+ *
+ * Every project and every source below is created by `ObserverAdmin` through
+ * the same services the real screens call, with the same validation and the
+ * same refusals. What lands in the database is what an operator registering
+ * these installations by hand would have produced.
+ *
+ * Their states are real too, and mostly UNACTIVATED, which is exactly what a
+ * newly registered estate looks like: a source is created here and switched on
+ * afterwards from the showroom machine itself. The demonstration source remains
+ * the only one driven through activation, heartbeat and ingestion, so the lists
+ * show one delivering installation among several awaiting their first
+ * heartbeat. That contrast is the common real case and it is the one a list
+ * design has to survive.
+ *
+ * Nothing here invents a state the product cannot reach.
+ *
+ * ## Idempotent, by slug and by label
+ *
+ * Pressing twice must not double the estate. Projects are keyed by slug, which
+ * the database already makes unique, and sources by their label within a
+ * project, which it does not, so this reads what is there before creating.
+ */
+const REVIEW_ESTATE: readonly {
+  readonly name: string;
+  readonly slug: string;
+  readonly sources: readonly {
+    readonly label: string;
+    /* The union the service accepts, so a typo is a compile error and not a refusal. */
+    readonly environment: "development" | "staging" | "production" | "demo";
+  }[];
+}[] = [
+  {
+    name: "RIVERSIDE QUARTER",
+    slug: "riverside-quarter",
+    sources: [
+      { label: "Sales Suite, Level 3", environment: "production" },
+      { label: "Reception pod", environment: "production" },
+      { label: "Build machine", environment: "development" },
+    ],
+  },
+  {
+    name: "HARBOR VIEW RESIDENCE",
+    slug: "harbor-view-residence",
+    sources: [
+      { label: "Marketing suite", environment: "production" },
+      { label: "Rehearsal rig", environment: "staging" },
+    ],
+  },
+  {
+    name: "NORTHGATE YARD",
+    slug: "northgate-yard",
+    sources: [{ label: "Show apartment", environment: "production" }],
+  },
+];
+
+/**
+ * Create the review estate if it is not already there.
+ *
+ * DEVELOPMENT ONLY, through the same gate as every other action in this file.
+ * A refusal from either service is returned as a sentence rather than thrown:
+ * this runs behind a button and the answer has to be legible where it lands.
+ */
+export async function seedReviewEstateAction(): Promise<
+  { readonly ok: true; readonly created: number } | Refused
+> {
+  const estate = await operatorEstate();
+  if (isRefused(estate)) return estate;
+
+  const { admin } = estate;
+  let created = 0;
+
+  const existing = await admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
+  if (!existing.ok) return refuse("The account's projects could not be read.");
+
+  for (const wanted of REVIEW_ESTATE) {
+    let projectId = existing.value.find((row) => row.name === wanted.name)?.project_id ?? null;
+
+    if (projectId === null) {
+      /*
+       * `createProject` RAISES on a slug already taken rather than refusing,
+       * because that collision is a unique index doing its job. Reaching it
+       * here means the project exists under a name this loop did not match, so
+       * the honest answer is to skip it rather than to invent a second one.
+       */
+      try {
+        const made = await admin.createProject({
+          account: CONTROL_PLANE_ACCOUNT,
+          name: wanted.name,
+          slug: wanted.slug,
+        });
+        if (!made.ok) return refuse(`${wanted.name} could not be created: ${made.refusal.code}.`);
+        projectId = made.value;
+        created += 1;
+      } catch {
+        continue;
+      }
+    }
+
+    const held = await admin.sourceOperations({
+      account: CONTROL_PLANE_ACCOUNT,
+      project: projectId,
+    });
+    const labels = new Set(held.ok ? held.value.map((row) => row.display_label) : []);
+
+    for (const source of wanted.sources) {
+      if (labels.has(source.label)) continue;
+      const made = await admin.createSource({
+        account: CONTROL_PLANE_ACCOUNT,
+        project: projectId,
+        type: DEMONSTRATION_SOURCE_TYPE,
+        environment: source.environment,
+        label: source.label,
+      });
+      if (!made.ok) return refuse(`${source.label} could not be created: ${made.refusal.code}.`);
+      created += 1;
+    }
+  }
+
+  revalidatePath(REVIEW_SURFACE, "layout");
+  return { ok: true, created };
 }

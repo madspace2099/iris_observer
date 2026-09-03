@@ -3,40 +3,54 @@ import "server-only";
 import { notFound } from "next/navigation";
 
 import { credentialWord, installationAnswer, type InstallationAnswer } from "@/lib/madspace/format";
-import { locateSource } from "@/lib/madspace/estate";
+import { locateSource, projectSummaries, type ProjectSummary } from "@/lib/madspace/estate";
+import {
+  diagnosticsEstate,
+  quarantineActivity,
+  queuePressure,
+  queueUnmeasured,
+  recentErrorCodes,
+  recentHeartbeats,
+  recentVerifications,
+  requiringAttention,
+  type DiagnosticSource,
+} from "@/lib/madspace/diagnostics";
 import {
   CONTROL_PLANE_ACCOUNT,
+  CONTROL_PLANE_ACCOUNT_NAME,
   controlPlane,
   sourceViews,
   HEALTH_LABEL,
   HEALTH_TONE,
+  runningLocally,
   type SourceView,
 } from "@/lib/sources/control-plane";
 import { demonstrationEstate } from "@/lib/sources/seed";
 import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 import type { CredentialStatusRow } from "@observer/sources";
+import type { MarkTone } from "@/components/madspace/StatusMark";
 
 /**
- * ONE READ, THREE PRESENTATIONS.
+ * ONE READ, EVERY SCREEN, EVERY VARIANT.
  *
- * The design lab exists to choose a visual direction, and the only way that
- * choice means anything is if the three candidates are looking at the same
- * facts. So the data path is here, once, and it is the SAME path the real
- * Source Detail screen uses: `controlPlane`, `sourceViews`, `credentialStatus`,
- * `installationAnswer`. No fixture, no second read model, no variant-specific
- * shaping.
+ * The lab exists to choose a visual direction, and that choice only means
+ * something if the candidates are looking at identical facts. So there is one
+ * loader, it runs the SAME path the live screens use, and every screen in every
+ * variant receives the whole bundle and takes what it needs.
  *
- * A variant that wanted a figure this does not return would be a variant asking
- * to show something the product does not know, and the answer to that is no
- * rather than a prop.
+ * Loading everything at once rather than per screen is deliberate. The
+ * demonstration estate is one project and one source, so the cost is nothing,
+ * and it removes the only way three variants of one screen could ever disagree:
+ * three separate reads taken at three separate moments.
  *
- * ## What the lab is not
+ * ## What is NOT here
  *
- * It is not a second implementation of the screen. Nothing here decides what a
- * state means, what a verdict is called or how an absent value reads; all of
- * that stays in `control-plane.ts` and `format.ts` where the real screen gets
- * it. The variants receive a finished set of facts and differ only in how they
- * arrange them.
+ * No second read model, no fixture, no per-variant shaping. Nothing in this file
+ * decides what a state means, what a verdict is called or how an absent value
+ * reads; `control-plane.ts`, `diagnostics.ts` and `format.ts` decide all of
+ * that, and the live screens get it from the same place. A variant that wanted
+ * a figure this does not return would be a variant asking to show something the
+ * product does not know, and the answer to that is no rather than a prop.
  */
 
 export interface LabSource {
@@ -44,21 +58,79 @@ export interface LabSource {
   readonly credential: CredentialStatusRow | null;
   readonly answer: InstallationAnswer;
   readonly healthLabel: string;
-  readonly healthTone: (typeof HEALTH_TONE)[keyof typeof HEALTH_TONE];
+  readonly healthTone: MarkTone;
   readonly projectName: string | null;
   readonly credentialLabel: string;
   readonly now: Date;
 }
 
+/** The diagnostics screen's six sections, already selected and ordered. */
+export interface LabDiagnostics {
+  readonly total: number;
+  readonly attention: readonly DiagnosticSource[];
+  readonly heartbeats: readonly DiagnosticSource[];
+  readonly verifications: readonly DiagnosticSource[];
+  readonly pressure: readonly DiagnosticSource[];
+  readonly unmeasured: number;
+  readonly quarantines: readonly DiagnosticSource[];
+  readonly errors: readonly DiagnosticSource[];
+}
+
 /**
- * The demonstration source, read as the real screen reads it.
+ * The activation panel's state.
  *
- * `notFound()` rather than a friendly empty state on every failure, because
- * this route is a development instrument and a lab that renders a placeholder
- * when the data is missing is a lab that can show you a layout for facts that
- * are not there. If it cannot read the estate it should not draw anything.
+ * `code` is the one value in the whole lab that is not read from the database,
+ * and it cannot be: the plaintext exists on the server for the length of one
+ * return statement and is never stored, which is the entire point of the
+ * design. So it is a correctly SHAPED sample, marked as one, and every variant
+ * has to label it. Everything else here is the real credential row.
  */
-export async function labSource(): Promise<LabSource> {
+export interface LabActivation {
+  readonly credential: CredentialStatusRow | null;
+  readonly state: string;
+  readonly tone: MarkTone;
+  readonly sampleCode: string;
+  readonly isSample: true;
+}
+
+export interface LabEstate {
+  readonly accountName: string;
+  readonly local: boolean;
+  readonly projects: readonly ProjectSummary[];
+  readonly project: ProjectSummary | null;
+  /** Every source under the demonstration project, for Project detail. */
+  readonly sources: readonly SourceView[];
+  readonly source: LabSource;
+  readonly diagnostics: LabDiagnostics;
+  readonly activation: LabActivation;
+  readonly now: Date;
+}
+
+/**
+ * A code shaped exactly like a real one, and obviously not one.
+ *
+ * `obs.<selector>.<secret>`, the format `secrets.ts` mints. The body spells out
+ * what it is rather than looking like entropy, because a sample that looks real
+ * is a sample somebody eventually tries to use.
+ */
+const SAMPLE_CODE = "obs.SAMPLEonlyNOTaREALcode.thisVALUEisDRAWNforREVIEWandGRANTSnothing";
+
+const CREDENTIAL_TONE: Readonly<Record<string, MarkTone>> = {
+  active: "good",
+  revoked: "operator",
+  superseded: "none",
+  expired: "wrong",
+};
+
+/**
+ * The estate, read as the live screens read it.
+ *
+ * `notFound()` rather than a friendly empty state on every failure. This route
+ * is a development instrument, and a lab that renders a placeholder when the
+ * data is missing is a lab that can show a layout for facts that are not there.
+ * If it cannot read the estate it should draw nothing at all.
+ */
+export async function labEstate(): Promise<LabEstate> {
   if (!localControlPlaneEnabled()) notFound();
 
   const plane = await controlPlane();
@@ -71,8 +143,8 @@ export async function labSource(): Promise<LabSource> {
   if (located === null) notFound();
 
   const now = new Date();
-  const views = await sourceViews(plane.admin, located.project_id, now);
-  const view = views.find((candidate) => candidate.status.source_id === estate.sourceId);
+  const sources = await sourceViews(plane.admin, located.project_id, now);
+  const view = sources.find((candidate) => candidate.status.source_id === estate.sourceId);
   if (view === undefined) notFound();
 
   const credentialResult = await plane.admin.credentialStatus({
@@ -81,27 +153,63 @@ export async function labSource(): Promise<LabSource> {
   });
   const credential = credentialResult.ok ? credentialResult.value : null;
 
-  const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  const projectName =
-    projects.ok === true
-      ? (projects.value.find((row) => row.project_id === view.status.project_id)?.name ?? null)
-      : null;
+  const projects = await projectSummaries(plane.admin);
+  const project = projects.find((row) => row.projectId === view.status.project_id) ?? null;
+
+  /*
+   * Read with an empty filter. Diagnostics has a real filter control and this
+   * lab is not prototyping it: the point is what the screen looks like holding
+   * a whole account, and a filtered read would quietly narrow what the three
+   * variants are being judged on.
+   */
+  const diagnostics = await diagnosticsEstate(
+    plane.admin,
+    { project: null, environment: null, health: null },
+    now,
+  );
+
+  const credentialState = credential?.state ?? "";
 
   return {
-    view,
-    credential,
-    answer: installationAnswer(view, now),
-    healthLabel: HEALTH_LABEL[view.health],
-    healthTone: HEALTH_TONE[view.health],
-    projectName,
-    credentialLabel: credentialWord(credential?.state ?? "").word,
+    accountName: CONTROL_PLANE_ACCOUNT_NAME,
+    local: runningLocally(),
+    projects,
+    project,
+    sources,
+    source: {
+      view,
+      credential,
+      answer: installationAnswer(view, now),
+      healthLabel: HEALTH_LABEL[view.health],
+      healthTone: HEALTH_TONE[view.health],
+      projectName: project?.name ?? null,
+      credentialLabel: credentialWord(credentialState).word,
+      now,
+    },
+    diagnostics: {
+      total: diagnostics.all.length,
+      attention: requiringAttention(diagnostics),
+      heartbeats: recentHeartbeats(diagnostics),
+      verifications: recentVerifications(diagnostics),
+      pressure: queuePressure(diagnostics),
+      unmeasured: queueUnmeasured(diagnostics),
+      quarantines: quarantineActivity(diagnostics),
+      errors: recentErrorCodes(diagnostics),
+    },
+    activation: {
+      credential,
+      state: credentialWord(credentialState).word,
+      tone: CREDENTIAL_TONE[credentialState] ?? "none",
+      sampleCode: SAMPLE_CODE,
+      isSample: true,
+    },
     now,
   };
 }
 
-/** The three directions, in the order the brief names them. */
-export const VARIANTS = ["a", "b", "c"] as const;
+/* --- the registry -------------------------------------------------------------- */
 
+export const VARIANTS = ["a", "b", "c"] as const;
 export type Variant = (typeof VARIANTS)[number];
 
 export const VARIANT_NAME: Readonly<Record<Variant, string>> = {
@@ -110,6 +218,35 @@ export const VARIANT_NAME: Readonly<Record<Variant, string>> = {
   c: "Hybrid executive",
 };
 
+export const SCREENS = [
+  "projects",
+  "project-detail",
+  "source-detail",
+  "activation",
+  "diagnostics",
+] as const;
+
+export type Screen = (typeof SCREENS)[number];
+
+export const SCREEN_NAME: Readonly<Record<Screen, string>> = {
+  projects: "Projects",
+  "project-detail": "Project detail",
+  "source-detail": "Source detail",
+  activation: "Activation and source actions",
+  diagnostics: "Diagnostics",
+};
+
 export function isVariant(value: string): value is Variant {
   return (VARIANTS as readonly string[]).includes(value);
+}
+
+export function isScreen(value: string): value is Screen {
+  return (SCREENS as readonly string[]).includes(value);
+}
+
+/** Every screen takes the whole estate. One prop, so no screen can drift. */
+export interface LabScreenProps {
+  readonly estate: LabEstate;
+  readonly screenName: string;
+  readonly variantName: string;
 }

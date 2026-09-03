@@ -1,5 +1,5 @@
-import type { LabSource } from "../lab-data";
-import { labFields, type LabFields } from "./lab-fields";
+import type { LabScreenProps, LabSource } from "../../lab-data";
+import { labFields, type LabFields } from "../../lab-fields";
 import type { Reading } from "@/lib/madspace/format";
 import { StatusChip, StatusMark, type MarkTone } from "@/components/madspace/StatusMark";
 
@@ -37,7 +37,15 @@ import { StatusChip, StatusMark, type MarkTone } from "@/components/madspace/Sta
  * hierarchy of a real control set is part of what a reviewer is choosing
  * between: one filled, one bordered, one stripped of its border.
  */
-export function VariantA({ source, name }: { source: LabSource; name: string }) {
+export function SourceDetailA({ estate, variantName }: LabScreenProps) {
+  /*
+   * The estate arrives whole and this screen takes the source from it. Every
+   * screen in the lab receives the same single prop, so no two can be handed
+   * different readings of the same moment.
+   */
+  const source: LabSource = estate.source;
+  const name = variantName;
+
   const f = labFields(source);
 
   return (
