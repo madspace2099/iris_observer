@@ -1,3 +1,248 @@
+/* ============================================================================
+ * THE CLIENT-PORTAL DESIGN SYSTEM, SCOPED TO /madspace
+ *
+ * `docs/20-madspace-admin-design-system.md` is the specification. This block is
+ * its token layer, and everything below it in this file is written against
+ * these names rather than against literals.
+ *
+ * ## Why a scoped swap rather than a second stylesheet
+ *
+ * The system's own inverse theme is "a token swap on a class, never a CSS
+ * filter", for a stated reason: a filter on `body` makes it the containing
+ * block for every `position: fixed` element, which breaks modals and headers.
+ * This is the same mechanism pointed the other way. Observer is dark and stays
+ * dark; MADSPACE is warm paper and light; one class marks the boundary.
+ *
+ * It works because the rules underneath were already written against semantic
+ * tokens rather than colours. Redeclaring `--surface-panel` and `--text-primary`
+ * here turns the whole surface over without touching the rules that use them,
+ * and anything that did NOT flip is a hard-coded value, which is a defect the
+ * swap makes visible rather than one it hides.
+ *
+ * ## The two families of name
+ *
+ * The design system's own names (`--ink`, `--surface-page`, `--border-panel`)
+ * are declared because the spec is written in them and a reader holding the PDF
+ * should find what it names. The application's existing names
+ * (`--text-primary`, `--line-subtle`) are re-pointed at the same values,
+ * because 2000 lines of working layout already speak that vocabulary and
+ * renaming them would be a large diff that changes nothing on screen.
+ *
+ * `--ink` in particular is NOT a new token: `iris.css` defines it as #f2f5f8
+ * for the dark product. Here it is #111111. That is the swap working.
+ * ========================================================================= */
+
+/*
+ * THE GROUND THE BROWSER PAINTS, which a descendant cannot reach.
+ *
+ * `body` is #07090c, the dark product ground, and the portal is a div inside
+ * it. The shell is taller than the viewport so it covers that in normal
+ * scrolling, and the black showed anyway: an overscroll bounce paints the
+ * canvas, and the canvas takes its colour from the root element, not from
+ * whatever happens to be under the pointer.
+ *
+ * A descendant cannot restyle its ancestor, so `--surface-page` is declared
+ * HERE rather than on `.mad-portal`, and `:has()` scopes it to a document that
+ * actually renders the portal. One declaration, read by the root, by the body
+ * and by the portal, so the three cannot drift apart. `color-scheme` goes with
+ * it because a light page with a dark scrollbar is the same mistake at the
+ * edge of the frame.
+ */
+:root:has(.mad-portal) {
+  --surface-page: #f6f5f3; /* warm paper */
+
+  color-scheme: light;
+  background: var(--surface-page);
+}
+
+:root:has(.mad-portal) body {
+  background: var(--surface-page);
+}
+
+.mad-portal {
+  /* --- ink ------------------------------------------------------------- */
+  --ink: #111111; /* 15.0:1 headings, primary text, filled buttons */
+  --ink-2: #4a4a4a; /* 9.0:1 body copy, descriptions */
+  --ink-3: #5c5c5c; /* 7.0:1 emphasised micro-labels */
+  --ink-4: #6b6b6b; /* 5.3:1 labels, metadata, captions. The workhorse. */
+  --mark-disabled: #b0aeaa; /* 2.3:1 marks and disabled fills. NEVER text. */
+
+  /* --- surfaces --------------------------------------------------------- */
+  /* `--surface-page` is declared at the root; see THE GROUND below. */
+  --surface-card: #ffffff;
+  --surface-tint: #edebe7;
+  --surface-inset: rgb(17 17 17 / 4%);
+
+  /* --- borders: one ink, six alphas, nothing else ----------------------- */
+  --border-hairline: rgb(17 17 17 / 6%); /* rows inside a panel */
+  --border-panel: rgb(17 17 17 / 9%); /* the default panel and grid line */
+  --border-line: rgb(17 17 17 / 12%); /* segmented controls, tabs */
+  --border-field: rgb(17 17 17 / 16%); /* inputs, selects, secondary buttons */
+  --border-dashed: rgb(17 17 17 / 24%); /* drop targets, empty slots */
+  --border-hover: rgb(17 17 17 / 35%); /* hover on a bordered card */
+
+  /*
+   * --- status: six states, six shapes, two colours each -----------------
+   *
+   * The saturated value carries the mark and the 1px border; the darker value
+   * carries the label, because green and amber text on their own tint fall
+   * below 4.5:1. The shape is what survives greyscale and colour blindness, so
+   * `.mad-mark` is the thing that must always be present, not these.
+   */
+  --state-good: #0f5c39;
+  --state-good-mark: #1f8a5b;
+  --state-good-tint: #f4f9f6;
+
+  --state-wait-client: #8a5200;
+  --state-wait-client-mark: #b9791a;
+  --state-wait-client-tint: #faf7f2;
+
+  --state-wait-studio: #0f6fd0;
+  --state-wait-studio-mark: #2c81d6;
+  --state-wait-studio-tint: #f6fafe;
+
+  --state-late: #b3261e;
+  --state-late-mark: #c65d57;
+  --state-late-tint: #fbf3f3;
+
+  --state-neutral: var(--ink-4);
+  --state-neutral-tint: var(--surface-inset);
+
+  /* --- type ------------------------------------------------------------- */
+  --portal-font:
+    "Inter", "Inter Fallback", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+
+  /*
+   * Fluid above 22px, so a 1920px hero and a 480px phone share one token
+   * instead of a breakpoint override.
+   */
+  --text-display-xl: clamp(2.125rem, 1.4rem + 2.4vw, 3.25rem); /* 34 to 52 */
+  --text-display-2: clamp(1.75rem, 1.25rem + 1.6vw, 2.5rem); /* 28 to 40 */
+  --text-heading-2: 1.625rem; /* 26 */
+  --text-heading-3: 1.375rem; /* 22 */
+  --text-value: 1.1875rem; /* 19 */
+  --text-lead: 1rem; /* 16 */
+  --text-body: 0.875rem; /* 14 */
+  --text-caption: 0.8125rem; /* 13 */
+  --text-micro: 0.75rem; /* 12, the floor, and there are no exceptions */
+
+  /* Tracking follows size. Line height runs 1.05 at display, 1.55 at body. */
+  --track-display-xl: -0.025em;
+  --track-display-2: -0.02em;
+  --track-heading-2: -0.015em;
+  --track-heading-3: -0.01em;
+  --track-micro: 0.09em;
+  --lh-display: 1.05;
+  --lh-body: 1.55;
+
+  /* --- rhythm: 1 / 8 / 12 / 20 / 28 ------------------------------------- */
+  --rhythm-grid: 1px; /* a 1px gap over a border-coloured ground divides panels */
+  --rhythm-tight: 0.5rem; /* 8, inside a control */
+  --rhythm-inner: 0.75rem; /* 12, inside a control, roomier */
+  --rhythm-section: 1.25rem; /* 20, between sections */
+  --rhythm-major: 1.75rem; /* 28, between sections, roomier */
+
+  /* Gutters through ONE name, so header, hero and panels never drift apart. */
+  --gutter: 2.5rem; /* 40 */
+  --measure: 90rem; /* 1440 content cap */
+
+  /* --- radius: two values in practice ----------------------------------- */
+  --portal-radius: 12px; /* everything with a box */
+  --portal-round: 999px; /* avatars, status dots, rings */
+
+  /*
+   * --- elevation: two shadows, and cards get neither ---------------------
+   * Structure comes from hairlines. A shadow here means the thing is floating
+   * above the page, and only a popover or a modal is.
+   */
+  --shadow-popover: 0 8px 24px rgb(17 17 17 / 12%), 0 1px 2px rgb(17 17 17 / 8%);
+  --shadow-modal: 0 24px 64px rgb(17 17 17 / 20%), 0 2px 6px rgb(17 17 17 / 10%);
+
+  /* --- the application's existing vocabulary, re-pointed ---------------- */
+  --surface-base: var(--surface-page);
+  --surface-raised: var(--surface-card);
+  --surface-panel: var(--surface-card);
+  --surface-overlay: var(--surface-card);
+  --surface-hover: var(--surface-inset);
+  --surface-active: rgb(17 17 17 / 7%);
+
+  --line-subtle: var(--border-panel);
+  --line-strong: var(--border-field);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-2);
+  --text-tertiary: var(--ink-4);
+  --text-inverse: #ffffff;
+
+  --radius-sm: 8px;
+  --radius-md: var(--portal-radius);
+  --radius-lg: var(--portal-radius);
+
+  --shadow-panel: none;
+  --shadow-overlay: var(--shadow-modal);
+
+  /*
+   * Verdict colours become the status family. `--verdict-unknown` is the one
+   * that changes meaning as well as value: on the dark surface it was a pale
+   * grey that read as "dim"; here it is the same ink every other label uses,
+   * because an unknown state is a fact and not a faded one.
+   */
+  --verdict-good: var(--state-good);
+  --verdict-good-wash: var(--state-good-tint);
+  --verdict-watch: var(--state-wait-client);
+  --verdict-watch-wash: var(--state-wait-client-tint);
+  --verdict-weak: var(--state-late);
+  --verdict-weak-wash: var(--state-late-tint);
+  --verdict-unknown: var(--ink-4);
+  --verdict-unknown-wash: var(--surface-inset);
+
+  /*
+   * The accent is the studio's blue, and it is the focus ring's colour. It is
+   * NOT #00a3ff: that is the IRIS product's brand accent on a near-black
+   * ground, and at 3.1:1 on warm paper it would fail the contract this system
+   * measures itself against.
+   */
+  --iris-accent: var(--state-wait-studio);
+  --iris-accent-strong: #0b5fb4;
+  --iris-accent-dim: #7ba7d8;
+  --iris-accent-wash: var(--state-wait-studio-tint);
+
+  color-scheme: light;
+  background: var(--surface-page);
+  color: var(--ink-2);
+  font-family: var(--portal-font);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 48rem) {
+  .mad-portal {
+    --gutter: 1.5rem; /* 24 */
+  }
+}
+
+@media (max-width: 30rem) {
+  .mad-portal {
+    --gutter: 1rem; /* 16 */
+  }
+}
+
+/*
+ * Inter, with a metric-matched stand-in until the woff2 arrives.
+ *
+ * The same arrangement `tokens.css` makes for Manrope, for the same reason: the
+ * override keeps the eventual swap from shifting a single line. Declared at the
+ * top level because `@font-face` is not scoped by a class.
+ */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial");
+  ascent-override: 96%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
 /*
  * MADSPACE operations — the control-plane surface.
  *
@@ -230,7 +475,6 @@ a.mad-row {
 
 a.mad-row:hover {
   background: var(--surface-hover);
-  box-shadow: inset 2px 0 0 var(--iris-accent);
 }
 
 a.mad-row:focus-visible {
@@ -293,7 +537,7 @@ a.mad-row:focus-visible {
 /*
  * The figure sits under its own label.
  *
- * A tally item is `<dd>` then `<dt>`, and every browser gives `dd` a
+ * A tally item is `<dt>` then `<dd>` in the markup, and every browser gives `dd` a
  * 40px `margin-inline-start` — so on the projects list, project detail and
  * source detail alike, every figure was indented 40px past the label naming it
  * while the labels stayed on the true left edge. Measured rather than guessed:
@@ -1031,7 +1275,6 @@ a.mad-row:focus-visible {
 
 .mad-choice:has(input:checked) {
   background: var(--surface-overlay);
-  box-shadow: inset 2px 0 0 var(--iris-accent);
 }
 
 .mad-choice:has(input:focus-visible) {
@@ -2060,4 +2303,820 @@ a.mad-row:focus-visible {
 .mad-meta-item--quiet .mad-meta-value {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
+}
+
+/* ============================================================================
+ * THE PORTAL'S OWN PARTS
+ *
+ * Everything above this line is the existing operations layout, now reading the
+ * portal tokens. What follows is new: the pieces the design system names that
+ * the surface did not previously have, and the handful of places where a
+ * hard-coded value had to be replaced because the token swap could not reach it.
+ * ========================================================================= */
+
+/* --- the chrome, which the swap could not reach on its own ---------------- */
+
+/*
+ * `obs-header` and `obs-nav` are the shared shell, and they paint themselves
+ * with values rather than tokens, because they were written when there was one
+ * ground and it was near-black. Inside the portal they are restated here rather
+ * than changed at the source: the Observer surfaces still want the dark shell,
+ * and this is the boundary that was declared for exactly this kind of case.
+ */
+.mad-portal.obs-shell {
+  background: var(--surface-page);
+}
+
+.mad-portal .obs-header {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-panel);
+  color: var(--ink-2);
+  box-shadow: none;
+}
+
+.mad-portal .obs-brand-mark {
+  color: var(--ink);
+  letter-spacing: 0.22em;
+}
+
+.mad-portal .obs-brand > span:not(.obs-brand-mark) {
+  color: var(--ink-4);
+}
+
+.mad-portal .obs-who strong {
+  color: var(--ink);
+}
+
+.mad-portal .obs-who span {
+  color: var(--ink-4);
+}
+
+.mad-portal .obs-nav {
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.mad-portal .obs-nav a {
+  color: var(--ink-4);
+}
+
+.mad-portal .obs-nav a:hover {
+  color: var(--ink);
+}
+
+.mad-portal .obs-nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.mad-portal .obs-main {
+  background: var(--surface-page);
+  /*
+   * ONE class carries the gutter, so the header, the hero and the panels never
+   * drift apart. The cap is 1440px and the padding shrinks with the viewport;
+   * both come from the token block, which is the whole point of naming them.
+   */
+  max-width: var(--measure);
+  padding-inline: var(--gutter);
+  margin-inline: auto;
+}
+
+/*
+ * A 2px focus ring at 2px offset, on everything, never removed.
+ *
+ * Declared once at the portal root rather than per component, because the
+ * contract is "every interactive element" and a per-component rule is a list
+ * that will one day be missing an entry.
+ */
+.mad-portal :focus-visible {
+  outline: 2px solid var(--iris-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* --- the information disclosure ------------------------------------------ */
+
+.mad-info {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-inline-start: var(--rhythm-tight);
+}
+
+/*
+ * 12px of drawn glyph in a 24px target.
+ *
+ * The mark matches the micro-label it sits beside; the button around it is the
+ * size a finger can hit. Shrinking the target to match the glyph is the usual
+ * mistake and it makes the control unusable on a phone.
+ */
+.mad-info-button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--portal-round);
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.mad-info-button svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentcolor;
+  fill: currentcolor;
+}
+
+.mad-info-button:hover {
+  color: var(--ink);
+  background: var(--surface-inset);
+}
+
+.mad-info-button[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--surface-inset);
+}
+
+/*
+ * A popover, which is one of the two things in this system allowed a shadow.
+ *
+ * It is `position: absolute` inside the flow rather than fixed, so it moves
+ * with the heading it belongs to when the page scrolls. Width is a reading
+ * measure, not a percentage: an explanation is prose and prose has an optimal
+ * line length whatever the container is doing.
+ */
+.mad-info-panel {
+  position: absolute;
+  top: calc(100% + var(--rhythm-tight));
+  z-index: 20;
+  display: block;
+  inline-size: min(24rem, calc(100vw - 2 * var(--gutter)));
+  padding: var(--rhythm-inner) 0.875rem;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-popover);
+  color: var(--ink-2);
+  font-size: var(--text-caption);
+  line-height: var(--lh-body);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: start;
+  white-space: normal;
+}
+
+.mad-info-panel[data-align="start"] {
+  inset-inline-start: 0;
+}
+
+.mad-info-panel[data-align="end"] {
+  inset-inline-end: 0;
+}
+
+/* A panel opened from a micro-label must not inherit its tracking or its case. */
+.mad-info-panel p {
+  margin: 0;
+}
+
+.mad-info-panel p + p {
+  margin-top: var(--rhythm-tight);
+}
+
+.mad-info-panel strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+/* --- status marks --------------------------------------------------------- */
+
+.mad-mark {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentcolor;
+  stroke: currentcolor;
+}
+
+.mad-mark[data-tone="good"],
+.mad-mark[data-tone="settled"] {
+  color: var(--state-good-mark);
+}
+
+.mad-mark[data-tone="await"] {
+  color: var(--state-wait-client-mark);
+}
+
+.mad-mark[data-tone="operator"] {
+  color: var(--state-wait-studio-mark);
+}
+
+.mad-mark[data-tone="wrong"] {
+  color: var(--state-late-mark);
+}
+
+.mad-mark[data-tone="none"] {
+  color: var(--mark-disabled);
+}
+
+/*
+ * The chip: mark, then word, on the state's own tint.
+ *
+ * Two colours, as the system specifies. The mark takes the saturated value and
+ * the label the darker one, because green and amber text on their own tint fall
+ * below 4.5:1 and this surface measures itself against that number.
+ */
+.mad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rhythm-tight);
+  padding: 0.1875rem 0.5rem 0.1875rem 0.4375rem;
+  border: 1px solid;
+  border-radius: var(--portal-round);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.mad-chip[data-tone="good"],
+.mad-chip[data-tone="settled"] {
+  border-color: color-mix(in srgb, var(--state-good-mark) 40%, transparent);
+  background: var(--state-good-tint);
+  color: var(--state-good);
+}
+
+.mad-chip[data-tone="await"] {
+  border-color: color-mix(in srgb, var(--state-wait-client-mark) 40%, transparent);
+  background: var(--state-wait-client-tint);
+  color: var(--state-wait-client);
+}
+
+.mad-chip[data-tone="operator"] {
+  border-color: color-mix(in srgb, var(--state-wait-studio-mark) 40%, transparent);
+  background: var(--state-wait-studio-tint);
+  color: var(--state-wait-studio);
+}
+
+.mad-chip[data-tone="wrong"] {
+  border-color: color-mix(in srgb, var(--state-late-mark) 40%, transparent);
+  background: var(--state-late-tint);
+  color: var(--state-late);
+}
+
+.mad-chip[data-tone="none"] {
+  border-color: var(--border-field);
+  background: var(--surface-inset);
+  color: var(--ink-4);
+}
+
+/* --- the scope band ------------------------------------------------------- */
+
+/*
+ * Ink as a surface, for anything whose effect reaches past the current screen.
+ *
+ * The surface change is the signal. It is not a warning and it is not styled
+ * like one: it says "what follows is scoped wider than the page you are on",
+ * names that scope in full words, and lists what it touches.
+ */
+.mad-scope-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-tight);
+  padding: var(--rhythm-section) var(--rhythm-major);
+  border-radius: var(--portal-radius);
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.mad-scope-band-kicker {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: rgb(255 255 255 / 62%);
+}
+
+.mad-scope-band-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  letter-spacing: var(--track-heading-3);
+  font-weight: var(--weight-medium);
+  color: #ffffff;
+}
+
+.mad-scope-band-detail {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: rgb(255 255 255 / 78%);
+}
+
+/* --- type, restated on the portal's scale --------------------------------- */
+
+.mad-portal .mad-title {
+  font-size: var(--text-display-2);
+  line-height: var(--lh-display);
+  letter-spacing: var(--track-display-2);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.mad-portal .mad-lede {
+  font-size: var(--text-lead);
+  line-height: var(--lh-body);
+  color: var(--ink-2);
+}
+
+.mad-portal .mad-note {
+  font-size: var(--text-caption);
+  line-height: var(--lh-body);
+  color: var(--ink-4);
+}
+
+.mad-portal h2 {
+  font-size: var(--text-heading-2);
+  letter-spacing: var(--track-heading-2);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.mad-portal h3 {
+  font-size: var(--text-heading-3);
+  letter-spacing: var(--track-heading-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/*
+ * Micro-labels: 12px, uppercase, tracked to 0.09em.
+ *
+ * The shared vocabulary tracked them to 0.25em, which is a display treatment.
+ * At 12px that much space stops a two-word label reading as one thing.
+ */
+.mad-portal .mad-meta-label,
+.mad-portal .mad-tally-label,
+.mad-portal .obs-kicker,
+.mad-portal .mad-scope-label {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--ink-3);
+}
+
+.mad-portal .mad-meta-value {
+  font-size: var(--text-value);
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.mad-portal .mad-tally-value {
+  font-size: var(--text-value);
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+/* --- panels: hairlines, no shadow ---------------------------------------- */
+
+.mad-portal .mad-plane {
+  border-top: 1px solid var(--border-panel);
+  box-shadow: none;
+}
+
+.mad-portal .mad-row {
+  background: var(--surface-card);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  box-shadow: none;
+}
+
+.mad-portal .mad-row:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-card);
+}
+
+/* --- buttons: one filled per view ---------------------------------------- */
+
+/*
+ * Primary is ink, not accent.
+ *
+ * The blue in this system is a status colour: it means "waiting for MADSPACE".
+ * A blue button would be the only place blue did not mean that, which is
+ * exactly what principle 01 forbids.
+ */
+.mad-portal .obs-action[data-emphasis="primary"],
+.mad-portal .mad-button[data-emphasis="primary"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.mad-portal .obs-action[data-emphasis="primary"]:hover,
+.mad-portal .mad-button[data-emphasis="primary"]:hover {
+  background: #000000;
+  border-color: #000000;
+}
+
+.mad-portal .obs-action,
+.mad-portal .mad-button {
+  border-radius: var(--portal-radius);
+  border: 1px solid var(--border-field);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  box-shadow: none;
+}
+
+.mad-portal .obs-action:hover,
+.mad-portal .mad-button:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-inset);
+}
+
+/* Destructive states its colour in the text as well as the border. */
+.mad-portal .mad-button[data-tone="danger"] {
+  border-color: color-mix(in srgb, var(--state-late) 40%, transparent);
+  color: var(--state-late);
+}
+
+.mad-portal .mad-button:disabled {
+  border-color: var(--border-panel);
+  background: var(--surface-inset);
+  color: var(--mark-disabled);
+  cursor: not-allowed;
+}
+
+/* --- fields --------------------------------------------------------------- */
+
+.mad-portal input[type="text"],
+.mad-portal input[type="email"],
+.mad-portal input[type="url"],
+.mad-portal textarea,
+.mad-portal select {
+  border: 1px solid var(--border-field);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-family: inherit;
+}
+
+.mad-portal input::placeholder,
+.mad-portal textarea::placeholder {
+  color: var(--mark-disabled);
+}
+
+.mad-portal [aria-invalid="true"] {
+  border-color: var(--state-late);
+}
+
+/* --- the data panel ------------------------------------------------------- */
+
+/*
+ * A 1px grid over a border-coloured ground. The gap IS the rule: one gap value,
+ * one background, and the cells sit on top of it.
+ */
+.mad-datapanel {
+  display: grid;
+  gap: var(--rhythm-grid);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--border-panel);
+  overflow: hidden;
+}
+
+@media (min-width: 48rem) {
+  .mad-datapanel {
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  }
+}
+
+.mad-datapanel > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-tight);
+  padding: var(--rhythm-inner) 0.875rem;
+  background: var(--surface-card);
+}
+
+.mad-datapanel dt {
+  /*
+   * TWO LINES reserved, so values share a baseline whatever the label length.
+   * `min-height` rather than a fixed height: a label that genuinely needs three
+   * lines should get them rather than be clipped.
+   */
+  min-height: calc(2 * 1.4em);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.mad-datapanel dd {
+  margin: 0;
+  font-size: var(--text-value);
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+/*
+ * An absent value is a WORD matched to the field, never a dash and never a
+ * zero. It is quieter than a real reading, and it is not grey enough to be
+ * mistaken for disabled: #6B6B6B is the lightest colour any text may use here.
+ */
+.mad-datapanel dd[data-missing="true"],
+.mad-portal .mad-meta-value[data-missing="true"] {
+  color: var(--ink-4);
+  font-size: var(--text-body);
+}
+
+/* ============================================================================
+ * THE PLACES THE TOKEN SWAP COULD NOT REACH
+ *
+ * A swap turns over every rule written against a token. These are the rules
+ * that were written against a literal instead, and each one is here because an
+ * audit of the sheet named it. They are corrected at the portal scope rather
+ * than at the source, because the Observer surfaces still want the dark values
+ * and the literals are correct there.
+ *
+ * That every one of them is a hard-coded colour, an opacity, or a mix toward
+ * white is not a coincidence: those are exactly the three ways a rule can carry
+ * an assumption about its ground without naming it.
+ * ========================================================================= */
+
+.mad-portal {
+  /*
+   * A queue track has to be visible under the fill, and 8% white over paper is
+   * not. It becomes the inset, which is the surface this system uses for
+   * anything recessed.
+   */
+  --viz-track: var(--surface-inset);
+}
+
+/*
+ * A 1.5% white wash reads as a recessed plane over near-black and as nothing at
+ * all over #F6F5F3. The driver is a development panel and should read as one:
+ * inset ground, dashed border, which is the token this system gives to things
+ * that are not part of the delivered surface.
+ */
+.mad-portal .mad-driver {
+  background: var(--surface-inset);
+  border: 1px dashed var(--border-dashed);
+}
+
+/*
+ * Hover DARKENS on paper. Lightening a filled destructive control is the
+ * dark-ground direction, and on white it makes the button fade as the pointer
+ * arrives, which reads as the control going away rather than responding.
+ */
+.mad-portal .mad-action[data-weight="terminal"]:hover {
+  background: color-mix(in srgb, var(--state-late) 88%, #000000);
+}
+
+/*
+ * The activation code sat on the darkest ground the dark palette had, so it
+ * would stand out. On paper the equivalent is not the lightest ground, it is a
+ * bordered card: the system puts every panel, card and field on #FFFFFF and
+ * gets separation from a hairline instead of from a value.
+ */
+.mad-portal .mad-activation-code {
+  background: var(--surface-card);
+  border: 1px solid var(--border-field);
+  color: var(--ink);
+}
+
+/*
+ * Disabled is a COLOUR here, not an opacity.
+ *
+ * Opacity toward a dark ground darkens and reads as recessed; toward paper it
+ * washes out, and washed-out text on white is unreadable rather than quiet.
+ * `--mark-disabled` exists for exactly this and the system is explicit that it
+ * is never used for text a reader must parse, which a disabled control's label
+ * is not.
+ */
+.mad-portal .mad-action:disabled,
+.mad-portal .mad-action[aria-disabled="true"],
+.mad-portal .mad-driver-step:disabled {
+  opacity: 1;
+  border-color: var(--border-panel);
+  background: var(--surface-inset);
+  color: var(--mark-disabled);
+}
+
+/*
+ * Refusal text at the adopted ink.
+ *
+ * `--verdict-weak` is #f0616d, the value chosen to sit on near-black. On
+ * #FFFFFF it measures about 3.3:1 and fails the 4.5:1 this system holds itself
+ * to. The swap already re-points the token; these are the rules that need the
+ * label ink specifically rather than the mark colour.
+ */
+.mad-portal .mad-field-error,
+.mad-portal .mad-form-error {
+  color: var(--state-late);
+}
+
+/* Amber can carry a mark on paper and cannot carry text. */
+.mad-portal .mad-meta-value[data-tone="watch"] {
+  color: var(--state-wait-client);
+}
+
+/*
+ * The row hover, restored.
+ *
+ * `--surface-hover` is re-pointed by the swap, so the ground works again; what
+ * this adds is the border change the system actually specifies for a hovered
+ * bordered card, which is a different token from the resting one.
+ */
+.mad-portal a.mad-row:hover,
+.mad-portal .mad-table tbody tr:hover {
+  background: var(--surface-inset);
+  border-color: var(--border-hover);
+}
+
+/* --- reduced motion, unchanged in meaning ------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .mad-info-panel {
+    transition: none;
+  }
+}
+
+/* ============================================================================
+ * CORRECTIONS, FROM THE ADVERSARIAL PASS
+ *
+ * Three reviewers read the reworked surface against the specification and found
+ * thirty-two defects. These are the ones that live in this sheet. Each is here
+ * with the rule it broke, because a correction with no reason beside it is the
+ * next person's mystery.
+ * ========================================================================= */
+
+/*
+ * AN ABSENT FIGURE MUST NOT READ AS A CONFIDENT ONE.
+ *
+ * `data-missing` was already being set on `.mad-tally-value`, and no rule in
+ * this sheet answered it: every other place that marks an absence has one
+ * (`.mad-facts dd`, `.mad-datapanel dd`, `.mad-meta-value`, `.mad-queue-value`,
+ * `.mad-table td`) and the head tally was the gap. So on a screen whose control
+ * plane could not be read, "Not reported" was rendered at the full weight and
+ * size of a real count, in the same header where the heartbeat's absence was
+ * correctly dimmed.
+ *
+ * This is the product's first honesty rule and it was failing in the largest
+ * type on the page.
+ */
+.mad-portal .mad-tally-value[data-missing="true"] {
+  font-size: var(--text-body);
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+/*
+ * PRIMARY IS INK, EVEN WHEN IT IS CALLED SOMETHING ELSE.
+ *
+ * `.mad-action[data-weight="primary"]` and `[data-weight="confirm"]` fill with
+ * `--iris-accent`, which inside the portal is the status blue meaning "waiting
+ * for MADSPACE". A blue button would be the only place blue did not mean that,
+ * and principle 01 says colour means status and nothing else. The rule for
+ * `.obs-action[data-emphasis="primary"]` was already here; these two selectors
+ * were not covered by it.
+ */
+.mad-portal .mad-action[data-weight="primary"],
+.mad-portal .mad-action[data-weight="confirm"],
+.mad-portal .mad-submit {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
+
+.mad-portal .mad-action[data-weight="primary"]:hover,
+.mad-portal .mad-action[data-weight="confirm"]:hover,
+.mad-portal .mad-submit:hover {
+  background: #000000;
+  border-color: #000000;
+}
+
+/*
+ * INTER ON /madspace, WITHOUT EXCEPTION.
+ *
+ * `.mad-submit` set `font-family: var(--font-sans)`, which is Manrope, and an
+ * element's own declaration beats the family inherited from `.mad-portal`. The
+ * two creation buttons were the only Manrope left on a surface whose first
+ * adoption decision was Inter. The fields escaped it because they already say
+ * `font-family: inherit`; the buttons had nothing.
+ */
+.mad-portal .mad-submit,
+.mad-portal .mad-action,
+.mad-portal .mad-button,
+.mad-portal button,
+.mad-portal select,
+.mad-portal textarea {
+  font-family: inherit;
+}
+
+/*
+ * A RAIL IS A BORDER, NOT A SHADOW.
+ *
+ * `box-shadow: inset 2px 0 0` drew the hover and selection rails. It is a
+ * shadow by name only, but the rule this system states is flat: two shadows,
+ * popover and modal, and nothing else. Keeping an inset rail as a box-shadow
+ * means the guard that enforces that rule has to carry an exception, and an
+ * exception is how the rule stops being checkable.
+ *
+ * A border does the same job and says what it is. Corrected where the rails are
+ * declared rather than overridden here, because `.mad-row` and `.mad-choice` are
+ * MADSPACE classes and the portal is the only surface that renders them. The row
+ * reserves the width at rest so the text does not shift when the pointer arrives.
+ */
+.mad-portal a.mad-row {
+  border-inline-start: 2px solid transparent;
+}
+
+.mad-portal a.mad-row:hover {
+  border-inline-start-color: var(--ink);
+}
+
+.mad-portal .mad-choice {
+  border-inline-start: 2px solid transparent;
+}
+
+.mad-portal .mad-choice:has(input:checked) {
+  background: var(--surface-inset);
+  border-inline-start-color: var(--ink);
+}
+
+/*
+ * #B0AEAA IS NEVER TEXT.
+ *
+ * The token table is explicit: `--mark-disabled` is for decorative marks and
+ * disabled FILLS. At 2.3:1 it is below every text floor this system has. It was
+ * painting disabled button labels and input placeholders, and a placeholder
+ * carries the example the field rules say it exists to carry.
+ *
+ * `--ink-4` at 5.3:1 is the lightest colour any text may use, and it is quiet
+ * enough. The disabled state stays legible through the fill and the border,
+ * which is what those are for.
+ */
+.mad-portal .mad-button:disabled,
+.mad-portal .mad-action:disabled,
+.mad-portal .mad-action[aria-disabled="true"],
+.mad-portal .mad-driver-step:disabled,
+.mad-portal input::placeholder,
+.mad-portal textarea::placeholder {
+  color: var(--ink-4);
+}
+
+/*
+ * A TALLY ITEM IS `dt` THEN `dd`.
+ *
+ * Two screens wrote the same class in two DOM orders, so the figure sat above
+ * its label on one and below it on the other. `dl` requires the term first, and
+ * a reversed source order is not a layout tool: the visual order is decided
+ * here.
+ *
+ * The earlier comment in this sheet asserted the opposite. It was describing
+ * what the markup happened to do rather than what the class means, which is how
+ * one screen came to disagree with the other.
+ */
+.mad-portal .mad-tally-item {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+}
+
+/*
+ * A step caption is 13px, from a token.
+ *
+ * `.mad-driver-step-detail` carried a literal 0.75rem, which this sheet forbids
+ * in its own opening paragraph, and 12px is the micro step that section 3
+ * reserves for uppercase labels. This is sentence-case prose, so it takes the
+ * caption the rest of the surface gives sentence-case metadata.
+ */
+.mad-portal .mad-driver-step-detail {
+  font-size: var(--text-caption);
+  line-height: var(--lh-body);
+}
+
+/*
+ * The last cell fills the row, so an odd count leaves no phantom cell.
+ *
+ * The panel is a 1px gap over a border-coloured ground, which is what draws the
+ * grid. An empty grid AREA is not a gap: the ground shows through the whole
+ * cell, so three figures in a two-column panel painted a grey block where a
+ * fourth would have gone. Stretching the last child to the end line is the
+ * cheapest correction that keeps the idiom, and it is a no-op whenever the
+ * items happen to fill the row.
+ */
+.mad-datapanel > div:last-child {
+  grid-column: auto / -1;
 }

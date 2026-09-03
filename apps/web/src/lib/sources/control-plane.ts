@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { MarkTone } from "@/components/madspace/StatusMark";
+
 import {
   observerAdmin,
   type CredentialStatusRow,
@@ -245,6 +247,43 @@ export const HEALTH_LABEL: Readonly<Record<SourceHealth, string>> = {
   not_verified: "Ingestion not verified",
   attention: "Needs attention",
   healthy: "Healthy",
+};
+
+/**
+ * The MARK each verdict wears, decided once.
+ *
+ * Two screens declared this table for themselves and disagreed about three of
+ * the seven. Diagnostics drew "Needs attention" as the amber ring and "Offline"
+ * as the red triangle; Source detail drew them the other way round, and drew
+ * "Awaiting first heartbeat" as a ring where Diagnostics drew the neutral bar.
+ * One installation therefore had two different shapes depending on which screen
+ * an operator opened, which is precisely what the design system's rule that the
+ * mark is produced by ONE function exists to prevent. It sits beside
+ * `HEALTH_LABEL` because a verdict's word and its shape are the same decision.
+ *
+ * The readings, and why each shape:
+ *
+ *   offline           we are WAITING on the installation. A showroom machine
+ *                     switched off overnight is offline and nothing is wrong,
+ *                     so this is the ring, not the triangle.
+ *   attention         it is refusing, quarantining or filling its outbox.
+ *                     Something is wrong and somebody has work to do: triangle.
+ *   never_connected   also waiting, and the most important thing on the screen:
+ *                     a credential exists and the machine has never spoken. Not
+ *                     the neutral bar, which means no measurement exists at all.
+ *   not_verified      connected, and no event has proved the path. Waiting.
+ *   suspended         a person decided this and a person can undo it: diamond.
+ *   archived          terminal and accepted: square.
+ *   healthy           the filled circle, and the only one that gets it.
+ */
+export const HEALTH_TONE: Readonly<Record<SourceHealth, MarkTone>> = {
+  archived: "settled",
+  suspended: "operator",
+  never_connected: "await",
+  offline: "await",
+  not_verified: "await",
+  attention: "wrong",
+  healthy: "good",
 };
 
 /* --- assembling what a screen renders --------------------------------------------- */
