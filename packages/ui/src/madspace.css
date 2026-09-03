@@ -2007,6 +2007,15 @@ a.mad-row:focus-visible {
     align-items: flex-start;
     gap: var(--space-2);
   }
+
+  /*
+   * The aside is a paragraph, and a paragraph brings its own vertical margins.
+   * Baseline-aligned in a row they were invisible; stacked they add to the gap
+   * above and doubled the space between a heading and the sentence under it.
+   */
+  .mad-plane .obs-section-head > p {
+    margin: 0;
+  }
 }
 
 /*
