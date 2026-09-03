@@ -11,6 +11,7 @@ import {
   heartbeatAction,
   issueCodeAction,
   resumeAction,
+  simulateBusyInstallationAction,
   suspendAction,
 } from "@/lib/sources/demo-actions";
 
@@ -89,6 +90,13 @@ const STEPS: readonly Step[] = [
     label: "Send diagnostic.test",
     detail: "Posts a real event batch through ingestion.",
     run: () => attempt(() => diagnosticAction()),
+  },
+  {
+    key: "busy",
+    label: "Report a busy outbox",
+    detail:
+      "Posts a heartbeat as a loaded installation would, so the operational figures have something in them.",
+    run: () => attempt(() => simulateBusyInstallationAction()),
   },
   {
     key: "suspend",

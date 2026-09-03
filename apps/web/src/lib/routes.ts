@@ -162,6 +162,24 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
 
   /*
+   * The design lab. Development only, and gated twice.
+   *
+   * Three visual directions for Source detail, so a direction can be chosen by
+   * looking at it. The layout calls `notFound()` unless the local control plane
+   * is enabled, which needs a non-production NODE_ENV and an explicit
+   * environment variable, so a deployment does not have this route at all. It is
+   * declared here anyway: a surface with no declared audience is how a
+   * buyer-facing page appears by accident, and "it cannot render in production"
+   * is a runtime fact rather than a statement of who it is for.
+   */
+  { route: "/design-lab", audience: "internal", requiresRole: ["madspace_admin"] },
+  {
+    route: "/design-lab/source-detail/[variant]",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
+
+  /*
    * Ask IRIS, the flagship of the approved design — under review, at a real URL.
    *
    * Declared with the same audience and the same roles as the project surfaces

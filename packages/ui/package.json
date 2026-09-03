@@ -13,7 +13,10 @@
     "./charts.css": "./src/charts.css",
     "./observer.css": "./src/observer.css",
     "./madspace.css": "./src/madspace.css",
-    "./iris-shell.css": "./src/iris-shell.css"
+    "./iris-shell.css": "./src/iris-shell.css",
+    "./design-lab-a.css": "./src/design-lab-a.css",
+    "./design-lab-b.css": "./src/design-lab-b.css",
+    "./design-lab-c.css": "./src/design-lab-c.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

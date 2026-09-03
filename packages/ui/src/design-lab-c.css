@@ -1,0 +1,999 @@
+/* ============================================================================
+ * DESIGN LAB, VARIANT C. HYBRID EXECUTIVE. Namespace: dlc-
+ *
+ * A graphite frame around a paper workspace, and the boundary between them is
+ * a rule about CONTENT rather than a change of taste:
+ *
+ *   graphite   what we conclude, and what an operator may do about it.
+ *              Identity, scope, the verdict sentence, the three controls.
+ *   paper      what was measured. Every reading, every figure, every date.
+ *
+ * ## Why this is one design rather than two
+ *
+ * There is no second palette here. `docs/20-madspace-admin-design-system.md`
+ * section 8 already specifies an inverse theme as "a token swap on a class,
+ * never a CSS filter", and that is exactly the mechanism below: ONE set of
+ * token names, declared twice, applied by REGION instead of by page.
+ * `.dlc-graphite` holds the inverse values, `.dlc-paper` holds the light ones,
+ * and every rule in this file is written against the names rather than against
+ * a colour. The consequence is that `StatusChip` and `StatusMark` need no
+ * variant of their own: one component renders correctly on both grounds,
+ * because both grounds answer to `--state-good-mark`.
+ *
+ * ## Why the tokens are declared here at all
+ *
+ * The portal declares its tokens on `.mad-portal`, and the lab deliberately
+ * does not render inside the MADSPACE shell. So both sets are declared locally.
+ * They are the specification values, not new ones: the light column is section
+ * 2 verbatim, and the dark column is section 8 extended to the states that
+ * section gives only one example of.
+ * ========================================================================= */
+
+/* --- shared: type, rhythm, geometry. These do not change across the seam. --- */
+.dlc-root {
+  /*
+   * Manrope, by brand, with tabular figures. The portal specifies Inter; the
+   * IRIS doctrine locks Manrope, and where the two disagree the brand wins.
+   */
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+
+  /* Fluid above 22px, so one token serves 1920 and 390 without an override. */
+  --text-display-xl: clamp(2.125rem, 1.4rem + 2.4vw, 3.25rem); /* 34 to 52 */
+  --text-display-2: clamp(1.75rem, 1.25rem + 1.6vw, 2.5rem); /* 28 to 40 */
+  --text-heading-2: 1.625rem; /* 26 */
+  --text-heading-3: 1.375rem; /* 22 */
+  --text-value: 1.1875rem; /* 19 */
+  --text-lead: 1rem; /* 16 */
+  --text-body: 0.875rem; /* 14 */
+  --text-caption: 0.8125rem; /* 13 */
+  --text-micro: 0.75rem; /* 12, the floor, and there are no exceptions */
+
+  --track-display-xl: -0.025em;
+  --track-display-2: -0.02em;
+  --track-heading-2: -0.015em;
+  --track-heading-3: -0.01em;
+  --track-micro: 0.09em;
+  --lh-display: 1.05;
+  --lh-body: 1.55;
+
+  /* Rhythm 1 / 8 / 12 / 20 / 28. Nothing here uses another number. */
+  --rhythm-tight: 0.5rem; /* 8 */
+  --rhythm-inner: 0.75rem; /* 12 */
+  --rhythm-section: 1.25rem; /* 20 */
+  --rhythm-major: 1.75rem; /* 28 */
+
+  --gutter: 2.5rem; /* 40 */
+  --measure: 90rem; /* 1440 */
+
+  /*
+   * THE SEAM, IN TWO NUMBERS.
+   *
+   * `--dlc-inset` is how far the paper plate is held off the frame;
+   * `--dlc-pad` is the plate's own internal padding. The masthead copy is
+   * padded by the SUM of the two, so graphite text and paper text stand on one
+   * left edge, while the plate and the scope band above it share one outer
+   * edge. That single alignment is what stops the frame reading as a header
+   * pasted above a page: nothing steps in or out as the ground changes.
+   */
+  --dlc-inset: 1.25rem; /* 20 */
+  --dlc-pad: 1.75rem; /* 28 */
+
+  --portal-radius: 12px; /* everything with a box */
+  --portal-round: 999px; /* dots, rings, pills */
+}
+
+/* --- the frame ink: the specification inverse theme ------------------------ */
+.dlc-graphite {
+  --ink: #f2f1ef;
+  --ink-2: #c9c7c2;
+  --ink-3: #b2afaa;
+  --ink-4: #9a9791; /* 6.4:1 on the frame ground */
+  --mark-disabled: #4a4844;
+
+  --surface-page: #0e0e0d;
+  --surface-card: #181817;
+  --surface-tint: #232221;
+  --surface-inset: rgb(242 241 239 / 5%);
+
+  /* One ink, six alphas. The same six, pointed the other way. */
+  --border-hairline: rgb(242 241 239 / 6%);
+  --border-panel: rgb(242 241 239 / 9%);
+  --border-line: rgb(242 241 239 / 12%);
+  --border-field: rgb(242 241 239 / 16%);
+  --border-dashed: rgb(242 241 239 / 24%);
+  --border-hover: rgb(242 241 239 / 35%);
+
+  /*
+   * Status hues lighten to hold contrast, as section 8 requires. The pairing is
+   * unchanged: the saturated value carries the mark and the 1px border, the
+   * lighter value carries the label.
+   *
+   * The operator diamond takes the IRIS blue itself. That is the whole of the
+   * brand accent on this screen apart from the focus ring, and it carries a
+   * state rather than decorating one: in this system blue already means "a
+   * person decided this, and a person can undo it".
+   */
+  --state-good: #8ad9b0;
+  --state-good-mark: #4fbf88;
+  --state-good-tint: rgb(79 191 136 / 12%);
+
+  --state-wait-client: #e6c07a;
+  --state-wait-client-mark: #d9a441;
+  --state-wait-client-tint: rgb(217 164 65 / 12%);
+
+  --state-wait-studio: #7cc9ff;
+  --state-wait-studio-mark: var(--iris-accent);
+  --state-wait-studio-tint: rgb(0 163 255 / 12%);
+
+  --state-late: #f0a49e;
+  --state-late-mark: #e07a72;
+  --state-late-tint: rgb(224 122 114 / 12%);
+
+  --state-neutral: var(--ink-4);
+  --state-neutral-tint: var(--surface-inset);
+
+  /* 5.6:1 on the frame ground. */
+  --dlc-focus: var(--iris-accent);
+}
+
+/* --- the workspace ink: section 2, verbatim ------------------------------- */
+.dlc-paper {
+  --ink: #111111;
+  --ink-2: #4a4a4a;
+  --ink-3: #5c5c5c;
+  --ink-4: #6b6b6b;
+  --mark-disabled: #b0aeaa;
+
+  --surface-page: #f6f5f3; /* warm paper */
+  --surface-card: #ffffff;
+  --surface-tint: #edebe7;
+  --surface-inset: rgb(17 17 17 / 4%);
+
+  --border-hairline: rgb(17 17 17 / 6%);
+  --border-panel: rgb(17 17 17 / 9%);
+  --border-line: rgb(17 17 17 / 12%);
+  --border-field: rgb(17 17 17 / 16%);
+  --border-dashed: rgb(17 17 17 / 24%);
+  --border-hover: rgb(17 17 17 / 35%);
+
+  --state-good: #0f5c39;
+  --state-good-mark: #1f8a5b;
+  --state-good-tint: #f4f9f6;
+
+  --state-wait-client: #8a5200;
+  --state-wait-client-mark: #b9791a;
+  --state-wait-client-tint: #faf7f2;
+
+  --state-wait-studio: #0f6fd0;
+  --state-wait-studio-mark: #2c81d6;
+  --state-wait-studio-tint: #f6fafe;
+
+  --state-late: #b3261e;
+  --state-late-mark: #c65d57;
+  --state-late-tint: #fbf3f3;
+
+  --state-neutral: var(--ink-4);
+  --state-neutral-tint: var(--surface-inset);
+
+  /*
+   * The brand blue measures 2.6:1 on white and would fail as a focus
+   * indicator, so the paper side takes the dim step of the same hue at 5.3:1.
+   */
+  --dlc-focus: var(--iris-accent-dim);
+}
+
+/* --- getting out of the shell --------------------------------------------- */
+
+/*
+ * THE VARIANT OWNS THE VIEWPORT, AND THIS IS HOW IT TAKES IT BACK.
+ *
+ * The lab route sits under `/madspace`, so Next nests it inside the MADSPACE
+ * shell whether the lab's own layout renders chrome or not: a header, a nav, a
+ * capped and padded `main`, and a footer. A direction being judged on where its
+ * frame ends cannot be reviewed through somebody else's margin, and this one in
+ * particular would draw a graphite mount floating in a warm paper one.
+ *
+ * That layout is not this variant's to edit, so the shell is set aside from
+ * here. Every rule is guarded by `:has(.dlc-root)`, which can only match a
+ * document already rendering variant C, so no product screen is touched and
+ * nothing survives the lab route. These four selectors are the only classes in
+ * this sheet it did not author, and they are named to get out of their way.
+ *
+ * The canvas goes with them. `--surface-page` is declared on `:root` by the
+ * portal, because an overscroll bounce paints the canvas from the root element
+ * and a descendant cannot restyle its ancestor. A graphite screen bouncing on
+ * warm paper is that same defect, so the root is repointed here.
+ */
+:root:has(.dlc-root) {
+  background: #0e0e0d;
+  color-scheme: dark;
+}
+
+:root:has(.dlc-root) body {
+  background: #0e0e0d;
+}
+
+/*
+ * The lab route lives at /design-lab, outside the MADSPACE layout, so there is
+ * no product chrome to escape. An earlier draft of this sheet hid that shell
+ * from here with selectors naming classes it did not author; moving the route
+ * removed the reason for them.
+ */
+
+/* --- the page ------------------------------------------------------------- */
+
+/*
+ * `flex: 1` rather than `min-height: 100vh`. The shell is already `100dvh`
+ * tall, so a second full-viewport minimum inside it would make the page longer
+ * than its own content by exactly the height of the chrome hidden above.
+ */
+.dlc-root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  background: var(--surface-page);
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color-scheme: dark;
+}
+
+.dlc-root :focus-visible {
+  outline: 2px solid var(--dlc-focus);
+  outline-offset: 2px;
+}
+
+.dlc-skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.dlc-skip:focus {
+  position: static;
+  display: inline-block;
+  margin: var(--rhythm-inner);
+  padding: var(--rhythm-tight) var(--rhythm-inner);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+  color: var(--ink);
+}
+
+.dlc-frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* --- the identity rail ---------------------------------------------------- */
+.dlc-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight) var(--rhythm-section);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--rhythm-section) calc(var(--dlc-inset) + var(--dlc-pad));
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.dlc-rail-mark {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight);
+  align-items: baseline;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.dlc-rail-mark span {
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+/*
+ * Small, and the only place the lab names itself, so a screenshot is
+ * identifiable without the composition having to carry a badge.
+ */
+.dlc-rail-lab {
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* --- the masthead: the conclusion, and what may be done about it ----------- */
+.dlc-mast-grid {
+  display: grid;
+  gap: var(--rhythm-major);
+  padding: var(--rhythm-major) calc(var(--dlc-inset) + var(--dlc-pad));
+}
+
+@media (width >= 64rem) {
+  .dlc-mast-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.dlc-mast-text {
+  min-width: 0;
+}
+
+.dlc-kicker {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dlc-title {
+  margin: var(--rhythm-inner) 0 0;
+  font-size: var(--text-display-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-display-xl);
+  line-height: var(--lh-display);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * THE ANSWER, AND THE REASON THE FRAME IS DARK.
+ *
+ * This sentence is a conclusion drawn from the three readings on the paper
+ * directly beneath it. Putting it on graphite says which is which without a
+ * label: above the seam what we conclude, below it what we measured.
+ */
+.dlc-answer {
+  max-width: 62ch;
+  margin: var(--rhythm-section) 0 0;
+  font-size: var(--text-heading-3);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.dlc-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-inner);
+  align-items: center;
+  margin-top: var(--rhythm-section);
+}
+
+.dlc-verdict-note {
+  max-width: 46ch;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- the three controls --------------------------------------------------- */
+.dlc-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-inner);
+  align-items: flex-start;
+}
+
+@media (width >= 64rem) {
+  .dlc-controls {
+    align-items: flex-end;
+  }
+}
+
+.dlc-controls-label {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.dlc-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight);
+}
+
+.dlc-controls-note {
+  max-width: 34ch;
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+@media (width >= 64rem) {
+  .dlc-controls-row {
+    justify-content: flex-end;
+  }
+
+  .dlc-controls-note {
+    text-align: right;
+  }
+}
+
+/*
+ * One filled button per view, and the pair beside it never reads as its equal.
+ * Archive is the only operation here with no inverse, so it is the only one
+ * taking the destructive treatment. Painting Suspend red as well would teach an
+ * operator that the red ones are routine, which is the training that makes the
+ * terminal one dangerous.
+ */
+.dlc-btn {
+  padding: var(--rhythm-tight) var(--rhythm-inner);
+  border: 1px solid transparent;
+  border-radius: var(--portal-radius);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.dlc-btn[data-kind="primary"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface-card);
+}
+
+.dlc-btn[data-kind="secondary"] {
+  border-color: var(--border-field);
+  background: transparent;
+  color: var(--ink);
+}
+
+.dlc-btn[data-kind="secondary"]:hover {
+  border-color: var(--border-hover);
+}
+
+.dlc-btn[data-kind="destructive"] {
+  border-color: color-mix(in srgb, var(--state-late-mark) 45%, transparent);
+  background: transparent;
+  color: var(--state-late);
+}
+
+.dlc-btn[data-kind="destructive"]:hover {
+  border-color: var(--state-late-mark);
+}
+
+/* --- the scope band: the last graphite element before the paper ------------ */
+.dlc-scope {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 0 var(--dlc-inset);
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+@media (width >= 40rem) {
+  .dlc-scope {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 62rem) {
+  .dlc-scope {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 1.5fr;
+  }
+}
+
+/*
+ * THE 1PX DIVISION, DRAWN BY THE CELL RATHER THAN BY A GAP.
+ *
+ * A gap over a border-coloured ground paints that ground wherever a row does
+ * not divide evenly, which turns a short last row into a block of border
+ * colour. A shadow at -1px does the same job and is clipped away on the first
+ * row and the first column by the panel's own `overflow: hidden`, so any
+ * number of cells in any number of columns comes out right. Seven health
+ * figures in four columns is exactly that case.
+ *
+ * No blur and no spread: this is a hairline drawn with the shadow property, not
+ * elevation. The system spends its two real shadows on the popover and the
+ * modal, and nothing on this screen floats above the page.
+ */
+.dlc-scope > div {
+  padding: var(--rhythm-section) var(--dlc-pad);
+  box-shadow:
+    -1px 0 0 var(--border-panel),
+    0 -1px 0 var(--border-panel);
+}
+
+.dlc-scope dt,
+.dlc-panel dt {
+  /* Two lines reserved, so values share a baseline whatever the label length. */
+  min-height: calc(2 * 1.35em);
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.dlc-scope dd,
+.dlc-panel dd {
+  margin: var(--rhythm-tight) 0 0;
+}
+
+.dlc-inline {
+  display: inline-flex;
+  gap: var(--rhythm-tight);
+  align-items: center;
+}
+
+/*
+ * The identifier is wanted perhaps once a week, so it is the widest cell and
+ * the quietest ink in the band rather than a value in its own right.
+ */
+.dlc-id {
+  font-size: var(--text-body);
+  font-weight: 400;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* --- the plate: the workspace, seated in the frame ------------------------- */
+.dlc-plate {
+  margin: var(--rhythm-section) var(--dlc-inset) var(--dlc-inset);
+  padding: var(--dlc-pad);
+  border-radius: var(--portal-radius);
+  background: var(--surface-page);
+  color: var(--ink);
+}
+
+.dlc-region + .dlc-region {
+  margin-top: var(--rhythm-major);
+}
+
+.dlc-region-head {
+  margin-bottom: var(--rhythm-section);
+}
+
+.dlc-region-head h2 {
+  margin: 0;
+  font-size: var(--text-heading-2);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-2);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.dlc-lede {
+  max-width: 78ch;
+  margin: var(--rhythm-tight) 0 0;
+  font-size: var(--text-lead);
+  color: var(--ink-2);
+}
+
+/* --- values, and the words that are not values ---------------------------- */
+.dlc-value {
+  display: inline-flex;
+  gap: var(--rhythm-tight);
+  align-items: baseline;
+  font-size: var(--text-value);
+  font-weight: var(--weight-medium);
+  line-height: 1.3;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * AN ABSENT VALUE MUST NOT LOOK LIKE A MEASUREMENT.
+ *
+ * Four things change at once, so the difference survives a glance, a greyscale
+ * print and a bad screen: the size drops from the 19px value step to body, the
+ * weight drops to regular, the ink drops to the metadata grey, and the bar mark
+ * goes in front of it. The bar is this system's own shape for "no measurement
+ * exists, and this is NOT zero", so the claim is carried by a shape rather than
+ * by styling.
+ */
+.dlc-value[data-missing="true"] {
+  align-items: center;
+  font-size: var(--text-body);
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+/*
+ * The age under the instant rather than beside it. Run inline it wrapped mid
+ * phrase behind a nineteen-character timestamp, and a relative age reading
+ * "19 min" on one line and "ago" on the next is a figure broken in half.
+ */
+.dlc-age {
+  display: block;
+  margin-top: var(--rhythm-tight);
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- the hero: three readings, side by side and never in a row ------------- */
+.dlc-bays {
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+@media (width >= 62rem) {
+  .dlc-bays {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.dlc-bay {
+  display: flex;
+  flex-direction: column;
+  padding: var(--rhythm-major);
+  box-shadow:
+    -1px 0 0 var(--border-panel),
+    0 -1px 0 var(--border-panel);
+}
+
+/*
+ * The ground carries the state too, because a tint is read before a word is.
+ * It is the state's own tint from section 2, so nothing here is a colour the
+ * system does not already own, and it never appears without the shape and the
+ * spelled-out word beside it.
+ */
+.dlc-bay[data-holds="true"] {
+  background: var(--state-good-tint);
+}
+
+.dlc-bay[data-holds="false"] {
+  background: var(--state-wait-client-tint);
+}
+
+.dlc-bay-column {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/*
+ * The word, at heading-3, with the mark grown to match it. Two lines are
+ * reserved: "Awaiting first heartbeat" wraps where "Verified" does not, and
+ * without the reservation the three evidence lines beside it would start at
+ * three different heights, which would read as three unequal things.
+ */
+.dlc-bay-word {
+  display: flex;
+  gap: var(--rhythm-inner);
+  align-items: flex-start;
+  min-height: calc(2 * 1.2em);
+  margin: var(--rhythm-inner) 0 0;
+  /* Heading-3 on a phone, heading-2 on a desktop. Both are real steps of the
+     scale, and the three words are the reason the screen exists. */
+  font-size: clamp(1.375rem, 1.15rem + 0.5vw, 1.625rem);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.dlc-bay-word .mad-mark {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.24em;
+}
+
+.dlc-bay-evidence {
+  min-height: calc(2 * var(--lh-body) * 1em);
+  margin: var(--rhythm-inner) 0 0;
+  color: var(--ink-2);
+}
+
+.dlc-bay-when {
+  margin-top: var(--rhythm-inner);
+}
+
+.dlc-micro {
+  margin: 0 0 var(--rhythm-tight);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/*
+ * THE CEILING, AND THE REASON THIS IS THREE BAYS RATHER THAN THREE STEPS.
+ *
+ * Each reading states, in its own words, where its proof stops. The next bay
+ * begins on the far side of that stop and never inherits it. Read across, the
+ * three ceilings at one height are what say the readings do not chain.
+ */
+.dlc-bay-proves {
+  margin-top: var(--rhythm-section);
+  padding-top: var(--rhythm-inner);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.dlc-bay-proves p {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- the outbox ----------------------------------------------------------- */
+.dlc-outbox {
+  padding: var(--dlc-pad);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+/*
+ * The three figures on one baseline, the proportion drawn under all of them.
+ * The track belonged to the whole panel rather than to a column beside the
+ * percentage, where it read as an ornament attached to one figure.
+ */
+.dlc-outbox-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-section) var(--rhythm-major);
+  align-items: flex-end;
+}
+
+/* 700, because this is the one numeral on the screen that has to be found. */
+.dlc-fill {
+  margin: 0;
+  font-size: var(--text-display-2);
+  font-weight: 700;
+  letter-spacing: var(--track-display-2);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.dlc-track {
+  height: 8px;
+  margin-top: var(--rhythm-section);
+  overflow: hidden;
+  border-radius: var(--portal-round);
+  background: var(--surface-inset);
+}
+
+/*
+ * No colour on the fill, because a proportion is not a verdict. The lab is
+ * handed the percentage and not the thresholds it would be judged against, so
+ * this draws the measurement and claims nothing about it.
+ */
+.dlc-track-fill {
+  height: 100%;
+  border-radius: var(--portal-round);
+  background: var(--ink-3);
+}
+
+.dlc-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-section) var(--rhythm-major);
+  margin: 0;
+}
+
+/*
+ * The proportion on the left, the two byte figures on the right, the track
+ * under both. Grouped together at the left edge they left two thirds of the
+ * panel empty and read as a caption to the percentage rather than as the two
+ * numbers it was computed from.
+ */
+@media (width >= 48rem) {
+  .dlc-outbox-figures .dlc-pair {
+    margin-inline-start: auto;
+  }
+}
+
+.dlc-pair > div {
+  min-width: 0;
+}
+
+.dlc-pair dt {
+  margin: 0 0 var(--rhythm-tight);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.dlc-pair dd {
+  margin: 0;
+}
+
+/* --- the data panels ------------------------------------------------------ */
+.dlc-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: var(--rhythm-section) 0 0;
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+@media (width >= 37.5rem) {
+  .dlc-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 62rem) {
+  .dlc-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Two figures do not want four columns and two empty thirds beside them. */
+  .dlc-panel[data-cols="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/*
+ * Seven figures leave a short last row. The last cell takes the slack, so the
+ * row closes instead of trailing off into a blank third of the panel. At two
+ * columns the arithmetic works out the same way, and at one the span is moot.
+ */
+@media (width >= 37.5rem) {
+  .dlc-panel[data-span-last="true"] > div:last-child {
+    grid-column: span 2;
+  }
+}
+
+.dlc-panel > div {
+  padding: var(--rhythm-section);
+  box-shadow:
+    -1px 0 0 var(--border-hairline),
+    0 -1px 0 var(--border-hairline);
+}
+
+.dlc-subhead {
+  margin: var(--rhythm-major) 0 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.dlc-subhead + .dlc-panel {
+  margin-top: var(--rhythm-inner);
+}
+
+/* --- the disclosure: definitions only, never an answer -------------------- */
+.dlc-note {
+  margin-top: var(--rhythm-inner);
+}
+
+.dlc-note summary {
+  display: inline-flex;
+  gap: var(--rhythm-tight);
+  align-items: center;
+  padding: var(--rhythm-tight) var(--rhythm-inner);
+  border: 1px solid var(--border-field);
+  border-radius: var(--portal-radius);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  list-style: none;
+  cursor: pointer;
+}
+
+.dlc-note summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A cross, made by turning a plus. No dash reaches the screen. */
+.dlc-note summary::after {
+  content: "+";
+  font-size: var(--text-body);
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.dlc-note[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.dlc-note-body {
+  margin-top: var(--rhythm-inner);
+  padding: var(--rhythm-section);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+.dlc-note-body div + div {
+  margin-top: var(--rhythm-inner);
+}
+
+.dlc-note-body dt {
+  margin: 0;
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+.dlc-note-body dd {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/* --- the foot: back on graphite, where the frame closes -------------------- */
+.dlc-foot {
+  padding: var(--rhythm-section) calc(var(--dlc-inset) + var(--dlc-pad)) var(--rhythm-major);
+  border-top: 1px solid var(--border-panel);
+  font-size: var(--text-micro);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.dlc-foot p {
+  margin: 0;
+}
+
+/*
+ * A label reserves two lines so the values BESIDE it share a baseline. Once a
+ * panel is one column wide there is nothing beside anything, and the reserved
+ * line is only a hole.
+ */
+@media (width < 40rem) {
+  .dlc-scope dt {
+    min-height: 0;
+  }
+}
+
+@media (width < 37.5rem) {
+  .dlc-panel dt {
+    min-height: 0;
+  }
+}
+
+/* --- gutters shrink with the viewport, and the seam shrinks with them ------ */
+@media (width < 48rem) {
+  .dlc-root {
+    --gutter: 1.5rem; /* 24 */
+    --dlc-inset: 0.75rem; /* 12 */
+    --dlc-pad: 1.25rem; /* 20 */
+  }
+}
+
+@media (width < 30rem) {
+  .dlc-root {
+    --gutter: 1rem; /* 16 */
+    --dlc-inset: 0.5rem; /* 8 */
+    --dlc-pad: 0.75rem; /* 12 */
+  }
+
+  .dlc-bay,
+  .dlc-outbox {
+    padding: var(--rhythm-section);
+  }
+
+  /*
+   * The reservations exist so three bays side by side share their baselines.
+   * Stacked one above another there is nothing to align to, and the reserved
+   * lines would only be holes.
+   */
+  .dlc-bay-word,
+  .dlc-bay-evidence {
+    min-height: 0;
+  }
+}

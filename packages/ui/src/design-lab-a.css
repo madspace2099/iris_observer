@@ -1,0 +1,912 @@
+/* Variant A of the Source Detail design lab. Namespace: dla- */
+
+/*
+ * VARIANT A. CANONICAL LIGHT, ON PAPER.
+ *
+ * The closest honest translation of `docs/20-madspace-admin-design-system.md`
+ * into IRIS. Warm paper behind, true white where the product is operational,
+ * one ink at six alphas for every line on the page, and no shadow anywhere
+ * because nothing here floats.
+ *
+ * ## What this direction is arguing
+ *
+ * That the reference document is already right, and that the reason the
+ * operations screens do not look like it is craft rather than concept. So the
+ * effort goes into the four things a specification cannot hand you: the
+ * vertical rhythm, the measure of the text, the alignment of the figures, and
+ * the composition of the hero.
+ *
+ * ## Where it overrides the reference
+ *
+ * Manrope, not Inter. The reference switches face at the `/madspace` boundary;
+ * the brand does not, and the reviewer said so directly. Everything else about
+ * the type, the tracking and the tabular figures is the reference's.
+ *
+ * ## The tokens with no prefix
+ *
+ * Everything this file authors is prefixed `dla-`. The handful of unprefixed
+ * custom properties below are the ones `StatusMark` and `StatusChip` read from
+ * `madspace.css`, which declares them on `.mad-portal`. This surface is not the
+ * portal, so the shared marks would render colourless here. They are declared
+ * inside `.dla-root`, so they reach the marks and nothing else in the document.
+ */
+
+/*
+ * THE GROUND.
+ *
+ * A descendant cannot repaint its ancestor, and an overscroll bounce paints the
+ * canvas from the root element rather than from whatever is under the pointer.
+ * The application's root is graphite; this screen is paper; so the canvas is
+ * set here, scoped to a document that actually renders the variant.
+ */
+:root:has(.dla-root) {
+  color-scheme: light;
+  background: #f6f5f3;
+}
+
+:root:has(.dla-root) body {
+  background: #f6f5f3;
+  color: #4a4a4a;
+}
+
+/*
+ * THE VARIANT OWNS THE VIEWPORT.
+ *
+ * The lab's own layout carries nothing but the gate, and the brief is explicit
+ * that each direction renders its whole screen including its chrome, because
+ * the relationship between the frame and the workspace is one of the things
+ * being chosen. What the brief does not account for is `/madspace/layout.tsx`
+ * standing above the lab route: it contributes a header, a nav, a 1440px cap, a
+ * 40px gutter and a footer, so a variant rendered inside it draws a second
+ * masthead inside a second gutter.
+ *
+ * That layout is not this variant's to edit, so the frame is set aside from
+ * here instead. Both rules are guarded by `:has(.dla-root)`, which can only
+ * match a document that is rendering variant A, so no product screen is touched
+ * and nothing survives the lab route. This is the only place in this sheet that
+ * names a class it did not author, and it names them to get out of their way.
+ */
+/*
+ * The lab route lives at /design-lab, outside the MADSPACE layout, so there is
+ * no product chrome to escape. An earlier draft of this sheet hid that shell
+ * from here with selectors naming classes it did not author; moving the route
+ * removed the reason for them.
+ */
+
+.dla-root {
+  /* --- ink -------------------------------------------------------------- */
+  --dla-ink: #111111; /* 15.0:1 headings, values, filled buttons */
+  --dla-ink-2: #4a4a4a; /* 9.0:1 body copy */
+  --dla-ink-3: #5c5c5c; /* 7.0:1 emphasised micro-labels */
+  --dla-ink-4: #6b6b6b; /* 5.3:1 the workhorse: labels, captions */
+
+  /* --- surfaces --------------------------------------------------------- */
+  --dla-paper: #f6f5f3;
+  --dla-card: #ffffff;
+  --dla-tint: #edebe7;
+  --dla-inset: rgb(17 17 17 / 4%);
+
+  /* --- borders: one ink, six alphas -------------------------------------- */
+  --dla-hairline: rgb(17 17 17 / 6%);
+  --dla-panel: rgb(17 17 17 / 9%);
+  --dla-line: rgb(17 17 17 / 12%);
+  --dla-field: rgb(17 17 17 / 16%);
+  --dla-dashed: rgb(17 17 17 / 24%);
+  --dla-hover: rgb(17 17 17 / 35%);
+
+  /* --- type ------------------------------------------------------------- */
+  --dla-display-xl: clamp(2.125rem, 1.4rem + 2.4vw, 3.25rem); /* 34 to 52 */
+  --dla-heading-2: 1.625rem; /* 26 */
+  --dla-heading-3: 1.375rem; /* 22 */
+  --dla-word: clamp(1.625rem, 1.35rem + 0.8vw, 2rem); /* 26 to 32, the hero */
+  --dla-value: 1.1875rem; /* 19 */
+  --dla-lead: 1rem; /* 16 */
+  --dla-body: 0.875rem; /* 14 */
+  --dla-caption: 0.8125rem; /* 13 */
+  --dla-micro: 0.75rem; /* 12, the floor */
+
+  /* --- rhythm: 1 / 8 / 12 / 20 / 28 -------------------------------------- */
+  --dla-grid: 1px;
+  --dla-tight: 0.5rem; /* 8 */
+  --dla-inner: 0.75rem; /* 12 */
+  --dla-section: 1.25rem; /* 20 */
+  --dla-major: 1.75rem; /* 28 */
+  /* The editorial breath between one region and the next. Twice 28 rather than
+     a new number, so the page still counts in the same rhythm. */
+  --dla-break: 3.5rem;
+
+  --dla-gutter: 2.5rem; /* 40 */
+  --dla-measure: 90rem; /* 1440 */
+
+  --dla-radius: 12px;
+
+  /* --- what the shared status marks read --------------------------------- */
+  --mark-disabled: #b0aeaa;
+  --state-good: #0f5c39;
+  --state-good-mark: #1f8a5b;
+  --state-good-tint: #f4f9f6;
+  --state-wait-client: #8a5200;
+  --state-wait-client-mark: #b9791a;
+  --state-wait-client-tint: #faf7f2;
+  --state-wait-studio: #0f6fd0;
+  --state-wait-studio-mark: #2c81d6;
+  --state-wait-studio-tint: #f6fafe;
+  --state-late: #b3261e;
+  --state-late-mark: #c65d57;
+  --state-late-tint: #fbf3f3;
+  --ink-4: var(--dla-ink-4);
+  --surface-inset: var(--dla-inset);
+  --border-field: var(--dla-field);
+  --portal-round: 999px;
+  --text-micro: var(--dla-micro);
+  --rhythm-tight: var(--dla-tight);
+
+  /*
+   * The brand accent, restated. `madspace.css` re-points `--iris-accent` to its
+   * own #0F6FD0 on the portal scope, and the lab route renders inside that
+   * scope, so inheriting it would silently swap the IRIS blue for the studio
+   * one. The brief overrides the reference here: this is #00A3FF.
+   */
+  --iris-accent: #00a3ff;
+
+  min-block-size: 100dvh;
+  background: var(--dla-paper);
+  color: var(--dla-ink-2);
+  font-family: var(--font-sans);
+  font-size: var(--dla-body);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.55;
+}
+
+@media (max-width: 48rem) {
+  .dla-root {
+    --dla-gutter: 1.5rem; /* 24 */
+    --dla-break: 1.75rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .dla-root {
+    --dla-gutter: 1rem; /* 16 */
+  }
+}
+
+/*
+ * ONE gutter class, applied to the masthead, the head, every section and the
+ * footer, so nothing on the page can drift off the single left edge.
+ */
+.dla-gutter {
+  inline-size: 100%;
+  max-inline-size: var(--dla-measure);
+  margin-inline: auto;
+  padding-inline: var(--dla-gutter);
+}
+
+/*
+ * The IRIS blue, and the only two places it appears.
+ *
+ * #00a3ff measures 3.1:1 on warm paper: enough for a 2px interface mark, not
+ * enough for text or a fill. So it is the focus ring and the selection, both of
+ * which are interaction rather than decoration, and it appears nowhere else.
+ * Every other colour on this screen carries a state.
+ */
+.dla-root :focus-visible {
+  outline: 2px solid var(--iris-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.dla-root ::selection {
+  background: color-mix(in srgb, var(--iris-accent) 24%, transparent);
+  color: var(--dla-ink);
+}
+
+/* --- chrome ---------------------------------------------------------------- */
+
+.dla-masthead {
+  border-block-end: 1px solid var(--dla-panel);
+  background: var(--dla-paper);
+}
+
+.dla-masthead-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dla-tight) var(--dla-inner);
+  padding-block: var(--dla-section);
+}
+
+.dla-masthead-mark {
+  color: var(--dla-ink);
+  font-size: var(--dla-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.dla-masthead-where {
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  white-space: nowrap;
+}
+
+.dla-masthead-lab {
+  margin-inline-start: auto;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * Below the tablet gutter the lab's own label takes its own line rather than
+ * being pushed off the end of the row. It identifies a screenshot; it is not
+ * worth a horizontal scrollbar.
+ */
+@media (max-width: 48rem) {
+  .dla-masthead-lab {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+    white-space: normal;
+  }
+}
+
+/* --- the head -------------------------------------------------------------- */
+
+.dla-head {
+  padding-block: var(--dla-break) var(--dla-major);
+}
+
+/*
+ * The state sits in the first line of the page, beside the kicker, not at the
+ * far right of it. Principle 02 asks a screen to lead with the state; a chip
+ * 1300px away from the words it qualifies is not leading with anything.
+ */
+.dla-head-top {
+  display: flex;
+  align-items: center;
+  gap: var(--dla-inner);
+  flex-wrap: wrap;
+}
+
+.dla-kicker {
+  margin: 0;
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dla-head-grid {
+  display: grid;
+  gap: var(--dla-major);
+  margin-block-start: var(--dla-inner);
+}
+
+@media (min-width: 64rem) {
+  .dla-head-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--dla-break);
+  }
+}
+
+.dla-title {
+  margin: 0;
+  max-inline-size: 20ch;
+  color: var(--dla-ink);
+  font-size: var(--dla-display-xl);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.dla-answer {
+  margin: var(--dla-section) 0 0;
+  max-inline-size: 58ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-lead);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* --- the actions ----------------------------------------------------------- */
+
+.dla-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dla-inner);
+}
+
+@media (min-width: 64rem) {
+  .dla-actions {
+    justify-content: flex-end;
+    max-inline-size: 27rem;
+  }
+}
+
+.dla-btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--dla-radius);
+  padding: var(--dla-inner) var(--dla-section);
+  font-family: inherit;
+  font-size: var(--dla-body);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.dla-btn[data-kind="primary"] {
+  border-color: var(--dla-ink);
+  background: var(--dla-ink);
+  color: var(--dla-card);
+}
+
+.dla-btn[data-kind="primary"]:hover {
+  background: #000000;
+}
+
+.dla-btn[data-kind="secondary"] {
+  border-color: var(--dla-field);
+  background: var(--dla-card);
+  color: var(--dla-ink);
+}
+
+.dla-btn[data-kind="secondary"]:hover {
+  border-color: var(--dla-hover);
+}
+
+/*
+ * Tertiary loses its border, which is the reference's rule for a pair that must
+ * not read as equals. Archive is terminal, and the consequence is stated in
+ * words beside it rather than by painting the control red: a red control on a
+ * greyscale screen would be the only colour on the page not carrying a state.
+ */
+.dla-btn[data-kind="tertiary"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--dla-ink-2);
+  padding-inline: var(--dla-inner);
+}
+
+.dla-btn[data-kind="tertiary"]:hover {
+  color: var(--dla-ink);
+}
+
+/*
+ * Where the group wraps, the borderless control pulls back by its own padding
+ * so its text still starts on the left edge the filled control set.
+ */
+@media (max-width: 64rem) {
+  .dla-btn[data-kind="tertiary"] {
+    margin-inline-start: calc(var(--dla-inner) * -1);
+  }
+}
+
+.dla-actions-note {
+  flex-basis: 100%;
+  margin: var(--dla-tight) 0 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+}
+
+@media (min-width: 64rem) {
+  .dla-actions-note {
+    text-align: end;
+  }
+}
+
+/* --- the colophon rail ------------------------------------------------------ */
+
+.dla-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--dla-major);
+  margin: var(--dla-break) 0 0;
+  padding-block-start: var(--dla-section);
+  border-block-start: 1px solid var(--dla-panel);
+}
+
+@media (max-width: 30rem) {
+  .dla-rail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dla-section);
+  }
+}
+
+.dla-rail dt {
+  margin: 0 0 var(--dla-tight);
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dla-rail dd {
+  display: flex;
+  align-items: center;
+  gap: var(--dla-tight);
+  margin: 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-value);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* --- sections --------------------------------------------------------------- */
+
+.dla-section {
+  padding-block-start: var(--dla-break);
+}
+
+.dla-section-head {
+  display: grid;
+  gap: var(--dla-tight);
+  margin-block-end: var(--dla-section);
+}
+
+@media (min-width: 64rem) {
+  .dla-section-head {
+    grid-template-columns: 18rem minmax(0, 1fr);
+    gap: var(--dla-major);
+    align-items: baseline;
+  }
+}
+
+.dla-section-head h2 {
+  margin: 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-heading-2);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.dla-section-lede {
+  margin: 0;
+  max-inline-size: 62ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* --- the hero: three findings ------------------------------------------------ */
+
+/*
+ * ONE panel, divided by two 1px rules. Not three cards.
+ *
+ * The three are independent facts and the composition has to say so without
+ * implying an order: no connector, no number, no bar across them, nothing that
+ * completes. What ties them together instead is that they are the same
+ * instrument read three times, so they share one surface, one set of baselines
+ * and one closing band.
+ *
+ * The rows are declared on the parent and inherited by each column through
+ * `subgrid`, so the eyebrow, the word, the evidence, the timestamp and the
+ * disclaimer each sit on one line across all three columns whatever the length
+ * of the sentence above them. Three words on one baseline is the two-second
+ * read; the aligned band of "what it proves" underneath is the argument that
+ * none of the three implies another.
+ */
+.dla-findings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto 1fr auto auto;
+  column-gap: var(--dla-grid);
+  row-gap: 0;
+  border: 1px solid var(--dla-panel);
+  border-radius: var(--dla-radius);
+  background: var(--dla-panel);
+  overflow: hidden;
+}
+
+.dla-finding {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  background: var(--dla-card);
+}
+
+.dla-finding-column {
+  margin: 0;
+  padding: var(--dla-major) var(--dla-major) 0;
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/*
+ * The word carries the state's label ink, its mark carries the saturated one.
+ * Shape, colour and a spelled-out word, which is the rule the whole surface is
+ * built on and the reason a reader who cannot separate the hues loses nothing.
+ */
+.dla-finding-word {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--dla-inner);
+  align-items: start;
+  margin: 0;
+  padding: var(--dla-inner) var(--dla-major) 0;
+  font-size: var(--dla-word);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+/*
+ * The one place the mark is drawn larger than 12px. It is a vector and the
+ * shape is what carries the meaning, so scaling it to sit beside a 32px word
+ * changes nothing about which shape a state wears. A 12px dot next to a word
+ * this size would read as a bullet rather than as a status.
+ */
+.dla-finding-word .mad-mark {
+  inline-size: 16px;
+  block-size: 16px;
+  margin-block-start: 0.32em;
+}
+
+.dla-finding[data-holds="true"] .dla-finding-word {
+  color: var(--state-good);
+}
+
+.dla-finding[data-holds="false"] .dla-finding-word {
+  color: var(--state-wait-client);
+}
+
+.dla-finding-evidence {
+  margin: 0;
+  padding: var(--dla-inner) var(--dla-major) var(--dla-major);
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.dla-finding-at {
+  padding: 0 var(--dla-major) var(--dla-major);
+}
+
+/*
+ * The closing band, and the reason this reads as a triptych rather than as
+ * three tiles. Every column ends in the same recessed strip, on the same line,
+ * saying what its own state does not tell you. Read across, it is a single
+ * sentence about independence.
+ */
+.dla-finding-proves {
+  padding: var(--dla-section) var(--dla-major);
+  border-block-start: 1px solid var(--dla-hairline);
+  background: var(--dla-inset);
+}
+
+.dla-finding-proves p {
+  margin: 0;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+@media (max-width: 64rem) {
+  .dla-findings {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    row-gap: var(--dla-grid);
+    column-gap: 0;
+  }
+
+  .dla-finding {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+}
+
+/* --- micro labels used inside panels ----------------------------------------- */
+
+.dla-micro {
+  margin: 0 0 var(--dla-tight);
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* --- a value, and the absence of one ------------------------------------------ */
+
+/*
+ * THE ONE RULE THIS PRODUCT EXISTS FOR.
+ *
+ * A measurement is set as a figure: 19px, weight 500, ink, tabular. An absent
+ * value is a word matched to the field, and it must not be mistakable for a
+ * measurement, so it changes size, weight, colour and figure style all at once
+ * and takes the neutral BAR mark, which in this system means "no measurement
+ * exists" and is drawn nothing like a zero.
+ */
+.dla-figure {
+  color: var(--dla-ink);
+  font-size: var(--dla-value);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.dla-figure[data-weight="found"] {
+  font-weight: 700;
+}
+
+.dla-absent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dla-tight);
+  color: var(--dla-ink-4);
+  font-size: var(--dla-body);
+  font-weight: 400;
+  font-variant-numeric: normal;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* --- panels ------------------------------------------------------------------- */
+
+.dla-panel {
+  border: 1px solid var(--dla-panel);
+  border-radius: var(--dla-radius);
+  background: var(--dla-card);
+}
+
+.dla-group {
+  padding: var(--dla-major);
+}
+
+.dla-group + .dla-group {
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+.dla-group-title {
+  margin: 0 0 var(--dla-section);
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* --- fields ------------------------------------------------------------------- */
+
+.dla-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--dla-major);
+  margin: 0;
+}
+
+/*
+ * The second group keeps the first group's four columns and lets the identifier
+ * take two of them, so "Created" and "Last seen" stand under "Build" and
+ * "Engine" instead of starting a second, unrelated grid inside one panel. One
+ * panel, one set of column edges.
+ */
+.dla-field[data-span="2"] {
+  grid-column: span 2;
+}
+
+.dla-fields[data-shape="outbox"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-inline-size: 46rem;
+}
+
+@media (max-width: 64rem) {
+  .dla-fields,
+  .dla-fields[data-shape="outbox"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dla-section);
+  }
+}
+
+@media (max-width: 30rem) {
+  .dla-fields,
+  .dla-fields[data-shape="outbox"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dla-field[data-span="2"] {
+    grid-column: auto;
+  }
+}
+
+.dla-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dla-tight);
+  min-inline-size: 0;
+}
+
+/*
+ * The label reserves two lines, so "App version" and "Build" put their values
+ * on one baseline instead of one hanging a line below the other. It is the
+ * reference's own answer and it is what makes a row of figures read as a row.
+ */
+.dla-field dt {
+  min-block-size: 2.9em;
+  margin: 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+}
+
+/*
+ * At one column there is nothing to align against, so the reserve becomes a
+ * hole between a label and its own value. It is a device for a row of figures,
+ * not a fixed measurement.
+ */
+@media (max-width: 30rem) {
+  .dla-field dt {
+    min-block-size: 0;
+  }
+}
+
+.dla-field dd {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dla-field-note {
+  display: block;
+  margin: var(--dla-tight) 0 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.4;
+}
+
+/*
+ * The identifier is needed perhaps once a week, so it takes the quieter ink and
+ * the body size rather than the figure treatment. It still wraps rather than
+ * overflowing, which is what keeps a 36 character value out of the layout.
+ */
+.dla-identifier {
+  display: block;
+  color: var(--dla-ink-3);
+  font-size: var(--dla-body);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* --- the outbox --------------------------------------------------------------- */
+
+.dla-outbox {
+  padding: var(--dla-major);
+}
+
+/*
+ * The bar is capped to the same measure as the three figures above it, so the
+ * outbox reads as one block rather than as a figure row with a rule under it
+ * running the whole width of the panel.
+ */
+.dla-track {
+  block-size: 0.625rem;
+  max-inline-size: 46rem;
+  margin-block-start: var(--dla-section);
+  border-radius: 999px;
+  background: var(--dla-inset);
+  overflow: hidden;
+}
+
+.dla-track-fill {
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--dla-ink-2);
+}
+
+.dla-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--dla-inner);
+  max-inline-size: 46rem;
+  margin-block-start: var(--dla-tight);
+  color: var(--dla-ink-4);
+  font-size: var(--dla-micro);
+}
+
+/* --- the readings list --------------------------------------------------------- */
+
+/*
+ * Seven measurements, one right edge.
+ *
+ * Not a grid of tiles: seven is prime, and a four-column panel would end in an
+ * empty cell painted in the border colour. As rows, the label takes a fixed
+ * column, the note fills the middle at a readable measure, and every figure
+ * lands on the same right edge, which is the only arrangement in which a reader
+ * can run an eye down the column and find the one that is not a zero.
+ */
+.dla-readings {
+  margin: 0;
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+.dla-reading {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) minmax(7rem, max-content);
+  align-items: baseline;
+  gap: var(--dla-major);
+  padding: var(--dla-section) var(--dla-major);
+}
+
+.dla-reading + .dla-reading {
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+.dla-reading dt {
+  margin: 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-body);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.dla-reading dd {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dla-reading-note {
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+}
+
+.dla-reading-value {
+  justify-self: end;
+  text-align: end;
+}
+
+@media (max-width: 64rem) {
+  .dla-reading {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--dla-tight) var(--dla-inner);
+  }
+
+  .dla-reading-note {
+    grid-column: 1 / -1;
+  }
+}
+
+/* --- the footer ----------------------------------------------------------------- */
+
+.dla-foot {
+  margin-block-start: var(--dla-break);
+  padding-block: var(--dla-major) var(--dla-break);
+  border-block-start: 1px solid var(--dla-panel);
+}
+
+.dla-foot p {
+  margin: 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dla-root * {
+    transition-duration: 0.01ms !important;
+  }
+}

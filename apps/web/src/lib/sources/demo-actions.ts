@@ -785,3 +785,97 @@ export async function buildEstateAction(): Promise<{ readonly ok: true } | Refus
   revalidatePath(REVIEW_SURFACE, "layout");
   return { ok: true };
 }
+
+/* --- 6. a busy installation, for visual review ---------------------------------------- */
+
+/**
+ * The outbox of a SIMULATED showroom machine under load.
+ *
+ * ## Why this exists, and why it is not a fixture
+ *
+ * `HARNESS_QUEUE` above reports zeros and a null ceiling because that is what
+ * the harness honestly has: it posts synchronously and owns no outbox. Those
+ * are the right numbers and they must stay.
+ *
+ * They are also useless for judging a design. A composition that has to show
+ * queue pressure, an oldest pending event, a quarantine and a capacity refusal
+ * cannot be reviewed against eight fields that all read "0" or "Not reported",
+ * and a reviewer choosing between three layouts on that basis would be choosing
+ * between three empty states.
+ *
+ * So this is a second SENDER rather than a second view. The numbers below are
+ * what a simulated installation reports about its own outbox, and they travel
+ * the real heartbeat endpoint, are validated by the real contract and are
+ * persisted in the real column. The screen then renders what a sender reported,
+ * which is the only thing it ever renders. Nothing is written past the wire and
+ * no view is taught to believe anything.
+ *
+ * The doctrine allows exactly this and names the conditions: extend the
+ * synthetic model honestly rather than fabricating a value for a picture, and
+ * record the extension. This comment is the record.
+ *
+ * ## Why these numbers
+ *
+ * They are chosen to exercise the states a layout has to survive rather than to
+ * look tidy. 47% fill is a real proportion of a real ceiling, not a round
+ * number. The oldest pending event is minutes old, so the duration formatter
+ * has something to shorten. There is one quarantined event and one capacity
+ * refusal, because 1 and 0 read differently from 12 and the singular case is
+ * the one plural rules get wrong. `last_error` carries a code and never a
+ * message, as the contract requires.
+ */
+const SIMULATED_QUEUE = {
+  pending_events: 128,
+  oldest_pending_at: null as string | null,
+  quarantined_events: 1,
+  bytes_used: 3_959_422,
+  bytes_ceiling: 8_388_608,
+  dropped_events: 1,
+} as const;
+
+const SIMULATED_BUILD = {
+  app_version: "2.4.1",
+  plugin_version: "1.8.0",
+  build_id: "ISTER-TOWER-2026.09.03",
+  engine_version: "5.4.4",
+} as const;
+
+/**
+ * Post one heartbeat as a busy installation would.
+ *
+ * DEVELOPMENT ONLY, through the same gate as every other action in this file,
+ * and through the same endpoint with the same credential. If the contract
+ * changes under it, this stops working exactly as a real plugin would.
+ */
+export async function simulateBusyInstallationAction(): Promise<{ readonly ok: true } | Refused> {
+  const estate = await operatorEstate();
+  if (isRefused(estate)) return estate;
+
+  const credential = credentialled();
+  if (isRefused(credential)) return credential;
+
+  const now = Date.now();
+  const answer = await postJson(
+    credential.heartbeatUrl,
+    {
+      sent_at: new Date(now).toISOString(),
+      build: SIMULATED_BUILD,
+      queue: {
+        ...SIMULATED_QUEUE,
+        /* Four minutes and some seconds, so the duration is not a round number. */
+        oldest_pending_at: new Date(now - 263_000).toISOString(),
+      },
+      last_error: { code: "ingest_capacity_refused", at: new Date(now - 41_000).toISOString() },
+    },
+    credential.token,
+  );
+  if (isRefused(answer)) return answer;
+
+  const parsed = HeartbeatResponseSchema.safeParse(answer.payload);
+  if (!parsed.success) {
+    return refuse(describeFailure(credential.heartbeatUrl, answer.status, answer.payload));
+  }
+
+  revalidatePath(REVIEW_SURFACE, "layout");
+  return { ok: true };
+}

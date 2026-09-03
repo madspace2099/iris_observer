@@ -20,6 +20,15 @@ import "@observer/ui/observer.css";
 // because the only rules it needs to win are its own — nothing else in the
 // application uses a `.mad-` class.
 import "@observer/ui/madspace.css";
+/*
+ * The design lab, three directions for one screen. Development-only ROUTES
+ * behind `localControlPlaneEnabled()`; the stylesheets are imported here
+ * because this repository keeps its CSS global and a few kilobytes of unused
+ * rules is a smaller price than a second CSS convention.
+ */
+import "@observer/ui/design-lab-a.css";
+import "@observer/ui/design-lab-b.css";
+import "@observer/ui/design-lab-c.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per
