@@ -790,3 +790,792 @@
   text-transform: uppercase;
   color: var(--dlb-ink-4);
 }
+
+/* ---------------------------------------------------------------------------
+ * THE LIST. Projects, and the sources under one project.
+ *
+ * The same panel the hero above is built from, turned ninety degrees. A rail of
+ * column names on the raised colour, rows on the panel colour, a 1px ROW gap
+ * over the division colour, and no vertical rules at all: this is a list of
+ * installations, not a spreadsheet of cells.
+ *
+ * ## Why the columns are a subgrid and not a flex row
+ *
+ * The question both screens answer is comparative — how much of this project is
+ * delivering, and has this installation ever delivered — and a comparison needs
+ * the figures to line up down the page as well as across it. Subgrid is what
+ * keeps the second one true whatever a project is called: every row inherits
+ * the table's tracks rather than negotiating its own, so a long name cannot
+ * push one row's counts out of the column the row above put them in.
+ *
+ * ## What collapses, and where
+ *
+ * At 1023 the columns become one and the rows become blocks, and the visually
+ * hidden label inside each cell becomes the label. It is the mechanism the
+ * matrix above already uses for its spine, with the breakpoint moved up: six
+ * columns need more width than five, and the column rail has to survive at
+ * 1024 with room to spare rather than exactly.
+ * ------------------------------------------------------------------------ */
+
+.dlb-root {
+  /* The lift a row takes under the pointer. A door should say it is one. */
+  --dlb-panel-hover: #171e26;
+}
+
+.dlb-root .dlb-table {
+  display: grid;
+  row-gap: var(--dlb-r1);
+  column-gap: 0;
+  background: var(--dlb-grid);
+}
+
+.dlb-root .dlb-table[data-columns="projects"] {
+  /*
+   * The instant column holds 12rem because that is what "2026-09-03 19:13 UTC"
+   * needs at body size with the cell's padding. A wrapped project name reads as
+   * a long name; a wrapped timestamp reads as a broken one, so the name column
+   * is the one that gives ground first.
+   */
+  grid-template-columns: minmax(10rem, 2fr) 6rem 7.5rem 9.5rem minmax(13rem, 1fr) auto;
+}
+
+.dlb-root .dlb-table[data-columns="sources"] {
+  grid-template-columns:
+    minmax(13rem, 2fr) repeat(3, minmax(8.5rem, 1fr))
+    minmax(7.5rem, 0.9fr) auto;
+}
+
+.dlb-root .dlb-thead,
+.dlb-root .dlb-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  column-gap: 0;
+}
+
+.dlb-root .dlb-thead {
+  background: var(--dlb-raised);
+  align-items: end;
+}
+
+.dlb-root .dlb-th {
+  min-inline-size: 0;
+  padding: var(--dlb-r12) var(--dlb-r20);
+  font-size: var(--dlb-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.09em;
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--dlb-ink-3);
+}
+
+/*
+ * The ordering, drawn rather than described. Two bands on the raised colour,
+ * and the second one is the whole point: a project nothing has ever been heard
+ * from sorts BELOW the live ones rather than above them.
+ */
+.dlb-root .dlb-band {
+  grid-column: 1 / -1;
+  background: var(--dlb-raised);
+  padding: var(--dlb-r12) var(--dlb-r20);
+}
+
+.dlb-root .dlb-row {
+  background: var(--dlb-panel);
+  align-items: start;
+}
+
+.dlb-root .dlb-row:hover {
+  background: var(--dlb-panel-hover);
+}
+
+.dlb-root .dlb-row:hover .dlb-btn[data-kind="secondary"] {
+  border-color: var(--dlb-line-hover);
+}
+
+.dlb-root .dlb-rowcell {
+  min-inline-size: 0;
+  padding: var(--dlb-r20);
+}
+
+/*
+ * Eight inside a cell, and nothing above the first line of it. The visually
+ * hidden label is a first child on a wide viewport, so the element after it
+ * keeps the top of the cell and the columns share a baseline.
+ */
+.dlb-root .dlb-rowcell > * + * {
+  margin-block-start: var(--dlb-r8);
+}
+
+.dlb-root .dlb-rowcell > .dlb-rowlabel + * {
+  margin-block-start: 0;
+}
+
+/*
+ * The three columns that must never become one travel as a group, so a narrow
+ * viewport can lay them out as a strip of three without the wrapper existing as
+ * far as the column grid is concerned.
+ */
+.dlb-root .dlb-rowgroup {
+  display: contents;
+}
+
+.dlb-root .dlb-doorcell {
+  align-self: center;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- what a row is made of ------------------------------------------------- */
+
+.dlb-root .dlb-rowname {
+  font-size: var(--dlb-value);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--dlb-ink);
+  overflow-wrap: anywhere;
+}
+
+.dlb-root .dlb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dlb-r8) var(--dlb-r12);
+}
+
+.dlb-root .dlb-rowvalue {
+  display: block;
+  font-size: var(--dlb-body);
+  font-weight: var(--weight-medium);
+  color: var(--dlb-ink);
+  overflow-wrap: anywhere;
+}
+
+.dlb-root .dlb-rownote {
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+/*
+ * A numeral scanned down a column of rows is the one thing on these screens
+ * that takes 700, which is the weight the system reserves for a figure that has
+ * to be found quickly.
+ */
+.dlb-root .dlb-tallyfig {
+  font-size: var(--dlb-value);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--dlb-ink);
+}
+
+/*
+ * The denominator. It may shrink and it may dim, because "one connected" is not
+ * a fact and "1 of 7" is. It may never be dropped.
+ */
+.dlb-root .dlb-of {
+  font-size: var(--dlb-caption);
+  font-weight: 400;
+  color: var(--dlb-ink-4);
+}
+
+/*
+ * An absent value at row scale. Smaller than the measurement beside it rather
+ * than larger, so a column of readings never has its loudest line on the one
+ * fact nobody measured.
+ */
+.dlb-root .dlb-absent[data-scale="row"] {
+  display: flex;
+  font-size: var(--dlb-body);
+}
+
+.dlb-root .dlb-empty {
+  grid-column: 1 / -1;
+  background: var(--dlb-panel);
+  padding: var(--dlb-r28) var(--dlb-r20);
+}
+
+.dlb-root .dlb-emptytitle {
+  margin-block-end: var(--dlb-r8);
+  font-size: var(--dlb-lead);
+  font-weight: var(--weight-medium);
+  color: var(--dlb-ink);
+}
+
+/*
+ * The collapse. The column rail goes, each cell states its own label, and the
+ * three states become a strip of three that never merges into one.
+ */
+@media (max-width: 1023px) {
+  .dlb-root .dlb-table[data-columns="projects"],
+  .dlb-root .dlb-table[data-columns="sources"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dlb-root .dlb-thead {
+    display: none;
+  }
+
+  .dlb-root .dlb-row {
+    display: block;
+    padding: var(--dlb-r20);
+  }
+
+  .dlb-root .dlb-rowcell {
+    padding: 0;
+  }
+
+  .dlb-root .dlb-row > * + * {
+    margin-block-start: var(--dlb-r20);
+  }
+
+  .dlb-root .dlb-row .dlb-rowlabel {
+    position: static;
+    display: block;
+    inline-size: auto;
+    block-size: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    font-size: var(--dlb-micro);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.09em;
+    line-height: 1.35;
+    text-transform: uppercase;
+    color: var(--dlb-ink-3);
+  }
+
+  .dlb-root .dlb-rowcell > .dlb-rowlabel + * {
+    margin-block-start: var(--dlb-r8);
+  }
+
+  .dlb-root .dlb-rowgroup {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--dlb-r20);
+  }
+
+  .dlb-root .dlb-doorcell {
+    justify-content: flex-start;
+  }
+}
+
+/*
+ * On a phone the three STATES stack and the three COUNTS do not, and the
+ * difference is the content rather than a preference. A chip is a mark, a gap
+ * and a word that may run to "Awaiting first heartbeat": in a 93px column it
+ * would have to truncate the word or drop below the 12px floor, and both are
+ * forbidden because the word IS the state. Three figures with their labels fit
+ * that column comfortably, and keeping them side by side is what preserves the
+ * one reading this screen exists for: three counts against one denominator.
+ */
+@media (max-width: 599px) {
+  .dlb-root .dlb-table[data-columns="sources"] .dlb-rowgroup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * And in that narrow strip the label reserves two lines, which is the data
+   * panel's own rule: "Ingestion verified" wraps where "Sources" does not, and
+   * without the reserve one of the three figures sits a line below the other
+   * two and the comparison the strip exists for is broken.
+   */
+  .dlb-root .dlb-table[data-columns="projects"] .dlb-rowgroup .dlb-rowlabel {
+    min-block-size: 2.1rem;
+  }
+
+  .dlb-root .dlb-table[data-columns="projects"] .dlb-rowgroup .dlb-rowlabel + * {
+    margin-block-start: 0;
+  }
+}
+
+/*
+ * The evidence under a state chip. In a state column the WORD is the value and
+ * the instant is what proves it, so the instant takes the caption size and
+ * recedes: two levels of quiet under the chip, the instant at body ink and the
+ * age below it at label ink.
+ */
+.dlb-root .dlb-rowevidence {
+  display: block;
+  font-size: var(--dlb-caption);
+  color: var(--dlb-ink-2);
+}
+
+.dlb-root .dlb-absent[data-scale="note"] {
+  display: flex;
+  font-size: var(--dlb-caption);
+}
+
+/*
+ * The definition under the answer. It explains the SHAPE of a figure rather
+ * than being one, which is the only kind of sentence allowed to sit this quiet:
+ * a state, a party waited on or a date would have to be in front of the reader.
+ */
+.dlb-root .dlb-answernote {
+  margin-block-start: var(--dlb-r8);
+  max-inline-size: 64ch;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+/* ============================================================================
+ * SCREENS FOUR AND FIVE. Activation and source actions, and Diagnostics.
+ *
+ * Appended rather than woven in, and it adds no second vocabulary: the two
+ * screens are built from the masthead, the section head, the answer band on its
+ * 11.5rem spine, the ledger, the ruled list with its column rail and its
+ * labelled bands, the chips and the neutral bar that the first three already
+ * use. What is new below is only what those three had no occasion to draw.
+ *
+ * ## The one shadow
+ *
+ * The system allows two, popover and modal, and every panel in this direction
+ * has carried none because structure comes from hairlines here. The activation
+ * code panel takes the modal shadow, because it is the one thing on this
+ * surface genuinely floating over the page rather than laid into it, and
+ * because what is underneath has to read as unreachable. It is also `inert`
+ * underneath, so that reading is a fact about the document rather than an
+ * impression made by a scrim.
+ *
+ * ## Why the scrim centres with `margin: auto` rather than `place-items`
+ *
+ * A centred grid or flex item taller than its scrolling container has its TOP
+ * clipped, and the clipped part of this particular panel would be the sentence
+ * that says the code is shown only once. An auto margin on a flex child
+ * resolves to zero when there is not enough room, so a tall panel starts at the
+ * top of the scroll instead of above it.
+ * ========================================================================= */
+
+.dlb-root {
+  --dlb-shadow-modal: 0 24px 64px rgb(0 0 0 / 55%), 0 2px 6px rgb(0 0 0 / 45%);
+  --dlb-scrim: rgb(4 6 9 / 76%);
+}
+
+/* --- the scope band -------------------------------------------------------
+ *
+ * The system reserves this for anything whose effect reaches beyond the record
+ * on the screen. On Activation that is the five operations, every one of which
+ * reaches a machine in a building rather than this page; on Diagnostics it is
+ * the read itself, which spans every project in the account. It takes the
+ * raised colour and the matrix's spine, so it reads as chrome around the facts
+ * rather than as another panel of them.
+ */
+
+.dlb-root .dlb-scope {
+  display: grid;
+  grid-template-columns: var(--dlb-spine) minmax(0, 1fr);
+  column-gap: var(--dlb-r20);
+  align-items: baseline;
+  margin-block-end: var(--dlb-r12);
+  padding: var(--dlb-r20);
+  background: var(--dlb-raised);
+  border: 1px solid var(--dlb-line-panel);
+  border-radius: var(--dlb-round);
+}
+
+.dlb-root .dlb-scopetext {
+  max-inline-size: 88ch;
+  font-size: var(--dlb-body);
+  line-height: 1.55;
+  color: var(--dlb-ink-2);
+}
+
+@media (max-width: 899px) {
+  .dlb-root .dlb-scope {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--dlb-r8);
+  }
+}
+
+/* --- the code panel -------------------------------------------------------- */
+
+.dlb-root .dlb-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  overflow-y: auto;
+  padding: var(--dlb-r20);
+  background: var(--dlb-scrim);
+}
+
+.dlb-root .dlb-modal {
+  margin: auto;
+  inline-size: 100%;
+  max-inline-size: 40rem;
+  background: var(--dlb-base);
+  border: 1px solid var(--dlb-line-panel);
+  border-radius: var(--dlb-round);
+  box-shadow: var(--dlb-shadow-modal);
+  overflow: hidden;
+}
+
+.dlb-root .dlb-modal-head {
+  padding: var(--dlb-r28) var(--dlb-r28) var(--dlb-r20);
+  background: var(--dlb-raised);
+  border-block-end: 1px solid var(--dlb-line-panel);
+}
+
+/*
+ * THE TITLE IS THE MOST IMPORTANT SENTENCE ON THE SCREEN, so it is set as one.
+ * Heading-2 rather than a quiet caption under the code, because a reader who
+ * closes this panel without copying has to issue another one.
+ */
+.dlb-root .dlb-modal-title {
+  margin-block-start: var(--dlb-r12);
+  font-size: var(--dlb-heading-2);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: var(--dlb-ink);
+}
+
+.dlb-root .dlb-modal-lead {
+  margin-block-start: var(--dlb-r12);
+  max-inline-size: 54ch;
+  font-size: var(--dlb-lead);
+  line-height: 1.5;
+  color: var(--dlb-ink-2);
+}
+
+.dlb-root .dlb-modal-body {
+  display: grid;
+  gap: var(--dlb-r20);
+  padding: var(--dlb-r28);
+}
+
+.dlb-root .dlb-modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dlb-r12) var(--dlb-r20);
+  padding: var(--dlb-r20) var(--dlb-r28);
+  background: var(--dlb-raised);
+  border-block-start: 1px solid var(--dlb-line-panel);
+}
+
+.dlb-root .dlb-modal-footnote {
+  max-inline-size: 40ch;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+/*
+ * The sample label sits BEFORE the code rather than after it, on an inset
+ * ground with the neutral bar beside the word. Neutral is the honest mark: the
+ * bar is what this system draws for a value that was never measured, and the
+ * sample is the one value in the lab that is not read from the database.
+ */
+.dlb-root .dlb-sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dlb-r8) var(--dlb-r12);
+  padding: var(--dlb-r12);
+  background: var(--surface-inset);
+  border: 1px solid var(--dlb-line-field);
+  border-radius: var(--dlb-round);
+}
+
+.dlb-root .dlb-sample-text {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-2);
+}
+
+/*
+ * The code. A system monospace stack rather than a webfont, for the reason the
+ * live surface gives: the one value here that must be transcribed exactly is
+ * the one that would otherwise render in a fallback while a font loaded.
+ *
+ * `user-select: all` so one click takes the whole value, and the two full stops
+ * are the preferred wrapping points, so a wrap lands between the three parts
+ * rather than in the middle of the secret.
+ */
+.dlb-root .dlb-code {
+  display: block;
+  padding: var(--dlb-r20);
+  background: var(--dlb-panel);
+  border: 1px solid var(--dlb-line-field);
+  border-radius: var(--dlb-round);
+  color: var(--dlb-ink);
+  font-family: var(--mad-font-mono);
+  font-size: var(--dlb-value);
+  font-variant-numeric: normal;
+  letter-spacing: 0.03em;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/*
+ * The note belongs to the code above it, so it pulls back to the 12px step
+ * inside the body's 20px rhythm rather than floating between two blocks.
+ */
+.dlb-root .dlb-codenote {
+  margin-block-start: calc(var(--dlb-r12) - var(--dlb-r20));
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+.dlb-root .dlb-copyrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dlb-r12) var(--dlb-r20);
+}
+
+/*
+ * The confirmation. A chip and a sentence, so it survives greyscale and
+ * `prefers-reduced-motion`: the entrance is the only thing motion carries, and
+ * the reserved height stops the row shifting when it arrives or lapses.
+ */
+.dlb-root .dlb-said {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dlb-r8);
+  min-block-size: 1.75rem;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dlb-root .dlb-said[data-said="true"] {
+    animation: dlb-said-in 180ms ease-out both;
+  }
+}
+
+@keyframes dlb-said-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Two columns inside 40rem, whatever the page grid is doing outside it. */
+.dlb-root .dlb-modal .dlb-ledger {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dlb-root .dlb-modal .dlb-span2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 599px) {
+  .dlb-root .dlb-modal .dlb-ledger {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dlb-root .dlb-modal .dlb-span2 {
+    grid-column: auto;
+  }
+
+  .dlb-root .dlb-modal-head {
+    padding: var(--dlb-r20) var(--dlb-r20) var(--dlb-r12);
+  }
+
+  .dlb-root .dlb-modal-body {
+    gap: var(--dlb-r12);
+    padding: var(--dlb-r20);
+  }
+
+  .dlb-root .dlb-modal-foot {
+    padding: var(--dlb-r12) var(--dlb-r20);
+  }
+
+  .dlb-root .dlb-modal-title {
+    font-size: var(--dlb-heading-3);
+  }
+
+  .dlb-root .dlb-modal-lead {
+    font-size: var(--dlb-body);
+  }
+
+  .dlb-root .dlb-code {
+    padding: var(--dlb-r12);
+    font-size: var(--dlb-lead);
+  }
+
+  .dlb-root .dlb-codenote {
+    margin-block-start: calc(var(--dlb-r8) - var(--dlb-r12));
+  }
+}
+
+/* --- the action region ----------------------------------------------------- */
+
+/*
+ * The control column is bounded rather than `auto`.
+ *
+ * A `minmax(13rem, auto)` track takes its max-content size out of the free
+ * space BEFORE the fr tracks are expanded, which handed the widest button's
+ * column more than half the table and squeezed the sentence that matters into
+ * a nine-word ribbon. A ceiling in rem keeps the control where the eye expects
+ * it and gives the rest of the row back to the prose.
+ */
+.dlb-root .dlb-table[data-columns="actions"] {
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(22rem, 2.4fr) minmax(12rem, 15rem);
+}
+
+/*
+ * The control column is centred against a row whose sentence runs to three
+ * lines, and it is NOT a door: nothing here opens another screen, so it does
+ * not take the door cell's right-hand pull.
+ */
+.dlb-root .dlb-actioncell {
+  align-self: center;
+}
+
+/*
+ * A withheld operation is stated in words rather than drawn as a disabled
+ * button. A greyed-out Resume beside an active source is a control whose whole
+ * contribution is to be refused.
+ */
+.dlb-root .dlb-withheld {
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+/* The consequence of a press, and the reason a source is on the alert list. */
+.dlb-root .dlb-consequence {
+  max-inline-size: 72ch;
+  font-size: var(--dlb-body);
+  line-height: 1.55;
+  color: var(--dlb-ink-2);
+}
+
+.dlb-root .dlb-inert[data-align="start"] {
+  text-align: start;
+}
+
+/* --- diagnostics ----------------------------------------------------------- */
+
+.dlb-root .dlb-table[data-columns="attention"] {
+  grid-template-columns: minmax(15rem, 1.2fr) minmax(22rem, 2.2fr) minmax(12rem, 1fr);
+}
+
+.dlb-root .dlb-table[data-columns="heartbeats"],
+.dlb-root .dlb-table[data-columns="verifications"],
+.dlb-root .dlb-table[data-columns="errors"] {
+  grid-template-columns: minmax(14rem, 2fr) minmax(12rem, 1fr) minmax(11rem, 1fr);
+}
+
+.dlb-root .dlb-table[data-columns="queues"] {
+  grid-template-columns: minmax(13rem, 2fr) repeat(4, minmax(7.5rem, 1fr));
+}
+
+.dlb-root .dlb-table[data-columns="quarantine"] {
+  grid-template-columns: minmax(13rem, 1.6fr) repeat(4, minmax(8.5rem, 1fr));
+}
+
+/*
+ * A row that is not a door does not lift under the pointer. The hover on the
+ * two list screens exists to say "this opens something"; a diagnostics row
+ * opens nothing, and borrowing the affordance would promise a screen that is
+ * not there.
+ */
+.dlb-root .dlb-row[data-static="true"]:hover {
+  background: var(--dlb-panel);
+}
+
+/*
+ * AN EMPTY ATTENTION LIST IS A RESULT AND IS BUILT TO LOOK LIKE ONE.
+ *
+ * It takes the same spine, the same two grounds and the same 1px division as
+ * the answer band directly above it, so the panel keeps its shape and its
+ * weight whether the estate is quiet or on fire. A section that vanished, or
+ * fell back to a dashed box, would look like a panel that failed to load on
+ * exactly the day a reader most needs to trust it.
+ */
+.dlb-root .dlb-result {
+  display: grid;
+  grid-template-columns: var(--dlb-spine) minmax(0, 1fr);
+  column-gap: var(--dlb-r1);
+  background: var(--dlb-grid);
+}
+
+.dlb-root .dlb-result-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--dlb-r12);
+  padding: var(--dlb-r28) var(--dlb-r20);
+  background: var(--dlb-raised);
+}
+
+.dlb-root .dlb-result-body {
+  padding: var(--dlb-r28) var(--dlb-r20);
+  background: var(--dlb-panel);
+}
+
+.dlb-root .dlb-resulttitle {
+  margin-block-end: var(--dlb-r12);
+  font-size: var(--dlb-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--dlb-ink);
+}
+
+/*
+ * What a table could not hold: how many sources are absent from it, and why.
+ * It sits under the panel rather than inside it, because it is a statement
+ * about the rows that are NOT there.
+ */
+.dlb-root .dlb-tablenote {
+  margin-block-start: var(--dlb-r12);
+  max-inline-size: 88ch;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-4);
+}
+
+/* An error CODE, never a message. The face says it is a token rather than prose. */
+.dlb-root .dlb-codeword {
+  display: inline-block;
+  font-family: var(--mad-font-mono);
+  font-size: var(--dlb-body);
+  font-variant-numeric: normal;
+  letter-spacing: 0.01em;
+  color: var(--dlb-ink);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 899px) {
+  .dlb-root .dlb-result {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--dlb-r1);
+  }
+}
+
+/*
+ * The collapse, on the same breakpoint the first three screens use. The rules
+ * that turn a row into a block and reveal its hidden labels are already global
+ * to `.dlb-row` up there; only the tracks are per table.
+ */
+@media (max-width: 1023px) {
+  .dlb-root .dlb-table[data-columns="actions"],
+  .dlb-root .dlb-table[data-columns="attention"],
+  .dlb-root .dlb-table[data-columns="heartbeats"],
+  .dlb-root .dlb-table[data-columns="verifications"],
+  .dlb-root .dlb-table[data-columns="queues"],
+  .dlb-root .dlb-table[data-columns="quarantine"],
+  .dlb-root .dlb-table[data-columns="errors"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

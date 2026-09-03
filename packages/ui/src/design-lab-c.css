@@ -997,3 +997,964 @@
     min-height: 0;
   }
 }
+
+/* ============================================================================
+ * THE LIST, AND THE TWO SCREENS BUILT ON IT.
+ *
+ * Appended for Projects and Project detail. Nothing above this line changed:
+ * both screens re-use the frame, the rail, the masthead, the scope band, the
+ * plate, the region heads, the disclosure, the value treatment and the button
+ * hierarchy exactly as Source detail declared them. What is new is the one
+ * shape those two screens need and Source detail did not: a ruled list of rows.
+ *
+ * ## Why a list rather than a grid of cards
+ *
+ * Both screens are read comparatively. "How much of this project is
+ * delivering", asked of four projects, is answered by scanning ONE column, and
+ * a card positions its figures by its own content so no two cards agree on
+ * where a figure sits. Every row here therefore shares one grid template, so
+ * the counts, the states and the dates stand on the same verticals all the way
+ * down, and the divider is the system's 1px rule rather than a gap between
+ * floating boxes.
+ *
+ * The division is drawn by the ROW, with a shadow at -1px and no blur, clipped
+ * on the first row by the container's own `overflow: hidden`. This is the same
+ * mechanism `.dlc-panel` and `.dlc-scope` already use, and it is a hairline
+ * drawn with the shadow property rather than elevation: the two real shadows in
+ * this system are spent on the popover and the modal, and nothing here floats.
+ * ========================================================================== */
+
+/* --- the scope band, at three cells --------------------------------------- */
+
+/*
+ * Source detail's band carries four facts. These two carry three, and the last
+ * one is the long one on both: an identifier on Project detail, an instant on
+ * Projects. So the third cell takes the wide track the identifier had, and the
+ * band keeps its outer edge, its ink and its dividers unchanged.
+ */
+@media (40rem <= width < 62rem) {
+  .dlc-scope[data-cells="3"] > div:last-child {
+    grid-column: span 2;
+  }
+}
+
+/*
+ * The middle track carries a floor of its own because a UTC instant is a fixed
+ * nineteen characters at the 19px value step: at even thirds it lost "UTC" to a
+ * second line, and a timestamp broken in half is a figure broken in half.
+ */
+@media (width >= 62rem) {
+  .dlc-scope[data-cells="3"] {
+    grid-template-columns: minmax(0, 0.85fr) minmax(16rem, 1.1fr) minmax(0, 1.5fr);
+  }
+}
+
+/* --- the list ------------------------------------------------------------- */
+.dlc-list {
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+.dlc-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--rhythm-section);
+  padding: var(--rhythm-section) var(--dlc-pad);
+  box-shadow: 0 -1px 0 var(--border-panel);
+}
+
+/*
+ * THE ROW ANSWERS ITS OWN DOOR, AND ONLY ITS DOOR.
+ *
+ * The button is the interactive thing; the row is not. So the row does not
+ * light up under a passing cursor, which would promise a click it cannot
+ * honour. It lights up when its own control is hovered or holds focus, which
+ * says the opposite and true thing: that control acts on this whole row.
+ */
+.dlc-row:has(.dlc-row-go .dlc-btn:hover),
+.dlc-row:focus-within {
+  background: var(--surface-inset);
+}
+
+.dlc-row-id {
+  min-width: 0;
+}
+
+/* Heading-3, because a row's subject is a content title and nothing more. */
+.dlc-row-name {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.dlc-row-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight);
+  align-items: center;
+  margin-top: var(--rhythm-inner);
+}
+
+/*
+ * The environment, as a word rather than a chip. It is authoritative and it is
+ * not a state, so giving it the chip treatment would put it at the weight of
+ * the lifecycle and the verdict standing beside it.
+ */
+.dlc-tag {
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- the three groups a row is built from --------------------------------- */
+
+/*
+ * One grid declaration for the counts, the states and the evidence, so the
+ * three groups indent, wrap and reserve their labels identically. A row that
+ * used three different mechanisms here would drift the moment one of them
+ * needed a fourth cell.
+ */
+.dlc-tally,
+.dlc-states,
+.dlc-when {
+  display: grid;
+  gap: var(--rhythm-inner) var(--rhythm-section);
+  min-width: 0;
+  margin: 0;
+}
+
+.dlc-tally,
+.dlc-states {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dlc-when {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dlc-tally > div,
+.dlc-states > div,
+.dlc-when > div {
+  min-width: 0;
+}
+
+/*
+ * Labels reserve two lines, which is the data panel rule: the values BESIDE
+ * them then share a baseline whatever the label length does to the wrapping.
+ * "Ingestion verified" wraps where "Sources" does not, and without the
+ * reservation the figures in one row would sit at three different heights.
+ */
+.dlc-tally dt,
+.dlc-states dt,
+.dlc-when dt {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/*
+ * The counts and the states stand three across at every width above the phone,
+ * so their labels reserve two lines and the figures beside them share a
+ * baseline whatever "Ingestion verified" does to the wrapping. The evidence
+ * column reserves nothing here: until the row is four columns wide it stands
+ * alone on its own line, where a reserved second line is not an alignment.
+ */
+.dlc-tally dt,
+.dlc-states dt {
+  min-height: calc(2 * 1.35em);
+}
+
+.dlc-tally dd,
+.dlc-states dd,
+.dlc-when dd {
+  margin: var(--rhythm-tight) 0 0;
+}
+
+/*
+ * Only the first reading of a stacked evidence column aligns with the states
+ * beside it. The ones below it have nothing to their left, so a reserved second
+ * line there is not an alignment, only a hole.
+ */
+.dlc-when[data-stack="true"] > div + div dt {
+  min-height: 0;
+}
+
+/*
+ * 700, because these are the numerals on the screen that have to be found. The
+ * denominator drops to caption and to the metadata ink so the pair reads as one
+ * figure, and it is never dropped: "four connected" is not a fact, "four of
+ * six" is.
+ */
+.dlc-figure {
+  font-size: var(--text-value);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.dlc-of {
+  margin-left: var(--rhythm-tight);
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.dlc-row-go {
+  display: flex;
+  align-items: flex-start;
+}
+
+/* --- the row at three widths ---------------------------------------------- */
+
+/*
+ * Two columns from 768: identity beside its figures, then the evidence beside
+ * the door. Four columns from 1248, which is the width at which the identity,
+ * the figures, a full UTC instant and the control all hold their floors at
+ * once. Between the two the row folds rather than crushing a timestamp.
+ */
+@media (width >= 48rem) {
+  .dlc-row {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    column-gap: var(--rhythm-major);
+  }
+
+  .dlc-row-go {
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+}
+
+@media (width >= 78rem) {
+  .dlc-row {
+    grid-template-columns:
+      minmax(12rem, 1.25fr)
+      minmax(19rem, 1.5fr)
+      minmax(13.5rem, 0.95fr)
+      auto;
+    align-items: start;
+    column-gap: var(--rhythm-section);
+  }
+
+  /* Now it does stand beside the states, so now it reserves its two lines. */
+  .dlc-when dt {
+    min-height: calc(2 * 1.35em);
+  }
+
+  .dlc-row-go {
+    align-items: flex-start;
+  }
+}
+
+/* --- the empty list ------------------------------------------------------- */
+
+/*
+ * The dashed border is the system's own token for an empty slot, so the shape
+ * says "nothing is here yet" before the words do. It is not a warning and is
+ * not drawn as one.
+ */
+.dlc-empty {
+  padding: var(--dlc-pad);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+.dlc-empty-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.dlc-empty-note {
+  max-width: 62ch;
+  margin: var(--rhythm-inner) 0 0;
+  color: var(--ink-2);
+}
+
+/* --- the phone ------------------------------------------------------------ */
+@media (width < 30rem) {
+  /*
+   * Three counts in three columns leaves each label narrower than the word
+   * INGESTION, and a micro-label may not shrink below 12px to fit. Two columns
+   * and a wrap is the honest answer; the reserved second line goes with it,
+   * because a stacked group has nothing beside it to align to.
+   */
+  .dlc-tally,
+  .dlc-states {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--rhythm-inner);
+  }
+
+  .dlc-tally dt,
+  .dlc-states dt {
+    min-height: 0;
+  }
+}
+
+/* ============================================================================
+ * ACTIVATION AND DIAGNOSTICS, ADDED FOR THE LAST TWO SCREENS.
+ *
+ * Appended. Nothing above this line changed: both screens re-use the frame, the
+ * rail, the masthead, the scope band, the plate, the region heads, the
+ * disclosure, the value treatment, the data panel, the ruled list and the
+ * button hierarchy exactly as the first three screens declared them.
+ *
+ * What is new is only what those three did not need:
+ *
+ *   the operations panel   a data panel with a control where the value goes,
+ *                          on graphite, because the seam is a rule about
+ *                          content and an action is not a measurement.
+ *   the modal              the one thing in this direction that floats, and
+ *                          therefore the one thing that spends a shadow.
+ *   the code               the one value on the surface that is transcribed
+ *                          character by character rather than read.
+ *   the result panel       an empty section that is an ANSWER rather than an
+ *                          absence, so it cannot look like a panel that failed.
+ *   two group widths       `data-cols` on the row's fact group, so four short
+ *                          figures and two long instants use one mechanism.
+ *
+ * Every division below is still the 1px hairline drawn with the shadow
+ * property, clipped by the container's own `overflow: hidden`. The only real
+ * elevation in this sheet is on `.dlc-dialog-panel`, and it is there because
+ * the system spends its two shadows on the popover and the modal and this is
+ * the modal.
+ * ========================================================================= */
+
+/* --- lists that are actually lists ---------------------------------------- */
+
+/*
+ * The attention section is an `ol` because worst first is an order rather than
+ * a set, and the corroborating sections are unordered. Neither may keep the
+ * browser default marker or its inline padding: the row is a grid, and a marker
+ * beside it would be a second left edge.
+ */
+ol.dlc-list,
+ul.dlc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- the footnote under a list or a panel --------------------------------- */
+
+/*
+ * Caption, metadata ink, and it never carries a state, a date or a refusal.
+ * What it does carry is the count a reader would otherwise compute wrongly:
+ * how many sources are absent from the list above, and why.
+ */
+.dlc-hint {
+  max-width: 78ch;
+  margin: var(--rhythm-inner) 0 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- three cells in a data panel ------------------------------------------ */
+
+/*
+ * The three states are three, and four columns would leave a quarter of the
+ * panel empty beside them. Two at the middle widths, three once there is room:
+ * the chips set `white-space: nowrap`, so a track narrower than "Never
+ * connected" would clip a state word, which is the one thing this panel exists
+ * to spell out.
+ */
+@media (width >= 62rem) {
+  .dlc-panel[data-cols="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* --- the row's fact group, at two widths ---------------------------------- */
+
+/*
+ * `.dlc-when` already carries the label typography, the baseline reservation
+ * and the `min-width: 0` its children need. All these two attributes change is
+ * how many stand side by side, so a queue row of four short figures and a
+ * heartbeat row of two long instants are one mechanism rather than two.
+ *
+ * The breakpoints are set by the CONTENT rather than by the device. A UTC
+ * instant is a fixed nineteen characters at the 19px value step, so the pair
+ * divides only once the fact column can hold two of them; four short figures
+ * divide much earlier.
+ */
+.dlc-when[data-cols="2"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dlc-when[data-cols="4"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (width >= 78rem) {
+  .dlc-when[data-cols="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dlc-when[data-cols="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* --- the two diagnostics rows --------------------------------------------- */
+
+/*
+ * The four column row Projects and Project detail share is built for three
+ * groups and a door. These two rows carry an identity and ONE group, so they
+ * take their own templates rather than leaving two tracks of a shared one
+ * empty. The attribute raises the specificity above `.dlc-row`, so these win at
+ * every width without depending on the order of the file.
+ */
+@media (width >= 48rem) {
+  .dlc-row[data-shape="alert"],
+  .dlc-row[data-shape="fact"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    column-gap: var(--rhythm-major);
+  }
+
+  /*
+   * Still folded here: the reason and the heartbeat want the width more than
+   * the control does, so the door drops to a line of its own and sits at the
+   * end of it, where the shared rule already puts it.
+   */
+  .dlc-row[data-shape="alert"] > .dlc-row-go {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (width >= 78rem) {
+  .dlc-row[data-shape="alert"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+    align-items: start;
+    column-gap: var(--rhythm-section);
+  }
+
+  .dlc-row[data-shape="alert"] > .dlc-row-go {
+    grid-column: auto;
+  }
+
+  .dlc-row[data-shape="fact"] {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    column-gap: var(--rhythm-section);
+  }
+}
+
+.dlc-alert-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-section);
+  min-width: 0;
+}
+
+/*
+ * The reason, in words. The chip above it says WHAT; this says WHY, and it is
+ * what decides whether an operator opens the source or leaves it, so it is
+ * never behind a disclosure and never replaced by a colour.
+ */
+.dlc-row-reason {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--ink-2);
+}
+
+/*
+ * The label under the reason has nothing to its left, so the reserved second
+ * line the wide row gives every `.dlc-when` label would only be a hole here.
+ */
+.dlc-alert-body .dlc-when dt {
+  min-height: 0;
+}
+
+/* --- an empty section that is an ANSWER ----------------------------------- */
+
+/*
+ * Section one holding nothing is a finding: nobody has work to do. So it takes
+ * the solid panel every fact on this surface stands on, with a state chip and a
+ * sentence, and it deliberately does NOT take the dashed empty slot below,
+ * which says "nothing has been recorded here yet". The two are different
+ * statements about the estate and they may never look alike.
+ */
+.dlc-result {
+  padding: var(--dlc-pad);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+.dlc-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-inner);
+  align-items: center;
+}
+
+.dlc-result-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.dlc-result-note {
+  max-width: 72ch;
+  margin: var(--rhythm-inner) 0 0;
+  color: var(--ink-2);
+}
+
+/* --- a code, inline ------------------------------------------------------- */
+
+/*
+ * The reasoning `.dlc-id` uses for an identifier, plus the monospace face the
+ * surface already declares for a value read character by character. It is a
+ * CODE and never a message: the column is bounded so an exception body cannot
+ * arrive in an operational table, and nothing here is styled as though there
+ * were more behind it.
+ */
+.dlc-code-token {
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* --- the action region ---------------------------------------------------- */
+
+/*
+ * On graphite, because the seam is a rule about content: above it what we
+ * conclude and what a person may do, below it what was measured. Source detail
+ * keeps three of these in the masthead's right hand corner; this screen's
+ * subject IS what a person may do, so the corner grows into a region and keeps
+ * every part of its vocabulary.
+ *
+ * The head stands on the masthead's left edge and the panel shares the scope
+ * band's outer edge, so nothing steps in or out down the graphite half.
+ */
+.dlc-ops-region {
+  margin-bottom: var(--rhythm-major);
+}
+
+.dlc-ops-head {
+  padding: 0 calc(var(--dlc-inset) + var(--dlc-pad)) var(--rhythm-section);
+}
+
+.dlc-ops-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.dlc-ops-lede {
+  max-width: 78ch;
+  margin: var(--rhythm-tight) 0 0;
+  font-size: var(--text-lead);
+  color: var(--ink-2);
+}
+
+/*
+ * The data panel, with a control where the value goes. Same 1px division, same
+ * radius, same ground, same clipping, so an operations panel and a data panel
+ * are visibly the same object doing two jobs.
+ */
+.dlc-ops {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 0 var(--dlc-inset);
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+@media (width >= 48rem) {
+  .dlc-ops {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /*
+   * THE TERMINAL OPERATION STANDS ALONE, AND THAT IS THE POINT.
+   *
+   * Archive is the only one of the five with no inverse. Colour alone would not
+   * say so: roughly one man in twelve cannot separate the red border from the
+   * grey one, and a printed page has neither. So it is also the only cell on a
+   * row of its own, the only one on the recessed ground, and the only one whose
+   * weight word reads Terminal. Four signals, three of which survive greyscale.
+   */
+  .dlc-ops > div:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.dlc-ops > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rhythm-inner);
+  padding: var(--rhythm-section) var(--dlc-pad);
+  box-shadow:
+    -1px 0 0 var(--border-panel),
+    0 -1px 0 var(--border-panel);
+}
+
+.dlc-ops > div[data-weight="terminal"] {
+  background: var(--surface-inset);
+}
+
+.dlc-op-weight {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* Ink rather than a hue: nothing has gone wrong, and colour here means status. */
+.dlc-ops > div[data-weight="terminal"] .dlc-op-weight {
+  color: var(--ink-2);
+}
+
+.dlc-op-note {
+  max-width: 62ch;
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-2);
+}
+
+.dlc-ops-note {
+  max-width: 86ch;
+  margin: var(--rhythm-inner) 0 0;
+  padding: 0 calc(var(--dlc-inset) + var(--dlc-pad));
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/*
+ * The lab affordance, fenced off.
+ *
+ * The dashed border is this sheet's token for a slot that holds nothing real,
+ * which is exactly what this is: a control the product does not have and must
+ * never have. Standing it inside the operations panel would have made it the
+ * sixth operation.
+ */
+.dlc-lab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rhythm-inner);
+  margin: var(--rhythm-section) var(--dlc-inset) 0;
+  padding: var(--rhythm-section) var(--dlc-pad);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--portal-radius);
+}
+
+.dlc-lab-note {
+  max-width: 72ch;
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+/* --- the modal ------------------------------------------------------------- */
+
+/*
+ * A real `<dialog>` in the top layer. The element itself is only a positioner:
+ * it carries no border, no ground and no padding, so the panel inside it is the
+ * whole of what a reader sees.
+ */
+.dlc-dialog {
+  inset: 0;
+  width: min(40rem, calc(100vw - 2rem));
+  max-width: 100%;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/*
+ * The graphite ground, made nearly opaque. Not a blur: a frosted backdrop is
+ * decoration, and it leaves the page behind legible enough to keep reading,
+ * which is the opposite of what a modal is for. Written as a value rather than
+ * through a token, because `::backdrop` is not reliably a child of anything.
+ */
+.dlc-dialog::backdrop {
+  background: rgb(14 14 13 / 88%);
+}
+
+/*
+ * THE ONE ELEVATION IN THIS SHEET.
+ *
+ * The system allows two shadows, popover and modal, and this is the modal.
+ * Every other division in this direction is a 1px hairline, which is why this
+ * one reads as lifted rather than as more of the same.
+ *
+ * It takes the PAPER tokens. This is the only thing on the screen a person
+ * transcribes, so it is a plate lifted off the mount rather than part of the
+ * frame, and `color-scheme` goes with them so the panel's own scrollbar belongs
+ * to the paper rather than to the graphite behind it.
+ */
+.dlc-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88vh, 48rem);
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-page);
+  color: var(--ink);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 55%);
+  color-scheme: light;
+}
+
+.dlc-dialog-head {
+  padding: var(--dlc-pad) var(--dlc-pad) var(--rhythm-section);
+  border-bottom: 1px solid var(--border-panel);
+}
+
+.dlc-dialog-title {
+  margin: var(--rhythm-tight) 0 0;
+  font-size: var(--text-heading-2);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-2);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.dlc-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-inner);
+  padding: var(--dlc-pad);
+  overflow-y: auto;
+}
+
+/* The flex gap already spaces these; their own margins would double it. */
+.dlc-dialog-body .dlc-micro {
+  margin-bottom: 0;
+}
+
+.dlc-dialog-body .dlc-panel {
+  margin-top: var(--rhythm-tight);
+}
+
+.dlc-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--rhythm-section) var(--dlc-pad);
+  border-top: 1px solid var(--border-panel);
+}
+
+/*
+ * The sample label, above the code rather than under it. A caption underneath
+ * is read after the thing it qualifies, and the whole point of this one is that
+ * nobody reaches the code believing it is a credential.
+ */
+.dlc-sample {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight) var(--rhythm-inner);
+  align-items: center;
+  margin-top: var(--rhythm-inner);
+}
+
+.dlc-sample p {
+  max-width: 58ch;
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-2);
+}
+
+/* --- the code ------------------------------------------------------------- */
+
+/*
+ * THE ONE VALUE ON THIS SURFACE THAT IS TRANSCRIBED RATHER THAN READ.
+ *
+ * Four decisions, and every one of them is about not losing your place:
+ *
+ *   monospace       every character occupies one cell, so a run of similar
+ *                   glyphs cannot close up. The face is the system stack this
+ *                   surface already declares for exactly this value: pulling a
+ *                   webfont over the network would render the one string that
+ *                   must be exact in a fallback while it loads.
+ *   a fixed measure capped in CHARACTERS rather than pixels, so the lines a
+ *                   reader says out loud are the same length at every width and
+ *                   the line they are on stays findable.
+ *   open leading    a whole line of space between the lines, because the eye
+ *                   returning from the end of one has to find the next.
+ *   `user-select`   `all`, so one click takes the entire value. Dragging across
+ *                   seventy characters is where an operator loses the last
+ *                   three, and the value stays one text node so a manual copy
+ *                   cannot pick up a line break the layout invented.
+ */
+.dlc-code {
+  display: block;
+  box-sizing: border-box;
+  max-width: min(34ch, 100%);
+  padding: var(--rhythm-section) var(--rhythm-inner);
+  border: 1px solid var(--border-field);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+  color: var(--ink);
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-value);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+  line-height: 2;
+  word-break: break-all;
+  user-select: all;
+}
+
+.dlc-code-guide {
+  max-width: 62ch;
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.dlc-copy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-inner);
+  align-items: center;
+  margin-top: var(--rhythm-tight);
+}
+
+/*
+ * The live region holds its height whether or not it is saying anything, so the
+ * panel does not jump under the reader's hand at the moment they press.
+ */
+.dlc-copy-said {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+}
+
+/*
+ * The confirmation carries a shape, a colour and a spelled out sentence, on the
+ * state's own tint. A confirmation that is only a colour change is not a
+ * confirmation, and the failing case takes the triangle because a clipboard
+ * that refused leaves the reader with work to do.
+ */
+.dlc-copy-note {
+  display: inline-flex;
+  gap: var(--rhythm-tight);
+  align-items: center;
+  padding: var(--rhythm-tight) var(--rhythm-inner);
+  border: 1px solid;
+  border-radius: var(--portal-round);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+}
+
+.dlc-copy-note[data-tone="good"] {
+  border-color: color-mix(in srgb, var(--state-good-mark) 40%, transparent);
+  background: var(--state-good-tint);
+  color: var(--state-good);
+}
+
+.dlc-copy-note[data-tone="wrong"] {
+  border-color: color-mix(in srgb, var(--state-late-mark) 40%, transparent);
+  background: var(--state-late-tint);
+  color: var(--state-late);
+}
+
+/*
+ * It arrives rather than appearing, and only where motion is welcome. Under a
+ * reduced motion preference the confirmation is simply there, which is the
+ * behaviour that matters; the movement is the part that is optional.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .dlc-copy-note {
+    animation: dlc-said 180ms ease-out both;
+  }
+}
+
+@keyframes dlc-said {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rhythm-tight));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * THE MOST IMPORTANT SENTENCE ON THE SCREEN.
+ *
+ * At the heading step, at full ink, against a rule, and above the metadata
+ * rather than below it, because a reader who closes this panel without copying
+ * has to issue another code and visit the machine again. The rule is drawn in
+ * INK: nothing has gone wrong here, and on this surface colour means status.
+ */
+.dlc-once {
+  margin-top: var(--rhythm-tight);
+  padding-left: var(--rhythm-section);
+  border-left: 3px solid var(--ink);
+}
+
+.dlc-once-title {
+  margin: 0;
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.dlc-once-note {
+  max-width: 62ch;
+  margin: var(--rhythm-inner) 0 0;
+  color: var(--ink-2);
+}
+
+/* --- the phone ------------------------------------------------------------ */
+
+@media (width < 30rem) {
+  /*
+   * These panels lose their generous padding with everything else, and the code
+   * loses its letter spacing: at twelve pixels of gutter a tracked monospace
+   * line breaks after eighteen characters, which turns a three line code into
+   * five.
+   */
+  .dlc-ops > div,
+  .dlc-lab,
+  .dlc-result {
+    padding: var(--rhythm-section);
+  }
+
+  .dlc-code {
+    padding: var(--rhythm-inner);
+    letter-spacing: 0.02em;
+  }
+
+  .dlc-dialog-head,
+  .dlc-dialog-body {
+    padding: var(--rhythm-section);
+  }
+
+  .dlc-dialog-foot {
+    padding: var(--rhythm-inner) var(--rhythm-section);
+  }
+}

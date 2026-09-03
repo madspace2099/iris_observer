@@ -910,3 +910,1289 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ================================================================================
+ * THE ESTATE AND THE PROJECT. TWO MORE SCREENS, NO SECOND GRAMMAR.
+ *
+ * Everything below is composed from parts the sheet above already declares: the
+ * masthead, the gutter, the head and its colophon rail, the section head at
+ * 18rem/1fr, the bordered panel, the micro label, the figure and its absence.
+ * What is new is the ROW, and the row is built the way the hero above is built
+ * rather than the way a table is: one panel, hairline divisions, and columns
+ * that share their baselines through a subgrid so a reader can run an eye down
+ * a figure instead of hunting across a card.
+ *
+ * Nothing here adds a shadow, a radius, a size below 12px or a colour that does
+ * not carry a state.
+ * ================================================================================ */
+
+/* --- the rail, at four cells ------------------------------------------------------ */
+
+/*
+ * The colophon rail holds three quiet facts on the estate and on a source. On a
+ * project it holds four counts, because the four are one denominator and three
+ * shares of it, and splitting them across two rules would let a reader take the
+ * shares as three separate measurements.
+ */
+.dla-rail[data-cells="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/*
+ * A share is a figure and a smaller denominator, so the cell aligns on the
+ * baseline rather than on the centre: 19px and 13px centred on one another put
+ * the denominator a pixel above the numeral it belongs to.
+ */
+.dla-rail[data-cells="4"] dd {
+  align-items: baseline;
+}
+
+@media (max-width: 64rem) {
+  .dla-rail[data-cells="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--dla-section) var(--dla-major);
+  }
+}
+
+/*
+ * One column below the phone gutter. Two columns there would put INGESTION
+ * VERIFIED on two lines beside a one-line label and break the baseline the four
+ * figures are read across, which is the only thing the row of counts is for.
+ */
+@media (max-width: 30rem) {
+  .dla-rail[data-cells="4"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dla-section);
+  }
+}
+
+/* --- the identifier in the head --------------------------------------------------- */
+
+/*
+ * The far end of the first line, which is the slot the masthead already uses
+ * for the label nobody reads twice. A project identifier is wanted once a week,
+ * for a support call, and never before the project's name, so it sits on the
+ * line of the kicker rather than in front of the title.
+ */
+.dla-headid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dla-tight);
+  min-inline-size: 0;
+  margin: 0;
+  margin-inline-start: auto;
+}
+
+.dla-headid-label {
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * Below the 48rem gutter it takes its own line rather than being squeezed
+ * against the chip beside it, and it drops the auto margin so it starts on the
+ * page's left edge instead of hanging right on a line of its own. A 36
+ * character identifier is not worth a horizontal scrollbar, and
+ * `dla-identifier` already wraps rather than overflowing.
+ *
+ * 48rem and not 64rem: the line still holds all three at the tablet width, and
+ * wrapping it earlier put a support-desk value above the project's name for no
+ * reason but a rule that fired too soon.
+ */
+@media (max-width: 48rem) {
+  .dla-headid {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+/* --- the list of rows -------------------------------------------------------------- */
+
+/*
+ * ONE panel, divided by hairlines. Not a grid of cards.
+ *
+ * The question a row answers is a comparison, and a comparison needs a shared
+ * edge: four cards put four denominators at four different x positions, so they
+ * are read one at a time and compared not at all. Ruled rows put every figure
+ * on the same vertical, which is the arrangement the reference document draws
+ * its own tables in and the reason this is a list.
+ *
+ * `overflow: hidden` so the hover ground is clipped by the panel's own radius
+ * on the first and last row.
+ */
+.dla-panel[data-shape="rows"] {
+  overflow: hidden;
+}
+
+.dla-row {
+  display: grid;
+  align-items: start;
+  gap: var(--dla-major);
+  padding: var(--dla-section) var(--dla-major);
+  transition: background 120ms ease;
+}
+
+.dla-row + .dla-row {
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+/*
+ * The row is a DOOR, and the ground says so.
+ *
+ * In the product the whole row is an anchor; here every control is inert by
+ * instruction, so the hover ground and the underline on the trailing control
+ * are what carry the affordance. `:focus-within` is not decoration: it is the
+ * same signal for a reader arriving by keyboard.
+ */
+.dla-row:hover,
+.dla-row:focus-within {
+  background: var(--dla-inset);
+}
+
+.dla-row:hover .dla-btn[data-kind="tertiary"] {
+  color: var(--dla-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/*
+ * Four columns, and the widths are the reading order: who it is, what its
+ * states are, when it was last heard from, and the way in. The identity column
+ * takes the remainder so a long project name never pushes a figure out of its
+ * column.
+ */
+.dla-row[data-shape="project"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem) minmax(11rem, 15rem) auto;
+}
+
+.dla-row[data-shape="source"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 30rem) minmax(11rem, 15rem) auto;
+}
+
+.dla-row-id {
+  min-inline-size: 0;
+}
+
+.dla-row-name {
+  margin: 0 0 var(--dla-inner);
+  color: var(--dla-ink);
+  font-size: var(--dla-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.dla-row-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dla-tight);
+}
+
+/* The authoritative environment, never what the installation reported. */
+.dla-row-where {
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+}
+
+.dla-row-open {
+  justify-self: end;
+  align-self: center;
+}
+
+/* --- counts against one denominator ------------------------------------------------- */
+
+/*
+ * Three cells on two shared baselines, through the same subgrid the hero above
+ * uses. The label may take one line or two and the figures still land on one
+ * line across the three, which is what lets a reader compare CONNECTED with
+ * INGESTION VERIFIED without reading either label.
+ */
+.dla-tally,
+.dla-triad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+  column-gap: var(--dla-section);
+  row-gap: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dla-tally > div,
+.dla-triad > div {
+  display: grid;
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  min-inline-size: 0;
+}
+
+.dla-tally dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+/*
+ * The denominator may shrink and dim. It may never be dropped: four connected
+ * is not a fact, and four of six is.
+ */
+.dla-tally-of {
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+/* --- the three states, on a row ------------------------------------------------------ */
+
+/*
+ * The hero on Source detail, compressed to a row and NOT summarised.
+ *
+ * Same three eyebrows, same order, same rule that the word carries the state's
+ * label ink while the mark carries the saturated one. A reader who opens a row
+ * meets these three words again at display size with their evidence beneath
+ * them, which is what makes the row read as a door rather than as a badge
+ * strip.
+ *
+ * There is no fourth mark across the three, no ordering that would make one a
+ * stage of another and no percentage. A single green dot in this column is
+ * exactly the failure the whole surface exists to prevent.
+ */
+/*
+ * The word sits at lead size rather than body size, one step under the name to
+ * its left and one step under the figures on the estate list. It is the centre
+ * of gravity of the row: an operator scanning this list is looking for the
+ * combination, not for the label.
+ */
+.dla-triad-word {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--dla-tight);
+  margin: 0;
+  font-size: var(--dla-lead);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.dla-triad-word .mad-mark {
+  margin-block-start: 0.28em;
+}
+
+.dla-triad-cell[data-holds="true"] .dla-triad-word {
+  color: var(--state-good);
+}
+
+.dla-triad-cell[data-holds="false"] .dla-triad-word {
+  color: var(--state-wait-client);
+}
+
+/* --- the instants on a row ----------------------------------------------------------- */
+
+/*
+ * The label takes the same uppercase micro as the eyebrow and the counts, so a
+ * row carries ONE kind of label rather than three. The value below it is the
+ * shared figure, and an absent instant is the shared word.
+ */
+.dla-rowfacts {
+  display: grid;
+  gap: var(--dla-section);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.dla-rowfacts dd {
+  margin: 0;
+  min-inline-size: 0;
+}
+
+/* --- an empty list ------------------------------------------------------------------- */
+
+/*
+ * A state, not a shrug. The title says what is true and the note says what the
+ * reader would have to do about it, on the same paper as a populated panel so
+ * an empty estate cannot be mistaken for a plane that would not open.
+ */
+.dla-empty {
+  padding: var(--dla-major);
+}
+
+.dla-empty-title {
+  margin: 0 0 var(--dla-tight);
+  color: var(--dla-ink);
+  font-size: var(--dla-value);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.dla-empty-note {
+  margin: 0;
+  max-inline-size: 58ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* --- the rows, narrowed -------------------------------------------------------------- */
+
+/*
+ * At the tablet gutter the identity and the instants share the top line and the
+ * states take the full width beneath them, so the three words keep the three
+ * columns they are read across. The way in drops to its own line and pulls back
+ * by the tertiary control's own padding, so its text still starts on the row's
+ * left edge.
+ */
+@media (max-width: 64rem) {
+  .dla-row[data-shape="project"],
+  .dla-row[data-shape="source"] {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, auto);
+    gap: var(--dla-section) var(--dla-major);
+  }
+
+  /*
+   * Placed rather than flowed. The instants come last in the markup, after the
+   * states, because that is the order a row is READ; left to auto-placement the
+   * full-width states would push them down a row and leave a hole beside the
+   * name. Three explicit lines, so the source order stays the reading order and
+   * the layout still puts the instants beside the thing they date.
+   */
+  .dla-row-id {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dla-rowfacts {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dla-tally,
+  .dla-triad {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .dla-row-open {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+    align-self: auto;
+  }
+}
+
+/*
+ * At the phone gutter everything stacks, and the three counts do NOT. They stay
+ * three columns because the comparison between them is the row, and a stack of
+ * three figures is three unrelated numbers.
+ */
+@media (max-width: 30rem) {
+  .dla-row[data-shape="project"],
+  .dla-row[data-shape="source"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dla-section);
+    padding: var(--dla-section);
+  }
+
+  /*
+   * One column, and the four blocks take four lines in the order they are read:
+   * who it is, what its states are, when it was last heard from, the way in.
+   * The lines are restated because the tablet rule above put the identity and
+   * the instants on one line, and inheriting that here would stack them in the
+   * same cell.
+   */
+  .dla-row-id,
+  .dla-rowfacts,
+  .dla-tally,
+  .dla-triad,
+  .dla-row-open {
+    grid-column: 1 / -1;
+  }
+
+  .dla-row-id {
+    grid-row: 1;
+  }
+
+  .dla-tally,
+  .dla-triad {
+    grid-row: 2;
+    column-gap: var(--dla-inner);
+  }
+
+  .dla-rowfacts {
+    grid-row: 3;
+  }
+
+  .dla-row-open {
+    grid-row: 4;
+  }
+
+  .dla-empty {
+    padding: var(--dla-section);
+  }
+}
+
+/* ================================================================================
+ * ACTIVATION AND DIAGNOSTICS. TWO MORE SCREENS, NO SECOND GRAMMAR.
+ *
+ * Everything below is composed from parts the sheet above already declares: the
+ * masthead, the gutter, the head and its colophon rail, the section head at
+ * 18rem/1fr, the bordered panel and its hairline-divided groups, the micro
+ * label, the row, the tally, the figure and its absence.
+ *
+ * What is genuinely new is one thing, and it is new because the product has one
+ * moment that behaves differently from every other: a MODAL. It is the only
+ * element in this direction that floats, so it is the only element in this
+ * direction that carries a shadow, and the token is declared beside it rather
+ * than up in the palette so it cannot quietly spread.
+ *
+ * Nothing else here adds a radius, a size below 12px, a second typeface for
+ * prose or a colour that does not carry a state.
+ * ================================================================================ */
+
+.dla-root {
+  /*
+   * THE ONE SHADOW.
+   *
+   * The reference allows two, popover and modal, and this direction renders no
+   * popover. Two layers, one elevation: the long soft cast is what lifts the
+   * dialog off the well, the tight one is the contact edge that keeps it from
+   * looking pasted on. It is used by `.dla-dialog` and by nothing else.
+   */
+  --dla-shadow-modal: 0 24px 48px -24px rgb(17 17 17 / 26%), 0 2px 6px -2px rgb(17 17 17 / 10%);
+
+  /*
+   * The activation code's face, and the only place this direction leaves
+   * Manrope. A system stack rather than a webfont: no monospace is self-hosted
+   * yet, and a code that has to be transcribed exactly is the one value on the
+   * surface that must never render in a fallback while a font loads.
+   */
+  --dla-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+/* --- a word the record holds, in a figure's cell --------------------------------- */
+
+/*
+ * A source's label and an environment's name sit in the same cell shape as a
+ * measurement and are not one. They take the value size and the ink, and they
+ * drop the tabular figures, because there is no column of numerals here to
+ * align and tabular spacing in a proper noun is a typographic tell.
+ */
+.dla-plain {
+  display: block;
+  color: var(--dla-ink);
+  font-size: var(--dla-value);
+  font-weight: 500;
+  font-variant-numeric: normal;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* --- a section heading with its verdict under it ---------------------------------- */
+
+/*
+ * The first column of the section head, holding the `h2` and the one chip that
+ * answers it. The chip sits UNDER the heading rather than beside it so a long
+ * heading and a long verdict cannot fight for the same line, and it stays in
+ * the same column so the lede opposite keeps its measure.
+ */
+.dla-section-id {
+  display: grid;
+  gap: var(--dla-inner);
+  justify-items: start;
+  align-content: start;
+}
+
+/* ================================================================================
+ * SCREEN 4. THE CODE, THE CREDENTIAL, THE OPERATIONS.
+ * ================================================================================ */
+
+/* --- the stage the dialog stands on ------------------------------------------------ */
+
+/*
+ * The tint the system reserves for wells, holding the dialog at its own
+ * measure.
+ *
+ * Not a scrim over the page. A reviewer holds one image per screen, and a true
+ * overlay would hand them an image of a dialog and nothing of the screen under
+ * it. The tint says this is a surface the dialog appears ON, the caption above
+ * it says where, and the shadow does the rest.
+ */
+.dla-stage {
+  display: grid;
+  justify-items: center;
+  padding: var(--dla-break) var(--dla-major);
+  border: 1px solid var(--dla-panel);
+  border-radius: var(--dla-radius);
+  background: var(--dla-tint);
+}
+
+.dla-dialog {
+  inline-size: 100%;
+  max-inline-size: 34rem;
+  border: 1px solid var(--dla-panel);
+  border-radius: var(--dla-radius);
+  background: var(--dla-card);
+  box-shadow: var(--dla-shadow-modal);
+}
+
+.dla-dialog-head {
+  padding: var(--dla-major) var(--dla-major) 0;
+}
+
+.dla-dialog-title {
+  margin: var(--dla-tight) 0 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-heading-3);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/*
+ * THE MOST IMPORTANT SENTENCE ON THE SCREEN, SET LIKE IT.
+ *
+ * Lead size and full ink, directly under the title and above everything it
+ * qualifies, with its opening clause at 700. Everything else in this dialog is
+ * body or caption, so this is the only paragraph a reader can land on first. A
+ * reader who closes the dialog without copying has to issue another code, and
+ * no arrangement in which that sentence is a footnote is honest.
+ */
+.dla-once {
+  margin: var(--dla-section) 0 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-lead);
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.dla-once strong {
+  font-weight: 700;
+}
+
+.dla-dialog-body {
+  display: grid;
+  gap: var(--dla-section);
+  padding: var(--dla-section) var(--dla-major) var(--dla-major);
+}
+
+/*
+ * The label without which this panel would be dangerous. It is a recessed strip
+ * on the field border rather than a coloured warning, because the code is not
+ * an alarm: it is a value that is exactly what it says it is, and the strip's
+ * job is to make sure nobody reads past that.
+ */
+.dla-sample {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--dla-tight) var(--dla-inner);
+  margin: 0;
+  padding: var(--dla-inner);
+  border: 1px solid var(--dla-field);
+  border-radius: var(--dla-radius);
+  background: var(--dla-inset);
+  color: var(--dla-ink-2);
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+}
+
+/*
+ * The sentence grows; the chip beside it does not. Addressed by its own class
+ * rather than as "the span in here", because `StatusChip` renders a span too
+ * and the loose selector stretched a pill across the whole strip.
+ */
+.dla-sample-note {
+  flex: 1 1 15rem;
+  min-inline-size: 0;
+  text-wrap: pretty;
+}
+
+/* --- the code ---------------------------------------------------------------------- */
+
+.dla-codeblock {
+  display: grid;
+  gap: var(--dla-inner);
+}
+
+/*
+ * RULED, SO NOBODY LOSES THEIR PLACE.
+ *
+ * Seventy characters of base64url broken at exact character boundaries is four
+ * lines of indistinguishable glyphs, and the failure is real: a reader
+ * dictating it down a phone line loses which line they were on and repeats one.
+ * Alternate lines therefore sit on the 4% inset, which is the same recess the
+ * closing band of the hero uses, at exactly the line height.
+ *
+ * `background-origin: content-box` is what makes it land: the repeat starts at
+ * the top of the CONTENT box, which is where the first line box starts, so the
+ * band and the line are the same 2rem rather than the padding's offset apart.
+ * The painting area is left at the border box so the stripe still reaches the
+ * block's edges.
+ *
+ * `user-select: all` because one click has to take the whole value. The failure
+ * it removes is an operator dragging across four lines, missing the last three
+ * characters, and the machine refusing a code that was issued correctly.
+ */
+.dla-code {
+  --dla-code-line: 2rem;
+
+  display: block;
+  padding: var(--dla-section) var(--dla-inner);
+  border: 1px solid var(--dla-field);
+  border-radius: var(--dla-radius);
+  background-color: var(--dla-card);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--dla-inset) 0,
+    var(--dla-inset) var(--dla-code-line),
+    transparent var(--dla-code-line),
+    transparent calc(var(--dla-code-line) * 2)
+  );
+  background-origin: content-box;
+  background-repeat: repeat;
+  color: var(--dla-ink);
+  font-family: var(--dla-mono);
+  font-size: var(--dla-value);
+  line-height: var(--dla-code-line);
+  letter-spacing: 0.02em;
+  word-break: break-all;
+  user-select: all;
+}
+
+.dla-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dla-inner);
+}
+
+/*
+ * The confirmation, and it is a state rather than a flash of colour: a shape, a
+ * hue and a spelled-out word, in a polite live region that is always in the
+ * document so the announcement is not made by the same mutation that inserts
+ * the region.
+ *
+ * The height is reserved, so nothing under it moves when the word arrives.
+ *
+ * NOTHING ABOUT ITS VISIBILITY IS ANIMATED, and that is deliberate. A first
+ * draft faded the opacity from 0, which meant the message existed only if the
+ * transition actually ticked: in a background tab, under a screenshot harness,
+ * or anywhere the compositor is paused, the confirmation was announced to a
+ * screen reader and invisible to everybody else. The word is therefore always
+ * at full opacity and simply has no text until there is something to say. What
+ * moves is two pixels of settle, which is a nicety rather than the message, and
+ * the sheet's existing reduced-motion rule neutralises it without a second
+ * declaration.
+ */
+.dla-copy-said {
+  display: inline-flex;
+  flex: 1 1 13rem;
+  align-items: center;
+  gap: var(--dla-tight);
+  min-block-size: 1.5rem;
+  font-size: var(--dla-body);
+  font-weight: 500;
+  line-height: 1.4;
+  transform: translateY(2px);
+  transition: transform 160ms ease;
+}
+
+.dla-copy-said[data-said="true"] {
+  transform: none;
+}
+
+.dla-copy-said[data-tone="good"] {
+  color: var(--state-good);
+}
+
+.dla-copy-said[data-tone="wrong"] {
+  color: var(--state-late);
+}
+
+/* --- the dialog's data panel and foot ---------------------------------------------- */
+
+/*
+ * Two columns rather than four. The panel is 34rem wide, and four columns there
+ * would set every label on three lines to save a fold that is not there.
+ */
+.dla-fields[data-shape="dialog"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--dla-section) var(--dla-major);
+}
+
+/*
+ * And no two-line label reserve.
+ *
+ * The reserve exists so a row of differently-long labels puts its values on one
+ * baseline. Every label in this panel is a single word on a single line, so the
+ * reserve aligns nothing and simply opens a hole between each label and the
+ * value it belongs to.
+ */
+.dla-fields[data-shape="dialog"] .dla-field dt {
+  min-block-size: 0;
+}
+
+.dla-dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dla-inner);
+  padding: var(--dla-section) var(--dla-major);
+  border-block-start: 1px solid var(--dla-hairline);
+  border-end-start-radius: var(--dla-radius);
+  border-end-end-radius: var(--dla-radius);
+  background: var(--dla-inset);
+}
+
+.dla-dialog-note {
+  flex: 1 1 15rem;
+  margin: 0;
+  min-inline-size: 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* --- what a record does not say ---------------------------------------------------- */
+
+/*
+ * A chip and the sentence that keeps it from being read as the credential's
+ * own. The two are independent facts, all of the combinations occur, and this
+ * is the shape that says so without drawing a second badge strip.
+ */
+.dla-aside {
+  display: grid;
+  gap: var(--dla-inner);
+}
+
+@media (min-width: 64rem) {
+  .dla-aside {
+    grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr);
+    gap: var(--dla-major);
+    align-items: start;
+  }
+}
+
+.dla-aside-mark {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dla-tight);
+}
+
+.dla-aside-note {
+  margin: 0;
+  max-inline-size: 62ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* --- the operations ----------------------------------------------------------------- */
+
+/*
+ * Three bands on one panel, divided by the panel rule rather than the hairline,
+ * because the division between reversible and terminal is the argument of the
+ * whole region and a 6% line would not carry it.
+ */
+.dla-opgroup {
+  padding-block: var(--dla-section);
+}
+
+.dla-opgroup + .dla-opgroup {
+  border-block-start: 1px solid var(--dla-panel);
+}
+
+.dla-opgroup > .dla-group-title {
+  margin-block-end: var(--dla-tight);
+  padding-inline: var(--dla-major);
+}
+
+/*
+ * One operation to a row: what kind of thing it is, what it does, and the
+ * control. The kind column is fixed so REVERSIBLE and TERMINAL stand on one
+ * vertical down the whole region, which is what lets a reader see the shape of
+ * the hierarchy before reading a single sentence.
+ */
+.dla-op {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr) minmax(9rem, max-content);
+  align-items: start;
+  gap: var(--dla-major);
+  padding: var(--dla-inner) var(--dla-major);
+}
+
+.dla-op-id {
+  min-inline-size: 0;
+}
+
+/*
+ * The KIND, as a shape and a spelled-out word from the same vocabulary the
+ * states use. The diamond is something a person decided and a person can undo;
+ * the square is terminal and accepted; the ring is a wait handed to the
+ * installer. It is also the reason no control in this region is painted red:
+ * red on this surface always carries a state, and a control wearing a state
+ * colour is the one piece of colour on the page that means nothing.
+ */
+.dla-op-kind {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dla-tight);
+  margin: 0;
+  color: var(--dla-ink-3);
+  font-size: var(--dla-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.dla-op-kind .mad-mark {
+  align-self: center;
+}
+
+.dla-op-name {
+  margin: var(--dla-tight) 0 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-body);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.dla-op-note {
+  margin: 0;
+  max-inline-size: 62ch;
+  min-inline-size: 0;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.dla-op-do {
+  justify-self: end;
+}
+
+@media (max-width: 64rem) {
+  .dla-op {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--dla-inner) var(--dla-major);
+    padding-block: var(--dla-section);
+  }
+
+  .dla-op-id {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .dla-op-do {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .dla-op-note {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 30rem) {
+  .dla-stage {
+    padding: var(--dla-section);
+  }
+
+  .dla-dialog-head,
+  .dla-dialog-body,
+  .dla-dialog-foot {
+    padding-inline: var(--dla-section);
+  }
+
+  .dla-fields[data-shape="dialog"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dla-opgroup > .dla-group-title,
+  .dla-op {
+    padding-inline: var(--dla-section);
+  }
+
+  .dla-op {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * The control drops under the sentence it belongs to rather than beside a
+   * wrapped name, and the borderless one pulls back by its own padding so its
+   * text still starts on the row's left edge.
+   */
+  .dla-op-do {
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
+  }
+}
+
+/* ================================================================================
+ * SCREEN 5. WHO NEEDS AN OPERATOR, AND THE RECORD UNDER IT.
+ * ================================================================================ */
+
+/* --- one installation that needs somebody ------------------------------------------ */
+
+/*
+ * The row grammar of the estate and the project lists, with the middle column
+ * spent on the REASON instead of on counts. The word in the identity column
+ * says what is wrong; this column says why, in words, and it is the reason the
+ * section is readable on a bad day.
+ */
+.dla-row[data-shape="alert"] {
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr) minmax(11rem, 15rem);
+}
+
+.dla-alert-reason {
+  margin: 0;
+  max-inline-size: 62ch;
+  min-inline-size: 0;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+@media (max-width: 64rem) {
+  .dla-row[data-shape="alert"] {
+    grid-template-columns: minmax(0, 1fr) minmax(11rem, auto);
+    gap: var(--dla-section) var(--dla-major);
+  }
+
+  /*
+   * Placed rather than flowed, for the reason the project row states: the
+   * source order is the reading order, and auto-placement would leave a hole
+   * beside the name.
+   */
+  .dla-alert-reason {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 30rem) {
+  .dla-row[data-shape="alert"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dla-section);
+    padding: var(--dla-section);
+  }
+
+  .dla-alert-reason {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- an empty attention list, drawn as a result ------------------------------------- */
+
+/*
+ * NOT a thin grey line and not a missing panel.
+ *
+ * Nothing requires an operator is the best sentence this screen can print, and
+ * a surface that renders its best answer as an absence teaches a reader to
+ * scroll past it. So it takes the same paper a populated list takes, the mark
+ * and word treatment the hero on Source detail gives to a state, and the two
+ * counts that qualify it, because an estate where nothing needs an operator
+ * because six machines were never switched on is not the same estate as one
+ * where everything is delivering.
+ */
+.dla-result {
+  display: grid;
+  gap: var(--dla-inner);
+  padding: var(--dla-major);
+}
+
+.dla-result-word {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: var(--dla-inner);
+  align-items: start;
+  margin: 0;
+  color: var(--state-good);
+  font-size: var(--dla-word);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.dla-result-word .mad-mark {
+  inline-size: 16px;
+  block-size: 16px;
+  margin-block-start: 0.32em;
+}
+
+.dla-result-note {
+  margin: 0;
+  max-inline-size: 62ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.dla-result .dla-tally {
+  margin-block-start: var(--dla-inner);
+  max-inline-size: 32rem;
+}
+
+/* --- the five bands ------------------------------------------------------------------ */
+
+/*
+ * The band's own note: how it is ordered, where it stops, and what it leaves
+ * out. A list capped at eight that does not say so is a list making a claim
+ * about the estate it cannot support.
+ */
+.dla-group-note {
+  margin: 0 0 var(--dla-section);
+  max-inline-size: 78ch;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/*
+ * The trailing count, on the same recess the hero's closing band uses. It is
+ * the sentence that keeps a capped list honest, so it sits inside the band
+ * rather than under the panel.
+ */
+.dla-group-tail {
+  margin: var(--dla-section) 0 0;
+  padding: var(--dla-inner) var(--dla-section);
+  border-radius: var(--dla-radius);
+  background: var(--dla-inset);
+  color: var(--dla-ink-2);
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/*
+ * WHAT AN EMPTY BAND SAYS, AND WHY THE TWO KINDS LOOK DIFFERENT.
+ *
+ * The mark is the whole point. The ring is a band empty because we are waiting
+ * on an installation: something will arrive and has not. The neutral bar is a
+ * band empty because no measurement exists at all, which is not a zero and is
+ * drawn nothing like one. Same block, different shape, different hue, different
+ * word, so the two can never be confused with each other or with a count.
+ *
+ * The dashed border is the reference's own 24% alpha for an empty slot, and it
+ * is what keeps a band holding nothing from reading as a band holding a row.
+ */
+.dla-nothing {
+  display: grid;
+  gap: var(--dla-tight);
+  padding: var(--dla-section);
+  border: 1px dashed var(--dla-dashed);
+  border-radius: var(--dla-radius);
+}
+
+.dla-nothing-word {
+  display: flex;
+  align-items: baseline;
+  gap: var(--dla-inner);
+  margin: 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-value);
+  font-weight: 500;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.dla-nothing-word .mad-mark {
+  align-self: center;
+}
+
+.dla-nothing-note {
+  margin: 0;
+  max-inline-size: 70ch;
+  color: var(--dla-ink-2);
+  font-size: var(--dla-body);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+/* --- one installation on a band ------------------------------------------------------- */
+
+.dla-obslist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+.dla-obs {
+  display: grid;
+  grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--dla-major);
+  padding-block: var(--dla-section);
+}
+
+.dla-obs + .dla-obs {
+  border-block-start: 1px solid var(--dla-hairline);
+}
+
+.dla-obs-id {
+  min-inline-size: 0;
+}
+
+.dla-obs-name {
+  margin: 0;
+  color: var(--dla-ink);
+  font-size: var(--dla-lead);
+  font-weight: 500;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+/*
+ * The project and the environment are read together and never separated by a
+ * rule: a machine label means nothing without knowing which building it is in.
+ * Two spans and a gap rather than a separator character, so nothing on this
+ * surface has to carry a punctuation mark it cannot spell.
+ */
+.dla-obs-where {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dla-tight) var(--dla-inner);
+  margin: var(--dla-tight) 0 0;
+  color: var(--dla-ink-4);
+  font-size: var(--dla-caption);
+  line-height: 1.45;
+}
+
+/* --- the tally, at other counts --------------------------------------------------------- */
+
+/*
+ * The three-cell tally is the estate list's. A band reports one, two or four
+ * measurements, so the count is a data attribute rather than a second grid: one
+ * shape, one set of baselines, one way a figure is read.
+ */
+.dla-tally[data-cells="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dla-tally[data-cells="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dla-tally[data-cells="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/*
+ * The age under an instant rather than beside it. `dla-field-note` is a block,
+ * and a block inside a baseline-aligned flex row still sits on that row unless
+ * it is given the whole line.
+ */
+.dla-tally dd .dla-field-note {
+  flex-basis: 100%;
+  margin-block-start: var(--dla-tight);
+}
+
+/*
+ * The error code takes the code face, because it is transcribed into a search
+ * and into a ticket. It is a CODE and never a message: the column is bounded so
+ * an exception body can never arrive in an operational table.
+ */
+.dla-errorcode {
+  display: inline-block;
+  color: var(--dla-ink);
+  font-family: var(--dla-mono);
+  font-size: var(--dla-body);
+  letter-spacing: 0.01em;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A FOUR-CELL BAND FOLDS TO TWO BY TWO, AND THE SUBGRID HAS TO BE RELEASED FOR IT.
+ *
+ * The tally's cells are pinned to `grid-row: 1 / -1` so they can inherit the
+ * parent's rows through a subgrid and share their baselines. That pin is also
+ * why simply narrowing the template does nothing: a cell with a definite row
+ * and an automatic column cannot wrap, so the third and fourth cells opened
+ * IMPLICIT columns and the band stayed four wide at 390px with two tracks
+ * collapsed to zero.
+ *
+ * So the fold releases the pin, exactly as the hero's triptych releases it at
+ * the same width. Two cells to a line lose the shared baseline across four, and
+ * they keep the comparison that matters, which is the pair on each line.
+ */
+@media (max-width: 64rem) {
+  .dla-obs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--dla-section);
+  }
+
+  .dla-tally[data-cells="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    row-gap: var(--dla-section);
+  }
+
+  .dla-tally[data-cells="4"] > div {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+
+  /*
+   * The row list's placement rules name `.dla-tally` unscoped, because when
+   * they were written the only tally on the surface was the one inside a row.
+   * Inside the result panel that pin drops the counts on top of the word above
+   * them, so the two tallies this screen adds are released from it here rather
+   * than by editing a rule three screens depend on.
+   */
+  .dla-result .dla-tally {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+
+/*
+ * At the phone gutter a four-cell band stays at two columns and goes no
+ * further. The comparison between HELD and CEILING is the row, and a stack of
+ * four figures is four unrelated numbers.
+ */
+@media (max-width: 30rem) {
+  .dla-tally[data-cells="2"],
+  .dla-tally[data-cells="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--dla-inner);
+    row-gap: var(--dla-section);
+  }
+
+  .dla-result .dla-tally {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .dla-result {
+    padding: var(--dla-section);
+  }
+}

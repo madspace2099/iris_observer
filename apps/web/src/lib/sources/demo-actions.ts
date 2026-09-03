@@ -351,7 +351,14 @@ function describeFailure(url: string, status: number, payload: unknown): string 
  * say why nothing happened.
  */
 async function operatorEstate(): Promise<
-  { readonly ok: true; readonly admin: ObserverAdmin; readonly sourceId: string } | Refused
+  | {
+      readonly ok: true;
+      readonly admin: ObserverAdmin;
+      readonly sourceId: string;
+      /* The project the source sits in, which the review seeder needs to add siblings to it. */
+      readonly projectId: string;
+    }
+  | Refused
 > {
   const viewer = await currentViewer();
   if (viewer === null) return refuse("Sign in as a MADSPACE administrator to operate this estate.");
@@ -378,7 +385,12 @@ async function operatorEstate(): Promise<
   }
   if (estate === null) return refuse("The demonstration estate is not present in this database.");
 
-  return { ok: true, admin: plane.admin, sourceId: estate.sourceId };
+  return {
+    ok: true,
+    admin: plane.admin,
+    sourceId: estate.sourceId,
+    projectId: estate.projectId,
+  };
 }
 
 /**
@@ -958,6 +970,28 @@ const REVIEW_ESTATE: readonly {
  * A refusal from either service is returned as a sentence rather than thrown:
  * this runs behind a button and the answer has to be legible where it lands.
  */
+/**
+ * More machines in the demonstration project itself.
+ *
+ * The first version of this seeder put every extra source under a NEW project,
+ * which left the demonstration project holding exactly one. Three design
+ * directions then all reported the same thing: Project detail was being judged
+ * on a list of one row, where an ordering rule, a column alignment and a
+ * shared baseline are all invisible.
+ *
+ * These sit beside Main Showroom PC so that screen has an estate. They are
+ * unactivated, like the others, which is the honest state for a source nobody
+ * has switched on yet and the contrast the row design has to carry.
+ */
+const SIBLING_SOURCES: readonly {
+  readonly label: string;
+  readonly environment: "development" | "staging" | "production" | "demo";
+}[] = [
+  { label: "Atrium kiosk", environment: "production" },
+  { label: "Penthouse suite", environment: "production" },
+  { label: "Sales office rehearsal", environment: "staging" },
+];
+
 export async function seedReviewEstateAction(): Promise<
   { readonly ok: true; readonly created: number } | Refused
 > {
@@ -969,6 +1003,28 @@ export async function seedReviewEstateAction(): Promise<
 
   const existing = await admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
   if (!existing.ok) return refuse("The account's projects could not be read.");
+
+  /*
+   * The demonstration project first, because it is the one Project detail
+   * opens and the one a reviewer will judge a list on.
+   */
+  const own = await admin.sourceOperations({
+    account: CONTROL_PLANE_ACCOUNT,
+    project: estate.projectId,
+  });
+  const ownLabels = new Set(own.ok ? own.value.map((row) => row.display_label) : []);
+  for (const source of SIBLING_SOURCES) {
+    if (ownLabels.has(source.label)) continue;
+    const made = await admin.createSource({
+      account: CONTROL_PLANE_ACCOUNT,
+      project: estate.projectId,
+      type: DEMONSTRATION_SOURCE_TYPE,
+      environment: source.environment,
+      label: source.label,
+    });
+    if (!made.ok) return refuse(`${source.label} could not be created: ${made.refusal.code}.`);
+    created += 1;
+  }
 
   for (const wanted of REVIEW_ESTATE) {
     let projectId = existing.value.find((row) => row.name === wanted.name)?.project_id ?? null;
