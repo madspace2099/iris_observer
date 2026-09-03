@@ -116,6 +116,28 @@ export default async function MadspaceLayout({ children }: { children: ReactNode
           <span>Operations</span>
         </div>
 
+        {/*
+         * The scope belongs in the chrome, not at the top of every page.
+         *
+         * It was a dark band above the content of all seven screens, which made
+         * the loudest thing on each one a fact that never changes. The system
+         * spends ink-as-surface on something whose effect reaches past the
+         * current screen; the account a whole surface is scoped to is chrome, and
+         * chrome is where it reads as permanent rather than as an announcement
+         * repeated seven times.
+         *
+         * It stayed in the content for one honest reason: the header chip used
+         * to disappear below 768px and took the fact with it. That is fixed in
+         * the stylesheet instead, where the problem actually was.
+         */}
+        <div className="mad-account">
+          <span className="mad-account-label">Account</span>
+          <span className="mad-account-name">{CONTROL_PLANE_ACCOUNT_NAME}</span>
+          <span className="mad-account-plane" title={plane.sentence}>
+            {plane.word}
+          </span>
+        </div>
+
         <div className="obs-header-end">
           <div className="obs-who">
             {/*
@@ -135,21 +157,6 @@ export default async function MadspaceLayout({ children }: { children: ReactNode
       <OpsNav />
 
       <main className="obs-main" id="main">
-        {/*
-         * The scope, stated before the things it scopes, and the first thing
-         * the skip link lands on.
-         *
-         * "Local control plane" is a development database running inside the
-         * dev server; a deployment says "Hosted" and means Postgres. That
-         * difference lived only in this comment, where an operator could not
-         * read it, so it is on the band in one clause.
-         */}
-        <div className="mad-scope-band">
-          <span className="mad-scope-band-kicker">Account</span>
-          <p className="mad-scope-band-title">{CONTROL_PLANE_ACCOUNT_NAME}</p>
-          <p className="mad-scope-band-detail">{plane.sentence}</p>
-        </div>
-
         {children}
       </main>
 

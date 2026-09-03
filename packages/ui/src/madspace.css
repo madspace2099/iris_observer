@@ -2690,18 +2690,6 @@ a.mad-row:focus-visible {
   box-shadow: none;
 }
 
-.mad-portal .mad-row {
-  background: var(--surface-card);
-  border: 1px solid var(--border-panel);
-  border-radius: var(--portal-radius);
-  box-shadow: none;
-}
-
-.mad-portal .mad-row:hover {
-  border-color: var(--border-hover);
-  background: var(--surface-card);
-}
-
 /* --- buttons: one filled per view ---------------------------------------- */
 
 /*
@@ -3146,3 +3134,314 @@ a.mad-row:focus-visible {
  * colour". Focus is a state of the interface rather than a state of a project,
  * and the ring is gone the moment the reader looks away.
  */
+
+/* ============================================================================
+ * COMPOSITION: SECTIONS ARE CARDS ON PAPER
+ *
+ * The first pass got the tokens right and the composition wrong, and the review
+ * said so. What was missing is in the specification in one line:
+ * `--surface-card #FFFFFF` is "every panel, card and field", and the reference
+ * document practises it on every page. Its sections are white cards with a
+ * title inside and generous padding, sitting on the warm paper. Mine were bare
+ * regions on the paper separated by a hairline, which is why the result read as
+ * the old dense admin with the lights turned on.
+ *
+ * Nothing here needs a markup change. `.mad-plane` was already the section
+ * wrapper with its heading inside, which is the same shape the reference's
+ * component cards have.
+ * ========================================================================= */
+
+.mad-portal .mad-plane {
+  gap: var(--rhythm-section);
+  padding: var(--rhythm-major);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+/*
+ * The separator variant is gone. Two cards do not need a rule between them:
+ * the gap and their own borders already say where one ends. `.mad-plane +
+ * .mad-plane` used to add a heavier top border and extra padding, which on a
+ * card reads as a seam across the top of the second one.
+ */
+.mad-portal .mad-plane + .mad-plane {
+  padding-top: var(--rhythm-major);
+  border-top: 1px solid var(--border-panel);
+}
+
+/*
+ * A ROW INSIDE A PANEL IS A HAIRLINE, NOT A CARD.
+ *
+ * The token table gives `--border-hairline` at 6% exactly one job, and names
+ * it: "rows inside a panel". The first pass gave each row the full card
+ * treatment instead, so a list of sources rendered as a stack of white boxes on
+ * a white box, every one of them fighting the panel it sat in. Inside a plane
+ * the row keeps the ruled band it always was.
+ */
+.mad-portal .mad-plane .mad-rows {
+  margin-inline: calc(var(--rhythm-major) * -1);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mad-portal .mad-plane .mad-row {
+  padding-inline: var(--rhythm-major);
+  border: 0;
+  border-bottom: 1px solid var(--border-hairline);
+  border-inline-start: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* The last rule in a list would draw a second line just above the card's own. */
+.mad-portal .mad-plane .mad-rows > :last-child {
+  border-bottom: 0;
+}
+
+.mad-portal .mad-plane a.mad-row:hover {
+  border-inline-start-color: var(--ink);
+  background: var(--surface-inset);
+}
+
+/*
+ * A data panel inside a card drops its own outer border.
+ *
+ * The reference draws the panel as a grid whose lines come from the gap over a
+ * coloured ground. Inside a card that ground already has an edge, and two
+ * borders 1px apart is the seam this whole system avoids by using hairlines in
+ * the first place.
+ */
+.mad-portal .mad-plane > .mad-datapanel {
+  margin-inline: calc(var(--rhythm-major) * -1);
+  border-inline: 0;
+  border-radius: 0;
+}
+
+/* --- the page head, which is not a card ---------------------------------- */
+
+/*
+ * The title, the answer and the figures stay on the paper.
+ *
+ * The reference puts a page's subject directly on the ground and only the
+ * content it introduces into cards. Putting the head in a card too would give
+ * the screen no ground at all, and the warm paper is half of what makes this
+ * system look like itself.
+ */
+.mad-portal .mad-head {
+  gap: var(--rhythm-section);
+  padding-block-end: var(--rhythm-tight);
+}
+
+.mad-portal .mad-head-text {
+  gap: var(--rhythm-tight);
+  max-width: 62ch;
+}
+
+/*
+ * The head figures sit on a card of their own rather than floating.
+ *
+ * Three numbers with no container, right-aligned against a title on the left,
+ * had no relationship to anything. Given the same card as everything else they
+ * become a block the eye can place, and the head reads as two things rather
+ * than as a title with debris beside it.
+ */
+.mad-portal .mad-head .mad-tally {
+  gap: var(--rhythm-major);
+  align-self: end;
+  padding: var(--rhythm-inner) var(--rhythm-section);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+}
+
+@media (max-width: 48rem) {
+  .mad-portal .mad-plane {
+    padding: var(--rhythm-section);
+  }
+
+  .mad-portal .mad-plane .mad-rows,
+  .mad-portal .mad-plane > .mad-datapanel {
+    margin-inline: calc(var(--rhythm-section) * -1);
+  }
+
+  .mad-portal .mad-plane .mad-row {
+    padding-inline: var(--rhythm-section);
+  }
+
+  .mad-portal .mad-head .mad-tally {
+    align-self: stretch;
+  }
+}
+
+/* --- the section head inside its card ------------------------------------ */
+
+/*
+ * The aside drops under the heading rather than sitting on its baseline.
+ *
+ * At the top of a card the two were competing for one line, and the aside is a
+ * sentence about how the section is ordered while the heading is what the
+ * section is. One is subordinate to the other, and the layout should say so.
+ */
+.mad-portal .mad-plane .obs-section-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--rhythm-tight);
+  margin-bottom: 0;
+}
+
+.mad-portal .mad-plane .obs-section-head > p {
+  margin: 0;
+  color: var(--ink-4);
+  font-size: var(--text-caption);
+}
+
+/*
+ * When the head carries an action, the action returns to the heading's line.
+ * A button under a sentence reads as belonging to the sentence.
+ */
+.mad-portal .mad-plane .obs-section-head:has(a, button) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* --- the account, in the chrome ------------------------------------------ */
+
+/*
+ * The scope, stated once where it is permanent.
+ *
+ * The word rather than the sentence, because a header is read at a glance and
+ * the sentence is on the `title` for anyone who wants it. "Local control plane"
+ * and "Hosted control plane" are different databases and an operator who
+ * confuses them will eventually take a demonstration estate for a customer's,
+ * which is why the reading is here at all rather than only in a comment.
+ *
+ * It survives to 390px. The chip this replaces was hidden below 768px, so the
+ * one fact the whole surface is scoped by left the screen on a phone, and that
+ * was the reason it had been promoted to a dark band above every page.
+ */
+.mad-account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--rhythm-tight);
+  min-width: 0;
+}
+
+.mad-account-label {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mad-account-name {
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/*
+ * The plane reading is a bordered word, not a coloured chip.
+ *
+ * A chip here would be a status mark, and which database answered is not a
+ * project state. Principle 01 spends colour on status and nothing else, so this
+ * is ink on the inset with a hairline: visibly a label, carrying no verdict.
+ */
+.mad-account-plane {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border-field);
+  border-radius: var(--portal-round);
+  background: var(--surface-inset);
+  color: var(--ink-3);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+/* The header carries three things now, so it wraps rather than crushing them. */
+.mad-portal .obs-header {
+  flex-wrap: wrap;
+  row-gap: var(--rhythm-tight);
+}
+
+/*
+ * The footer states the scope again where a long page ends, quietly.
+ */
+.mad-portal > footer.mad-note {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding: var(--rhythm-section) var(--gutter) var(--rhythm-major);
+}
+
+/*
+ * A DATA PANEL NESTED IN A ROW IS NOT A FULL-WIDTH PANEL.
+ *
+ * The panel's own track is `minmax(11rem, 1fr)`, which is right when it spans a
+ * card and wrong inside one cell of a row: `auto-fit` finds room for a single
+ * column and stacks three figures into a tall narrow strip, so a project row
+ * grew to four times its height and the figures stopped reading as a set.
+ *
+ * The negative margins are the same mistake in the other direction. They exist
+ * to let a panel meet the edges of the card it sits in, so they are scoped to a
+ * panel that is a DIRECT child of the card, not to one nested three levels down.
+ */
+.mad-portal .mad-plane .mad-row .mad-datapanel {
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  margin-inline: 0;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+}
+
+.mad-portal .mad-plane .mad-row .mad-datapanel > div {
+  padding: var(--rhythm-tight) var(--rhythm-inner);
+}
+
+/*
+ * Inside a row the labels do not reserve two lines. That rule exists so values
+ * share a baseline across a wide panel; in a row the panel is one line of
+ * figures and the reserved space is just height.
+ */
+.mad-portal .mad-plane .mad-row .mad-datapanel dt {
+  min-height: 0;
+}
+
+.mad-portal .mad-plane .mad-row .mad-datapanel dd {
+  font-size: var(--text-body);
+}
+
+/*
+ * Facts laid across a row rather than down it.
+ *
+ * A row's middle cell holds a set of figures that belong together and are read
+ * left to right. Stacked they become a column of unrelated numbers; boxed they
+ * become a second card inside the first. Ruled and inline they read as one
+ * fact about the row, which is what they are.
+ */
+.mad-facts--inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight) var(--rhythm-major);
+}
+
+.mad-facts--inline > div {
+  gap: 0.125rem;
+  min-width: 4.5rem;
+}
+
+.mad-portal .mad-facts--inline dt {
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mad-portal .mad-facts--inline dd {
+  margin: 0;
+  font-size: var(--text-value);
+  color: var(--ink);
+}

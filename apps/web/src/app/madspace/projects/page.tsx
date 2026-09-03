@@ -281,11 +281,15 @@ function ProjectRow({ summary }: { summary: ProjectSummary }) {
        *
        * They are three independent states, not three stages: a source can be
        * connected and never verified, and nothing here may collapse them into
-       * one dot, one percentage or one bar. `mad-facts` is carried alongside
-       * `mad-datapanel` only for the `margin: 0` a bare `<dl>` needs; every
-       * visual rule below comes from the data panel.
+       * one dot, one percentage or one bar.
+       *
+       * `mad-facts` alone, and NOT `mad-datapanel`. The panel is a bordered
+       * grid meant to span a card; nested in one cell of a row it drew a box
+       * inside a box and folded three figures into a column, which made the row
+       * four times taller than the thing it describes. A row is ruled, not
+       * boxed, and the reference document draws its own tables the same way.
        */}
-      <dl className="mad-facts mad-datapanel">
+      <dl className="mad-facts mad-facts--inline">
         <div>
           <dt>Sources</dt>
           <dd>{NUMBERS.format(summary.sourceCount)}</dd>
