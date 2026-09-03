@@ -106,6 +106,33 @@ test.describe("design lab", () => {
       });
     }
 
+    /*
+     * Activation with the panel dismissed, as well as with it open.
+     *
+     * Two of the three directions open the code panel on load, which is the
+     * right call for the moment being designed and leaves their action region
+     * behind a dialog in every capture. A reviewer would then be comparing one
+     * screen against two dialogs. Dismissing it and shooting again costs one
+     * image per direction and makes the same screen reviewable in both of its
+     * states; the direction that shows both at once simply photographs twice.
+     */
+    test(`${variant} activation with the panel dismissed`, async ({ page }) => {
+      test.skip(test.info().project.name !== "desktop", "captured once");
+      await signInAs(page, "MADSPACE Operations");
+      await open(page, variant, "activation", 1440, 900);
+
+      /*
+       * Escape rather than a click on a named control: the three directions
+       * dismiss through different buttons and Escape is the one gesture all of
+       * them honour. A direction with no dialog is unaffected.
+       */
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(400);
+
+      await assertNoOverflow(page, `${variant}/activation dismissed at 1440`);
+      await capture(page, `${variant.toUpperCase()}-activation-closed-1440`);
+    });
+
     for (const screen of MOBILE_SCREENS) {
       test(`${variant} ${screen} at 390`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
