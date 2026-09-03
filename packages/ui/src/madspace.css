@@ -3120,3 +3120,29 @@ a.mad-row:focus-visible {
 .mad-datapanel > div:last-child {
   grid-column: auto / -1;
 }
+
+/*
+ * A stated fact is not a status, so its rail is ink.
+ *
+ * `.mad-stated` marks the one place a form states a value instead of offering a
+ * choice, and it drew that with a 2px rail in the accent. Inside the portal the
+ * accent IS a status colour: it means "waiting for MADSPACE". A blue rail on a
+ * read-only value would be the only blue on the surface that meant nothing,
+ * which is what principle 01 forbids.
+ *
+ * The card border and the field ground already say it is a field. The rail says
+ * it is the one that cannot be changed, and it says it in ink.
+ */
+.mad-portal .mad-stated {
+  border-left-color: var(--ink);
+  background: var(--surface-card);
+}
+
+/*
+ * A focused field takes the accent, and that is not a contradiction.
+ *
+ * The focus ring is the one use of colour this system exempts by naming it: the
+ * accessibility contract asks for "a 2px focus-visible ring in the accent
+ * colour". Focus is a state of the interface rather than a state of a project,
+ * and the ring is gone the moment the reader looks away.
+ */
