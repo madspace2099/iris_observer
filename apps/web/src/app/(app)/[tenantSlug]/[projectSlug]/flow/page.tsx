@@ -35,6 +35,17 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * page period. How many presentations is a different question today and this
  * year, and making the reader move the whole page to ask the second one is how a
  * dashboard stops being read.
+ *
+ * Two figures that used to live here were computed by this component rather
+ * than by a read model — "N of M had an outcome recorded" (filtering
+ * `view.outcomes` and summing in the page) and a per-agent "X% progressed"
+ * (rounding `ring.progressedShare`, which the read model states over a
+ * DIFFERENT denominator than the ring above it). ADR-0012 forbids the first
+ * kind on principle, and the second put two figures that sound like the same
+ * claim, computed two different ways, on one screen. Both are dropped rather
+ * than replaced: `OutcomeRing` already draws the true total in its centre and
+ * `OutcomeKey` already states every slice's own count, so nothing the reader
+ * could learn from either sentence is lost.
  */
 export default async function FlowPage({
   params,
@@ -71,10 +82,6 @@ export default async function FlowPage({
     repository.getFlowCharts(query, kpiWindow),
     repository.getShowroomOverview(query),
   ]);
-
-  const recorded = view.outcomes
-    .filter((o) => o.outcome !== "skipped")
-    .reduce((a, o) => a + o.count, 0);
 
   const base = `/${tenantSlug}/${projectSlug}/flow`;
   const windowHref = (id: KpiWindowId) => {
@@ -161,9 +168,6 @@ export default async function FlowPage({
             </p>
             <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} />
             <OutcomeKey slices={view.outcomes} />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-              {recorded} of {view.meetingCount} meetings had an outcome recorded.
-            </p>
           </div>
         </div>
 
@@ -267,9 +271,6 @@ export default async function FlowPage({
                   size={124}
                   label={`${ring.name}: ${ring.meetings} meetings`}
                 />
-                <p className="iris-code" style={{ margin: 0 }}>
-                  {Math.round(ring.progressedShare * 100)}% progressed
-                </p>
                 <OutcomeKey slices={ring.slices} />
                 {ring.flag === null ? null : (
                   <p className="iris-ring-flag" data-severity={ring.flag.severity}>

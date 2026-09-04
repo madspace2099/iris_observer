@@ -470,7 +470,8 @@
 
 /* --- segment chips, from the IRIS segmented control ------------------------ */
 
-.iris-chips {
+.iris-chips,
+.iris-mode-strip {
   display: flex;
   gap: 0.375rem;
   flex-wrap: wrap;
