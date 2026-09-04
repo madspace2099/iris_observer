@@ -51,6 +51,9 @@ export function AskDock({
     <div className="ask-dock ask-root">
       <div className="ask-dock-inner">
         <div className="ask-hero">
+          {/* The same travelling light, at the bar's own size. */}
+          <span className="ask-travel" aria-hidden="true" />
+
           <form className="ask-bar" method="get" action={`${root}/ask`}>
             {periodParam !== "" ? <input type="hidden" name="period" value={periodParam} /> : null}
 

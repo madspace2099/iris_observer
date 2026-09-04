@@ -133,6 +133,13 @@ export function AskFrame({
 
         <div className="ask-hero">
           {/*
+           * The travelling light. One inert layer behind the card, carrying the
+           * two static anchors and the pulse that laps the perimeter every
+           * 6.45 seconds. It is the export's glow shader, in CSS.
+           */}
+          <span className="ask-travel" aria-hidden="true" />
+
+          {/*
            * `method="get"`: the form posts back to this same route with the
            * question in the query, which is what makes an answer a place rather
            * than a moment. History is left alone deliberately — a reader who

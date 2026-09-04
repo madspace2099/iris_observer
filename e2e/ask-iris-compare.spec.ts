@@ -264,6 +264,103 @@ test.describe("Ask IRIS against the delivered design", () => {
     }
   });
 
+  /* --- the travelling light ---------------------------------------------- */
+
+  test("laps the perimeter of both composers", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    /*
+     * Measured by reading `offset-distance` twice, which is the only honest way
+     * to assert motion: a screenshot of an animation proves the element exists,
+     * not that it moves.
+     */
+    const lap = async (where: string, selector: string) => {
+      const first = await page.evaluate(
+        (sel) => getComputedStyle(document.querySelector(sel) as Element, "::after").offsetDistance,
+        selector,
+      );
+      await page.waitForTimeout(1200);
+      const second = await page.evaluate(
+        (sel) => getComputedStyle(document.querySelector(sel) as Element, "::after").offsetDistance,
+        selector,
+      );
+      expect(first, `${where} has no travelling light`).not.toBe("");
+      expect(second, `${where} is not moving: stuck at ${first}`).not.toBe(first);
+    };
+
+    await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-travel")).toBeAttached();
+    await lap("the Ask composer", ".ask-page .ask-travel");
+
+    await page.goto("/alpha/northgate/flow");
+    await expect(page.locator(".ask-dock .ask-travel")).toBeAttached();
+    await lap("the docked bar", ".ask-dock .ask-travel");
+  });
+
+  test("stops travelling, and stays lit, when motion is reduced", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ASK);
+
+    const state = await page.evaluate(() => {
+      const layer = document.querySelector(".ask-page .ask-travel") as Element;
+      return {
+        pulse: getComputedStyle(layer, "::after").display,
+        anchors: getComputedStyle(layer, "::before").display,
+        breath: getComputedStyle(layer).animationName,
+        opacity: getComputedStyle(layer).opacity,
+      };
+    });
+
+    /*
+     * The export's own behaviour, not a softening invented here: `uMotion`
+     * becomes 0 and multiplies the travelling term, while the two anchors sit
+     * outside it and survive. What is left is a still, evenly lit edge.
+     */
+    expect(state.pulse, "the travelling pulse must not run under reduced motion").toBe("none");
+    expect(state.anchors, "the static anchors must remain").not.toBe("none");
+    expect(state.breath, "the breath must not oscillate under reduced motion").toBe("none");
+
+    await shoot(page, "ASK-reduced-motion-1440");
+    await page.emulateMedia({ reducedMotion: null });
+  });
+
+  test("the light does not overflow or intercept a click at any width", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+
+    for (const width of [1440, 1024, 390] as const) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+
+      await page.goto(ASK);
+      await assertNoOverflow(page, `ask with the travelling light at ${String(width)}`);
+      /*
+       * The layer straddles the card edge and sits ABOVE it, so the one thing
+       * that must be proved is that it cannot take a press meant for a control.
+       */
+      const inert = await page.evaluate(
+        () => getComputedStyle(document.querySelector(".ask-page .ask-travel") as Element).pointerEvents,
+      );
+      expect(inert, "the travelling light must never take a click").toBe("none");
+
+      await page.goto("/alpha/northgate/flow");
+      await assertNoOverflow(page, `the dock with the travelling light at ${String(width)}`);
+    }
+
+    /* And the dock still submits, with the light layered over its edge. */
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/alpha/northgate/flow");
+    const bar = page.locator(".ask-dock").getByPlaceholder(/Ask IRIS/);
+    await bar.fill("Why did demand fall this quarter?");
+    await bar.press("Enter");
+    await page.waitForURL(/\/ask\?.*q=/);
+    await expect(page.locator(".ask-log")).toBeVisible();
+  });
+
   /* --- the variant, and the screens it must not touch -------------------- */
 
   test("wears the reference header on Ask IRIS and nowhere else", async ({ page }) => {
