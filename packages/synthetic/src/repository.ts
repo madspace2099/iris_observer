@@ -34,6 +34,16 @@ import type {
   StorytellingIntelligence,
   UnitAttentionView,
 } from "@observer/readmodels";
+import type {
+  AgentDetailView,
+  AskHistoryView,
+  AskThread,
+  AttentionView,
+  MeetingFilters,
+  MeetingListView,
+  ReportScopeView,
+  UnitDetailView,
+} from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
@@ -60,6 +70,10 @@ import {
   buildStorytelling,
   buildUnitAttention,
 } from "./showroom/project";
+import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
+import { buildAttention } from "./showroom/attention";
+import { buildAskHistory, buildAskThread } from "./ask-history";
+import { buildReportScope } from "./reports";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -395,6 +409,68 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return buildMeetingList(context, current);
   }
 
+  async getMeetings(query: OverviewQuery, filters: MeetingFilters): Promise<MeetingListView> {
+    const { context, current } = await this.slices(query);
+    return buildMeetings(context, current, filters);
+  }
+
+  async getUnitDetail(query: OverviewQuery, unitCode: string): Promise<UnitDetailView> {
+    const { context, current, previous } = await this.slices(query);
+    const view = buildUnitDetail(context, current, previous, unitCode);
+    /*
+     * Not found, rather than an empty page.
+     *
+     * A unit the catalogue does not hold is a route that does not exist, and
+     * rendering a page of dashes for it would tell the reader that the flat is
+     * real and unobserved. A unit that *is* in the catalogue and was never
+     * opened returns a view with its `emptyState` set — which is a different
+     * answer, and the one the empty state exists for.
+     */
+    if (view === null) throw new NotFoundError(`Unit "${unitCode}"`);
+    return view;
+  }
+
+  async getAgentDetail(query: OverviewQuery, agentId: string): Promise<AgentDetailView> {
+    const { context, current } = await this.slices(query);
+    /*
+     * The projects passed in are the viewer's, not the agent's.
+     *
+     * "Where else does this person work" is answered from the intersection of
+     * the agent's meetings and the reader's own grants. A developer who could
+     * read the full list would be learning, off a staff page, that their agency
+     * also sells for somebody else — which is a commercial fact about a third
+     * party and not theirs to have.
+     */
+    const visible = PROJECTS.filter(
+      (p) => p.tenantId === context.tenant.id && query.viewer.projectIds.includes(p.id),
+    );
+    const view = buildAgentDetail(context, current, visible, agentId);
+    if (view === null) throw new NotFoundError(`Agent "${agentId}" on this project`);
+    return view;
+  }
+
+  async getAttention(query: OverviewQuery): Promise<AttentionView> {
+    const { context, current, previous } = await this.slices(query);
+    return buildAttention(context, current, previous);
+  }
+
+  async getAskHistory(query: OverviewQuery): Promise<AskHistoryView> {
+    const { context, current } = await this.slices(query);
+    return buildAskHistory(context, current);
+  }
+
+  async getAskThread(query: OverviewQuery, threadId: string): Promise<AskThread> {
+    const { context, current } = await this.slices(query);
+    const thread = buildAskThread(context, current, threadId);
+    if (thread === null) throw new NotFoundError(`Conversation "${threadId}"`);
+    return thread;
+  }
+
+  async getReportScope(query: OverviewQuery): Promise<ReportScopeView> {
+    const { context, current } = await this.slices(query);
+    return buildReportScope(context, current);
+  }
+
   async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {
     const { current } = await this.slices(query);
     return SYNTHETIC_AGENTS.map((agent) => ({
@@ -414,8 +490,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getStorytelling(query: OverviewQuery): Promise<StorytellingIntelligence> {
-    const { context, current } = await this.slices(query);
-    return buildStorytelling(context, current);
+    /*
+     * The baseline goes in as well as the period.
+     *
+     * "Newly adopted" is the one thing on the feature surface that cannot be
+     * answered from the current slice alone, and a builder handed no baseline
+     * reports every feature as new. Passing `previous` is what lets it say
+     * `no_baseline` on a project three weeks old instead.
+     */
+    const { context, current, previous } = await this.slices(query);
+    return buildStorytelling(context, current, previous);
   }
 
   async getSessionSlice(query: OverviewQuery): Promise<ShowroomSessionSlice> {

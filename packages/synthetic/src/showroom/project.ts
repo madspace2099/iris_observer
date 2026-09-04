@@ -1109,9 +1109,20 @@ export function buildUnitAttention(
 
 /* --- E. Storytelling and Feature Intelligence ------------------------------ */
 
+/**
+ * How the IRIS story itself is being used.
+ *
+ * `previous` is the baseline slice, and it is optional for one reason: a caller
+ * that has no baseline — a project three weeks old, or a test handing this an
+ * empty period — must not be told that every feature is newly adopted. An
+ * absent baseline produces `no_baseline` on every row rather than a page full
+ * of green "new" badges, which is the flattering answer the state exists to
+ * refuse.
+ */
 export function buildStorytelling(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
+  previous: readonly ShowroomSession[] = [],
 ): StorytellingIntelligence {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -1127,11 +1138,29 @@ export function buildStorytelling(
       return order.length <= 1 ? 0 : order.indexOf(section.id) / (order.length - 1);
     });
 
+    /*
+     * Entries, not meetings.
+     *
+     * `steps` already holds every entry into this section across the slice,
+     * returns included, so an agent who came back to Residences three times in
+     * one meeting is one meeting and three opens. "Most used feature" answers a
+     * different question depending on which of those two it counts, and the
+     * screen asks for both.
+     */
+    const opens = steps.length;
+
     return {
       sectionId: section.id,
       label: section.label,
       kind: section.kind,
       meetings: withSection.length,
+      opens,
+      adoption:
+        previous.length === 0
+          ? ("no_baseline" as const)
+          : withSection.length > 0 && !previous.some((s) => reached(s, section.id))
+            ? ("new_in_period" as const)
+            : ("established" as const),
       reachRate: share(withSection.length, n),
       medianDwellSeconds: dwells.length === 0 ? null : Math.round(median(dwells)),
       glanceRate: share(glances, Math.max(1, dwells.length)),

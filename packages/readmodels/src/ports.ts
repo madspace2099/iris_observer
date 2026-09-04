@@ -1,7 +1,15 @@
 import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contracts";
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
-import type { AskSession, ProjectPulse } from "./pulse";
+import type { AskHistoryView, AskSession, AskThread, ProjectPulse } from "./pulse";
+import type { ReportScopeView } from "./report";
+import type {
+  AgentDetailView,
+  AttentionView,
+  MeetingFilters,
+  MeetingListView,
+  UnitDetailView,
+} from "./screens";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "./charts";
 import type {
   AgentsView,
@@ -169,7 +177,75 @@ export interface ObserverRepository {
   /** One meeting, reconstructed as a story rather than an event table. */
   getMeetingReplay(query: BriefQuery): Promise<MeetingReplay>;
 
+  /**
+   * The meeting list as a bare array.
+   *
+   * Kept because several surfaces already read it and none of them wants the
+   * filter options or the findings. `getMeetings` is the view; this is the
+   * list, and both project from the same session slice.
+   */
   listMeetings(query: OverviewQuery): Promise<readonly MeetingSummary[]>;
+
+  /**
+   * The meeting list as a surface.
+   *
+   * Every other screen returns a context-bearing view and this one returned an
+   * array, so the page around it had to state its own period, compose its own
+   * empty sentence and derive its own filter options — three decisions a
+   * component is not allowed to make (ADR-0012).
+   *
+   * `filters` is required and explicit. A default hidden inside the repository
+   * is a default the reader cannot see and cannot clear.
+   */
+  getMeetings(query: OverviewQuery, filters: MeetingFilters): Promise<MeetingListView>;
+
+  /**
+   * One unit's own page.
+   *
+   * Separate from `getUnitAttention`, whose `selected` explains a row's place in
+   * a ranking of the whole building. See `UnitDetailView` for the three reasons,
+   * the third of which is that a unit nobody opened still has a page and the
+   * attention view returns null for exactly that unit.
+   */
+  getUnitDetail(query: OverviewQuery, unitCode: string): Promise<UnitDetailView>;
+
+  /**
+   * One agent's own page, sample size first.
+   *
+   * Association, never causation, and never a score: there is no rank on the
+   * view and no field to put one in. Below `AGENT_MIN_SAMPLE` the whole page is
+   * suppressed to raw figures (`docs/10-policies.md` §6).
+   */
+  getAgentDetail(query: OverviewQuery, agentId: string): Promise<AgentDetailView>;
+
+  /**
+   * What is worth a person's attention, across every screen at once.
+   *
+   * Returns the checks that came back clean as well as the states that were
+   * raised, because an empty alert panel otherwise means both "nothing is
+   * wrong" and "nothing was measured".
+   */
+  getAttention(query: OverviewQuery): Promise<AttentionView>;
+
+  /**
+   * Previous Ask Observer conversations for this project.
+   *
+   * Marked `demonstration` in the type: nobody has held these conversations,
+   * and the surface may not present them as somebody's history.
+   */
+  getAskHistory(query: OverviewQuery): Promise<AskHistoryView>;
+
+  /** One conversation, with every turn and the evidence under each answer. */
+  getAskThread(query: OverviewQuery, threadId: string): Promise<AskThread>;
+
+  /**
+   * What a report could contain, and the statement that nothing writes one.
+   *
+   * The sections and their availability come from the project's own sources, so
+   * a scheme with no CRM is told which parts of its report would be blank
+   * before it asks for one rather than afterwards.
+   */
+  getReportScope(query: OverviewQuery): Promise<ReportScopeView>;
 
   /**
    * The people presenting on this project, in this period.

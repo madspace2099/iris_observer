@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { MeetingOutcome } from "./engagement";
 import type { MeasurementAvailabilitySchema } from "./provenance";
+import type { SourceSystem } from "./sources";
 
 /**
  * What IRIS shows, and what a showroom session looks like as data.
@@ -99,6 +100,42 @@ export function hasProgressed(outcome: MeetingOutcome): boolean {
 export function outcomeIsUnknown(outcome: MeetingOutcome): boolean {
   return outcome === "skipped";
 }
+
+/* --- where the session was observed ---------------------------------------- */
+
+/**
+ * Which surface the presentation actually ran on.
+ *
+ * The same IRIS content is reachable in two places: the installation standing
+ * in the sales gallery, and WEB IRIS in a buyer's browser — and a growing share
+ * of presentations are given remotely, with the agent driving WEB IRIS over a
+ * call rather than a buyer walking in. Both produce the same *kind* of fact, a
+ * section reached and a unit opened, which is exactly why the channel has to be
+ * carried on the record.
+ *
+ * Two reasons, and neither is presentational.
+ *
+ * 1. **The measurement is not the same measurement.** Dwell on a showroom
+ *    installation is time in front of a wall-sized render with an agent
+ *    talking; dwell in a browser tab is time in a window that may not have
+ *    focus. Averaging the two into one median and printing it as "time on
+ *    Residences" states something no source observed.
+ * 2. **Provenance must survive the join.** `docs/06-ownership.md` gives WEBIRIS
+ *    and the showroom different owners, and a fact that loses its owner on the
+ *    way into a projection cannot be traced back, corrected, or withheld when
+ *    its source disconnects.
+ *
+ * The vocabulary is drawn from `SOURCE_SYSTEMS` rather than restated, so a
+ * channel can never name a source the rest of the product does not know.
+ */
+export const SESSION_CHANNELS = ["showroom", "webiris"] as const satisfies readonly SourceSystem[];
+export type SessionChannel = (typeof SESSION_CHANNELS)[number];
+
+/** How each channel is named on screen. WEB IRIS is spelled as the brand does. */
+export const SESSION_CHANNEL_LABELS: Record<SessionChannel, string> = {
+  showroom: "IRIS Showroom",
+  webiris: "WEB IRIS",
+};
 
 /* --- storytelling presets -------------------------------------------------- */
 
@@ -218,6 +255,11 @@ export interface ShowroomSession {
   readonly meetingId: string;
   readonly projectId: string;
   readonly agentId: string;
+  /**
+   * Which surface this presentation ran on. Never inferred from anything else
+   * on the record — see `SESSION_CHANNELS` for why it has to be carried.
+   */
+  readonly channel: SessionChannel;
   /** Null for a walk-in that was never linked to a contact. */
   readonly contactId: string | null;
   readonly startedAt: string;

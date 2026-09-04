@@ -15,4 +15,6 @@ export * from "./showroom";
 export * from "./glossary";
 export * from "./views3";
 export * from "./charts";
+export * from "./screens";
+export * from "./report";
 export * from "./ports";

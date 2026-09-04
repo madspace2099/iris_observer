@@ -24,8 +24,11 @@ describe("tenant and project scoping", () => {
       VIEWERS.agencyManager,
       VIEWERS.developer.tenantIds[0]!,
     );
-    // The agency works Northgate for Alpha, but not Riverside.
-    expect(projects.map((p) => p.slug)).toEqual(["northgate"]);
+    // The agency works Northgate and ISTER TOWER for Alpha, but not Riverside.
+    // The absence is the assertion: a tenant grant would have returned all
+    // three, and the agency holds two of them explicitly.
+    expect(projects.map((p) => p.slug)).toEqual(["northgate", "ister-tower"]);
+    expect(projects.map((p) => p.slug)).not.toContain("riverside");
   });
 
   it("refuses a tenant the viewer does not hold", async () => {

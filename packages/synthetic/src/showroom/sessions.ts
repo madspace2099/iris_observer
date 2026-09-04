@@ -13,6 +13,7 @@ import {
   type ShowroomSession,
   type ShowroomStep,
   type ShowroomUnitInteraction,
+  type SessionChannel,
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
@@ -143,6 +144,56 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     unitsShownMean: 4.9,
     outcomeBias: 0.02,
     meetingShare: 0.18,
+  },
+  /*
+   * ISTER TOWER'S TEAM: MARTIN, LUCIA HORVÁTH, AND MONIKA ACROSS BOTH.
+   *
+   * Three presenters rather than four, and one of them deliberately below the
+   * reporting minimum. `AGENT_MIN_SAMPLE` is 20 meetings, and a project where
+   * every agent clears it can never show what the product does when one does
+   * not — which is the more interesting half of the rule, because that is where
+   * a manager is most tempted to read a rank off four meetings.
+   *
+   * Lucia Horváth is the thin one. Her `meetingShare` is low because she joined
+   * the team recently, not because she is worse at the job, and nothing on the
+   * surface may imply otherwise: below the minimum there is no verdict, no rank
+   * and no trend, only the raw count and how far short it falls.
+   *
+   * She is NOT the Lucia already on the roster. Lucia Bartošová sells Northgate
+   * and Riverside for the same agency; Lucia Horváth sells ISTER TOWER. Two
+   * people can share a forename, and a product that resolves identity for a
+   * living should be able to hold both without merging them — but they are
+   * given different surnames and different ids so that no screen ever has to.
+   */
+  {
+    id: "agt_martinkovac",
+    name: "Martin Kováč",
+    organisationName: "Meridian Sales",
+    surroundingsEarly: 0.72,
+    amenitiesSkip: 0.05,
+    compareUse: 0.64,
+    returnToShortlist: 0.55,
+    coverageBias: 0.74,
+    homeDwell: 0.9,
+    unitsShownMean: 4.6,
+    outcomeBias: 0.07,
+    meetingShare: 0.46,
+  },
+  {
+    id: "agt_luciahorvath",
+    name: "Lucia Horváth",
+    organisationName: "Meridian Sales",
+    surroundingsEarly: 0.41,
+    amenitiesSkip: 0.19,
+    compareUse: 0.33,
+    returnToShortlist: 0.28,
+    coverageBias: 0.52,
+    homeDwell: 1.35,
+    unitsShownMean: 3.6,
+    outcomeBias: -0.03,
+    // Roughly a seventh of the tower's meetings. Enough to have a shape, far
+    // too few for any of it to be reported as a finding.
+    meetingShare: 0.14,
   },
   /*
    * Beta Development's own people.
@@ -280,7 +331,17 @@ export interface ProjectDataset {
   /** Who presents here. An Alpha agent must never appear on a Beta project. */
   readonly agentIds: readonly string[];
   readonly periods: readonly {
-    readonly phase: "previous" | "current";
+    /**
+     * `earlier` is history that predates the comparison baseline.
+     *
+     * Two windows are enough to answer "is this quarter better than the last
+     * one", and they are not enough to make the period control mean anything:
+     * with only `previous` and `current`, "year to date" and "last completed
+     * quarter" resolve to the same meetings the other presets already showed.
+     * A project that carries a third, older window is what makes each preset
+     * return a different, checkable slice.
+     */
+    readonly phase: "earlier" | "previous" | "current";
     readonly from: string;
     readonly to: string;
     readonly meetings: number;
@@ -289,6 +350,18 @@ export interface ProjectDataset {
   readonly crmConnected: boolean;
   /** Sessions imported from legacy analytics, carrying no per-step timing. */
   readonly legacyImports: number;
+  /**
+   * Share of this project's presentations given through WEB IRIS rather than on
+   * the showroom installation.
+   *
+   * Zero on three of the four developments, and that is a statement about them
+   * rather than a default: they sell out of a room, every session came off the
+   * installation standing in it, and inventing remote presentations for them
+   * would move figures that existing assertions depend on. ISTER TOWER runs a
+   * genuine mix, which is the only reason a "showroom against WEB IRIS" split
+   * can be shown at all.
+   */
+  readonly webirisShare: number;
 }
 
 export const PROJECT_DATASETS: readonly ProjectDataset[] = [
@@ -303,6 +376,7 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
     ],
     crmConnected: true,
     legacyImports: 16,
+    webirisShare: 0,
   },
   {
     projectId: "prj_riversidew1",
@@ -317,6 +391,7 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
     // No CRM connected. This project exists to prove the unavailable state.
     crmConnected: false,
     legacyImports: 0,
+    webirisShare: 0,
   },
   {
     projectId: "prj_beta0000001",
@@ -328,6 +403,51 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
     periods: [{ phase: "current", from: "2026-08-03", to: "2026-08-24", meetings: 41 }],
     crmConnected: false,
     legacyImports: 0,
+    webirisShare: 0,
+  },
+  /*
+   * ISTER TOWER — THE PROJECT EVERY SURFACE IS REVIEWED ON.
+   *
+   * Three windows rather than two, because the period control is one of the
+   * things being reviewed and a two-window project cannot exercise it: with
+   * meetings only from April onwards, "year to date" and "last completed
+   * quarter" return the same rows as the presets beside them and the control
+   * looks broken when it is working. Selling opened in mid-January, so each
+   * preset lands somewhere different — the quarter to date on the current
+   * window, the last completed quarter on the spring one, the year to date on
+   * all three, and the last 28 days on the tail of the current one.
+   *
+   * The volumes climb across the three windows because the scheme did: a tower
+   * launching in January runs a handful of appointments a week and is running
+   * several a day by August. That climb is also what makes the comparison worth
+   * putting on screen — a flat dataset gives every period the same answer.
+   *
+   * Nine legacy imports sit at the head of the spring window. They carry the
+   * order of the presentation and not its timing, which is the state the replay
+   * and the DNA surfaces have to be able to say out loud rather than draw.
+   */
+  {
+    projectId: "prj_istertower1",
+    code: "it",
+    seed: 0x2f5b,
+    /*
+     * Three presenters. Monika works this project as well as Northgate, which
+     * is the ordinary arrangement inside one agency and the case that catches a
+     * surface totalling a person across projects — her ISTER figures and her
+     * Northgate figures are two answers, never one.
+     */
+    agentIds: ["agt_martinkovac", "agt_luciahorvath", "agt_monika"],
+    periods: [
+      { phase: "earlier", from: "2026-01-12", to: "2026-03-31", meetings: 44 },
+      { phase: "previous", from: "2026-04-01", to: "2026-06-30", meetings: 61 },
+      { phase: "current", from: "2026-07-01", to: "2026-08-24", meetings: 82 },
+    ],
+    crmConnected: true,
+    legacyImports: 9,
+    // Rather more than a quarter of presentations are given remotely on WEB
+    // IRIS. Enough to be a real share of the project rather than a rounding
+    // error, and not so much that the showroom stops being the primary surface.
+    webirisShare: 0.28,
   },
 ];
 
@@ -827,6 +947,36 @@ export function showroomSessions(): readonly ShowroomSession[] {
         const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
 
         /*
+         * The remaining draws are taken here rather than inside the record.
+         *
+         * They used to sit in the object literal, which evaluates in source
+         * order and therefore fixed the order of the random stream to the order
+         * of the fields. Lifting them out changes nothing today — the same
+         * three calls in the same sequence — and means the next field added to
+         * a session cannot silently reshuffle every project's dataset by being
+         * declared in the wrong place.
+         */
+        const environment = buildEnvironment(r, order);
+        const filters = buildFilters(r, profile, catalogue);
+        const places = buildPlaces(r, profile, order);
+
+        /*
+         * WHICH SURFACE THE PRESENTATION RAN ON.
+         *
+         * Drawn last, after every other value, so adding it left the three
+         * existing developments byte-identical: their `webirisShare` is zero
+         * and nothing downstream of this call consumes the stream, so no
+         * figure, finding or screenshot on Northgate, Riverside or Kingsford
+         * moved when this was introduced.
+         *
+         * It is a property of the session and not of the project, because the
+         * same project has both — and the measurements are not interchangeable
+         * (see `SESSION_CHANNELS`). Anything that averages across the two must
+         * say it is doing so.
+         */
+        const channel: SessionChannel = r() < dataset.webirisShare ? "webiris" : "showroom";
+
+        /*
          * Identifiers carry the project.
          *
          * `mtg_0004` existed once under all three developments at the same time.
@@ -838,6 +988,7 @@ export function showroomSessions(): readonly ShowroomSession[] {
           meetingId: `mtg_${dataset.code}${String(index).padStart(4, "0")}`,
           projectId: dataset.projectId,
           agentId: agent.id,
+          channel,
           contactId,
           startedAt: at.toISOString(),
           endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
@@ -845,9 +996,9 @@ export function showroomSessions(): readonly ShowroomSession[] {
           outcome,
           steps,
           units,
-          environment: buildEnvironment(r, order),
-          filters: buildFilters(r, profile, catalogue),
-          places: buildPlaces(r, profile, order),
+          environment,
+          filters,
+          places,
           screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
           irisRating,
           priorMeetings,

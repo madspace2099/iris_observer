@@ -9,7 +9,9 @@ import type {
   UnitStatus,
   ViewContext,
 } from "@observer/readmodels";
+import { ProjectIdSchema } from "@observer/contracts";
 import { evidenceRef, money } from "./format";
+import { unitsForProject } from "./world";
 
 /**
  * The Northgate building, generated deterministically.
@@ -206,6 +208,12 @@ const CHANGE_FOR: Record<string, UnitChange> = {
   "A-505": "sold",
   "A-402": "new_interest",
   "B-604": "price_cut",
+  // ISTER TOWER's two south-facing compact flats, in the order the reader meets
+  // them: one went during the period, and the one left is the flat everybody
+  // keeps opening. Neither label is a verdict — `sold` and `new_interest` are
+  // both observations, and the unit surface says what to do about them.
+  "IT-A-11-07": "sold",
+  "IT-A-12-07": "new_interest",
 };
 
 /**
@@ -218,9 +226,51 @@ const CHANGE_FOR: Record<string, UnitChange> = {
  */
 const catalogues = new Map<string, readonly RawUnit[]>();
 
+/**
+ * Schemes whose stacking plan is written out rather than derived.
+ *
+ * A `BuildingSpec` describes a building as a rule — blocks times floors times
+ * units per level — and for a scheme nobody names a flat in, a rule is exactly
+ * right. ISTER TOWER is not that scheme: the brief sends a reviewer to
+ * `IT-A-12-07` by code and expects the two-room south-facing flat on level
+ * twelve, and a rule can promise the code but not the flat.
+ *
+ * So its units live beside the rest of the world in `world.ts`, in the same
+ * `SyntheticUnit` shape as the scenario document's hand-written five, and are
+ * adapted to `RawUnit` here. One list, two readers: the Pulse and the session
+ * generator cannot disagree about which apartments exist, which is the whole
+ * reason `catalogueFor` exists at all.
+ */
+const ENUMERATED_CATALOGUES: readonly string[] = ["prj_istertower1"];
+
+function enumeratedCatalogue(projectId: string): readonly RawUnit[] {
+  /*
+   * Parsed rather than cast, for the same reason `world.ts` parses its
+   * identifiers: this function is reached with a raw string that came off a
+   * route, and the branded type is the only thing standing between a typo and a
+   * catalogue silently belonging to nothing.
+   */
+  return unitsForProject(ProjectIdSchema.parse(projectId)).map((unit) => ({
+    code: unit.code,
+    block: unit.block,
+    floor: unit.floor,
+    rooms: unit.rooms,
+    areaSqm: unit.areaSqm,
+    orientation: unit.orientation,
+    price: unit.price,
+    status: unit.status,
+  }));
+}
+
 export function catalogueFor(projectId: string): readonly RawUnit[] {
   const cached = catalogues.get(projectId);
   if (cached !== undefined) return cached;
+
+  if (ENUMERATED_CATALOGUES.includes(projectId)) {
+    const listed = enumeratedCatalogue(projectId);
+    catalogues.set(projectId, listed);
+    return listed;
+  }
 
   const spec = BUILDINGS[projectId];
   if (spec === undefined) {
@@ -278,7 +328,18 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
 
   const units: PulseUnit[] = withAttention.map((unit) => {
     return {
-      unitId: `unt_${unit.code.toLowerCase().replace("-", "")}`,
+      /*
+       * Every separator goes, not the first one.
+       *
+       * `replace` with a string argument replaces one occurrence, which was
+       * invisible while every code held a single hyphen. ISTER TOWER spells a
+       * unit `IT-A-12-07`, and one-shot replacement turned that into
+       * `unt_ita-12-07` — an identifier with hyphens in it, which is not the
+       * shape `UnitIdSchema` describes and which would have travelled straight
+       * into a route. Codes with one hyphen produce exactly the same string as
+       * before, so nothing that already existed moves.
+       */
+      unitId: `unt_${unit.code.toLowerCase().replaceAll("-", "")}`,
       code: unit.code,
       block: unit.block,
       floor: unit.floor,

@@ -86,10 +86,10 @@ export interface Account {
  * page is generated from — a sales agent assigned to one project has one entry
  * in that list and therefore one card.
  *
- * Two of them are sales agents on purpose. One holds a single project and one
- * holds two, from developers who compete with each other, so the difference
- * between "what this role may see" and "what this ACCOUNT was granted" is
- * visible rather than argued.
+ * Three of them are sales agents on purpose. One holds a single project, one
+ * holds two from developers who compete with each other, and one holds only
+ * ISTER TOWER — so the difference between "what this role may see" and "what
+ * this ACCOUNT was granted" is visible rather than argued.
  */
 const DIRECTORY: readonly Account[] = Object.freeze([
   {
@@ -122,6 +122,22 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "akhilesh.undev@meridian-sales.example",
     displayName: VIEWERS.salesAgentDual.displayName,
     viewerKey: "salesAgentDual",
+  },
+  /*
+   * The third sales agent, and the one the flagship project is reviewed
+   * through.
+   *
+   * Monika and Akhilesh both open on Northgate, so neither of them lands a
+   * reviewer on ISTER TOWER — the development every surface is now judged
+   * against — without a second click. Martin holds that project and only that
+   * project, which makes his grant list the shortest possible route to it and
+   * keeps the demonstration of "one grant, one card" intact.
+   */
+  {
+    accountId: "acct_martin",
+    email: "martin.kovac@meridian-sales.example",
+    displayName: VIEWERS.salesAgentIster.displayName,
+    viewerKey: "salesAgentIster",
   },
   {
     accountId: "acct_madspace",

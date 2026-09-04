@@ -28,6 +28,7 @@ export const ACCOUNTS: Readonly<Record<string, string>> = Object.freeze({
   "Tomáš Varga": "tomas.varga@meridian-sales.example",
   "Monika Kováčová": "monika.kovacova@meridian-sales.example",
   "Akhilesh Undev": "akhilesh.undev@meridian-sales.example",
+  "Martin Kováč": "martin.kovac@meridian-sales.example",
   "MADSPACE Operations": "operations@madspace.example",
 });
 
@@ -70,7 +71,8 @@ export async function signIn(page: Page, name: string): Promise<void> {
  * open, rather than by a redirect nobody can see.
  *
  * `project` names the card to open. Omitted, it opens the first, which is the
- * project each account's grants list first: Northgate for all four.
+ * project each account's grants list first: Northgate for the four accounts
+ * that hold it, and ISTER TOWER for Martin Kováč, who holds only that one.
  */
 export async function signInAs(page: Page, name: string, project?: string): Promise<void> {
   await signIn(page, name);
@@ -81,5 +83,20 @@ export async function signInAs(page: Page, name: string, project?: string): Prom
       : page.getByRole("link", { name: new RegExp(`Open Observer for ${project}`) });
 
   await action.click();
-  await page.waitForURL(/\/showroom/);
+
+  /*
+   * THE LANDING SEGMENT MOVED, AND THE HELPER MOVED WITH IT.
+   *
+   * Every project card used to open `/showroom`, the Briefing. ADR-0033 made
+   * Ask IRIS the landing surface, so a card now opens `/{tenant}/{project}/ask`
+   * and `HOME_SEGMENT` in `apps/web/src/lib/routes.ts` is the single place that
+   * is decided.
+   *
+   * Both are accepted here rather than only the new one. Ten specification
+   * files call this helper and several of them then navigate to Briefing by
+   * name; a pattern that admits only `ask` would make this function wait for a
+   * URL its own callers are about to leave. What the wait is actually for is
+   * "the project is open" — either segment proves that.
+   */
+  await page.waitForURL(/\/(ask|showroom)(\?|$|\/)/);
 }

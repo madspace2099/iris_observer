@@ -30,6 +30,49 @@ export interface TenantSummary {
   readonly name: string;
 }
 
+/**
+ * The four things a project can be fed from.
+ *
+ * Named once so `connectedSources` and `sources` below cannot drift into two
+ * spellings of the same idea.
+ */
+export type SourceKind = "webiris" | "showroom" | "crm" | "catalogue";
+
+/**
+ * One feed, as the reader would point at it in the room.
+ *
+ * `connectedSources` answers "is there a showroom on this project", which is
+ * the question every unavailable state turns on. It cannot answer "which
+ * showroom, and has it said anything today" — and that is the question an
+ * agency manager actually asks, because a project with two installations has
+ * one that went quiet and one that did not, and a kind alone hides that.
+ *
+ * Deliberately four fields and no more. This is the identity of a feed and its
+ * pulse, not an integration console: throughput, error counts, connector
+ * versions and retry state belong to the MADSPACE administration surface,
+ * which is a separate product with its own audience (`docs/01-foundation.md`).
+ *
+ * `lastSeenAt` is nullable and **never zero-valued**. A source that has never
+ * been heard from has no last-seen instant; writing the epoch, the project's
+ * launch date, or "now" would each be a fabricated observation, and the reader
+ * would have no way to tell a silent source from a new one.
+ */
+export interface ProjectSource {
+  /** Stable within the project, so a row survives a rename. */
+  readonly id: string;
+  /** What it is called where it physically stands. "Main Showroom PC". */
+  readonly displayName: string;
+  readonly kind: SourceKind;
+  /**
+   * Whether it is wired up at all. Must agree with `connectedSources` on the
+   * project: the same fact told twice that disagrees with itself is worse than
+   * the fact being missing.
+   */
+  readonly connected: boolean;
+  /** Last instant anything arrived from it. Null when nothing ever has. */
+  readonly lastSeenAt: string | null;
+}
+
 export interface ProjectSummary {
   readonly id: ProjectId;
   readonly tenantId: TenantId;
@@ -39,7 +82,17 @@ export interface ProjectSummary {
   readonly locale: string;
   readonly timeZone: string;
   /** Which sources are wired up. Drives every unavailable state on screen. */
-  readonly connectedSources: readonly ("webiris" | "showroom" | "crm" | "catalogue")[];
+  readonly connectedSources: readonly SourceKind[];
+  /**
+   * The same answer at the resolution a person recognises.
+   *
+   * Every kind in `connectedSources` appears here with `connected: true`, and
+   * every kind absent from it appears here with `connected: false` — a
+   * disconnected source is listed and stated, never omitted, because an
+   * omission reads as "there is no CRM on this product" rather than "this
+   * project's CRM is not wired up yet".
+   */
+  readonly sources: readonly ProjectSource[];
 }
 
 /* --- periods ------------------------------------------------------------- */
