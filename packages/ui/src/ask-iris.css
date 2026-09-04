@@ -221,6 +221,23 @@
   align-items: center;
   padding: 0 24px;
   min-width: 0;
+
+  /*
+   * THE GLOW MUST NOT BE ABLE TO SCROLL THE PAGE.
+   *
+   * The composer's two light layers are absolutely positioned and reach 150px
+   * and 130px past the card on each side, which is what gives the rim its
+   * falloff. Absolutely positioned boxes contribute to scrollable overflow, so
+   * at 1440 the 1440-wide column absorbed them and at 390 they pushed the
+   * document out to 526 — 136px of horizontal scroll on a screen whose content
+   * fitted perfectly.
+   *
+   * `clip` rather than `hidden`: hidden would make this a scroll container and
+   * would clip the model menu, which opens UPWARD out of the composer. `clip`
+   * is the value that exists for exactly this — it clips one axis without
+   * forcing the other to scroll.
+   */
+  overflow-x: clip;
 }
 
 /*
@@ -1598,6 +1615,7 @@
   z-index: 5;
   padding: 0 24px calc(20px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
+  overflow-x: clip;
 
   /*
    * A short fade above it, so a table scrolling underneath does not appear to

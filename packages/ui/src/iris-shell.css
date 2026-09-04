@@ -636,3 +636,63 @@
     height: 32px;
   }
 }
+
+/* ============================================================================
+ * THE HEADER'S RIGHT-HAND CLUSTER, AT NARROW WIDTHS
+ *
+ * A measured defect rather than a preference: at 390px `.irs-header-end` came
+ * out 394px wide inside a 390px viewport, so the whole document scrolled
+ * sideways by 136px and the reader's own name sat at x = -42. Everything below
+ * exists to stop that, and nothing below changes any screen's content.
+ * ========================================================================= */
+
+/*
+ * The reader's name and role go first, and the design agrees: the delivered
+ * artefact hides `[data-username]` below 1199px for the same reason. It is the
+ * one thing in that cluster a reader already knows — they are the reader — and
+ * it is the widest.
+ */
+@media (width <= 1199px) {
+  .irs-who {
+    display: none;
+  }
+}
+
+@media (width <= 768px) {
+  /*
+   * The cluster wraps rather than overflowing, and it is allowed to shrink
+   * below its content — `min-width: 0` is what a grid item needs before
+   * anything inside it may ellipsis or wrap, and its absence is the usual
+   * cause of exactly this defect.
+   */
+  .irs-header-end {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 10px;
+    min-width: 0;
+  }
+
+  .irs-header-end .ox-btn {
+    padding: 0.3125rem 0.4375rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/*
+ * Below 30rem the account controls move under the navigation entirely. Four
+ * links and a badge cannot share a row with a wordmark at 390px without one of
+ * them being cut, and a cut control is worse than one a reader has to look
+ * slightly further down for.
+ */
+@media (width <= 30rem) {
+  .irs-header {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+
+  .irs-header-end {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+}
