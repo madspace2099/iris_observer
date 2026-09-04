@@ -290,6 +290,7 @@ export function Shell({
   tabsLabel: givenTabsLabel,
   currentTab: givenCurrentTab,
   account = null,
+  accountAsk = null,
   wide = true,
   children,
 }: {
@@ -319,6 +320,14 @@ export function Shell({
   /** The account controls. A server action cannot cross into this file. */
   readonly account?: ReactNode;
   /**
+   * The same controls, reduced to what the Ask IRIS reference draws.
+   *
+   * A second node rather than a flag, for the same reason `account` is a node
+   * at all: the sign-out is a server action, and a client component cannot
+   * build one. The layout knows how to make both; this file only chooses.
+   */
+  readonly accountAsk?: ReactNode;
+  /**
    * Analytical surfaces take the full measure; a reading surface may opt into
    * the narrow column. It defaults to WIDE, because all but one of the
    * product's surfaces carry a table, a roster or a chart.
@@ -346,8 +355,28 @@ export function Shell({
   const tabsLabel = givenTabsLabel ?? derived.label;
   const currentTab = givenCurrentTab ?? derived.current;
 
+  /**
+   * ASK IRIS WEARS THE HEADER ITS OWN DESIGN SPECIFIES; NOTHING ELSE MOVES.
+   *
+   * The user delivered an HTML export as the visual source of truth for
+   * `/ask` and, separately, asked that Sales Flow, Project, Sales Agents,
+   * Briefing, Units, Meetings and Meeting Detail not change. Those two
+   * instructions meet in exactly one place — the header is shared — so the
+   * difference is a VARIANT rather than a second shell.
+   *
+   * One attribute carries it. `iris-shell.css` holds three rules keyed on
+   * `[data-variant="ask"]`: the export's nav gap and its two steps, its
+   * `Sign out` pill, and dropping the reader's name at the width the export
+   * drops it. Every other surface reads the attribute as `default` and renders
+   * exactly what it rendered before.
+   *
+   * Duplicating the shell to change one button was the alternative, and it is
+   * how two headers end up disagreeing about the navigation six months later.
+   */
+  const variant = current === "ask" ? "ask" : "default";
+
   return (
-    <div className="irs-shell ox-root ox-graphite">
+    <div className="irs-shell ox-root ox-graphite" data-variant={variant}>
       <header className="irs-header">
         <Brand />
 
@@ -378,7 +407,7 @@ export function Shell({
             <div className="irs-who-name">{viewer.displayName}</div>
             <div className="irs-who-role">{viewer.roleLabel}</div>
           </div>
-          {account}
+          {variant === "ask" ? accountAsk : account}
         </div>
       </header>
 
@@ -391,27 +420,44 @@ export function Shell({
        * that stopped reporting on Tuesday does not make a chart look wrong, it
        * makes it look finished.
        */}
-      <div className="ox-context">
-        <div className="ox-context-set">
-          {tenants !== null && tenants.length > 1 ? (
-            <ContextSwitcher label="Developer" value={scope.tenantSlug} options={tenants} />
-          ) : null}
-          <ContextSwitcher label="Project" value={scope.projectSlug} options={projects} />
-          <PeriodSwitcher />
-        </div>
+      {/*
+       * ASK IRIS DOES NOT DRAW IT, AND LOSES NOTHING BY NOT DRAWING IT.
+       *
+       * The reference has no second utility row, and a band of selectors above
+       * the composer is the one thing that would stop the composition reading
+       * as the design. So the band is omitted there — visually. The CONTEXT is
+       * untouched: the project is in the route, the period is in the query and
+       * is read by the page, and every link this header builds still carries it
+       * through `withPeriod`. A reader who arrives on Ask IRIS having chosen
+       * "Last 28 days" is still on 28 days, and leaves on 28 days.
+       *
+       * What they cannot do is CHANGE either from this screen, which is the
+       * trade the design makes: one keystroke to Sales Flow, where both
+       * controls are, against a composition the artefact does not have.
+       */}
+      {variant === "ask" ? null : (
+        <div className="ox-context">
+          <div className="ox-context-set">
+            {tenants !== null && tenants.length > 1 ? (
+              <ContextSwitcher label="Developer" value={scope.tenantSlug} options={tenants} />
+            ) : null}
+            <ContextSwitcher label="Project" value={scope.projectSlug} options={projects} />
+            <PeriodSwitcher />
+          </div>
 
-        {sources.length > 0 ? (
-          <ul className="ox-sources" aria-label="Connected sources">
-            {sources.map((source) => (
-              <li key={source.name} className="ox-source" data-state={source.state}>
-                <span className="ox-source-dot" aria-hidden="true" />
-                <span>{source.name}</span>
-                <span className="ox-source-state">{source.stateLabel}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+          {sources.length > 0 ? (
+            <ul className="ox-sources" aria-label="Connected sources">
+              {sources.map((source) => (
+                <li key={source.name} className="ox-source" data-state={source.state}>
+                  <span className="ox-source-dot" aria-hidden="true" />
+                  <span>{source.name}</span>
+                  <span className="ox-source-state">{source.stateLabel}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
 
       {tabs !== null && tabs.length > 0 ? (
         <nav className="ox-tabs" aria-label={tabsLabel}>

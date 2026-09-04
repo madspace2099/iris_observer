@@ -253,18 +253,15 @@
  */
 .ask-lead {
   /*
-   * The export's own formula was min(150px, max(24px, 24vh - 96px)), measured
-   * against a page whose header is the only thing above the composer.
+   * The export's formula, verbatim.
    *
-   * This product puts a context band under the header, because every
-   * analytical surface has to state which project and which period it is
-   * showing and a screen that cannot say so is a screen whose figures mean
-   * nothing in particular. That band is 61px the design never had, so the same
-   * curve is shifted by it: the composer lands where the artefact puts it
-   * relative to the last thing above it, rather than 61px lower than the
-   * artefact and wrong.
+   * An earlier version subtracted the height of a context band this screen used
+   * to carry. The band is gone — the reference has no second utility row, and
+   * matching it was the point — so the curve is the artefact's again: the
+   * composer sits 140px below the header at 900px tall, which is where the
+   * export puts it, measured rather than assumed.
    */
-  height: min(110px, max(24px, calc(24vh - 183px)));
+  height: min(150px, max(24px, calc(24vh - 96px)));
   flex: none;
 }
 

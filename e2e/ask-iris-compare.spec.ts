@@ -264,6 +264,132 @@ test.describe("Ask IRIS against the delivered design", () => {
     }
   });
 
+  /* --- the variant, and the screens it must not touch -------------------- */
+
+  test("wears the reference header on Ask IRIS and nowhere else", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    await page.goto(ASK);
+    await expect(page.locator('.irs-shell[data-variant="ask"]')).toBeVisible();
+
+    const ask = await page.evaluate(() => {
+      const nav = document.querySelector(".irs-nav");
+      const out = document.querySelector(".irs-signout");
+      return {
+        navGap: nav === null ? null : getComputedStyle(nav).gap,
+        signOut: out === null ? null : Math.round(out.getBoundingClientRect().width),
+        context: document.querySelector(".ox-context") !== null,
+        tabs: document.querySelector(".ox-tabs") !== null,
+        projects: document.querySelector('a[href="/projects"]') !== null,
+        settings: document.querySelector('a[href="/settings/ai"]') !== null,
+      };
+    });
+
+    /* The export's own values, not chosen ones. */
+    expect(ask.navGap, "the Ask header must use the export's 40px nav gap").toBe("40px");
+    expect(ask.signOut, "the Sign out pill is 96px wide in the export").toBe(96);
+    expect(ask.context, "the reference has no second utility row").toBe(false);
+    expect(ask.tabs, "the reference draws no sub-navigation").toBe(false);
+    expect(ask.projects, "Projects is not in the reference header").toBe(false);
+    expect(ask.settings, "Settings is not in the reference header").toBe(false);
+
+    /*
+     * AND THE OTHER SURFACES MUST BE UNTOUCHED BY IT.
+     *
+     * This is the assertion the whole variant exists to make true. Sales Flow
+     * keeps the default gap, the full account row, the context band and its
+     * detail tabs; if the Ask rules ever stop being keyed on the attribute,
+     * this fails rather than a reviewer noticing months later.
+     */
+    for (const other of ["/alpha/northgate/flow", "/alpha/northgate/project"]) {
+      await page.goto(other);
+      await expect(page.locator('.irs-shell[data-variant="default"]')).toBeVisible();
+
+      const kept = await page.evaluate(() => {
+        const nav = document.querySelector(".irs-nav");
+        return {
+          navGap: nav === null ? null : getComputedStyle(nav).gap,
+          signOutPill: document.querySelector(".irs-signout") !== null,
+          context: document.querySelector(".ox-context") !== null,
+          projects: document.querySelector('a[href="/projects"]') !== null,
+          settings: document.querySelector('a[href="/settings/ai"]') !== null,
+        };
+      });
+
+      expect(kept.navGap, `${other} must keep the default nav gap`).toBe("24px");
+      expect(kept.signOutPill, `${other} must not gain the Ask pill`).toBe(false);
+      expect(kept.context, `${other} must keep its context band`).toBe(true);
+      expect(kept.projects, `${other} must keep its Projects link`).toBe(true);
+      expect(kept.settings, `${other} must keep its Settings link`).toBe(true);
+    }
+  });
+
+  /**
+   * The four screens the stopped run left behind, checked for safety only.
+   *
+   * They are FRONTEND IMPLEMENTED, VISUAL REVIEW PENDING. Nothing here judges
+   * how they look; it asserts that they render, that they do not overflow, that
+   * they raise no console error, and that the Ask redesign has not leaked into
+   * them — which is the only question this correction had to answer about them.
+   */
+  const preserved: readonly {
+    readonly name: string;
+    readonly path: string;
+    readonly openFirstRow?: boolean;
+  }[] = [
+    { name: "Briefing", path: "/alpha/northgate/showroom" },
+    { name: "Units", path: "/alpha/northgate/units" },
+    { name: "Meetings", path: "/alpha/northgate/meetings" },
+    /*
+     * Reached by opening a row rather than by a hand-written id. A meeting id
+     * invented in a test is a test that passes against the not-found branch:
+     * the first version of this used `ses_0001`, which does not exist, and the
+     * screen it actually checked was the pre-meeting brief's empty state.
+     */
+    { name: "Meeting detail", path: "/alpha/northgate/meetings", openFirstRow: true },
+  ];
+
+  for (const screen of preserved) {
+    test(`${screen.name} is unharmed`, async ({ page }) => {
+      test.skip(test.info().project.name !== "desktop", "checked once");
+
+      const errors: string[] = [];
+      page.on("console", (m) => {
+        if (m.type() === "error") errors.push(m.text());
+      });
+      page.on("pageerror", (e) => errors.push(String(e)));
+
+      await signInAs(page, "Petra Novák");
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto(screen.path);
+
+      if (screen.openFirstRow === true) {
+        const row = page.locator('a[href*="/meetings/"]').first();
+        await expect(row).toBeVisible();
+        await row.click();
+        await page.waitForURL(/\/meetings\/.+/);
+      }
+
+      await expect(page.locator(".irs-shell")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+      await assertNoOverflow(page, `${screen.name} at 1440`);
+
+      /* No Ask class may appear anywhere but the docked bar. */
+      const leaked = await page.evaluate(() =>
+        [...document.querySelectorAll('[class*="ask-"]')]
+          .filter((e) => e.closest(".ask-dock") === null)
+          .map((e) => (e.className || "").toString())
+          .slice(0, 5),
+      );
+      expect(leaked, `Ask styles leaked into ${screen.name}: ${leaked.join(" | ")}`).toEqual([]);
+
+      expect(errors, `${screen.name}: ${errors.join(" | ")}`).toEqual([]);
+      await shoot(page, `PRESERVED-${screen.name.replace(/s+/g, "-")}-1440`);
+    });
+  }
+
   /* --- the side-by-side ------------------------------------------------- */
 
   test("writes the comparison sheet", async () => {

@@ -18,3 +18,10 @@ artifacts/
 
 # Generated from packages/contracts/src/ue5 by "pnpm contracts:ue5".
 docs/ue5-contract/
+
+# The inbound Ask IRIS design export, served by the development server so the
+# artefact can be rendered and measured against the implementation. Delivered
+# by the user, not authored here, and excluded from git in .git/info/exclude —
+# formatting somebody else's export would only make the diff against the next
+# one unreadable.
+apps/web/public/_ask-reference/

@@ -653,7 +653,7 @@
  * it is the widest.
  */
 @media (width <= 1199px) {
-  .irs-who {
+  .irs-shell[data-variant="ask"] .irs-who {
     display: none;
   }
 }
@@ -695,4 +695,104 @@
     justify-self: stretch;
     justify-content: flex-start;
   }
+}
+
+/* ============================================================================
+ * THE ASK IRIS HEADER VARIANT
+ *
+ * The user delivered an HTML export as the visual source of truth for `/ask`
+ * and, in the same breath, asked that Sales Flow, Project, Sales Agents,
+ * Briefing, Units, Meetings and Meeting Detail not change. The header is
+ * shared, so the difference is a variant rather than a second shell: every
+ * rule below is keyed on `[data-variant="ask"]`, and no other surface can
+ * match it.
+ *
+ * The values are read out of the export, not chosen:
+ *
+ *   --iris-nav-gap: 40px            :root in the export
+ *   @media (max-width:1439px) 32px  its own first step
+ *   @media (max-width:1199px) 24px  its own second step, and the width at
+ *                                   which it hides [data-username]
+ *
+ * The 16px step below 768 is this application's, not the export's: the export
+ * was drawn at one width and has nothing to say about a phone, and by then the
+ * navigation has moved onto its own scrolling row where 24px overflows.
+ * ========================================================================= */
+
+.irs-shell[data-variant="ask"] {
+  --iris-nav-gap: 40px;
+}
+
+@media (width <= 1439px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 32px;
+  }
+}
+
+@media (width <= 1199px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 24px;
+  }
+}
+
+@media (width <= 768px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 16px;
+  }
+}
+
+/**
+ * The `Sign out` pill, transcribed.
+ *
+ * 96 x 38, radius 19 — a true stadium, half the height, rather than a rounded
+ * rectangle that approximates one. The border and both grounds are the
+ * export's alphas; the label is 14px at the medium weight the rest of this
+ * header uses.
+ *
+ * It is its own class rather than a variant of `.ox-btn`, because `.ox-btn`
+ * belongs to the product content system and is worn by controls on eleven
+ * other screens. A shared class restyled for one header is how a header
+ * silently redesigns a page.
+ */
+.irs-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 38px;
+  border-radius: 19px;
+  border: 1px solid rgb(150 175 215 / 30%);
+  background: rgb(6 14 30 / 55%);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: #e8eef8;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.irs-signout:hover {
+  border-color: rgb(180 205 240 / 48%);
+  background: rgb(11 24 48 / 70%);
+}
+
+/*
+ * The reader's name, at the export's own size and ink. 13px rather than the
+ * default header's 13/11 pair, because the variant drops the role line: the
+ * export shows a name and nothing under it.
+ */
+.irs-shell[data-variant="ask"] .irs-who-name {
+  font-size: 13px;
+  color: #aab4c4;
+  max-width: 14ch;
+}
+
+.irs-shell[data-variant="ask"] .irs-who-role {
+  display: none;
+}
+
+.irs-shell[data-variant="ask"] .irs-header-end {
+  gap: 20px;
 }

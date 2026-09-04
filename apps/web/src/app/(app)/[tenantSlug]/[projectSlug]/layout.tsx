@@ -213,6 +213,27 @@ export default async function ProjectLayout({
     </>
   );
 
+  /**
+   * The same account area, reduced to what the Ask IRIS reference draws.
+   *
+   * The delivered design puts two things on the right of that header: the
+   * reader's name, and a bordered `Sign out` pill. No demonstration badge, no
+   * Projects, no Settings. Those are not deleted from Observer — they are on
+   * every other surface's header, one keystroke away — they are simply not in
+   * the composition this screen is being matched to.
+   *
+   * The sign-out is the same server action as above. Two nodes, one action:
+   * a second `signOut` would be a second place for the session contract to
+   * drift.
+   */
+  const accountControlsAsk = (
+    <form action={signOut}>
+      <button className="irs-signout" type="submit">
+        Sign out
+      </button>
+    </form>
+  );
+
   /*
    * THE SOURCES BAND IS NOT FED, AND SAYS SO BY BEING ABSENT.
    *
@@ -248,6 +269,7 @@ export default async function ProjectLayout({
         projects={projectOptions}
         tenants={developerOptions}
         account={accountControls}
+        accountAsk={accountControlsAsk}
       >
         {children}
       </Shell>
