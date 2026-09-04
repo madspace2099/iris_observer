@@ -280,15 +280,15 @@ const SHAPE: readonly { readonly name: string; readonly sources: number }[] = [
   { name: "NORTHGATE YARD", sources: 0 },
   { name: "HARBOR VIEW RESIDENCE", sources: 1 },
   { name: LONG_PROJECT, sources: 22 },
-  { name: "ISTER TOWER", sources: 4 },
+  { name: "ISTER TOWER", sources: 5 },
   { name: "RIVERSIDE QUARTER", sources: 3 },
   { name: "CANAL HOUSE", sources: 3 },
   { name: "OLD BREWERY LOFTS", sources: 3 },
   { name: "PARKSIDE TERRACES", sources: 3 },
   { name: "STATION APPROACH", sources: 3 },
   { name: "MERIDIAN COURT", sources: 3 },
-  { name: "WESTGATE PAVILION", sources: 1 },
-  { name: "LAKESIDE ANNEXE", sources: 1 },
+  { name: "WESTGATE PAVILION", sources: 2 },
+  { name: "LAKESIDE ANNEXE", sources: 2 },
 ];
 
 /**

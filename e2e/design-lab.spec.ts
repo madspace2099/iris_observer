@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
-import { signInAs } from "./sign-in";
+/*
+ * `signIn`, not `signInAs`.
+ *
+ * The richer helper signs in AND opens a project, waiting for /showroom. These
+ * specs navigate straight to a /design-lab route afterwards, so opening a
+ * project buys nothing and costs a navigation that can — and did — land
+ * somewhere else and time the test out. Signing in is the whole requirement.
+ */
+import { signIn } from "./sign-in";
 
 /**
  * The review set for the design lab.
@@ -123,7 +131,7 @@ test.describe("design lab", () => {
     for (const screen of SCREENS) {
       test(`${variant} ${screen} at 1440`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
         await assertNoOverflow(page, `${variant}/${screen} at 1440`);
         await capture(page, shot(variant, screen, 1440));
@@ -142,7 +150,7 @@ test.describe("design lab", () => {
      */
     test(`${variant} activation with the panel dismissed`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "captured once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
       /*
@@ -160,7 +168,7 @@ test.describe("design lab", () => {
     for (const screen of MOBILE_SCREENS) {
       test(`${variant} ${screen} at 390`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 390, 844);
         await assertNoOverflow(page, `${variant}/${screen} at 390`);
         await capture(page, shot(variant, screen, 390));
@@ -175,7 +183,7 @@ test.describe("design lab", () => {
      */
     test(`${variant} holds together at 1024`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       for (const screen of SCREENS) {
         await open(page, variant, screen, 1024, 900);
         await assertNoOverflow(page, `${variant}/${screen} at 1024`);

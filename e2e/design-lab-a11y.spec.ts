@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signInAs } from "./sign-in";
+/*
+ * `signIn`, not `signInAs`.
+ *
+ * The richer helper signs in AND opens a project, waiting for /showroom. These
+ * specs navigate straight to a /design-lab route afterwards, so opening a
+ * project buys nothing and costs a navigation that can — and did — land
+ * somewhere else and time the test out. Signing in is the whole requirement.
+ */
+import { signIn } from "./sign-in";
 
 /**
  * CAN ANY OF THE THREE DIRECTIONS ACTUALLY BE USED?
@@ -59,7 +67,7 @@ test.describe("design lab: the accessibility contract", () => {
 
       test(`${where}: one h1, no overflow, and every state carries a word`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "checked once, at the review width");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
         /*
@@ -92,9 +100,26 @@ test.describe("design lab: the accessibility contract", () => {
           const marks = [...document.querySelectorAll("[data-mark], .om-mark, svg[data-tone]")];
           const bare: string[] = [];
           for (const mark of marks) {
-            const holder = mark.closest("dd, li, p, span, div, td, th") ?? mark.parentElement;
-            const text = (holder?.textContent ?? "").replace(/[\s.,;:—–-]/g, "");
-            if (text.length === 0) bare.push(holder?.className || "(unnamed)");
+            /*
+             * Climb until something holds words, rather than stopping at the
+             * first ancestor. A direction may put the mark in its own plate
+             * with the word beside it — a plate span, then a word span, inside
+             * one paragraph — and the reader gets both. Stopping at the plate
+             * reported three failures against a screen that was doing it
+             * right. Four levels is enough to find the group and few enough
+             * that it cannot climb out to the page and pass anything at all.
+             */
+            let holder: Element | null = mark.parentElement;
+            let labelled = false;
+            for (let up = 0; up < 4 && holder !== null; up += 1) {
+              const text = (holder.textContent ?? "").replace(/[\s.,;:—–-]/g, "");
+              if (text.length > 0) {
+                labelled = true;
+                break;
+              }
+              holder = holder.parentElement;
+            }
+            if (!labelled) bare.push(mark.parentElement?.className || "(unnamed)");
           }
           return bare;
         });
@@ -105,7 +130,7 @@ test.describe("design lab: the accessibility contract", () => {
         page,
       }) => {
         test.skip(test.info().project.name !== "desktop", "checked once");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
         const controls = await page.locator("a[href], button:not([disabled])").count();
@@ -144,7 +169,7 @@ test.describe("design lab: the accessibility contract", () => {
 
       test(`${where}: the phone reading order is the visual order`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "checked once");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 390, 844);
 
         const overflow = await page.evaluate(
@@ -172,6 +197,13 @@ test.describe("design lab: the accessibility contract", () => {
           for (const block of blocks) {
             /* Nested blocks would compare a child against its parent. */
             if (block.parentElement?.closest("section, header, article") !== null) continue;
+            /*
+             * A modal is painted in the top layer, deliberately out of flow, so
+             * its header sits above sections that precede it in the DOM. That
+             * is the whole point of a dialog and not a reading-order defect —
+             * whether it manages focus correctly is asked separately below.
+             */
+            if (block.closest('dialog, [role="dialog"]') !== null) continue;
             const top = block.getBoundingClientRect().top + window.scrollY;
             if (top + 4 < previousTop) {
               found.push(`${block.tagName.toLowerCase()} after ${previousName}`);
@@ -196,7 +228,7 @@ test.describe("design lab: the accessibility contract", () => {
       page,
     }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
       const dialog = page.locator('[role="dialog"], dialog');
@@ -243,7 +275,7 @@ test.describe("design lab: the accessibility contract", () => {
      */
     test(`${variant}/activation: the copy control can announce what it did`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
       const copy = page.getByRole("button", { name: /copy/i });

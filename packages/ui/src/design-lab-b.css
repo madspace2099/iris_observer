@@ -853,9 +853,25 @@
  * because it carries a sentence under its chip on the rows that have one.
  */
 .dlb-root .dlb-table[data-columns="estate-sources"] {
+  /*
+   * The floors are lower than the project table’s because there are six
+   * columns rather than five, and the hero that holds this table clips.
+   * The first draft floored at 12 + 3x8.5 + 7 + 11 = 55.5rem, wider than the
+   * panel at 1024 — the collapse only arrives at 1023 — so the verdict column
+   * was cut off at exactly one common laptop width.
+   *
+   * Lowering the floors was not enough on its own. A chip does not wrap
+   * anywhere on this surface, so the verdict track has to hold the longest
+   * verdict WHOLE: "Awaiting first heartbeat" is the widest, it is the most
+   * common state in a young estate, and at the first set of weights it hung
+   * eighteen pixels past the panel, which clips. So the fractions give the
+   * verdict the largest share after the name, and the three state columns take
+   * the difference — those words DO wrap, and a wrapped word is read where a
+   * clipped one is not.
+   */
   grid-template-columns:
-    minmax(12rem, 1.7fr) repeat(3, minmax(8.5rem, 1fr))
-    minmax(7rem, 0.8fr) minmax(11rem, 1.3fr);
+    minmax(9rem, 1.4fr) repeat(3, minmax(6.5rem, 0.95fr))
+    minmax(5.5rem, 0.7fr) minmax(12.5rem, 1.35fr);
 }
 
 .dlb-root .dlb-thead,

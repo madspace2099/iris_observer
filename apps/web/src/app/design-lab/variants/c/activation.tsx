@@ -286,9 +286,27 @@ function CodePanel({
     setSaid(null);
     const target = returnTo.current;
     returnTo.current = null;
-    /* The trigger may have been re-rendered away; focusing a detached node
-       silently sends focus to the body. */
-    if (target !== null && document.contains(target)) target.focus();
+
+    /*
+     * The trigger may have been re-rendered away; focusing a detached node
+     * silently sends focus to the body.
+     */
+    if (target !== null && target !== document.body && document.contains(target)) {
+      target.focus();
+      return;
+    }
+
+    /*
+     * NOTHING TO RETURN TO IS STILL SOMEWHERE TO GO.
+     *
+     * The panel opens on load here, so on the first dismissal there is no
+     * trigger to restore: `document.activeElement` was the body when it
+     * opened, and handing focus back to the body leaves a keyboard reader at
+     * the top of the document with no idea where they were. The control that
+     * reopens the panel is the honest destination — it is what they would
+     * press next — so focus goes there instead.
+     */
+    document.querySelector<HTMLElement>("[data-reopen]")?.focus();
   }, [open]);
 
   /* A pending confirmation belongs to the press that produced it and to no later one. */
@@ -615,6 +633,7 @@ export function ActivationC({ estate, variantName }: LabScreenProps) {
                 type="button"
                 className="dlc-btn"
                 data-kind="secondary"
+                data-reopen="true"
                 onClick={() => setPanelOpen(true)}
               >
                 Show the sample code panel

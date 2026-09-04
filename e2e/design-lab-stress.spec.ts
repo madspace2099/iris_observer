@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
-import { signInAs } from "./sign-in";
+/*
+ * `signIn`, not `signInAs`.
+ *
+ * The richer helper signs in AND opens a project, waiting for /showroom. These
+ * specs navigate straight to a /design-lab route afterwards, so opening a
+ * project buys nothing and costs a navigation that can — and did — land
+ * somewhere else and time the test out. Signing in is the whole requirement.
+ */
+import { signIn } from "./sign-in";
 
 /**
  * DOES THE DIRECTION STILL WORK AT FIFTY INSTALLATIONS?
@@ -65,20 +73,34 @@ async function open(page: Page, variant: Variant, screen: string, width: number,
 /**
  * Anything whose painted box is narrower than its own content.
  *
- * `scrollWidth > clientWidth` on an element that does not scroll is text the
- * reader cannot finish. Elements that are deliberately scrollable are excluded,
- * as is anything with `text-overflow: ellipsis`, which is a decision rather
- * than an accident — though no state word on this surface is allowed to make
- * that decision, which is why the state check below is separate and stricter.
+ * The first version of this flagged `scrollWidth > clientWidth` on anything
+ * that did not scroll, and reported fifty findings on a screen that had been
+ * reviewed and shipped. It was wrong: with `overflow: visible` — the default —
+ * content that exceeds its box is PAINTED, not cut, and the only real symptom
+ * is a page that scrolls sideways, which the check above already catches.
+ *
+ * What actually loses a reader a word is a box that clips: `overflow: hidden`
+ * or `clip`, with or without an ellipsis. So that is what is measured, and a
+ * check that reports what a person can see is worth more than one that reports
+ * everything and is ignored.
  */
 async function clipped(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const found: string[] = [];
     for (const element of document.querySelectorAll<HTMLElement>("body *")) {
       const style = window.getComputedStyle(element);
-      if (style.overflowX === "auto" || style.overflowX === "scroll") continue;
-      if (style.textOverflow === "ellipsis") continue;
-      if (element.scrollWidth - element.clientWidth > 1 && element.clientWidth > 0) {
+      const clips = style.overflowX === "hidden" || style.overflowX === "clip";
+      if (!clips) continue;
+      /*
+       * Visually hidden text is clipped ON PURPOSE.
+       *
+       * The in-cell labels that let a screen reader hear "Connected, 1 of 7"
+       * are the standard 1px box with `clip-path: inset(50%)`, so they trip
+       * every clipping heuristic ever written. Skipping them is not loosening
+       * the check: their whole job is to be unreadable by eye.
+       */
+      if (style.clipPath !== "none" || element.clientWidth <= 24) continue;
+      if (element.scrollWidth - element.clientWidth > 1) {
         const text = (element.textContent ?? "").trim().slice(0, 40);
         found.push(`${element.className || element.tagName.toLowerCase()}: "${text}"`);
       }
@@ -90,7 +112,7 @@ async function clipped(page: Page): Promise<string[]> {
 test.describe("design lab under a portfolio-sized estate", () => {
   test("the fixture is the size the brief asks for", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
-    await signInAs(page, "MADSPACE Operations");
+    await signIn(page, "MADSPACE Operations");
     await open(page, "a", "projects", 1440, 900);
 
     const projects = await page.locator(".dla-row[data-shape='project']").count();
@@ -105,7 +127,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
     for (const screen of SCREENS) {
       test(`${variant}/${screen} holds together at every width`, async ({ page }) => {
         test.skip(test.info().project.name !== "desktop", "checked once");
-        await signInAs(page, "MADSPACE Operations");
+        await signIn(page, "MADSPACE Operations");
 
         for (const size of WIDTHS) {
           await open(page, variant, screen, size.width, size.height);
@@ -133,7 +155,12 @@ test.describe("design lab under a portfolio-sized estate", () => {
               ),
             ];
             return words
-              .filter((word) => word.scrollWidth - word.clientWidth > 1 && word.clientWidth > 0)
+              .filter((word) => {
+                const style = window.getComputedStyle(word);
+                /* Painted outside its box is not the same as cut off. */
+                if (style.overflowX !== "hidden" && style.overflowX !== "clip") return false;
+                return word.scrollWidth - word.clientWidth > 1 && word.clientWidth > 0;
+              })
               .map((word) => (word.textContent ?? "").trim())
               .slice(0, 8);
           });
@@ -147,7 +174,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
 
     test(`${variant}: a long name does not break either list`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
 
       for (const screen of LIST_SCREENS) {
         for (const size of WIDTHS) {
@@ -173,7 +200,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
      */
     test(`${variant}/sources: a missing measurement never renders as a zero`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       await open(page, variant, "sources", 1440, 900);
 
       const body = (await page.locator("body").textContent()) ?? "";
@@ -189,7 +216,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
      */
     test(`${variant}/projects: a project with no sources is still listed`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "MADSPACE Operations");
+      await signIn(page, "MADSPACE Operations");
       await open(page, variant, "projects", 1440, 900);
 
       const body = (await page.locator("body").textContent()) ?? "";
