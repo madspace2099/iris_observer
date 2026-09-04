@@ -122,6 +122,17 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    */
   "/design-lab",
   "/design-lab/[screen]/[variant]",
+
+  /*
+   * The stress sibling of the lab, and deliberately a separate route rather
+   * than a flag on the one above. The review route performs one real read and
+   * is where every screenshot comes from; this one renders an in-memory estate
+   * of twelve projects and fifty installations so a layout can be asserted at a
+   * size the real estate cannot yet reach. Keeping them apart means there is no
+   * switch on the review route that could be left on, and no chance of a
+   * reviewer holding an image of data that does not exist.
+   */
+  "/design-lab/stress/[screen]/[variant]",
 ];
 
 describe("every route the reference served is still served", () => {

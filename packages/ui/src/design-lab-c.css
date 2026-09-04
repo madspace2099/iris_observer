@@ -1958,3 +1958,130 @@ ul.dlc-list {
     padding: var(--rhythm-inner) var(--rhythm-section);
   }
 }
+
+/* --- what wants an operator ---------------------------------------------------------- */
+
+/*
+ * The exceptions, on graphite and above the register.
+ *
+ * This direction puts what we CONCLUDE on the dark ground and what was
+ * MEASURED on the paper plate, and a list of machines that need somebody is a
+ * conclusion: it is the read of several columns, not a column itself. So it is
+ * set as prose on graphite rather than as a table, and the register below keeps
+ * the calm alphabetical order a lookup wants.
+ */
+.dlc-exceptions {
+  display: grid;
+  gap: var(--rhythm-section);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dlc-exception {
+  padding-block-start: var(--rhythm-section);
+  box-shadow: 0 -1px 0 var(--border-panel);
+}
+
+.dlc-exception:first-child {
+  padding-block-start: 0;
+  box-shadow: none;
+}
+
+.dlc-exception-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--rhythm-tight);
+  margin: 0;
+}
+
+.dlc-exception-name {
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--track-heading-3);
+  line-height: 1.25;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The sentence, at body size rather than caption. It is the reason somebody is
+ * about to drive to a showroom; setting it as small print would be the screen
+ * disagreeing with itself about how much this matters.
+ */
+.dlc-exception-why {
+  margin: var(--rhythm-inner) 0 0;
+  max-width: 68ch;
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+/* The verdict word, so the sentence names the state before it explains it. */
+.dlc-exception-verdict {
+  font-weight: var(--weight-medium);
+  color: var(--ink);
+}
+
+/* --- the three readings, in a register entry ---------------------------------------- */
+
+/*
+ * Stacked rather than three across.
+ *
+ * The states block on Project detail sets them side by side, which fits when
+ * one installation owns the page. Here ten entries share the width and the
+ * longest state word — "Awaiting first heartbeat" — is the commonest one in a
+ * young estate, so three columns clipped it. Stacking costs two lines per entry
+ * and buys a register in which no state is ever abbreviated.
+ */
+.dlc-readings {
+  display: grid;
+  gap: var(--rhythm-inner);
+  margin: 0;
+  min-width: 0;
+}
+
+.dlc-readings > div {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--rhythm-tight);
+  min-width: 0;
+}
+
+.dlc-readings dt {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/*
+ * The mark sits with the word rather than in a column of its own: they are one
+ * reading, and a gap between them invites the eye to read a column of shapes
+ * without the words — which is the failure the shapes exist to prevent.
+ */
+.dlc-readings dd {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--rhythm-tight);
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.35;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+@media (width < 30rem) {
+  /* On a phone the label goes above its word: 7rem plus a state word is not a
+     line at 390. */
+  .dlc-readings > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

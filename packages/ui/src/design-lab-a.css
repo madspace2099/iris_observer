@@ -1074,6 +1074,88 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 30rem) minmax(11rem, 15rem) auto;
 }
 
+/*
+ * The account-wide installation row carries four facts where the project's own
+ * source row carries two, so the instants column takes the width the states
+ * column gives up. It is the same four-part shape — identity, states, facts,
+ * door — which is what lets it join the collapse rules below unchanged.
+ */
+.dla-row[data-shape="installation"] {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem) minmax(0, 26rem) auto;
+}
+
+/*
+ * The reason a row wants an operator, on its own line under everything else.
+ * Full width because it is a sentence rather than a field: setting it in a
+ * column would either crush it or leave three columns of white beside it.
+ * Drawn only where there IS a reason, so a quiet estate has no line at all.
+ */
+.dla-row-reason {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: var(--dla-tight);
+  align-items: start;
+  margin: 0;
+  font-size: var(--dla-caption);
+  line-height: 1.5;
+  color: var(--dla-ink-3);
+}
+
+/*
+ * A project the read could not name. Italic and quieter, so it cannot be
+ * mistaken for a project actually called this — the identifier is the fact and
+ * the phrase is the absence of one.
+ */
+.dla-row-where[data-unnamed="true"] {
+  font-style: italic;
+  color: var(--dla-ink-4);
+}
+
+/*
+ * Four facts in two columns rather than four, because the pairs are read
+ * together: how long since we heard from it beside what it is holding, then
+ * how old that backlog is beside what has been refused.
+ */
+.dla-rowfacts[data-shape="installation"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--dla-section);
+}
+
+/*
+ * PLACED, NOT FLOWED — and the reason is a defect this row already had.
+ *
+ * The reason line spans the full width, and a spanning item ends auto
+ * placement for everything after it: the door was pushed onto a third line
+ * under the sentence, so the one row in the estate that HAS a reason stood
+ * twice as tall as the nine that do not and put its control somewhere else
+ * entirely. Four explicit cells on line one, the sentence on line two.
+ */
+.dla-row[data-shape="installation"] .dla-row-id {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.dla-row[data-shape="installation"] .dla-triad {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.dla-row[data-shape="installation"] .dla-rowfacts {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.dla-row[data-shape="installation"] .dla-row-open {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.dla-row[data-shape="installation"] .dla-row-reason {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
 .dla-row-id {
   min-inline-size: 0;
 }
@@ -1257,9 +1339,24 @@
  */
 @media (max-width: 64rem) {
   .dla-row[data-shape="project"],
-  .dla-row[data-shape="source"] {
+  .dla-row[data-shape="source"],
+  .dla-row[data-shape="installation"] {
     grid-template-columns: minmax(0, 1fr) minmax(11rem, auto);
     gap: var(--dla-section) var(--dla-major);
+  }
+
+  /*
+   * The reason follows the states rather than the door, because it explains
+   * them. Placed rather than flowed, for the reason the rows either side of it
+   * are placed: source order is reading order here.
+   */
+  .dla-row-reason {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .dla-row[data-shape="installation"] .dla-row-open {
+    grid-row: 4;
   }
 
   /*
@@ -1300,10 +1397,26 @@
  */
 @media (max-width: 30rem) {
   .dla-row[data-shape="project"],
-  .dla-row[data-shape="source"] {
+  .dla-row[data-shape="source"],
+  .dla-row[data-shape="installation"] {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--dla-section);
     padding: var(--dla-section);
+  }
+
+  /*
+   * The four facts stay two across on the phone for the reason the four-cell
+   * band does: the pairs are comparisons, and a stack of four figures is four
+   * unrelated numbers.
+   */
+  .dla-rowfacts[data-shape="installation"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--dla-inner);
+  }
+
+  .dla-row-reason {
+    grid-column: 1;
+    grid-row: auto;
   }
 
   /*

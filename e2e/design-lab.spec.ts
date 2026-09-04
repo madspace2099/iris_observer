@@ -6,10 +6,15 @@ import { signInAs } from "./sign-in";
 /**
  * The review set for the design lab.
  *
- * Five screens, three directions, three widths. Not assertions about
+ * Six screens, three directions, three widths. Not assertions about
  * appearance: these produce the images a person looks at, and
  * `docs/12-visual-autopsy.md` is the record of what happens when nobody does.
  * What IS asserted is the handful of things a screenshot silently hides.
+ *
+ * The accessibility contract each of the eighteen has to keep is asserted in
+ * `design-lab-a11y.spec.ts`, which runs against the same routes. It is a
+ * separate file because it is a different question: this one asks what the
+ * directions look like, that one asks whether any of them can be used.
  *
  * ## It needs a development server
  *
@@ -25,16 +30,26 @@ import { signInAs } from "./sign-in";
  *
  * ## The estate has to be worth photographing
  *
- * Every variant reads one estate, so an empty one makes fifteen screenshots of
- * fifteen empty states. On the real Source detail screen, press the lifecycle
+ * Every variant reads one estate, so an empty one makes eighteen screenshots
+ * of eighteen empty states. On the real Source detail screen, press the lifecycle
  * driver through "Add the review estate", then activate, heartbeat,
  * diagnostic.test and "Report a busy outbox". That produces four projects and
- * seven sources, one of them delivering and reporting a loaded outbox, which is
- * the contrast the list screens have to survive.
+ * ten sources, ONE of which has ever sent a heartbeat — which is exactly the
+ * contrast the two list screens have to survive, and the reason the Sources
+ * screen is judged on this estate rather than a tidy one.
  */
-const OUT =
-  process.env["OBSERVER_LAB_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/8eba7212-1d04-4994-b6ca-c0d2830338c5/scratchpad/design-lab";
+/**
+ * Where the review package lands.
+ *
+ * `_review/` rather than `test-results/`: Playwright clears its own output
+ * directory before every run, and a founder package that the next test deletes
+ * is not a package. The repository already reserves `_review/` for bundles
+ * generated from the tree and never part of it.
+ *
+ * The previous default was an absolute path into one machine's temp directory,
+ * which produced a passing run and no images anywhere else.
+ */
+const OUT = process.env["OBSERVER_LAB_SHOTS"] ?? "_review/design-lab";
 
 /** Next's development overlay, hidden for the capture only. */
 const HIDE_DEV_OVERLAY = `
@@ -47,14 +62,23 @@ const VARIANTS = ["a", "b", "c"] as const;
 
 const SCREENS = [
   "projects",
+  "sources",
   "project-detail",
   "source-detail",
   "activation",
   "diagnostics",
 ] as const;
 
-/** The three the brief asks to see on a handset, and the ones most likely to break. */
-const MOBILE_SCREENS = ["projects", "source-detail", "diagnostics"] as const;
+/**
+ * Every screen on a handset, not a chosen three.
+ *
+ * The first round photographed three, on the argument that they were the ones
+ * most likely to break. That is a reasonable way to find defects and a poor way
+ * to choose a direction: a reviewer comparing three directions needs the same
+ * evidence for each screen, and "we did not photograph this one" is not a
+ * finding they can act on.
+ */
+const MOBILE_SCREENS = SCREENS;
 
 type Variant = (typeof VARIANTS)[number];
 
@@ -146,7 +170,7 @@ test.describe("design lab", () => {
     /*
      * 1024 is checked and NOT captured. It is the width where a three-column
      * composition has to decide whether to stack, and the decision either works
-     * or produces an overflow; a third set of fifteen images would not make
+     * or produces an overflow; a third set of eighteen images would not make
      * that decision easier to see than the assertion does.
      */
     test(`${variant} holds together at 1024`, async ({ page }) => {

@@ -178,6 +178,18 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },
+  /*
+   * The lab's stress sibling. Same eighteen screens, an in-memory estate of
+   * twelve projects and fifty installations, and never photographed: it exists
+   * so a layout can be asserted at a size the real estate cannot yet reach.
+   * Gated identically, and by the same `localControlPlaneEnabled()` check, so a
+   * deployment does not have it either.
+   */
+  {
+    route: "/design-lab/stress/[screen]/[variant]",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
 
   /*
    * Ask IRIS, the flagship of the approved design — under review, at a real URL.

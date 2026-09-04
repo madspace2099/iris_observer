@@ -845,6 +845,19 @@
     minmax(7.5rem, 0.9fr) auto;
 }
 
+/*
+ * The account-wide list. Six columns and no door: the project's own source
+ * table ends in a control, and this one ends in the verdict, because the row
+ * that matters here is the one somebody has to act on rather than the one they
+ * are about to open. The verdict column is the widest of the trailing five
+ * because it carries a sentence under its chip on the rows that have one.
+ */
+.dlb-root .dlb-table[data-columns="estate-sources"] {
+  grid-template-columns:
+    minmax(12rem, 1.7fr) repeat(3, minmax(8.5rem, 1fr))
+    minmax(7rem, 0.8fr) minmax(11rem, 1.3fr);
+}
+
 .dlb-root .dlb-thead,
 .dlb-root .dlb-row {
   grid-column: 1 / -1;
@@ -1009,7 +1022,8 @@
  */
 @media (max-width: 1023px) {
   .dlb-root .dlb-table[data-columns="projects"],
-  .dlb-root .dlb-table[data-columns="sources"] {
+  .dlb-root .dlb-table[data-columns="sources"],
+  .dlb-root .dlb-table[data-columns="estate-sources"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1072,7 +1086,8 @@
  * one reading this screen exists for: three counts against one denominator.
  */
 @media (max-width: 599px) {
-  .dlb-root .dlb-table[data-columns="sources"] .dlb-rowgroup {
+  .dlb-root .dlb-table[data-columns="sources"] .dlb-rowgroup,
+  .dlb-root .dlb-table[data-columns="estate-sources"] .dlb-rowgroup {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1578,4 +1593,61 @@
   .dlb-root .dlb-table[data-columns="errors"] {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* --- the account-wide sources list ------------------------------------------------- */
+
+/*
+ * A state cell: the mark, and the word beside it.
+ *
+ * The word is the value, so it takes the row value's weight and colour and the
+ * mark is 12px beside it. A chip was the first draft and was wrong here: this
+ * table already ends in a verdict chip, and five chips across a row makes the
+ * one that means "somebody has work to do" indistinguishable from three that
+ * mean "we are waiting".
+ */
+.dlb-root .dlb-state {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--dlb-r8);
+  margin: 0;
+}
+
+.dlb-root .dlb-stateword {
+  font-size: var(--dlb-body);
+  font-weight: var(--weight-medium);
+  line-height: 1.35;
+  color: var(--dlb-ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The type and the environment, beside the name. Caption weight, because they
+ * identify the machine rather than report on it, and the reader's eye is going
+ * to the states.
+ */
+.dlb-root .dlb-rowmeta {
+  font-size: var(--dlb-caption);
+  color: var(--dlb-ink-3);
+}
+
+/*
+ * The project band's own line, under the project's name.
+ *
+ * The band is a heading and this is what makes it worth reading: a reader
+ * scanning bands stops at the one with work in it rather than opening each in
+ * turn.
+ */
+.dlb-root .dlb-bandnote {
+  margin: var(--dlb-r8) 0 0;
+  font-size: var(--dlb-caption);
+  color: var(--dlb-ink-3);
+}
+
+.dlb-root .dlb-emptynote {
+  margin: 0;
+  font-size: var(--dlb-caption);
+  line-height: 1.5;
+  color: var(--dlb-ink-3);
 }

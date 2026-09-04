@@ -93,6 +93,23 @@ export interface LabActivation {
   readonly isSample: true;
 }
 
+/**
+ * One source anywhere in the account, with the name of the project holding it.
+ *
+ * The Sources list is the only screen whose subject is the whole account's
+ * installations rather than one project's or one machine's, so it is the only
+ * one that needs the project name travelling beside the row: without it every
+ * row would name a machine and none would say where it stands.
+ *
+ * `projectName` is nullable for the reason `DiagnosticSource` gives — a screen
+ * that silently prints a uuid where a name should be teaches the reader that
+ * the two are interchangeable.
+ */
+export interface EstateSource {
+  readonly view: SourceView;
+  readonly projectName: string | null;
+}
+
 export interface LabEstate {
   readonly accountName: string;
   readonly local: boolean;
@@ -100,6 +117,8 @@ export interface LabEstate {
   readonly project: ProjectSummary | null;
   /** Every source under the demonstration project, for Project detail. */
   readonly sources: readonly SourceView[];
+  /** Every source in the account, for the Sources list. */
+  readonly estate: readonly EstateSource[];
   readonly source: LabSource;
   readonly diagnostics: LabDiagnostics;
   readonly activation: LabActivation;
@@ -157,6 +176,28 @@ export async function labEstate(): Promise<LabEstate> {
   const project = projects.find((row) => row.projectId === view.status.project_id) ?? null;
 
   /*
+   * The whole account's sources, through `sourceViews` once per project.
+   *
+   * There is no account-wide variant of that function and this deliberately
+   * does not add one: `sourceViews` is what the live screens read, and it is
+   * what carries ACTIVATION — the one of the three states that cannot be
+   * derived from the operations row, because it comes from the credential.
+   * `diagnosticsEstate` reads the account in a single query and would have been
+   * cheaper, but it never reads credentials, so a Sources list built on it
+   * could only have shown two of the three states honestly and would have had
+   * to infer the third. Four extra round trips on a development instrument is
+   * the correct price for not inferring it.
+   */
+  const estateSources = (
+    await Promise.all(
+      projects.map(async (summary) => {
+        const rows = await sourceViews(plane.admin, summary.projectId, now);
+        return rows.map((row) => ({ view: row, projectName: summary.name }));
+      }),
+    )
+  ).flat();
+
+  /*
    * Read with an empty filter. Diagnostics has a real filter control and this
    * lab is not prototyping it: the point is what the screen looks like holding
    * a whole account, and a filtered read would quietly narrow what the three
@@ -176,6 +217,7 @@ export async function labEstate(): Promise<LabEstate> {
     projects,
     project,
     sources,
+    estate: estateSources,
     source: {
       view,
       credential,
@@ -220,6 +262,7 @@ export const VARIANT_NAME: Readonly<Record<Variant, string>> = {
 
 export const SCREENS = [
   "projects",
+  "sources",
   "project-detail",
   "source-detail",
   "activation",
@@ -230,6 +273,7 @@ export type Screen = (typeof SCREENS)[number];
 
 export const SCREEN_NAME: Readonly<Record<Screen, string>> = {
   projects: "Projects",
+  sources: "Sources",
   "project-detail": "Project detail",
   "source-detail": "Source detail",
   activation: "Activation and source actions",

@@ -1,4 +1,4 @@
-import type { LabSource } from "./lab-data";
+import type { EstateSource, LabSource } from "./lab-data";
 import {
   ageSeconds,
   ageSince,
@@ -12,6 +12,13 @@ import {
   sourceTypeWord,
   type Reading,
 } from "@/lib/madspace/format";
+import {
+  HEALTH_LABEL,
+  HEALTH_TONE,
+  type SourceHealth,
+  type SourceView,
+} from "@/lib/sources/control-plane";
+import type { MarkTone } from "@/components/madspace/StatusMark";
 
 /**
  * EVERY FIGURE THE BRIEF NAMES, FORMATTED ONCE.
@@ -210,4 +217,167 @@ export function labFields(source: LabSource): LabFields {
     lastSeen: instant(status.last_seen_at),
     lastSeenAge: ageSince(status.last_seen_at, now),
   };
+}
+
+/* --- one row of the Sources list ---------------------------------------------------- */
+
+/**
+ * A source as a LIST reads it, formatted once for all three directions.
+ *
+ * The same argument `labFields` makes, for the same reason: three variants
+ * rendering ten rows each is thirty chances to format a figure differently, and
+ * a reviewer comparing layouts must never end up comparing a rounding.
+ *
+ * ## Why the three states are three fields and not one verdict
+ *
+ * `health` is here, and it is deliberately NOT a substitute for them. It is a
+ * precedence — one word for the row, chosen by `classifyHealth` — and it
+ * answers "does anybody have work to do". The three states answer three
+ * different questions, all four combinations occur, and a list that showed only
+ * the verdict would hide the one an operator most needs: activated, and never
+ * heard from since. So a variant may lay them out however it likes and may not
+ * collapse them; each carries its own word, because a colour is not a state.
+ */
+export interface LabStateCell {
+  readonly key: "activation" | "connection" | "ingestion";
+  readonly column: string;
+  /** The state in words. Never only a mark and never only a colour. */
+  readonly word: string;
+  readonly holds: boolean;
+  readonly tone: MarkTone;
+}
+
+export interface LabSourceRow {
+  readonly id: string;
+  readonly name: string;
+  readonly project: string;
+  /** True when the project read did not name it, so a variant can say so. */
+  readonly projectUnnamed: boolean;
+  readonly type: string;
+  readonly environment: string;
+  readonly lifecycle: string;
+  readonly states: readonly LabStateCell[];
+  /** The precedence verdict: one word for the row. */
+  readonly healthLabel: string;
+  readonly healthTone: MarkTone;
+  readonly health: SourceHealth;
+  /** Why this row wants an operator, or null when it does not. */
+  readonly attention: string | null;
+  readonly heartbeat: Reading;
+  readonly heartbeatAge: string | null;
+  readonly pendingEvents: Reading;
+  readonly oldestPending: Reading;
+  /** Local and backend quarantine, kept apart: they have different fixes. */
+  readonly quarantine: Reading;
+  readonly backendQuarantine: Reading;
+  /** True when NEITHER quarantine counter was reported — an absence, not a zero. */
+  readonly quarantineUnmeasured: boolean;
+}
+
+/**
+ * The three tones, and there are only two of them.
+ *
+ * A state that holds is the filled circle; a state that does not is the ring,
+ * which on this surface means WAITING. Never the triangle. `HEALTH_TONE` states
+ * the reason at length and it is the house decision: offline, never connected
+ * and not verified are all things we are waiting on, and the triangle is
+ * reserved for `attention` — refusing events, or an outbox near its ceiling —
+ * because that is the one row where somebody has work to do.
+ *
+ * The first draft of this returned `wrong` for a source that had connected and
+ * then gone quiet, which would have made this screen disagree with Diagnostics
+ * and Source detail about the same installation. That exact disagreement is
+ * what `HEALTH_TONE`'s comment exists to record, and repeating it here would
+ * have been the third time.
+ */
+function stateTone(holds: boolean): MarkTone {
+  return holds ? "good" : "await";
+}
+
+/**
+ * What the verdict means for a row, in the words the operator's band uses.
+ *
+ * Only the verdicts that actually ask for a person are given a sentence. The
+ * rest return null, and a variant renders nothing rather than a reassuring
+ * phrase: "everything is fine" on nine rows nobody has ever reached would be
+ * the product lying quietly.
+ */
+function attentionReason(view: SourceView): string | null {
+  switch (view.health) {
+    case "offline":
+      return "Has connected before and has said nothing since.";
+    case "attention":
+      return "Refusing events, or holding an outbox close to its ceiling.";
+    case "suspended":
+      return "Switched off deliberately. It is not a fault.";
+    case "archived":
+      return "Retired. It is kept for the record and is not expected to report.";
+    default:
+      return null;
+  }
+}
+
+/** Every source in the account, as the list renders it. */
+export function labSourceRows(estate: readonly EstateSource[], now: Date): readonly LabSourceRow[] {
+  return estate.map(({ view, projectName }) => {
+    const { status, operations, states } = view;
+    const quarantine = operations?.quarantine_count ?? null;
+    const backend = operations?.backend_quarantine_count ?? null;
+
+    return {
+      id: status.source_id,
+      name: status.display_label,
+      project: projectName ?? "Project not named",
+      projectUnnamed: projectName === null,
+      type: sourceTypeWord(status.source_type),
+      environment: environmentWord(status.environment),
+      lifecycle: lifecycleWord(status.state),
+
+      states: [
+        {
+          key: "activation",
+          column: "Activation",
+          word: states.activated ? "Activated" : "Not activated",
+          holds: states.activated,
+          tone: stateTone(states.activated),
+        },
+        {
+          key: "connection",
+          column: "Connection",
+          /*
+           * Three words, not two. A machine that has never been heard from and
+           * one that went quiet an hour ago are different problems with
+           * different fixes, and "Not connected" would name them both.
+           */
+          word: states.connected
+            ? view.heartbeatFresh
+              ? "Connected"
+              : "Offline"
+            : "Awaiting first heartbeat",
+          holds: states.connected && view.heartbeatFresh,
+          tone: stateTone(states.connected && view.heartbeatFresh),
+        },
+        {
+          key: "ingestion",
+          column: "Ingestion",
+          word: states.ingestionVerified ? "Verified" : "Not verified",
+          holds: states.ingestionVerified,
+          tone: stateTone(states.ingestionVerified),
+        },
+      ],
+
+      healthLabel: HEALTH_LABEL[view.health],
+      healthTone: HEALTH_TONE[view.health],
+      health: view.health,
+      attention: attentionReason(view),
+
+      heartbeat: instant(operations?.last_heartbeat_at ?? null, "No heartbeat yet"),
+      heartbeatAge: ageSince(operations?.last_heartbeat_at ?? null, now),
+      pendingEvents: count(operations?.queue_event_count ?? null),
+      oldestPending: ageSeconds(operations?.oldest_pending_age_seconds ?? null),
+      quarantine: count(quarantine),
+      backendQuarantine: count(backend),
+      quarantineUnmeasured: quarantine === null && backend === null,
+    };
+  });
 }
