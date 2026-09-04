@@ -432,6 +432,48 @@
   border-color: var(--ox-line-hover);
 }
 
+/*
+ * THE TWO SWITCHERS ARE REUSED, NOT REBUILT, AND THIS IS THE SEAM.
+ *
+ * `ContextSwitcher` and `PeriodSwitcher` are finished, accessibility-tested
+ * client components — `aria-label` rather than a wrapping label, because a
+ * label folds its own text and the whole option list into the control's
+ * accessible name and makes every query for it ambiguous. Rewriting them to
+ * change their appearance would have thrown that away for a border radius.
+ *
+ * They render `.obs-context` and `.obs-action` from the older component sheet,
+ * which draws its own arrow and its own padding. These rules restyle those two
+ * classes ONLY where they sit inside this band. The leftmost compound is
+ * `.ox-context`, so this file is not claiming ownership of a name another
+ * stylesheet owns — it is restyling somebody else's component inside a stated
+ * context, which is the one thing `collisions.test.ts` explicitly permits.
+ */
+.ox-context .obs-context {
+  display: contents;
+}
+
+/*
+ * `.obs-action` is a CLASS on the control itself, so it outranks the element
+ * rule above it. An earlier version of this block reset `background-image` here
+ * to drop the older sheet's arrow — and took this file's own arrow with it,
+ * because the winning declaration for that property was this one. The arrow is
+ * therefore repeated rather than reset: same geometry, this system's ink.
+ */
+.ox-context .obs-action {
+  padding-right: 2rem;
+  max-width: 22rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ox-ink-3) 50%),
+    linear-gradient(135deg, var(--ox-ink-3) 50%, transparent 50%);
+  background-position:
+    right 0.95rem center,
+    right 0.65rem center;
+  background-size:
+    0.3rem 0.3rem,
+    0.3rem 0.3rem;
+  background-repeat: no-repeat;
+}
+
 /* The named sources, with their state. Never a colour alone: each carries a
  * word, and an offline source says the word "offline". */
 .ox-sources {
