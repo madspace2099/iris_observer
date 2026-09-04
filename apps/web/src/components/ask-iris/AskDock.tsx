@@ -1,4 +1,5 @@
 import { AskBarField } from "./AskBarField";
+import { PromptGlow } from "./PromptGlow";
 import { Microphone, Send } from "./icons";
 
 /**
@@ -51,10 +52,14 @@ export function AskDock({
     <div className="ask-dock ask-root">
       <div className="ask-dock-inner">
         <div className="ask-hero">
-          {/* The same travelling light, at the bar's own size. */}
-          <span className="ask-travel" aria-hidden="true" />
+          {/*
+           * The same shader, at the bar size. It needs no variant: the card's
+           * live width, height and radius arrive as uniforms from a
+           * ResizeObserver, so 72px tall and 181px tall are the same code.
+           */}
+          <PromptGlow />
 
-          <form className="ask-bar" method="get" action={`${root}/ask`}>
+          <form className="ask-bar" method="get" action={`${root}/ask`} data-glow-card="">
             {periodParam !== "" ? <input type="hidden" name="period" value={periodParam} /> : null}
 
             <AskBarField name="q" label={`Ask IRIS about ${projectLabel}`} />

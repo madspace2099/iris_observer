@@ -27,7 +27,9 @@ application's state, and it is a control that focuses the prompt.
 
 Canvas 2D rather than WebGL. At this size the cost is a few hundred arcs a
 frame, and the fallback is one frame; a shader would need a context-loss path, a
-compile-failure path and a software-rendering path to say the same thing. No
+compile-failure path and a software-rendering path to say the same thing. **This
+clause is about the orb, and ADR-0035 says so explicitly** — the composer's
+perimeter glow is a WebGL shader, and it carries all three of those paths. No
 video, no sprite sheet, no animation library, no runtime network asset.
 
 **The state mapping is a contract, not a look.** `packages/…/orb/profile.ts`

@@ -266,37 +266,153 @@ test.describe("Ask IRIS against the delivered design", () => {
 
   /* --- the travelling light ---------------------------------------------- */
 
+  /**
+   * READS THE LIGHT OUT OF THE FRAMEBUFFER.
+   *
+   * The effect is now a fragment shader, so there is no computed style to
+   * interrogate and no element whose position means anything — the canvas never
+   * moves; the pixels inside it do. `preserveDrawingBuffer: true` is what makes
+   * this possible: the drawing buffer survives the frame, so it can be copied
+   * into a 2D canvas and read back.
+   *
+   * Returns the brightest pixel's position, normalised to the canvas, and how
+   * bright it is on a single channel. Both matter. Position proves the head
+   * travels; peak proves it is LIGHT rather than a grey smudge, which is the
+   * property two rejected CSS attempts failed on and no structural assertion
+   * would have caught.
+   */
+  const sampleGlow = async (page: Page, hostSelector: string) =>
+    page.evaluate((sel) => {
+      const cv = document.querySelector(`${sel} .ask-glow-canvas`) as HTMLCanvasElement | null;
+      if (!cv) return null;
+
+      const flat = document.createElement("canvas");
+      flat.width = cv.width;
+      flat.height = cv.height;
+      const ctx = flat.getContext("2d");
+      if (!ctx) return null;
+      ctx.drawImage(cv, 0, 0);
+      const { data } = ctx.getImageData(0, 0, flat.width, flat.height);
+
+      /* Every second pixel: the head is tens of pixels across, so a stride of
+       * two cannot miss it, and it quarters the work on a 2000×450 buffer. */
+      let best = -1;
+      let bx = 0;
+      let by = 0;
+      let peak = 0;
+      for (let y = 0; y < flat.height; y += 2) {
+        for (let x = 0; x < flat.width; x += 2) {
+          const i = (y * flat.width + x) * 4;
+          const r = data[i] ?? 0;
+          const g = data[i + 1] ?? 0;
+          const b = data[i + 2] ?? 0;
+          const sum = r + g + b;
+          if (sum > best) {
+            best = sum;
+            bx = x;
+            by = y;
+            peak = Math.max(r, g, b);
+          }
+        }
+      }
+      return { x: bx / flat.width, y: by / flat.height, peak };
+    }, hostSelector);
+
   test("laps the perimeter of both composers", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await signInAs(page, "Petra Novák");
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    /*
-     * Measured by reading `offset-distance` twice, which is the only honest way
-     * to assert motion: a screenshot of an animation proves the element exists,
-     * not that it moves.
-     */
-    const lap = async (where: string, selector: string) => {
-      const first = await page.evaluate(
-        (sel) => getComputedStyle(document.querySelector(sel) as Element, "::after").offsetDistance,
-        selector,
-      );
-      await page.waitForTimeout(1200);
-      const second = await page.evaluate(
-        (sel) => getComputedStyle(document.querySelector(sel) as Element, "::after").offsetDistance,
-        selector,
-      );
-      expect(first, `${where} has no travelling light`).not.toBe("");
-      expect(second, `${where} is not moving: stuck at ${first}`).not.toBe(first);
+    const lap = async (where: string, host: string) => {
+      const first = await sampleGlow(page, host);
+      expect(first, `${where}: no glow canvas — WebGL was refused`).not.toBeNull();
+
+      /*
+       * 1.5s of a 6.45s lap is 23% of the perimeter, far more than the sampling
+       * stride or any rounding, and short enough that the head cannot come back
+       * around to where it started.
+       */
+      await page.waitForTimeout(1500);
+      const second = await sampleGlow(page, host);
+      if (!first || !second) throw new Error("unreachable: asserted above");
+
+      const moved = Math.hypot(second.x - first.x, second.y - first.y);
+      expect(
+        moved,
+        `${where}: the head did not move in 1.5s — stuck at ${first.x.toFixed(3)}, ${first.y.toFixed(3)}`,
+      ).toBeGreaterThan(0.02);
     };
 
     await page.goto(ASK);
-    await expect(page.locator(".ask-page .ask-travel")).toBeAttached();
-    await lap("the Ask composer", ".ask-page .ask-travel");
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+    await lap("the Ask composer", ".ask-page");
 
     await page.goto("/alpha/northgate/flow");
-    await expect(page.locator(".ask-dock .ask-travel")).toBeAttached();
-    await lap("the docked bar", ".ask-dock .ask-travel");
+    await expect(page.locator(".ask-dock .ask-glow-canvas")).toBeAttached();
+    await lap("the docked bar", ".ask-dock");
+  });
+
+  /**
+   * ONE LAP IS 6.45 SECONDS, WHICH IS THE ONE NUMBER A READER CAN FEEL.
+   *
+   * `travel = fract(uTime * 0.155)` — 0.155 loops per second. Everything else
+   * in the shader is a shape; this is the tempo, and it is the constant most
+   * likely to be "improved" by someone who finds the light too slow.
+   *
+   * Measured by return rather than by speed: the head is photographed, then
+   * again half a lap later, then again a full lap later. A wrong period fails
+   * one of the two — too fast and it has already come back at the half, too
+   * slow and it has not arrived at the full.
+   */
+  test("takes 6.45 seconds to go round", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+
+    const start = await sampleGlow(page, ".ask-page");
+    await page.waitForTimeout(3225);
+    const half = await sampleGlow(page, ".ask-page");
+    await page.waitForTimeout(3225);
+    const full = await sampleGlow(page, ".ask-page");
+    if (!start || !half || !full) throw new Error("no glow canvas — WebGL was refused");
+
+    const away = Math.hypot(half.x - start.x, half.y - start.y);
+    const back = Math.hypot(full.x - start.x, full.y - start.y);
+
+    /*
+     * The tolerances are loose on purpose. `waitForTimeout` is not a frame
+     * clock and the shader integrates real deltas, so a lap measured this way
+     * carries tens of milliseconds of slop — enough to move the head a few
+     * pixels, nowhere near enough to hide a period that is out by a factor.
+     */
+    expect(away, "half a lap later the head has not moved away").toBeGreaterThan(0.15);
+    expect(back, `a full lap later the head is at ${full.x.toFixed(2)}, not back at ${start.x.toFixed(2)}`).toBeLessThan(0.06);
+  });
+
+  /**
+   * THE ASSERTION THE TWO REJECTED VERSIONS WOULD HAVE FAILED.
+   *
+   * `I = 1 - exp(-1.35 * I)` runs on the SUM of four bloom scales, which is
+   * what drives the head to white instead of pale blue. A layered-CSS
+   * reproduction gets the path right and lands around a third of this, and
+   * "it moves" was true of it — so motion alone was never enough to test.
+   *
+   * The floor is set below the measured value with room for driver variance:
+   * this runs on whatever rasteriser the CI browser has, and the number to
+   * defend is "unmistakably lit", not a specific one.
+   */
+  test("the head is white-hot, not a smudge", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+
+    const lit = await sampleGlow(page, ".ask-page");
+    expect(lit, "no glow canvas — WebGL was refused").not.toBeNull();
+    expect(lit?.peak ?? 0, "the travelling head is not reaching full intensity").toBeGreaterThan(180);
   });
 
   test("stops travelling, and stays lit, when motion is reduced", async ({ page }) => {
@@ -305,25 +421,23 @@ test.describe("Ask IRIS against the delivered design", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
 
-    const state = await page.evaluate(() => {
-      const layer = document.querySelector(".ask-page .ask-travel") as Element;
-      return {
-        pulse: getComputedStyle(layer, "::after").display,
-        anchors: getComputedStyle(layer, "::before").display,
-        breath: getComputedStyle(layer).animationName,
-        opacity: getComputedStyle(layer).opacity,
-      };
-    });
+    const first = await sampleGlow(page, ".ask-page");
+    await page.waitForTimeout(1500);
+    const second = await sampleGlow(page, ".ask-page");
+    expect(first, "no glow canvas — WebGL was refused").not.toBeNull();
+    if (!first || !second) throw new Error("unreachable: asserted above");
 
     /*
-     * The export's own behaviour, not a softening invented here: `uMotion`
-     * becomes 0 and multiplies the travelling term, while the two anchors sit
-     * outside it and survive. What is left is a still, evenly lit edge.
+     * `uMotion = 0` and the clock frozen at 2.1: the head is drawn, once, and
+     * never advances. Both halves matter — a still frame that was also DARK
+     * would satisfy "does not move" while failing the brief, which asks for the
+     * static halo to stay.
      */
-    expect(state.pulse, "the travelling pulse must not run under reduced motion").toBe("none");
-    expect(state.anchors, "the static anchors must remain").not.toBe("none");
-    expect(state.breath, "the breath must not oscillate under reduced motion").toBe("none");
+    expect(second.x, "the light must not travel under reduced motion").toBeCloseTo(first.x, 5);
+    expect(second.y, "the light must not travel under reduced motion").toBeCloseTo(first.y, 5);
+    expect(first.peak, "the still halo must remain lit under reduced motion").toBeGreaterThan(120);
 
     await shoot(page, "ASK-reduced-motion-1440");
     await page.emulateMedia({ reducedMotion: null });
@@ -339,11 +453,14 @@ test.describe("Ask IRIS against the delivered design", () => {
       await page.goto(ASK);
       await assertNoOverflow(page, `ask with the travelling light at ${String(width)}`);
       /*
-       * The layer straddles the card edge and sits ABOVE it, so the one thing
-       * that must be proved is that it cannot take a press meant for a control.
+       * The canvas overhangs the card by 130px on every side — across the whole
+       * composer and past its controls — so the one thing that must be proved
+       * is that it cannot take a press meant for one of them.
        */
       const inert = await page.evaluate(
-        () => getComputedStyle(document.querySelector(".ask-page .ask-travel") as Element).pointerEvents,
+        () =>
+          getComputedStyle(document.querySelector(".ask-page .ask-glow-canvas") as Element)
+            .pointerEvents,
       );
       expect(inert, "the travelling light must never take a click").toBe("none");
 
@@ -351,7 +468,7 @@ test.describe("Ask IRIS against the delivered design", () => {
       await assertNoOverflow(page, `the dock with the travelling light at ${String(width)}`);
     }
 
-    /* And the dock still submits, with the light layered over its edge. */
+    /* And the dock still submits, with the canvas layered across its edge. */
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/alpha/northgate/flow");
     const bar = page.locator(".ask-dock").getByPlaceholder(/Ask IRIS/);
@@ -359,6 +476,104 @@ test.describe("Ask IRIS against the delivered design", () => {
     await bar.press("Enter");
     await page.waitForURL(/\/ask\?.*q=/);
     await expect(page.locator(".ask-log")).toBeVisible();
+  });
+
+  /**
+   * THE STILL HALO STANDS DOWN WHEN THE SHADER STANDS UP.
+   *
+   * Both draw the same light and both are additive against a dark ground, so
+   * leaving the gradients in place under a running canvas would double the rim.
+   * The stylesheet retires them with `content: none` keyed on the canvas being
+   * present, which also means their SURVIVAL is the no-WebGL fallback — one
+   * mechanism, tested from both sides.
+   */
+  test("hands the still halo over to the shader exactly once", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "checked once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+
+    const withCanvas = await page.evaluate(() => {
+      const hero = document.querySelector(".ask-page .ask-hero") as Element;
+      return {
+        before: getComputedStyle(hero, "::before").content,
+        after: getComputedStyle(hero, "::after").content,
+      };
+    });
+    expect(withCanvas.before, "the still halo must retire under the shader").toBe("none");
+    expect(withCanvas.after, "the still halo must retire under the shader").toBe("none");
+
+    /* Take the canvas away — what a refused context leaves — and it comes back. */
+    const withoutCanvas = await page.evaluate(() => {
+      document.querySelector(".ask-page .ask-glow-canvas")?.remove();
+      const hero = document.querySelector(".ask-page .ask-hero") as Element;
+      return {
+        before: getComputedStyle(hero, "::before").content,
+        after: getComputedStyle(hero, "::after").content,
+      };
+    });
+    expect(withoutCanvas.before, "without WebGL the card must still be lit").not.toBe("none");
+    expect(withoutCanvas.after, "without WebGL the card must still be lit").not.toBe("none");
+  });
+
+  /**
+   * A FILMSTRIP OF THE LAP, because a still cannot show a moving light.
+   *
+   * The lap is 6.45s, so eight frames 806ms apart walk the head once round the
+   * perimeter. Sampling the live animation is the only option now — the pulse
+   * position is a uniform inside the shader, not a style that can be pinned —
+   * and it is also the honest one: these are frames the effect actually
+   * produced, at the speed it actually runs.
+   *
+   * ## Captured as a REGION, not as the element
+   *
+   * `.ask-hero` is exactly the card's box, and an element screenshot clips to
+   * it — which crops away everything the shader draws, because the card is
+   * opaque and the light lives outside its border. The first filmstrip taken
+   * this way showed eight near-identical pictures of an unlit card and looked
+   * like proof the port had failed. So the clip is the hero's box grown by the
+   * canvas's own overhang, and the frames show the glow.
+   */
+  test("films the lap", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "captured once");
+    await signInAs(page, "Petra Novák");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ASK);
+    await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+
+    mkdirSync(OUT, { recursive: true });
+
+    /** The hero's box grown by `pad`, clamped to the viewport. */
+    const around = async (selector: string, pad: number) => {
+      const box = await page.locator(selector).boundingBox();
+      if (!box) throw new Error(`${selector} has no box`);
+      const size = page.viewportSize();
+      if (!size) throw new Error("no viewport");
+      const x = Math.max(0, box.x - pad);
+      const y = Math.max(0, box.y - pad);
+      return {
+        x,
+        y,
+        width: Math.min(size.width - x, box.width + pad * 2),
+        height: Math.min(size.height - y, box.height + pad * 2),
+      };
+    };
+
+    const clip = await around(".ask-page .ask-hero", 90);
+    for (let frame = 0; frame < 8; frame += 1) {
+      await page.screenshot({ clip, path: `${OUT}/LAP-${String(frame).padStart(2, "0")}.png` });
+      await page.waitForTimeout(806);
+    }
+
+    /* And one of the docked bar, mid-lap. */
+    await page.goto("/alpha/northgate/flow");
+    await expect(page.locator(".ask-dock .ask-glow-canvas")).toBeAttached();
+    await page.waitForTimeout(1200);
+    await page.screenshot({
+      clip: await around(".ask-dock .ask-hero", 70),
+      path: `${OUT}/LAP-dock.png`,
+    });
   });
 
   /* --- the variant, and the screens it must not touch -------------------- */

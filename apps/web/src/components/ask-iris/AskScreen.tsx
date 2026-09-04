@@ -4,6 +4,7 @@ import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@o
 
 import { dynamicRoute } from "@/lib/href";
 import { AskField } from "./AskField";
+import { PromptGlow } from "./PromptGlow";
 import {
   ChevronDown,
   ChevronRight,
@@ -133,11 +134,16 @@ export function AskFrame({
 
         <div className="ask-hero">
           {/*
-           * The travelling light. One inert layer behind the card, carrying the
-           * two static anchors and the pulse that laps the perimeter every
-           * 6.45 seconds. It is the export's glow shader, in CSS.
+           * The travelling light: one WebGL canvas, inserted here on mount,
+           * running the delivered fragment shader. It draws the whole effect —
+           * the still halo, the two anchors, the comet and its bloom — because
+           * the shader sums its four bloom scales before tone-mapping them, and
+           * that sum is the thing CSS has no way to express.
+           *
+           * Until it mounts, and on any browser that refuses a context, the
+           * still gradients on `.ask-hero::before/::after` stand in.
            */}
-          <span className="ask-travel" aria-hidden="true" />
+          <PromptGlow />
 
           {/*
            * `method="get"`: the form posts back to this same route with the
@@ -146,7 +152,7 @@ export function AskFrame({
            * asked three questions should be able to walk back through them with
            * the browser's own back button.
            */}
-          <form className="ask-card" method="get" action={here}>
+          <form className="ask-card" method="get" action={here} data-glow-card="">
             {periodParam !== "" ? <input type="hidden" name="period" value={periodParam} /> : null}
 
             <AskField

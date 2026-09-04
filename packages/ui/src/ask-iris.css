@@ -86,9 +86,6 @@
   /* The grid, from the shader's own uniforms: 64px cells, offset by the header. */
   --ask-cell: 64px;
 
-  /* The lit length of the perimeter. 150 of the composer's 1733px is 8.6%,
-   * which is the shader's 1.3% head plus its 5.2% tail plus the blur. */
-  --ask-pulse-w: 150px;
   --ask-grid-line: rgb(77 133 240 / 30%);
 
   font-variant-numeric: tabular-nums;
@@ -1846,225 +1843,76 @@
 }
 
 /* ============================================================================
+
+/* ============================================================================
  * 12. THE TRAVELLING LIGHT
  *
- * The export draws it in a fragment shader, `GLOW_FRAG`, and both delivered
- * ZIPs carry that shader byte for byte — the Ask composer and the floating bar
- * are the same effect at two sizes. It cannot ship as written: it is WebGL on
- * `three.js` from a CDN, running a permanent animation frame. What follows is
- * the same behaviour in CSS, with the shader's own numbers.
+ * There is almost nothing here, and that is the point.
  *
- * ## Read out of the shader, not invented
+ * The effect is one fragment shader on one transparent canvas —
+ * `components/ask-iris/prompt-glow.ts`, ported from the delivered
+ * `handoff/prompt-glow.js` constant for constant. The canvas carries its own
+ * geometry as inline style (absolutely positioned, overhanging the card by
+ * 130px on every side, `pointer-events: none`, `z-index: 0`), because the
+ * handoff creates it imperatively and sizing it from two places would be two
+ * places to get it wrong.
  *
- *   travel   `fract(uTime * 0.155)`      one lap every 6.45s
- *   direction `perimT` starts at top-centre and increases to the RIGHT, so the
- *            lap runs clockwise from the middle of the top edge
- *   head     `pulse(..., head 0.013)`    a tight leading edge, ~1.3% of the
- *                                        perimeter — 23px on the 706 card
- *   tail     `pulse(..., tail 0.052)`    an exponential trail, ~5.2% — 90px
- *   anchors  `0.20 * max(...)` at t = 0 and t = 0.5 — two STATIC hot spots at
- *            top-centre and bottom-centre, at a fifth of the intensity
- *   breath   `0.80 + 0.20 * sin(uTime * 1.72)`   a 3.65s swell on everything
- *   colour   deep blue → blue → cyan → near-white core at the head
+ * ## What used to be here, and why it is gone
  *
- * ## Why `offset-path` rather than a rotating conic gradient
+ * Two attempts at the same effect in CSS: layered gradients on `offset-path`,
+ * masked to a band, composited with `mix-blend-mode: plus-lighter`. Both were
+ * rejected on sight, and the shader says why.
  *
- * The conic trick is the usual way to animate a border, and it is wrong here.
- * A conic gradient sweeps by ANGLE about the centre, so on a 706x181 card the
- * light would crawl along the long edges and race through the corners. The
- * shader measures arc length — `perimT` normalises by the true perimeter — so
- * the pulse moves at constant speed all the way round.
+ * It sums FOUR bloom scales — 1.6px, 6px, 16px, 38px — and only then applies
+ * `I = 1 - exp(-1.35 * I)`. The soft knee runs on the ACCUMULATED field, which
+ * is what drives the head to white while leaving the tail blue. CSS composites
+ * pairwise, layer onto layer; there is no step at which the total exists, so
+ * there is nothing to tone-map. `plus-lighter` on four gradients reproduces the
+ * geometry and loses the physics, which is exactly how it read: a dim speck
+ * dragging a smudge.
  *
- * `offset-path: border-box` follows the containing block's own border box AND
- * its border-radius, at constant speed, which is exactly `perimT`. The pulse is
- * one element travelling that path with `offset-rotate: auto`, so its comet
- * tail always points back along the direction of travel.
+ * `perimT` is the second thing CSS could not do. It measures true arc length
+ * along the rounded outline — straight runs and corner arcs computed
+ * separately — so the head holds one speed through the corners. `offset-path`
+ * approximates it; `atan2` does not attempt it.
  *
- * ## Why it sits BEHIND the card
+ * ## The still fallback, and when it appears
  *
- * The shader fades the glow inward with `exp(d * 0.42)` — by 10px inside the
- * edge it is at 1.5% and gone. Layering the pulse over the card and clipping
- * the inner half would need a second mask and would still wash over the model
- * pill as it passed. Behind the card, the card's own 28%-alpha border and its
- * translucent top do the fading, the bloom spills outside where the design
- * wants it, and nothing can ever cover a control or intercept a click.
+ * `.ask-hero::before` and `::after` in section 4 are a static halo built from
+ * the same colours. They are the pre-hydration paint and the no-WebGL paint,
+ * and the rule below retires them the moment the canvas exists — otherwise the
+ * two would sum, additively, and the rim would blow out.
  * ========================================================================= */
 
-.ask-travel {
-  /*
-   * A RING THAT STRADDLES THE EDGE, ABOVE THE CARD.
-   *
-   * The first attempt put this behind the card, reasoning that the card's own
-   * translucency would do the inward fade the shader does with
-   * `exp(d * 0.42)`. It does — at the top, where the gradient is 55% alpha.
-   * Below that the card is 96% and the pulse simply vanished for two thirds of
-   * its lap.
-   *
-   * So it sits above, and is masked to a 30px band straddling the border: 16px
-   * outside for the bloom, 14px inside for the falloff, and nothing at all
-   * across the middle where the text and the controls are. The geometry comes
-   * from the box model rather than from magic numbers — a 16px transparent
-   * BORDER puts the padding box exactly on the card's edge, which is what
-   * `offset-path: padding-box` then follows, and `mask-composite: exclude`
-   * subtracts the content box to leave the band.
-   */
-  position: absolute;
-  inset: -16px;
-  z-index: 3;
-  pointer-events: none;
-  border: 16px solid transparent;
-  border-radius: calc(var(--ask-hero-radius) + 16px);
-  padding: 14px;
-  -webkit-mask:
-    linear-gradient(#000, #000) content-box,
-    linear-gradient(#000, #000) border-box;
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000, #000) content-box,
-    linear-gradient(#000, #000) border-box;
-  mask-composite: exclude;
-  /*
-   * The shader's `breath`, on the whole layer: 0.80 to 1.00 over 3.65s. It is
-   * the one part of the effect that is a swell rather than a movement, and it
-   * is what stops the lap reading as a repeating loop.
-   */
-  animation: ask-breathe 3.65s ease-in-out infinite;
-}
-
-.ask-travel::before {
-  content: "";
-  position: absolute;
-  inset: -16px;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse 34% 26px at 50% 16px, rgb(133 217 255 / 40%), transparent 72%),
-    radial-gradient(
-      ellipse 28% 22px at 50% calc(100% - 16px),
-      rgb(10 107 255 / 26%),
-      transparent 74%
-    );
+/**
+ * THE SHADER REPLACES THE STILL HALO RATHER THAN JOINING IT.
+ *
+ * `content: none` rather than `opacity: 0` or `display: none`: it stops the
+ * pseudo-elements being generated at all, so they cost no paint and no layer,
+ * and the swap is a single style recalculation when `attachPromptGlow` inserts
+ * the canvas.
+ *
+ * `prompt-glow.ts` removes the canvas again if the context is refused, which
+ * makes this selector the whole fallback mechanism — no flag, no state, no
+ * second code path. The presence of the canvas IS the condition.
+ */
+.ask-hero:has(> .ask-glow-canvas)::before,
+.ask-hero:has(> .ask-glow-canvas)::after {
+  content: none;
 }
 
 /**
- * THE PULSE.
+ * A canvas is replaced content and defaults to `inline`, which would put it on
+ * a text baseline and leave a descender gap under it. The attach code sets
+ * `display: block` inline; this is the same instruction for anything that
+ * inspects the sheet, and it costs nothing to state twice.
  *
- * 132px long against the 706 card's 1733px perimeter — 7.6%, which is the
- * shader's head plus tail. The bright core sits at 88% along its own length so
- * that with `offset-rotate: auto` the white leads and the blue trails, which is
- * what an asymmetric `pulse()` with a Gaussian head and an exponential tail
- * looks like when it is drawn rather than computed.
- *
- * The four colour stops are the shader's four: CORE (0.92,0.99,1.0), CY
- * (0.52,0.85,1.0), BL (0.04,0.42,1.0) and DP (0.0,0.14,0.82).
+ * `contain: strict` keeps the canvas out of layout and paint invalidation for
+ * everything around it: 60 frames a second of drawing inside a box that
+ * overhangs the composer by 130px would otherwise invite the compositor to
+ * re-examine its neighbours on every one of them.
  */
-.ask-travel::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: var(--ask-pulse-w);
-  height: 30px;
-  offset-path: padding-box;
-  offset-anchor: 50% 50%;
-  offset-rotate: auto;
-  offset-distance: 0%;
-  /*
-   * EXPLICIT RADII, NOT `closest-side`.
-   *
-   * The first version wrote `closest-side`, which on a 132x30 box resolves to
-   * the distance to the nearest edge — about 15px — and drew a dot instead of
-   * a comet. The radii are stated so the head is a tight 15px vertically and
-   * the trail runs the length of the box.
-   *
-   * The head sits at 90% of that length so that `offset-rotate: auto`, which
-   * aligns the box's +X with the direction of travel, puts the white in front
-   * and the blue behind. The four stops are the shader's own CORE, CY, BL and
-   * DP.
-   */
-  background: radial-gradient(
-    ellipse calc(var(--ask-pulse-w) * 0.9) 15px at 90% 50%,
-    rgb(235 252 255 / 95%) 0%,
-    rgb(133 217 255 / 72%) 14%,
-    rgb(10 107 255 / 34%) 38%,
-    rgb(0 36 209 / 14%) 62%,
-    transparent 82%
-  );
-  filter: blur(6px);
-  animation: ask-travel 6.45s linear infinite;
-}
-
-@keyframes ask-travel {
-  from {
-    offset-distance: 0%;
-  }
-
-  to {
-    offset-distance: 100%;
-  }
-}
-
-@keyframes ask-breathe {
-  0%,
-  100% {
-    opacity: 0.8;
-  }
-
-  50% {
-    opacity: 1;
-  }
-}
-
-/*
- * The floating bar is the same effect at its own size, which is what the two
- * exports do: they share the shader and differ only in `uCardW`/`uCardH`. A
- * 342-to-706 wide bar 72px tall has roughly half the perimeter of the composer,
- * so the pulse is shortened to keep the same PROPORTION of the edge lit — the
- * two read as one family rather than as a long light and a short one.
- */
-.ask-dock .ask-travel {
-  --ask-pulse-w: 104px;
-}
-
-.ask-dock .ask-travel::after {
-  height: 24px;
-  filter: blur(5px);
-}
-
-.ask-dock .ask-travel::before {
-  background:
-    radial-gradient(ellipse 100% 10px at 50% 0, rgb(133 217 255 / 30%), transparent 70%),
-    radial-gradient(ellipse 78% 9px at 50% 100%, rgb(10 107 255 / 18%), transparent 72%);
-}
-
-@media (width <= 48rem) {
-  .ask-travel {
-    --ask-pulse-w: 92px;
-  }
-
-  .ask-travel::after {
-    height: 22px;
-    filter: blur(4.5px);
-  }
-}
-
-/**
- * REDUCED MOTION: THE ANCHORS STAY, THE LAP STOPS.
- *
- * This is the export's own behaviour rather than a softening invented here.
- * `uMotion` becomes 0 and it multiplies `moving` — the travelling pulse — while
- * the anchors are outside that term and survive. The clock is frozen at 2.1, so
- * `breath` resolves to a constant 0.71 rather than oscillating.
- *
- * The result is a still, evenly lit edge with the two hot spots: a high-quality
- * static glow, which is exactly what the brief asks to be left behind.
- */
-@media (prefers-reduced-motion: reduce) {
-  .ask-travel {
-    animation: none;
-    opacity: 0.71;
-  }
-
-  .ask-travel::after {
-    display: none;
-  }
+.ask-glow-canvas {
+  display: block;
+  contain: strict;
 }

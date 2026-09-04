@@ -10,6 +10,18 @@ export default tseslint.config(
       "**/coverage/**",
       "**/drizzle/**",
       "**/*.config.mjs",
+      /*
+       * THE DELIVERED EXPORT IS EVIDENCE, NOT SOURCE.
+       *
+       * `_ask-reference/` and `artifacts/ask-reference/` hold the design ZIP
+       * unpacked byte for byte, so the compare spec can photograph the
+       * reference and the implementation side by side. Both are ignored by git.
+       * Linting them reported 264 errors in code this repository must not
+       * change — the moment it were reformatted it would stop being the thing
+       * under comparison — and drowned the report for the code it can.
+       */
+      "**/_ask-reference/**",
+      "artifacts/**",
     ],
   },
   js.configs.recommended,
