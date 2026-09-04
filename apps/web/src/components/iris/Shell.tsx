@@ -9,7 +9,7 @@ import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
-import { PROJECT_NAV } from "@/lib/routes";
+import { HOME_SEGMENT, PROJECT_NAV } from "@/lib/routes";
 
 /**
  * The IRIS shell — brand, navigation, context, and the ground everything sits on.
@@ -194,6 +194,41 @@ const SECTION_OF: Readonly<Record<string, string>> = {
 function segmentOf(pathname: string, base: string): string {
   if (!pathname.startsWith(base)) return "";
   return pathname.slice(base.length).split("/")[1] ?? "";
+}
+
+/**
+ * SWITCHING PROJECT KEEPS THE READER ON THE SAME SECTION.
+ *
+ * Every option the layout hands to a `ContextSwitcher` ends in
+ * `/${HOME_SEGMENT}` — the layout is a server component that does not know
+ * which of the project's own pages is rendering it, so it can only ever offer
+ * the safe default. Reading Sales Flow and switching to a second project used
+ * to land on that project's ASK IRIS regardless — a reader mid-comparison on
+ * Sales Flow lost their place every time they moved.
+ *
+ * This substitutes the CURRENT top-level segment for the one the server
+ * baked in. Only the first path piece survives the swap — `/units/A-402`
+ * becomes `/units`, never `/units/A-402` on a project that may not have that
+ * unit — which is the same reasoning `segmentOf` itself is built on: a drill
+ * -down's specific id belongs to the project it was read from, and the
+ * section it lives inside is the part that travels.
+ *
+ * Every one of these segments is a static route under the same dynamic
+ * layout, valid for any tenant/project pair structurally — `requireSurface`
+ * still gates what a role may see, exactly as it would if the reader had
+ * typed the URL by hand.
+ */
+function withCurrentSection(
+  options: readonly SwitchOption[],
+  segment: string,
+): readonly SwitchOption[] {
+  if (segment === "" || segment === HOME_SEGMENT) return options;
+  const suffix = `/${HOME_SEGMENT}`;
+  return options.map((option) =>
+    option.href.endsWith(suffix)
+      ? { ...option, href: `${option.href.slice(0, -suffix.length)}/${segment}` }
+      : option,
+  );
 }
 
 /**
@@ -478,9 +513,17 @@ export function Shell({
         <div className="ox-context">
           <div className="ox-context-set">
             {tenants !== null && tenants.length > 1 ? (
-              <ContextSwitcher label="Developer" value={scope.tenantSlug} options={tenants} />
+              <ContextSwitcher
+                label="Developer"
+                value={scope.tenantSlug}
+                options={withCurrentSection(tenants, segment)}
+              />
             ) : null}
-            <ContextSwitcher label="Project" value={scope.projectSlug} options={projects} />
+            <ContextSwitcher
+              label="Project"
+              value={scope.projectSlug}
+              options={withCurrentSection(projects, segment)}
+            />
             <PeriodSwitcher />
           </div>
 

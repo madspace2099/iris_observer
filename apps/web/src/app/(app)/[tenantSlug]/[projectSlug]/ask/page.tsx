@@ -14,6 +14,9 @@ import {
   AskHistoryPanel,
   AskOpeningList,
   AskThinkingPanel,
+  parseAskScope,
+  type AskScope,
+  type AskScopeProject,
 } from "@/components/ask-iris/AskScreen";
 import type { PeriodPreset, Viewer } from "@observer/readmodels";
 
@@ -104,7 +107,7 @@ export default async function AskPage({
    */
   const demo = first(search, "demo");
 
-  const { project } = await repository.resolveProject(viewer, tenantSlug, projectSlug);
+  const { tenant, project } = await repository.resolveProject(viewer, tenantSlug, projectSlug);
 
   /*
    * What actually composed the answer, named honestly.
@@ -118,6 +121,9 @@ export default async function AskPage({
   const connected = account === null ? [] : await connectedProviders(account.accountId);
   const models = modelsForProviders(connected).map((entry) => entry.label);
 
+  const scope = parseAskScope(first(search, "scope"), first(search, "with"));
+  const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
+
   return (
     <AskFrame
       root={root}
@@ -127,6 +133,8 @@ export default async function AskPage({
       historyOpen={historyOpen}
       composerLabel="Read models"
       models={models}
+      scope={scope}
+      otherProjects={otherProjects}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel
@@ -175,6 +183,8 @@ export default async function AskPage({
             viewerName={viewer.displayName}
             root={root}
             periodParam={periodParam}
+            scope={scope}
+            otherProjects={otherProjects}
           />
         </Suspense>
       )}
@@ -212,21 +222,35 @@ async function Answer({
   viewerName,
   root,
   periodParam,
+  scope,
+  otherProjects,
 }: Read & {
   readonly question: string;
   readonly viewerName: string;
   readonly root: string;
   readonly periodParam: string;
+  readonly scope: AskScope;
+  readonly otherProjects: readonly AskScopeProject[];
 }) {
   const session = await repository.getAskSession({ viewer, tenantSlug, projectSlug, period }, null);
 
   /*
-   * Matched exactly after normalisation, never fuzzily. A wrong guess here
-   * would put a real, correctly computed figure under a question it does not
-   * answer — the one failure this product cannot recover from — so anything
-   * unmatched is told so, with the list of questions that do have an answer.
+   * `findAnswer` is skipped entirely outside `current` scope — not called and
+   * discarded, never called at all. `getAskSession` composes every answer
+   * from ONE project's read models; asking it a question under "all
+   * projects" or "compare" would be asking it something it was never built to
+   * answer, and matching against `session.answers` anyway would either miss
+   * or, worse, return a real single-project figure under a question that
+   * asked for more than one project. `AskConversationPanel` states why,
+   * instead.
+   *
+   * Matched exactly after normalisation, never fuzzily, when it does run. A
+   * wrong guess here would put a real, correctly computed figure under a
+   * question it does not answer — the one failure this product cannot
+   * recover from — so anything unmatched is told so, with the list of
+   * questions that do have an answer.
    */
-  const answer = findAnswer(session.answers, question) ?? null;
+  const answer = scope.kind === "current" ? (findAnswer(session.answers, question) ?? null) : null;
 
   return (
     <AskConversationPanel
@@ -237,8 +261,32 @@ async function Answer({
       composerLabel="Read models"
       root={root}
       periodParam={periodParam}
+      scope={scope}
+      otherProjects={otherProjects}
     />
   );
+}
+
+/**
+ * Every other project Compare could offer — the same developer's portfolio,
+ * this project excluded.
+ *
+ * Scoped to ONE tenant deliberately, not every project this account holds.
+ * `layout.tsx`'s own developer switcher already draws the line for the same
+ * reason: an agency manager sells for two competing developers, and "two
+ * developers are two businesses" — comparing across that boundary is not a
+ * narrower version of the same feature, it is a different, riskier one this
+ * pass does not attempt.
+ */
+async function otherProjectsFor(
+  viewer: Viewer,
+  tenantId: Parameters<typeof repository.listProjects>[1],
+  excludeProjectId: string,
+): Promise<readonly AskScopeProject[]> {
+  const projects = await repository.listProjects(viewer, tenantId);
+  return projects
+    .filter((p) => p.id !== excludeProjectId)
+    .map((p) => ({ slug: p.slug, name: p.name }));
 }
 
 async function History({ viewer, tenantSlug, projectSlug, period }: Read) {

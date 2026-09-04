@@ -26,6 +26,15 @@ import { accountById, viewerForAccount, type Account } from "@/lib/accounts";
 
 export const SESSION_COOKIE = "observer_session";
 
+/**
+ * Re-exported for discoverability beside `SESSION_COOKIE` — this is the other
+ * cookie the product carries. The actual constant lives in `cookie-names.ts`,
+ * a file with no import in it, because `middleware.ts` (Edge runtime) and this
+ * file (`node:crypto`, Node-only) cannot safely import from each other, and
+ * both need the name.
+ */
+export { LAST_PROJECT_COOKIE } from "./cookie-names";
+
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 /**

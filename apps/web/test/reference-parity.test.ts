@@ -291,18 +291,25 @@ describe("the way in is account, then projects, then Observer", () => {
     expect(signIn).not.toContain("ProfilePicker");
   });
 
-  it("sends an authenticated reader to the projects and never to a project", () => {
+  it("sends an authenticated reader to the projects, never to a project it picks for them", () => {
     /*
-     * Both the root redirect and the already-signed-in branch of the sign-in
-     * resolve to /projects. The root used to pick a project on the reader's
-     * behalf, which hid the existence of the others.
+     * The bare root has no path to resolve a landing from, so it still always
+     * sends a signed-in reader to the project selector; that half of the
+     * behaviour is unchanged. Sign-in itself now resolves a landing path
+     * (`resolveLandingPath` — the last project the reader was in, or the one
+     * project they hold), and hardcoding neither literal decides on their
+     * behalf: the check is that sign-in defers to that resolver rather than
+     * that it always names "/projects" — that string still appears, but only
+     * as `resolveLandingPath`'s own fallback for an account that holds several
+     * projects and has none remembered.
      */
     const root = readFileSync(join(appDir, "page.tsx"), "utf8");
     expect(root).toContain("/projects");
     expect(root).not.toMatch(/showroom|northgate|tenantSlug/);
 
     const signIn = readFileSync(join(appDir, "sign-in", "page.tsx"), "utf8");
-    expect(signIn).toContain('"/projects"');
+    expect(signIn).toContain("resolveLandingPath");
+    expect(signIn).not.toMatch(/redirect\(dynamicRoute\(\s*"\/projects"\s*\)\)/);
   });
 
   it("describes the flow with no step between the account and the projects", () => {

@@ -91,6 +91,99 @@ export function askLink(
   return query === "" ? here : `${here}?${query}`;
 }
 
+/**
+ * WHICH PROJECT(S) A QUESTION IS ASKED AGAINST.
+ *
+ * `current` is the whole of what Ask IRIS has ever answered from and stays
+ * the default. `all` and `compare` are real, selectable states with no read
+ * model behind them yet — `packages/synthetic`'s `getAskSession` takes one
+ * `tenantSlug`/`projectSlug` and every answer it composes is scoped to that
+ * one project. Naming the other two here, and giving them an honest
+ * "not yet connected" answer instead of omitting them, is the frontend half
+ * of a decision the read-model layer has not been asked to make yet.
+ */
+export type AskScope =
+  | { readonly kind: "current" }
+  | { readonly kind: "all" }
+  | { readonly kind: "compare"; readonly withSlug: string | null };
+
+export interface AskScopeProject {
+  readonly slug: string;
+  readonly name: string;
+}
+
+/** Parses the form's own `scope`/`with` fields back into an {@link AskScope}. */
+export function parseAskScope(scope: string | undefined, withSlug: string | undefined): AskScope {
+  if (scope === "all") return { kind: "all" };
+  if (scope === "compare") return { kind: "compare", withSlug: withSlug ?? null };
+  return { kind: "current" };
+}
+
+function scopeLabel(scope: AskScope, projectLabel: string): string {
+  if (scope.kind === "all") return "All projects";
+  if (scope.kind === "compare") return "Compare projects";
+  return projectLabel;
+}
+
+/**
+ * Why a question in this scope has no answer, or `null` when the scope is
+ * `current` and the question is free to be tried against `findAnswer`.
+ *
+ * Both messages say the same true thing three ways on purpose: no read model
+ * in this deployment composes a cross-project figure, this is a stated limit
+ * rather than a bug, and here is the narrower question that IS answerable.
+ */
+function scopeUnavailableNotice(
+  scope: AskScope,
+  projectLabel: string,
+  otherProjects: readonly AskScopeProject[],
+): string | null {
+  if (scope.kind === "all") {
+    return `Observer answers one project at a time today. No read model in this deployment combines figures across projects, so "all projects" has nothing to compose an answer from yet — ask about ${projectLabel} on its own, or open another project's own Ask IRIS.`;
+  }
+  if (scope.kind === "compare") {
+    if (scope.withSlug === null) {
+      return "Choose a project to compare against above, then ask again.";
+    }
+    const other = otherProjects.find((p) => p.slug === scope.withSlug);
+    const otherName = other?.name ?? "the project you chose";
+    return `Observer does not yet compare ${projectLabel} and ${otherName} side by side. No read model in this deployment composes a combined answer — ask about ${projectLabel} on its own, or open ${otherName}'s own Ask IRIS.`;
+  }
+  return null;
+}
+
+/**
+ * A question that names a SECOND project while the scope only holds one.
+ *
+ * Deliberately narrow: the word "compare" (or "vs"/"versus") together with
+ * another held project's own name, checked as plain substrings after
+ * lowercasing. This is pattern-matching on the literal words a reader typed,
+ * not natural-language understanding — the same honesty line `findAnswer`
+ * itself draws ("matched exactly after normalisation, never fuzzily"). A
+ * question that means the same thing in different words is not caught, and
+ * is left to `findAnswer` and, failing that, the ordinary refusal.
+ */
+function findAmbiguousComparison(
+  question: string,
+  scope: AskScope,
+  otherProjects: readonly AskScopeProject[],
+): { readonly text: string; readonly otherSlug: string; readonly otherName: string } | null {
+  if (scope.kind !== "current" || question.trim() === "") return null;
+
+  const lower = question.toLowerCase();
+  const comparing = /\bcompare\b|\bvs\.?\b|\bversus\b/.test(lower);
+  if (!comparing) return null;
+
+  const other = otherProjects.find((p) => lower.includes(p.name.toLowerCase()));
+  if (other === undefined) return null;
+
+  return {
+    text: `This reads like a question about more than one project. Observer answers one project at a time — choose Compare to ask it against both, or ask again about this project on its own.`,
+    otherSlug: other.slug,
+    otherName: other.name,
+  };
+}
+
 /** "Petra Novák" → "PN". Initials, because there is no photograph to show. */
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -111,6 +204,8 @@ export function AskFrame({
   historyOpen,
   composerLabel,
   models,
+  scope,
+  otherProjects,
   children,
 }: {
   readonly root: string;
@@ -123,6 +218,10 @@ export function AskFrame({
   readonly composerLabel: string;
   /** Models the account holds. Empty on this deployment, and stated as empty. */
   readonly models: readonly string[];
+  /** Which project(s) the next question is asked against. */
+  readonly scope: AskScope;
+  /** Every other project this account holds, for Compare. Never this one. */
+  readonly otherProjects: readonly AskScopeProject[];
   readonly children: ReactNode;
 }) {
   const here = `${root}/ask`;
@@ -213,6 +312,88 @@ export function AskFrame({
                         </span>
                       ))
                     )}
+                  </div>
+                </details>
+              </div>
+
+              {/*
+               * WHICH PROJECT(S) THE NEXT QUESTION IS ASKED AGAINST.
+               *
+               * Real radios in a `method="get"` form, not a scripted picker —
+               * the same reason the composer works with JavaScript disabled at
+               * all. "Compare" reveals a second control, `<select name="with">`,
+               * shown by `:has()` rather than a script; `ask-iris.css` §17
+               * carries the rule.
+               *
+               * Choosing All or Compare does not fabricate a cross-project
+               * answer — no read model in this deployment composes one. It sets
+               * the scope the NEXT submitted question is asked against, and
+               * `AskConversationPanel` states the honest limit before it ever
+               * tries `findAnswer`, the same way an unconnected model states its
+               * own limit above.
+               */}
+              <div className="ask-scope-wrap">
+                <details className="ask-model-details">
+                  <summary className="ask-model" aria-label="Which project this question is about">
+                    <span className="ask-model-name">{scopeLabel(scope, projectLabel)}</span>
+                    <ChevronDown />
+                  </summary>
+
+                  <div className="ask-model-menu ask-scope-menu">
+                    <label className="ask-model-option" data-selectable="true">
+                      <input
+                        type="radio"
+                        name="scope"
+                        value="current"
+                        defaultChecked={scope.kind === "current"}
+                      />
+                      <span>{projectLabel} only</span>
+                    </label>
+
+                    <label className="ask-model-option" data-selectable="true">
+                      <input
+                        type="radio"
+                        name="scope"
+                        value="all"
+                        defaultChecked={scope.kind === "all"}
+                      />
+                      <span>All projects</span>
+                    </label>
+
+                    {otherProjects.length === 0 ? null : (
+                      <>
+                        <label className="ask-model-option" data-selectable="true">
+                          <input
+                            type="radio"
+                            name="scope"
+                            value="compare"
+                            defaultChecked={scope.kind === "compare"}
+                          />
+                          <span>Compare with…</span>
+                        </label>
+
+                        <select
+                          className="ask-scope-with"
+                          name="with"
+                          aria-label={`Compare ${projectLabel} with`}
+                          defaultValue={scope.kind === "compare" ? (scope.withSlug ?? "") : ""}
+                        >
+                          <option value="" disabled>
+                            Choose a project
+                          </option>
+                          {otherProjects.map((p) => (
+                            <option key={p.slug} value={p.slug}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+
+                    <p className="ask-menu-note">
+                      All projects and Compare state what this deployment cannot yet answer rather
+                      than guess at combined figures across projects.
+                    </p>
                   </div>
                 </details>
               </div>
@@ -471,6 +652,8 @@ export function AskConversationPanel({
   composerLabel,
   root,
   periodParam,
+  scope,
+  otherProjects,
 }: {
   readonly question: string;
   readonly answer: AskAnswer | null;
@@ -479,7 +662,19 @@ export function AskConversationPanel({
   readonly composerLabel: string;
   readonly root: string;
   readonly periodParam: string;
+  /** Defaults to `{ kind: "current" }` for call sites that predate scope. */
+  readonly scope?: AskScope;
+  readonly otherProjects?: readonly AskScopeProject[];
 }) {
+  const effectiveScope = scope ?? { kind: "current" };
+  const scopeNotice =
+    answer === null
+      ? scopeUnavailableNotice(effectiveScope, session.context.projectLabel, otherProjects ?? [])
+      : null;
+  const ambiguityNotice =
+    scopeNotice === null && answer === null
+      ? findAmbiguousComparison(question, effectiveScope, otherProjects ?? [])
+      : null;
   return (
     <>
       <p className="ask-note">
@@ -513,7 +708,50 @@ export function AskConversationPanel({
             <div className="ask-msg-body">
               <span className="ask-msg-who">{composerLabel}</span>
 
-              {answer === null ? (
+              {scopeNotice !== null ? (
+                /*
+                 * THE SCOPE ITSELF IS WHY THERE IS NO ANSWER — SAID BEFORE
+                 * ANYTHING ELSE.
+                 *
+                 * `findAnswer` was never called for this question (see
+                 * `Answer` in `ask/page.tsx`): a scope with no read model
+                 * behind it is not a phrasing problem the suggestions below
+                 * could fix, so this replaces that whole branch rather than
+                 * joining it.
+                 */
+                <p className="ask-msg-text">{scopeNotice}</p>
+              ) : ambiguityNotice !== null ? (
+                <>
+                  {/*
+                   * A QUESTION THAT NAMES TWO PROJECTS, ASKED IN A SCOPE THAT
+                   * ONLY HOLDS ONE.
+                   *
+                   * "Must not silently guess" (the mandate's own words):
+                   * `findAnswer` was skipped for the same reason as above —
+                   * matching it against one project's read models would
+                   * either miss entirely or answer a narrower question than
+                   * the one actually asked. This offers the fix as a choice,
+                   * not a guess.
+                   */}
+                  <p className="ask-msg-text">{ambiguityNotice.text}</p>
+                  <ul className="ask-follow">
+                    <li>
+                      <Link
+                        className="ask-follow-item"
+                        href={dynamicRoute(
+                          askLink(root, periodParam, {
+                            q: question,
+                            scope: "compare",
+                            with: ambiguityNotice.otherSlug,
+                          }),
+                        )}
+                      >
+                        Compare {session.context.projectLabel} with {ambiguityNotice.otherName}
+                      </Link>
+                    </li>
+                  </ul>
+                </>
+              ) : answer === null ? (
                 <>
                   {/*
                    * Refusal, stated as one. The read models compose a fixed set

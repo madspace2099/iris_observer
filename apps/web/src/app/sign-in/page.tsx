@@ -9,8 +9,10 @@ import {
   createAccountSession,
   currentAccount,
 } from "@/lib/session";
+import { resolveLandingPath } from "@/lib/landing";
 import { LoginHero } from "@/portal/LoginHero";
 import { safeReturnTo } from "@/portal/return-to";
+import { viewerForAccount } from "@/lib/accounts";
 import "@/portal/portal.css";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -50,9 +52,17 @@ export default async function SignIn({
     return Array.isArray(value) ? value[0] : value;
   };
 
-  /* Already signed in: the destination is the projects, and only the projects. */
-  if ((await currentAccount()) !== null) {
-    redirect(dynamicRoute(safeReturnTo(first("returnTo")) ?? "/projects"));
+  /*
+   * Already signed in. `returnTo` still wins when present — a reader who
+   * followed a deep link and was bounced here mid-navigation is owed that
+   * link, not a guess at their last project. Absent that, `resolveLandingPath`
+   * decides: the project they were last in, the one project they hold, or
+   * `/projects` if neither resolves.
+   */
+  const already = await currentAccount();
+  if (already !== null) {
+    const wanted = safeReturnTo(first("returnTo"));
+    redirect(dynamicRoute(wanted ?? (await resolveLandingPath(viewerForAccount(already)))));
   }
 
   const error = first("error");
@@ -77,10 +87,16 @@ export default async function SignIn({
     });
 
     /*
-     * Every account lands on the projects, including one with a single project.
-     * Opening a project is a decision a reader makes, not one made for them.
+     * `resolveLandingPath` decides — the last project this account was in, the
+     * one project it holds, or `/projects` when it genuinely holds several and
+     * none is remembered. It used to be that every account landed on the
+     * projects unconditionally, "including one with a single project", on the
+     * argument that opening a project is a decision a reader makes rather than
+     * one made for them. True the first time an account signs in with several
+     * held; not true of every sign-in after, and not true at all of an account
+     * with exactly one — a picker holding one card is not offering a choice.
      */
-    redirect(dynamicRoute(wanted ?? "/projects"));
+    redirect(dynamicRoute(wanted ?? (await resolveLandingPath(viewerForAccount(result.account)))));
   }
 
   /**
