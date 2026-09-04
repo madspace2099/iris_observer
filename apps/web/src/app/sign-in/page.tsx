@@ -90,11 +90,32 @@ export default async function SignIn({
    * that is not connected. They stay on the screen because the anatomy is the
    * reference's, and they say so plainly rather than pretending: an action that
    * silently does nothing is worse than one that explains itself.
+   *
+   * ## Why these are two functions rather than one reading a discriminator
+   *
+   * They were one, and the form did not work at all.
+   *
+   * React encodes WHICH server action a submit button invokes in that button's
+   * own `name` attribute. A `formAction` button that also declares `name` and
+   * `value` therefore overwrites the encoding, and React says so:
+   * "Cannot specify a `name` prop for a button that specifies a function as a
+   * formAction. It will get overridden." The server rendered
+   * `name="$ACTION_ID_..."`, the client rendered `name="which"`, the tree
+   * failed to hydrate, and the whole `<form>` — the password button included —
+   * stopped submitting. Sign-in was unreachable in the browser while every
+   * test still passed, because no test presses the button in a real DOM.
+   *
+   * One action per button removes the discriminator, and with it the need for
+   * the attribute React reserves.
    */
-  async function notConnected(formData: FormData): Promise<void> {
+  async function notConnectedSso(): Promise<void> {
     "use server";
-    const which = String(formData.get("which") ?? "sso");
-    redirect(dynamicRoute(`/sign-in?error=${which === "invite" ? "invite" : "sso"}`));
+    redirect(dynamicRoute("/sign-in?error=sso"));
+  }
+
+  async function notConnectedInvite(): Promise<void> {
+    "use server";
+    redirect(dynamicRoute("/sign-in?error=invite"));
   }
 
   return (
@@ -166,14 +187,7 @@ export default async function SignIn({
                 />
               </label>
 
-              <button
-                type="submit"
-                className="mp-btn"
-                formAction={notConnected}
-                formNoValidate
-                name="which"
-                value="sso"
-              >
+              <button type="submit" className="mp-btn" formAction={notConnectedSso} formNoValidate>
                 Continue with company single sign-on
               </button>
 
@@ -203,10 +217,8 @@ export default async function SignIn({
                 type="submit"
                 className="mp-btn"
                 data-weight="link"
-                formAction={notConnected}
+                formAction={notConnectedInvite}
                 formNoValidate
-                name="which"
-                value="invite"
               >
                 I have an invitation: set up my access →
               </button>
