@@ -19,6 +19,13 @@ import "@observer/ui/iris-shell.css";
  * file and this is the one position where that stays true.
  */
 import "@observer/ui/observer-product.css";
+/*
+ * Ask IRIS, rebuilt from the design the user exported and named the visual
+ * source of truth for that one route. Its own namespace and its own sheet, so
+ * the composition can be revised without touching the chrome every other
+ * surface wears. ADR-0035.
+ */
+import "@observer/ui/ask-iris.css";
 // IRIS Spatial Intelligence. Loaded after the M2.1 component sheet so the
 // showroom surfaces win where the two overlap; the surfaces that have not been
 // rebuilt yet keep the older layer until they are.
