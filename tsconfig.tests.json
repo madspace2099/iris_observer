@@ -74,6 +74,18 @@
      */
     "supabase/test/source-spine-grants.test.ts",
     "supabase/test/activation-credential.test.ts",
-    "supabase/test/analytics-events.test.ts"
+    "supabase/test/analytics-events.test.ts",
+
+    /*
+     * THE PRODUCT DESIGN SYSTEM.
+     *
+     * Added for the same reason the grants suite was: almost every assertion in
+     * it is a string read out of a stylesheet — a token name, a selector, a
+     * colour — and it computes contrast ratios from those strings. A typo in a
+     * selector makes the helper return an empty block, and an empty block
+     * satisfies every `not.toContain` in the file while measuring nothing.
+     * Checking it means the helpers themselves cannot silently take `undefined`.
+     */
+    "apps/web/test/observer-product-design.test.ts"
   ]
 }

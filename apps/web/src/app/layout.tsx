@@ -9,6 +9,16 @@ import "@observer/ui/components.css";
 // artefact. After the tokens it extends and before the surface sheets, because
 // it is the ground they sit on rather than a layer that overrides them.
 import "@observer/ui/iris-shell.css";
+/*
+ * The Observer product surface — Hybrid Executive.
+ *
+ * Directly after the shell it sits inside, and before the older surface sheets,
+ * because it is a content system rather than an override layer: it claims only
+ * `ox-` names, every one of which is unused elsewhere, so nothing here needs to
+ * win a cascade against `iris-` or `obs-`. Load order is load-bearing in this
+ * file and this is the one position where that stays true.
+ */
+import "@observer/ui/observer-product.css";
 // IRIS Spatial Intelligence. Loaded after the M2.1 component sheet so the
 // showroom surfaces win where the two overlap; the surfaces that have not been
 // rebuilt yet keep the older layer until they are.
