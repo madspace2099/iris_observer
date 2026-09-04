@@ -565,7 +565,7 @@
   background: transparent;
 }
 
-.ask-btn[aria-pressed="true"]::before {
+.ask-btn[aria-current="true"]::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -1532,13 +1532,18 @@
  * disappears the moment somebody starts typing. One quiet line under the
  * composer says it once and stays.
  */
+/*
+ * 78% rather than the 62% a first pass used: that measured 3.68:1 on this
+ * ground and axe was right to refuse it. At 78% it is 5.30:1 and still reads
+ * as the quietest line on the screen, which was the whole intent.
+ */
 .ask-hint {
   width: var(--iris-content-width);
   margin: 13px 0 0;
   font-size: 12px;
   letter-spacing: 0.01em;
   line-height: 1.5;
-  color: rgb(150 166 192 / 62%);
+  color: rgb(150 166 192 / 78%);
 }
 
 @media (width <= 48rem) {

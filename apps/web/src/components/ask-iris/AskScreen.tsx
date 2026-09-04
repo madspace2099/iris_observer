@@ -218,7 +218,16 @@ export function AskFrame({
                       ? askLink(root, periodParam)
                       : askLink(root, periodParam, { history: "1" }),
                   )}
-                  aria-pressed={historyOpen}
+                  /*
+                   * `aria-current`, not `aria-pressed`. This is an anchor, so
+                   * its role is `link`, and `aria-pressed` is not among the
+                   * attributes that role supports — axe reports it as
+                   * `aria-allowed-attr` and a screen reader is entitled to
+                   * ignore it. `aria-current` is global, means the right thing
+                   * ("this is the view you are on"), and is what the primary
+                   * navigation beside it already uses.
+                   */
+                  {...(historyOpen ? { "aria-current": "true" as const } : {})}
                   aria-label={historyOpen ? "Close earlier questions" : "Earlier questions"}
                   title="Earlier questions"
                 >

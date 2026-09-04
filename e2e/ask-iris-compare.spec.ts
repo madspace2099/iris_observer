@@ -117,8 +117,8 @@ test.describe("Ask IRIS against the delivered design", () => {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1080 });
       await page.goto(ASK);
 
-      await expect(page.locator(".ask-root")).toBeVisible();
-      await expect(page.getByPlaceholder("Ask IRIS…")).toBeVisible();
+      await expect(page.locator(".ask-page")).toBeVisible();
+      await expect(page.locator(".ask-page").getByPlaceholder("Ask IRIS…")).toBeVisible();
 
       await assertNoOverflow(page, `ask at ${String(width)}`);
       await shoot(page, `ASK-${String(width)}`);
@@ -163,7 +163,14 @@ test.describe("Ask IRIS against the delivered design", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ASK);
 
-    const field = page.getByPlaceholder("Ask IRIS…");
+    /*
+     * Scoped to the page's own composer. The docked bar carries the same
+     * placeholder and is present in the DOM on every surface — hidden by the
+     * stylesheet here, which does not stop a locator resolving it. An unscoped
+     * query matches two fields and fails in strict mode, which is the whole
+     * reason this line names the page.
+     */
+    const field = page.locator(".ask-page").getByPlaceholder("Ask IRIS…");
     await field.focus();
     await expect(field).toBeFocused();
 
@@ -176,7 +183,7 @@ test.describe("Ask IRIS against the delivered design", () => {
 
     /* Shift+Enter must NOT send. */
     await page.goto(ASK);
-    const again = page.getByPlaceholder("Ask IRIS…");
+    const again = page.locator(".ask-page").getByPlaceholder("Ask IRIS…");
     await again.fill("two");
     await again.press("Shift+Enter");
     await expect(page).not.toHaveURL(/[?&]q=/);
@@ -195,7 +202,7 @@ test.describe("Ask IRIS against the delivered design", () => {
     await signInAs(page, "Petra Novák");
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(ASK);
-    await expect(page.locator(".ask-root")).toBeVisible();
+    await expect(page.locator(".ask-page")).toBeVisible();
     await page.waitForTimeout(600);
 
     expect(external, `the page reached outside the origin: ${external.join(", ")}`).toEqual([]);
@@ -233,7 +240,7 @@ test.describe("Ask IRIS against the delivered design", () => {
 
     await signInAs(page, "Petra Novák");
     await page.goto(ASK);
-    await expect(page.locator(".ask-root")).toBeVisible();
+    await expect(page.locator(".ask-page")).toBeVisible();
     await page.waitForTimeout(800);
 
     expect(errors, errors.join("\n")).toEqual([]);
@@ -246,7 +253,7 @@ test.describe("Ask IRIS against the delivered design", () => {
 
     for (const url of [ASK, `${ASK}?history=1`]) {
       await page.goto(url);
-      await expect(page.locator(".ask-root")).toBeVisible();
+      await expect(page.locator(".ask-page")).toBeVisible();
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
         .analyze();
