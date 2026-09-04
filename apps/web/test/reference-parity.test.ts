@@ -124,6 +124,59 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
   "/design-lab/[screen]/[variant]",
 
   /*
+   * THE ASK IRIS ROLLOUT (ADR-0033).
+   *
+   * The user chose a new information architecture in conversation and the
+   * doctrine's source hierarchy puts that above the documents. These are the
+   * routes it needs. Each is a thin placeholder today: the route exists so a
+   * composition has somewhere to land, and so the navigation above it is not
+   * pointing at a 404 while it is written.
+   */
+
+  /*
+   * The bare project URL. It was a 404 on every project — a layout with no
+   * page — and the approved design's own first navigation item pointed at
+   * it. It redirects to the home segment, carrying the period across.
+   */
+  "/[tenantSlug]/[projectSlug]",
+
+  /*
+   * Ask IRIS itself, the landing surface. Not a chatbot and not an insight
+   * card: it is where a project now opens, and the briefing it replaced is
+   * one of the things it names rather than a competing tab.
+   */
+  "/[tenantSlug]/[projectSlug]/ask",
+  /*
+   * A question worth asking is worth returning to, so the answers keep
+   * addresses: the list of them, and one of them. Evidence that can only be
+   * reached by asking again is evidence nobody can show a colleague.
+   */
+  "/[tenantSlug]/[projectSlug]/ask/history",
+  "/[tenantSlug]/[projectSlug]/ask/[threadId]",
+
+  /*
+   * One unit and one agent, promoted from query parameters on the register
+   * and the roster to routes of their own, for the same reason: a single
+   * subject that cannot be linked to cannot be discussed.
+   */
+  "/[tenantSlug]/[projectSlug]/units/[unitCode]",
+  "/[tenantSlug]/[projectSlug]/agents/[agentId]",
+
+  /*
+   * Features — the fourth face of Project, and the successor to Storytelling
+   * under the name of what it actually measures. `/storytelling` is NOT
+   * removed: it permanently redirects here, so the reference route above is
+   * still served and every old link still lands somewhere real.
+   */
+  "/[tenantSlug]/[projectSlug]/features",
+  /*
+   * Attention — the list Ask IRIS produces when it is asked which apartments
+   * need attention, given an address so the answer can be sent rather than
+   * re-asked. Reached by name from Ask IRIS; deliberately not a nav item.
+   */
+  "/[tenantSlug]/[projectSlug]/attention",
+
+  /*
    * The stress sibling of the lab, and deliberately a separate route rather
    * than a flag on the one above. The review route performs one real read and
    * is where every screenshot comes from; this one renders an in-memory estate
@@ -132,6 +185,13 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * switch on the review route that could be left on, and no chance of a
    * reviewer holding an image of data that does not exist.
    */
+  /*
+   * The Observer review index, beside the lab it is named after but reviewing a
+   * different thing: the customer product, not the control plane. Development
+   * only, and linked from nowhere in the product.
+   */
+  "/design-lab/observer",
+
   "/design-lab/stress/[screen]/[variant]",
 ];
 
@@ -270,9 +330,28 @@ describe("the way in is account, then projects, then Observer", () => {
 
 describe("the navigation matches the reference", () => {
   it("keeps the four primary sections, in order", () => {
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);
+    /*
+     * THE FIRST SECTION CHANGED, ON PURPOSE, AND THIS RECORDS WHY.
+     *
+     * This suite exists to make the reference architecture hard to lose by
+     * accident. It was never meant to make it impossible to change on
+     * purpose — so the list moved and the assertion moved with it, still a
+     * deep equality against a literal, still failing on any drift.
+     *
+     * The change: `Briefing` is replaced by `ASK IRIS`. The user chose this
+     * information architecture in conversation; the `iris-observer-product`
+     * source hierarchy (§0) puts a decision made in conversation above this
+     * skill, above the ADRs and above the product documents, and ADR-0033
+     * records it so the conversation is not the only place it survives.
+     *
+     * It is a replacement rather than a rename: the landing surface is now a
+     * question rather than a summary. The briefing is still served, still
+     * declared, and reached by name from Ask IRIS — `surfaces.test.ts` holds
+     * that link in place, which is what stops this from being a deletion.
+     */
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["ask", "flow", "project", "agents"]);
     expect(PRIMARY_NAV.map((n) => n.label)).toEqual([
-      "Briefing",
+      "ASK IRIS",
       "Sales Flow",
       "Project",
       "Sales Agents",

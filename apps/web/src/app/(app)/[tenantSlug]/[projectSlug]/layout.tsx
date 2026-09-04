@@ -1,36 +1,69 @@
+import type { ReactNode } from "react";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
-import { DetailNav, PrimaryNav } from "@/components/PrimaryNav";
-import { ContextSwitcher } from "@/components/ContextSwitcher";
-import { PeriodSwitcher } from "@/components/PeriodSwitcher";
-import { currentAccount } from "@/lib/session";
-import { activeModelFor, connectedProviders } from "@/lib/ai/admission";
-import { modelsForProviders } from "@/lib/models/catalogue";
-import { ObserverRail } from "@/showroom/observer/ObserverRail";
-import { ObserverVoiceProvider } from "@/showroom/observer/ObserverVoiceProvider";
+
+import { Shell } from "@/components/iris/Shell";
+import type { SwitchOption } from "@/components/ContextSwitcher";
+import { AskDock } from "@/components/ask-iris/AskDock";
 import { SyntheticBadge } from "@/showroom/parts";
-import { PRIMARY_NAV, SECONDARY_NAV, SURFACES } from "@/lib/routes";
+import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
 
 /**
- * The application shell.
+ * The application shell, for the whole customer-facing product.
  *
- * Carries the three things every screen underneath depends on — which project,
- * which period, which role — and nothing else. Project and period live in the
- * URL rather than in client state, so any screen can be linked to exactly as
- * it was read.
+ * It carries the three things every screen underneath depends on — which
+ * project, which period, which role — and nothing else. Project and period live
+ * in the URL rather than in client state, so any screen can be linked to and
+ * shared exactly as it was read.
  *
- * The chrome is thin by design: a top rail and a bottom command rail, with the
- * whole middle given to the subject. `docs/14-design-system.md` §3.
+ * ## What changed here, and what deliberately did not
+ *
+ * The chrome is now the approved IRIS shell (`components/iris/Shell.tsx`): one
+ * header carrying the four sections, one context band carrying the switchers,
+ * one sub-navigation row, and one `<main id="main">`. It replaces a hand-rolled
+ * header, `PrimaryNav` and `DetailNav`, all of which said the same things in a
+ * different vocabulary.
+ *
+ * What did not change is every rule this layout was already enforcing:
+ * `requireViewer` first, the project resolved through the repository port, and
+ * forbidden and missing rendered IDENTICALLY — telling an unauthorised reader
+ * that a project exists is itself a disclosure, so the refusal cannot vary with
+ * the reason for it.
+ *
+ * ## THE PERIOD, AND WHY IT IS NOT READ HERE
+ *
+ * A layout does not receive `searchParams`. That is not an oversight to work
+ * around: a layout is not re-rendered when only the query changes, so a period
+ * read here would be correct exactly once and stale from the reader's first use
+ * of the period switcher.
+ *
+ * The shell therefore reads the period — and the current section — from the
+ * router itself, which is the mechanism Next provides for this and the one this
+ * file already relied on: `PrimaryNav`, `DetailNav` and `PeriodSwitcher` all
+ * sat here and all read the URL that way. `headers()` was considered and
+ * rejected: the URL a proxy reports is not the URL the router is on, and a
+ * layout that reads one while linking with the other is a layout that lies
+ * about where the reader is standing.
+ *
+ * ## Role filtering of the navigation
+ *
+ * This layout used to hide nav items the viewer's role could not open. Every
+ * key in `PRIMARY_NAV`, `PROJECT_NAV` and `SECONDARY_NAV` now carries all four
+ * roles in `SURFACES`, so that filter had become a no-op; and hiding a link was
+ * never the control in any case. `requireSurface` refuses on the server, inside
+ * each page, and a reader who types the URL meets the same refusal as a reader
+ * who was never shown the link.
  */
 
 export default async function ProjectLayout({
   children,
   params,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
 }) {
   const viewer = await requireViewer();
@@ -42,8 +75,14 @@ export default async function ProjectLayout({
     ({ tenant, project } = await repository.resolveProject(viewer, tenantSlug, projectSlug));
   } catch (error) {
     if (error instanceof NotPermittedError || error instanceof NotFoundError) {
-      // Forbidden and missing are rendered identically on purpose: telling an
-      // unauthorised viewer that a project exists is itself a disclosure.
+      /*
+       * Forbidden and missing are rendered identically on purpose: telling an
+       * unauthorised viewer that a project exists is itself a disclosure.
+       *
+       * This branch keeps its own `<main id="main">`, because the shell is not
+       * rendered at all here and the skip link in the root layout still needs
+       * somewhere to land.
+       */
       return (
         <main className="iris" id="main" style={{ padding: "4rem 2.5rem" }}>
           <div style={{ maxWidth: "40rem" }}>
@@ -65,53 +104,64 @@ export default async function ProjectLayout({
   }
 
   /*
-   * WHICH MODELS THIS ACCOUNT MAY ASK WITH, RESOLVED ON THE SERVER.
+   * THE MODEL LIST IS NO LONGER RESOLVED HERE, AND THAT IS THE POINT.
    *
-   * The rail renders a picker from this list and nothing else. A browser
-   * cannot add to it, and the gate re-checks any model named in a request
-   * against the same grants — so the list is a convenience for the reader
-   * rather than the thing that enforces anything.
+   * This layout used to read the account's connected providers so the floating
+   * Observer rail could render a model picker. The rail is gone: the user asked
+   * for the delivered prompt box at the foot of every surface instead, and that
+   * box does not choose between models because nothing on this deployment
+   * answers with one. `AskDock` names what actually composes an answer — the
+   * read models — and its own menu says so.
+   *
+   * The grants machinery is untouched and still enforced where it matters: the
+   * gate re-checks any model named in a request against the same grants, so
+   * nothing about access depended on this list. Removing it also removes two
+   * awaits from the critical path of every project page.
    */
-  const account = await currentAccount();
-  const connected = account === null ? [] : await connectedProviders(account.accountId);
-  const usable = modelsForProviders(connected).map((entry) => ({
-    id: entry.id,
-    label: entry.label,
-  }));
-  const chosen =
-    account === null ? null : (await activeModelFor(account.accountId, "standard")).model;
-  const active = chosen === null ? null : (usable.find((m) => m.id === chosen) ?? null);
-
-  const projects = await repository.listProjects(viewer, tenant.id);
+  const held = await repository.listProjects(viewer, tenant.id);
   const tenants = await repository.listTenants(viewer);
+
+  /*
+   * Every project this account may open in this developer's portfolio.
+   *
+   * Each option carries its own href, because a server component cannot hand a
+   * client control a function to build one — and because it keeps every route
+   * shape in this file rather than scattered through the switcher. The target
+   * is the home segment, not a named screen: ADR-0033 owns which screen that
+   * is, and this file did not have to be told when it moved.
+   */
+  const projectOptions: readonly SwitchOption[] = held.map((p) => ({
+    value: p.slug,
+    label: p.name,
+    href: `/${tenant.slug}/${p.slug}/${HOME_SEGMENT}`,
+  }));
 
   /*
    * The first project of each developer this viewer holds.
    *
-   * Tomáš works for two developers and the shell offered no way to reach the
-   * second — the grant existed, the navigation did not, and the only route was
-   * typing a URL. Never a combined view: two developers are two businesses, and
-   * one aggregated screen would show each of them the other's numbers.
+   * An agency manager works for more than one, and the shell offered no way to
+   * move between them — the grant existed, the navigation did not, and the only
+   * route was typing a URL. Never a combined view: two developers are two
+   * businesses, and one aggregated screen would show each of them the other's
+   * numbers.
    */
   const developers = await Promise.all(
     tenants.map(async (t) => {
-      const held = await repository.listProjects(viewer, t.id);
-      const first = held[0];
+      const first = (await repository.listProjects(viewer, t.id))[0];
       return first === undefined
         ? null
-        : { value: t.slug, label: t.name, href: `/${t.slug}/${first.slug}/showroom` };
+        : {
+            value: t.slug,
+            label: t.name,
+            href: `/${t.slug}/${first.slug}/${HOME_SEGMENT}`,
+          };
     }),
   );
-  const developerOptions = developers.filter((d): d is NonNullable<typeof d> => d !== null);
+  const developerOptions: readonly SwitchOption[] = developers.filter(
+    (d): d is NonNullable<typeof d> => d !== null,
+  );
+
   const root = `/${tenant.slug}/${project.slug}`;
-
-  const permits = (key: string) => {
-    const surface = SURFACES.find((s) => s.route.endsWith(`/${key}`));
-    return surface === undefined || surface.requiresRole.includes(viewer.role);
-  };
-
-  const allowedSections = PRIMARY_NAV.filter((item) => permits(item.key)).map((item) => item.key);
-  const allowedDetail = SECONDARY_NAV.filter((item) => permits(item.key)).map((item) => item.key);
 
   async function signOut() {
     "use server";
@@ -123,97 +173,108 @@ export default async function ProjectLayout({
     redirect("/sign-in");
   }
 
-  return (
-    <div className="iris">
-      <header className="iris-top">
-        <div className="iris-brand">
-          <b>IRIS</b>
-          <span>Observer</span>
-          <SyntheticBadge />
-        </div>
-
-        <PrimaryNav root={root} allowed={allowedSections} />
-
-        <div className="iris-ambient">
-          {developerOptions.length > 1 ? (
-            <ContextSwitcher label="Developer" value={tenant.slug} options={developerOptions} />
-          ) : null}
-          <ContextSwitcher
-            label="Project"
-            value={project.slug}
-            options={projects.map((p) => ({
-              value: p.slug,
-              label: p.name,
-              href: `/${tenant.slug}/${p.slug}/showroom`,
-            }))}
-          />
-          <PeriodSwitcher />
-          {/*
-            The way back to the selector.
-            One link, using the control class the header already has. The
-            project switcher beside it moves between grants; this is how a
-            reader leaves the workspace without signing out.
-          */}
-          <a className="iris-action" href="/projects">
-            Projects
-          </a>
-          {/*
-            And the way to the account's own settings, from inside a project.
-            A reader who is told their questions are answered from evidence
-            because they have no OpenAI connection has to be able to reach the
-            place that fixes it without leaving through the browser's Back
-            button.
-          */}
-          <a className="iris-action" href="/settings/ai">
-            Settings
-          </a>
-          {viewer.role === "madspace_admin" ? (
-            <a className="iris-action" href="/madspace">
-              Administration
-            </a>
-          ) : null}
-          <span
-            className="iris-code"
-            title={`${viewer.organisationName} · ${viewer.role.replace(/_/g, " ")}`}
-          >
-            {viewer.displayName}
-            {tenants.length > 1 ? ` · ${tenants.length} developers` : ""}
-          </span>
-          <form action={signOut}>
-            <button className="iris-action" type="submit">
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
-
-      <DetailNav root={root} allowed={allowedDetail} />
-
+  /*
+   * THE ACCOUNT CONTROLS, RENDERED HERE AND PASSED IN AS A NODE.
+   *
+   * The shell is a client component — it has to be, to read the period off the
+   * router — and a server action cannot cross that boundary as a function. It
+   * can cross as rendered output, which is what this is: the form is built on
+   * the server and handed to the shell already formed.
+   *
+   * Administration appears for `madspace_admin` and for nobody else. It is not
+   * a navigation section (doctrine §7) and never becomes one; the surface
+   * itself refuses every other role a second time.
+   */
+  const accountControls = (
+    <>
+      <SyntheticBadge />
+      <Link className="ox-btn" data-weight="quiet" href="/projects">
+        Projects
+      </Link>
       {/*
-       * Observer is chrome, not a page.
-       *
-       * It sits on every surface and carries the current analytical context, so
-       * a question about the agent or the unit already on screen does not have
-       * to name it. The briefing renders the same entity at full size; here it
-       * is collapsed to a presence and a prompt.
-       *
-       * The voice session is held out here rather than inside either body, so
-       * it survives navigation and both of them read the same conversation.
-       * Holding it is not starting it — that still takes a click.
-       */}
-      <ObserverVoiceProvider projectLabel={project.name} root={root} role={viewer.role}>
-        <main className="iris-stage" id="main" style={{ display: "block", overflowY: "auto" }}>
-          {children}
-        </main>
-
-        <ObserverRail
-          projectLabel={project.name}
-          root={root}
-          role={viewer.role}
-          models={usable}
-          activeModel={active}
-        />
-      </ObserverVoiceProvider>
-    </div>
+        The way to the account's own settings, from inside a project. A reader
+        told their questions are answered from evidence alone because they have
+        no model connection must be able to reach the page that fixes it
+        without leaving through the browser's Back button.
+      */}
+      <Link className="ox-btn" data-weight="quiet" href="/settings/ai">
+        Settings
+      </Link>
+      {viewer.role === "madspace_admin" ? (
+        <Link className="ox-btn" data-weight="quiet" href="/madspace">
+          Administration
+        </Link>
+      ) : null}
+      <form action={signOut}>
+        <button className="ox-btn" data-weight="quiet" type="submit">
+          Sign out
+        </button>
+      </form>
+    </>
   );
+
+  /*
+   * THE SOURCES BAND IS NOT FED, AND SAYS SO BY BEING ABSENT.
+   *
+   * `Shell` can name each installation and whether it is reporting. The read
+   * models describe a surface's inputs only as a string union —
+   * `webiris | showroom | crm | catalogue` — which is enough to decide whether
+   * a figure can be computed and not enough to say WHICH machine went quiet.
+   * There is no per-project source roster on the repository port, and inventing
+   * one here would be fabricating the very fact the band exists to report. So
+   * the prop is omitted, the band renders nothing, and the hole is left typed
+   * and named for whoever adds `listProjectSources` to the port.
+   */
+
+  /*
+   * Observer is chrome, not a page.
+   *
+   * It sits on every surface and carries the current analytical context, so a
+   * question about the agent or the unit already on screen does not have to
+   * name it. The voice session is held out here rather than inside either body,
+   * so it survives navigation and both of them read the same conversation.
+   * Holding it is not starting it — that still takes a click.
+   *
+   * It survives the new frame unchanged. The rail is `position: fixed` and the
+   * shell's main column already reserves an offset below it, so the two do not
+   * fight: the rail floats over the ground exactly as it did, and ASK IRIS in
+   * the header is the full-size door to the same entity.
+   */
+  return (
+    <>
+      <Shell
+        scope={{ tenantSlug: tenant.slug, projectSlug: project.slug }}
+        viewer={{ displayName: viewer.displayName, roleLabel: roleLabel(viewer.role) }}
+        projects={projectOptions}
+        tenants={developerOptions}
+        account={accountControls}
+      >
+        {children}
+      </Shell>
+
+      <AskDock root={root} periodParam="" projectLabel={project.name} />
+    </>
+  );
+}
+
+/**
+ * The capacity, in the words a reader uses rather than the enum's.
+ *
+ * The shell states the reader's role beside their name, because more than one
+ * of these surfaces shows a different thing to a developer than to an agent,
+ * and the reader should never have to work out which one they are being shown.
+ */
+function roleLabel(role: string): string {
+  switch (role) {
+    case "developer":
+      return "Developer";
+    case "agency_manager":
+      return "Agency manager";
+    case "sales_agent":
+      return "Sales agent";
+    case "madspace_admin":
+      return "MADSPACE administrator";
+    default:
+      return role;
+  }
 }

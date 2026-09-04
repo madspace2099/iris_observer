@@ -28,7 +28,22 @@
 const ALLOWED: readonly RegExp[] = [
   /^\/projects$/,
   /^\/madspace$/,
-  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/(showroom|flow|project|agents|presentation|units|storytelling|meetings|audience|people|overview)$/,
+  /*
+   * The project surfaces, named one by one rather than matched by shape.
+   *
+   * ADR-0033 added `ask`, `features` and `attention`, and this list has to
+   * learn each of them: a destination that is not here is not refused loudly,
+   * it is quietly replaced by the default — so a reader who followed a link
+   * to Ask IRIS and was asked to sign in would have arrived at their
+   * projects instead, and never known why.
+   */
+  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/(ask|showroom|flow|project|agents|presentation|units|storytelling|features|attention|meetings|audience|people|overview)$/,
+  /* One earlier question, and the list of them. */
+  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/ask\/[a-z0-9_-]{1,64}$/,
+  /* One unit. Codes are upper-case in the catalogue — `A-402`, not `a-402`. */
+  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/units\/[A-Za-z0-9_-]{1,64}$/,
+  /* One agent, from the roster. */
+  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/agents\/[a-z0-9_-]{1,64}$/,
   /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/meetings\/[a-z0-9_-]{1,64}$/,
 ];
 

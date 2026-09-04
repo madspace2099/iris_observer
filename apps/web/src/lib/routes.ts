@@ -132,6 +132,129 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["sales_agent", "agency_manager", "madspace_admin"],
   },
+  /* --- the Ask IRIS rollout (ADR-0033) ------------------------------------ */
+
+  /*
+   * THE BARE PROJECT URL.
+   *
+   * It serves a redirect to the home segment and nothing else. The approved
+   * design's own first navigation item pointed here and got a 404, because a
+   * project had a layout and no page.
+   *
+   * Declared even though it only redirects: a surface with no declared audience
+   * is how a buyer-facing page appears by accident, and "it has no body" is a
+   * statement about what it renders rather than about who may open it.
+   *
+   * COLLISION NOTE, because `requireSurface` matches on the LAST path segment
+   * and returns silently when it finds nothing. This route and
+   * `/iris/[tenantSlug]/[projectSlug]` both end `/[projectSlug]`. Nothing calls
+   * `requireSurface` with that key — the redirect has no screen of its own to
+   * guard, and the review route guards itself — and the two entries carry the
+   * SAME role list, so even if something did, either entry would give the same
+   * answer. Recorded here rather than left to be rediscovered.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
+  /*
+   * ASK IRIS — the landing surface, and the first primary section.
+   *
+   * Every role that may open the project, because it is where every role now
+   * arrives: a refused reader, a reader following a bare project URL, and a
+   * reader opening a card on `/projects` all land here. Restricting it to a
+   * subset would leave the excluded roles with no first screen at all.
+   *
+   * It reads the same project through the same repository as every surface
+   * beside it, so what it can answer is already bounded by the reader's grants
+   * rather than by this list.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/ask",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  /*
+   * The reader's earlier questions on this project.
+   *
+   * Same roles as Ask itself: a history that a reader may not open is a history
+   * of questions they were never able to ask. Scoped to the account by the read
+   * model rather than by this table — the route says who may have a history,
+   * not whose history they see.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/ask/history",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  /*
+   * One question and its answer, at its own URL, so an answer can be returned
+   * to and linked rather than re-asked. Same roles, same reason as the history
+   * it is opened from.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/ask/[threadId]",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
+  /*
+   * One unit, opened from the register.
+   *
+   * Exactly the roles that may open `/units`, because this is the same analysis
+   * for one row of it: what IRIS saw happen to one apartment. A narrower list
+   * here would mean a reader could read the table and not the row, which is not
+   * a boundary anybody asked for.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/units/[unitCode]",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  /*
+   * One agent, opened from the roster.
+   *
+   * The same list ADR-0029 settled for `/agents`: the boundary is the PROJECT,
+   * not the role, so two agents assigned to one project may read one another's
+   * working figures and an agent on another project may read neither. What
+   * ADR-0029 did not open is not opened here either — the IRIS rating stays
+   * MADSPACE-only, and nothing of another project is reachable at any scope.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/agents/[agentId]",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
+  /*
+   * FEATURES — what the building's features do to a buyer's attention.
+   *
+   * The successor to Storytelling, which now permanently redirects here. Every
+   * role that may open Project, because it is one of the four faces of Project
+   * and a tab a reader cannot open is a tab that should not be drawn.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/features",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  /*
+   * ATTENTION — what is not going to sell itself.
+   *
+   * The list Ask IRIS points at when it is asked which apartments need
+   * attention, given its own URL so the answer can be linked and returned to.
+   * Every role, for the same reason as the unit register it draws from: this is
+   * project analysis, not a person's record, and nothing on it is a named
+   * buyer.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/attention",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
   { route: "/madspace", audience: "internal", requiresRole: ["madspace_admin"] },
 
   /*
@@ -178,6 +301,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },
+  /*
+   * The Observer review index. Development only, gated the same way.
+   *
+   * Every screen the customer product has and every partial-data state it can
+   * be put into, as links, so a reviewer does not have to remember which
+   * project proves which absence or type a unit code out of a screenshot. It is
+   * a signpost rather than a surface and is deliberately absent from the
+   * product navigation.
+   */
+  { route: "/design-lab/observer", audience: "internal", requiresRole: ["madspace_admin"] },
   /*
    * The lab's stress sibling. Same eighteen screens, an in-memory estate of
    * twelve projects and fifty installations, and never photographed: it exists
@@ -227,28 +360,104 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
 ];
 
 /**
+ * WHERE A READER LANDS, NAMED ONCE.
+ *
+ * `/showroom` was written as a literal in five places — the refusal redirect in
+ * `authz.ts`, both context switchers in the project layout, the project card on
+ * `/projects`, and the way back into Observer from account settings. Every one
+ * of them meant the same thing: "the first screen of a project". None of them
+ * said so, so moving that screen meant finding five strings and hoping.
+ *
+ * ADR-0033 moved it. The home segment is now `ask`, and it is a constant rather
+ * than a string because the next time it moves this is the only line to change.
+ *
+ * It is deliberately NOT `PRIMARY_NAV[0].key`. The two happen to agree today,
+ * and they are different claims: the first nav item is a matter of ordering,
+ * and where a refused or newly arriving reader is sent is a matter of which
+ * screen answers with nothing selected. Deriving one from the other would make
+ * a reordering of the navigation silently change the landing destination.
+ */
+export const HOME_SEGMENT = "ask";
+
+/**
  * The primary sections.
  *
- * Showroom is the opening screen — a verdict and three doors. The other three
- * are those doors: how the process performs, what buyers want, and how each
- * person presents.
+ * ## Why this list moved
  *
- * Presentation DNA, Unit Attention, Storytelling and Meeting Replay are still
- * here and still reachable; they moved *behind* the three views rather than
- * competing with them in the navigation. Review found four analytical tabs
- * beside each other overwhelming, and it was right: a top-level tab is a claim
- * that the reader should choose between things, and these are drill-downs.
+ * It was `Briefing · Sales Flow · Project · Sales Agents`, and before that the
+ * doctrine's `Overview · Sales Flow · Project · People` (skill §7, ADR-0019).
+ * It is now **ASK IRIS · Sales Flow · Project · Sales Agents**.
  *
- * Administration is deliberately absent.
+ * The user chose this information architecture in conversation, and the
+ * doctrine's own source hierarchy (skill §0) puts "a decision the user has just
+ * made in conversation" ABOVE this skill, above the ADRs and above the product
+ * documents. `docs/adr/0033-ask-iris-is-the-landing-surface.md` records the
+ * decision so that the conversation is not the only place it survives.
+ *
+ * One change is a rename and one is a genuine move:
+ *
+ *   - `Briefing` is REPLACED, not renamed. Ask IRIS is a different surface: the
+ *     landing screen is now a question rather than a summary. It is also the
+ *     one item that carries the sparkle in the shell, because it is the one
+ *     surface that answers.
+ *   - The other three keep their keys and their meaning.
+ *
+ * ## Briefing does not disappear
+ *
+ * `/showroom` is still a real surface, still declared above, and still served.
+ * It stopped being a navigation item and became something Ask IRIS names —
+ * "Today's briefing" — which is the relationship the two actually have: the
+ * briefing is one of the answers, not a competing question. `surfaces.test.ts`
+ * records it in `reachedFromAView` for exactly that reason, and would fail if
+ * the link ever went away.
+ *
+ * Administration is deliberately absent, as it always was.
  */
 export const PRIMARY_NAV = [
-  { key: "showroom", label: "Briefing" },
+  { key: "ask", label: "ASK IRIS" },
   { key: "flow", label: "Sales Flow" },
   { key: "project", label: "Project" },
   { key: "agents", label: "Sales Agents" },
 ] as const;
 
 export type NavKey = (typeof PRIMARY_NAV)[number]["key"];
+
+/**
+ * The four faces of Project, in the section's own tab row.
+ *
+ * ## Why this is a NEW list and not a rewrite of `SECONDARY_NAV`
+ *
+ * The two were considered for merging and deliberately kept apart, because they
+ * are not the same claim wearing two names:
+ *
+ *   - `SECONDARY_NAV` is "the drill-downs beneath the four" — surfaces that are
+ *     subordinate to the whole product. It is rendered on every section that
+ *     does not own a tab row of its own.
+ *   - `PROJECT_NAV` is "the four faces of Project" — one section's internal
+ *     structure, with `Overview` being the Project surface itself. A row whose
+ *     first item is the section it hangs from is a section's tabs, not the
+ *     product's second navigation.
+ *
+ * Collapsing them would have deleted `presentation` and `storytelling` from the
+ * product while leaving their files in the repository — which is the precise
+ * failure `surfaces.test.ts` was written to catch, and which has already
+ * happened once here. So `SECONDARY_NAV` stays exactly as it is, still deep-
+ * equal-pinned by `reference-parity.test.ts`, and this sits beside it.
+ *
+ * `Overview` is keyed `project` because it IS the Project surface: the tab that
+ * returns a reader to the top of the section they are already inside. `units`
+ * and `meetings` appear here and in `SECONDARY_NAV` on purpose — a surface may
+ * be reached from more than one place, and reachability is a floor rather than
+ * an exclusivity rule.
+ */
+export const PROJECT_NAV = [
+  { key: "project", label: "Overview" },
+  { key: "units", label: "Units" },
+  { key: "meetings", label: "Meetings" },
+  { key: "features", label: "Features" },
+] as const;
+
+export type ProjectNavKey = (typeof PROJECT_NAV)[number]["key"];
 
 /**
  * The detail surfaces, in their own row beneath the four.
@@ -258,6 +467,13 @@ export type NavKey = (typeof PRIMARY_NAV)[number]["key"];
  * it is deleted with the files left in the repository. Review was right that
  * eight equal tabs is too many; the answer is a subordinate row, not an
  * unreachable route.
+ *
+ * KEPT UNCHANGED THROUGH THE ASK IRIS ROLLOUT, and still rendered. The IRIS
+ * shell has one sub-navigation row; this list fills it on every section that
+ * does not own one, and `PROJECT_NAV` fills it on the Project family. Emptying
+ * this list would have made `presentation` unreachable, and `storytelling` —
+ * which now permanently redirects to Features — is kept here so that the row a
+ * reader used yesterday still leads somewhere real today.
  *
  * Anything added here must also be reachable, and `surfaces.test.ts` asserts
  * that every internal route is either in one of these rows or linked from a

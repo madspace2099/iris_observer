@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import type { Viewer } from "@observer/readmodels";
-import { SURFACES } from "./routes";
+import { HOME_SEGMENT, SURFACES } from "./routes";
 import { dynamicRoute } from "./href";
 
 /**
@@ -17,7 +17,7 @@ import { dynamicRoute } from "./href";
  */
 
 /**
- * Sends a reader who may not open this surface back to their briefing.
+ * Sends a reader who may not open this surface back to the home segment.
  *
  * A redirect rather than `notFound()`. The layout has already begun streaming
  * by the time a page body runs, so the 404 arrived as a blank document with a
@@ -27,10 +27,33 @@ import { dynamicRoute } from "./href";
  * It discloses nothing: every role that reaches this point holds the project,
  * so the only fact revealed is one they already had.
  */
+/*
+ * A WARNING ABOUT THE MATCHER, kept beside the matcher.
+ *
+ * The lookup is by LAST PATH SEGMENT, and it returns silently when it finds
+ * nothing — it fails OPEN. Two surfaces whose final segment is the same word
+ * therefore share one authorisation entry, and the first one declared wins.
+ *
+ * So a new nested route must be checked against every existing surface before
+ * it is added. The ASK IRIS rollout (ADR-0033) introduced `ask`, `history`,
+ * `[threadId]`, `[unitCode]`, `[agentId]`, `features` and `attention`, none of
+ * which collides with an existing final segment. The one collision it does
+ * create — `/[tenantSlug]/[projectSlug]` against
+ * `/iris/[tenantSlug]/[projectSlug]` — is recorded in `routes.ts`: neither is
+ * ever passed to this function, and both carry the same role list.
+ */
 export function requireSurface(viewer: Viewer, key: string, root: string): void {
   const surface = SURFACES.find((s) => s.route.endsWith(`/${key}`));
   if (surface === undefined) return;
-  if (!surface.requiresRole.includes(viewer.role)) redirect(dynamicRoute(`${root}/showroom`));
+  /*
+   * Not `/showroom` any more, and not a literal at all.
+   *
+   * Where a refused reader lands is the same question as where any reader
+   * lands, and it now has one name. ADR-0033 moved that screen from the
+   * briefing to Ask IRIS, and this line did not have to know.
+   */
+  if (!surface.requiresRole.includes(viewer.role))
+    redirect(dynamicRoute(`${root}/${HOME_SEGMENT}`));
 }
 
 /*

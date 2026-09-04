@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { dynamicRoute } from "@/lib/href";
+import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { SESSION_COOKIE, destroySession, requireAccount, requireViewer } from "@/lib/session";
 import "@/portal/portal.css";
@@ -148,9 +149,16 @@ export default async function Projects() {
                   <h2 className="mp-project">{project.name}</h2>
 
                   <p className="mp-card-action">
+                    {/*
+                      The doorway, pointed at the home segment rather than at a
+                      named screen. ADR-0033 moved where a project opens; this
+                      card did not have to know, and the words on it did not
+                      change — "Open Observer" is what a reader is doing here,
+                      whichever surface answers first.
+                    */}
                     <Link
                       className="mp-open"
-                      href={dynamicRoute(`/${tenant.slug}/${project.slug}/showroom`)}
+                      href={dynamicRoute(`/${tenant.slug}/${project.slug}/${HOME_SEGMENT}`)}
                     >
                       Open Observer
                       <span className="obs-sr">

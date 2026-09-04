@@ -80,14 +80,22 @@ describe("showroom is the primary source", () => {
     expect(isUngroundedInterpretation(["AI_INTERPRETATION", "IRIS_SHOWROOM_OBSERVED"])).toBe(false);
   });
 
-  it("opens on a verdict and three doors, not on four analytical tabs", async () => {
+  it("opens on a question and three doors, not on four analytical tabs", async () => {
     /*
-     * Review found four analytical tabs beside each other overwhelming. The
-     * navigation is now the opening screen plus the three views it opens onto;
-     * Presentation DNA, Unit Attention and Storytelling moved behind them.
+     * Review found four analytical tabs beside each other overwhelming, and
+     * that finding still holds: the navigation is one opening surface plus the
+     * three views it opens onto, and Presentation DNA, Unit Attention and
+     * Storytelling stay behind them.
+     *
+     * What changed is the opening surface. It was the briefing — a verdict —
+     * and it is now ASK IRIS, a question. The user chose this in conversation
+     * and the `iris-observer-product` source hierarchy (§0) puts that above
+     * this skill, above the ADRs and above the product documents; ADR-0033
+     * records it. The briefing is still served and is named from Ask IRIS, so
+     * this file's own read models are unaffected — only the door is.
      */
     const { PRIMARY_NAV } = await import("../src/lib/routes");
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["ask", "flow", "project", "agents"]);
   });
 });
 

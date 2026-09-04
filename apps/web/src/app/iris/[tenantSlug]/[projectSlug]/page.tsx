@@ -1,84 +1,50 @@
-import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { permanentRedirect } from "next/navigation";
 
-import { Shell } from "@/components/iris/Shell";
-import { AskIris } from "@/components/iris/AskIris";
-import { repository } from "@/lib/repository";
-import { requireViewer } from "@/lib/session";
-
-export const metadata: Metadata = { title: "Ask IRIS" };
+import { dynamicRoute } from "@/lib/href";
 
 /**
- * ASK IRIS — the landing surface, in the approved design.
+ * THE FLAGSHIP HAS LANDED, SO THIS ROUTE HANDS ITS READERS ON.
  *
- * ## Why this route exists beside the application rather than inside it
+ * This URL existed for one reason, recorded in ADR-0033 and in this file's
+ * previous docblock: `docs/12-visual-autopsy.md` §5 sets the order for visual
+ * work — audit, direction, isolated flagship prototype, visual review, user
+ * selection, rollout — and this was the flagship. It rendered the approved
+ * shell whole, at a real URL, against the real read model, and it disturbed
+ * nothing, so the twelve existing surfaces kept working while the design was
+ * judged.
  *
- * `docs/12-visual-autopsy.md` §5 sets the order for visual work: audit,
- * direction, isolated flagship prototype, visual review, user selection,
- * rollout. This is the flagship. It renders the new shell whole, at a real URL,
- * against the real read model — and it disturbs nothing, so the twelve existing
- * surfaces keep working while the design is judged.
+ * The design was accepted and the rollout has happened. Ask IRIS is now a
+ * product surface at `/{tenant}/{project}/ask`, inside the application shell,
+ * carrying the project switcher and the period switcher that the isolated
+ * prototype could not answer for. Two URLs rendering the same screen is how a
+ * reader ends up bookmarking the one that stops being maintained.
  *
- * Rolling it out means moving this composition into
- * `(app)/[tenantSlug]/[projectSlug]` and retiring the old chrome. That is one
- * commit once the design is accepted, and it is deliberately not this one.
+ * ## Why a redirect rather than a deletion
  *
- * ## One question the design does not answer
+ * The route is real: it was reviewed at this address, it is in somebody's
+ * notes, and `apps/web/test/reference-parity.test.ts` asserts the application
+ * still serves every route it has declared. A redirect serves it. Deleting it
+ * would turn every link written during the review into a 404, which is a worse
+ * answer than an extra hop.
  *
- * The current application shell carries a project switcher and a period
- * switcher, and every analytical surface depends on both — a chart without a
- * period is a chart of nothing in particular. The artefact shows neither,
- * because it shows only this page, where neither is needed.
+ * `permanentRedirect` rather than `redirect`, because this is not a temporary
+ * detour: the prototype is finished and the destination is where the surface
+ * lives now.
  *
- * So they are absent here, honestly, rather than invented in a style the design
- * never specified. Where they live is the open question the rollout has to
- * settle, and it is stated in the report rather than guessed at in code.
+ * ## No viewer check here, deliberately
+ *
+ * The destination performs the whole of it — `requireViewer`, `requireSurface`,
+ * and a project resolution where forbidden and missing render identically.
+ * Repeating any of that here would mean two places could disagree about who may
+ * see a project, and a redirect that refuses before it forwards would also leak
+ * the one thing the identical rendering exists to hide: whether the project is
+ * there at all.
  */
-export default async function IrisAskPage({
+export default async function IrisFlagshipMoved({
   params,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
 }) {
-  const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
-
-  let project;
-  try {
-    ({ project } = await repository.resolveProject(viewer, tenantSlug, projectSlug));
-  } catch (error) {
-    /*
-     * Forbidden and missing render identically, exactly as the existing layout
-     * does it: telling an unauthorised viewer that a project exists is itself a
-     * disclosure.
-     */
-    if (error instanceof NotPermittedError || error instanceof NotFoundError) redirect("/projects");
-    throw error;
-  }
-
-  return (
-    <Shell
-      scope={{ tenantSlug, projectSlug }}
-      viewer={{ displayName: viewer.displayName, roleLabel: roleLabel(viewer.role) }}
-      current="ask"
-    >
-      <AskIris projectName={project.name} />
-    </Shell>
-  );
-}
-
-/** The capacity, in the words a reader uses rather than the enum's. */
-function roleLabel(role: string): string {
-  switch (role) {
-    case "developer":
-      return "Developer";
-    case "agency_manager":
-      return "Agency manager";
-    case "sales_agent":
-      return "Sales agent";
-    case "madspace_admin":
-      return "MADSPACE administrator";
-    default:
-      return role;
-  }
+  permanentRedirect(dynamicRoute(`/${tenantSlug}/${projectSlug}/ask`));
 }

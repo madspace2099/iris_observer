@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type { Viewer } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { repository } from "@/lib/repository";
+import { HOME_SEGMENT } from "@/lib/routes";
 import { requireAccount, requireViewer } from "@/lib/session";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
 import { describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
@@ -187,7 +188,8 @@ async function firstProject(viewer: Viewer): Promise<{ href: string } | null> {
   for (const tenant of tenants) {
     const projects = await repository.listProjects(viewer, tenant.id);
     const project = projects[0];
-    if (project !== undefined) return { href: `/${tenant.slug}/${project.slug}/showroom` };
+    // The home segment, not a named screen — ADR-0033 owns which one that is.
+    if (project !== undefined) return { href: `/${tenant.slug}/${project.slug}/${HOME_SEGMENT}` };
   }
   return null;
 }
