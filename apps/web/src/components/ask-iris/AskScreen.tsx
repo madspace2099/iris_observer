@@ -6,6 +6,7 @@ import { dynamicRoute } from "@/lib/href";
 import { AskField } from "./AskField";
 import { PromptGlow } from "./PromptGlow";
 import {
+  Building,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -18,6 +19,7 @@ import {
   Send,
   Share,
   Sparkle,
+  Target,
   Thread,
   Trash,
 } from "./icons";
@@ -66,13 +68,22 @@ import {
  * layout around it.
  */
 
-/** One place builds a link on this screen, so one place carries the period. */
+/**
+ * One place builds a link on this screen, so one place carries the period.
+ *
+ * `path` defaults to `/ask` — every existing call site asks a question or
+ * opens history on this same route — and takes an explicit sibling path for
+ * the three surfaces Ask IRIS names rather than navigates within itself:
+ * Briefing (`/showroom`), Attention (`/attention`) and the full history route
+ * (`/ask/history`). One function still carries the period for all of them.
+ */
 export function askLink(
   root: string,
   periodParam: string,
   params: Readonly<Record<string, string>> = {},
+  path = "/ask",
 ): string {
-  const here = `${root}/ask`;
+  const here = `${root}${path}`;
   const search = new URLSearchParams();
   if (periodParam !== "") search.set("period", periodParam);
   for (const [key, value] of Object.entries(params)) search.set(key, value);
@@ -288,46 +299,112 @@ export function AskOpeningList({
 }) {
   if (suggestions.length === 0) {
     return (
-      <div className="ask-panel" data-kind="chat">
-        <div className="ask-empty">
-          <p className="ask-empty-title">Nothing to ask about yet</p>
-          <p className="ask-empty-note">
-            The openings on this screen are the questions this project&rsquo;s read models can
-            already answer. This one has not recorded enough for any of them.
-          </p>
+      <>
+        <div className="ask-panel" data-kind="chat">
+          <div className="ask-empty">
+            <p className="ask-empty-title">Nothing to ask about yet</p>
+            <p className="ask-empty-note">
+              The openings on this screen are the questions this project&rsquo;s read models can
+              already answer. This one has not recorded enough for any of them.
+            </p>
+          </div>
         </div>
-      </div>
+        <AskQuickLinks root={root} periodParam={periodParam} />
+      </>
     );
   }
 
   return (
-    <ul className="ask-openings">
-      {suggestions.map((suggestion, index) => {
-        const Glyph = OPENING_GLYPHS[index % OPENING_GLYPHS.length] ?? OPENING_GLYPHS[0];
-        return (
-          <li key={suggestion}>
-            {/*
-             * A link, not a button that fills the field. The export fills the
-             * composer and waits for a second press; a link asks the question,
-             * which is what the reader wanted when they pressed it, and it
-             * gives the answer an address on the way.
-             */}
-            <Link
-              className="ask-opening"
-              href={dynamicRoute(askLink(root, periodParam, { q: suggestion }))}
-            >
-              <span className="ask-opening-mark" aria-hidden="true">
-                <Glyph />
-              </span>
-              <span className="ask-opening-text">{suggestion}</span>
-              <span className="ask-opening-go" aria-hidden="true">
-                <ChevronRight />
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="ask-openings">
+        {suggestions.map((suggestion, index) => {
+          const Glyph = OPENING_GLYPHS[index % OPENING_GLYPHS.length] ?? OPENING_GLYPHS[0];
+          return (
+            <li key={suggestion}>
+              {/*
+               * A link, not a button that fills the field. The export fills the
+               * composer and waits for a second press; a link asks the question,
+               * which is what the reader wanted when they pressed it, and it
+               * gives the answer an address on the way.
+               */}
+              <Link
+                className="ask-opening"
+                href={dynamicRoute(askLink(root, periodParam, { q: suggestion }))}
+              >
+                <span className="ask-opening-mark" aria-hidden="true">
+                  <Glyph />
+                </span>
+                <span className="ask-opening-text">{suggestion}</span>
+                <span className="ask-opening-go" aria-hidden="true">
+                  <ChevronRight />
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      <AskQuickLinks root={root} periodParam={periodParam} />
+    </>
+  );
+}
+
+/**
+ * THE THREE SURFACES ASK IRIS NAMES RATHER THAN ANSWERS ITSELF.
+ *
+ * ADR-0033 records the relationship each of these has to this screen: the
+ * briefing "is still reachable by name" from here, and `attention/page.tsx`'s
+ * own docblock says the same of the attention register — "reached BY NAME
+ * from Ask IRIS", with `surfaces.test.ts` asserting a link exists so it
+ * cannot quietly disappear. Neither claim was true; the openings mechanism
+ * above can only ask a question, never open another route, so there was
+ * nowhere on this screen an actual `<a>` to either could have lived. This is
+ * that link, for both, plus the full history register the clock button's
+ * inline panel is a quick preview of rather than a replacement for.
+ *
+ * Deliberately quieter than the openings: these are named destinations, not
+ * suggested questions, and the composition should not ask a reader to choose
+ * between "why did demand fall" and "open the briefing" at equal weight.
+ */
+function AskQuickLinks({
+  root,
+  periodParam,
+}: {
+  readonly root: string;
+  readonly periodParam: string;
+}) {
+  return (
+    <nav className="ask-quicklinks" aria-label="Other ways into this project">
+      <Link
+        className="ask-quicklink"
+        href={dynamicRoute(askLink(root, periodParam, {}, "/showroom"))}
+      >
+        <Building size={15} />
+        Today&rsquo;s briefing
+      </Link>
+      <Link
+        className="ask-quicklink"
+        href={dynamicRoute(askLink(root, periodParam, {}, "/attention"))}
+      >
+        <Target size={15} />
+        What needs attention
+      </Link>
+      {/*
+       * NOT "Earlier questions" — the clock button beside the composer
+       * already carries that name and opens the inline preview panel. Two
+       * controls sharing one accessible name on the same screen is a genuine
+       * ambiguity for anyone using a screen reader, not only a strict-mode
+       * test failure: "Earlier questions" spoken twice gives no way to tell
+       * which one opens a page and which one opens a panel in place. This one
+       * names the difference — the full register, not the preview of it.
+       */}
+      <Link
+        className="ask-quicklink"
+        href={dynamicRoute(askLink(root, periodParam, {}, "/ask/history"))}
+      >
+        <Clock size={15} />
+        See the full history
+      </Link>
+    </nav>
   );
 }
 

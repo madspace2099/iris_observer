@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PRIMARY_NAV, PROJECT_NAV, SECONDARY_NAV, SURFACES } from "../src/lib/routes";
+import { PRIMARY_NAV, PROJECT_NAV, SURFACES } from "../src/lib/routes";
 
 const appDir = resolve(import.meta.dirname, "../src/app");
 
@@ -93,15 +93,26 @@ describe("surface audience", () => {
    */
   it("leaves no project surface unreachable", () => {
     /*
-     * Every row the shell actually draws. `PROJECT_NAV` joined them in the
-     * ASK IRIS rollout: it is the Project section's own tab row, drawn by
-     * `Shell` whenever the reader is inside Project, and `features` is
-     * reachable because it is in it.
+     * Every row the shell actually draws. `PROJECT_NAV` is the Project
+     * section's own tab row, drawn by `Shell` whenever the reader is inside
+     * Project, and `features` is reachable because it is in it.
+     *
+     * `SECONDARY_NAV` is deliberately NOT spread in here any more. It is still
+     * declared and still pinned by `reference-parity.test.ts` — the reference
+     * gave these four surfaces these exact names — but `Shell.tsx`'s `rowFor`
+     * no longer renders it as a row: every one of its four keys mapped to the
+     * `project` SECTION, so showing it on Sales Flow or Sales Agents meant a
+     * click reassigned the primary nav to Project and swapped the row out from
+     * under the tab just pressed. This test asserting "SECONDARY_NAV's keys
+     * are reachable" was true of a row that no longer exists — an allow-list
+     * claim this file itself used to make and the mandate that retired the row
+     * asked to have replaced with something that checks what is actually
+     * true. `e2e/nav-reachability.spec.ts` now checks the real anchors these
+     * four destinations are reached through instead.
      */
     const linked = new Set<string>([
       ...PRIMARY_NAV.map((n) => n.key),
       ...PROJECT_NAV.map((n) => n.key),
-      ...SECONDARY_NAV.map((n) => n.key),
     ]);
 
     // Reached from within another surface rather than from a navigation row.
@@ -115,13 +126,27 @@ describe("surface audience", () => {
        * ADDED BY THE ASK IRIS ROLLOUT (ADR-0033), each with where it is
        * reached from. The first is the one that MOVED: Briefing was a
        * navigation item and is now a link on the screen that replaced it.
+       * All three are now real anchors in `AskQuickLinks` (`AskScreen.tsx`),
+       * not merely a comment asserting they exist — `e2e/nav-reachability.
+       * spec.ts` reads the rendered markup to prove it.
        */
-      "showroom", // "Today's briefing", named on the Ask IRIS screen
-      "attention", // "What needs attention", named on the Ask IRIS screen
-      "history", // "Earlier questions", named on the Ask IRIS screen
+      "showroom", // "Today's briefing", a real link on Ask IRIS
+      "attention", // "What needs attention", a real link on Ask IRIS
+      "history", // "Earlier questions", a real link on Ask IRIS
       "[threadId]", // a row in the Ask IRIS history list
       "[unitCode]", // a row in the unit register, on Units
       "[agentId]", // a row in the roster, on Sales Agents
+
+      /*
+       * FORMERLY DRAWN VIA `SECONDARY_NAV`, NOW REACHED FROM THEIR OWNING
+       * SCREEN (Phase 1 of the frontend completion block, retiring that row).
+       */
+      "presentation", // linked from /project directly — its owning context
+      // "units" and "meetings" need no entry: PROJECT_NAV already covers both.
+      "storytelling", // a permanent redirect for old bookmarks/links only —
+      // its live destination, /features, is reachable via PROJECT_NAV; the
+      // route itself is not meant to be clicked to any more, the same
+      // treatment /people already has above.
     ]);
 
     const projectRoutes = SURFACES.filter((s) => s.route.startsWith("/[tenantSlug]/[projectSlug]/"))

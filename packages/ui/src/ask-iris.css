@@ -703,6 +703,53 @@
   color: rgb(136 149 168);
 }
 
+/**
+ * THE THREE NAMED DESTINATIONS.
+ *
+ * Quieter than the openings on purpose — these are places, not questions, and
+ * putting them at the openings' own weight would ask a reader to choose
+ * between asking something and going somewhere as if they were one decision.
+ * Text at `.ask-hint`'s own colour and size, spaced as a row rather than a
+ * list, because three named links read as a row of doors and five ranked
+ * questions read as a list of options — the same distinction the export
+ * itself draws between the composer and everything beneath it.
+ */
+.ask-quicklinks {
+  width: var(--iris-content-width);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 20px 0 0;
+}
+
+.ask-quicklink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: rgb(150 166 192 / 78%);
+  text-decoration: none;
+  transition: color 180ms ease-out;
+}
+
+.ask-quicklink:hover {
+  color: rgb(206 216 232 / 95%);
+}
+
+.ask-quicklink svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+@media (width <= 48rem) {
+  .ask-quicklinks {
+    gap: 10px 18px;
+    margin-top: 16px;
+  }
+}
+
 /* ============================================================================
  * 6. THE PANELS — history, and the conversation.
  * ========================================================================= */

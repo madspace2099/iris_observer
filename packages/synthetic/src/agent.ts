@@ -7,14 +7,15 @@ import {
   type PreMeetingBrief,
   type UnitId,
 } from "@observer/contracts";
-import type {
-  AgentOverview,
-  EvidenceRef,
-  FollowUpItem,
-  PreMeetingBriefView,
-  UnitLabel,
-  UpcomingMeeting,
-  ViewContext,
+import {
+  NotFoundError,
+  type AgentOverview,
+  type EvidenceRef,
+  type FollowUpItem,
+  type PreMeetingBriefView,
+  type UnitLabel,
+  type UpcomingMeeting,
+  type ViewContext,
 } from "@observer/readmodels";
 import { comparison, count, days, evidenceRef, money, ok, percent, unavailable } from "./format";
 import { UNITS, unitById } from "./world";
@@ -367,7 +368,30 @@ export function buildPreMeetingBrief(
 
 /* --- the agent's overview -------------------------------------------------- */
 
+/**
+ * THE SAME LEAK `buildExecutiveOverview` HAD, ONE FUNCTION OVER.
+ *
+ * This is not a per-project dispatch table — it is one function, and it
+ * always names Viktória Halász and Daniel & Eva Bartoš, always cites
+ * `VIKTORIA_MEETING_ID`/`COUPLE_MEETING_ID`, regardless of which project the
+ * viewer actually opened. `root` is built from the real `context`, so the
+ * links point at THIS project's own `/meetings/mtg_viktoria0827` — a meeting
+ * that exists only inside Northgate's fixtures. On any other project that
+ * link either 404s or, if a fixture ever reused the id, could open a meeting
+ * that is not the one the headline describes.
+ *
+ * `docs/08-scenarios.md`'s scripted narrative — the finding that justifies
+ * the whole product, Viktória's favourite unit selling three days before her
+ * follow-up — is Northgate's own scenario and was never meant to travel.
+ * Gated the same way `buildExecutiveOverview` now is: honest absence for
+ * every project this was not written for, rather than someone else's story
+ * with this project's own links stapled to it.
+ */
 export function buildAgentOverview(context: ViewContext): AgentOverview {
+  if (context.project.id !== "prj_northgate01") {
+    throw new NotFoundError(`an agent overview for ${context.project.name}`);
+  }
+
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const hasShowroom = context.project.connectedSources.includes("showroom");
 

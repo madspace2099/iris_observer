@@ -115,15 +115,22 @@
   min-height: 100vh;
   background: var(--surface-page);
   color: var(--ink);
-  font-family:
-    Inter,
-    "Inter Variable",
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+  /*
+   * MANROPE, NOT INTER — DECIDED.
+   *
+   * This asked for Inter and never loaded it: `@fontsource-variable/inter` is
+   * not a dependency anywhere in the repo, there is no `@font-face` for Inter
+   * in this sheet, and no `<link>` loads it from anywhere else. So every
+   * reader has been seeing the OS system sans — Segoe UI on Windows — on the
+   * two screens everyone meets first, sign-in and the project picker, while
+   * believing they were looking at a designed typeface.
+   *
+   * `var(--font-sans)` is `tokens.css`'s own Manrope stack, self-hosted and
+   * already loaded in the root layout for every other surface in the product.
+   * Brand lock (ADR-0020) names Manrope everywhere; this sheet's own literal
+   * request for a second face was the drift, not this fix.
+   */
+  font-family: var(--font-sans);
   font-size: var(--text-body);
   -webkit-font-smoothing: antialiased;
 }
@@ -692,6 +699,16 @@
   line-height: 1.55;
   max-width: 420px;
   margin: 0 auto;
+}
+
+/*
+ * An action, when the empty state has one to offer — not every one does
+ * (`/projects`' own empty state has none, on purpose: a card grants access,
+ * MADSPACE grants access, and a control here would point at neither).
+ */
+.mp-empty .mp-btn {
+  display: inline-flex;
+  margin-top: var(--space-5);
 }
 
 /* ================================================================== settings */

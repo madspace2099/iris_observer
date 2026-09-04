@@ -9,7 +9,7 @@ import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
-import { PROJECT_NAV, SECONDARY_NAV } from "@/lib/routes";
+import { PROJECT_NAV } from "@/lib/routes";
 
 /**
  * The IRIS shell — brand, navigation, context, and the ground everything sits on.
@@ -199,41 +199,50 @@ function segmentOf(pathname: string, base: string): string {
 /**
  * The sub-navigation row, and which item in it is the page.
  *
- * Project owns its own four faces (`PROJECT_NAV`). Every other section shows
- * the detail surfaces (`SECONDARY_NAV`) — the row that was global before this
- * rollout, and which is what keeps Presentation DNA and Storytelling reachable
- * rather than merely present in the repository.
+ * Only Project owns one. It used to be that every OTHER section drew
+ * `SECONDARY_NAV` — the four detail surfaces, Presentation DNA / Unit
+ * Attention / Storytelling / Meetings — as a fallback row, reasoned as "the
+ * product's second navigation, shown wherever a section has none of its own".
+ *
+ * ## Why that reasoning is retired, not merely relocated
+ *
+ * Every one of those four keys maps to the `project` SECTION in `SECTION_OF`
+ * below — their content genuinely is about the project, which is exactly why
+ * showing them under Sales Flow or Sales Agents broke on contact: clicking one
+ * from Sales Flow navigated to a `project`-section URL, which reassigned the
+ * PRIMARY nav highlight to Project and swapped this row to `PROJECT_NAV` —
+ * which has no `presentation` key, so the tab just clicked vanished from the
+ * row that replaced it. A control whose own click removes it from the screen
+ * is broken regardless of where it is drawn, so this was not a placement bug
+ * with one correct home; it was a control that could not have a home while
+ * `SECTION_OF` and the tab row disagreed about which section it belonged to.
+ *
+ * `SECONDARY_NAV` itself is untouched — `reference-parity.test.ts` still pins
+ * its four keys and labels as the reference's own wording — but it is no
+ * longer rendered as a row anywhere. Its four destinations are reachable
+ * through their natural homes instead, each named rather than merely present:
+ * Units and Features are `PROJECT_NAV`'s own tabs (Storytelling permanently
+ * redirects to Features, so the destination was always the same one);
+ * "Unit Attention" is `/attention`, reached by name from Ask IRIS's quick
+ * links (`AskQuickLinks`) rather than confused with `/units`, which is what
+ * its old href pointed at; Presentation DNA is linked directly from `/project`,
+ * the context the mandate says it must be reachable from.
  */
 function rowFor(
   section: string,
   base: string,
   segment: string,
 ): { readonly tabs: readonly ShellTab[]; readonly label: string; readonly current: string | null } {
-  /*
-   * ASK IRIS CARRIES NO SUB-NAVIGATION, AND THAT IS THE DESIGN'S DECISION.
-   *
-   * The delivered artefact for this route draws the header, then the composer,
-   * and nothing between them. Rendering the detail-surfaces row there put four
-   * links a reader did not ask for — Presentation DNA, Unit Attention,
-   * Storytelling, Meetings — directly under a screen whose whole proposition is
-   * one empty field, and pushed the composer 43px down the page for the
-   * privilege.
-   *
-   * Those four surfaces do not become unreachable: they are still the row on
-   * every other section, and `surfaces.test.ts` checks reachability against
-   * `SECONDARY_NAV` itself rather than against where it is drawn.
-   */
-  if (section === "ask") return { tabs: [], label: "", current: null };
+  if (section !== "project") return { tabs: [], label: "", current: null };
 
-  const row = section === "project" ? PROJECT_NAV : SECONDARY_NAV;
   return {
-    tabs: row.map((item) => ({
+    tabs: PROJECT_NAV.map((item) => ({
       key: item.key,
       label: item.label,
       href: `${base}/${item.key}`,
     })),
-    label: section === "project" ? "Project sections" : "Detail surfaces",
-    current: row.some((item) => item.key === segment) ? segment : null,
+    label: "Project sections",
+    current: PROJECT_NAV.some((item) => item.key === segment) ? segment : null,
   };
 }
 
@@ -385,8 +394,25 @@ export function Shell({
    * The nav item and the chrome are different questions about the same URL:
    * "which of the four sections is this" against "is this the one screen the
    * export composes". So the variant asks the segment directly.
+   *
+   * ## THE SEGMENT ALONE IS STILL NOT ENOUGH
+   *
+   * `segmentOf` returns the FIRST path piece below the project root, and that
+   * piece is `"ask"` for three different routes: `/ask` itself, `/ask/history`
+   * and `/ask/[threadId]`. The fix above repaired `/showroom` and `/attention`
+   * and, by matching on the segment, silently gave the same reduced header to
+   * the other two — real `ox-` screens that read `?period` and print a period
+   * label (`ask/history/page.tsx`, `ask/[threadId]/page.tsx`) while the reduced
+   * header hides the one control that could change it, and drops Projects,
+   * Settings and Administration exactly as `/showroom` did before the first
+   * fix.
+   *
+   * So this asks for the WHOLE remainder, not just its first piece: the export
+   * composes exactly one screen, at exactly one address, and only that address
+   * gets its header.
    */
-  const variant = segment === "ask" || segment === "" ? "ask" : "default";
+  const remainder = pathname.startsWith(base) ? pathname.slice(base.length) : "";
+  const variant = remainder === "" || remainder === "/ask" ? "ask" : "default";
 
   return (
     <div className="irs-shell ox-root ox-graphite" data-variant={variant}>

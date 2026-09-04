@@ -219,6 +219,13 @@ export interface MeetingReplay {
   readonly meetingId: string;
   readonly headline: string;
   readonly agentName: string;
+  /**
+   * Where this agent's own detail screen is, or `null` when the session's
+   * `agentId` did not resolve to a real roster entry — `agentName` falls back
+   * to the raw id in that case, and a link built from the raw id would open a
+   * route with nobody behind it.
+   */
+  readonly agentHref: string | null;
   readonly startedDisplay: string;
   readonly durationDisplay: string;
   readonly outcome: MeetingOutcome;

@@ -94,6 +94,26 @@ export default async function Projects() {
             <Link className="mp-bar-link" href={dynamicRoute("/settings/ai?from=%2Fprojects")}>
               Settings
             </Link>
+            {/*
+             * ADMINISTRATION, FOR THE ROLE THAT HOLDS IT — REACHABLE WITHOUT
+             * OPENING A PROJECT FIRST.
+             *
+             * Until now the only door into `/madspace` was inside a project's
+             * own header, so an admin who wanted diagnostics had to open some
+             * project, on its own account, before they could reach the surface
+             * that has nothing to do with any one project. This is the account
+             * index; it is the honest place for the account's own admin door.
+             *
+             * Not a nav item on the customer product (it never was, and this
+             * page is not part of that product's four-item nav to begin with —
+             * it is the account-level portal), and gated the same way every
+             * other Administration link in the app is: by role, not by hiding.
+             */}
+            {viewer.role === "madspace_admin" ? (
+              <Link className="mp-bar-link" href={dynamicRoute("/madspace")}>
+                Administration
+              </Link>
+            ) : null}
             <span className="mp-chip">Demo</span>
             <span className="mp-bar-who">
               <strong>{account.displayName}</strong>

@@ -310,6 +310,25 @@
   --ease: cubic-bezier(0.2, 0, 0, 1);
   --fast: 160ms;
   --base: 320ms;
+
+  /*
+   * TWO VARIABLES `showroom.css` READS AND THIS BRIDGE DID NOT CARRY.
+   *
+   * `.iris` declares both (`iris.css`); `showroom.css` uses them unscoped,
+   * which this bridge exists precisely to cover for every OTHER name it
+   * redeclares. These two were missed, and `var(--void)` on an undeclared
+   * custom property resolves to its guaranteed initial value — transparent,
+   * for a `background` — not to black. The concrete, visible consequence:
+   * `.iris-paired-track b[data-side="right"]` (`showroom.css:1660`) is
+   * `PairedRates`' right-hand bar, and on every `ox-graphite` page that renders
+   * it — `/project`, `/agents/[agentId]` — that bar has been invisible.
+   *
+   * Carried as the literal values `.iris` declares, not re-derived from an
+   * `ox-` token: this is a bridge repair, restoring what the component was
+   * already drawn to expect, not a fresh design choice.
+   */
+  --void: #060709;
+  --sheet-w: min(34rem, 38vw);
 }
 
 /* On paper the brand accent measures 2.73:1, so a chart's own accent takes the
@@ -589,6 +608,25 @@
   font-size: var(--ox-body);
   line-height: var(--ox-lh-body);
   color: var(--ox-ink-2);
+}
+
+/*
+ * AN INLINE LINK, INSIDE RUNNING PROSE.
+ *
+ * The system's other links are whole controls — `.ox-btn`, a table row, a
+ * card — with their own box to signal "this moves you". A name inside a
+ * sentence has no box, so colour alone is not an affordance here the way it
+ * would be argued to be on a dedicated link: underlined, at the accent, is
+ * what marks it as a link rather than emphasis.
+ */
+.ox-link {
+  color: var(--iris-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ox-link:hover {
+  color: var(--iris-accent-strong);
 }
 
 .ox-head-aside {

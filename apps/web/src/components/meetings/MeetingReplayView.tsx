@@ -85,7 +85,19 @@ export function MeetingReplayView({
          * instead is a DERIVED summary, and it is labelled as one a region
          * below rather than promoted into the position a conclusion holds.
          */
-        lede={`Presented by ${replay.agentName}.`}
+        lede={
+          replay.agentHref === null ? (
+            `Presented by ${replay.agentName}.`
+          ) : (
+            <>
+              Presented by{" "}
+              <Link className="ox-link" href={dynamicRoute(withPeriod(replay.agentHref, period))}>
+                {replay.agentName}
+              </Link>
+              .
+            </>
+          )
+        }
         crumbs={[
           { label: "Project", href: `${base}/project` },
           { label: "Meetings", href: `${base}/meetings` },

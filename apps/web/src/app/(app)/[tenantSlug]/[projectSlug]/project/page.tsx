@@ -69,6 +69,31 @@ export default async function ProjectPage({
         <p className="iris-kicker">Project · {view.context.period.label}</p>
         <h1 className="iris-section">{view.verdict}</h1>
 
+        {/*
+         * PRESENTATION DNA, REACHABLE FROM ITS OWNING CONTEXT.
+         *
+         * It used to be a tab shown on Sales Flow and Sales Agents, sections it
+         * does not belong to — see the docblock in Shell.tsx's `rowFor`. What
+         * it measures is how THIS project's own presentations differ from one
+         * another, so this is where it belongs: a plain link rather than
+         * styled prose, because this page is converted onto the current
+         * system in full shortly and a legacy sheet is not worth designing
+         * for twice.
+         *
+         * `.iris-action` is `white-space: nowrap` by design — it is a pill,
+         * not a sentence — so the label stays as short as the "Build an
+         * audience from this" pill already on this page, rather than the full
+         * sentence a first pass gave it, which held its line past 390px.
+         */}
+        <p className="iris-meta">
+          <Link
+            className="iris-action"
+            href={dynamicRoute(`/${tenantSlug}/${projectSlug}/presentation`)}
+          >
+            Presentation DNA →
+          </Link>
+        </p>
+
         {/* --- the plan, and where the project stands against it ---------- */}
 
         <div>

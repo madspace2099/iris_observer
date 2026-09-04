@@ -879,6 +879,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     meetingId: session.meetingId,
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
     agentName: agent?.name ?? session.agentId,
+    agentHref: agent === undefined ? null : `${base}/agents/${agent.id}`,
     startedDisplay: `${formatDay(session.startedAt, locale)} · ${formatClock(session.startedAt, locale)}`,
     durationDisplay: formatDuration(session.durationSeconds),
     outcome: session.outcome,
