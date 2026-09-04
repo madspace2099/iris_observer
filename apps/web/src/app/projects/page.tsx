@@ -85,7 +85,13 @@ export default async function Projects() {
               one settings page and it is about this reader's OpenAI
               connection.
             */}
-            <Link className="mp-bar-link" href={dynamicRoute("/settings/ai")}>
+            {/*
+              Carrying the way back, as the project surfaces do. This page
+              knows its own address without asking the router, so it says it
+              literally rather than pulling in the client component the project
+              layout needs.
+            */}
+            <Link className="mp-bar-link" href={dynamicRoute("/settings/ai?from=%2Fprojects")}>
               Settings
             </Link>
             <span className="mp-chip">Demo</span>

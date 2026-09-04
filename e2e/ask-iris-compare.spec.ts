@@ -595,7 +595,7 @@ test.describe("Ask IRIS against the delivered design", () => {
         context: document.querySelector(".ox-context") !== null,
         tabs: document.querySelector(".ox-tabs") !== null,
         projects: document.querySelector('a[href="/projects"]') !== null,
-        settings: document.querySelector('a[href="/settings/ai"]') !== null,
+        settings: document.querySelector('a[href^="/settings/ai"]') !== null,
       };
     });
 
@@ -626,7 +626,7 @@ test.describe("Ask IRIS against the delivered design", () => {
           signOutPill: document.querySelector(".irs-signout") !== null,
           context: document.querySelector(".ox-context") !== null,
           projects: document.querySelector('a[href="/projects"]') !== null,
-          settings: document.querySelector('a[href="/settings/ai"]') !== null,
+          settings: document.querySelector('a[href^="/settings/ai"]') !== null,
         };
       });
 

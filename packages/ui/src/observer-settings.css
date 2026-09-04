@@ -1,0 +1,596 @@
+/**
+ * ACCOUNT SETTINGS — the parts the product system does not already own.
+ *
+ * `/settings/ai` used to be a light MADSPACE portal page: `.mp-*` classes, a
+ * paper ground, its own bar. It read as a different product bolted to the side
+ * of Observer, which is what it was. It now wears the Observer chrome — the
+ * same `.irs-header`, the same graphite ground, the same `.ox-*` content system
+ * as Sales Flow — and this sheet holds only what those two do not already
+ * cover.
+ *
+ * ## Why it is not a restyle of `portal.css`
+ *
+ * `portal.css` is shared, and the classes settings used were the shared ones:
+ * `.mp`, `.mp-bar*`, `.mp-btn`, `.mp-input`, `.mp-label`, `.mp-fields`,
+ * `.mp-alert`, `.mp-head*`, `.mp-main`, `.mp-skip` are all also used by
+ * `/projects` and `/sign-in`. Darkening them would have redesigned the sign-in
+ * screen and the project picker as a side effect — which the brief explicitly
+ * forbids. So the settings page moved OFF those names instead, and `portal.css`
+ * is untouched. `/projects` and `/sign-in` render exactly as before.
+ *
+ * ## Why it is a small sheet
+ *
+ * Almost everything here was already built. The page takes `.ox-page`,
+ * `.ox-head`, `.ox-kicker`, `.ox-title`, `.ox-lede`, `.ox-plane`, `.ox-panel`,
+ * `.ox-section-head`, `.ox-track`, `.ox-field`, `.ox-input`, `.ox-btn` and
+ * `.ox-btn-row` from `observer-product.css`, and its header is literally the
+ * shell's — `.irs-header`, `.irs-brand`, `.irs-header-end`, `.irs-who`. What
+ * remains is genuinely settings-shaped: a back control, an outcome banner, a
+ * budget read-out, a radio list of models, and a provider row.
+ *
+ * Every value below is a token from `.ox-root` or `.ox-graphite`. Nothing here
+ * introduces a colour, a radius or a step of rhythm the product does not have.
+ */
+
+/* ============================================================================
+ * 1. THE COLUMN
+ * ========================================================================= */
+
+/**
+ * The stack inside the shell's content well.
+ *
+ * The MEASURE is not set here: `.irs-main` already holds the reading width,
+ * and it is the analytical surfaces that opt out of it with `--wide`. Settings
+ * is prose and forms, so it takes the default and this class adds only the
+ * vertical rhythm between its parts.
+ */
+.os-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  min-width: 0;
+}
+
+/**
+ * THE HEAD STANDS ON THE SAME LEFT EDGE AS THE PANELS.
+ *
+ * `.ox-head` is padded by `--ox-inset + --ox-pad` — 48px — and that number is
+ * load-bearing on an analytical surface: it is what makes graphite copy line up
+ * with the text inside a paper plate, so nothing steps in or out as the ground
+ * changes. This page has no plates and no seam, so the same padding only
+ * indents the title 48px from the panels beneath it, which reads as a mistake
+ * because here it is one.
+ *
+ * The vertical padding goes too: `.os-column` already sets the rhythm between
+ * its children, and two sources for one gap is how they drift.
+ */
+.os-column > .ox-head {
+  padding: 0;
+}
+
+/**
+ * A FIELD AND ITS BUTTON ON ONE LINE.
+ *
+ * `.ox-btn-row` centres its children, which puts the button halfway up a field
+ * whose label sits above its input — level with neither. Aligning to the end
+ * puts the button on the input's own line, which is the relationship.
+ */
+.os-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  align-items: flex-end;
+}
+
+/* ============================================================================
+ * 2. BACK
+ *
+ * The control that answers "how do I get out of here". It names its
+ * destination rather than saying "Back", because a reader who arrived from
+ * Sales Flow and a reader who typed the URL are owed different sentences, and
+ * the page knows which is which.
+ * ========================================================================= */
+
+.os-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ox-tight);
+  align-self: flex-start;
+  padding: 0.375rem 0.625rem 0.375rem 0.375rem;
+  margin-left: -0.375rem;
+  border-radius: var(--ox-radius-sm);
+  border: 1px solid transparent;
+  color: var(--ox-ink-3);
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transition:
+    color 170ms ease-out,
+    border-color 170ms ease-out;
+}
+
+.os-back:hover {
+  color: var(--ox-ink);
+  border-color: var(--ox-line-field);
+}
+
+/*
+ * The arrow travels a little on hover — the one piece of motion on this page,
+ * and it is the affordance rather than decoration: it says the control moves
+ * you rather than opening something.
+ */
+.os-back-arrow {
+  display: block;
+  transition: transform 170ms ease-out;
+}
+
+.os-back:hover .os-back-arrow {
+  transform: translateX(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-back,
+  .os-back-arrow {
+    transition: none;
+  }
+
+  .os-back:hover .os-back-arrow {
+    transform: none;
+  }
+}
+
+/* ============================================================================
+ * 3. THE OUTCOME BANNER
+ *
+ * One element for both outcomes, distinguished by `data-tone`. Two classes
+ * were two chances for them to drift apart, and they had already: the success
+ * note was a `<p>` with a tint and the failure was a `<div>` with a rail.
+ *
+ * The tone is carried by a rail and a WORD, never by colour alone — the same
+ * rule §9 of the product sheet applies to every status in this system.
+ * ========================================================================= */
+
+.os-flash {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: var(--ox-inner) var(--ox-section);
+  border: 1px solid var(--ox-line-panel);
+  border-inline-start: 3px solid var(--ox-line);
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-panel);
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+.os-flash[data-tone="ok"] {
+  border-inline-start-color: var(--ox-good-mark);
+  background: var(--ox-good-tint);
+}
+
+.os-flash[data-tone="bad"] {
+  border-inline-start-color: var(--ox-poor-mark);
+  background: var(--ox-poor-tint);
+}
+
+.os-flash strong {
+  color: var(--ox-ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* ============================================================================
+ * 4. THE BUDGET READ-OUT
+ * ========================================================================= */
+
+/**
+ * Three figures, side by side, each with its label above it.
+ *
+ * A `<dl>` because that is what it is — three terms and their definitions — and
+ * because a screen reader then announces "Used, four dollars twelve" rather
+ * than reading six loose cells and leaving the pairing to the listener.
+ */
+.os-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--ox-section);
+  margin: 0;
+}
+
+.os-facts dt {
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+}
+
+.os-facts dd {
+  margin: 0.25rem 0 0;
+  font-size: var(--ox-value);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The share, beside the amount and subordinate to it — it restates the bar. */
+.os-percent {
+  font-size: var(--ox-caption);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink-3);
+}
+
+/**
+ * The threshold sentence. It appears only when there is something to say, and
+ * it is a SENTENCE — "you have used 80% or more of this month's budget" — not
+ * a coloured bar left to speak for itself.
+ */
+.os-threshold {
+  margin: 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+.os-threshold[data-threshold="most"],
+.os-threshold[data-threshold="exhausted"] {
+  color: var(--ox-watch);
+}
+
+.os-threshold[data-threshold="none"] {
+  color: var(--ox-ink-3);
+}
+
+/*
+ * AND THE BAR ITSELF STAYS GREY.
+ *
+ * The portal version tinted the meter amber and red by threshold. The product
+ * system refuses that on purpose — `observer-product.css` §8, and a test that
+ * pins `.ox-track-fill` to `var(--ox-ink-3)`: a proportion is a quantity, not a
+ * verdict, and a red bar tells a reader the number is bad before they have read
+ * it. The verdict belongs in the sentence above, which is why that sentence
+ * exists and why it is a full sentence rather than a label.
+ *
+ * So this sheet adds no fill rule at all. The bar is `.ox-track` unmodified.
+ */
+
+/* ============================================================================
+ * 5. THE MODEL LIST
+ *
+ * A radio group drawn as rows. Not a `<select>`: the choice carries a summary
+ * and a price for each option, and a reader picking a model is comparing them
+ * rather than recalling a name.
+ * ========================================================================= */
+
+.os-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.os-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ox-inner);
+  align-items: start;
+  padding: var(--ox-inner) var(--ox-section);
+  border: 1px solid var(--ox-line-panel);
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-panel);
+  cursor: pointer;
+  transition: border-color 170ms ease-out;
+}
+
+.os-choice:hover {
+  border-color: var(--ox-line-hover);
+}
+
+/*
+ * The checked row is marked by the accent, which in this system means "a person
+ * decided this, and a person can change it" — exactly what a default model is.
+ */
+.os-choice:has(input:checked) {
+  border-color: var(--iris-accent);
+  background: var(--ox-human-tint);
+}
+
+/*
+ * `:focus-visible` on the input, ring on the row. The input is the focusable
+ * thing and the row is what a reader sees, so the ring has to move outward or
+ * keyboard focus lands on an 18px circle inside a 60px target.
+ */
+.os-choice:has(input:focus-visible) {
+  outline: 2px solid var(--ox-focus);
+  outline-offset: 2px;
+}
+
+/**
+ * A MODEL WITH NO KEY IS SHOWN, MARKED, AND SAYS WHY.
+ *
+ * Hiding it would be worse: the reason it cannot be chosen is precisely the
+ * thing this page exists to fix, so the row states "needs an OpenAI key" and
+ * the panel below is where that key goes.
+ *
+ * ## NOT `opacity`, AND THIS IS WHY
+ *
+ * It was `opacity: 0.62`, and axe caught it: the price line runs at
+ * `--ox-ink-4`, which is 6.17:1 on this ground and MEASURED to be — and 62% of
+ * it is 3.14:1, well under the 4.5:1 floor. A container opacity silently
+ * repaints every descendant, so one declaration took a compliant palette below
+ * the line in three places at once and nothing in the CSS said so.
+ *
+ * The unavailable state is carried the way the rest of the system carries
+ * state: a MARK and a WORD. The border goes dashed — the same dashed edge
+ * `.ox-btn[aria-disabled]` uses — and the name says what is missing. Every
+ * colour stays exactly where it was measured.
+ */
+.os-choice[data-usable="false"] {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.os-choice[data-usable="false"] .os-choice-name {
+  color: var(--ox-ink-3);
+}
+
+.os-choice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.os-choice-name {
+  font-size: var(--ox-body);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+}
+
+.os-choice-flag {
+  /* 400 as a literal: the token set names only medium and semibold. */
+  font-weight: 400;
+  color: var(--ox-watch);
+}
+
+.os-choice-summary {
+  font-size: var(--ox-caption);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+.os-choice-price {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * 6. PROVIDER ROWS
+ * ========================================================================= */
+
+.os-provider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  padding-top: var(--ox-section);
+  border-top: 1px solid var(--ox-line-hair);
+}
+
+.os-provider-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-section);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.os-provider-name {
+  margin: 0;
+  font-size: var(--ox-lead);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-heading);
+  color: var(--ox-ink);
+}
+
+.os-provider-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ox-tight);
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-2);
+}
+
+.os-provider-state[data-muted="true"] {
+  color: var(--ox-ink-4);
+}
+
+/*
+ * A filled dot for connected, a dashed ring for not. The shape carries the
+ * state as well as the colour does, so the row survives a monochrome print and
+ * a reader who does not separate green from grey.
+ */
+.os-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--ox-round);
+  background: var(--ox-good-mark);
+  flex: none;
+}
+
+.os-provider-state[data-muted="true"] .os-dot {
+  background: none;
+  border: 1px dashed var(--ox-line-dashed);
+}
+
+/* The last four characters, in the figure face, because they are an identifier. */
+.os-mask {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--ox-ink);
+}
+
+/**
+ * THE REMOVAL CONFIRMATION.
+ *
+ * Inline rather than a dialog: the consequence is three sentences long and a
+ * reader deciding whether to delete a credential should be able to read them
+ * beside the thing being deleted, not over the top of it.
+ */
+.os-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  padding: var(--ox-section);
+  border: 1px solid var(--ox-line);
+  border-inline-start: 3px solid var(--ox-poor-mark);
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-poor-tint);
+}
+
+.os-confirm strong {
+  font-size: var(--ox-lead);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+}
+
+.os-confirm p {
+  margin: 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+  max-width: 68ch;
+}
+
+/* ============================================================================
+ * 7. NOTES, ADVICE AND LINKS
+ * ========================================================================= */
+
+/**
+ * The standing caveats — what a figure is, who bills for what.
+ *
+ * An inset rather than a panel: this is qualifying text attached to the thing
+ * above it, and giving it its own card would make it look like a separate
+ * claim of equal weight.
+ */
+.os-advice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-inset-fill);
+  font-size: var(--ox-caption);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+.os-advice strong {
+  font-size: var(--ox-body);
+  color: var(--ox-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.os-advice p,
+.os-advice ul {
+  margin: 0;
+}
+
+.os-advice ul {
+  padding-left: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.os-note {
+  margin: 0;
+  font-size: var(--ox-caption);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-3);
+  max-width: 68ch;
+}
+
+/*
+ * Underlined, not merely coloured. Colour alone is not a link affordance, and
+ * these sit inside running prose where there is no other cue.
+ */
+.os-link {
+  color: var(--ox-human);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.os-link:hover {
+  color: var(--ox-ink);
+}
+
+/* ============================================================================
+ * 8. THE HEADER, ON A PAGE WITH NO PROJECT
+ *
+ * The chrome is the shell's own — `.irs-header` and its parts, used directly
+ * rather than copied. Two things differ, and both follow from the same fact:
+ * account settings belong to a person, not to a project.
+ * ========================================================================= */
+
+/**
+ * THE BRAND IS A LINK HERE.
+ *
+ * On a project surface the wordmark is inert, because the four sections are
+ * already one click away in the nav beside it. This page has no nav — there is
+ * no project to navigate within — so the wordmark becomes the way back into the
+ * product, and it goes to Ask IRIS for the project the reader came from.
+ *
+ * It is a link and looks like one on hover and on focus. A logo that navigates
+ * without saying so is a trap for anybody who cannot see the cursor change.
+ */
+.os-brand-link {
+  text-decoration: none;
+  border-radius: var(--ox-radius-sm);
+  transition: opacity 170ms ease-out;
+}
+
+.os-brand-link:hover {
+  opacity: 0.78;
+}
+
+/*
+ * The middle column of `.irs-header`'s three-column grid, holding the page's
+ * own identity where a project surface holds its nav. It is the honest filler:
+ * a reader glancing at the top bar sees WHERE they are, not an empty gap.
+ */
+.os-header-title {
+  justify-self: center;
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+/**
+ * BELOW 768 THE MIDDLE COLUMN GOES, AND THE CONTROLS STAY.
+ *
+ * The end of the header carries Projects and Sign out, and an end-to-end test
+ * clicks both on a Pixel 7. So the label is what yields at narrow widths —
+ * it is the one thing here that repeats what the page's own `h1` already
+ * says — and nothing that navigates is ever hidden.
+ */
+@media (width <= 48rem) {
+  .os-header-title {
+    display: none;
+  }
+
+  .os-column {
+    gap: var(--ox-section);
+  }
+
+  .os-choice {
+    padding: var(--ox-inner);
+  }
+}

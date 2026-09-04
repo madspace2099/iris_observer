@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 
+import { SettingsLink } from "@/components/iris/SettingsLink";
 import { Shell } from "@/components/iris/Shell";
 import type { SwitchOption } from "@/components/ContextSwitcher";
 import { AskDock } from "@/components/ask-iris/AskDock";
@@ -197,9 +198,7 @@ export default async function ProjectLayout({
         no model connection must be able to reach the page that fixes it
         without leaving through the browser's Back button.
       */}
-      <Link className="ox-btn" data-weight="quiet" href="/settings/ai">
-        Settings
-      </Link>
+      <SettingsLink />
       {viewer.role === "madspace_admin" ? (
         <Link className="ox-btn" data-weight="quiet" href="/madspace">
           Administration

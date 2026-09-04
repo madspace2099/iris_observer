@@ -183,7 +183,7 @@ async function ask(page: Page, question = "What changed this month?"): Promise<A
  */
 async function usedPercent(page: Page): Promise<number> {
   await settings(page);
-  const percent = page.locator(".mp-percent").first();
+  const percent = page.locator(".os-percent").first();
   if (!(await percent.isVisible().catch(() => false))) return 0;
   const match = /\((\d+)%\)/.exec((await percent.innerText()).trim());
   return match === null ? 0 : Number.parseInt(match[1] ?? "0", 10);
@@ -198,10 +198,10 @@ async function usedPercent(page: Page): Promise<number> {
  */
 async function usedDollars(page: Page): Promise<number> {
   await settings(page);
-  let used = page.locator(".mp-facts dd").first();
+  let used = page.locator(".os-facts dd").first();
   if (!(await used.isVisible().catch(() => false))) {
     await setBudget(page, 100);
-    used = page.locator(".mp-facts dd").first();
+    used = page.locator(".os-facts dd").first();
   }
   const match = /\$([\d.]+)/.exec((await used.innerText()).trim());
   return match === null ? 0 : Number.parseFloat(match[1] ?? "0");
@@ -498,7 +498,7 @@ test.describe("a model the account cannot reach", () => {
      * to choose it again and wait for the same refusal.
      */
     await settings(page);
-    const terra = page.locator(".mp-choice", { hasText: "GPT-5.6 Terra" }).first();
+    const terra = page.locator(".os-choice", { hasText: "GPT-5.6 Terra" }).first();
     await expect(terra).toHaveAttribute("data-usable", "false");
   });
 
@@ -516,14 +516,14 @@ test.describe("a model the account cannot reach", () => {
     await connect(page, "openai", NO_MODEL);
     await settings(page);
     await expect(
-      page.locator(".mp-choice", { hasText: "GPT-5.6 Terra" }).first(),
+      page.locator(".os-choice", { hasText: "GPT-5.6 Terra" }).first(),
       "out of reach, on the old key",
     ).toHaveAttribute("data-usable", "false");
 
     await connect(page, "openai", GOOD);
     await settings(page);
     await expect(
-      page.locator(".mp-choice", { hasText: "GPT-5.6 Terra" }).first(),
+      page.locator(".os-choice", { hasText: "GPT-5.6 Terra" }).first(),
       "and reachable again on the new one",
     ).toHaveAttribute("data-usable", "true");
 
@@ -559,7 +559,7 @@ test.describe("what a reader is shown", () => {
      * below it, which is correct — one list of models, offered twice for two
      * different decisions — and makes a bare text match ambiguous.
      */
-    const names = page.locator(".mp-choice-name");
+    const names = page.locator(".os-choice-name");
     await expect(names.filter({ hasText: "GPT-5.6 Luna" })).toHaveCount(1);
     await expect(names.filter({ hasText: "GPT-5.6 Terra" })).toHaveCount(1);
     await expect(names.filter({ hasText: "GPT-5.6 Sol" })).toHaveCount(1);

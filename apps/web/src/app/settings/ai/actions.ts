@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { safeReturnTo } from "@/portal/return-to";
 
 import { dynamicRoute } from "@/lib/href";
 import { requireAccount } from "@/lib/session";
@@ -45,6 +46,27 @@ import { setBudget } from "@/lib/budget/service";
 
 const PATH = "/settings/ai";
 
+/**
+ * WHERE AN ACTION RETURNS TO, CARRYING THE READER'S ORIGIN.
+ *
+ * Every action here ends in a redirect back to the settings page with one word
+ * of outcome in the query. That redirect used to drop the `from` parameter the
+ * page arrived with — so a reader who opened settings from Sales Flow, saved a
+ * budget, and then looked for the way back found it pointing at Projects
+ * instead. The context survived exactly until they used the page.
+ *
+ * So each form carries `from` as a hidden field and each redirect puts it back.
+ * It is browser-controlled and it is being handed to a redirect, which is the
+ * open-redirect shape exactly, so it goes through the same allow-list the page
+ * itself uses. Null means "drop it", never "send them there anyway".
+ */
+function backTo(formData: FormData, query: string): string {
+  const from = safeReturnTo(String(formData.get("from") ?? ""));
+  const carry = from === null ? "" : `from=${encodeURIComponent(from)}`;
+  const parts = [query, carry].filter((part) => part !== "");
+  return parts.length === 0 ? PATH : `${PATH}?${parts.join("&")}`;
+}
+
 function providerFrom(formData: FormData): ProviderId {
   const raw = String(formData.get("provider") ?? "openai");
   return isProviderId(raw) ? raw : "openai";
@@ -78,7 +100,7 @@ export async function connect(formData: FormData): Promise<void> {
   const result = await saveConnection(account.accountId, raw, probeFor(), provider, model);
 
   if (!result.ok) {
-    redirect(dynamicRoute(`${PATH}?failed=${result.failure}&p=${provider}`));
+    redirect(dynamicRoute(backTo(formData, `failed=${result.failure}&p=${provider}`)));
   }
 
   /*
@@ -99,11 +121,11 @@ export async function connect(formData: FormData): Promise<void> {
    */
   if (result.unreachableModel !== null) {
     await recordModelUnavailable(account.accountId, result.unreachableModel);
-    redirect(dynamicRoute(`${PATH}?done=connected_no_model&p=${provider}`));
+    redirect(dynamicRoute(backTo(formData, `done=connected_no_model&p=${provider}`)));
   }
 
   redirect(
-    dynamicRoute(`${PATH}?done=${result.replaced ? "replaced" : "connected"}&p=${provider}`),
+    dynamicRoute(backTo(formData, `done=${result.replaced ? "replaced" : "connected"}&p=${provider}`)),
   );
 }
 
@@ -123,8 +145,8 @@ export async function test(formData: FormData): Promise<void> {
   redirect(
     dynamicRoute(
       result.ok
-        ? `${PATH}?done=tested&p=${provider}`
-        : `${PATH}?failed=${result.failure}&p=${provider}`,
+        ? backTo(formData, `done=tested&p=${provider}`)
+        : backTo(formData, `failed=${result.failure}&p=${provider}`),
     ),
   );
 }
@@ -137,8 +159,8 @@ export async function remove(formData: FormData): Promise<void> {
   redirect(
     dynamicRoute(
       removed
-        ? `${PATH}?done=removed&p=${provider}`
-        : `${PATH}?failed=provider_unavailable&p=${provider}`,
+        ? backTo(formData, `done=removed&p=${provider}`)
+        : backTo(formData, `failed=provider_unavailable&p=${provider}`),
     ),
   );
 }
@@ -159,11 +181,11 @@ export async function chooseModels(formData: FormData): Promise<void> {
 
   const store = preferenceStore();
   if (!store.available || !isModelId(wanted)) {
-    redirect(dynamicRoute(`${PATH}?failed=storage_unavailable`));
+    redirect(dynamicRoute(backTo(formData, "failed=storage_unavailable")));
   }
 
   await store.store.setModels(account.accountId, wanted, isModelId(deepWanted) ? deepWanted : null);
-  redirect(dynamicRoute(`${PATH}?done=models`));
+  redirect(dynamicRoute(backTo(formData, "done=models")));
 }
 
 /**
@@ -181,5 +203,5 @@ export async function chooseBudget(formData: FormData): Promise<void> {
   const dollars = Number.isFinite(raw) && raw >= 0 ? Math.min(raw, 100_000) : 0;
 
   const saved = await setBudget(account.accountId, dollarsToMicros(dollars));
-  redirect(dynamicRoute(saved ? `${PATH}?done=budget` : `${PATH}?failed=storage_unavailable`));
+  redirect(dynamicRoute(backTo(formData, saved ? "done=budget" : "failed=storage_unavailable")));
 }

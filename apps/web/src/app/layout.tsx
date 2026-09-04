@@ -26,6 +26,12 @@ import "@observer/ui/observer-product.css";
  * surface wears. ADR-0035.
  */
 import "@observer/ui/ask-iris.css";
+/*
+ * Account settings, wearing the product chrome rather than the light portal.
+ * After the product sheet it extends and claims only `os-` names, none of
+ * which any other sheet uses.
+ */
+import "@observer/ui/observer-settings.css";
 // IRIS Spatial Intelligence. Loaded after the M2.1 component sheet so the
 // showroom surfaces win where the two overlap; the surfaces that have not been
 // rebuilt yet keep the older layer until they are.

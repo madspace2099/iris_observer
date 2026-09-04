@@ -58,6 +58,17 @@ const MONIKA = "Monika Kováčová";
  */
 test.describe.configure({ mode: "serial" });
 
+/**
+ * The two outcome markers.
+ *
+ * One element, two tones, since the page moved off `portal.css` onto the
+ * product's own system — `.mp-ok` and `.mp-alert` were shared with
+ * `/sign-in` and `/projects`, and restyling them would have redesigned both.
+ */
+const FLASH_OK = '.os-flash[data-tone="ok"]';
+const FLASH_BAD = '.os-flash[data-tone="bad"]';
+
+
 const STATEFUL = "the account boundary is the same at every width; the state is not";
 
 async function settings(page: Page): Promise<void> {
@@ -81,7 +92,7 @@ async function disconnect(page: Page): Promise<void> {
   const button = page.getByRole("button", { name: "Yes, remove it" });
   if ((await button.count()) > 0) {
     await button.click();
-    await page.locator(".mp-ok").waitFor({ state: "visible" });
+    await page.locator(FLASH_OK).waitFor({ state: "visible" });
   }
 }
 
@@ -109,8 +120,8 @@ async function submitKey(page: Page, key: string): Promise<void> {
    * layout does not have made this wait thirty seconds for nothing.
    */
   await Promise.race([
-    page.locator(".mp-ok").waitFor({ state: "visible" }),
-    page.locator(".mp-alert").waitFor({ state: "visible" }),
+    page.locator(FLASH_OK).waitFor({ state: "visible" }),
+    page.locator(FLASH_BAD).waitFor({ state: "visible" }),
   ]);
   await page.waitForLoadState("networkidle");
 }
@@ -264,12 +275,26 @@ test.describe("settings can be reached and left", () => {
   test("leads back to both without the browser Back button", async ({ page }) => {
     await settings(page);
 
-    await page.getByRole("link", { name: "Projects" }).click();
+    /*
+     * `exact`, because the page now also carries a Back control and on a direct
+     * visit its destination IS Projects — announced "Back to Projects", which
+     * a substring match on "Projects" also finds. Both go to the same place, so
+     * either would satisfy the intent; naming the header one keeps this test
+     * about the header.
+     */
+    await page.getByRole("link", { name: "Projects", exact: true }).click();
     await page.waitForURL(/\/projects/);
 
+    /*
+     * The wordmark, not a text link. It carries the accessible name "IRIS
+     * Observer — open Ask IRIS for <project>", so it is still found by the
+     * word a reader would use, and it now lands on Ask IRIS: the product's
+     * own landing surface under ADR-0033, and where the brief asked the logo
+     * to go.
+     */
     await settings(page);
     await page.getByRole("link", { name: "Observer" }).click();
-    await page.waitForURL(/showroom/);
+    await page.waitForURL(/\/ask$/);
   });
 });
 
@@ -348,7 +373,7 @@ test.describe("connecting, testing, replacing and removing", () => {
     expect(await body(page)).toContain("Remove the OpenAI key?");
 
     await page.getByRole("button", { name: "Yes, remove it" }).click();
-    await page.locator(".mp-ok").waitFor({ state: "visible" });
+    await page.locator(FLASH_OK).waitFor({ state: "visible" });
 
     /* Back to the empty state, which is where the instruction lives. */
     expect(await body(page)).toContain("Add your OpenAI API key");

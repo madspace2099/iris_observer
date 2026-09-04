@@ -372,8 +372,21 @@ export function Shell({
    *
    * Duplicating the shell to change one button was the alternative, and it is
    * how two headers end up disagreeing about the navigation six months later.
+   *
+   * ## THE SEGMENT, NOT THE SECTION
+   *
+   * This read `current === "ask"`, and `current` is a SECTION — `SECTION_OF`
+   * maps `showroom` and `attention` onto `ask` so that all three light the same
+   * nav item. The variant inherited that grouping and put the reduced Ask
+   * header on two surfaces that are not Ask IRIS, silently removing Projects,
+   * Settings, Administration and the demonstration badge from both. A reader on
+   * the briefing had no way to reach their own settings at all.
+   *
+   * The nav item and the chrome are different questions about the same URL:
+   * "which of the four sections is this" against "is this the one screen the
+   * export composes". So the variant asks the segment directly.
    */
-  const variant = current === "ask" ? "ask" : "default";
+  const variant = segment === "ask" || segment === "" ? "ask" : "default";
 
   return (
     <div className="irs-shell ox-root ox-graphite" data-variant={variant}>
