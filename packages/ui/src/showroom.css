@@ -2136,6 +2136,21 @@
  * legend, each cell promotes its own `data-label`, and nothing is hidden —
  * a narrower table shows the same four facts as a wider one, laid out
  * differently.
+ *
+ * FILTER AND VALUE ARE ONE IDENTITY, NOT TWO RECORDS.
+ *
+ * The first pass gave that same treatment to all four cells — measured at
+ * 412px: "Filter" and "Value" as their own labelled lines, ten times each
+ * down the column, on top of the two labels a reader actually needs. That is
+ * the deviation from `data-columns="6"`, not a difference demand requires:
+ * there, the unit code carries no `data-label` at all and needs no legend,
+ * because it already reads as an identity. Here the identity is the PAIR —
+ * "Rooms" alone or "2" alone answers nothing — so the pair shares one line
+ * and the filter's own value (`d.label`, e.g. "Price") stands in front of
+ * its own value the way `data-label` stands in front of a measurement,
+ * because it already IS that value's label. Nothing here is hidden, renamed
+ * or abbreviated — "Filter" and "Value" are gone because the two data cells
+ * that follow now do what those two words did.
  */
 @media (max-width: 30rem) {
   .iris-matrix[data-columns="demand"] .iris-matrix-head {
@@ -2143,23 +2158,36 @@
   }
 
   .iris-matrix[data-columns="demand"] .iris-matrix-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.75rem;
     row-gap: 0.25rem;
     padding: 0.625rem 0.5rem;
   }
 
-  .iris-matrix[data-columns="demand"] .iris-matrix-row > * {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.75rem;
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > :first-child {
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+    white-space: normal;
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > :nth-child(2) {
     text-align: left;
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
   }
 
-  .iris-matrix[data-columns="demand"] .iris-matrix-row > *::before {
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > :nth-child(n + 3) {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    text-align: left;
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > :nth-child(n + 3)::before {
     content: attr(data-label);
     flex: none;
     font-family: var(--sans, inherit);
