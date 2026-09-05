@@ -116,7 +116,15 @@ export default async function ProjectPage({
               {t.note}
             </p>
           ))}
-          <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} />
+          {/*
+            The provenance tag names the source these figures actually came
+            from. A "CRM outcome" chip claimed on every project regardless of
+            whether one is connected is the same lie in miniature as the
+            zero-standing-in-for-unmeasured this project exists to prevent.
+          */}
+          {view.context.project.connectedSources.includes("crm") ? (
+            <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} />
+          ) : null}
         </div>
 
         <hr className="iris-rule" />

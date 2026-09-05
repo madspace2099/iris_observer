@@ -268,7 +268,7 @@ function buildRing(
     slices: outcomeSlices(session),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
     flag: outcomeFlag(session, teamProgressed),
-    href: `${base}/agents?agent=${agentId}`,
+    href: `${base}/agents/${agentId}`,
   };
 }
 
@@ -778,7 +778,7 @@ export function buildAgentsView(
               responses: rated.length,
             }
           : null,
-      href: `${base}/agents?agent=${a.id}`,
+      href: `${base}/agents/${a.id}`,
     } satisfies AgentProfile;
   });
 
@@ -1121,7 +1121,7 @@ export function buildHome(
       ? null
       : {
           text: `${flagged.agent.name}: ${flagged.flag.text}`,
-          href: `${base}/agents?agent=${flagged.agent.id}`,
+          href: `${base}/agents/${flagged.agent.id}`,
         };
 
   const project = buildProjectView(context, sessions, "rooms-2");

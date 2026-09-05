@@ -279,7 +279,8 @@ export function BulletChart({
   rows: readonly {
     readonly id: string;
     readonly label: string;
-    readonly actual: number;
+    /** Null when the source this counts from is not connected on this project. */
+    readonly actual: number | null;
     readonly target: number;
     readonly pace: number;
     readonly total: number;
@@ -290,11 +291,16 @@ export function BulletChart({
     <div className="iris-bullets">
       {rows.map((row) => {
         const pct = (v: number) => `${Math.min(100, Math.max(0, (v / row.total) * 100))}%`;
-        const behind = row.actual < row.pace;
+        const unavailable = row.actual === null;
+        const behind = !unavailable && row.actual < row.pace;
         return (
           <div className="iris-bullet" key={row.id}>
             <span className="iris-bullet-label">{row.label}</span>
-            <span className="iris-bullet-track" title={row.note}>
+            <span
+              className="iris-bullet-track"
+              title={row.note}
+              data-unavailable={unavailable ? "true" : undefined}
+            >
               {/* The qualitative bands: behind, on pace, ahead. */}
               <em
                 className="iris-bullet-band"
@@ -306,12 +312,24 @@ export function BulletChart({
                 style={{ width: pct(row.pace * 1.1) }}
                 data-band="near"
               />
-              <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
+              {/*
+                No fill drawn when the source is not connected — an
+                unmeasured actual gets no track at all, the same rule Unit
+                Detail's evidence ladder applies, rather than a bar reading
+                as a real, measured zero.
+              */}
+              {unavailable ? null : (
+                <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
+              )}
               <b style={{ left: pct(row.pace) }} title={`Needed by now: ${Math.round(row.pace)}`} />
               <u style={{ left: pct(row.target) }} title={`Target: ${row.target}`} />
             </span>
-            <span className="iris-bullet-value" data-behind={behind ? "true" : undefined}>
-              {row.actual} / {row.target}
+            <span
+              className="iris-bullet-value"
+              data-behind={behind ? "true" : undefined}
+              data-unavailable={unavailable ? "true" : undefined}
+            >
+              {unavailable ? "Unavailable" : `${row.actual} / ${row.target}`}
             </span>
           </div>
         );

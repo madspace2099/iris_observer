@@ -15,7 +15,7 @@ const SHOTS = [
   ["02-flow", "/alpha/northgate/flow"],
   ["03-project", "/alpha/northgate/project?segment=rooms-2"],
   ["04-agents", "/alpha/northgate/agents"],
-  ["05-agent-focused", "/alpha/northgate/agents?agent=agt_monika"],
+  ["05-agent-detail", "/alpha/northgate/agents/agt_monika"],
   ["06-audience", "/alpha/northgate/audience?rooms=2&category=family"],
 ] as const;
 

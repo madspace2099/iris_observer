@@ -17,7 +17,7 @@ const ROUTES = [
   ["sales flow", "/alpha/northgate/flow"],
   ["project", "/alpha/northgate/project?segment=rooms-2"],
   ["sales agents", "/alpha/northgate/agents"],
-  ["sales agents, focused", "/alpha/northgate/agents?agent=agt_monika"],
+  ["sales agents, detail", "/alpha/northgate/agents/agt_monika"],
   ["audience", "/alpha/northgate/audience?rooms=2&category=family"],
   ["presentation, agents", "/alpha/northgate/presentation?mode=agents&left=agt_monika&right=agt_akhilesh"],
   ["presentation, cohorts", "/alpha/northgate/presentation?mode=cohorts"],

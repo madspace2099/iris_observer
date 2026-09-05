@@ -331,6 +331,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       current,
       this.today,
       context.project.locale,
+      context.project.connectedSources.includes("crm"),
     );
   }
 

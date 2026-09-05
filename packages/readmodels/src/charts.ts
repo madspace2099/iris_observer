@@ -151,14 +151,21 @@ export interface RankedRow {
  * Actual, the target, and where the schedule wanted it to be by now. The last
  * is what turns a percentage into a decision: 33% sold is neither good nor bad
  * until you know the plan wanted 41%.
+ *
+ * `actual` is a CRM-outcome fact — a unit's `sold`/`reserved` status is a
+ * closed-deal state, not a catalogue attribute — so it is `null` on a project
+ * whose CRM is not connected. `null` here, not `0`: a project with nothing
+ * sold and a project with no CRM to say so are two different facts, and
+ * writing the second as the first is exactly the fabrication the "unavailable
+ * is never zero" rule exists to prevent.
  */
 export interface SalesTarget {
   readonly id: string;
   readonly label: string;
   readonly total: number;
-  readonly actual: number;
+  readonly actual: number | null;
   readonly target: number;
-  /** Straight-line expectation at today's date. */
+  /** Straight-line expectation at today's date. Schedule-derived, not CRM-derived — known even when `actual` is not. */
   readonly pace: number;
   readonly startedOn: string;
   readonly targetDate: string;

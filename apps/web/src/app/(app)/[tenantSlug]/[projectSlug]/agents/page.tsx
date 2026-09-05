@@ -8,8 +8,7 @@ import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
-import { Radar, RankedBars, SectionSequence } from "@/showroom/charts2";
-import { Measure } from "@/showroom/Measure";
+import { Radar, RankedBars } from "@/showroom/charts2";
 
 export const metadata: Metadata = { title: "Sales Agents" };
 
@@ -39,19 +38,20 @@ export default async function AgentsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string; agent?: string }>;
+  searchParams: Promise<{ period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
   // Declared in SURFACES, enforced here — a hidden link is not access control.
   requireSurface(viewer, "agents", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
+  const period = presetFrom(search.period);
 
   const query = {
     viewer,
     tenantSlug,
     projectSlug,
-    period: presetFrom(search.period) as PeriodPreset,
+    period: period as PeriodPreset,
   };
 
   const [view, charts] = await Promise.all([
@@ -59,13 +59,20 @@ export default async function AgentsPage({
     repository.getAgentCharts(query),
   ]);
 
-  const focused = view.agents.find((a) => a.agentId === search.agent) ?? null;
-  const root = `/${tenantSlug}/${projectSlug}/agents`;
-  const qs = (agent: string | null) =>
-    `${root}?${new URLSearchParams({
-      period: presetFrom(search.period),
-      ...(agent === null ? {} : { agent }),
-    }).toString()}`;
+  /*
+   * ONE AGENT-DETAIL EXPERIENCE, AT THE DEDICATED ROUTE.
+   *
+   * This roster used to expand an agent inline, on this same page, with its
+   * own smaller evidence treatment (no tier badges, no sample-size floor, no
+   * "Unavailable" handling — see `agents/[agentId]/page.tsx`'s own docblock).
+   * That left two "agent detail" implementations live with no link between
+   * them, and the one a reader could actually reach from the roster was the
+   * weaker one. There is one now: this card opens the dedicated `ox-` route,
+   * which already carries everything the inline expansion showed (including
+   * the same `SectionSequence` component for presentation timing) and more.
+   */
+  const detailHref = (agentId: string) =>
+    `/${tenantSlug}/${projectSlug}/agents/${agentId}?${new URLSearchParams({ period }).toString()}`;
 
   return (
     <div className="iris-one">
@@ -75,11 +82,7 @@ export default async function AgentsPage({
 
         <div className="iris-rings">
           {view.agents.map((a) => (
-            <article
-              className="iris-ring-card"
-              key={a.agentId}
-              data-focused={focused?.agentId === a.agentId ? "true" : undefined}
-            >
+            <article className="iris-ring-card" key={a.agentId}>
               <h3>{a.name}</h3>
               <OutcomeRing
                 slices={a.ring.slices}
@@ -112,65 +115,12 @@ export default async function AgentsPage({
                   {a.ring.flag.text}
                 </p>
               )}
-              <Link
-                className="iris-action"
-                href={dynamicRoute(qs(focused?.agentId === a.agentId ? null : a.agentId))}
-              >
-                {focused?.agentId === a.agentId ? "Close" : "Where their time goes"}
+              <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
+                Agent detail →
               </Link>
             </article>
           ))}
         </div>
-
-        {focused === null ? null : (
-          <>
-            <hr className="iris-rule" />
-            <div className="iris-band">
-              <div>
-                <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-                  {focused.name} — what they open, in what order, and for how long
-                </p>
-                <SectionSequence
-                  rows={focused.sections}
-                  agentLabel={focused.name.split(" ")[0] ?? "This agent"}
-                />
-                <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-                  The order is where each section falls on average across their meetings, not one
-                  meeting&rsquo;s path — nobody presents the same way twice. The bar is their median
-                  stay in that section, scaled against their own longest stop; the team&rsquo;s
-                  median sits beneath it, because a section time on its own has no scale.
-                </p>
-                <Measure id="section.dwell" align="left" />
-              </div>
-
-              <div className="iris-band-side">
-                <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-                  How often the same buyer came back
-                </p>
-                <div className="iris-bars">
-                  {focused.repeats.map((r) => (
-                    <div className="iris-bar" key={r.visits}>
-                      <span className="iris-bar-label" title={r.label}>
-                        {r.label}
-                      </span>
-                      <span
-                        className="iris-bar-track"
-                        style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
-                      >
-                        <i />
-                      </span>
-                      <span className="iris-bar-value">{r.meetings}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="iris-meta" style={{ marginTop: ".625rem" }}>
-                  Only a contact Observer already knows can be counted as returning; a walk-in has
-                  no history to have.
-                </p>
-              </div>
-            </div>
-          </>
-        )}
 
         <hr className="iris-rule" />
 

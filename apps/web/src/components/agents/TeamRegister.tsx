@@ -113,9 +113,9 @@ export function TeamRegister({
        * the product: a reader who chose "Last 28 days" and then opened an agent
        * used to be returned silently to the quarter.
        *
-       * The href is assembled here rather than taken from `AgentProfile.href`,
-       * which resolves to `…/agents?agent=<id>` — the roster's own focus
-       * parameter, not the detail surface.
+       * `AgentProfile.href` now resolves to this same dedicated route, but is
+       * built without a period, so it is still assembled here rather than
+       * read from the profile.
        */
       agent: (
         <Link href={dynamicRoute(withPeriod(`${root}/agents/${agent.agentId}`, period))}>

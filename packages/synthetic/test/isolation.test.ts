@@ -179,6 +179,34 @@ describe("missing data is stated, never borrowed and never zero", () => {
     expect(home.because).toMatch(/no progression rate can be computed/i);
   });
 
+  it("shows sold/reserved as unavailable on a project with no CRM, not as a real count", async () => {
+    const project = PROJECTS.find((p) => p.slug === "riverside");
+    expect(project?.connectedSources).not.toContain("crm");
+
+    const charts = await syntheticRepository.getProjectCharts(
+      query(petra, "alpha", "riverside"),
+    );
+    expect(charts.targets.length).toBeGreaterThan(0);
+    for (const target of charts.targets) {
+      // Null, not zero — sold/reserved is a CRM outcome and this project has
+      // no CRM to report one. Zero would read as "nothing has sold", which
+      // is a different, unearned claim.
+      expect(target.actual, `${target.id} must be unavailable, not a number`).toBeNull();
+      expect(target.note).toMatch(/unavailable/i);
+      // The schedule itself is still known even though the actual is not.
+      expect(target.pace).toBeGreaterThan(0);
+      expect(target.total).toBeGreaterThan(0);
+    }
+
+    // And a project whose CRM IS connected still gets a real number.
+    const northgateCharts = await syntheticRepository.getProjectCharts(
+      query(petra, "alpha", "northgate"),
+    );
+    for (const target of northgateCharts.targets) {
+      expect(target.actual, `${target.id} should be a real count on a connected project`).not.toBeNull();
+    }
+  });
+
   it("does not invent a previous period for a project that has none", async () => {
     const tomas = Object.values(VIEWERS).find((v) => v.role === "agency_manager") as Viewer;
     const home = await syntheticRepository.getHome(query(tomas, "beta", "kingsford"));

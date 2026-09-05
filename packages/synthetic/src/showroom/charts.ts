@@ -440,7 +440,7 @@ export function buildAgentCharts(
         sub: timed.length === 0 ? "no timed session" : `median ${duration(median(timed))}`,
         value: mine.length,
         display: count(mine.length, locale),
-        href: `${base}/agents?agent=${r.id}`,
+        href: `${base}/agents/${r.id}`,
       };
     })
     .sort((a, b) => b.value - a.value);
@@ -571,7 +571,12 @@ export function buildTrend(sessions: readonly ShowroomSession[], locale: string)
  * be by now — because 33% sold is neither good nor bad until you know the plan
  * expected 41%.
  */
-export function buildTargets(projectId: string, today: Date, locale: string): SalesTarget[] {
+export function buildTargets(
+  projectId: string,
+  today: Date,
+  locale: string,
+  crmConnected: boolean,
+): SalesTarget[] {
   // This project's stock. The sales plan was Northgate's on every project.
   const catalogue = catalogueFor(projectId);
   const total = catalogue.length;
@@ -586,28 +591,46 @@ export function buildTargets(projectId: string, today: Date, locale: string): Sa
 
   const format = (d: Date) => d.toLocaleDateString(locale, { month: "short", year: "numeric" });
 
+  /*
+   * SOLD AND RESERVED ARE CRM OUTCOMES, NOT CATALOGUE ATTRIBUTES.
+   *
+   * The catalogue can be connected on a project whose CRM is not — Riverside
+   * Walk is built to prove exactly that split. `sold`/`reserved` on a unit
+   * records a closed deal, which is a fact the CRM tells and the catalogue
+   * cannot originate on its own, so `catalogue`'s own figures are read here
+   * only when `crmConnected` says the project actually has that source.
+   */
+  const soldActual = crmConnected ? sold : null;
+  const committedActual = crmConnected ? sold + reserved : null;
+
   return [
     {
       id: "sold",
       label: "Sold",
       total,
-      actual: sold,
+      actual: soldActual,
       target: total,
       pace,
       startedOn: format(startedOn),
       targetDate: format(targetDate),
-      note: `${sold} of ${total} sold. A straight line from ${format(startedOn)} to ${format(targetDate)} wants ${Math.round(pace)} by now.`,
+      note:
+        soldActual === null
+          ? "Unavailable — this project's CRM is not connected, and sold counts come from CRM outcomes."
+          : `${soldActual} of ${total} sold. A straight line from ${format(startedOn)} to ${format(targetDate)} wants ${Math.round(pace)} by now.`,
     },
     {
       id: "committed",
       label: "Sold or reserved",
       total,
-      actual: sold + reserved,
+      actual: committedActual,
       target: total,
       pace,
       startedOn: format(startedOn),
       targetDate: format(targetDate),
-      note: `${sold + reserved} of ${total} sold or reserved. A reservation is not a sale, so both figures are shown.`,
+      note:
+        committedActual === null
+          ? "Unavailable — this project's CRM is not connected, and reservations come from CRM outcomes."
+          : `${committedActual} of ${total} sold or reserved. A reservation is not a sale, so both figures are shown.`,
     },
   ];
 }
@@ -670,9 +693,10 @@ export function buildProjectCharts(
   sessions: readonly ShowroomSession[],
   today: Date,
   locale: string,
+  crmConnected: boolean,
 ): ProjectCharts {
   return {
-    targets: buildTargets(projectId, today, locale),
+    targets: buildTargets(projectId, today, locale, crmConnected),
     journey: buildJourney(sessions, locale),
   };
 }

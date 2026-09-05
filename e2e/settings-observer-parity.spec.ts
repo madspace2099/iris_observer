@@ -26,6 +26,7 @@ import { signInAs } from "./sign-in";
 
 const FLOW = "/alpha/northgate/flow";
 const PROJECT = "/alpha/northgate/project";
+const AGENTS = "/alpha/northgate/agents";
 const SETTINGS = "/settings/ai";
 
 async function asPetra(page: Page): Promise<void> {
@@ -165,6 +166,44 @@ test.describe("account settings looks like the product it belongs to", () => {
       expect(overflow, `settings overflows by ${String(overflow)}px at ${String(width)}`).toBeLessThanOrEqual(1);
     }
   });
+});
+
+/*
+ * DOES NOT NAVIGATE AWAY ON ITS OWN.
+ *
+ * A prior audit pass reported the page auto-navigating away 1-3 seconds after
+ * every load. Investigated directly: it does not reproduce from a clean
+ * session (two independent tabs, both held stable well past the reported
+ * window with no console error and no unexplained network activity), and the
+ * audit's own account of it — landing on a different destination each time
+ * (once on Project, otherwise on Ask IRIS) — is the signature of another
+ * concurrently-running browser automation renavigating the SAME shared tab,
+ * not of this page redirecting itself. These tests exist to catch a real
+ * regression of that shape in the future, from a clean, single session.
+ */
+test.describe("does not redirect away on its own", () => {
+  test("stays put after a direct visit", async ({ page }) => {
+    await asPetra(page);
+    await page.goto(SETTINGS);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("AI and usage");
+    await page.waitForTimeout(4000);
+    expect(new URL(page.url()).pathname).toBe("/settings/ai");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("AI and usage");
+  });
+
+  for (const [label, surface] of [
+    ["Sales Flow", FLOW],
+    ["Project", PROJECT],
+    ["Sales Agents", AGENTS],
+  ] as const) {
+    test(`stays put after opening from ${label}`, async ({ page }) => {
+      await asPetra(page);
+      await openSettingsFrom(page, surface);
+      await page.waitForTimeout(4000);
+      expect(new URL(page.url()).pathname).toBe("/settings/ai");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("AI and usage");
+    });
+  }
 });
 
 test.describe("account settings leads back where the reader came from", () => {

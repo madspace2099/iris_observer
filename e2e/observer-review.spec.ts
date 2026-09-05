@@ -81,7 +81,7 @@ test.describe("Observer review set", () => {
     // past that while the page still read `Observer is answering.`
     test.setTimeout(150_000);
     await signInAs(page, "Petra Novák");
-    await page.goto("/alpha/northgate/agents?agent=agt_monika");
+    await page.goto("/alpha/northgate/agents/agt_monika");
     await settle(page, 900);
     await page
       .getByPlaceholder("Ask Observer…")

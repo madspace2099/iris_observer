@@ -267,6 +267,24 @@
   color: var(--watch);
 }
 
+/*
+ * UNAVAILABLE, NOT ZERO.
+ *
+ * The track gets a dashed outline and no fill rather than a bar reading as a
+ * measured zero; the value reads "Unavailable" in muted ink rather than a
+ * number. The pace/target ticks stay — the schedule is known even when the
+ * actual is not.
+ */
+.iris-bullet-track[data-unavailable="true"] {
+  border: 1px dashed var(--ink-3);
+  background: transparent;
+}
+
+.iris-bullet-value[data-unavailable="true"] {
+  color: var(--ink-3);
+  font-style: italic;
+}
+
 /* --- two dimensions at once -------------------------------------------------- */
 
 .iris-heat-grid {
