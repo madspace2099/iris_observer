@@ -944,6 +944,30 @@
   grid-template-columns: 13rem 1fr 4rem;
 }
 
+/*
+ * The same column in a band's side panel, which is 308px wide on a phone:
+ * 13rem of label there leaves the bar 12px. So the panel is measured as a
+ * container, the label column returns to the default width below the point
+ * the wide column fits, and the name WRAPS rather than clips — a place
+ * name is the finding, and the ellipsis was hiding the half that named
+ * which school. No title stands in for the text; the text is all there.
+ */
+.iris-band-side .iris-bars[data-wide-labels="true"] {
+  container-type: inline-size;
+}
+
+.iris-band-side .iris-bars[data-wide-labels="true"] .iris-bar-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+@container (width < 30rem) {
+  .iris-band-side .iris-bars[data-wide-labels="true"] .iris-bar {
+    grid-template-columns: 8.5rem 1fr 4rem;
+  }
+}
+
 /* The agent chip carries its own sample size, so a picker is also a summary. */
 .iris-chip b {
   margin-left: 0.375rem;

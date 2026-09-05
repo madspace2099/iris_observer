@@ -194,7 +194,15 @@ export default async function ProjectPage({
               <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                 Where those buyers spent their time
               </p>
-              <div className="iris-bars">
+              {/*
+               * Place names are long — "Základná škola Ružová dolina 29" needs
+               * 192px and the default label column is 136px, so two of six
+               * names clipped at every width, with a title that named the
+               * category rather than the place. The wide-label column the
+               * transition bars already use holds every name here; below the
+               * width that column fits, the name wraps instead of clipping.
+               */}
+              <div className="iris-bars" data-wide-labels="true">
                 {segment.attendedTo.map((a) => (
                   <div className="iris-bar" key={a.label}>
                     <span className="iris-bar-label" title={a.category}>
