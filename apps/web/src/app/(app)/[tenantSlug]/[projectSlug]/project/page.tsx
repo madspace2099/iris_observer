@@ -345,7 +345,12 @@ export default async function ProjectPage({
           <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             How far a presentation gets
           </p>
-          <div className="iris-flow-scroll" tabIndex={0} role="group" aria-label="How far a presentation gets, scrollable on narrow screens">
+          <div
+            className="iris-flow-scroll"
+            tabIndex={0}
+            role="group"
+            aria-label="How far a presentation gets, scrollable on narrow screens"
+          >
             <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
           </div>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>

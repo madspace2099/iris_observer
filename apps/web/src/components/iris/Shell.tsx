@@ -528,7 +528,6 @@ export function Shell({
           </div>
           {variant === "ask" ? accountAsk : account}
         </div>
-
       </header>
 
       {/*
@@ -572,100 +571,102 @@ export function Shell({
        * explicitly told not to touch.
        */}
       {variant === "ask" ? null : (
-      <div className="irs-mobile-bar">
-        <span className="irs-mobile-project" title={currentProjectLabel}>{currentProjectLabel}</span>
-        <ClosableDetails className="irs-mobile-menu">
-          <summary className="irs-mobile-menu-trigger" aria-label="Menu">
-            <MenuMark />
-          </summary>
-          <div className="irs-mobile-menu-panel">
-            <div className="irs-mobile-menu-head">
-              <span className="irs-mobile-menu-title">Menu</span>
-              <button
-                type="button"
-                className="irs-mobile-menu-close"
-                aria-label="Close menu"
-                onClick={(event) => {
-                  const details = event.currentTarget.closest("details");
-                  if (details !== null) details.open = false;
-                }}
-              >
-                <MenuMark />
-              </button>
-            </div>
+        <div className="irs-mobile-bar">
+          <span className="irs-mobile-project" title={currentProjectLabel}>
+            {currentProjectLabel}
+          </span>
+          <ClosableDetails className="irs-mobile-menu">
+            <summary className="irs-mobile-menu-trigger" aria-label="Menu">
+              <MenuMark />
+            </summary>
+            <div className="irs-mobile-menu-panel">
+              <div className="irs-mobile-menu-head">
+                <span className="irs-mobile-menu-title">Menu</span>
+                <button
+                  type="button"
+                  className="irs-mobile-menu-close"
+                  aria-label="Close menu"
+                  onClick={(event) => {
+                    const details = event.currentTarget.closest("details");
+                    if (details !== null) details.open = false;
+                  }}
+                >
+                  <MenuMark />
+                </button>
+              </div>
 
-            <div className="irs-mobile-menu-scroll">
-              <nav className="irs-mobile-nav" aria-label="Sections">
-                {NAV.map((item) => {
-                  const active = item.key === current;
-                  return (
-                    <Link
-                      key={item.key}
-                      className="irs-mobile-nav-item"
-                      href={dynamicRoute(withPeriod(`${base}${item.path}`, period))}
-                      {...(active ? { "aria-current": "page" as const } : {})}
-                    >
-                      {item.sparkle === true ? <Sparkle /> : null}
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-
-              {tabs === null || tabs.length === 0 ? null : (
-                <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
-                  {tabs.map((tab) => (
-                    <Link
-                      key={tab.key}
-                      className="irs-mobile-nav-item"
-                      href={dynamicRoute(withPeriod(tab.href, period))}
-                      {...(tab.key === currentTab ? { "aria-current": "page" as const } : {})}
-                    >
-                      {tab.label}
-                      {tab.count !== undefined && tab.count !== null ? (
-                        <span className="ox-tab-count">{tab.count}</span>
-                      ) : null}
-                    </Link>
-                  ))}
+              <div className="irs-mobile-menu-scroll">
+                <nav className="irs-mobile-nav" aria-label="Sections">
+                  {NAV.map((item) => {
+                    const active = item.key === current;
+                    return (
+                      <Link
+                        key={item.key}
+                        className="irs-mobile-nav-item"
+                        href={dynamicRoute(withPeriod(`${base}${item.path}`, period))}
+                        {...(active ? { "aria-current": "page" as const } : {})}
+                      >
+                        {item.sparkle === true ? <Sparkle /> : null}
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </nav>
-              )}
 
-              <div className="irs-mobile-context">
-                {tenants !== null && tenants.length > 1 ? (
-                  <ContextSwitcher
-                    label="Developer"
-                    value={scope.tenantSlug}
-                    options={withCurrentSection(tenants, segment)}
-                  />
-                ) : null}
-                <ContextSwitcher
-                  label="Project"
-                  value={scope.projectSlug}
-                  options={withCurrentSection(projects, segment)}
-                />
-                <PeriodSwitcher />
-                {sources.length === 0 ? null : (
-                  <ul className="ox-sources" aria-label="Connected sources">
-                    {sources.map((source) => (
-                      <li key={source.name} className="ox-source" data-state={source.state}>
-                        <span className="ox-source-dot" aria-hidden="true" />
-                        <span>{source.name}</span>
-                        <span className="ox-source-state">{source.stateLabel}</span>
-                      </li>
+                {tabs === null || tabs.length === 0 ? null : (
+                  <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
+                    {tabs.map((tab) => (
+                      <Link
+                        key={tab.key}
+                        className="irs-mobile-nav-item"
+                        href={dynamicRoute(withPeriod(tab.href, period))}
+                        {...(tab.key === currentTab ? { "aria-current": "page" as const } : {})}
+                      >
+                        {tab.label}
+                        {tab.count !== undefined && tab.count !== null ? (
+                          <span className="ox-tab-count">{tab.count}</span>
+                        ) : null}
+                      </Link>
                     ))}
-                  </ul>
+                  </nav>
                 )}
-              </div>
 
-              <div className="irs-mobile-who">
-                <div className="irs-who-name">{viewer.displayName}</div>
-                <div className="irs-who-role">{viewer.roleLabel}</div>
+                <div className="irs-mobile-context">
+                  {tenants !== null && tenants.length > 1 ? (
+                    <ContextSwitcher
+                      label="Developer"
+                      value={scope.tenantSlug}
+                      options={withCurrentSection(tenants, segment)}
+                    />
+                  ) : null}
+                  <ContextSwitcher
+                    label="Project"
+                    value={scope.projectSlug}
+                    options={withCurrentSection(projects, segment)}
+                  />
+                  <PeriodSwitcher />
+                  {sources.length === 0 ? null : (
+                    <ul className="ox-sources" aria-label="Connected sources">
+                      {sources.map((source) => (
+                        <li key={source.name} className="ox-source" data-state={source.state}>
+                          <span className="ox-source-dot" aria-hidden="true" />
+                          <span>{source.name}</span>
+                          <span className="ox-source-state">{source.stateLabel}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="irs-mobile-who">
+                  <div className="irs-who-name">{viewer.displayName}</div>
+                  <div className="irs-who-role">{viewer.roleLabel}</div>
+                </div>
+                <div className="irs-mobile-account">{account}</div>
               </div>
-              <div className="irs-mobile-account">{account}</div>
             </div>
-          </div>
-        </ClosableDetails>
-      </div>
+          </ClosableDetails>
+        </div>
       )}
 
       {/*

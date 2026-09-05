@@ -183,9 +183,7 @@ describe("missing data is stated, never borrowed and never zero", () => {
     const project = PROJECTS.find((p) => p.slug === "riverside");
     expect(project?.connectedSources).not.toContain("crm");
 
-    const charts = await syntheticRepository.getProjectCharts(
-      query(petra, "alpha", "riverside"),
-    );
+    const charts = await syntheticRepository.getProjectCharts(query(petra, "alpha", "riverside"));
     expect(charts.targets.length).toBeGreaterThan(0);
     for (const target of charts.targets) {
       // Null, not zero — sold/reserved is a CRM outcome and this project has
@@ -203,7 +201,10 @@ describe("missing data is stated, never borrowed and never zero", () => {
       query(petra, "alpha", "northgate"),
     );
     for (const target of northgateCharts.targets) {
-      expect(target.actual, `${target.id} should be a real count on a connected project`).not.toBeNull();
+      expect(
+        target.actual,
+        `${target.id} should be a real count on a connected project`,
+      ).not.toBeNull();
     }
   });
 
