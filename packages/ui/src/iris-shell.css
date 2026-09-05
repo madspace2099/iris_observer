@@ -314,7 +314,19 @@
   flex: 1;
   width: var(--iris-content-width);
   margin: 0 auto;
-  padding: 40px 0 96px;
+  /*
+   * The docked Ask IRIS composer (`ask-iris.css` `.ask-dock`, present on
+   * every project page but `/ask` itself) is `position: fixed` at the
+   * bottom of the viewport, measured at ~92px tall on desktop. Trailing
+   * padding this size clears it for content that reaches the true end of
+   * the page — the common case the audit found on Sales Flow, Units,
+   * Briefing and both stress screens, all on mobile, all at the genuine
+   * end of scrollable content. `--ask-dock-safe-area` names the reserve so
+   * every width step below states the same intent rather than a bare
+   * number a reader has to trust matches the dock.
+   */
+  --ask-dock-safe-area: 152px;
+  padding: 40px 0 var(--ask-dock-safe-area);
   min-width: 0;
 }
 
@@ -329,49 +341,333 @@
   width: min(1440px, calc(100vw - 48px));
 }
 
-@media (width <= 768px) {
+@media (width <= 1199px) {
   :root {
     --iris-shell-pad: 18px;
     --iris-nav-gap: 16px;
+    /* A fixed row height rather than content-driven `auto`, so `.irs-mobile-bar` — a sibling, not a grid child, for reasons `.irs-mobile-menu` below explains — can match it exactly instead of guessing at it. */
+    --iris-header-height-mobile: 58px;
   }
 
   .irs-header {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 0;
-    height: auto;
-    padding: 12px var(--iris-shell-pad);
-  }
-
-  /*
-   * The navigation moves below the brand rather than compressing beside it. At
-   * 390px four items at 15.5px cannot share a row with a wordmark and a name
-   * without one of them being truncated, and a truncated navigation item is a
-   * destination somebody cannot identify.
-   */
-  .irs-nav {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    height: auto;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding-top: 4px;
-  }
-
-  .irs-nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .irs-nav-item {
-    height: 40px;
-    font-size: 14.5px;
-  }
-
-  .irs-nav-item[aria-current="page"]::after {
-    bottom: 2px;
+    height: var(--iris-header-height-mobile);
+    padding: 0 var(--iris-shell-pad);
   }
 
   .irs-main {
-    padding: 24px 0 64px;
+    /* Measured ~84px on a phone; the same buffer above the measured height as desktop. */
+    --ask-dock-safe-area: 140px;
+    padding: 24px 0 var(--ask-dock-safe-area);
+  }
+}
+
+/* ============================================================================
+ * THE MOBILE MENU
+ *
+ * The header stops trying to fit four sections, a name, a role and two
+ * account links on one line at a shrinking font below 1199px — it was
+ * measured consuming 33-62% of a 390px viewport before any page content,
+ * across nearly every customer route, and separately, a genuine pre-existing
+ * overlap between the nav and the account cluster at exactly the widths this
+ * breakpoint now covers (1024px among them — the header-end cluster and the
+ * nav collided outright, confirmed unchanged on a clean `git stash` of this
+ * work, so it predates it). The fix is a different composition at every one
+ * of those widths, not a narrower one. Sections, account controls, and — on
+ * every surface but Ask IRIS — the project/period switchers, the
+ * connected-sources list and the section's own sub-navigation all move one
+ * tap away, behind a single trigger, so the header itself is one row: the
+ * wordmark, the current project's name (so a reader can tell where they are
+ * without opening anything), and the trigger.
+ *
+ * `.irs-nav--wide`/`.irs-header-end--wide` render the identical desktop
+ * header at every width above this one; `.irs-mobile-bar` is the only thing
+ * that renders below it. Exactly one of the two is ever visible.
+ * ========================================================================= */
+
+.irs-mobile-bar {
+  display: none;
+}
+
+@media (width <= 1199px) {
+  .irs-nav--wide,
+  .irs-header-end--wide {
+    display: none;
+  }
+
+  /*
+   * Duplicated inside the mobile menu panel below this width — see Shell.tsx.
+   * Compound selectors: `observer-product.css` declares `.ox-context`/
+   * `.ox-tabs` at the same specificity with no media query of its own, and
+   * loads after this file, so an equal-specificity rule here would lose the
+   * cascade regardless of this media query matching.
+   */
+  .irs-shell .ox-context,
+  .irs-shell .ox-tabs {
+    display: none;
+  }
+
+  /*
+   * A sibling of `<header>`, positioned to sit visually on its trailing
+   * edge — see Shell.tsx's docblock on this element for why it cannot be a
+   * DESCENDANT of `.irs-header`. `pointer-events: none` on the bar and
+   * `auto` again on its own children keeps it from intercepting a tap
+   * anywhere across its full width, most of which is empty space over the
+   * brand mark it is stacked on top of.
+   */
+  .irs-mobile-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    /*
+     * Above `.irs-header`'s own z-index: 4 (both are `.irs-shell > *`
+     * siblings, so a lower value here would paint under the header's own
+     * `backdrop-filter` blur layer) AND above the docked Ask composer's
+     * z-index: 5 (`ask-iris.css`) — an open menu is a modal sheet and has to
+     * win against every other floating chrome on the page, the dock
+     * included, or its own last item ends up exactly where Priority 4 found
+     * the dock covering other pages' content.
+     */
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    height: var(--iris-header-height-mobile);
+    padding: 0 var(--iris-shell-pad);
+    min-width: 0;
+    pointer-events: none;
+  }
+
+  .irs-mobile-bar > * {
+    pointer-events: auto;
+  }
+
+  .irs-mobile-project {
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--iris-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 34vw;
+  }
+
+  /* The `<details>` itself carries no box — its summary and panel do. */
+  .irs-mobile-menu {
+    position: relative;
+  }
+
+  .irs-mobile-menu summary {
+    list-style: none;
+  }
+
+  .irs-mobile-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .irs-mobile-menu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--iris-radius-control);
+    border: 1px solid rgb(150 175 215 / 30%);
+    background: rgb(6 14 30 / 55%);
+    color: var(--iris-text-primary);
+    cursor: pointer;
+    transition:
+      border-color 180ms ease-out,
+      background 180ms ease-out;
+  }
+
+  .irs-mobile-menu-trigger:hover {
+    border-color: rgb(180 205 240 / 48%);
+    background: rgb(11 24 48 / 70%);
+  }
+
+  .irs-mobile-menu-trigger:focus-visible {
+    outline: 2px solid var(--iris-accent);
+    outline-offset: 2px;
+  }
+
+  /* Hamburger by default; the close mark takes over once the sheet is open. */
+  .irs-menu-mark-close {
+    display: none;
+  }
+
+  .irs-mobile-menu[open] .irs-mobile-menu-trigger .irs-menu-mark-open {
+    display: none;
+  }
+
+  .irs-mobile-menu[open] .irs-mobile-menu-trigger .irs-menu-mark-close {
+    display: block;
+  }
+
+  /*
+   * THE SHEET.
+   *
+   * Fixed, not absolute: `.irs-mobile-menu-panel` needs to sit relative to
+   * the viewport, not to `.irs-mobile-bar`'s own small box. The sheet is a
+   * DOM descendant of `.irs-mobile-bar` but escapes its bounds visually —
+   * see the backdrop rule below for why the two still have to be scoped to
+   * the same stacking context to paint in the right order.
+   */
+  .irs-mobile-menu-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    max-height: min(78vh, calc(100dvh - 96px));
+    border-radius: var(--iris-radius-surface);
+    border: 1px solid rgb(150 175 215 / 22%);
+    background: var(--surface-overlay);
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 55%);
+    overflow: hidden;
+  }
+
+  .irs-mobile-menu:not([open]) .irs-mobile-menu-panel {
+    display: none;
+  }
+
+  /*
+   * Hosted on `.irs-mobile-bar`, not `.irs-shell` or `.irs-header`:
+   * `.irs-shell > *` (above) gives every direct child of the shell —
+   * `.irs-mobile-bar` included — its own `position: relative` and a
+   * `z-index`, which is what a stacking context needs to exist at all. The
+   * sheet is nested inside `.irs-mobile-bar`, so its own higher z-index only
+   * ever competes WITHIN that context. A `position: fixed` descendant
+   * escapes an ancestor's overflow clipping but NOT that ancestor's stacking
+   * context, so the backdrop has to be hosted inside the same context the
+   * sheet is scoped to, or the two are never actually compared against each
+   * other at all. Same fix, same reasoning, as the Ask composer's own mobile
+   * sheet backdrop.
+   */
+  .irs-mobile-bar:has(.irs-mobile-menu[open])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgb(2 5 13 / 55%);
+  }
+
+  .irs-mobile-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-menu-title {
+    font-size: 13px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--iris-text-tertiary);
+  }
+
+  .irs-mobile-menu-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--iris-radius-control);
+    background: transparent;
+    color: var(--iris-text-secondary);
+    cursor: pointer;
+  }
+
+  .irs-mobile-menu-close .irs-menu-mark-open {
+    display: none;
+  }
+
+  .irs-mobile-menu-close:hover {
+    background: rgb(255 255 255 / 6%);
+  }
+
+  .irs-mobile-menu-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .irs-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .irs-mobile-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 4px;
+    border-radius: var(--iris-radius-control);
+    font-size: 15.5px;
+    font-weight: 400;
+    color: var(--iris-text-secondary);
+    text-decoration: none;
+  }
+
+  .irs-mobile-nav-item[aria-current="page"] {
+    color: #fff;
+    font-weight: var(--weight-medium);
+    background: rgb(0 163 255 / 10%);
+  }
+
+  .irs-mobile-nav--tabs .irs-mobile-nav-item {
+    font-size: 14px;
+    min-height: 40px;
+    justify-content: space-between;
+  }
+
+  .irs-mobile-context {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-context .obs-context {
+    display: block;
+  }
+
+  .irs-mobile-context select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .irs-mobile-who {
+    padding-top: 14px;
+    border-top: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-who .irs-who-name {
+    font-size: 14px;
+    color: var(--iris-text-primary);
+  }
+
+  .irs-mobile-account {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 

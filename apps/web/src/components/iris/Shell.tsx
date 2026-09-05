@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import type { PeriodPreset } from "@observer/readmodels";
+import { ClosableDetails } from "@/components/ask-iris/ClosableDetails";
 import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher";
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
 import { dynamicRoute } from "@/lib/href";
@@ -322,6 +323,35 @@ function Sparkle() {
   );
 }
 
+/**
+ * The mobile menu's own trigger mark — three bars, and an X.
+ *
+ * Both are always in the DOM; `irs-mobile-menu.css` rules keyed on the parent
+ * `<details>`'s own `[open]` attribute show one and hide the other, so the
+ * swap needs no script and no state duplicated outside the element that
+ * already holds it.
+ */
+function MenuMark() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path
+        className="irs-menu-mark-open"
+        d="M4 7h16M4 12h16M4 17h16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        className="irs-menu-mark-close"
+        d="M6 6l12 12M18 6L6 18"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function Shell({
   scope,
   viewer,
@@ -449,6 +479,16 @@ export function Shell({
   const remainder = pathname.startsWith(base) ? pathname.slice(base.length) : "";
   const variant = remainder === "" || remainder === "/ask" ? "ask" : "default";
 
+  /**
+   * The one thing a narrow header keeps visible without opening anything.
+   *
+   * "Preserve current project visibility" does not require the full switcher
+   * to stay expanded — it requires a reader glancing at a narrow screen to be
+   * able to tell which project they are in, which is a name, not a control.
+   */
+  const currentProjectLabel =
+    projects.find((option) => option.value === scope.projectSlug)?.label ?? scope.projectSlug;
+
   return (
     <div className="irs-shell ox-root ox-graphite" data-variant={variant}>
       <header className="irs-header">
@@ -458,8 +498,13 @@ export function Shell({
          * `aria-label="Sections"` rather than "Primary": it is what the
          * doctrine names these four, and what the accessibility suite asserts
          * the product's one primary navigation is called.
+         *
+         * `.irs-nav--wide` is hidden below the mobile-menu breakpoint —
+         * `.irs-mobile-menu` below carries the same four links for a narrow
+         * viewport, rather than this row shrinking until a destination
+         * cannot be told from its neighbour.
          */}
-        <nav className="irs-nav" aria-label="Sections">
+        <nav className="irs-nav irs-nav--wide" aria-label="Sections">
           {NAV.map((item) => {
             const active = item.key === current;
             return (
@@ -476,14 +521,143 @@ export function Shell({
           })}
         </nav>
 
-        <div className="irs-header-end">
+        <div className="irs-header-end irs-header-end--wide">
           <div className="irs-who">
             <div className="irs-who-name">{viewer.displayName}</div>
             <div className="irs-who-role">{viewer.roleLabel}</div>
           </div>
           {variant === "ask" ? accountAsk : account}
         </div>
+
       </header>
+
+      {/*
+       * THE MOBILE MENU.
+       *
+       * A sibling of `<header>` rather than a child of it, on purpose:
+       * `.irs-header` carries `backdrop-filter: blur(10px)`, and — like
+       * `transform` or `filter` — a `backdrop-filter` other than `none`
+       * makes an element the CONTAINING BLOCK for its own `position: fixed`
+       * descendants. Nested inside the header, the fixed sheet below would
+       * be positioned relative to the 70px header box instead of the
+       * viewport. `iris-shell.css` positions this block to sit visually
+       * where the header's trailing edge is at every width the header
+       * itself does not already show it in.
+       *
+       * Hidden entirely above the mobile-menu breakpoint —
+       * `.irs-nav--wide`/`.irs-header-end--wide` inside `<header>` above
+       * carry the desktop header at every wider width and are themselves
+       * hidden below it, so exactly one of the two renders sections/account
+       * controls at any given width, never both and never neither.
+       *
+       * The project name stays visible outside the disclosure — a reader
+       * glancing at a narrow screen can tell which project they are in
+       * without opening anything — and everything a reader might need to
+       * ACT on (sections, account, and on every non-Ask surface the
+       * project/period switchers and connected sources) lives one tap away
+       * inside it, reusing the exact popover mechanics already established
+       * for Ask IRIS's own mobile sheets: `ClosableDetails` for
+       * Escape/outside-click, a fixed bottom sheet with its own scrollable
+       * body, `name` for native mutual exclusion with nothing else on this
+       * header (there is nothing else to exclude, so the name is unused —
+       * kept for the day a second disclosure joins it).
+       */}
+      <div className="irs-mobile-bar">
+        <span className="irs-mobile-project">{currentProjectLabel}</span>
+        <ClosableDetails className="irs-mobile-menu">
+          <summary className="irs-mobile-menu-trigger" aria-label="Menu">
+            <MenuMark />
+          </summary>
+          <div className="irs-mobile-menu-panel">
+            <div className="irs-mobile-menu-head">
+              <span className="irs-mobile-menu-title">Menu</span>
+              <button
+                type="button"
+                className="irs-mobile-menu-close"
+                aria-label="Close menu"
+                onClick={(event) => {
+                  const details = event.currentTarget.closest("details");
+                  if (details !== null) details.open = false;
+                }}
+              >
+                <MenuMark />
+              </button>
+            </div>
+
+            <div className="irs-mobile-menu-scroll">
+              <nav className="irs-mobile-nav" aria-label="Sections">
+                {NAV.map((item) => {
+                  const active = item.key === current;
+                  return (
+                    <Link
+                      key={item.key}
+                      className="irs-mobile-nav-item"
+                      href={dynamicRoute(withPeriod(`${base}${item.path}`, period))}
+                      {...(active ? { "aria-current": "page" as const } : {})}
+                    >
+                      {item.sparkle === true ? <Sparkle /> : null}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {variant === "ask" || tabs === null || tabs.length === 0 ? null : (
+                <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
+                  {tabs.map((tab) => (
+                    <Link
+                      key={tab.key}
+                      className="irs-mobile-nav-item"
+                      href={dynamicRoute(withPeriod(tab.href, period))}
+                      {...(tab.key === currentTab ? { "aria-current": "page" as const } : {})}
+                    >
+                      {tab.label}
+                      {tab.count !== undefined && tab.count !== null ? (
+                        <span className="ox-tab-count">{tab.count}</span>
+                      ) : null}
+                    </Link>
+                  ))}
+                </nav>
+              )}
+
+              {variant === "ask" ? null : (
+                <div className="irs-mobile-context">
+                  {tenants !== null && tenants.length > 1 ? (
+                    <ContextSwitcher
+                      label="Developer"
+                      value={scope.tenantSlug}
+                      options={withCurrentSection(tenants, segment)}
+                    />
+                  ) : null}
+                  <ContextSwitcher
+                    label="Project"
+                    value={scope.projectSlug}
+                    options={withCurrentSection(projects, segment)}
+                  />
+                  <PeriodSwitcher />
+                  {sources.length === 0 ? null : (
+                    <ul className="ox-sources" aria-label="Connected sources">
+                      {sources.map((source) => (
+                        <li key={source.name} className="ox-source" data-state={source.state}>
+                          <span className="ox-source-dot" aria-hidden="true" />
+                          <span>{source.name}</span>
+                          <span className="ox-source-state">{source.stateLabel}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              <div className="irs-mobile-who">
+                <div className="irs-who-name">{viewer.displayName}</div>
+                <div className="irs-who-role">{viewer.roleLabel}</div>
+              </div>
+              <div className="irs-mobile-account">{variant === "ask" ? accountAsk : account}</div>
+            </div>
+          </div>
+        </ClosableDetails>
+      </div>
 
       {/*
        * THE CONTEXT BAND — which project, over what period, from which sources.
