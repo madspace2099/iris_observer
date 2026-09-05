@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -411,6 +411,65 @@ export function Shell({
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
+  const mobileBarRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * THE OPEN SHEET IS THE ONLY THING A READER CAN REACH.
+   *
+   * The sheet below is a native `<details>`, and a `<details>` is a
+   * disclosure, not a dialog: opening it hides nothing else from the
+   * keyboard. Measured on the real page at 412px: eleven controls inside the
+   * sheet, then Tab lands on the page's own "Today" chip — visually under the
+   * backdrop, focus ring and all — and 36 such controls were reachable in
+   * total, the docked Ask composer's textarea among them. The backdrop did
+   * not stop a pointer either: it is a `::after` on `.irs-mobile-bar`, which
+   * is `pointer-events: none` so taps on its empty width fall through to the
+   * brand mark, and a pseudo-element inherits that. `elementFromPoint` under
+   * the open backdrop returned the page's `<h1>`.
+   *
+   * `inert` on the two regions a sheet covers — the page's `<main>` and the
+   * docked composer — closes both at once: an inert subtree can take neither
+   * focus nor a click, and leaves the accessibility tree. It is keyed on the
+   * element's own `open` state through the native `toggle` event, so every
+   * way the sheet closes (the close mark, Escape, an outside tap, a nav link)
+   * clears it through one path, and unmounting clears it unconditionally.
+   *
+   * The composer lives outside `.irs-shell` altogether — a `<body>`-level
+   * sibling rendered by the project layout — so it can only be reached by
+   * selector. `#main` is queried the same way for symmetry; both are stable,
+   * documented anchors (`AskDock.tsx`, this file's own `<main id="main">`).
+   *
+   * Crossing back above the breakpoint closes the sheet. Left open, it would
+   * be `display: none` and still `open`, and `<main>` would stay inert under
+   * a desktop header with nothing to explain it.
+   */
+  useEffect(() => {
+    const details = mobileBarRef.current?.querySelector("details");
+    if (details === null || details === undefined) return;
+
+    const covered = () =>
+      [document.getElementById("main"), document.querySelector<HTMLElement>(".ask-dock")].filter(
+        (el): el is HTMLElement => el !== null,
+      );
+    const setInert = (on: boolean) => {
+      for (const el of covered()) el.inert = on;
+    };
+
+    const onToggle = () => setInert(details.open);
+    const wide = window.matchMedia("(min-width: 1200px)");
+    const onWide = (event: MediaQueryListEvent) => {
+      if (event.matches && details.open) details.open = false;
+    };
+
+    details.addEventListener("toggle", onToggle);
+    wide.addEventListener("change", onWide);
+    setInert(details.open);
+    return () => {
+      details.removeEventListener("toggle", onToggle);
+      wide.removeEventListener("change", onWide);
+      setInert(false);
+    };
+  }, []);
 
   const base = `/${scope.tenantSlug}/${scope.projectSlug}`;
 
@@ -571,7 +630,7 @@ export function Shell({
        * explicitly told not to touch.
        */}
       {variant === "ask" ? null : (
-        <div className="irs-mobile-bar">
+        <div className="irs-mobile-bar" ref={mobileBarRef}>
           <span className="irs-mobile-project" title={currentProjectLabel}>
             {currentProjectLabel}
           </span>

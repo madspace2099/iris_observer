@@ -670,6 +670,17 @@
     color: var(--iris-text-primary);
   }
 
+  /*
+   * The role line keeps the header's quiet ink on the header's near-black
+   * veil, where it clears the floor. The sheet is a lighter surface
+   * (`--surface-overlay`), and axe measured the same ink there at 4.14:1
+   * against DESIGN.md's tested 4.5:1. One step up the existing ramp — the
+   * tertiary ink the sheet's own title already wears on this surface.
+   */
+  .irs-mobile-who .irs-who-role {
+    color: var(--iris-text-tertiary);
+  }
+
   .irs-mobile-account {
     display: flex;
     flex-wrap: wrap;
