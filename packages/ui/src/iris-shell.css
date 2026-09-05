@@ -391,8 +391,14 @@
 }
 
 @media (width <= 1199px) {
-  .irs-nav--wide,
-  .irs-header-end--wide {
+  /*
+   * Not on the Ask variant — Shell.tsx renders no `.irs-mobile-bar` there at
+   * all, so hiding the wide nav/header-end would leave the page with
+   * neither. The export's own header handles every width down from here on
+   * its own terms.
+   */
+  .irs-shell:not([data-variant="ask"]) .irs-nav--wide,
+  .irs-shell:not([data-variant="ask"]) .irs-header-end--wide {
     display: none;
   }
 

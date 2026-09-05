@@ -1,6 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { signIn, signInAs } from "./sign-in";
+
+/**
+ * Below 1199px, Projects/Settings/Sign out (and the primary nav) move behind
+ * a single menu trigger instead of sitting directly in the header — see
+ * `Shell.tsx`'s "THE MOBILE MENU" docblock. A test written against the wide
+ * header's direct visibility needs this first on a narrow viewport; it is a
+ * no-op wherever the wide header is what's rendered.
+ */
+async function openMobileMenuIfPresent(page: Page): Promise<void> {
+  const trigger = page.locator(".irs-mobile-menu-trigger");
+  if ((await trigger.count()) > 0 && (await trigger.isVisible())) {
+    await trigger.click();
+  }
+}
 
 /**
  * REACHABILITY, PROVED FROM THE RENDERED MARKUP — NOT ASSERTED FROM AN
@@ -86,6 +100,7 @@ test.describe("the shell no longer hides itself on Ask IRIS's own sub-routes", (
   test("/ask/history keeps Projects, Settings and Sign out", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/ask/history`);
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
@@ -100,6 +115,7 @@ test.describe("the shell no longer hides itself on Ask IRIS's own sub-routes", (
     await expect(thread, "no thread in Northgate's history to open").toBeVisible();
     await thread.click();
     await page.waitForURL(/\/ask\/[^/]+$/);
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
   });
@@ -107,6 +123,13 @@ test.describe("the shell no longer hides itself on Ask IRIS's own sub-routes", (
   test("/ask itself still wears the reduced header (this must NOT regress)", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/ask`);
+    /*
+     * The Ask variant renders no mobile-menu trigger at all — see
+     * `Shell.tsx`: `accountAsk`/no context band, and the reduced header
+     * already fits one row at every width. `openMobileMenuIfPresent` is a
+     * no-op here, which is itself part of what this test protects.
+     */
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("link", { name: "Projects" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   });

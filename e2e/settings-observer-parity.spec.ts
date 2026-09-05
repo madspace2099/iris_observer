@@ -33,9 +33,22 @@ async function asPetra(page: Page): Promise<void> {
   await signInAs(page, "Petra Novák");
 }
 
+/**
+ * Below 1199px, Settings moves behind the mobile menu trigger instead of
+ * sitting directly in the header — see `Shell.tsx`'s "THE MOBILE MENU"
+ * docblock. Opening it first is a no-op wherever the wide header renders.
+ */
+async function openMobileMenuIfPresent(page: Page): Promise<void> {
+  const trigger = page.locator(".irs-mobile-menu-trigger");
+  if ((await trigger.count()) > 0 && (await trigger.isVisible())) {
+    await trigger.click();
+  }
+}
+
 /** Opens settings the way a reader does: by pressing the link on a surface. */
 async function openSettingsFrom(page: Page, surface: string): Promise<void> {
   await page.goto(surface);
+  await openMobileMenuIfPresent(page);
   await page.getByRole("link", { name: "Settings" }).click();
   await page.waitForURL(/\/settings\/ai/);
 }

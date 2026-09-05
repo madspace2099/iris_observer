@@ -38,17 +38,23 @@ const SURFACES = [
 /**
  * Elements whose own box is narrower than their content.
  *
- * `.iris-sr` is excluded by design: the visually-hidden pattern is a 1px box
- * with `overflow: hidden`, so it reports as clipped and is doing exactly what
- * it should. Anything that scrolls on purpose is excluded too — a contained
- * scroller is a decision, not a defect.
+ * The visually-hidden pattern (a 1px box with `overflow: hidden`) is excluded
+ * by design: it reports as clipped and is doing exactly what it should.
+ * `.iris-sr`/`.obs-sr` are the legacy namespace's own name for it; `.ox-sr`
+ * (`observer-product.css`) and `.ask-sr` (`ask-iris.css`) are the same
+ * technique under the two current namespaces and were missing here, which is
+ * why this check found "clipped" text on every ox-/ask- surface that uses
+ * one — a gap in this test, not a defect in those surfaces. Anything that
+ * scrolls on purpose is excluded too — a contained scroller is a decision,
+ * not a defect.
  */
 async function clippedText(page: Page): Promise<string[]> {
   return page.evaluate(() => {
+    const SR_ONLY = ["iris-sr", "obs-sr", "ox-sr", "ask-sr"];
     const bad: string[] = [];
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("*"))) {
-      if (el.closest(".iris-sr, .obs-sr")) continue;
-      if (el.classList.contains("iris-sr") || el.classList.contains("obs-sr")) continue;
+      if (el.closest(SR_ONLY.map((c) => `.${c}`).join(", "))) continue;
+      if (SR_ONLY.some((c) => el.classList.contains(c))) continue;
       /*
        * HTML only.
        *

@@ -561,9 +561,19 @@ export function Shell({
        * body, `name` for native mutual exclusion with nothing else on this
        * header (there is nothing else to exclude, so the name is unused —
        * kept for the day a second disclosure joins it).
+       *
+       * NOT ON THE ASK VARIANT. The export's own header already reduces
+       * itself at every width that matters — the nav gap steps down at
+       * 1439/1199/768px and `.irs-who` drops below 1199px, all specific,
+       * already-approved values read out of the delivered reference, not
+       * chosen here. Rendering this menu on top of that would replace a
+       * composition that already scored cleanly at every tested width with
+       * a generic one it does not need, on the one screen this pass was
+       * explicitly told not to touch.
        */}
+      {variant === "ask" ? null : (
       <div className="irs-mobile-bar">
-        <span className="irs-mobile-project">{currentProjectLabel}</span>
+        <span className="irs-mobile-project" title={currentProjectLabel}>{currentProjectLabel}</span>
         <ClosableDetails className="irs-mobile-menu">
           <summary className="irs-mobile-menu-trigger" aria-label="Menu">
             <MenuMark />
@@ -602,7 +612,7 @@ export function Shell({
                 })}
               </nav>
 
-              {variant === "ask" || tabs === null || tabs.length === 0 ? null : (
+              {tabs === null || tabs.length === 0 ? null : (
                 <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
                   {tabs.map((tab) => (
                     <Link
@@ -620,44 +630,43 @@ export function Shell({
                 </nav>
               )}
 
-              {variant === "ask" ? null : (
-                <div className="irs-mobile-context">
-                  {tenants !== null && tenants.length > 1 ? (
-                    <ContextSwitcher
-                      label="Developer"
-                      value={scope.tenantSlug}
-                      options={withCurrentSection(tenants, segment)}
-                    />
-                  ) : null}
+              <div className="irs-mobile-context">
+                {tenants !== null && tenants.length > 1 ? (
                   <ContextSwitcher
-                    label="Project"
-                    value={scope.projectSlug}
-                    options={withCurrentSection(projects, segment)}
+                    label="Developer"
+                    value={scope.tenantSlug}
+                    options={withCurrentSection(tenants, segment)}
                   />
-                  <PeriodSwitcher />
-                  {sources.length === 0 ? null : (
-                    <ul className="ox-sources" aria-label="Connected sources">
-                      {sources.map((source) => (
-                        <li key={source.name} className="ox-source" data-state={source.state}>
-                          <span className="ox-source-dot" aria-hidden="true" />
-                          <span>{source.name}</span>
-                          <span className="ox-source-state">{source.stateLabel}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
+                ) : null}
+                <ContextSwitcher
+                  label="Project"
+                  value={scope.projectSlug}
+                  options={withCurrentSection(projects, segment)}
+                />
+                <PeriodSwitcher />
+                {sources.length === 0 ? null : (
+                  <ul className="ox-sources" aria-label="Connected sources">
+                    {sources.map((source) => (
+                      <li key={source.name} className="ox-source" data-state={source.state}>
+                        <span className="ox-source-dot" aria-hidden="true" />
+                        <span>{source.name}</span>
+                        <span className="ox-source-state">{source.stateLabel}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
 
               <div className="irs-mobile-who">
                 <div className="irs-who-name">{viewer.displayName}</div>
                 <div className="irs-who-role">{viewer.roleLabel}</div>
               </div>
-              <div className="irs-mobile-account">{variant === "ask" ? accountAsk : account}</div>
+              <div className="irs-mobile-account">{account}</div>
             </div>
           </div>
         </ClosableDetails>
       </div>
+      )}
 
       {/*
        * THE CONTEXT BAND — which project, over what period, from which sources.
