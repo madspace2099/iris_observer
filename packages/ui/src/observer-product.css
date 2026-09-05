@@ -1131,9 +1131,22 @@
   font-weight: var(--weight-medium);
 }
 
+/*
+ * NOT `--ox-good`. Evidence tier and status are the doctrine's own named
+ * orthogonal axes — "Observed" is a claim about HOW SURE the product is,
+ * "good" is a claim about WHAT THE FIGURE SAYS — and this tier's border and
+ * ink used the literal status-good token, which made "Observed" read as a
+ * positive-status signal on sight rather than purely a confidence
+ * classification. The tier now carries its own identity by BORDER WEIGHT
+ * (solid, full-strength ink) rather than a colour also spent on status
+ * elsewhere: the strongest claim this axis makes, drawn as the strongest
+ * line on it, with `attributed_conversion`'s existing blue (the product's
+ * separate "a person decided this" mark, not a status colour) left as the
+ * one tier that is deliberately not neutral.
+ */
 .ox-tier[data-tier="observed_sequence"] {
-  border-color: color-mix(in srgb, var(--ox-good-mark) 40%, transparent);
-  color: var(--ox-good);
+  border-color: var(--ox-ink-3);
+  color: var(--ox-ink-2);
 }
 
 .ox-tier[data-tier="attributed_conversion"] {

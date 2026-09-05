@@ -266,37 +266,56 @@
 .os-choices {
   display: flex;
   flex-direction: column;
-  gap: var(--ox-tight);
+  gap: 0;
   margin: 0;
   padding: 0;
   border: 0;
   min-width: 0;
 }
 
+/*
+ * ONE SURFACE, NOT A BOX INSIDE A BOX.
+ *
+ * `.os-choices` already sits inside one `.ox-panel` (the "Model" card). Each
+ * row used to be its OWN bordered, radiused, individually-backgrounded box —
+ * `var(--ox-panel)` background on a `var(--ox-panel)` background, a border
+ * drawn on a border — the exact "panel → bordered cards → more bordered
+ * controls" nesting the doctrine's own "planes, not boxes" rule exists to
+ * prevent. A hairline between rows carries the same information a full box
+ * did (where one choice ends and the next begins) without a second surface.
+ */
 .os-choice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: var(--ox-inner);
   align-items: start;
   padding: var(--ox-inner) var(--ox-section);
-  border: 1px solid var(--ox-line-panel);
-  border-radius: var(--ox-radius-sm);
-  background: var(--ox-panel);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
   cursor: pointer;
-  transition: border-color 170ms ease-out;
+  transition: background-color 170ms ease-out;
+}
+
+.os-choice:first-child {
+  box-shadow: none;
 }
 
 .os-choice:hover {
-  border-color: var(--ox-line-hover);
+  background: var(--ox-inset-fill);
 }
 
 /*
  * The checked row is marked by the accent, which in this system means "a person
  * decided this, and a person can change it" — exactly what a default model is.
+ * A fill and a left rail, not a second border — the row is still a plane.
  */
 .os-choice:has(input:checked) {
-  border-color: var(--iris-accent);
   background: var(--ox-human-tint);
+  box-shadow:
+    inset 2px 0 0 var(--iris-accent),
+    0 -1px 0 var(--ox-line-panel);
 }
 
 /*

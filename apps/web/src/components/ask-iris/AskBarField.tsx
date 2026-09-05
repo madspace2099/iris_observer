@@ -24,6 +24,17 @@ import { useEffect, useRef, useState } from "react";
  * **A hidden tab.** `visibilitychange` pauses it, so a background tab is not
  * running a timer to animate text nobody is looking at.
  *
+ * **Having shown every question twice.** The doctrine's own motion rule is
+ * "nothing loops, nothing animates on idle" — TravelingLight is the one
+ * named exception, and this was quietly becoming a second, permanent one.
+ * The onboarding job this bar exists to do (show a reader what is worth
+ * asking) is done once a reader has seen the whole list go by; a reader who
+ * has been on the page for ten minutes gains nothing from a still-cycling
+ * placeholder, and the doctrine is right that it should not still be
+ * moving. Two passes rather than one, so a reader who glances up mid-cycle
+ * still sees the rest of the list.
+ *
+
  * ## Why the cadence is fixed rather than random
  *
  * The export jitters each keystroke with `Math.random()`. This does not: the
@@ -51,6 +62,9 @@ const ERASE_MS = 24;
 const HOLD_MS = 2400;
 const BETWEEN_MS = 420;
 
+/** Full passes through `LINES` before the bar settles on the rest state for good. */
+const MAX_CYCLES = 2;
+
 export function AskBarField({ name, label }: { readonly name: string; readonly label: string }) {
   const field = useRef<HTMLTextAreaElement>(null);
   const [placeholder, setPlaceholder] = useState(REST);
@@ -71,6 +85,8 @@ export function AskBarField({ name, label }: { readonly name: string; readonly l
     let phase: "type" | "hold" | "erase" = "type";
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
+    /** How many full passes through `LINES` have played. Stops at `MAX_CYCLES`. */
+    let cycles = 0;
 
     const tick = (): void => {
       if (stopped) return;
@@ -98,9 +114,16 @@ export function AskBarField({ name, label }: { readonly name: string; readonly l
         if (cut <= 0) {
           cut = 0;
           phase = "type";
-          line = line + 1 >= LINES.length ? 1 : line + 1;
+          const wrapped = line + 1 >= LINES.length;
+          line = wrapped ? 1 : line + 1;
+          if (wrapped) cycles += 1;
           wait = BETWEEN_MS;
         }
+      }
+
+      if (cycles >= MAX_CYCLES) {
+        setPlaceholder(REST);
+        return;
       }
 
       setPlaceholder(cut === 0 ? REST : text.slice(0, cut));

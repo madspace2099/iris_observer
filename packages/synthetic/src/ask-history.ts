@@ -167,7 +167,14 @@ function plans(context: ViewContext, sessions: readonly ShowroomSession[]): read
                 ).length,
                 locale,
               ),
-              note: "meetings",
+              /*
+               * The denominator, on the figure itself — not only in the prose
+               * sentence above it. This is structurally the same shape of claim
+               * as "Time spent" in the prior turn (a count that is really a
+               * share of a stated total), and that figure's own `note` already
+               * carries its denominator inline; this one previously did not.
+               */
+              note: `of ${count(busiest.meetings, locale)} meetings that opened it`,
             },
           ],
           evidence: evidenceRef(

@@ -363,7 +363,29 @@ const RADAR_AXES = [
   { label: "Places", note: "median named places stopped on" },
 ] as const;
 
-const RADAR_TONES = ["var(--accent)", "var(--gain)", "var(--watch)", "var(--loss)"];
+/*
+ * PER-AGENT IDENTITY, NOT STATUS.
+ *
+ * This used to be `["var(--accent)", "var(--gain)", "var(--watch)",
+ * "var(--loss)"]` — the product's own good/watch/poor status tokens,
+ * reassigned as arbitrary per-agent colours with no relationship to
+ * performance. An agent third in whatever order the data returned them
+ * inherited "watch" amber and a fourth inherited "loss" red, on a screen
+ * that also draws a real outcome-quality legend in the same hues right next
+ * to this chart. Evidence/identity and status are the doctrine's own named
+ * orthogonal axes; a shape a reader can compare across agents should not
+ * borrow the palette of a different, unrelated judgment.
+ *
+ * A restrained ramp instead: the brand accent, then two blends toward
+ * neutral ink, so every agent is still a distinct, legible line without
+ * reaching for a colour this product uses to mean something else.
+ */
+const RADAR_TONES = [
+  "var(--accent)",
+  "color-mix(in srgb, var(--accent) 55%, var(--ink))",
+  "var(--ink-2)",
+  "color-mix(in srgb, var(--accent) 30%, var(--ink-3))",
+];
 
 export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
