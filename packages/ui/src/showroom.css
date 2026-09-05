@@ -140,6 +140,41 @@
   line-height: 1.15rem;
 }
 
+/*
+ * PLANE, NOT RAIL — opt-in, `Finding`'s own `plane` prop.
+ *
+ * Measured on Project at every width: the `border-left` above was the ONLY
+ * signal telling the lead finding from the rest, on a page whose own
+ * doctrine names a colored border-left over 1px as the specific anti-pattern
+ * to avoid on a callout. `.iris-finding + .iris-finding`'s hairline already
+ * separates the two findings; the accent moves to the one piece of text the
+ * lead already had no reason to share a weight with — its own statement,
+ * one step up the existing 400/500/600 ladder, the same ladder every other
+ * hierarchy jump in this system is measured against.
+ */
+.iris-finding[data-plane="true"] {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.iris-finding[data-plane="true"][data-lead="true"] .iris-finding-statement {
+  font-weight: 600;
+}
+
+/*
+ * The CTA is not a citation.
+ *
+ * `.iris-finding-foot`'s mono is right for the source chips, the evidence
+ * citation and "n = N meetings" — wrong for `.iris-action`, which renders in
+ * Manrope everywhere else this class appears on the same page ("Presentation
+ * DNA →", "Build an audience from this"). Measured: inside this foot it
+ * inherited mono instead, the one place on Project where the same control
+ * class carries two typefaces.
+ */
+.iris-finding[data-plane="true"] .iris-finding-foot .iris-action {
+  font-family: var(--sans, inherit);
+}
+
 /* --- Presentation DNA ------------------------------------------------------- */
 
 .iris-dna {

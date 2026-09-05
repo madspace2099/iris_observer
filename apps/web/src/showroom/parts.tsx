@@ -60,9 +60,35 @@ export function SyntheticBadge() {
 
 /* --- findings -------------------------------------------------------------- */
 
-export function Finding({ finding, lead = false }: { finding: ShowroomFinding; lead?: boolean }) {
+export function Finding({
+  finding,
+  lead = false,
+  plane = false,
+}: {
+  finding: ShowroomFinding;
+  lead?: boolean;
+  /**
+   * Opt-in only, and only ever read by CSS scoped to `[data-plane="true"]`.
+   *
+   * `Finding` renders on five routes (Project, Flow, Agents, Presentation,
+   * Audience) sharing this one component. Measured on Project: a 2px
+   * `border-left` — the doctrine's own named anti-pattern, "a colored
+   * border-left above 1px on a callout" — was the ONLY thing distinguishing
+   * the lead finding from the rest, and `.iris-finding-foot`'s mono font
+   * leaked into the CTA link, rendering "Open Two-room" in the evidence
+   * typeface instead of the Manrope every other `.iris-action` on the page
+   * uses. Both are real defects, and both are scoped to this flag rather
+   * than fixed on the shared rule, because the other four routes are out of
+   * scope for this change and must render exactly as before it.
+   */
+  plane?: boolean;
+}) {
   return (
-    <article className="iris-finding" data-lead={lead ? "true" : undefined}>
+    <article
+      className="iris-finding"
+      data-lead={lead ? "true" : undefined}
+      data-plane={plane ? "true" : undefined}
+    >
       <p className="iris-finding-statement">{finding.statement}</p>
       {finding.baseline === null ? null : (
         <p className="iris-code" style={{ margin: 0 }}>

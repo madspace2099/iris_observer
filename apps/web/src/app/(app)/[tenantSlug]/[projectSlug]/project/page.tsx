@@ -366,7 +366,7 @@ export default async function ProjectPage({
         <hr className="iris-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} />
+          <Finding key={finding.id} finding={finding} lead={index === 0} plane />
         ))}
 
         <Gaps
