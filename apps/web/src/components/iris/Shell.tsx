@@ -218,7 +218,7 @@ function segmentOf(pathname: string, base: string): string {
  * still gates what a role may see, exactly as it would if the reader had
  * typed the URL by hand.
  */
-function withCurrentSection(
+export function withCurrentSection(
   options: readonly SwitchOption[],
   segment: string,
 ): readonly SwitchOption[] {

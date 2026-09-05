@@ -38,8 +38,17 @@ export function addressOf(name: string): string {
   return email;
 }
 
+/** Matches either landing segment a project ever opens on — see `signInAs` below. */
+const PROJECT_OPENED = /\/(ask|showroom)(\?|$|\/)/;
+
 /**
- * Signs in through the visible form, and stops on the projects.
+ * Signs in through the visible form, and stops wherever the front door
+ * actually lands: `/projects` for an account with several and nothing
+ * remembered, or straight into a project for one with only one held, or with
+ * a last-visited project still on record (`resolveLandingPath`,
+ * `apps/web/src/lib/landing.ts`). Both are correct product behaviour now —
+ * this used to assert only the first, back when every account landed on
+ * `/projects` unconditionally.
  *
  * Nothing is installed by hand: the address and the credential are typed and
  * the button is pressed, so a spec that passes has proved the front door works
@@ -49,33 +58,47 @@ export async function signIn(page: Page, name: string): Promise<void> {
   /*
    * Start signed out, every time.
    *
-   * A signed-in reader who visits /sign-in is sent to their projects, which is
-   * correct product behaviour and leaves a spec that signs in twice — to
-   * compare what two accounts see — waiting for a form that is not there. This
-   * clears the session rather than installing one: the credential is still
-   * typed and the button is still pressed.
+   * A signed-in reader who visits /sign-in is sent to their landing path,
+   * which is correct product behaviour and leaves a spec that signs in twice
+   * — to compare what two accounts see — waiting for a form that is not
+   * there. This clears the session rather than installing one: the
+   * credential is still typed and the button is still pressed.
+   *
+   * The last-project cookie is cleared alongside it. Without this, an
+   * account that shares a browser context with an earlier test in the same
+   * spec could be re-landed on THAT test's project rather than resolving
+   * fresh, which is not what "start signed out, every time" promises.
    */
   await page.context().clearCookies();
   await page.goto("/sign-in");
   await page.getByLabel("Work email address").fill(addressOf(name));
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in with password" }).click();
-  await page.waitForURL(/\/projects/);
+  await page.waitForURL((url) => /\/projects/.test(url.pathname) || PROJECT_OPENED.test(url.pathname));
 }
 
 /**
  * Signs in and opens a project, which is where the older helper landed.
  *
- * Without a project the specs below have nothing to look at, and the account
- * layer deliberately does not choose one — so the choice is made here, in the
- * open, rather than by a redirect nobody can see.
- *
  * `project` names the card to open. Omitted, it opens the first, which is the
  * project each account's grants list first: Northgate for the four accounts
- * that hold it, and ISTER TOWER for Martin Kováč, who holds only that one.
+ * that hold it, and ISTER TOWER for Martin Kováč, who holds only that one —
+ * and for Martin specifically, `signIn` above has typically already landed
+ * there directly, since he holds nothing else to choose between.
  */
 export async function signInAs(page: Page, name: string, project?: string): Promise<void> {
   await signIn(page, name);
+
+  /*
+   * `signIn` may already have opened a project — the single-project path
+   * through `resolveLandingPath` lands there directly, with no `/projects`
+   * page and no card to click. Every fixture account that can land this way
+   * holds exactly one project, so there is nothing left to choose between
+   * regardless of what `project` names; the cookie `signIn` clears rules out
+   * the remembered-project path ever doing the same for a multi-project
+   * account mid-suite.
+   */
+  if (PROJECT_OPENED.test(new URL(page.url()).pathname)) return;
 
   const action =
     project === undefined
@@ -98,5 +121,5 @@ export async function signInAs(page: Page, name: string, project?: string): Prom
    * URL its own callers are about to leave. What the wait is actually for is
    * "the project is open" — either segment proves that.
    */
-  await page.waitForURL(/\/(ask|showroom)(\?|$|\/)/);
+  await page.waitForURL(PROJECT_OPENED);
 }

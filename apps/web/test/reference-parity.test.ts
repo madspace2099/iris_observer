@@ -291,20 +291,19 @@ describe("the way in is account, then projects, then Observer", () => {
     expect(signIn).not.toContain("ProfilePicker");
   });
 
-  it("sends an authenticated reader to the projects, never to a project it picks for them", () => {
+  it("sends an authenticated reader through the same resolver, whichever door they used", () => {
     /*
-     * The bare root has no path to resolve a landing from, so it still always
-     * sends a signed-in reader to the project selector; that half of the
-     * behaviour is unchanged. Sign-in itself now resolves a landing path
-     * (`resolveLandingPath` — the last project the reader was in, or the one
-     * project they hold), and hardcoding neither literal decides on their
-     * behalf: the check is that sign-in defers to that resolver rather than
-     * that it always names "/projects" — that string still appears, but only
-     * as `resolveLandingPath`'s own fallback for an account that holds several
-     * projects and has none remembered.
+     * Root and sign-in used to disagree on purpose (root always /projects,
+     * sign-in resolving a landing) and now deliberately do not: the same
+     * account should not get a different destination depending on whether it
+     * arrived via `/` or `/sign-in`. Neither file hardcodes "/projects" as
+     * the destination any more — that string survives only inside
+     * `resolveLandingPath` itself, as its own fallback for an account that
+     * holds several projects and has none remembered.
      */
     const root = readFileSync(join(appDir, "page.tsx"), "utf8");
-    expect(root).toContain("/projects");
+    expect(root).toContain("resolveLandingPath");
+    expect(root).not.toMatch(/redirect\(dynamicRoute\(\s*"\/projects"\s*\)\)/);
     expect(root).not.toMatch(/showroom|northgate|tenantSlug/);
 
     const signIn = readFileSync(join(appDir, "sign-in", "page.tsx"), "utf8");
