@@ -258,3 +258,21 @@ export function Info({ size = 15 }: GlyphProps) {
     </Stroke>
   );
 }
+
+/**
+ * A plain cross, for the scope sheet's own close control.
+ *
+ * Not transcribed from the export — the reference has no dismissible sheet to
+ * draw one for, and never needed to: it has no multi-project Compare. Drawn
+ * with the same `Stroke` helper and a stroke width in the export's own 1.6–1.8
+ * range, so it reads as one family with the rest rather than as a shape from
+ * somewhere else.
+ */
+export function Close({ size = 16 }: GlyphProps) {
+  return (
+    <Stroke size={size} width={1.8}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </Stroke>
+  );
+}

@@ -4,6 +4,8 @@ import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@o
 
 import { dynamicRoute } from "@/lib/href";
 import { AskField } from "./AskField";
+import { ClosableDetails } from "./ClosableDetails";
+import { MenuCloseButton } from "./MenuCloseButton";
 import { PromptGlow } from "./PromptGlow";
 import {
   Building,
@@ -361,44 +363,73 @@ export function AskFrame({
               <div className="ask-model-wrap">
                 {/*
                  * A `<details>` rather than a scripted menu. It opens on click
-                 * and on Enter, closes on Escape, is announced as a disclosure,
-                 * and costs nothing to ship. The export's popup geometry is
-                 * reproduced by the stylesheet.
+                 * and on Enter, is announced as a disclosure, and costs nothing
+                 * to ship — a reader with scripting off keeps all of that. The
+                 * export's popup geometry is reproduced by the stylesheet.
+                 * `ClosableDetails` layers on the two things a bare `<details>`
+                 * does not do natively: closing on Escape, and closing on a
+                 * click outside it — the same wrapper the scope picker beside
+                 * it uses, and the shared `name` keeps the two mutually
+                 * exclusive with no script at all.
                  */}
-                <details className="ask-model-details">
+                <ClosableDetails className="ask-model-details" name="ask-composer-menu">
                   <summary className="ask-model" aria-label="Model">
                     <span className="ask-model-name">{composerLabel}</span>
                     <ChevronDown />
                   </summary>
 
-                  <div className="ask-model-menu">
-                    <p className="ask-menu-note">
-                      Answers here are composed by Observer&rsquo;s own read models, not written by
-                      a language model.
-                    </p>
-                    <span className="ask-model-option" aria-current="true">
-                      <span>{composerLabel}</span>
-                      <span className="ask-model-dot" aria-hidden="true" />
-                    </span>
-                    {models.length === 0 ? (
+                  {/*
+                   * `tabIndex={0}`: this box is `.ask-model-menu`'s own
+                   * `overflow-y: auto` scroller (§ `ask-iris.css`), and every
+                   * option inside it is inert — `aria-current`/`aria-disabled`
+                   * spans, never a button or a link, because no model this
+                   * account holds is yet used to answer here. A scrollable
+                   * region with nothing focusable inside it is otherwise
+                   * unreachable by keyboard, which is exactly what axe's
+                   * `scrollable-region-focusable` catches.
+                   */}
+                  <div className="ask-model-menu" tabIndex={0}>
+                    <div className="ask-menu-head">
+                      <span className="ask-menu-title">Model</span>
+                      <MenuCloseButton label="Close model picker" />
+                    </div>
+                    {/*
+                     * `.ask-menu-scroll` — shared with the scope picker's own
+                     * checklist wrapper. Nothing here is normally long enough
+                     * to need it (no account on this deployment holds a
+                     * model connection), but an account that held several
+                     * would otherwise have its list cut off, pinned header
+                     * and all, on the phone sheet below.
+                     */}
+                    <div className="ask-menu-scroll">
                       <p className="ask-menu-note">
-                        This account holds no model connection, so there is nothing else to choose.
-                        One is added in Settings.
+                        Answers here are composed by Observer&rsquo;s own read models, not written
+                        by a language model.
                       </p>
-                    ) : (
-                      models.map((model) => (
-                        <span
-                          key={model}
-                          className="ask-model-option"
-                          aria-disabled="true"
-                          title="Connected to this account, but not yet used to answer on this surface"
-                        >
-                          <span>{model}</span>
-                        </span>
-                      ))
-                    )}
+                      <span className="ask-model-option" aria-current="true">
+                        <span>{composerLabel}</span>
+                        <span className="ask-model-dot" aria-hidden="true" />
+                      </span>
+                      {models.length === 0 ? (
+                        <p className="ask-menu-note">
+                          This account holds no model connection, so there is nothing else to
+                          choose. One is added in Settings.
+                        </p>
+                      ) : (
+                        models.map((model) => (
+                          <span
+                            key={model}
+                            className="ask-model-option"
+                            aria-disabled="true"
+                            title="Connected to this account, but not yet used to answer on this surface"
+                          >
+                            <span>{model}</span>
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </details>
+                </ClosableDetails>
               </div>
 
               {/*
@@ -410,14 +441,13 @@ export function AskFrame({
                * pills rather than a settings panel dropped into the
                * composer. Inside, three short radios sit in one segmented
                * row rather than three full-width rows: `.ask-card` clips
-               * anything that opens past its own rounded edge (the model
-               * menu beside this one already reaches past it when open — a
-               * pre-existing limit this does not attempt to fix), and a
+               * anything that opens past its own rounded edge, and a
                * segmented row of three costs a fraction of what three full
                * rows would. `ask-iris.css` carries what each width does with
-               * that budget: the menu scrolls its own small box on a desktop
-               * pointer, and drops to a sheet fixed to the screen's own
-               * bottom edge on a phone, where the same budget is smaller
+               * that budget on `.ask-model-menu` itself, so both pickers on
+               * this row share it: the menu scrolls its own small box on a
+               * desktop pointer, and drops to a sheet fixed to the screen's
+               * own bottom edge on a phone, where the same budget is smaller
                * still once the model and scope pills have taken a row each.
                *
                * Real radios and checkboxes in a `method="get"` form, not a
@@ -435,7 +465,7 @@ export function AskFrame({
                * states its own limit above.
                */}
               <div className="ask-scope-wrap">
-                <details className="ask-model-details">
+                <ClosableDetails className="ask-model-details" name="ask-composer-menu">
                   <summary className="ask-model" aria-label="Which project this question is about">
                     <span className="ask-model-name">
                       {scopeLabel(scope, projectSlug, projectLabel, otherProjects)}
@@ -444,6 +474,11 @@ export function AskFrame({
                   </summary>
 
                   <div className="ask-model-menu ask-scope-menu">
+                    <div className="ask-menu-head">
+                      <span className="ask-menu-title">Scope</span>
+                      <MenuCloseButton label="Close scope picker" />
+                    </div>
+
                     <div className="ask-scope-tabs" role="radiogroup" aria-label="Scope">
                       <label className="ask-scope-tab">
                         <input
@@ -476,7 +511,14 @@ export function AskFrame({
                       )}
                     </div>
 
-                    {otherProjects.length === 0 ? null : (
+                    {(() => {
+                      const note = (
+                        <p className="ask-menu-note">
+                          All and Compare state what this deployment cannot yet answer, rather
+                          than guess at a combined figure.
+                        </p>
+                      );
+                      if (otherProjects.length === 0) return note;
                       /*
                        * The current project defaults to checked the FIRST
                        * time a reader opens Compare (scope.kind is not yet
@@ -485,39 +527,52 @@ export function AskFrame({
                        * back, current project included — unchecking it is
                        * how two OTHER projects get compared with neither
                        * being the one on screen.
+                       *
+                       * `.ask-menu-scroll` is the ONLY part of this sheet
+                       * that scrolls on a phone (`ask-iris.css`; shared with
+                       * the model picker's own note-plus-options group) —
+                       * the head and the tabs above it are pinned, so a long
+                       * checklist never carries the close button or the
+                       * scope choice itself out of view with it. The note
+                       * travels inside it rather than staying pinned, so
+                       * the pinned part stays as short as the two things
+                       * that must not scroll away: how to close, and what
+                       * governs the next question.
                        */
-                      <div className="ask-scope-compare">
-                        <label className="ask-scope-check">
-                          <input
-                            type="checkbox"
-                            name="with"
-                            value={projectSlug}
-                            defaultChecked={
-                              scope.kind === "compare" ? scope.slugs.includes(projectSlug) : true
-                            }
-                          />
-                          <span>{projectLabel}</span>
-                        </label>
-                        {otherProjects.map((p) => (
-                          <label className="ask-scope-check" key={p.slug}>
-                            <input
-                              type="checkbox"
-                              name="with"
-                              value={p.slug}
-                              defaultChecked={scope.kind === "compare" && scope.slugs.includes(p.slug)}
-                            />
-                            <span>{p.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-
-                    <p className="ask-menu-note">
-                      All and Compare state what this deployment cannot yet answer, rather than
-                      guess at a combined figure.
-                    </p>
+                      return (
+                        <div className="ask-menu-scroll">
+                          <div className="ask-scope-compare">
+                            <label className="ask-scope-check">
+                              <input
+                                type="checkbox"
+                                name="with"
+                                value={projectSlug}
+                                defaultChecked={
+                                  scope.kind === "compare" ? scope.slugs.includes(projectSlug) : true
+                                }
+                              />
+                              <span>{projectLabel}</span>
+                            </label>
+                            {otherProjects.map((p) => (
+                              <label className="ask-scope-check" key={p.slug}>
+                                <input
+                                  type="checkbox"
+                                  name="with"
+                                  value={p.slug}
+                                  defaultChecked={
+                                    scope.kind === "compare" && scope.slugs.includes(p.slug)
+                                  }
+                                />
+                                <span>{p.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                          {note}
+                        </div>
+                      );
+                    })()}
                   </div>
-                </details>
+                </ClosableDetails>
               </div>
 
               <div className="ask-tools">
