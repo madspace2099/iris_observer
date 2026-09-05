@@ -250,16 +250,19 @@ export default async function ProjectPage({
                   key={`${d.field}-${d.value}`}
                   data-empty={d.matches === 0 ? "true" : undefined}
                 >
-                  <span className="iris-bar-label" title={d.label}>
+                  <span className="iris-bar-label" title={d.label} data-label="Filter">
                     {d.label}
                   </span>
-                  <span className="iris-bar-label" title={d.value}>
+                  <span className="iris-bar-label" title={d.value} data-label="Value">
                     {d.value}
                   </span>
-                  <span className="iris-matrix-num">{d.applications}</span>
+                  <span className="iris-matrix-num" data-label="Times applied">
+                    {d.applications}
+                  </span>
                   <span
                     className="iris-matrix-num"
                     data-zero={d.matches === 0 ? "true" : undefined}
+                    data-label="Units matching"
                   >
                     {d.matches}
                   </span>
@@ -342,7 +345,9 @@ export default async function ProjectPage({
           <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             How far a presentation gets
           </p>
-          <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
+          <div className="iris-flow-scroll">
+            <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
+          </div>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
             {charts.journey.note}
           </p>

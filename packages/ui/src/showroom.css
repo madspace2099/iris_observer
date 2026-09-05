@@ -2101,6 +2101,54 @@
   }
 }
 
+/*
+ * BELOW THE WIDTH FOUR COLUMNS NEED, THE ROW BECOMES A RECORD.
+ *
+ * `data-columns="6"` and `data-columns="meetings"` above already do this;
+ * `data-columns="demand"` did not, so its two narrowest columns — a filter's
+ * VALUE, which is exactly the reading a buyer searched for and the one thing
+ * this table exists to show — truncated to a shared "und…" for four
+ * different price thresholds at 390px. Same mechanism: the head becomes a
+ * legend, each cell promotes its own `data-label`, and nothing is hidden —
+ * a narrower table shows the same four facts as a wider one, laid out
+ * differently.
+ */
+@media (max-width: 30rem) {
+  .iris-matrix[data-columns="demand"] .iris-matrix-head {
+    display: none;
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.25rem;
+    padding: 0.625rem 0.5rem;
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > * {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    text-align: left;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-row > *::before {
+    content: attr(data-label);
+    flex: none;
+    font-family: var(--sans, inherit);
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+  }
+
+  .iris-matrix[data-columns="demand"] .iris-matrix-num {
+    text-align: right;
+  }
+}
+
 /* --- choosing an audience --------------------------------------------------- */
 
 .iris-criteria {

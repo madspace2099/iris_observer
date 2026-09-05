@@ -2542,11 +2542,26 @@
 
   .ox-table td {
     display: flex;
-    gap: var(--ox-inner);
+    /*
+     * Wraps rather than clips: a record cell's own width is whatever the
+     * viewport leaves it, and `.ox-chip`'s `white-space: nowrap` (correct at
+     * the width a chip was designed for, sitting beside plenty of room) hard
+     * -clipped a longer outcome label mid-word at 390px with no affordance to
+     * read the rest — "Follow-up needed" as "Follow-up needec". A label this
+     * cell already prints via `::before` lets the value drop to its own
+     * line when the two do not both fit.
+     */
+    flex-wrap: wrap;
+    gap: 0.125rem var(--ox-inner);
     align-items: baseline;
     justify-content: space-between;
     padding: 0.1875rem 0;
     box-shadow: none;
+    text-align: left;
+  }
+
+  .ox-table td .ox-chip {
+    white-space: normal;
     text-align: left;
   }
 
@@ -2579,6 +2594,18 @@
 @media (width <= 30rem) {
   .ox-tally {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /*
+   * The caption gets the row's own width, not whatever `dd`'s flex layout
+   * has left over after the figure and its delta. At a 2-up tally width a
+   * leftover column measured ~70px — enough for one word per line, ragged
+   * against its sibling cells' plain single-line captions. `.ox-of` is a
+   * flex child of `.ox-tally-item dd`, so `flex-basis: 100%` drops it to
+   * its own line, where it wraps across the item's real width instead.
+   */
+  .ox-tally-item .ox-of {
+    flex-basis: 100%;
   }
 
   .ox-title {

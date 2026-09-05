@@ -167,10 +167,32 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                   className="iris-step-bar"
                   title={`${p.meetings} meetings · ${p.progressed} progressed`}
                 >
-                  <i style={{ height: `${(p.meetings / peak) * 100}%` }} />
+                  {/*
+                    `--w` alongside `height`: the desktop column reads its
+                    fill from `height`, the narrow-width row reflow (below
+                    30rem) reads the same proportion from `width: var(--w)`.
+                    Without it the bar's width falls back to `var(--w, 0)`'s
+                    own default and the whole visualization renders at zero
+                    width — present in the DOM, invisible on screen.
+                  */}
+                  <i
+                    style={
+                      {
+                        height: `${(p.meetings / peak) * 100}%`,
+                        "--w": `${(p.meetings / peak) * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  />
                   {/* Progressed sits inside the column: part of the same total,
                       not a competing quantity beside it. */}
-                  <b style={{ height: `${(p.progressed / peak) * 100}%` }} />
+                  <b
+                    style={
+                      {
+                        height: `${(p.progressed / peak) * 100}%`,
+                        "--w": `${(p.progressed / peak) * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  />
                 </span>
                 <span className="iris-step-figure">{p.meetings}</span>
                 <span className="iris-step-label">{p.label}</span>

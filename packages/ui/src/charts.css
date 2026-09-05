@@ -497,6 +497,38 @@
   max-height: 17rem;
 }
 
+/*
+ * A LEGIBILITY FLOOR, NOT A UNIFORM SHRINK.
+ *
+ * `.iris-flow`'s `width: 100%` scales the whole SVG — labels included, since
+ * they are sized in the viewBox's own user units — down to whatever its
+ * container allows. Measured at 390px: an effective ~3.4px label, the exact
+ * "desktop composition uniformly shrunk to unreadable" failure the doctrine
+ * names. Below the width the chart needs to stay legible, it stops shrinking
+ * and the wrapper scrolls instead — the same trade this system already makes
+ * elsewhere (a register that scrolls rather than a table crushed to fit).
+ */
+.iris-flow-scroll {
+  overflow-x: auto;
+}
+
+@media (max-width: 34rem) {
+  .iris-flow-scroll .iris-flow {
+    /*
+     * `min-width` alone, not `width: auto` — `.iris-flow`'s own `width: 100%`
+     * stays: `min-width` wins over a percentage `width` by the CSS sizing
+     * algorithm's own rules, and pairing `width: auto` with this SVG's
+     * `height: auto` (no HTML width/height attributes, only a viewBox)
+     * collapsed it to 0×0 instead.
+     *
+     * The value is the chart's own natural width (760px viewBox) — no scale
+     * applied at all, so a label renders at its designed 9px rather than
+     * some intermediate size still too small to read.
+     */
+    min-width: 47.5rem;
+  }
+}
+
 .iris-flow-ribbon {
   fill: color-mix(in oklab, var(--accent) 22%, transparent);
   stroke: none;
