@@ -1,3 +1,27 @@
 {
-  "buildPath": "comp"
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "packages/ui/src/observer-product.css"
+        ],
+        "createdAt": "2026-09-05T15:33:49.660Z",
+        "reason": "Pre-existing .ox-alert severity rail, not touched this session; a documented, semantically load-bearing state indicator (alert severity via a second channel beyond color), not decorative side-tab styling. Out of scope for the current Model-card box-in-box fix."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "packages/ui/src/observer-settings.css"
+        ],
+        "createdAt": "2026-09-05T15:33:55.213Z",
+        "reason": "Pre-existing .os-flash tone rail and .os-confirm danger rail, not touched this session; both documented, semantically load-bearing state indicators (success/failure and destructive-action severity via a second channel beyond color), not decorative side-tab styling. Out of scope for the current Model-card box-in-box fix."
+      }
+    ]
+  }
 }
