@@ -1,0 +1,333 @@
+---
+name: IRIS Observer
+description: A dark, evidence-driven sales-intelligence product for property developers and their sales agencies, with a deliberately separate light operational surface for MADSPACE.
+colors:
+  primary: "#00a3ff"
+  primary-dim: "#0b6fae"
+  primary-deep: "#007bc2"
+  graphite-void: "#02050d"
+  graphite-surface: "#07090c"
+  graphite-panel: "#12181f"
+  graphite-ink: "#f4f7fc"
+  graphite-ink-2: "rgb(244 247 252 / 74%)"
+  graphite-ink-3: "#98a4b8"
+  paper-page: "#f5f4f1"
+  paper-panel: "#ffffff"
+  paper-ink: "#14161a"
+  paper-ink-2: "#45494f"
+  status-good: "#3ecf8e"
+  status-watch: "#e8b339"
+  status-poor: "#f0616d"
+typography:
+  display:
+    fontFamily: "Manrope Variable, Manrope, Manrope Fallback, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "2.25rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "-0.03em"
+  section:
+    fontFamily: "Manrope Variable, Manrope, Manrope Fallback, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  body:
+    fontFamily: "Manrope Variable, Manrope, Manrope Fallback, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 500
+    lineHeight: 1.45
+  kicker:
+    fontFamily: "Manrope Variable, Manrope, Manrope Fallback, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.75rem"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.25em"
+  code:
+    fontFamily: "ui-monospace, SF Mono, Cascadia Mono, Roboto Mono, Menlo, monospace"
+    fontSize: "0.75rem"
+    fontWeight: 500
+rounded:
+  sm: "0.375rem"
+  md: "0.625rem"
+  control: "10px"
+  lg: "0.875rem"
+  hero: "24px"
+  pill: "999px"
+spacing:
+  1: "0.25rem"
+  2: "0.5rem"
+  3: "0.75rem"
+  4: "1rem"
+  5: "1.5rem"
+  6: "2rem"
+  7: "3rem"
+  8: "4rem"
+  ox-inset: "1.25rem"
+  ox-pad: "1.75rem"
+---
+
+# Design System: IRIS Observer
+
+Derived entirely from the shipped repository — CSS in `packages/ui/src`, the live `/[tenant]/[project]/ask` implementation, the ADRs, and the product doctrine — not from generic conventions. Every claim below cites the file it comes from. Section 3 of the accompanying report lists what could not be determined this way.
+
+**The one fact every other section depends on:** this codebase currently ships *five* visual systems side by side, at different stages of a still-incomplete migration, plus one deliberately separate product. "Existing visual eras" at the end of this file is not an appendix — read it before generating anything, because most classes and colors below belong to more than one era and using the wrong era's version is the single easiest way to produce work that looks off-brand while technically matching a rule stated here.
+
+## Brand
+
+- **IRIS by MADSPACE.** The wordmark is a 1.2KB SVG, not a raster (`apps/web/public/` — ADR-0033 replaced a 180KB PNG with it). "by MADSPACE" is rendered as letterspaced small-caps text (`.irs-brand-sub`, 7px, `0.18em` tracking, `packages/ui/src/iris-shell.css:204-214`), never an image, so it scales, themes and is readable aloud.
+- **Manrope is the product font, self-hosted, brand-locked.** ADR-0020: loaded from `@fontsource-variable/manrope`, never from Google Fonts, with a metric-matched `"Manrope Fallback"` face (`ascent-override: 100%`, `descent-override: 25%`) so the swap from fallback to Manrope never reflows a layout (`packages/ui/src/tokens.css:20-31`). Three ADRs (0020, 0033, 0034) independently reject substituting it, most explicitly ADR-0033 rejecting the approved Ask IRIS reference's own `Anthropic Sans`/`Inter` in favor of Manrope.
+- **IRIS blue is `#00a3ff`, exactly, everywhere it is brand.** `--iris-accent` in `tokens.css:35`, reused as `--ox-human-mark`, `--ask-accent`. ADR-0033 explicitly rejected the approved Ask IRIS reference's own `#2f97ff`, calling the brand "not ours to move." ADR-0034 explicitly rejected inventing a second accent for the light (paper) ground.
+- **Premium enterprise / PropTech / architectural character**, stated directly in `docs/14-design-system.md`'s thesis: *"A building, and what buyers are doing to it."* The product's job is evidence a developer, agency or agent can act on about a real physical asset — not a generic analytics dashboard.
+- **The customer-facing product is dark by default and, as of ADR-0034, dark-primary with light used deliberately.** `tokens.css:165-170` states outright: *"A light theme is not defined yet, on purpose. The brand is dark, every reference screen is dark."* ADR-0034 (2026-09-04) is the one exception: it introduces a paper ground (`.ox-paper`) for dense measured content (tables, timelines), but the frame — header, navigation, page title, verdict — never leaves graphite. A reader always arrives on graphite and always returns to it.
+- **MADSPACE Admin is a deliberately separate operational surface, both visually and organisationally.** `docs/20-madspace-admin-design-system.md` §0: *"MADSPACE administration has always been a separate surface... this is what that separation now looks like."* It is light by default (warm paper, `#F6F5F3`), typeset in Inter, and governs only `/madspace/*`. This is not an oversight to unify — ADR-0034 explicitly calls adopting MADSPACE's paper into Observer "narrowing a boundary that was drawn deliberately," and did so only partially and only by rule (dense-content regions), not wholesale.
+
+## Visual principles
+
+Stated directly across the doctrine, `docs/12-visual-autopsy.md` (what was rejected) and `docs/14-design-system.md` (the reasoning that replaced it):
+
+- **Restrained, precise, premium.** `docs/14-design-system.md` §1: put the evidence beside the subject and get out of the way. No decorative flourish that doesn't communicate a state.
+- **Information-dense without clutter, strong hierarchy.** Achieved through **planes, not boxes** — `docs/14-design-system.md` §3: *"if it holds information, it is a plane... A plane has no border, no radius and no shadow; it is defined by its background and the rule above it."* Structure comes from hairlines and typographic weight, not containers.
+- **Clear evidence/status semantics, never color alone.** ADR-0034's own structural rule, carried into `observer-product.css` and asserted by `apps/web/test/observer-product-design.test.ts`: *"A missing value changes four things at once — size, weight, colour, and a bar mark in front. Three of the four is the failure the treatment exists to prevent."*
+- **Minimal decorative noise.** `docs/12-visual-autopsy.md` §10, on what must NOT be done to fix a generic look: *"not solved by adding gradients, glass, shadows, icons or animation to the existing card system."*
+- **No generic SaaS-card spam.** This is the single most-repeated, most-evidenced rejection in the repository. `docs/12-visual-autopsy.md` §2 names the specific failure mode found in the rejected M2.1 build: *"Every element... is a `border-radius: 0.875rem` panel with a hairline. Verdict, figures, change, health, conversion, briefing, changes, alerts — eight identical containers stacked vertically."* Its own negative test: **hide the logo and ask what product this is** — if nothing on screen says buildings, apartments or a showroom, the screen has failed regardless of how polished it looks.
+- **No excessive glassmorphism, no cyberpunk/neon, no arbitrary gradient decoration.** `docs/14-design-system.md` §6, explicit: *"Forbidden: purple gradients, aurora fields, neon outlines, multicolour accent systems, glowing blobs, any gradient behind data."* The one exception is Ask IRIS's own atmosphere (adopted from an approved external reference, see below) and TravelingLight, both named exceptions rather than a general license.
+
+## Ask IRIS
+
+Treated as the flagship visual reference per the user's explicit instruction, at its real, live route: `/[tenantSlug]/[projectSlug]/ask`, implemented in `apps/web/src/components/ask-iris/AskScreen.tsx` and `packages/ui/src/ask-iris.css` (2,332 lines — the single largest stylesheet in the product other than MADSPACE's). ADR-0033/0034/0035 govern it; `e2e/ask-iris-compare.spec.ts` (29 cases) verifies it against the approved delivered reference at every width down to 390px.
+
+**This is the current, live implementation.** `packages/ui/src/iris-shell.css` also defines an `.irs-ask-*` composer (`.irs-ask-card`, `.irs-ask-model`, `.irs-suggestions`) that looks superficially similar — it is **dead code from the retired flagship prototype** at `/iris/[tenantSlug]/[projectSlug]`, which is now a permanent redirect to the real route (see "Existing visual eras"). Do not generate from it.
+
+- **Header proportions.** Shared `.irs-header` (`iris-shell.css:162-180`): 70px tall (`--iris-header-height`), sticky, `backdrop-filter: blur(10px)`, a 3-column grid (`brand | nav | account`). On `/ask` specifically, `[data-variant="ask"]` widens the nav gap to 40px (down to 32px ≤1439px, 24px ≤1199px, 16px ≤768px) and hides the reader's role line — the one deliberate difference from every other page's header, keyed on a data attribute so no other surface can accidentally match it.
+- **Navigation behavior.** Four items — Ask IRIS · Sales Flow · Project · Sales Agents (ADR-0033) — `aria-current="page"` carries a 2px gradient underline with a soft blue bloom (`iris-shell.css:265-275`); the state is also announced to assistive tech via the attribute itself, independent of the decoration.
+- **Composer geometry.** `.ask-card` (`ask-iris.css`): the hero card, radius `--ask-hero-radius` (24px, shared with the shell's `--iris-radius-hero`). Round controls (send, mic, clock, model/scope triggers) are 41px square, radius `--ask-control-radius` (10px, shared with `--iris-radius-control`). The model and scope pills are 165px wide by default, shrinking responsively on narrow widths.
+- **Scope/model controls.** Two `<details>`-based disclosures side by side in `.ask-actions`, sharing one visual language (`.ask-model`, `.ask-model-menu`). As of the current build: the scope control (Current / All / Compare) is a segmented three-way toggle inside the popover rather than stacked radio rows, Compare opens a real multi-project checklist, and both disclosures use `name="ask-composer-menu"` for native browser mutual exclusion (only one open at a time, no script). A small client component (`ClosableDetails`) adds Escape-to-close and click-outside-to-close, the one JavaScript addition on an otherwise script-free composer — the composer submits, opens history and switches models/scope with scripting disabled; only these two conveniences are lost without it. `.ask-card` clips anything that opens past its own rounded edge, which governs both pickers' popover sizing (a capped, internally-scrolled height on desktop; a `position: fixed` bottom sheet with a grabber handle, header and backdrop on mobile, since `position: fixed` escapes an ancestor's overflow clipping but **not** its stacking context — `.ask-card` itself is `z-index: 2`, so a mobile backdrop must be hosted on `.ask-card`, not a more distant ancestor, or it will paint over the sheet it is meant to sit behind).
+- **The scope model — a rule about meaning, not just layout.** `AskScope` (`AskScreen.tsx`) is a distinct concept from the navigation project: **NAVIGATION PROJECT CONTEXT ≠ ASK IRIS REASONING SCOPE.** Switching projects in the header changes which project's data every *other* page shows; it never touches what Ask IRIS reasons over. Ask supports three explicit scopes — Current Project, All Projects, and Compare Projects (a multi-select of specific projects, not just two, restricted to projects the viewer's account is actually authorized to open — consistent with `PRODUCT.md`'s "Multi-tenant, multi-project, role-gated" constraint, enforced in the repository layer, not only in the UI) — chosen either through the compact scope control or by natural language in the prompt itself, which may expand or override the UI's scope without requiring the selector to be touched first. Ambiguity is never silently guessed: an under-specified comparison surfaces a clarifying question rather than picking a project. The scope UI is deliberately compact and subordinate to the composer — a segmented tab control on desktop, the same `.ask-model-menu`-family popover/bottom-sheet mechanism as the model picker, mutually exclusive with it via the native `name` attribute, sharing its keyboard/Escape/outside-click/backdrop behavior exactly (see above). Ask scope state is request-scoped to the conversation and never leaks into or mutates the navigation project.
+- **TravelingLight behavior — current approved reality, re-verified directly against `prompt-glow.ts` (not the ADR's account of it).** ADR-0035, verbatim in intent: **do not reimplement it** as a CSS approximation. It is a ported WebGL1 fragment shader (`apps/web/src/components/ask-iris/prompt-glow.ts`, 383 lines, zero `import` statements), one canvas per composer (`canvas.getContext("webgl", ...)`), overhanging the card by 130px on every side, `pointer-events: none`, additive blending. **Confirmed factually true: no three.js, no CDN, no external runtime dependency of any kind** — the file's own docblock names three things the *original delivered reference* did that this port deliberately does NOT do: "fragment shaders on `three.js`, loaded from `unpkg.com`, animated on a permanent `requestAnimationFrame`." All three were rejected on the way in; the current implementation is a from-scratch, dependency-free port. Confirmed live in both the main composer (`AskScreen`) and the docked prompt bar (`AskDock`) via the shared `PromptGlow` component, which locates its host card imperatively (`[data-glow-card]`) since both composers are server components. Every shader constant (four bloom-falloff radii — 1.6px/6px/16px/38px — and the tone-mapping curve `I = 1 - exp(-1.35 * I)`) is the delivered reference's own and is never tuned; the effect specifically depends on tone-mapping an *accumulated* sum of four scales, which is why two independent CSS reconstructions failed identically (they composite pairwise and never produce a summed value to apply a knee to). One lap takes 6.45 seconds, measured by return position rather than speed. **Failure handling, confirmed at the source level**: if `canvas.getContext("webgl", ...)` returns null, or shader/program compilation fails, the canvas is removed once and a still CSS halo (keyed on the canvas's *absence* via `.ask-hero:not(:has(> .ask-glow-canvas))`) stands in — there is no flag, no fallback state variable. This is an *initial-acquisition* guard, not a running `webglcontextlost`/`webglcontextrestored` recovery listener; the source contains no such listener, so a context lost mid-session (as opposed to refused at start) is not separately handled today. Do not change this implementation.
+- **History/suggestion styling.** Opening suggestions are a vertical list of glass-edged rows (`backdrop-filter: blur(14px)`) with a circular icon mark, drawn from `OPENING_GLYPHS`; history is a separate panel reached by navigation (`?history=1`), not a client-side toggle.
+- **Responsive behavior.** Below 768px (`@media (width <= 48rem)` in `ask-iris.css`), the composer's round controls wrap onto their own row below the model/scope pills, and any open popover becomes a bottom sheet instead of an inline dropdown.
+- **Reduced-motion expectations.** ADR-0035: the shader *freezes rather than disappears* — `uMotion = 0`, `uTime` pinned at `2.1` (not `0`, which would land the head on an anchor point and make the frozen frame both the dimmest and least legible moment of the loop) — and the `prefers-reduced-motion` media query is observed live, so toggling it mid-session takes effect without a reload.
+
+## Component namespaces
+
+Six live class-name prefixes, each with a distinct, evidenced role. None of these is cosmetic — mixing an element from one namespace into a region governed by another (e.g., an `.ox-btn` inside `.mad-` markup) is a real defect, not a style preference, because each namespace's custom properties resolve to different, non-interchangeable values.
+
+| Prefix | File(s) | Role | Status |
+|---|---|---|---|
+| `ask-` | `ask-iris.css` (2,332 lines) | The Ask IRIS conversational composer proper (`/ask`) and the docked prompt bar shown on other pages. **Does not include `/ask/history` or `/ask/[threadId]`** — those two routes render through `ox-` (`@/components/product` + `@/components/ask/{ThreadList,AnswerSheet}`), not the flagship composer. "Ask IRIS" as a nav destination therefore spans two namespaces, not one. | **Current, actively developed** — the most recently touched file in the product. |
+| `ox-` | `observer-product.css` (2,591 lines) | The Hybrid Executive system (ADR-0034): the current-direction visual language for analytical product content, on two grounds (`.ox-graphite`, `.ox-paper`). | **Current, provisional-but-live.** Used by `/units`, `/units/[unitCode]`, `/meetings`, `/meetings/[meetingId]` (partially), `/attention`, `/features`, `/showroom`, `/agents/[agentId]`, `/ask/history`, `/ask/[threadId]`, `/settings/ai` (partially). ADR-0034 states the *direction* is provisional; the tokens it locks (Manrope, `#00A3FF`, the contrast table) are not. |
+| `irs-` | `iris-shell.css` (798 lines) | The application shell every page wears: header, primary navigation, brand mark, sign-out control, atmosphere. | **Current, live on every customer page** — but see "Existing visual eras": this same file also contains a *dead* `.irs-ask-*` composer implementation. |
+| `iris-` (legacy) | `iris.css` + `showroom.css` + `charts.css` (2,285 lines combined) | The pre-Hybrid-Executive analytical system: page shell, KPI cards, hand-drawn charts, findings/gaps. | **Current for four specific pages/sub-routes, by explicit recent decision** — `/flow`, `/project`, `/agents` (the roster only — see the route map below for the `/agents/[agentId]` split), and two `/flow` drill-downs (`/presentation`, `/audience`) all use it today, and Sales Flow was deliberately reverted from an `ox-` conversion back to this system *this session*, specifically so the pages would read as one product rather than two generations. Not deprecated in practice; do not migrate one without migrating the whole bloc, and not without approval. |
+| `mad-` | `madspace.css` (3,447 lines — the single largest stylesheet in the repository) | MADSPACE's own administrative surface, `/madspace/*` only. | **Current, and deliberately isolated.** Its own token names (`--ink`, `--surface-card`, `--border-*`) never collide with `ox-`/`iris-` by design (ADR-0034). Borrows a handful of `obs-` utility classes for generic section headers/state text (`.obs-section-head`, `.obs-state`) — incidental reuse of a utility class, not a real dependency on the `obs-` design system. |
+| `obs-` | `observer.css` + `components.css` (2,090 lines combined) | The oldest layer: shared primitives predating the `iris-`/`ox-` split. Still the primary system for `/overview`. | **Legacy, still loaded** — referenced by `showroom.css` and `madspace.css`, and used directly by `/overview`, so it cannot be deleted without checking all three. |
+| `mp-` | `apps/web/src/portal/portal.css` | The MADSPACE Client Portal sign-in/project-picker composition (photograph + form, project grid). | **Current** for `/sign-in` and `/projects` specifically; not used elsewhere. Both routes carry one incidental `.obs-sr` (screen-reader-only utility) class each — not a real dependency on `obs-`. |
+| `os-` | `observer-settings.css` (596 lines) | Settings-specific surface. | **Current, single-route.** Used only by `/settings/ai`, and only partially — that page mixes `os-` with `irs-` (shell chrome) and `ox-` (imported components), making it one of the more visually mixed routes in the product. |
+| `dla-` / `dlb-` / `dlc-` | `design-lab-a/b/c.css` (6,067 lines combined) | Three named exploration variants built for a design review (`design-lab-c` = "Hybrid executive," the direction `observer-product.css` was built from). See "Design-lab A/B/C history" below. | **Design-lab only**, reachable at `/design-lab/*`, never a product route. `design-lab-c.css` is genetically the ancestor of `observer-product.css` but was deliberately *not* reused directly — ADR-0034: "Copying it would have made the two systems share a namespace and bleed at any shared import." |
+
+**New work should prefer `ox-` (for new analytical content) or `ask-` (for anything extending the Ask IRIS composer itself) over expanding `iris-`, `obs-`, `os-`, or the `dl*` prefixes.** The legacy-`iris-` bloc is a named, bounded exception, not a precedent for adding to it.
+
+**Two orphaned `ox-` conversion attempts exist as dead code and must not be treated as reference for either namespace:** `apps/web/src/components/flow/{AgentOutcomes,WindowFigures,OutcomeTally,OutcomeFigures}.tsx` (an abandoned `ox-` conversion of Sales Flow, reverted this session after user review preferred the legacy version) and `apps/web/src/components/project/*` (53 `ox-` classNames, a second, previously undocumented abandoned conversion attempt for `/project` — no importer exists outside its own directory). Neither is reachable from any live route.
+
+### Visual-era route map
+
+Built by grepping every customer-facing route's actual `className`/import evidence directly (not from recollection), per `apps/web/src/app/(app)/[tenantSlug]/[projectSlug]/*`, `apps/web/src/app/{madspace,lab,design-lab,settings,sign-in,projects}/*`, and `apps/web/src/app/page.tsx`. This is the table future Impeccable work must consult before touching a screen — it says which screens to converge toward and which must never be treated as design precedent.
+
+| Route | Visual namespace(s) | Primary component system | Classification |
+|---|---|---|---|
+| `/` | none (redirect only) | `resolveLandingPath` → `/sign-in` or the resolved project | N/A — pure redirect |
+| `/sign-in` | `mp-` (+ 1 incidental `.obs-sr`) | `apps/web/src/portal/` | CURRENT |
+| `/projects` | `mp-` (+ 1 incidental `.obs-sr`) | `apps/web/src/portal/` | CURRENT |
+| `/[tenant]/[project]/ask` | `ask-` | `@/components/ask-iris/AskScreen` | CANONICAL (flagship) |
+| `/[tenant]/[project]/ask/history` | `ox-` | `@/components/ask/ThreadList` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/ask/[threadId]` | `ox-` | `@/components/ask/AnswerSheet` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/flow` | `iris-` (legacy) | inline, `@/showroom/parts` | CURRENT (named bloc) |
+| `/[tenant]/[project]/presentation` | `iris-` (legacy) | `@/showroom/parts` (`DnaLane`, `Finding`, `Gaps`, `SourceChips`) | CURRENT (named bloc; drill-down of Sales Flow) |
+| `/[tenant]/[project]/audience` | `iris-` (legacy) | `@/showroom/parts` | CURRENT (named bloc; drill-down of Sales Flow) |
+| `/[tenant]/[project]/project` | `iris-` (legacy) | inline | CURRENT (named bloc) |
+| `/[tenant]/[project]/agents` | `iris-` (legacy) | inline | CURRENT (named bloc) — roster only |
+| `/[tenant]/[project]/agents/[agentId]` | `ox-` | `@/components/agents` + `@/components/product` | CURRENT — **splits from its own roster page** |
+| `/[tenant]/[project]/overview` | `obs-` | inline (263 lines) | LEGACY |
+| `/[tenant]/[project]/units` | `ox-` | `@/components/units` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/units/[unitCode]` | `ox-` | `@/components/units` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/meetings` | `ox-` | `@/components/meetings` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/meetings/[meetingId]` | `obs-` + `ox-` (genuinely mixed) | `@/showroom/BriefView` (obs-) + `@/components/meetings` (ox-) | TRANSITIONAL |
+| `/[tenant]/[project]/attention` | `ox-` | `@/components/attention` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/features` | `ox-` | `@/components/features` + `@/components/product` | CURRENT |
+| `/[tenant]/[project]/showroom` (Briefing) | `ox-` | `@/components/product` (350 lines) | CURRENT |
+| `/[tenant]/[project]/people` | none (redirect only) | → `/agents` | N/A — pure redirect |
+| `/[tenant]/[project]/storytelling` | none (redirect only) | → elsewhere | N/A — pure redirect |
+| `/[tenant]/[project]` (bare) | none (redirect only) | → a specific section | N/A — pure redirect |
+| `/settings/ai` | `irs-` + `os-` + `ox-` (genuinely mixed) | own settings components + `@/components/product` imports | TRANSITIONAL |
+| `/madspace`, `/madspace/diagnostics`, `/madspace/projects*`, `/madspace/sources/[sourceId]` | `mad-` (+ incidental `.obs-*` utility classes) | own MADSPACE components | ADMIN-SEPARATE |
+| `/design-lab`, `/design-lab/[screen]/[variant]`, `/design-lab/observer`, `/design-lab/stress/*` | none (deliberately unstyled beyond inline bare tokens) — the actual `dla-`/`dlb-`/`dlc-` styling lives in the `variants/{a,b,c}/*` components these routes render | `@/app/design-lab/variants/{a,b,c}/*` | LAB-ONLY — dev-only review tool, cannot render in production, not a product route |
+| `/lab`, `/lab/overview-a`, `/lab/overview-b`, `/lab/sign-in` | `iris-` (legacy, reused) | `@/lab/Workspace` (variants `narrative`/`spatial`) | LAB-ONLY — an internal concept-comparison tool, unrelated to `design-lab-a/b/c.css` despite the similar name; not reachable from product navigation |
+
+**Notes on genuinely mixed/transitional routes:** `/meetings/[meetingId]` and `/settings/ai` are not drift to be silently normalized — they are two components from two different eras composed on one page, and a future convergence pass should treat each as two separate migration targets (the `obs-`/`os-` half toward `ox-`) rather than one.
+
+## Surfaces
+
+**Customer-facing Observer** (dark by default, `irs-` shell + one of `ask-`/`ox-`/legacy `iris-` for content):
+- Ask IRIS (`/ask` — flagship, `ask-`)
+- Sales Flow, Project, Sales Agents (legacy `iris-`, by explicit current decision)
+- Units, Meetings, Attention, Features, and other detail/drill-down views (`ox-`)
+
+**MADSPACE operational administration** (`/madspace/*`, light by default, Inter, `mad-` — entirely separate design system, per `docs/20-madspace-admin-design-system.md` §0: *"Does not govern: Ask IRIS, the Observer product surfaces, the showroom."*)
+
+These are related products under one vendor (IRIS by MADSPACE) but are **not the same visual or navigational surface**, on purpose: MADSPACE administrators are the platform operator, not a customer of it (see `PRODUCT.md`'s Users section), and the visual separation is load-bearing evidence of that boundary, not decoration.
+
+## Frontend convergence target
+
+The goal for future Impeccable work is **not** "make every screen look like Ask IRIS." The goal is: **bring all customer-facing Observer surfaces into one coherent design language whose quality benchmark is Ask IRIS and whose analytical component system is the current `ox-` system.**
+
+This is a deliberate distinction, not a simplification of it:
+
+- **Ask IRIS** is the flagship conversational surface — the quality bar (craft, restraint, motion discipline, responsive behavior) every other surface should be measured against, not a composition every other surface should imitate.
+- **`ox-`** is the analytical/product surface — the component system (Hybrid Executive, ADR-0034) that new and converging analytical content should actually be built in.
+- They should feel like one product without forcing identical compositions — a conversation surface and a data-dense analytical surface are different jobs and are allowed to look like different jobs, as long as both clearly belong to the same product.
+- **MADSPACE** is a separate operational/admin surface, on purpose, and is not a convergence target for customer-facing work at all.
+- **Legacy `iris-`/`obs-`** are migration sources, not design precedent — the three-plus-page legacy-`iris-` bloc and `/overview`'s `obs-` are current only because migrating them is a scoped, reviewed decision that has not yet been made, not because they represent where the product is going.
+
+## Typography
+
+- **Manrope**, self-hosted, brand-locked (ADR-0020) — the only typeface across every customer-facing surface, both grounds of `ox-`, and legacy `iris-`. Verified: `apps/web/src/app/layout.tsx` imports `@fontsource-variable/manrope` directly (a real, bundled woff2), so Manrope is genuinely self-hosted and loaded today, not merely declared.
+- **MADSPACE specifies Inter, with tabular figures** (`docs/20-madspace-admin-design-system.md` §0) as the boundary marker between the two products — "the font switches at the `/madspace` boundary and nowhere else." **Factually, Inter is declared but not currently loaded.** `madspace.css`'s own font stack is `"Inter", "Inter Fallback", ui-sans-serif, system-ui, "Segoe UI", Roboto, ...`; there is no `@fontsource/inter` package, no `next/font` Inter import, no local woff2 asset, and no Google Fonts `<link>` anywhere in the repository. `"Inter Fallback"` is a metric-matched local `@font-face` (`ascent-override`/`descent-override`/`size-adjust` tuned to Inter's metrics, `src: local("Segoe UI"), local("Roboto"), ...`) — the same technique `tokens.css` uses for Manrope's own fallback, except here it is the *only* thing that currently resolves, since no real Inter file exists to fall back from. The file's own comment states this plainly: *"Inter, with a metric-matched stand-in until the woff2 arrives."* **Current factual state: MADSPACE renders in the user's OS UI font (Segoe UI/Roboto/etc.) sized and spaced to Inter's metrics, not in Inter itself, pending a future asset delivery.** This does not change customer-facing Observer's typography, which stays Manrope-locked regardless.
+- **Do not introduce Anthropic Sans, plain Inter (outside MADSPACE), or a system-UI stack as a primary face.** Both ADR-0033 and `iris-shell.css`'s own docblock record this as an explicit, considered rejection of the approved Ask IRIS reference design's own default fonts, not an oversight to fix.
+- **Hierarchy** (`tokens.css`, the base scale underlying `obs-`/legacy `iris-`; `ox-`/`ask-` build their own component-level sizes on top of the same family):
+
+  | Role | Size / line | Weight | Notes |
+  |---|---|---|---|
+  | Figure (headline number) | 2.25rem / 2.5rem | 600 | Tabular numerals always. |
+  | H5 | 1.5rem / 2rem | — | |
+  | H6 | 1.25rem / 1.75rem | — | |
+  | Body (`--text-lg`) | 1.125rem / 1.5rem | — | |
+  | Label/Body-M (`--text-sm`) | 0.875rem / 1.25rem | — | |
+  | Kicker | 0.75rem / 1rem | 600 | Uppercase, `0.25em` tracking. |
+
+  MADSPACE runs its own, separate Inter scale (12px absolute floor, 14px body floor — `docs/20` §3/§7) and should not be conflated with the above.
+
+  **This `tokens.css` table is the base scale inherited by `obs-`/legacy `iris-`. It is not what `ask-`/`ox-` actually render at the component level.** Extracted directly from the live stylesheets rather than assumed:
+
+  | Semantic role | `ox-` (declared token, `observer-product.css` `.ox-root`) | `ask-` (literal value, no shared token) | `irs-` shell (literal value) | Canonical value | Known drift |
+  |---|---|---|---|---|---|
+  | Display/Hero | `--ox-display`: `clamp(2rem, 1.35rem + 2.2vw, 3rem)` (32→48px), tracking `-0.025em`, line-height 1.06 | *(no page-hero text — see note)* | — | `--ox-display` | Ask IRIS has no headline; its largest text is the composer input itself, styled as an oversized field (`.ask-field`: 24px / weight 300 / tracking 0.1em / line-height 1.34) rather than a hero heading. Record as an intentional difference of role, not as drift. |
+  | Page title | `--ox-display-2`: `clamp(1.625rem, 1.2rem + 1.4vw, 2.25rem)` (26→36px), tracking `-0.02em` | *(none — Ask IRIS carries no in-page title beyond the shared shell)* | — | `--ox-display-2` | None found. |
+  | Section title | `--ox-heading-2`: 1.5rem (24px) | `.ask-panel-title`: 13px / medium / tracking 0.22em (styled as an uppercase eyebrow label, not a heading) | — | `--ox-heading-2` for `ox-` surfaces | **KNOWN DRIFT**: what `ox-` renders as a 24px heading for this structural role, `ask-` renders as a 13px tracked micro-label. Do not normalize — the two surfaces are making different compositional choices for the same position, not making an error. |
+  | Metric | `--ox-value`: 1.1875rem (19px), tabular-nums | *(none — Ask IRIS is conversational, not metric-first)* | — | `--ox-value` | N/A for `ask-`. |
+  | Body | `--ox-body`: 0.875rem (14px) | `.ask-row-title` 15px/400; general answer/message text runs 15.5px and 13.5px depending on component | `.irs-nav-item` 15.5px/400 | Two clusters exist: 14px (`ox-`) and 15–15.5px (`ask-`/`irs-`) | **KNOWN DRIFT**, recorded rather than silently unified — the shell's own navigation text (15.5px) is closer to Ask IRIS's body size than to `ox-`'s. |
+  | Secondary body | `--ox-lead` 1rem (16px) / `--ox-caption` 0.8125rem (13px) | `.ask-msg-when` 13px, `.ask-figure-note` 12.5px | secondary tab text 13px | ~13px cluster | `--ox-caption` (13px) is broadly consistent with `ask-`/`irs-` secondary text at 13px. |
+  | Label | `--ox-micro` 0.75rem (12px), tracking 0.09em | `.ask-panel-title` 13px, tracking 0.22em | `.irs-brand-sub` 7px, tracking 0.18em (a micro-badge, not a field label) | inconsistent | **KNOWN DRIFT**: three distinct label treatments coexist — 12px/0.09em (`ox-` canonical), 13px/0.22em (`ask-` panel titles), 7px/0.18em (`irs-` brand micro-badge, a different role entirely). Not normalized here; a convergence pass should pick one micro-label treatment deliberately rather than inherit whichever surface it started from. |
+  | Caption/metadata | `--ox-caption` 0.8125rem (13px) | `.ask-figure-note` 12.5px | secondary tab text 11px | 11–13px range | **KNOWN DRIFT**: a 2px spread across surfaces for what is nominally the same role. |
+  | Navigation | *(`ox-` has no navigation of its own — navigation lives entirely in the shell)* | *(same — Ask IRIS uses the shared shell nav)* | `.irs-nav-item` 15.5px/400 (active state: medium weight, tracking 0.06em) | `.irs-nav-item` | This is the one role that is genuinely unified: every surface, `ox-` and `ask-` included, uses the identical shell navigation. No drift. |
+  | Control | `.irs-signout` 14px/medium (shell-wide button) | menu/model-picker option rows run 13–13.5px | `.irs-signout` 14px/medium | ~13–14px | Minor drift (1px), not flagged as a defect. |
+
+  **Do not silently normalize the flagged drift rows.** Per the instruction that produced this table: where current code genuinely has inconsistent values for the same semantic role, the inconsistency itself is the fact to record.
+- **Tabular numerals** are used everywhere a figure appears in a column — asserted structurally, not left to convention: `tokens.css` sets `--font-numeric: var(--font-sans)` and the legacy `.iris` class sets `font-variant-numeric: tabular-nums` at the container level.
+- **Label/body/metric distinctions** are carried by the kicker/body/figure roles above, plus a monospace companion (`--mono`, `iris.css:44`) reserved for unit codes, timestamps and evidence IDs — "so a unit code reads as a designation rather than as a word" (`docs/14-design-system.md` §5).
+
+## Spacing / radius / borders
+
+**The intended current token system** (`tokens.css`, inherited by `obs-`/legacy `iris-`; `ox-` and `ask-` layer their own names on top, resolving back to these where noted):
+
+- **Spacing scale**: `--space-1` through `--space-8` = 0.25rem, 0.5rem, 0.75rem, 1rem, 1.5rem, 2rem, 3rem, 4rem.
+- **`ox-`'s own seam tokens**: `--ox-inset: 1.25rem` (20px) and `--ox-pad: 1.75rem` (28px) — together they hold a paper plate off its graphite surroundings and align graphite copy to the same left edge as the plate, which ADR-0034 calls the one thing that "stops the frame reading as a header pasted above a page."
+- **ADR-0034's own locked rhythm for the `ox-` system specifically**: 8 / 12 / 20 / 28px, plus a 40px gutter, "and no other number."
+- **Radius scale**: `--radius-sm` (0.375rem), `--radius-md` (0.625rem), `--radius-lg` (0.875rem), `--radius-pill` (999px), plus the shell's own `--iris-radius-hero` (24px, the Ask composer card) and `--iris-radius-control` (10px, round buttons and pills) — both reused verbatim by `ask-`.
+- **Borders**: two hairline weights only, `--line-subtle` (7-8% white) and `--line-strong` (14-16% white) on graphite; `ox-paper` redeclares the same *names* at ink-based alphas (7%/10%/13%/18%/26%/38%) for the light ground. There is no third weight in the current system.
+
+### Elevation / shadow
+
+**Observer should not become a shadow-heavy SaaS interface. Elevation is exceptional and semantic, not decorative.** Exact literal values, extracted directly rather than assumed:
+
+- **The one Observer elevated surface** (ADR-0034's "only elevation in the system"): `.ox-dialog-panel` (`observer-product.css:2113`) — `box-shadow: 0 24px 64px rgb(0 0 0 / 55%)`. The rule's own adjacent comment: *"The only elevation in the system. Nothing else on a product screen floats."* Every other `ox-` surface uses `box-shadow` only as a 1px hairline division (e.g. `0 -1px 0 var(--ox-line-panel)`), never for lift.
+- **MADSPACE popover shadow**: `--shadow-popover: 0 8px 24px rgb(17 17 17 / 12%), 0 1px 2px rgb(17 17 17 / 8%)` (`madspace.css:159`), used e.g. by `.mad-info-panel`.
+- **MADSPACE modal shadow**: `--shadow-modal: 0 24px 64px rgb(17 17 17 / 20%), 0 2px 6px rgb(17 17 17 / 10%)` (`madspace.css:160`).
+- **Ask IRIS popover elevation**: the shared `.ask-model-menu` base class (both the model picker and the scope picker) — `box-shadow: 0 20px 44px rgb(0 0 0 / 60%)` (`ask-iris.css:503`). A per-message row action menu (`.ask-row-menu`) uses a slightly heavier `0 26px 64px rgb(0 0 0 / 60%)` (`ask-iris.css:1155`). The mobile bottom-sheet variant of `.ask-model-menu` uses a directional shadow instead, since it sits at the bottom of the viewport rather than floating mid-page: `box-shadow: 0 -8px 32px rgb(0 0 0 / 55%)`.
+- **Pattern across all three systems**: elevation shadows only ever appear on a small, fixed set of overlay/dialog surfaces (one per system) — never on a card, a panel, or ordinary content. This is consistent with the "planes, not boxes" principle stated elsewhere in this document; it is not merely a stated principle but a measurable fact about the current CSS.
+
+**Legacy drift, flagged separately rather than normalized away:** `docs/12-visual-autopsy.md` names `border-radius: 0.875rem` panels as the single most-repeated symptom of the rejected M2.1 card system — a literal, not a token reference. Where that exact radius still appears as a hardcoded value rather than `var(--radius-lg)`, treat it as inherited technical debt, not as evidence the panel-with-hairline pattern is endorsed for new analytical content (see "Anti-patterns").
+
+## Color / status semantics
+
+- **Primary accent**: `#00a3ff` (`--iris-accent`). On graphite it measures **7.10:1** on a panel and is used for exactly two things: the focus ring, and the mark meaning *"a person decided this, and a person can change it."* It is not a decorative accent, and using it as one purely to add color is a misuse.
+- **On the paper ground, `#00a3ff` is unusable as text, a border or a focus ring** — it measures only **2.73:1** on white. `--iris-accent-dim` (`#0b6fae`, **5.39:1**) carries those roles there instead. This is a measured, tested constraint (`apps/web/test/observer-product-design.test.ts`), not a style preference.
+- **Neutral graphite hierarchy** (`.ox-graphite`, ADR-0034's measured table): ink 18.08:1, ink-2 9.98:1, ink-3 7.71:1, ink-4 6.17:1 (the floor) — all on a translucent panel composited over the shell ground, measured, not estimated.
+- **Neutral paper hierarchy** (`.ox-paper`): ink 18.11:1, ink-2 9.06:1, ink-3 6.74:1, ink-4 4.80:1 — the single tightest value in the entire system, "the number to watch if the plate is ever darkened."
+- **Status colors, three semantic states plus neutral**, deliberately not four: good (`#3ecf8e` base / `#8ad9b0` on graphite / `#0f5c39` on paper), watch (`#e8b339` / `#e6c07a` / `#7d4a00`), poor/weak (`#f0616d` / `#f0a49e` / `#a92019`). `tokens.css`'s own comment: *"A four-state scale invites a middle nobody can define."*
+- **Evidence/provenance is a second, orthogonal axis from status — never merged.** ADR-0010 defines four claim tiers (`observed_sequence`, `attributed_conversion`, `statistical_association`, `causal_claim`) that describe *how sure the product is*, entirely separate from *what the figure says* (good/watch/poor). The product's schema and its metric-registry validator both reject the fourth tier outright — Observer is structurally incapable of stating a causal claim, not merely discouraged from it.
+- **Status must never rely on color alone, structurally, not by convention.** ADR-0034's own rule: a missing value changes size, weight, colour *and* a leading bar mark — never fewer than that, because three of the four already reads as "a small number" to a reader scanning a column.
+- **Accessible contrast is a tested floor, not a target**: every value in the ADR-0034 table clears 4.5:1 on the ground it is measured against; the tightest (paper ink-4, 4.80:1) is called out by name as the value to re-check if the paper ground is ever changed.
+
+## Motion
+
+- **Restrained by explicit doctrine, not by omission.** `docs/14-design-system.md` §7: motion has exactly four jobs (period change, selection, cross-highlight, evidence reveal) "and no others... Nothing loops. Nothing animates on idle." The shared easing curve across the product is `cubic-bezier(0.2, 0, 0, 1)` (`tokens.css`, `iris.css`, `docs/14-design-system.md` all agree on this exact curve).
+- **`prefers-reduced-motion` is honored structurally, not per-component.** `tokens.css:172-177` zeroes `--duration-fast`/`--duration-base` at the token level under the media query, so any component using those tokens is automatically covered; ADR-0035 additionally *observes the query live* for TravelingLight specifically, so a mid-session OS setting change takes effect without a reload — the more thorough of the two approaches, and the one to imitate for any new animated component.
+- **TravelingLight is the one named flagship exception to "motion communicates, never decorates,"** and it is justified in the ADR on exactly those grounds: it is the delivered reference design's own signature effect, ported rather than reinterpreted (see "Ask IRIS" above). It is not a license to add other ambient/looping effects elsewhere — ADR-0033 explicitly rejected the reference design's *own* animated background canvas grid on the same page, calling a permanently running texture something that "communicates nothing."
+- **No animation for decoration only.** Every other documented motion use (chart re-weighting, hover lift, focus, disclosure open) ties to a concrete state change, never to idle presence.
+
+## Responsive
+
+**The intended current breakpoint strategy**, read from the most recently touched sheets (`ask-iris.css`, `observer-product.css`, `iris-shell.css`):
+
+- The modern range-syntax media queries (`@media (width <= 48rem)`, `@media (width >= 64rem)`) are the current convention, used throughout `ask-iris.css`, `observer-product.css` and `iris-shell.css`.
+- Common breakpoints observed across these files: **30rem/480px** (header/account-cluster stacking), **48rem/768px** (the most common single breakpoint — composer, shell header/nav, and `ox-` all step down here), **64rem/1024px** and **78rem/1248px** (`ox-` only, for wider analytical layouts).
+- Ask IRIS's own header nav-gap has an additional two-step reduction specific to it (1439px, 1199px) before joining the common 768px breakpoint — read directly out of the approved design export, not chosen independently (`iris-shell.css`'s own docblock states this explicitly).
+- **Mobile is not stacked desktop, by explicit doctrine.** `docs/12-visual-autopsy.md` §8 names "the desktop composition with the grid collapsed to one column" as a real, evidenced failure ("a very long scroll of full-width cards"), not an acceptable minimum. The current Ask IRIS mobile treatment (round controls wrapping to their own row, popovers becoming bottom sheets rather than shrinking inline) is the model to follow: a genuinely different composition for the width, not a narrower version of the same one.
+
+**Legacy responsive drift, flagged as technical debt rather than canonized:** `docs/observer-visual-baseline.md` records that the frozen M0 reference silently drops two of six Unit Attention columns below 1200px "with no way to reach them," corrected later by a container query. Where a legacy `iris-`/`obs-` breakpoint still behaves this way elsewhere, it is inherited debt to fix under the baseline's own stated criteria (a proven bug), not a pattern to extend.
+
+## Accessibility
+
+No formal certification is claimed anywhere in the repository (see `PRODUCT.md`), but the following are enforced in practice, not aspirational:
+
+- **Keyboard navigation and dialog behavior.** The Ask IRIS composer's disclosures (`<details>`) work fully with scripting disabled; a small client enhancement (`ClosableDetails`) adds Escape-to-close and click-outside-to-close on top, verified directly (open via Enter on the trigger, close via Escape, close via an outside click, native `name`-attribute mutual exclusion between the model and scope pickers).
+- **Visible focus** is a stated, tested requirement in both major current systems: `ox-`/legacy `iris-` use a 2px `--iris-accent` (or `--ox-focus` on paper) ring at 2px offset (`docs/14-design-system.md` §11; ADR-0034); MADSPACE specifies the identical shape independently (`docs/20` §7) — the one accessibility requirement stated the same way in every design document in the repository.
+- **Semantic headings**: one `h1` per view is asserted for MADSPACE (`docs/20` §7) and observed as a live convention on Observer pages generally (e.g. `apps/web/test` checks a single `h1` per Ask IRIS state).
+- **Accessible scroll regions**: the Ask IRIS composer's scrollable popover content is kept independently focusable so it is reachable even before any option inside it is interactive (an axe `scrollable-region-focusable` fix applied directly to `.ask-model-menu`).
+- **Status never relies on color alone**, structurally enforced (see "Color / status semantics").
+- **Axe-clean is the practical target for changed surfaces**, not a certification: 7 separate e2e spec files run `AxeBuilder` against `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa` tag sets today, including the full Ask IRIS suite at both idle and history-open states.
+- **MADSPACE's own accessibility contract is more explicit and more mature than Observer's**, and worth reusing as a model rather than reinventing: measured contrast floors (4.5:1 body / 3.0:1 large text/marks, with the lightest permitted text color named — `#6B6B6B` at 5.3:1), a 12px absolute type floor with no exceptions for dense tables, and a documented document-outline convention (`h1`/`h2`/`h3` plus landmark regions plus a skip link as the first focusable element).
+
+## Data honesty
+
+Treated in this repository as load-bearing visual design, not a backend concern — stated directly in `PRODUCT.md` and enforced structurally in the CSS and the type system:
+
+- **Evidence tiers, distinguished visually as well as in data**: ADR-0010 defines exactly four enum values — `observed_sequence`, `attributed_conversion` (agent-entered/CRM), `statistical_association` (derived) and `causal_claim` — of which Observer produces only the first three; the schema (`StatementSchema`) rejects `causal_claim` outright, structurally, not by house style. ADR-0021 separately governs the observed/attributed distinction specifically (a CRM deal stage is authoritative; online intent is a signal, never computed as the same measurement). The UI is expected to style an association differently from an observation "without dereferencing anything" — i.e., the visual treatment itself should carry the tier, not just the words. **Correction from an earlier pass of this document:** an earlier draft listed "AI interpretation" as a fourth claim tier alongside observed/attributed/statistical. No such tier exists in ADR-0010's schema, and `PRODUCT.md` states plainly that no live language model is connected and Ask IRIS's answers are composed deterministically by read models today — a fourth, AI-authored evidence tier would contradict that. Ask IRIS's "reading" step (in its observation → figures → reading → recommendation → evidence-disclosure structure) is a UI framing device layered on top of the same three producible tiers, not a distinct tier of its own.
+- **`Unavailable ≠ 0`, structurally.** `docs/14-design-system.md` §10 defines four distinct states with four distinct treatments — Empty, Insufficient, Unavailable, Error — and states plainly: "None of them is a zero." ADR-0034 carries this into `ox-`: "A track is not drawn at all when the value is absent. A track at zero standing in for an unmeasured quantity is the exact lie the missing treatment exists to prevent."
+- **Missing data must never be visually fabricated.** This is the single most repeated principle across every product document read for this file, and it governs charts specifically as well as text: no chart library's default interpolation may imply a data point that was not measured.
+- **A denominator may dim; it may never be dropped** (ADR-0034) — a proportion or rate is never shown without the count it is a proportion of, even when that count is visually de-emphasized.
+
+## Anti-patterns
+
+Explicitly prohibited, each with the evidence that put it on this list:
+
+- **Giant generic card grids / every metric in its own rectangle.** `docs/12-visual-autopsy.md` §2, the single most damaging finding in the rejected build: eight visually identical bordered panels stacked vertically, each holding one number.
+- **Fake charts / decorative gauges.** `docs/14-design-system.md` §6 forbids "radial gauges that mean nothing" and "default chart-library styling" by name; every chart in the current product is hand-drawn against real read-model data (ADR-0009, "no chart library").
+- **Excessive rounded panels.** The specific radius named as symptomatic is `0.875rem` applied to every content region alike; the current `ox-`/legacy-`iris-` answer is planes (no radius, no border, no shadow) for anything that holds information, reserving radius for rails and controls.
+- **Legacy admin appearance.** The negative test that applies product-wide: hide the logo — if the screen could be "a support desk, a subscription analytics tool or a logistics console" (the visual autopsy's own words), it has failed regardless of polish.
+- **Hidden denominators.** See "Data honesty" — a rate or share shown with its count suppressed is treated as a defect, not a simplification.
+- **Ambiguous evidence.** Mixing an observed fact and a statistical association in the same sentence or the same visual weight is the specific failure ADR-0010 exists to make structurally impossible.
+- **Unsupported causal language.** "Caused," "resulted in," "led to" applied to anything Observer measures is unsayable by design, not by house style — the schema itself has no slot for it.
+- **An isolated AI card with a sparkle icon.** `docs/12-visual-autopsy.md` §6, describing the rejected build's `AiSummary`: "a bordered box with a heading, three sentences and a 'GENERATED' badge... exactly the isolated AI card the doctrine forbids." Ask IRIS's actual answer structure (observation → measured figures → reading → recommendation → evidence disclosure → follow-ups) is the replacement, and it is a conversation surface, not a card.
+- **Excessive pills, an icon beside every label, decorative doughnuts, default progress-bar-as-status.** All named directly in `docs/14-design-system.md` §12's prohibition list, several with the exact rejected screenshot cited in `docs/12-visual-autopsy.md`.
+
+## Existing visual eras
+
+The repository contains five customer-facing CSS eras plus one deliberately separate product. Treating all of them as equally canonical is the fastest way to generate something that is technically on-brand and practically wrong.
+
+1. **`obs-` (`observer.css`, `components.css`) — oldest legacy.** Predates the `iris-`/`ox-` split. Still loaded (referenced by `showroom.css` and `madspace.css`), not a generation to design new work in.
+2. **Legacy `iris-`/showroom era (`iris.css`, `showroom.css`, `charts.css`) — current for exactly three named pages, by explicit and recent decision.** `/flow`, `/project`, `/agents` all use this system today. This is *not* stale drift waiting to be migrated opportunistically: Sales Flow was converted to `ox-` earlier in this project's history, visually rejected by explicit user review ("I preferred the previous Sales Flow UI substantially more"), and deliberately reverted back to this era specifically so the three pages would "read as one product, not two generations." Any future migration of one of these three pages must migrate all three together, reviewed as one change — not opportunistically, page by page.
+3. **`ox-` Hybrid Executive (`observer-product.css`) — the current direction for new analytical content**, per ADR-0034 (2026-09-04, the most recent design ADR). Explicitly "provisional" as a *direction* — but its locked tokens (Manrope, `#00A3FF`, the measured contrast table) are not provisional. This is what `document.md`'s "converge toward" question resolves to for anything that is not one of the three named legacy-`iris-` pages and not Ask IRIS itself.
+4. **`ask-`/`irs-` (`ask-iris.css`, `iris-shell.css`) — the current flagship and the current shell**, per ADR-0033/0034/0035. The shell (`irs-`) wraps every customer page; the composer (`ask-`) is specific to the Ask IRIS route. **Caution**: `iris-shell.css` also contains dead `.irs-ask-*` rules from the retired `/iris/[tenantSlug]/[projectSlug]` flagship prototype route, which is now a permanent redirect to the real `/ask` route (`apps/web/src/app/iris/[tenantSlug]/[projectSlug]/page.tsx`'s own docblock states this plainly). Components `AskComposer.tsx`, `AskOpenings.tsx` and `apps/web/src/components/iris/AskIris.tsx` correspond to this dead path and are not reachable from any live route — do not treat them as reference.
+5. **`mad-` (`madspace.css`) — current, and its own product**, governing only `/madspace/*`. Light, Inter, its own token names, deliberately never bled into by any other era (see "Brand" and "Surfaces").
+6. **`dla-`/`dlb-`/`dlc-` (`design-lab-*.css`) — design-lab exploration only**, never a live product route. `design-lab-c` is `ox-`'s direct ancestor but was deliberately not reused as-is, to keep the namespaces from colliding. Full history immediately below.
+
+### Design-lab A/B/C history
+
+Three named directions, built and reviewed for the MADSPACE control-plane screens (activation, diagnostics, project-detail, projects, source-detail, sources) before ADR-0034 extended one of them to the whole customer-facing product. Recorded here so future Impeccable work does not accidentally rediscover and recommend a rejected direction.
+
+- **Variant A — "Canonical light, on paper"** (`design-lab-a.css`, namespace `dla-`). *Principle:* the most direct, highest-craft translation of `docs/20-madspace-admin-design-system.md` into IRIS — the file's own words are that the reference document "is already right" and the missing ingredient was craft (vertical rhythm, measure, figure alignment, hero composition), not concept. *Palette:* warm paper ground (`#f6f5f3`), true white for operational surfaces, one ink (`#111111`/`#4a4a4a`/`#5c5c5c`) at fixed alphas for every line, no shadow anywhere ("nothing here floats"). *Composition:* light, flat, paper-native. *Where it overrode the reference:* Manrope instead of Inter — the one deliberate brand deviation. **Not selected.**
+- **Variant B — "Graphite console"** (`design-lab-b.css`, namespace `dlb-`). *Principle:* "a true dark inverse of the client-portal system, not a filter over it and not the light sheet with its colours flipped" — every structural measurement (12px radius, the 1/8/12/20/28 rhythm, the 40/24/16 gutters, the 1440px cap, the 12px type floor) carries over unchanged from the light system; only the ground, ink and status palette are redrawn and re-measured for the dark surface (the light system's green/amber fail contrast on `#12181f` and were replaced with lightened, re-measured pairs, all ≥7:1). *Palette:* `#07090c` base / `#0d1117` raised / `#12181f` panel, white hairlines at five alphas (6–35%), ink `#eef2f6`→`#7f8c9a` (15.9:1→5.2:1). *Composition:* dark, flat, console-native — same skeleton as A, inverted. **Not selected.**
+- **Variant C — "Hybrid Executive"** (`design-lab-c.css`, namespace `dlc-`). *Principle:* one design, not two — a single token vocabulary declared twice (`.dlc-graphite` / `.dlc-paper`) and applied **by region rather than by page**: graphite for what is concluded (identity, scope, the verdict, controls), paper for what was measured (readings, figures, tables). One component (e.g. `StatusChip`) renders correctly on both grounds because both answer to the same token names. *Palette:* the same type scale, rhythm (1/8/12/20/28), and seam mechanism (`--dlc-inset`/`--dlc-pad`) that `ox-` inherited verbatim. **Selected** — per ADR-0034, "the most complete of the three directions the user was shown," extended from five MADSPACE screens to the entire customer-facing product as `.ox-graphite`/`.ox-paper` in `observer-product.css` (`ox-` namespace), deliberately re-authored rather than copied wholesale so the two namespaces would not "share a namespace and bleed at any shared import."
+
+**Do not resurrect A or B.** Both are complete, coherent, real alternatives — not straw men — which is exactly why a future design pass could plausibly reinvent one of them from first principles and mistake it for new work. It is not: both were built, reviewed, and not chosen.
+
+**Converge toward, in order of what to reach for:** `ask-` when extending Ask IRIS itself; `ox-` for any new analytical surface or content region; the three-page legacy-`iris-` bloc only when specifically asked to touch Sales Flow, Project or Sales Agents, and then match all three, not just one. Do not add new work in `obs-`, expand `iris-shell.css`'s dead `.irs-ask-*` rules, or promote a `design-lab-*` file into a live route without an explicit decision recorded the way ADR-0034 was.
