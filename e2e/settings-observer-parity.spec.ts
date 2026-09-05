@@ -117,10 +117,10 @@ test.describe("account settings looks like the product it belongs to", () => {
     /*
      * THE POINT OF THE WHOLE APPROACH, ASSERTED.
      *
-     * `.mp-*` is shared with `/sign-in` and `/projects`. The settings page was
-     * moved OFF those names rather than having them restyled, precisely so
-     * those two screens could not change. If a `.mp-` class reappears here,
-     * somebody has started restyling the shared system again.
+     * `.mp-*` is shared with `/sign-in`. The settings page was moved OFF those
+     * names rather than having them restyled, precisely so that screen could
+     * not change. If a `.mp-` class reappears here, somebody has started
+     * restyling the shared system again.
      */
     const portalClasses = await page.evaluate(() =>
       [...document.querySelectorAll("[class]")]
@@ -129,9 +129,15 @@ test.describe("account settings looks like the product it belongs to", () => {
     );
     expect([...new Set(portalClasses)], "settings must not use the portal namespace").toEqual([]);
 
-    /* And the portal pages still do. */
-    await page.goto("/projects");
-    await expect(page.locator(".mp-bar")).toBeVisible();
+    /*
+     * `/projects` was moved onto this same chrome — see
+     * `e2e/projects-observer-parity.spec.ts` — so `/sign-in` is the only
+     * surface `portal.css` still governs, and it cannot be checked from this
+     * authenticated session: an authenticated reader who opens `/sign-in`
+     * is redirected away from it, same as `/`. `portal-quality.spec.ts`'s own
+     * "sign in" suite (unauthenticated by construction) proves `.mp-login`
+     * still renders there.
+     */
   });
 
   test("has no axe violations", async ({ page }) => {

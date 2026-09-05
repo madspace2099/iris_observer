@@ -6,42 +6,50 @@ import { dynamicRoute } from "@/lib/href";
 import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { SESSION_COOKIE, destroySession, requireAccount, requireViewer } from "@/lib/session";
-import "@/portal/portal.css";
 
 export const metadata: Metadata = { title: "Projects" };
 
 /**
- * THE PROJECT SELECTOR.
+ * THE PROJECT CHOOSER.
  *
- * Where every account lands after signing in, and the only way into an Observer
- * workspace. The flow is ACCOUNT then PROJECTS then OBSERVER, with nothing
- * between this page and the sign-in.
+ * No longer the normal post-sign-in destination — `resolveLandingPath` now
+ * sends most accounts straight to a project's Ask IRIS. This page is what
+ * that resolution falls back to: no last project remembered, no default, or
+ * more than one project and no way to guess which one. It is also reachable
+ * on purpose, from the account-settings "Projects" link and this page's own
+ * header, for a reader who wants to switch deliberately.
  *
- * It replaced two things: the profile picker, which asked people to choose an
- * identity they already had and is now confined to the design laboratory, and
- * the root redirect, which chose a project for them and hid the fact that there
- * were others.
+ * ## It wears Observer's own chrome, not a separate portal
  *
- * ## Generated from grants, not filtered for display
+ * This was `.mp-*` (`portal.css`) — a light MADSPACE-portal composition sharing
+ * nothing with Ask IRIS, Sales Flow, Project or Sales Agents. A reader landing
+ * here mid-session, from a project's own header, met a different product.
  *
- * The list comes from `repository.listProjects(viewer, tenant)` for each tenant
- * the account holds. The viewer's `projectIds` are explicit per-project grants:
- * a sales agent assigned to one project has one entry and therefore one card,
- * and adding a project to the world does not add it to their list. Hiding a
- * card would not be authorisation — so this page does not hide anything. It
- * asks what the account may see and renders the answer.
+ * It now uses the same shell (`.irs-header`/`.irs-shell`, `iris-shell.css`), the
+ * same graphite ground and content system (`.ox-*`, `observer-product.css`) as
+ * every project surface, and the same account-level header treatment already
+ * established for `/settings/ai` (`.os-*`, `observer-settings.css`) — the other
+ * page with no project to scope a nav to. `portal.css` is untouched: `/sign-in`
+ * still uses it, and darkening those classes would have redesigned sign-in as
+ * a side effect of this page.
  *
- * The same grant is enforced again inside the project, by the layout, by
- * `requireSurface`, and by the repository on every read. A reader who types
- * another developer's project into the address bar does not reach a hidden
- * page; they reach a refusal.
+ * ## The shell component is not reused, for the same reason `/settings/ai`
+ * doesn't either
  *
- * ## The card carries four things
+ * `Shell` builds its four-item nav from a tenant and a project. This page is
+ * how a reader gets to one — passing it a project to draw the chrome would
+ * claim they are already inside it. So the header is composed from the same
+ * CSS instead: no project nav, no context band, no period. The wordmark is
+ * plain rather than a link home, because this page IS the way home when there
+ * is no single project to send it to.
  *
- * A cover, the developer, the project, and one action. No progress, no status,
- * no milestone, no next action, no analytics preview — this is a doorway, and
- * a doorway that reports figures invites somebody to read them instead of
- * opening it.
+ * ## Still four things, on purpose
+ *
+ * A row carries the project's name, its developer, and one action — no
+ * status, no last-activity figure, no analytics preview. That was true of the
+ * previous `.mp-card` and stays true here: a chooser that reports figures
+ * invites a reader to read them instead of opening the project, and no such
+ * figure exists yet that isn't better read inside Observer itself.
  */
 export default async function Projects() {
   const account = await requireAccount();
@@ -68,136 +76,91 @@ export default async function Projects() {
   }
 
   return (
-    <div className="mp">
-      <a className="mp-skip" href="#main">
-        Skip to content
-      </a>
+    <div className="irs-shell ox-root ox-graphite">
+      <header className="irs-header">
+        <div className="irs-brand">
+          <img className="irs-brand-mark" src="/brand/iris-wordmark.svg" alt="IRIS" />
+          <span className="irs-brand-sub" aria-label="by MADSPACE">
+            by MADSPACE
+          </span>
+        </div>
 
-      <header className="mp-bar">
-        <div className="mp-bar-inner">
-          <span className="mp-bar-brand">MADSPACE</span>
-          <span className="mp-bar-product">IRIS Observer</span>
+        <p className="os-header-title">Projects</p>
 
-          <div className="mp-bar-right">
-            {/*
-              One restrained entry to the account's own settings. A link in the
-              account area, not a navigation section and not a menu: there is
-              one settings page and it is about this reader's OpenAI
-              connection.
-            */}
-            {/*
-              Carrying the way back, as the project surfaces do. This page
-              knows its own address without asking the router, so it says it
-              literally rather than pulling in the client component the project
-              layout needs.
-            */}
-            <Link className="mp-bar-link" href={dynamicRoute("/settings/ai?from=%2Fprojects")}>
-              Settings
-            </Link>
-            {/*
-             * ADMINISTRATION, FOR THE ROLE THAT HOLDS IT — REACHABLE WITHOUT
-             * OPENING A PROJECT FIRST.
-             *
-             * Until now the only door into `/madspace` was inside a project's
-             * own header, so an admin who wanted diagnostics had to open some
-             * project, on its own account, before they could reach the surface
-             * that has nothing to do with any one project. This is the account
-             * index; it is the honest place for the account's own admin door.
-             *
-             * Not a nav item on the customer product (it never was, and this
-             * page is not part of that product's four-item nav to begin with —
-             * it is the account-level portal), and gated the same way every
-             * other Administration link in the app is: by role, not by hiding.
-             */}
-            {viewer.role === "madspace_admin" ? (
-              <Link className="mp-bar-link" href={dynamicRoute("/madspace")}>
-                Administration
-              </Link>
-            ) : null}
-            <span className="mp-chip">Demo</span>
-            <span className="mp-bar-who">
-              <strong>{account.displayName}</strong>
-              <span>{viewer.organisationName}</span>
-            </span>
-            <form action={signOut}>
-              <button type="submit" className="mp-btn" data-weight="secondary">
-                Sign out
-              </button>
-            </form>
+        <div className="irs-header-end">
+          <div className="irs-who">
+            <div className="irs-who-name">{account.displayName}</div>
+            <div className="irs-who-role">{viewer.organisationName}</div>
           </div>
+          {/*
+           * Administration, for the role that holds it — reachable without
+           * opening a project first. Gated by role, not by hiding, the same
+           * way every other Administration link in the app is.
+           */}
+          {viewer.role === "madspace_admin" ? (
+            <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/madspace")}>
+              Administration
+            </Link>
+          ) : null}
+          <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/settings/ai?from=%2Fprojects")}>
+            Settings
+          </Link>
+          <form action={signOut}>
+            <button className="ox-btn" data-weight="quiet" type="submit">
+              Sign out
+            </button>
+          </form>
         </div>
       </header>
 
-      <div className="mp-banner">
-        <p className="mp-banner-inner">
-          <span className="mp-chip">Demonstration environment</span>
-          Synthetic data throughout. Nothing here is a real development.
-        </p>
-      </div>
-
-      <main className="mp-main" id="main" tabIndex={-1}>
-        <div className="mp-head">
-          <div>
-            <p className="mp-head-eyebrow">{viewer.organisationName}</p>
-            <h1>Projects</h1>
+      <main className="irs-main" id="main" tabIndex={-1}>
+        <div className="os-column">
+          <div className="ox-head">
+            <div className="ox-head-text">
+              <p className="ox-kicker">{viewer.organisationName}</p>
+              <h1 className="ox-title">Projects</h1>
+              <p className="ox-lede">
+                Select the project you want to open in Observer.{" "}
+                {cards.length === 1 ? "1 project" : `${cards.length} projects`} available to your
+                account.
+              </p>
+            </div>
           </div>
-          <p className="mp-count">
-            {cards.length === 1 ? "1 project" : `${cards.length} projects`}
-          </p>
-        </div>
 
-        {cards.length === 0 ? (
-          <div className="mp-empty">
-            <strong>No project has been opened for your account yet</strong>
-            <p>
-              A project appears here as soon as MADSPACE grants your account access to it. Access is
-              granted per project; nothing is shared automatically.
+          {cards.length === 0 ? (
+            <p className="ox-lede">
+              No project has been opened for your account yet. A project appears here as soon as
+              MADSPACE grants your account access to it — access is granted per project, and
+              nothing is shared automatically.
             </p>
-          </div>
-        ) : (
-          <ul className="mp-grid">
-            {cards.map(({ tenant, project }) => (
-              <li className="mp-card" key={project.id}>
-                {/*
-                  The cover, one of the four things this card may carry.
-
-                  No project has a photograph yet, so it shows the reference's
-                  own placeholder gradient and waits for one — set through the
-                  --cover-image custom property when covers arrive, without
-                  touching this markup. The caption scrim is not rendered: it
-                  exists to hold text against a photograph, and over a
-                  placeholder it is a grey wash over a grey tile.
-                */}
-                <div className="mp-cover" />
-
-                <div className="mp-card-body">
-                  <p className="mp-developer">{tenant.name}</p>
-                  <h2 className="mp-project">{project.name}</h2>
-
-                  <p className="mp-card-action">
-                    {/*
-                      The doorway, pointed at the home segment rather than at a
-                      named screen. ADR-0033 moved where a project opens; this
-                      card did not have to know, and the words on it did not
-                      change — "Open Observer" is what a reader is doing here,
-                      whichever surface answers first.
-                    */}
-                    <Link
-                      className="mp-open"
-                      href={dynamicRoute(`/${tenant.slug}/${project.slug}/${HOME_SEGMENT}`)}
-                    >
-                      Open Observer
-                      <span className="obs-sr">
-                        {" "}
-                        for {project.name}, {tenant.name}
-                      </span>
-                    </Link>
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+          ) : (
+            <ul className="ox-threads">
+              {cards.map(({ tenant, project }) => (
+                <li className="ox-thread-row" key={project.id}>
+                  <p className="ox-thread-title">{project.name}</p>
+                  {/*
+                    The doorway, pointed at the home segment rather than at a
+                    named screen — ADR-0033 moved where a project opens, and
+                    this row does not need to know which surface answers
+                    first.
+                  */}
+                  <Link
+                    className="ox-btn"
+                    data-weight="primary"
+                    href={dynamicRoute(`/${tenant.slug}/${project.slug}/${HOME_SEGMENT}`)}
+                  >
+                    Open
+                    <span className="ox-sr">
+                      {" "}
+                      Observer for {project.name}, {tenant.name}
+                    </span>
+                  </Link>
+                  <p className="ox-thread-context">{tenant.name}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -136,6 +136,13 @@ test.describe("sign in", () => {
 });
 
 test.describe("projects", () => {
+  /*
+   * `/projects` moved off the portal's own `.mp-*` composition onto the same
+   * `irs-`/`ox-`/`os-` chrome every project surface and `/settings/ai` wear —
+   * see `e2e/projects-observer-parity.spec.ts` for the parity checks that
+   * prove it. What stays here is the same standard every portal surface is
+   * held to, rewritten against the new markup rather than the old one.
+   */
   test("has no detectable accessibility violations", async ({ page }) => {
     await signIn(page);
     const results = await new AxeBuilder({ page })
@@ -149,14 +156,14 @@ test.describe("projects", () => {
     await expect(page.locator("main")).toHaveCount(1);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Projects");
     /* A list of things is a list. */
-    await expect(page.locator("main ul li.mp-card").first()).toBeVisible();
+    await expect(page.locator("main ul.ox-threads li.ox-thread-row").first()).toBeVisible();
   });
 
-  test("gives every card a keyboard-reachable action", async ({ page }) => {
+  test("gives every project a keyboard-reachable Open action", async ({ page }) => {
     await signIn(page);
-    const actions = page.getByRole("link", { name: /Open Observer/ });
-    const cards = page.locator(".mp-card");
-    expect(await actions.count()).toBe(await cards.count());
+    const actions = page.getByRole("link", { name: /^Open / });
+    const rows = page.locator(".ox-thread-row");
+    expect(await actions.count()).toBe(await rows.count());
 
     /*
      * Focused by keyboard, not by script. A programmatic focus() does not put
@@ -166,7 +173,7 @@ test.describe("projects", () => {
     await page.keyboard.press("Tab");
     for (let i = 0; i < 12; i += 1) {
       const onAction = await page.evaluate(
-        () => document.activeElement?.classList.contains("mp-open") ?? false,
+        () => document.activeElement?.classList.contains("ox-btn") ?? false,
       );
       if (onAction) break;
       await page.keyboard.press("Tab");
@@ -187,28 +194,9 @@ test.describe("projects", () => {
     await expectNoHorizontalOverflow(page, "projects");
   });
 
-  test("caps the content and steps the grid down with the viewport", async ({ page }) => {
+  test("opens the project's Ask IRIS", async ({ page }) => {
     await signIn(page);
-    const layout = await page.evaluate(() => {
-      const main = document.querySelector(".mp-main");
-      const grid = document.querySelector(".mp-grid");
-      return {
-        maxWidth: main === null ? "" : getComputedStyle(main).maxWidth,
-        padding: main === null ? "" : getComputedStyle(main).paddingLeft,
-        columns: grid === null ? 0 : getComputedStyle(grid).gridTemplateColumns.split(" ").length,
-        viewport: window.innerWidth,
-      };
-    });
-
-    expect(layout.maxWidth).toBe("1440px");
-
-    /* The documented gutters: 40 desktop, 24 below 768, 16 below 480. */
-    const expected =
-      layout.viewport <= 479 ? "16px" : layout.viewport <= 767 ? "24px" : "40px";
-    expect(layout.padding).toBe(expected);
-
-    /* And the reference's grid steps: three, two, one. */
-    const columns = layout.viewport <= 767 ? 1 : layout.viewport <= 1023 ? 2 : 3;
-    expect(layout.columns).toBe(columns);
+    await page.getByRole("link", { name: /^Open / }).first().click();
+    await page.waitForURL(/\/alpha\/[^/]+\/ask$/);
   });
 });
