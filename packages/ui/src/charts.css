@@ -510,9 +510,18 @@
  */
 .iris-flow-scroll {
   overflow-x: auto;
+  /*
+   * The floor is keyed on the COLUMN, not the viewport. A 34rem viewport
+   * query let a 768px tablet scale the chart to 664px — every label at 87%
+   * of its designed size, measured 9px rendered where 10px is the design —
+   * because the threshold was guessing at the column from the window.
+   * The scroller is its own inline-size container, so the switch happens
+   * exactly where the 1:1 drawing stops fitting and nowhere else.
+   */
+  container-type: inline-size;
 }
 
-@media (max-width: 34rem) {
+@container (width < 47.5rem) {
   .iris-flow-scroll .iris-flow {
     /*
      * `min-width` alone, not `width: auto` — `.iris-flow`'s own `width: 100%`
@@ -527,6 +536,34 @@
      */
     min-width: 47.5rem;
   }
+}
+
+/*
+ * WHERE THE CHART CONTINUES, THE EDGE SAYS SO.
+ *
+ * `data-overflow` is written by `FlowScroller` from the wrapper's real
+ * scroll state — which edge still has drawing past it — and removed when
+ * nothing does. The fade is the mask vocabulary Ask IRIS already uses for
+ * its own scrolling regions: no arrow, no badge, no copy, just the drawing
+ * dissolving into the plane where a reader has more of it to reach.
+ * Without script there is no attribute, and the plain scroller stands.
+ */
+.iris-flow-scroll[data-overflow~="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+.iris-flow-scroll[data-overflow~="left"] {
+  mask-image: linear-gradient(to right, transparent, #000 2.5rem);
+}
+
+.iris-flow-scroll[data-overflow~="left"][data-overflow~="right"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent
+  );
 }
 
 .iris-flow-ribbon {

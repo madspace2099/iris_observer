@@ -9,6 +9,7 @@ import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { PairedRates, ParityScale } from "@/showroom/charts";
 import { BulletChart, JourneyFlow } from "@/showroom/charts2";
+import { FlowScroller } from "@/showroom/FlowScroller";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -345,14 +346,9 @@ export default async function ProjectPage({
           <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             How far a presentation gets
           </p>
-          <div
-            className="iris-flow-scroll"
-            tabIndex={0}
-            role="group"
-            aria-label="How far a presentation gets, scrollable on narrow screens"
-          >
+          <FlowScroller label="How far a presentation gets">
             <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
-          </div>
+          </FlowScroller>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
             {charts.journey.note}
           </p>

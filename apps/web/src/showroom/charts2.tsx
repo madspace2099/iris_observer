@@ -792,34 +792,42 @@ export function JourneyFlow({
         );
       })}
 
-      {placed.map((node) => (
-        <g key={node.id}>
-          <rect
-            x={node.x}
-            y={pad.top}
-            width={nodeW}
-            height={node.h}
-            rx="2"
-            className="iris-flow-node"
-          />
-          <text
-            x={node.x + nodeW / 2}
-            y={pad.top - 18}
-            textAnchor="middle"
-            className="iris-flow-label"
-          >
-            {node.label}
-          </text>
-          <text
-            x={node.x + nodeW / 2}
-            y={pad.top - 6}
-            textAnchor="middle"
-            className="iris-flow-count"
-          >
-            {node.count}
-          </text>
-        </g>
-      ))}
+      {placed.map((node, i) => {
+        /*
+         * The first and last labels hang off their node's OUTER edge rather
+         * than its centre. Centred on a 22px node at x=0 or x=738, "Presented"
+         * and "Progressed" ran 13-15px past the viewBox on both sides and the
+         * SVG clipped them — measured at every width, "esented" / "Progres".
+         * Anchoring the ends keeps every label inside the drawing without
+         * shrinking, shortening or hiding any of them.
+         */
+        const anchor = i === 0 ? "start" : i === placed.length - 1 ? "end" : "middle";
+        const labelX =
+          i === 0 ? node.x : i === placed.length - 1 ? node.x + nodeW : node.x + nodeW / 2;
+        return (
+          <g key={node.id}>
+            <rect
+              x={node.x}
+              y={pad.top}
+              width={nodeW}
+              height={node.h}
+              rx="2"
+              className="iris-flow-node"
+            />
+            <text x={labelX} y={pad.top - 18} textAnchor={anchor} className="iris-flow-label">
+              {node.label}
+            </text>
+            <text
+              x={node.x + nodeW / 2}
+              y={pad.top - 6}
+              textAnchor="middle"
+              className="iris-flow-count"
+            >
+              {node.count}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
