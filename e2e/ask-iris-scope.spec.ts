@@ -141,4 +141,44 @@ test.describe("Ask IRIS scope control", () => {
     await page.waitForTimeout(200);
     await page.screenshot({ path: `${OUT}/scope-compare-390.png` });
   });
+
+  /*
+   * THE MODEL PICKER'S OWN FIX.
+   *
+   * `.ask-model-menu` was clipped by `.ask-card` exactly the way
+   * `.ask-scope-menu` was — same anchor, same budget — before it shared that
+   * class's own `max-height`/`overflow-y` on a desktop pointer and its fixed
+   * bottom-sheet treatment on a phone. Captured separately from the review
+   * package above because this is what the polish pass was actually asked
+   * to prove: the model picker fully visible at both widths, and the
+   * mobile Compare sheet with two projects checked at 390 specifically.
+   */
+  test("captures the model-picker fix and the mobile Compare sheet", async ({ page }) => {
+    test.skip(test.info().project.name !== "desktop", "captured once");
+    mkdirSync(OUT, { recursive: true });
+    await signInAs(page, "Petra Novák", "ISTER TOWER");
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(ISTER);
+    await page.locator(".ask-model-wrap summary").click();
+    await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
+    await page.screenshot({ path: `${OUT}/model-picker-open-1440.png` });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(ISTER);
+    await page.locator(".ask-model-wrap summary").click();
+    await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${OUT}/model-picker-open-390.png` });
+
+    await page.goto(ISTER);
+    await page.locator(".ask-scope-wrap summary").click();
+    await page.getByRole("radio", { name: "Compare" }).check({ force: true });
+    await expect(page.locator(".ask-scope-check").first()).toBeVisible();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${OUT}/scope-compare-open-390.png` });
+
+    await page.getByRole("checkbox", { name: "Northgate Residences" }).check({ force: true });
+    await page.screenshot({ path: `${OUT}/scope-compare-two-selected-390.png` });
+  });
 });
