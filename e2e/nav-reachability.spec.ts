@@ -129,7 +129,7 @@ test.describe("the retired SECONDARY_NAV row", () => {
   test("Presentation DNA is reachable from Project, its owning context", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/project`);
-    const link = page.getByRole("link", { name: /presentations differ from one another/i });
+    const link = page.getByRole("link", { name: /presentation dna/i });
     await expect(link, "no link from Project to /presentation").toBeVisible();
     await link.click();
     await page.waitForURL(/\/presentation$/);
