@@ -74,6 +74,16 @@ function first(
   return Array.isArray(value) ? value[0] : value;
 }
 
+/** Every value a repeatable search parameter carries — Compare's `with`. */
+function every(
+  search: Record<string, string | string[] | undefined>,
+  key: string,
+): readonly string[] {
+  const value = search[key];
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 export default async function AskPage({
   params,
   searchParams,
@@ -121,13 +131,14 @@ export default async function AskPage({
   const connected = account === null ? [] : await connectedProviders(account.accountId);
   const models = modelsForProviders(connected).map((entry) => entry.label);
 
-  const scope = parseAskScope(first(search, "scope"), first(search, "with"));
+  const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
 
   return (
     <AskFrame
       root={root}
       periodParam={periodParam}
+      projectSlug={project.slug}
       projectLabel={project.name}
       question={question}
       historyOpen={historyOpen}
@@ -261,6 +272,7 @@ async function Answer({
       composerLabel="Read models"
       root={root}
       periodParam={periodParam}
+      projectSlug={projectSlug}
       scope={scope}
       otherProjects={otherProjects}
     />

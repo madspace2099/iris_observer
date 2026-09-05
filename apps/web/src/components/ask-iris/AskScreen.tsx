@@ -80,13 +80,19 @@ import {
 export function askLink(
   root: string,
   periodParam: string,
-  params: Readonly<Record<string, string>> = {},
+  params: Readonly<Record<string, string | readonly string[]>> = {},
   path = "/ask",
 ): string {
   const here = `${root}${path}`;
   const search = new URLSearchParams();
   if (periodParam !== "") search.set("period", periodParam);
-  for (const [key, value] of Object.entries(params)) search.set(key, value);
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      for (const one of value) search.append(key, one);
+    } else {
+      search.set(key, value as string);
+    }
+  }
   const query = search.toString();
   return query === "" ? here : `${here}?${query}`;
 }
@@ -101,27 +107,80 @@ export function askLink(
  * one project. Naming the other two here, and giving them an honest
  * "not yet connected" answer instead of omitting them, is the frontend half
  * of a decision the read-model layer has not been asked to make yet.
+ *
+ * `compare` holds every slug the reader checked, this project's own included
+ * or not — a reader sitting in ISTER TOWER is free to compare Northgate
+ * against Riverside without ISTER TOWER in the set at all. Nothing here
+ * trusts a slug it did not itself list as `otherProjects` or the current
+ * project: every place that turns a slug into a name looks it up against
+ * that list and drops what does not match, so a submitted slug for a project
+ * this account does not hold names nothing and compares nothing.
  */
 export type AskScope =
   | { readonly kind: "current" }
   | { readonly kind: "all" }
-  | { readonly kind: "compare"; readonly withSlug: string | null };
+  | { readonly kind: "compare"; readonly slugs: readonly string[] };
 
 export interface AskScopeProject {
   readonly slug: string;
   readonly name: string;
 }
 
+function normalizeWithParam(value: string | readonly string[] | undefined): readonly string[] {
+  if (value === undefined) return [];
+  return typeof value === "string" ? [value] : value;
+}
+
 /** Parses the form's own `scope`/`with` fields back into an {@link AskScope}. */
-export function parseAskScope(scope: string | undefined, withSlug: string | undefined): AskScope {
+export function parseAskScope(
+  scope: string | undefined,
+  withValue: string | readonly string[] | undefined,
+): AskScope {
   if (scope === "all") return { kind: "all" };
-  if (scope === "compare") return { kind: "compare", withSlug: withSlug ?? null };
+  if (scope === "compare") return { kind: "compare", slugs: normalizeWithParam(withValue) };
   return { kind: "current" };
 }
 
-function scopeLabel(scope: AskScope, projectLabel: string): string {
+/** A slug's display name, authorised only — never a name for a slug nobody granted. */
+function authorisedName(
+  slug: string,
+  projectSlug: string,
+  projectLabel: string,
+  otherProjects: readonly AskScopeProject[],
+): string | null {
+  if (slug === projectSlug) return projectLabel;
+  return otherProjects.find((p) => p.slug === slug)?.name ?? null;
+}
+
+function compareNames(
+  scope: Extract<AskScope, { kind: "compare" }>,
+  projectSlug: string,
+  projectLabel: string,
+  otherProjects: readonly AskScopeProject[],
+): readonly string[] {
+  return scope.slugs
+    .map((slug) => authorisedName(slug, projectSlug, projectLabel, otherProjects))
+    .filter((name): name is string => name !== null);
+}
+
+export function scopeLabel(
+  scope: AskScope,
+  projectSlug: string,
+  projectLabel: string,
+  otherProjects: readonly AskScopeProject[],
+): string {
   if (scope.kind === "all") return "All projects";
-  if (scope.kind === "compare") return "Compare projects";
+  if (scope.kind === "compare") {
+    const names = compareNames(scope, projectSlug, projectLabel, otherProjects);
+    if (names.length === 0) return "Compare projects";
+    if (names.length === 1) return names[0] as string;
+    // "A + B" reads better than a bare count, but only while it still fits
+    // the pill's own width — past that it would only ever show "A +…" with
+    // B truncated away entirely, which names nothing a count does not.
+    const joined = names.join(" + ");
+    if (names.length === 2 && joined.length <= 24) return joined;
+    return `${names.length} projects`;
+  }
   return projectLabel;
 }
 
@@ -133,8 +192,9 @@ function scopeLabel(scope: AskScope, projectLabel: string): string {
  * in this deployment composes a cross-project figure, this is a stated limit
  * rather than a bug, and here is the narrower question that IS answerable.
  */
-function scopeUnavailableNotice(
+export function scopeUnavailableNotice(
   scope: AskScope,
+  projectSlug: string,
   projectLabel: string,
   otherProjects: readonly AskScopeProject[],
 ): string | null {
@@ -142,18 +202,33 @@ function scopeUnavailableNotice(
     return `Observer answers one project at a time today. No read model in this deployment combines figures across projects, so "all projects" has nothing to compose an answer from yet — ask about ${projectLabel} on its own, or open another project's own Ask IRIS.`;
   }
   if (scope.kind === "compare") {
-    if (scope.withSlug === null) {
-      return "Choose a project to compare against above, then ask again.";
+    const names = compareNames(scope, projectSlug, projectLabel, otherProjects);
+    if (names.length < 2) {
+      return "Choose at least one more project to compare against above, then ask again.";
     }
-    const other = otherProjects.find((p) => p.slug === scope.withSlug);
-    const otherName = other?.name ?? "the project you chose";
-    return `Observer does not yet compare ${projectLabel} and ${otherName} side by side. No read model in this deployment composes a combined answer — ask about ${projectLabel} on its own, or open ${otherName}'s own Ask IRIS.`;
+    return `Observer does not yet compare ${names.join(", ")} side by side. No read model in this deployment composes a combined answer — ask about ${projectLabel} on its own, or open one of the others' own Ask IRIS.`;
   }
   return null;
 }
 
 /**
- * A question that names a SECOND project while the scope only holds one.
+ * Whether `question` names `project` — its full name, or, since a reader
+ * writes "compare ISTER TOWER with Northgate" and not with "Northgate
+ * Residences", its first word alone, matched whole rather than as a
+ * substring so "IRIS" the product does not match "ISTER" the tower.
+ */
+function namesProject(lower: string, project: AskScopeProject): boolean {
+  const name = project.name.toLowerCase();
+  if (lower.includes(name)) return true;
+  const firstWord = name.split(/\s+/)[0];
+  if (firstWord === undefined || firstWord.length < 4) return false;
+  const escaped = firstWord.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`).test(lower);
+}
+
+/**
+ * A question that names one or more OTHER projects while the scope only
+ * holds this one.
  *
  * Deliberately narrow: the word "compare" (or "vs"/"versus") together with
  * another held project's own name, checked as plain substrings after
@@ -162,25 +237,32 @@ function scopeUnavailableNotice(
  * itself draws ("matched exactly after normalisation, never fuzzily"). A
  * question that means the same thing in different words is not caught, and
  * is left to `findAnswer` and, failing that, the ordinary refusal.
+ *
+ * Every named project is collected, not only the first — "compare A, B and
+ * C" offers all three as one Compare, not a repeated single-project prompt.
  */
-function findAmbiguousComparison(
+export function findAmbiguousComparison(
   question: string,
   scope: AskScope,
+  projectSlug: string,
   otherProjects: readonly AskScopeProject[],
-): { readonly text: string; readonly otherSlug: string; readonly otherName: string } | null {
+): { readonly text: string; readonly slugs: readonly string[]; readonly otherNames: readonly string[] } | null {
   if (scope.kind !== "current" || question.trim() === "") return null;
 
   const lower = question.toLowerCase();
   const comparing = /\bcompare\b|\bvs\.?\b|\bversus\b/.test(lower);
   if (!comparing) return null;
 
-  const other = otherProjects.find((p) => lower.includes(p.name.toLowerCase()));
-  if (other === undefined) return null;
+  const matched = otherProjects.filter((p) => namesProject(lower, p));
+  if (matched.length === 0) return null;
 
+  const otherNames = matched.map((p) => p.name);
   return {
-    text: `This reads like a question about more than one project. Observer answers one project at a time — choose Compare to ask it against both, or ask again about this project on its own.`,
-    otherSlug: other.slug,
-    otherName: other.name,
+    text: `This reads like a question about more than one project. Observer answers one project at a time — choose Compare to ask it against ${
+      otherNames.length === 1 ? "both" : "all of them"
+    }, or ask again about this project on its own.`,
+    slugs: [projectSlug, ...matched.map((p) => p.slug)],
+    otherNames,
   };
 }
 
@@ -199,6 +281,7 @@ function initialsOf(name: string): string {
 export function AskFrame({
   root,
   periodParam,
+  projectSlug,
   projectLabel,
   question,
   historyOpen,
@@ -210,6 +293,8 @@ export function AskFrame({
 }: {
   readonly root: string;
   readonly periodParam: string;
+  /** This project's own slug — the implicit member of every Compare set. */
+  readonly projectSlug: string;
   readonly projectLabel: string;
   /** The question as it was asked, verbatim, so the field can hold it again. */
   readonly question: string;
@@ -319,80 +404,117 @@ export function AskFrame({
               {/*
                * WHICH PROJECT(S) THE NEXT QUESTION IS ASKED AGAINST.
                *
-               * Real radios in a `method="get"` form, not a scripted picker —
-               * the same reason the composer works with JavaScript disabled at
-               * all. "Compare" reveals a second control, `<select name="with">`,
-               * shown by `:has()` rather than a script; `ask-iris.css` §17
-               * carries the rule.
+               * The trigger names the scope itself — the project, "All
+               * projects", or the compared names/count — the same shape as
+               * the model picker beside it, so the row stays two compact
+               * pills rather than a settings panel dropped into the
+               * composer. Inside, three short radios sit in one segmented
+               * row rather than three full-width rows: `.ask-card` clips
+               * anything that opens past its own rounded edge (the model
+               * menu beside this one already reaches past it when open — a
+               * pre-existing limit this does not attempt to fix), and a
+               * segmented row of three costs a fraction of what three full
+               * rows would. `ask-iris.css` carries what each width does with
+               * that budget: the menu scrolls its own small box on a desktop
+               * pointer, and drops to a sheet fixed to the screen's own
+               * bottom edge on a phone, where the same budget is smaller
+               * still once the model and scope pills have taken a row each.
+               *
+               * Real radios and checkboxes in a `method="get"` form, not a
+               * scripted picker — the same reason the composer works with
+               * JavaScript disabled at all. Compare's checklist is shown
+               * only while its own radio is checked, by a `:has()` rule
+               * rather than a script — `ask-iris.css`'s own comment beside
+               * `.ask-scope-compare` carries it.
                *
                * Choosing All or Compare does not fabricate a cross-project
-               * answer — no read model in this deployment composes one. It sets
-               * the scope the NEXT submitted question is asked against, and
-               * `AskConversationPanel` states the honest limit before it ever
-               * tries `findAnswer`, the same way an unconnected model states its
-               * own limit above.
+               * answer — no read model in this deployment composes one. It
+               * sets the scope the NEXT submitted question is asked against,
+               * and `AskConversationPanel` states the honest limit before it
+               * ever tries `findAnswer`, the same way an unconnected model
+               * states its own limit above.
                */}
               <div className="ask-scope-wrap">
                 <details className="ask-model-details">
                   <summary className="ask-model" aria-label="Which project this question is about">
-                    <span className="ask-model-name">{scopeLabel(scope, projectLabel)}</span>
+                    <span className="ask-model-name">
+                      {scopeLabel(scope, projectSlug, projectLabel, otherProjects)}
+                    </span>
                     <ChevronDown />
                   </summary>
 
                   <div className="ask-model-menu ask-scope-menu">
-                    <label className="ask-model-option" data-selectable="true">
-                      <input
-                        type="radio"
-                        name="scope"
-                        value="current"
-                        defaultChecked={scope.kind === "current"}
-                      />
-                      <span>{projectLabel} only</span>
-                    </label>
-
-                    <label className="ask-model-option" data-selectable="true">
-                      <input
-                        type="radio"
-                        name="scope"
-                        value="all"
-                        defaultChecked={scope.kind === "all"}
-                      />
-                      <span>All projects</span>
-                    </label>
-
-                    {otherProjects.length === 0 ? null : (
-                      <>
-                        <label className="ask-model-option" data-selectable="true">
+                    <div className="ask-scope-tabs" role="radiogroup" aria-label="Scope">
+                      <label className="ask-scope-tab">
+                        <input
+                          type="radio"
+                          name="scope"
+                          value="current"
+                          defaultChecked={scope.kind === "current"}
+                        />
+                        <span>Current</span>
+                      </label>
+                      <label className="ask-scope-tab">
+                        <input
+                          type="radio"
+                          name="scope"
+                          value="all"
+                          defaultChecked={scope.kind === "all"}
+                        />
+                        <span>All</span>
+                      </label>
+                      {otherProjects.length === 0 ? null : (
+                        <label className="ask-scope-tab">
                           <input
                             type="radio"
                             name="scope"
                             value="compare"
                             defaultChecked={scope.kind === "compare"}
                           />
-                          <span>Compare with…</span>
+                          <span>Compare</span>
                         </label>
+                      )}
+                    </div>
 
-                        <select
-                          className="ask-scope-with"
-                          name="with"
-                          aria-label={`Compare ${projectLabel} with`}
-                          defaultValue={scope.kind === "compare" ? (scope.withSlug ?? "") : ""}
-                        >
-                          <option value="" disabled>
-                            Choose a project
-                          </option>
-                          {otherProjects.map((p) => (
-                            <option key={p.slug} value={p.slug}>
-                              {p.name}
-                            </option>
-                          ))}
-                        </select>
-                      </>
+                    {otherProjects.length === 0 ? null : (
+                      /*
+                       * The current project defaults to checked the FIRST
+                       * time a reader opens Compare (scope.kind is not yet
+                       * "compare"); once a Compare has actually been
+                       * submitted, every box reflects exactly what came
+                       * back, current project included — unchecking it is
+                       * how two OTHER projects get compared with neither
+                       * being the one on screen.
+                       */
+                      <div className="ask-scope-compare">
+                        <label className="ask-scope-check">
+                          <input
+                            type="checkbox"
+                            name="with"
+                            value={projectSlug}
+                            defaultChecked={
+                              scope.kind === "compare" ? scope.slugs.includes(projectSlug) : true
+                            }
+                          />
+                          <span>{projectLabel}</span>
+                        </label>
+                        {otherProjects.map((p) => (
+                          <label className="ask-scope-check" key={p.slug}>
+                            <input
+                              type="checkbox"
+                              name="with"
+                              value={p.slug}
+                              defaultChecked={scope.kind === "compare" && scope.slugs.includes(p.slug)}
+                            />
+                            <span>{p.name}</span>
+                          </label>
+                        ))}
+                      </div>
                     )}
 
                     <p className="ask-menu-note">
-                      All projects and Compare state what this deployment cannot yet answer rather
-                      than guess at combined figures across projects.
+                      All and Compare state what this deployment cannot yet answer, rather than
+                      guess at a combined figure.
                     </p>
                   </div>
                 </details>
@@ -652,6 +774,7 @@ export function AskConversationPanel({
   composerLabel,
   root,
   periodParam,
+  projectSlug,
   scope,
   otherProjects,
 }: {
@@ -662,18 +785,26 @@ export function AskConversationPanel({
   readonly composerLabel: string;
   readonly root: string;
   readonly periodParam: string;
+  /** Defaults to `""` for call sites that predate scope — never a real slug, so it never matches. */
+  readonly projectSlug?: string;
   /** Defaults to `{ kind: "current" }` for call sites that predate scope. */
   readonly scope?: AskScope;
   readonly otherProjects?: readonly AskScopeProject[];
 }) {
   const effectiveScope = scope ?? { kind: "current" };
+  const effectiveSlug = projectSlug ?? "";
   const scopeNotice =
     answer === null
-      ? scopeUnavailableNotice(effectiveScope, session.context.projectLabel, otherProjects ?? [])
+      ? scopeUnavailableNotice(
+          effectiveScope,
+          effectiveSlug,
+          session.context.projectLabel,
+          otherProjects ?? [],
+        )
       : null;
   const ambiguityNotice =
     scopeNotice === null && answer === null
-      ? findAmbiguousComparison(question, effectiveScope, otherProjects ?? [])
+      ? findAmbiguousComparison(question, effectiveScope, effectiveSlug, otherProjects ?? [])
       : null;
   return (
     <>
@@ -742,11 +873,12 @@ export function AskConversationPanel({
                           askLink(root, periodParam, {
                             q: question,
                             scope: "compare",
-                            with: ambiguityNotice.otherSlug,
+                            with: ambiguityNotice.slugs,
                           }),
                         )}
                       >
-                        Compare {session.context.projectLabel} with {ambiguityNotice.otherName}
+                        Compare {session.context.projectLabel} with{" "}
+                        {ambiguityNotice.otherNames.join(" and ")}
                       </Link>
                     </li>
                   </ul>
