@@ -237,6 +237,27 @@
   margin-top: 1.25rem;
 }
 
+/*
+ * A wider breath specifically where a rule marks the boundary between two
+ * unrelated analytical topics, opt-in per page rather than changed on
+ * `.iris-rule` itself.
+ *
+ * Measured on Sales Flow: every sibling gap in `.iris-stack` is the same
+ * 1.25rem, so a rule between "how each agent's meetings end" and the next
+ * topic reads with exactly the same weight as the gap between a chart and its
+ * own caption underneath it. Nine major sections in a row with no rhythmic
+ * distinction between "more of the same topic" and "an entirely new one" is
+ * what a flat, undifferentiated 1.25rem rhythm produces regardless of how
+ * many sections there are. 1.75rem is not a new value: it is `.iris-plane`'s
+ * own edge padding a few lines up in this exact file, reused here as the next
+ * step beyond the 1.25rem rhythm rather than an invented number, and scoped
+ * to this class rather than to `.iris-rule` so Project's and Sales Agents'
+ * own rules, on the same shared file, are untouched.
+ */
+.iris-rule.iris-section-rule {
+  margin: 1.75rem 0;
+}
+
 /* --- the period scrubber, an instrument ----------------------------------- */
 
 .iris-scrubber {

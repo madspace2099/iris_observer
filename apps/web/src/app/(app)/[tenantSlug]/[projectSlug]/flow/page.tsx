@@ -147,13 +147,13 @@ export default async function FlowPage({
           )}
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
-            </p>
+            </h2>
             <PeriodSteps periods={view.periods} />
             <p className="iris-meta" style={{ marginTop: ".75rem" }}>
               The lighter column is every meeting; the solid part is those that reached a follow-up
@@ -163,22 +163,22 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".75rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".75rem" }}>
               Every outcome
-            </p>
+            </h2>
             <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} />
             <OutcomeKey slices={view.outcomes} />
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- what changed in how meetings are run ----------------------- */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             What changed since {view.context.period.baselineLabel}
-          </p>
+          </h2>
           <div className="iris-changes">
             {summary.changes.map((change) => (
               <article className="iris-change" key={change.id}>
@@ -200,14 +200,14 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- when meetings actually happen ------------------------------ */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             When showroom meetings happen
-          </p>
+          </h2>
           <Heatmap
             rows={charts.activity.rows}
             columns={charts.activity.columns}
@@ -227,15 +227,15 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- volume over time, and its composition ---------------------- */}
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Presentations week by week
-            </p>
+            </h2>
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
@@ -248,19 +248,19 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               What those meetings became
-            </p>
+            </h2>
             <StackedBars columns={charts.composition.columns} keys={charts.composition.keys} />
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: "1.25rem" }}>
+          <h2 className="iris-kicker" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
-          </p>
+          </h2>
           <div className="iris-rings">
             {view.rings.map((ring) => (
               <article className="iris-ring-card" key={ring.agentId}>
@@ -293,14 +293,14 @@ export default async function FlowPage({
           />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- what the quietest meetings had in common ------------------- */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             {charts.funnel.cohortLabel}
-          </p>
+          </h2>
           <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
             {charts.funnel.disclaimer}
@@ -308,19 +308,19 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
-            </p>
+            </h2>
             <RankedBars rows={charts.longestMeetings} />
           </div>
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Presentations given
-            </p>
+            </h2>
             <RankedBars rows={charts.rankedAgents} />
             <p className="iris-meta" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
@@ -328,7 +328,7 @@ export default async function FlowPage({
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {view.findings.map((finding, index) => (
           <Finding key={finding.id} finding={finding} lead={index === 0} />
