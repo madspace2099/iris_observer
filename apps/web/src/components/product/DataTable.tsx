@@ -29,6 +29,14 @@ export interface DataColumn {
   readonly numeric?: boolean;
   /** Present makes the header a link; absent makes it plain text. */
   readonly sort?: ColumnSort | null;
+  /**
+   * An escape hatch for a column whose CONTENT needs more room than
+   * `table-layout: auto` gives it by default, without a table-wide width rule
+   * that would reach every other screen built on this component. Applied to
+   * both the header and body cell, exactly like `numeric`. Absent by default,
+   * so every existing caller renders unchanged.
+   */
+  readonly className?: string;
 }
 
 export interface DataRow {
@@ -122,6 +130,7 @@ export function DataTable({
                     scope="col"
                     {...(column.numeric === true ? { "data-numeric": "true" } : {})}
                     {...(sort === null ? {} : { "aria-sort": sort.direction })}
+                    {...(column.className === undefined ? {} : { className: column.className })}
                   >
                     {sort === null ? (
                       column.label
@@ -149,7 +158,11 @@ export function DataTable({
                     key={column.key}
                     data-label={column.label}
                     {...(column.numeric === true ? { "data-numeric": "true" } : {})}
-                    {...(column.key === codeColumn ? { className: "ox-table-code" } : {})}
+                    {...(column.key === codeColumn
+                      ? { className: "ox-table-code" }
+                      : column.className === undefined
+                        ? {}
+                        : { className: column.className })}
                   >
                     {row.cells[column.key]}
                   </td>

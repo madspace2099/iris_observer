@@ -1498,6 +1498,26 @@
   border-bottom-color: var(--ox-line-hover);
 }
 
+/*
+ * A per-column width floor, for a column whose CONTENT is a wrapped list of
+ * fixed-width items rather than a line of text.
+ *
+ * `table-layout: auto` (the default, unset here) prices every column against
+ * every other, and a column of unit-code chips is one of the few that CAN
+ * shrink — each item just wraps to its own line — so the browser gives it the
+ * least room whenever a wide chip column elsewhere needs more. Measured on
+ * the Meetings register at 1280px: 122px, room for exactly one 62px code per
+ * line, so a row with 5 codes stood 163px tall almost entirely from that one
+ * column. `data-label="Units opened"` also exists on the agent-detail
+ * register's own meeting table, so the fix is this opt-in class
+ * (`DataColumn.className`, set only by `components/meetings/MeetingRegister`)
+ * rather than the shared label text, which that other table would have
+ * matched too.
+ */
+.ox-col-units {
+  min-width: 10.5rem;
+}
+
 /* A sortable header is a button, so it is reachable and announces its state. */
 .ox-sort {
   display: inline-flex;

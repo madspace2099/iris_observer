@@ -103,7 +103,7 @@ const COLUMNS: readonly DataColumn[] = [
   { key: "visitor", label: "Visitor" },
   { key: "channel", label: "Channel" },
   { key: "duration", label: "Length", numeric: true },
-  { key: "units", label: "Units opened" },
+  { key: "units", label: "Units opened", className: "ox-col-units" },
   { key: "favourites", label: "Shortlisted", numeric: true },
   { key: "outcome", label: "Recorded outcome" },
   { key: "followUp", label: "Follow-up" },
