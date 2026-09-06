@@ -329,6 +329,23 @@
    */
   --void: #060709;
   --sheet-w: min(34rem, 38vw);
+
+  /*
+   * The same bridge gap the comment above already found once, for the same
+   * reason: `.iris` (iris.css) declares these six, `showroom.css`'s
+   * `OutcomeRing`/`OutcomeKey`/`StackedBars` read them unscoped, and Sales
+   * Flow's actual rendered ancestor chain is `.ox-root.ox-graphite`, not
+   * `.iris` -- confirmed by walking it on the live page, not assumed from
+   * the source. Without this, every `--outcome-*` reference silently
+   * resolves to nothing on the page that is the entire point of having them.
+   * Carried as the same literal values `.iris` declares, not re-derived.
+   */
+  --outcome-purchase: #8cfab5;
+  --outcome-reservation: #65f0cf;
+  --outcome-interested: #3378b7;
+  --outcome-follow-up: #286eac;
+  --outcome-presentation-only: #1c0700;
+  --outcome-not-interested: #2e0000;
 }
 
 /* On paper the brand accent measures 2.73:1, so a chart's own accent takes the

@@ -19,13 +19,21 @@ import type { OutcomeSlice } from "@observer/readmodels";
 
 /* --- the outcome ring --------------------------------------------------------- */
 
+/**
+ * Kept identical to `OUTCOME_COLOURS` in `packages/synthetic/src/showroom/charts.ts`
+ * on purpose -- both name the same six `--outcome-*` custom properties
+ * (`packages/ui/src/iris.css`) rather than each declaring their own
+ * `color-mix()`, which is what let the two drift apart before. `skipped`
+ * still resolves to the heatmap's own empty-cell treatment's colour, not a
+ * seventh ladder rung.
+ */
 const OUTCOME_TONE: Record<string, string> = {
-  purchase: "var(--gain)",
-  reservation: "color-mix(in oklab, var(--gain) 70%, var(--accent))",
-  interested: "var(--accent)",
-  follow_up_needed: "color-mix(in oklab, var(--accent) 55%, var(--ink-3))",
-  presentation_only: "var(--ink-3)",
-  not_interested: "var(--loss)",
+  purchase: "var(--outcome-purchase)",
+  reservation: "var(--outcome-reservation)",
+  interested: "var(--outcome-interested)",
+  follow_up_needed: "var(--outcome-follow-up)",
+  presentation_only: "var(--outcome-presentation-only)",
+  not_interested: "var(--outcome-not-interested)",
   skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
 };
 
