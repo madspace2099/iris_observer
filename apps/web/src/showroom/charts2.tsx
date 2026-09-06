@@ -221,6 +221,7 @@ export function TrendLine({
 export function StackedBars({
   columns,
   keys,
+  keyTotals,
 }: {
   columns: readonly {
     readonly label: string;
@@ -228,6 +229,15 @@ export function StackedBars({
     readonly total: number;
   }[];
   keys: readonly { readonly id: string; readonly label: string; readonly colour: string }[];
+  /**
+   * Overrides the key's own per-category counts, which otherwise sum every
+   * column's `parts` together. That sum is only correct when columns are
+   * disjoint (the month-composition case this component was built for); a
+   * column that is an aggregate of the others (Sales Flow's "Team", beside
+   * each agent) would otherwise be counted twice. Pass the aggregate
+   * column's own `parts` here when one is present among `columns`.
+   */
+  keyTotals?: Readonly<Record<string, number>>;
 }) {
   const peak = Math.max(1, ...columns.map((c) => c.total));
 
@@ -259,7 +269,7 @@ export function StackedBars({
           <li key={k.id}>
             <i style={{ background: k.colour }} />
             {k.label}
-            <b>{columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
+            <b>{keyTotals?.[k.id] ?? columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
           </li>
         ))}
       </ul>

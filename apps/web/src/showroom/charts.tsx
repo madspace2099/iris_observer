@@ -1,3 +1,4 @@
+import { OUTCOME_LABELS, type MeetingOutcome } from "@observer/contracts";
 import type { OutcomeSlice } from "@observer/readmodels";
 
 /**
@@ -27,7 +28,7 @@ import type { OutcomeSlice } from "@observer/readmodels";
  * still resolves to the heatmap's own empty-cell treatment's colour, not a
  * seventh ladder rung.
  */
-const OUTCOME_TONE: Record<string, string> = {
+const OUTCOME_TONE: Record<MeetingOutcome, string> = {
   purchase: "var(--outcome-purchase)",
   reservation: "var(--outcome-reservation)",
   interested: "var(--outcome-interested)",
@@ -36,6 +37,50 @@ const OUTCOME_TONE: Record<string, string> = {
   not_interested: "var(--outcome-not-interested)",
   skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
 };
+
+/**
+ * The commitment ladder, once, purchase to not_interested, `skipped` trailing
+ * rather than ranked -- kept identical to the local `order` inside
+ * `buildComposition` in `packages/synthetic/src/showroom/charts.ts` on
+ * purpose, the same reasoning as `OUTCOME_TONE` above: that function builds
+ * its own composition chart from raw sessions and this one from an
+ * already-aggregated `OutcomeSlice[]`, so the two cannot share one array
+ * without a cross-package import the rest of this file deliberately avoids;
+ * kept in sync by hand instead, same as the colour map already is.
+ */
+const OUTCOME_LADDER: readonly MeetingOutcome[] = [
+  "purchase",
+  "reservation",
+  "interested",
+  "follow_up_needed",
+  "presentation_only",
+  "not_interested",
+  "skipped",
+];
+
+/** `StackedBars`' shared key, ladder-ordered so stacking order is ladder order everywhere it's used. */
+export const OUTCOME_STACK_KEYS: readonly { id: string; label: string; colour: string }[] =
+  OUTCOME_LADDER.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_TONE[o] }));
+
+/**
+ * One `OutcomeSlice[]` (a ring's worth of data) reshaped into one
+ * `StackedBars` column. `total` is taken from the caller rather than summed
+ * from `slices`, because `slices` already omits a category with zero count
+ * (`OutcomeKey` renders exactly what it's given) and the total must still be
+ * the true meeting count, not the sum of only the categories present.
+ */
+export function outcomeStackColumn(
+  label: string,
+  total: number,
+  slices: readonly OutcomeSlice[],
+): { label: string; total: number; parts: Record<string, number> } {
+  const byOutcome = new Map(slices.map((s) => [s.outcome, s.count]));
+  return {
+    label,
+    total,
+    parts: Object.fromEntries(OUTCOME_LADDER.map((o) => [o, byOutcome.get(o) ?? 0])),
+  };
+}
 
 function arc(cx: number, cy: number, r: number, from: number, to: number): string {
   const a0 = from * 2 * Math.PI - Math.PI / 2;
