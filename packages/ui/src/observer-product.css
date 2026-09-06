@@ -2560,7 +2560,20 @@
     white-space: nowrap;
   }
 
+  /*
+   * `caption` joins the rest of the table here rather than being left to its
+   * own `table-caption` default.
+   *
+   * Measured on Meetings and Attention both: a `table-caption` box left
+   * outside a real table formatting context (its parent is `display: block`
+   * two lines above) shrink-wraps to its own content instead of spanning the
+   * table, so the sentence above the register wrapped one and two words to a
+   * line — 23 lines and 480px of height for a single caption on Attention.
+   * Joining the same block/auto-width treatment its siblings already get
+   * fixes that the same way this rule already fixes it for `tbody`/`tr`/`td`.
+   */
   .ox-table,
+  .ox-table caption,
   .ox-table tbody,
   .ox-table tr,
   .ox-table td {
