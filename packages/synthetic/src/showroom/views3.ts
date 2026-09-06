@@ -73,6 +73,23 @@ function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
 }
 
+/**
+ * Three states rather than a hard cutoff's two.
+ *
+ * A ratio a hair below `floor` and one a hair above it are not different
+ * facts, but a bare `>=` treats them as opposites — enough to flip a verdict
+ * on one extra meeting. Below `floor - DEADBAND` reads as `"down"`; at or
+ * above `floor` reads as `"up"`; the gap between reads as `"flat"`, which is
+ * not a decline and not yet a confirmed hold either.
+ */
+export type Trend = "down" | "flat" | "up";
+export const DEADBAND = 0.05;
+export function trend(ratio: number, floor: number): Trend {
+  if (ratio < floor - DEADBAND) return "down";
+  if (ratio >= floor) return "up";
+  return "flat";
+}
+
 function duration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
@@ -131,7 +148,7 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * rather than from `Date.now()` keeps the dataset deterministic — a demo whose
  * figures change overnight cannot be screenshotted or asserted on.
  */
-function bucketBounds(today: Date) {
+export function bucketBounds(today: Date) {
   const day = 24 * 60 * 60 * 1000;
   const startOfDay = (d: Date) =>
     new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -142,6 +159,17 @@ function bucketBounds(today: Date) {
   const elapsedDays = weekday + 1;
   const thisMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1);
   const lastMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1);
+  const elapsedDaysInMonth = Math.round((t0 - thisMonth) / day) + 1;
+  /*
+   * A shorter previous month cannot be clipped past its own length.
+   *
+   * "The first 30 days of March" against February only works when February
+   * had 30 days to give — it never does. Clipping to whichever of the two is
+   * shorter means a 31-day month in progress asks February for what it
+   * actually has, not for a day count that does not exist there.
+   */
+  const lastMonthLength = Math.round((thisMonth - lastMonth) / day);
+  const lastMonthElapsed = Math.min(elapsedDaysInMonth, lastMonthLength);
 
   return [
     { id: "today" as const, label: "Today", from: t0, to: t0 + day },
@@ -164,7 +192,22 @@ function bucketBounds(today: Date) {
       to: thisWeek - 7 * day + elapsedDays * day,
     },
     { id: "this_month" as const, label: "This month", from: thisMonth, to: t0 + day },
-    { id: "last_month" as const, label: "Last month", from: lastMonth, to: thisMonth },
+    /*
+     * Last month gets the same clipping last week already has, above.
+     *
+     * 24 days of a month in progress against a complete 31-day prior month is
+     * not a comparison, it is a guaranteed shortfall — the run rate could be
+     * ahead and the raw totals would still say "down".
+     */
+    {
+      id: "last_month" as const,
+      label:
+        lastMonthElapsed === lastMonthLength
+          ? "Last month"
+          : `Last month, first ${lastMonthElapsed} day${lastMonthElapsed === 1 ? "" : "s"}`,
+      from: lastMonth,
+      to: lastMonth + lastMonthElapsed * day,
+    },
   ];
 }
 
@@ -339,10 +382,78 @@ export function buildSalesFlow(
 
   const week = periods.find((p) => p.id === "this_week");
   const lastWeek = periods.find((p) => p.id === "last_week");
-  const verdict =
-    week === undefined || lastWeek === undefined
-      ? `${count(sessions.length, locale)} meetings this period.`
-      : `${meetings(week.meetings, locale)} this week against ${count(lastWeek.meetings, locale)} last week, and ${percent(teamProgressed, locale)} of recorded meetings are progressing.`;
+  const month = periods.find((p) => p.id === "this_month");
+  const lastMonth = periods.find((p) => p.id === "last_month");
+
+  /*
+   * The verdict says which way things are moving, not only how many.
+   *
+   * Volume and progression share one window here rather than two. The KPI
+   * row above answers to its own control (`charts.kpis`, a separate figure
+   * over a separate window on purpose), but gluing a quarter-scoped
+   * progression clause onto a week-scoped volume clause in the SAME sentence
+   * would recreate the exact "two numbers, two scopes, one claim" confusion
+   * that separation exists to avoid. `trend()`'s deadband is the same one the
+   * opening screen uses, so the same meeting's worth of noise cannot tip one
+   * screen's verdict and not the other's.
+   */
+  let verdict: string;
+  if (week === undefined || lastWeek === undefined || month === undefined || lastMonth === undefined) {
+    verdict = `${count(sessions.length, locale)} meetings this period.`;
+  } else {
+    const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
+    const current = weekIsReadable ? week : month;
+    const prior = weekIsReadable ? lastWeek : lastMonth;
+    const outcomesRecorded = current.outcomeRecorded > 0;
+    const hasBaseline = prior.meetings > 0;
+
+    const volumeClause = hasBaseline
+      ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
+      : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
+
+    if (!outcomesRecorded) {
+      // Same fact as the opening screen's equivalent state; same sentence.
+      verdict = "The showroom is running; no outcomes are being recorded.";
+    } else if (!hasBaseline) {
+      const currentProgressed = share(current.progressed, current.outcomeRecorded);
+      verdict = `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+    } else {
+      const currentProgressed = share(current.progressed, current.outcomeRecorded);
+      const priorProgressed =
+        prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
+      const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
+      const progressTrend: Trend =
+        prior.outcomeRecorded === 0
+          ? currentProgressed > 0.3
+            ? "up"
+            : "flat"
+          : trend(currentProgressed / priorProgressed, 0.9);
+      const signal =
+        volumeTrend === "up" && progressTrend === "up"
+          ? "good"
+          : volumeTrend === "down" && progressTrend === "down"
+            ? "poor"
+            : "attention";
+
+      /*
+       * "Against", never "up from" or "down from".
+       *
+       * `signal` is deadbanded on purpose (a ratio that clears the floor reads
+       * as "up" even when the raw percentage dipped slightly) — right for
+       * deciding which of the three verdicts to print, wrong for a literal
+       * direction word next to the actual figures. "Up from 46%" printed
+       * beside a true 42% is not a rounding quirk, it is a false sentence.
+       * The lead phrase below carries the judgment; the figures stay neutral
+       * and let the reader compare them directly.
+       */
+      verdict =
+        signal === "good"
+          ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+          : signal === "poor"
+            ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+            : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
+    }
+  }
 
   return {
     context,
@@ -982,13 +1093,26 @@ export function buildHome(
   const outcomesRecorded = decided.length > 0;
   const hasBaseline = previous.length > 0;
 
-  const volumeOk = weekIsReadable
-    ? week >= lastWeek * 0.8
+  /*
+   * Down, flat, or up — not a boolean.
+   *
+   * `trend()`'s deadband is what keeps one extra meeting from flipping the
+   * whole verdict: a ratio that lands in the gap around the floor reads as
+   * `"flat"`, which — like a genuine mix of one axis up and one down — can
+   * only ever produce `"attention"` below, never tip the signal to `"good"`
+   * or `"poor"` on its own.
+   */
+  const volumeTrend: Trend = weekIsReadable
+    ? trend(week / lastWeek, 0.8)
     : lastMonth === 0
-      ? month > 0
-      : month >= lastMonth * 0.8;
-  const progressOk =
-    previousProgressed === 0 ? progressed > 0.3 : progressed >= previousProgressed * 0.9;
+      ? (month > 0 ? "up" : "flat")
+      : trend(month / lastMonth, 0.8);
+  const progressTrend: Trend =
+    previousProgressed === 0
+      ? progressed > 0.3
+        ? "up"
+        : "flat"
+      : trend(progressed / previousProgressed, 0.9);
 
   /*
    * Without outcomes the signal rests on volume alone, and says so.
@@ -998,9 +1122,9 @@ export function buildHome(
    */
   const signal: ShowroomSignal = !outcomesRecorded
     ? "attention"
-    : volumeOk && progressOk
+    : volumeTrend === "up" && progressTrend === "up"
       ? "good"
-      : !volumeOk && !progressOk
+      : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
 

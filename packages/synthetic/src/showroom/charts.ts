@@ -177,10 +177,14 @@ export function buildKpis(
       label: "Progressing",
       measurementId: null,
       value: decided.length === 0 ? "—" : percent(progressed, locale),
+      // The window named here, not just on the chip row above the card — this
+      // figure and the Sales Flow headline are two genuinely different claims
+      // (different windows, different denominators), and a reader comparing
+      // them needs that on the card itself, not several lines away.
       qualifier:
         decided.length === 0
-          ? "no outcome recorded"
-          : `${count(decided.length, locale)} with an outcome`,
+          ? `no outcome recorded, ${spec.label.toLowerCase()}`
+          : `${count(decided.length, locale)} with an outcome, ${spec.label.toLowerCase()}`,
       delta:
         decidedBefore.length === 0 || decided.length === 0
           ? null
