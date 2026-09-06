@@ -122,7 +122,10 @@
  */
 .iris-trend-note {
   font-family: var(--mono);
-  font-size: 9px;
+  /* 0.75rem (12px): the base scale's own floor and the MADSPACE 12px type
+     floor both land here; this was a literal 9px, below either and also the
+     one size in this file not expressed in rem. */
+  font-size: 0.75rem;
   fill: var(--watch);
   paint-order: stroke;
   stroke: var(--plane);
@@ -316,7 +319,9 @@
 .iris-heat-col,
 .iris-heat-row {
   font-family: var(--mono);
-  font-size: 0.625rem;
+  /* 0.75rem (12px): the base scale's own floor and the MADSPACE 12px type
+     floor both land here; this was 10px, below either. */
+  font-size: 0.75rem;
   color: var(--ink-2);
   display: flex;
   align-items: center;
@@ -486,6 +491,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/*
+ * Sales Flow opt-in: the base scale's 12px floor instead of 11px, nothing
+ * else changed. `RankedBars`' `measured` prop adds this class only on Flow's
+ * two lists (`iris-ranked-measured`); Sales Agents' own ranked list keeps the
+ * base `.iris-ranked-name em` rule untouched. The truncation/ellipsis and its
+ * `title` fallback are deliberate (see the call site's own comment) and stay
+ * exactly as they are — this changes legibility, not the interaction.
+ */
+.iris-ranked-measured .iris-ranked-name em {
+  font-size: 0.75rem;
 }
 
 .iris-ranked-track {

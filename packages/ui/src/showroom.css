@@ -1618,7 +1618,10 @@
 
 .iris-step-meta {
   font-family: var(--mono);
-  font-size: 0.625rem;
+  /* 0.75rem (12px): the base scale's own floor (Kicker) and the MADSPACE
+     contract's "12px absolute type floor with no exceptions" both land here;
+     this was 10px, below either. */
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 

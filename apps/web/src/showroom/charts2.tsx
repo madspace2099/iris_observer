@@ -586,6 +586,7 @@ export function Radar({
 export function RankedBars({
   rows,
   valueSuffix = "",
+  measured = false,
 }: {
   rows: readonly {
     readonly id: string;
@@ -596,11 +597,19 @@ export function RankedBars({
     readonly href?: string | null;
   }[];
   valueSuffix?: string;
+  /**
+   * Opt-in only: Sales Flow's two lists pass this, Sales Agents' does not.
+   * `.iris-ranked-name em` is a shared rule (`charts.css`) with one consumer
+   * per route; this keeps a Flow-scoped size correction from silently
+   * changing Agents' own list too. See `charts.css` for the rule this class
+   * enables.
+   */
+  measured?: boolean;
 }) {
   const peak = Math.max(1, ...rows.map((r) => r.value));
 
   return (
-    <ol className="iris-ranked">
+    <ol className={`iris-ranked${measured ? " iris-ranked-measured" : ""}`}>
       {rows.map((row, i) => (
         <li key={row.id}>
           <span className="iris-ranked-place">{i + 1}</span>

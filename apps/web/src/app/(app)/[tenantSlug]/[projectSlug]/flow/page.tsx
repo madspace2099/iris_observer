@@ -141,7 +141,7 @@ export default async function FlowPage({
           </div>
 
           {charts.kpis.caveat === null ? null : (
-            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
               {charts.kpis.caveat}
             </p>
           )}
@@ -155,7 +155,7 @@ export default async function FlowPage({
               Meetings, and how many progressed
             </h2>
             <PeriodSteps periods={view.periods} />
-            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
               The lighter column is every meeting; the solid part is those that reached a follow-up
               or better. Beneath each is the median length — a part-week is compared against the
               same days of the week before, never against a whole one.
@@ -193,7 +193,7 @@ export default async function FlowPage({
               </article>
             ))}
           </div>
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             How the presentations were run, not how many there were. A direction compares two
             periods at the stated sample size — it is not a trend, and not a cause.
           </p>
@@ -214,7 +214,7 @@ export default async function FlowPage({
             cells={charts.activity.cells}
             caption={`Meetings by weekday and hour, across ${charts.activity.meetingsCounted} presentations.`}
           />
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             {charts.activity.busiest === null
               ? "Too few meetings to name a busiest slot."
               : `Busiest: ${charts.activity.busiest.weekday} at ${charts.activity.busiest.hour}, ${charts.activity.busiest.meetings} meetings.`}
@@ -241,7 +241,7 @@ export default async function FlowPage({
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
             />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               The marked week is the largest single change in the series. What moved it is not in
               this data.
             </p>
@@ -283,7 +283,7 @@ export default async function FlowPage({
               </article>
             ))}
           </div>
-          <p className="iris-meta" style={{ marginTop: "1rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: "1rem" }}>
             Rings are drawn to the same scale of shares, not of counts, so a busy agent and a quiet
             one are comparable in shape. The count is in the middle of each ring, because a share
             with no denominator is not a figure.
@@ -302,7 +302,7 @@ export default async function FlowPage({
             {charts.funnel.cohortLabel}
           </h2>
           <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             {charts.funnel.disclaimer}
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} />
@@ -315,14 +315,14 @@ export default async function FlowPage({
             <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
-            <RankedBars rows={charts.longestMeetings} />
+            <RankedBars rows={charts.longestMeetings} measured />
           </div>
           <div className="iris-band-side">
             <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
-            <RankedBars rows={charts.rankedAgents} />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+            <RankedBars rows={charts.rankedAgents} measured />
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>
           </div>

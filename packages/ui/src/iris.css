@@ -121,6 +121,18 @@
   color: var(--ink-2);
 }
 
+/*
+ * Sales Flow opt-in: caps the reading measure, nothing else. `.iris-meta` is
+ * shared by every legacy-`iris-` route (Project, Sales Agents, the shared
+ * layout, several showroom components) and stays untouched at its base rule
+ * above; this class is added only on Flow's own long-form captions, several
+ * of which currently run 114-181 characters. `62ch` is not a new number —
+ * it's `.iris-lede`'s own existing measure, reused rather than invented.
+ */
+.iris-meta-measured {
+  max-width: 62ch;
+}
+
 .iris-code {
   font-family: var(--mono);
   font-size: 0.75rem;
