@@ -2105,7 +2105,7 @@
   color: var(--loss);
 }
 
-/* --- named places, sized by the time spent on them -------------------------- */
+/* --- named places, tinted by the time spent on them -------------------------- */
 
 .iris-places {
   display: flex;

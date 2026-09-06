@@ -340,7 +340,7 @@ export default async function ProjectPage({
             ))}
           </div>
           <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            Sized by total time. Amenities inside the building are recorded today; points of
+            Ordered by total time. Amenities inside the building are recorded today; points of
             interest in the neighbourhood need a UE5 v2 event and are shown here as a demonstration.
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
