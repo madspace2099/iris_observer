@@ -3,7 +3,7 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-03 · **Branch:** `feature/observer-reference-parity` · **PR #1 open. Not merged.**
+**Last updated:** 2026-09-06 · **Branch:** `feature/observer-reference-parity` · **PR #1 open. Not merged.**
 
 ---
 
@@ -166,13 +166,20 @@ The critique, the defects found and fixed by inspection, and a recommendation
 
 ## Next recommended action
 
-Two of these are the user's and cannot be done from here.
+Two of these were the user's and were done directly in the Vercel/OpenAI dashboards on 2026-09-06:
 
-1. **Tick "Preview" on all three Vercel variables.** They are set but not reaching preview
-   deployments; the environment checkboxes are the one setting that explains it.
-2. **Confirm the compromised OpenAI key is revoked** in the OpenAI dashboard. Paste the
-   replacement's value alone: the one on this machine is wrapped in `<` and `>`, which the
-   API rejects on every call.
+1. ✅ **Done.** `OPENAI_API_KEY` carries a fresh value, Preview-scoped, in the `iris-observer`
+   project's Environment Variables. (`SUPABASE_URL` and `SUPABASE_SECRET_KEY` were already
+   Preview-scoped on inspection — only `OPENAI_API_KEY` needed the fix.)
+2. ✅ **Done.** New key pasted and saved; the compromised one's revocation is the user's own call
+   in the OpenAI dashboard, left to them (never touched here). The `release/observer-demo-rc1`
+   Preview deployment (`iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app`,
+   commit `3f298a6`) was redeployed afterward from its own row in Deployments — not from the
+   generic top-level "Redeploy" shortcut, which defaults to Production/`main` and would have
+   rebuilt a 9-day-stale commit on the wrong environment. Build finished Ready in 49s; the sign-in
+   screen loads cleanly on the fresh deployment. Whether Ask IRIS actually answers with the new
+   key was not tested — that needs a real sign-in and a real request, deliberately left to the
+   user rather than spent from here.
 3. User reviews the release candidate on the Preview URL and approves or rejects it.
 4. Only then: merge, tag, promote, and M3. None of those has been done.
 
@@ -311,3 +318,78 @@ Three things are worth their opinion rather than another pass:
 3. The `i` sits beside a title only where something needed explaining, so some headings have none.
    The reviewer asked for it beside "the big titles"; this reads it as "wherever there is doctrine
    to move", which is not quite the same request.
+
+---
+
+## Impeccable frontend hardening — shell, Project, Meetings, Attention
+
+**2026-09-06.** Branch `feature/observer-reference-parity`, still not merged; ten commits, none
+pushed to `origin` yet. A sequence of narrowly-scoped `/impeccable` passes, each measured on the
+real authenticated route before any source change, never from source reading alone.
+
+### What changed
+
+| Commit    | Surface                     | Defect measured, then fixed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `c396fbb` | Shared mobile shell         | The open mobile menu leaked both keyboard focus (36 elements reachable outside it, including the Ask dock) and pointer clicks (the backdrop's inherited `pointer-events`) to the page underneath. One `inert`-toggling effect fixes both; 7 new real-path tests in `e2e/mobile-menu-containment.spec.ts`.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `cf2373c` | Project · journey chart     | Edge labels clipped at every width ("esented"/"Progres"); the chart under-scaled at 768px; no cue or focus when it scrolled. Anchor-aware label positions, a container query keyed on the chart's own column width, and a `FlowScroller` client component that sets `tabindex`/`data-overflow` only when genuinely scrollable.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `aa531b9` | Project · place bars        | Two of six place names clipped, with the wrong recovery title. Reused the existing `data-wide-labels` pattern already used elsewhere on the same page.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `5deda1f` | Project · demand matrix     | Mobile rows repeated the unit-code-carries-no-legend precedent incorrectly, bloating row height. Matched the established `data-columns="6"` treatment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `2a79fcc` | Project · findings          | A colored `border-left` rail — DESIGN.md's own named anti-pattern — plus a genuine bug: `.iris-action` rendering in the wrong (mono) typeface inside findings. Opt-in `plane` prop on `Finding`, scoped so Flow/Agents/Presentation/Audience (which share the component) render unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `323f816` | Project · plan bullet chart | The target mark (`.iris-bullet-track u`) sat at `left: 100%` inside an `overflow: hidden` track — structurally zero visible pixels, on every row, at every width. Clamped both marks inside the track's own edges before centering.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `e8ef905` | Project · places caption    | "Sized by total time" — measured: `--w` only ever feeds a `color-mix` tint, never a dimension. Same mechanism as the Heatmap two sections over, which correctly says "luminance," never "size." Copy corrected to "Ordered by total time" (the list is already time-sorted); no i18n system exists anywhere in this repo's source, so this is a plain literal edit like the rest of the page.                                                                                                                                                                                                                                                                                                                                                          |
+| `2b665be` | Meetings · register         | The "Units opened" column measured 122px against 62px-wide code chips at 1280px — one code per line, rows up to 163px tall, 11750px of document height for 82 rows. An opt-in `DataColumn.className` (purely additive to the shared `DataTable`) widens only this column; 27.8% shorter document at 1280px, byte-identical elsewhere.                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `2debee8` | Shared `DataTable` caption  | At ≤48rem, `.ox-table`'s stacked-record rule sets `display: block` on the table/rows/cells but never on `caption`, which kept the UA default `table-caption` — orphaned outside any real table formatting context, it shrink-wrapped to ~95–125px and wrapped one to two words per line (23 lines / 480px tall on Attention). Reproduced on both Meetings and Attention before fixing; one line added to the existing selector list fixes both, and every other live `DataTable` consumer (Units, Units detail, Sales Agents ×2, Unit Attention) verified unharmed.                                                                                                                                                                                    |
+| `4bf748a` | Attention · severity alerts | `info` and `attention` severities differed in exactly one CSS property (the rail color) and nothing else; `info`'s border measured 2.60:1 against its real composited background, under WCAG 1.4.11's 3:1 floor. Moved `info` onto `--ox-ink-4` (6.17:1, the token this system already uses as "the floor of legible ink") and gave the rail a second channel by reusing `.ox-chip-mark`'s own shape-drawing rules verbatim (no new icon, color, or pattern), plus an `.ox-sr` label so a screen reader gets the same word. `.ox-alert` is independently rendered by two files (`StateList.tsx`, and the shared `Attention.tsx` also used by Units' `DemandAttention`); both got the identical edit, and the untouched consumer was verified unharmed. |
+
+An `/impeccable audit` pass on Attention (between the last two rows above) is not itself a commit
+— it measured the whole view, found the caption bug (which turned out to be shared, not
+Attention-specific) and the severity-contrast gap, and deliberately changed nothing else on that
+view: the "planes not boxes" surface discipline, the evidence/provenance separation, and the
+`Unavailable`-never-a-zero band above the register were all measured and found already correct.
+
+### Verification
+
+Every commit: format, targeted typecheck, targeted lint clean. Real rendered measurement (not
+source inference) at the repository's four standard widths (393/768/1280/1920) before and after
+each change, with an explicit before/after table in the session's own report for each. axe scoped
+to the changed region: zero violations, every commit, every width, before and after. Real keyboard
+walks (actual `activeElement` and computed `outline`, not assumed) confirmed correct tab order and
+visible focus throughout Project, Meetings and Attention.
+
+`layout-integrity.spec.ts`'s shared "no surface clips its own text or widens the page" check: 6–7
+of 7 widths pass after every commit in this run. The one recurring failure
+(`showroom`/`.irs-who-name` clipping at 1280px) was proven pre-existing against the exact
+pre-milestone baseline commit (`28954f6`) in an isolated worktree earlier in this work, before any
+change in this table — not introduced by, or related to, anything in this list.
+
+A separate, unrelated pre-existing bug was found and reported but **not fixed** (out of scope for
+a single-view pass): `observer-product.spec.ts`'s shared `open()` helper resolves
+`getByText(shot.proof).first()` to a hidden mobile-nav duplicate rather than the visible page
+heading whenever a screen's name coincides with a Project sub-tab label (`05 unit-demand`,
+`07 meetings`, `09 feature-usage` all fail identically). Fixing it means editing shared test
+infrastructure, not any of the views above.
+
+### The two Vercel/OpenAI action items above
+
+Done directly in the dashboards the same day — see the "Next recommended action" section above
+for exactly what was checked and what was deliberately left to the user (revoking the old key;
+confirming Ask IRIS actually answers with the new one).
+
+### Remaining debt, not yet a task
+
+- `.ox-segmented` (the Two-room/Three-room style tabs on Project, Presentation and Audience) has
+  no ARIA-APG arrow-key navigation between tabs. Tab+Enter fully works and axe does not flag it;
+  real but minor, and shared verbatim across three pages, so any fix needs to cover all three
+  together.
+- The dead-space question raised by an earlier audit (single-column analytical modules on
+  Project not filling the wide content plane at 1920px) was re-measured and deliberately left
+  alone: the bars are already fully legible at their current width, and no documented
+  reading-measure rule in DESIGN.md governs bar-chart width specifically — widening them would be
+  filling space for its own sake, which the doctrine itself warns against.
+- `observer-product.spec.ts`'s `open()` helper text-collision bug, above.
+
+### Next recommended action
+
+Nothing above blocks anything else in this document. The unresolved decision that blocks the rest
+of the roadmap is still the Executive Overview concept choice, recorded earlier in this file.
