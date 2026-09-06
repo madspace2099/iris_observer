@@ -95,14 +95,14 @@ export default async function FlowPage({
   return (
     <div className="iris-one">
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Sales flow · {view.context.period.label}</p>
+        <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
         <h1 className="iris-section">{view.verdict}</h1>
 
         {/* --- the figures, over a window the reader picks ---------------- */}
 
         <div>
           <div className="iris-window">
-            <p className="iris-kicker" style={{ margin: 0 }}>
+            <p className="iris-kicker iris-kicker-measured" style={{ margin: 0 }}>
               Summary over
             </p>
             <div className="iris-mode-strip">
@@ -151,7 +151,7 @@ export default async function FlowPage({
 
         <div className="iris-band">
           <div>
-            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
             </h2>
             <PeriodSteps periods={view.periods} />
@@ -163,10 +163,10 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
-            <h2 className="iris-kicker" style={{ marginBottom: ".75rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               Every outcome
             </h2>
-            <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} />
+            <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} measured />
             <OutcomeKey slices={view.outcomes} />
           </div>
         </div>
@@ -176,7 +176,7 @@ export default async function FlowPage({
         {/* --- what changed in how meetings are run ----------------------- */}
 
         <div>
-          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             What changed since {view.context.period.baselineLabel}
           </h2>
           <div className="iris-changes">
@@ -197,7 +197,7 @@ export default async function FlowPage({
             How the presentations were run, not how many there were. A direction compares two
             periods at the stated sample size — it is not a trend, and not a cause.
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
         <hr className="iris-rule iris-section-rule" />
@@ -205,7 +205,7 @@ export default async function FlowPage({
         {/* --- when meetings actually happen ------------------------------ */}
 
         <div>
-          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             When showroom meetings happen
           </h2>
           <Heatmap
@@ -224,7 +224,7 @@ export default async function FlowPage({
             An empty square is drawn empty rather than faint — a heatmap whose zero looks like a
             small value invents activity that never happened.
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
 
         <hr className="iris-rule iris-section-rule" />
@@ -233,13 +233,14 @@ export default async function FlowPage({
 
         <div className="iris-band">
           <div>
-            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations week by week
             </h2>
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
+              measured
             />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               The marked week is the largest single change in the series. What moved it is not in
@@ -248,7 +249,7 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
-            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               What those meetings became
             </h2>
             <StackedBars columns={charts.composition.columns} keys={charts.composition.keys} />
@@ -258,7 +259,7 @@ export default async function FlowPage({
         <hr className="iris-rule iris-section-rule" />
 
         <div>
-          <h2 className="iris-kicker" style={{ marginBottom: "1.25rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
           </h2>
           <div className="iris-rings">
@@ -270,6 +271,7 @@ export default async function FlowPage({
                   total={ring.meetings}
                   size={124}
                   label={`${ring.name}: ${ring.meetings} meetings`}
+                  measured
                 />
                 <OutcomeKey slices={ring.slices} />
                 {ring.flag === null ? null : (
@@ -290,6 +292,7 @@ export default async function FlowPage({
           </p>
           <SourceChips
             sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]}
+            measured
           />
         </div>
 
@@ -298,27 +301,27 @@ export default async function FlowPage({
         {/* --- what the quietest meetings had in common ------------------- */}
 
         <div>
-          <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             {charts.funnel.cohortLabel}
           </h2>
           <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
           <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             {charts.funnel.disclaimer}
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
         </div>
 
         <hr className="iris-rule iris-section-rule" />
 
         <div className="iris-band">
           <div>
-            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
             <RankedBars rows={charts.longestMeetings} measured />
           </div>
           <div className="iris-band-side">
-            <h2 className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
             <RankedBars rows={charts.rankedAgents} measured />
@@ -331,7 +334,7 @@ export default async function FlowPage({
         <hr className="iris-rule iris-section-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} />
+          <Finding key={finding.id} finding={finding} lead={index === 0} measured />
         ))}
 
         <Gaps

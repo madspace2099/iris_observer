@@ -116,12 +116,15 @@ export function TrendLine({
   annotation,
   height = 150,
   valueLabel,
+  measured = false,
 }: {
   points: readonly { readonly label: string; readonly value: number }[];
   /** The moment worth pointing at, by index. */
   annotation?: { readonly index: number; readonly text: string } | null;
   height?: number;
   valueLabel: string;
+  /** Opt-in: raises the 9px axis ticks to the 12px floor. Sales Flow only — see `charts.css`. */
+  measured?: boolean;
 }) {
   if (points.length < 2) return null;
   const width = 720;
@@ -140,7 +143,7 @@ export function TrendLine({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="iris-trend"
+      className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
       role="img"
       aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
     >
@@ -420,7 +423,7 @@ export function Heatmap({
           </React.Fragment>
         ))}
       </div>
-      <figcaption className="iris-meta" style={{ marginTop: ".625rem" }}>
+      <figcaption className="iris-meta iris-meta-measured" style={{ marginTop: ".625rem" }}>
         {caption}
       </figcaption>
     </figure>

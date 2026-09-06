@@ -97,6 +97,17 @@
   font-size: 9px;
   fill: var(--ink-3);
 }
+
+/*
+ * Sales Flow opt-in: `TrendLine` also renders on Unit Detail and the agent
+ * detail page, sharing this one component. Its axis ticks are the one
+ * remaining 9px text on Flow after the earlier typeset pass raised
+ * `.iris-trend-note`; scoped to this flag rather than the shared rule so the
+ * other two routes render exactly as before it.
+ */
+.iris-trend-measured .iris-trend-tick {
+  font-size: 0.75rem;
+}
 .iris-trend-fill {
   fill: color-mix(in oklab, var(--accent) 12%, transparent);
 }
@@ -180,7 +191,10 @@
 }
 
 .iris-stacks-label {
-  font-size: 0.6875rem;
+  /* 0.75rem (12px): the base scale's own floor, same as every other fixed
+     size in this file; this was 11px, below it. Flow-exclusive component,
+     fixed directly rather than opt-in. */
+  font-size: 0.75rem;
   color: var(--ink-2);
 }
 
@@ -338,7 +352,10 @@
   min-height: 1.75rem;
   border-radius: 2px;
   font-family: var(--mono);
-  font-size: 0.6875rem;
+  /* 0.75rem (12px): the base scale's own floor. The column/row labels beside
+     this cell were already raised to this floor; the cell's own value was
+     missed at 11px. Flow-exclusive component, fixed directly. */
+  font-size: 0.75rem;
   color: var(--ink);
   background: color-mix(in oklab, var(--accent) calc(var(--v) * 68%), #080b0f);
   border: 1px solid var(--rule);

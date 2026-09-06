@@ -108,6 +108,19 @@
   margin: 0;
 }
 
+/*
+ * Sales Flow opt-in: `.iris-kicker` renders in eleven files across Project,
+ * Sales Agents, the shared shell and several showroom components, so its
+ * base rule stays untouched. On Flow it is used both as the page eyebrow
+ * and, as `<h2>`, as every section heading — at 11px, one step below the
+ * Kicker role's own documented size (0.75rem / 12px, DESIGN.md's
+ * typography table). `letter-spacing` is `em`-based and scales with it
+ * automatically, so the one property is enough.
+ */
+.iris-kicker-measured {
+  font-size: 0.75rem;
+}
+
 .iris-welcome-body .iris-verdict {
   max-width: 18ch;
 }

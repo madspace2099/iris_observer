@@ -72,6 +72,16 @@
   gap: 0.375rem;
 }
 
+/*
+ * Sales Flow opt-in: `SourceChips` renders on eight routes, sharing this one
+ * component. Its 10px chip label is the smallest metadata text on Flow;
+ * scoped to this flag rather than the shared rule so the other seven routes
+ * render exactly as before it.
+ */
+.iris-srcs-measured .iris-src {
+  font-size: 0.75rem;
+}
+
 /* The synthetic-data banner. Never subtle: the reader must not mistake it. */
 .iris-synthetic {
   display: inline-flex;
@@ -173,6 +183,19 @@
  */
 .iris-finding[data-plane="true"] .iris-finding-foot .iris-action {
   font-family: var(--sans, inherit);
+}
+
+/*
+ * Sales Flow opt-in: `Finding` renders on five routes, sharing this one
+ * component (see the docblock on `plane` above for the full list). Its
+ * evidence citation ("N records · statistical association", `.iris-evidence`
+ * in `iris.css`) is 11px, one step below the base scale's 12px floor;
+ * forwarded to the finding's own `SourceChips` too via the same prop, so the
+ * whole foot reads at one consistent size. Scoped to this flag rather than
+ * the shared rule so the other four routes render exactly as before it.
+ */
+.iris-finding[data-measured="true"] .iris-evidence {
+  font-size: 0.75rem;
 }
 
 /* --- Presentation DNA ------------------------------------------------------- */
@@ -1488,6 +1511,17 @@
   font-size: 0.5625rem;
   letter-spacing: 0.1em;
   fill: var(--ink-2);
+}
+
+/*
+ * Sales Flow opt-in: `OutcomeRing` also renders on the Sales Agents roster
+ * and the individual agent page, sharing this one component. Its "meetings"
+ * caption under the count is the smallest text on Flow at 9px; scoped to
+ * this flag rather than the shared rule so the other two routes render
+ * exactly as before it.
+ */
+.iris-ring-measured .iris-ring-caption {
+  font-size: 0.75rem;
 }
 
 .iris-ring-key {

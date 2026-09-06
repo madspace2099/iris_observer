@@ -21,9 +21,16 @@ import Link from "next/link";
 
 /* --- provenance ------------------------------------------------------------ */
 
-export function SourceChips({ sources }: { sources: readonly InsightSource[] }) {
+export function SourceChips({
+  sources,
+  measured = false,
+}: {
+  sources: readonly InsightSource[];
+  /** Opt-in: raises the 10px chip label to the 12px floor. Sales Flow only — see `showroom.css`. */
+  measured?: boolean;
+}) {
   return (
-    <span className="iris-srcs">
+    <span className={`iris-srcs${measured ? " iris-srcs-measured" : ""}`}>
       {sources.map((source) => (
         <span className="iris-src" key={source} data-src={source}>
           {INSIGHT_SOURCE_LABELS[source]}
@@ -64,6 +71,7 @@ export function Finding({
   finding,
   lead = false,
   plane = false,
+  measured = false,
 }: {
   finding: ShowroomFinding;
   lead?: boolean;
@@ -82,12 +90,15 @@ export function Finding({
    * scope for this change and must render exactly as before it.
    */
   plane?: boolean;
+  /** Opt-in: raises the 11px evidence citation, and its `SourceChips`, to the 12px floor. Sales Flow only — see `showroom.css`. */
+  measured?: boolean;
 }) {
   return (
     <article
       className="iris-finding"
       data-lead={lead ? "true" : undefined}
       data-plane={plane ? "true" : undefined}
+      data-measured={measured ? "true" : undefined}
     >
       <p className="iris-finding-statement">{finding.statement}</p>
       {finding.baseline === null ? null : (
@@ -98,7 +109,7 @@ export function Finding({
       <p className="iris-finding-so-what">{finding.soWhat}</p>
       {finding.caveat === null ? null : <p className="iris-finding-caveat">{finding.caveat}</p>}
       <div className="iris-finding-foot">
-        <SourceChips sources={finding.sources} />
+        <SourceChips sources={finding.sources} measured={measured} />
         <a className="iris-evidence" href={finding.evidence.href}>
           <i />
           {finding.evidence.observationCount} records · {finding.evidence.tier.replace(/_/g, " ")}

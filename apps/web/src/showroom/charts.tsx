@@ -61,11 +61,14 @@ export function OutcomeRing({
   total,
   size = 132,
   label,
+  measured = false,
 }: {
   slices: readonly OutcomeSlice[];
   total: number;
   size?: number;
   label?: string;
+  /** Opt-in: raises the 9px "meetings" caption to the 12px floor. Sales Flow only — see `charts.css`. */
+  measured?: boolean;
 }) {
   const stroke = size * 0.13;
   const r = (size - stroke) / 2 - 1;
@@ -77,7 +80,7 @@ export function OutcomeRing({
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="iris-ring"
+      className={`iris-ring${measured ? " iris-ring-measured" : ""}`}
       role="img"
       aria-label={
         label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
