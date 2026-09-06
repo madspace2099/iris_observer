@@ -1299,8 +1299,16 @@
   }
 }
 
+/*
+ * Measured against the alert's real composited background: `--ox-ink-disabled`
+ * (`#4c5568`) contrasts at 2.60:1, below the 3:1 WCAG 1.4.11 floor for a
+ * non-text boundary — and "disabled" was the wrong word for a real, current
+ * reading in any case. `--ox-ink-4` is the token this system already uses
+ * everywhere else for "the quietest ink that still has to read" (6.17:1,
+ * documented as the floor), which is exactly info's job here.
+ */
 .ox-alert[data-severity="info"] {
-  border-inline-start-color: var(--ox-ink-disabled);
+  border-inline-start-color: var(--ox-ink-4);
 }
 
 .ox-alert[data-severity="attention"] {
@@ -1318,11 +1326,52 @@
   background: var(--ox-poor-tint);
 }
 
+/*
+ * THE RAIL'S SECOND CHANNEL.
+ *
+ * Measured on the real rendered Attention view: `info` and `attention` differ
+ * from each other in exactly one property, the rail colour, and nothing else
+ * — no icon, no shape, no word. `.ox-chip` two sections up solves the same
+ * problem for outcome/follow-up with six tones drawn as six SHAPES so a
+ * greyscale print or a reader who cannot separate the hues still gets the
+ * state; this reuses that exact drawing technique (a triangle, a ring, a
+ * dot — the same shapes `.ox-chip-mark` already draws for `poor`/`watch`/a
+ * plain fill) rather than a new icon, and the same colour tokens the rail
+ * itself already uses, so nothing here is a new value.
+ */
+.ox-alert-mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.ox-alert[data-severity="critical"] .ox-alert-mark {
+  width: 0;
+  height: 0;
+  background: none;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--ox-poor-mark);
+}
+
+.ox-alert[data-severity="attention"] .ox-alert-mark {
+  border: 2px solid var(--ox-watch-mark);
+  border-radius: var(--ox-round);
+}
+
+.ox-alert[data-severity="info"] .ox-alert-mark {
+  background: var(--ox-ink-4);
+  border-radius: var(--ox-round);
+}
+
 .ox-alert-title {
   margin: 0;
   font-size: var(--ox-lead);
   font-weight: var(--weight-medium);
   color: var(--ox-ink);
+  display: flex;
+  align-items: center;
+  gap: var(--ox-tight);
 }
 
 .ox-alert-detail {

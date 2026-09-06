@@ -46,6 +46,17 @@ const SEVERITY: Readonly<Record<AlertSeverity, string>> = {
   info: "info",
 };
 
+/**
+ * The same three words as `SEVERITY` above, read aloud rather than matched by
+ * a CSS selector — see `components/attention/StateList.tsx`'s copy of this
+ * same pair for why it is not exported and reached into instead.
+ */
+const SEVERITY_LABEL: Readonly<Record<AlertSeverity, string>> = {
+  critical: "Critical",
+  warning: "Attention",
+  info: "Info",
+};
+
 export function AttentionList({
   alerts,
   period,
@@ -81,7 +92,11 @@ export function AttentionList({
              * needs a different level has a structural problem this component
              * cannot fix by taking a prop.
              */}
-            <h3 className="ox-alert-title">{alert.title}</h3>
+            <h3 className="ox-alert-title">
+              <span className="ox-alert-mark" aria-hidden="true" />
+              <span className="ox-sr">{SEVERITY_LABEL[alert.severity]} — </span>
+              {alert.title}
+            </h3>
             <p className="ox-alert-detail">{alert.detail}</p>
             <div className="ox-alert-foot">
               <Evidence evidence={alert.evidence} period={period} />

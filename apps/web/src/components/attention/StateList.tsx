@@ -69,6 +69,21 @@ const SEVERITY: Readonly<Record<AlertSeverity, string>> = {
 };
 
 /**
+ * The same three words as `SEVERITY` above, read aloud rather than matched by
+ * a CSS selector.
+ *
+ * The rail this state renders on carries severity as colour plus, as of this
+ * pass, a shape — both silent to a screen reader. Rather than a fourth
+ * vocabulary, this capitalises the exact values `SEVERITY` already writes
+ * into `data-severity`.
+ */
+const SEVERITY_LABEL: Readonly<Record<AlertSeverity, string>> = {
+  critical: "Critical",
+  warning: "Attention",
+  info: "Info",
+};
+
+/**
  * WHAT EACH STATE'S SAMPLE SIZE IS A SAMPLE OF.
  *
  * `Sample` takes a noun and has no default, on the reasoning that the
@@ -117,7 +132,11 @@ export function StateList({
           data-severity={SEVERITY[state.alert.severity]}
         >
           <div>
-            <h3 className="ox-alert-title">{state.alert.title}</h3>
+            <h3 className="ox-alert-title">
+              <span className="ox-alert-mark" aria-hidden="true" />
+              <span className="ox-sr">{SEVERITY_LABEL[state.alert.severity]} — </span>
+              {state.alert.title}
+            </h3>
             <p className="ox-alert-detail">{state.alert.detail}</p>
 
             {/*
