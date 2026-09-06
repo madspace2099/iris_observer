@@ -168,10 +168,11 @@ export function Evidence({
   }
 
   const tier = isProducibleTier(evidence.tier) ? TIER_LABELS[evidence.tier] : null;
+  const noun = evidence.observationCount === 1 ? "record" : "records";
   const words =
     tier === null
-      ? `${evidence.observationCount} records`
-      : `${evidence.observationCount} records · ${tier}`;
+      ? `${evidence.observationCount} ${noun}`
+      : `${evidence.observationCount} ${noun} · ${tier}`;
 
   if (evidence.href.length === 0) {
     return <span className="ox-evidence">{words}</span>;
