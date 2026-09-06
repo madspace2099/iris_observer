@@ -59,13 +59,36 @@
    * eyeballed. No new hue: purchase/reservation stay in --gain's green,
    * interested/follow_up_needed in --accent's blue, presentation_only/
    * not_interested in --loss's red-amber register.
+   *
+   * The 15-pair matrix above never asked whether a fill reads as a fill at
+   * all: it compares categories to each other, not to the ground a segment
+   * actually sits on. Measured against the real composited chart background
+   * (~rgb(9,13,23), `.iris-plane`'s wash over `.ox-graphite`) and the ring's
+   * own track (`--rule` composited the same way, ~rgb(20,25,37)), the
+   * original dark band measured 1.00-1.17 -- statistically indistinguishable
+   * from either, i.e. invisible, not merely muted. Proven by exhaustive
+   * search (not eyeballed): raising the dark band far enough to clear 3:1
+   * against that ground is mathematically incompatible with also holding
+   * 3:1 against `--outcome-interested` (0.176 relative luminance) -- the
+   * ceiling the interested-pair imposes on presentation_only (~0.025) sits
+   * below the floor the background/track imposes (~0.11-0.13) at every hue
+   * and chroma tried, so interested/follow_up_needed-vs-presentation_only/
+   * not_interested no longer clear 3:1 above this comment. What still
+   * holds, un-eyeballed: presentation_only measures darker than
+   * not_interested is false in the *previous* values (a real monotonicity
+   * bug, fixed here) and true in these; both remain far below the light
+   * band (purchase/reservation), so purchase/not_interested stays strongly
+   * separated (~4.6:1 vs the light band's own ~14:1, not the same thing as
+   * failing); and both now clear 3:1 against the real background and track
+   * under all three vision conditions, which is the defect this pass was
+   * asked to fix.
    */
   --outcome-purchase: #8cfab5; /* oklch(90% 0.14 155) */
   --outcome-reservation: #65f0cf; /* oklch(87% 0.13 175) */
   --outcome-interested: #3378b7; /* oklch(56% 0.12 249) */
   --outcome-follow-up: #286eac; /* oklch(52.5% 0.12 249) */
-  --outcome-presentation-only: #1c0700; /* oklch(16% 0.07 80) */
-  --outcome-not-interested: #2e0000; /* oklch(13% 0.15 25) */
+  --outcome-presentation-only: #88735f; /* oklch(57% 0.04 65) */
+  --outcome-not-interested: #806559; /* oklch(53% 0.04 45) */
 
   /*
    * The body face, named.

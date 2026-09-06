@@ -344,8 +344,8 @@
   --outcome-reservation: #65f0cf;
   --outcome-interested: #3378b7;
   --outcome-follow-up: #286eac;
-  --outcome-presentation-only: #1c0700;
-  --outcome-not-interested: #2e0000;
+  --outcome-presentation-only: #88735f;
+  --outcome-not-interested: #806559;
 }
 
 /* On paper the brand accent measures 2.73:1, so a chart's own accent takes the
