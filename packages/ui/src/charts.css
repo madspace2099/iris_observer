@@ -238,23 +238,43 @@
   background: var(--watch);
 }
 
-/* Where the schedule wanted this to be by now. */
+/*
+ * Where the schedule wanted this to be by now.
+ *
+ * `left` is clamped inside the track's own clipped edges before the mark is
+ * centred on it: the target this scale is drawn against sits at 100% by
+ * construction (see `u` below), and a naive `left: 100%` on a 2px mark
+ * inside `.iris-bullet-track`'s `overflow: hidden` paints nothing — the
+ * whole box falls outside the visible region. Reserving half the mark's own
+ * width at each edge keeps it fully visible at any position, not only the
+ * ones this data happens to produce today.
+ */
 .iris-bullet-track b {
   position: absolute;
   top: 10%;
   bottom: 10%;
   width: 2px;
   background: var(--ink);
-  transform: translateX(-1px);
+  left: clamp(1px, var(--pos), calc(100% - 1px));
+  transform: translateX(-50%);
 }
 
-/* The target itself. */
+/*
+ * The target itself.
+ *
+ * Measured fully clipped at `left: 100%` before this: a 1px box whose left
+ * edge starts exactly at the track's own right edge contributes zero pixels
+ * inside `overflow: hidden`, on every row, at every width. Same clamp/centre
+ * fix as the pace mark above.
+ */
 .iris-bullet-track u {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
   background: var(--ink-3);
+  left: clamp(0.5px, var(--pos), calc(100% - 0.5px));
+  transform: translateX(-50%);
 }
 
 .iris-bullet-value {

@@ -321,8 +321,14 @@ export function BulletChart({
               {unavailable ? null : (
                 <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
               )}
-              <b style={{ left: pct(row.pace) }} title={`Needed by now: ${Math.round(row.pace)}`} />
-              <u style={{ left: pct(row.target) }} title={`Target: ${row.target}`} />
+              <b
+                style={{ "--pos": pct(row.pace) } as React.CSSProperties}
+                title={`Needed by now: ${Math.round(row.pace)}`}
+              />
+              <u
+                style={{ "--pos": pct(row.target) } as React.CSSProperties}
+                title={`Target: ${row.target}`}
+              />
             </span>
             <span
               className="iris-bullet-value"
