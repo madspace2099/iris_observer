@@ -33,7 +33,7 @@ It joins WEBIRIS (online buyer behaviour before anybody is known), the CRM (cont
 - Buyer interest is expressed in stages before a human is ever involved (browsing WEBIRIS), then through a CRM-tracked pipeline (contact → appointment → deal stage) once an agent is engaged.
 - Sales agents prepare for and run showroom meetings, and their outcomes (purchase, reservation, follow-up needed, not interested, etc.) are the evidence the rest of the product reasons from.
 - The product currently operates entirely on **synthetic demonstration data** — deterministic fixture tenants, projects and accounts standing in for a real developer/agency/agent's real data, clearly labeled as such in the product (a "Demo data" indicator). It is pre-launch: no real customer, no real showroom, no real CRM is connected yet.
-- Ask IRIS, the product's question-answering surface, is deterministic today: every answer is composed by read models directly from the (synthetic) evidence, not by a language model. No account on this deployment holds a live model connection.
+- Ask IRIS, the product's question-answering surface, now answers through a controlled tool architecture against a live model connection on the release-candidate Preview deployment. When the model cannot be reached, the same deterministic composer that used to be the only path answers from the identical tools — read models, directly from the (synthetic) evidence — and `status.live` records which one produced a given answer. The separate, stale Production URL is not confirmed to hold this connection.
 
 ## Capabilities and Constraints
 
@@ -45,7 +45,7 @@ It joins WEBIRIS (online buyer behaviour before anybody is known), the CRM (cont
 - **No personal data travels in behavioural payloads** — contact identifiers only.
 - **The pre-meeting brief prepared for a sales agent never reaches a buyer-visible surface.**
 - **Nothing is fabricated to make a screen or chart look finished.** A gap in the synthetic data is stated as a gap, not papered over.
-- **No live language model is connected yet** — Ask IRIS's deterministic-answer behavior is a stated milestone boundary, not a current limitation to hide.
+- **A live language model is now connected on the release-candidate Preview deployment.** The deterministic-answer behavior remains as the fallback path when the model cannot be reached, not the default — `status.live` on each answer says which one actually produced it. The Production URL is a separate, older deployment and is not confirmed to hold the same connection.
 - **Multi-tenant, multi-project, role-gated.** An account's grants determine which tenants, projects and figures it can see; enforced in the repository layer, not only in the UI.
 - Terminology a reader is expected to already know: *tenant* (a developer's organisation), *project* (one development, e.g. a residential tower), *unit* (one sellable apartment/property within a project), *showroom* (where meetings happen), *evidence tier* (observed/attributed/verified).
 
