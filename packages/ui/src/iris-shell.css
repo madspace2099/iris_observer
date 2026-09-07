@@ -1109,3 +1109,24 @@
 .irs-shell[data-variant="ask"] .irs-header-end {
   gap: 20px;
 }
+
+/*
+ * PRINT: a printed page has one ground and no chrome. The header and the
+ * mobile bar leave; the shell and its main column sit on white with dark ink.
+ * Owned here because these are this sheet's names (observer-product.css owns
+ * the report page that asks for it).
+ */
+@media print {
+  .irs-header,
+  .irs-mobile-bar {
+    display: none !important;
+  }
+
+  html,
+  body,
+  .irs-shell,
+  .irs-main {
+    background: #fff !important;
+    color: #111 !important;
+  }
+}

@@ -2330,3 +2330,10 @@
   display: block;
   contain: strict;
 }
+
+/* PRINT: the dock is a control, and a printed page has none. */
+@media print {
+  .ask-dock {
+    display: none !important;
+  }
+}

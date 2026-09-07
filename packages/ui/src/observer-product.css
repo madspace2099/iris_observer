@@ -2752,24 +2752,18 @@
 }
 
 /*
- * PRINT: the page is the document. The shell's chrome, the Ask dock and the
- * print control itself leave; the planes stop floating on graphite and sit
- * on white with dark ink, because a printed page has one ground; a plane is
- * kept whole across a page break where the browser can manage it. Nothing
- * else changes, so what prints is what was read.
+ * PRINT: the page is the document. The print control leaves; the planes stop
+ * floating on graphite and sit on white with dark ink, because a printed page
+ * has one ground; a plane is kept whole across a page break where the browser
+ * can manage it. The shell's own chrome and the Ask dock leave too, in the
+ * sheets that own them (iris-shell.css, ask-iris.css): a sheet never claims a
+ * name another sheet owns.
  */
 @media print {
-  .irs-header,
-  .irs-mobile-bar,
-  .ask-dock,
   .ox-report .ox-btn {
     display: none !important;
   }
 
-  html,
-  body,
-  .irs-shell,
-  .irs-main,
   .ox-report,
   .ox-report .ox-plane {
     background: #fff !important;
