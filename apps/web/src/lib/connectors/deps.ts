@@ -1,6 +1,13 @@
 import "server-only";
 
-import { postgrestCatalogueDb, sqlCatalogueDb, type CatalogueDb } from "@observer/connectors";
+import {
+  postgrestCatalogueDb,
+  postgrestDealsDb,
+  sqlCatalogueDb,
+  sqlDealsDb,
+  type CatalogueDb,
+  type DealsDb,
+} from "@observer/connectors";
 
 import { resolveServerSupabase } from "@/lib/supabase-env";
 import { localControlPlaneQuery } from "@/lib/sources/local-db";
@@ -25,4 +32,14 @@ export async function catalogueDbAsync(): Promise<CatalogueDb | null> {
   }
   const query = await localControlPlaneQuery();
   return query === null ? null : sqlCatalogueDb(query);
+}
+
+/** The deals port, resolved the same way and from the same database. */
+export async function dealsDbAsync(): Promise<DealsDb | null> {
+  const supabase = resolveServerSupabase();
+  if (supabase !== null) {
+    return postgrestDealsDb({ url: supabase.url, key: supabase.key, fetch: platformFetch });
+  }
+  const query = await localControlPlaneQuery();
+  return query === null ? null : sqlDealsDb(query);
 }

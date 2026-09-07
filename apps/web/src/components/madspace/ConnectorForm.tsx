@@ -61,10 +61,25 @@ const FIELDS: Readonly<Record<ConnectorKind, readonly string[]>> = {
     "currency",
     "orientationMap",
   ],
-  lomnio: ["token", "signingSecret", "statusMap", "currency", "orientationMap"],
-  monday: ["boardId", "token", "columns", "statusMap", "currency", "orientationMap"],
-  csv: ["columns", "statusMap", "currency", "orientationMap"],
+  lomnio: ["token", "signingSecret", "statusMap", "currency", "orientationMap", "stageMap"],
+  monday: [
+    "boardId",
+    "token",
+    "columns",
+    "statusMap",
+    "currency",
+    "orientationMap",
+    "dealsBoardId",
+    "dealColumns",
+    "stageMap",
+  ],
+  csv: ["columns", "statusMap", "currency", "orientationMap", "dealColumns", "stageMap"],
 };
+
+const STAGE_HINT =
+  "One per line, raw=canonical. Canonical: lead, meeting, negotiation, offer, reservation, purchase, lost. A word not mapped is kept raw and counted here.";
+const DEAL_COLUMNS_FIELDS =
+  "Fields: externalId, stage, unitCode, email, phone, stageEnteredAt, openedAt, updatedAt. The email and phone are hashed on the way in and never stored.";
 
 function failingField(kind: ConnectorKind, path: string | null): string | null {
   if (path === null) return null;
@@ -264,6 +279,13 @@ export function ConnectorForm({
             placeholder={"rezervace=reserved\nprodano=sold"}
             defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
           />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The stage codes Lomnio's leads carry. ${STAGE_HINT}`}
+            placeholder={"new=lead\nmeeting=meeting\noffer=offer\nwon=purchase"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
         </>
       ) : null}
 
@@ -301,6 +323,27 @@ export function ConnectorForm({
             placeholder={"Foglalt=reserved\nEladva=sold"}
             defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
           />
+          <Field
+            field="dealsBoardId"
+            label="Deals board id"
+            defaultValue={stringOf(config["dealsBoardId"])}
+            placeholder="2345678901"
+            hint="The board the deals live on, if there is one. Leave empty and no deals are read."
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=column id, for the deals board. ${DEAL_COLUMNS_FIELDS} The item's own id is column id id, its name column id name.`}
+            placeholder={"externalId=id\nstage=status\nunitCode=text_1\nemail=email"}
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The labels the deals board's stage column carries. ${STAGE_HINT}`}
+            placeholder={"Új=lead\nTalálkozó=meeting\nAjánlat=offer\nMegvéve=purchase"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
         </>
       ) : null}
 
@@ -319,6 +362,20 @@ export function ConnectorForm({
             hint="One per line, raw=canonical."
             placeholder={"szabad=available\nfoglalt=reserved\neladva=sold"}
             defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=header as it appears in the deals sheet. ${DEAL_COLUMNS_FIELDS} Leave empty and no deals sheet is expected.`}
+            placeholder={"externalId=Ügylet\nstage=Stádium\nunitCode=Kód\nemail=E-mail"}
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The words the deals sheet's stage column carries. ${STAGE_HINT}`}
+            placeholder={"érdeklődő=lead\ntalálkozó=meeting\najánlat=offer\nfoglalás=reservation"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
           />
         </>
       ) : null}

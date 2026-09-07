@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogueUnit, UnitChange } from "@observer/contracts";
+import type { CatalogueUnit, CrmDeal, UnitChange } from "@observer/contracts";
 import type {
   CatalogueChangeRow,
   CatalogueDb,
   ConnectorConfigRow,
+  DealChangeRow,
+  DealSyncRecordInput,
+  DealsDb,
   SealedCredentialRow,
   SyncRecordInput,
 } from "@observer/connectors";
@@ -358,5 +361,193 @@ describe("connectorService", () => {
     const { createHmac } = await import("node:crypto");
     const good = `sha256=${createHmac("sha256", "whsec_example_secret").update("{}", "utf8").digest("hex")}`;
     expect(await svc.verifyLomnioWebhook(PROJECT, "{}", good)).toBe("ok");
+  });
+});
+
+/* --- deals ------------------------------------------------------------------- */
+
+function memoryDealsDb(): DealsDb & {
+  readonly deals: Map<string, CrmDeal[]>;
+  readonly facts: Map<string, DealChangeRow>;
+  readonly syncs: DealSyncRecordInput[];
+} {
+  const deals = new Map<string, CrmDeal[]>();
+  const facts = new Map<string, DealChangeRow>();
+  const syncs: DealSyncRecordInput[] = [];
+  const own = (account: string, project: string) => account === ACCOUNT && project === PROJECT;
+  return {
+    deals,
+    facts,
+    syncs,
+    async dealsApply(account, project, connector, fetchedAt, next, changes) {
+      if (!own(account, project)) return null;
+      deals.set(connector, [...next]);
+      let opened = 0;
+      let changed = 0;
+      let withdrawn = 0;
+      for (const ch of changes) {
+        if (facts.has(ch.eventId)) continue;
+        facts.set(ch.eventId, {
+          event_id: ch.eventId,
+          connector,
+          external_id: ch.externalId,
+          kind: ch.kind,
+          unit_code: ch.unitCode,
+          subject_key: ch.subjectKey,
+          from_stage: ch.from,
+          from_raw: ch.fromRaw,
+          to_stage: ch.to,
+          to_raw: ch.toRaw,
+          at: ch.at,
+          observed_at: ch.observedAt,
+          recorded_at: fetchedAt,
+        });
+        if (ch.kind === "opened") opened += 1;
+        else if (ch.kind === "stage_changed") changed += 1;
+        else withdrawn += 1;
+      }
+      return { opened, changed, withdrawn };
+    },
+    async dealsCurrent(account, project, connector) {
+      if (!own(account, project)) return [];
+      return (deals.get(connector) ?? []).map((d) => ({
+        external_id: d.externalId,
+        deal: d,
+        fetched_at: "x",
+      }));
+    },
+    async dealChanges(account, project, limit) {
+      return own(account, project) ? [...facts.values()].slice(-limit).reverse() : [];
+    },
+    async dealSyncRecord(account, project, _connector, record) {
+      if (!own(account, project)) return null;
+      syncs.push(record);
+      return syncs.length;
+    },
+    async dealSyncLast(account, project) {
+      const last = syncs.at(-1);
+      if (!own(account, project) || last === undefined) return [];
+      return [
+        {
+          connector: "csv",
+          started_at: "2026-09-07T10:05:00.000Z",
+          outcome: last.outcome,
+          fetched: last.fetched,
+          unmapped_stages: last.unmappedStages,
+          detail: last.detail,
+        },
+      ];
+    },
+  };
+}
+
+describe("connectorService, deals", () => {
+  const PEPPER = "a-subject-pepper-of-at-least-thirty-two-bytes";
+  const SHEET =
+    "Ügylet;Stádium;Kód;E-mail\n" +
+    "D-1;találkozó;A-101;anna@example.com\n" +
+    "D-2;opció;;\n" +
+    ";találkozó;A-102;\n";
+
+  function dealsService(deals: DealsDb, env: Record<string, string>) {
+    return connectorService({
+      db: memoryDb(),
+      deals,
+      account: ACCOUNT,
+      env,
+      now: () => new Date("2026-09-07T10:00:00Z"),
+      http: async () => ({ status: 500, headers: {}, text: "" }),
+    });
+  }
+
+  it("refuses to read a deals sheet without a subject pepper, and stores nobody", async () => {
+    const deals = memoryDealsDb();
+    const svc = dealsService(deals, ENV);
+    await svc.save(
+      PROJECT,
+      "csv",
+      {
+        columns: { code: "Kód" },
+        dealColumns: { externalId: "Ügylet", stage: "Stádium", unitCode: "Kód", email: "E-mail" },
+        stageMap: { találkozó: "meeting" },
+      },
+      null,
+      true,
+    );
+    const refused = await svc.importDealsCsv(PROJECT, SHEET);
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.problem).toMatch(/subject pepper/);
+    expect(deals.deals.size).toBe(0);
+  });
+
+  it("reads a deals sheet into facts once, names the unmapped word, and keeps no email", async () => {
+    const deals = memoryDealsDb();
+    const svc = dealsService(deals, { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER });
+    await svc.save(
+      PROJECT,
+      "csv",
+      {
+        columns: { code: "Kód" },
+        dealColumns: { externalId: "Ügylet", stage: "Stádium", unitCode: "Kód", email: "E-mail" },
+        stageMap: { találkozó: "meeting" },
+      },
+      null,
+      true,
+    );
+    const first = await svc.importDealsCsv(PROJECT, SHEET);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.rejected).toEqual([{ line: 4, reason: "no deal id" }]);
+    expect(
+      first.outcome.ok && first.outcome.changes.map((c) => [c.externalId, c.kind, c.to]),
+    ).toEqual([
+      ["D-1", "opened", "meeting"],
+      ["D-2", "opened", null],
+    ]);
+    expect(first.outcome.ok && first.outcome.unmappedStages).toEqual(["opció"]);
+
+    const again = await svc.importDealsCsv(PROJECT, SHEET);
+    expect(again.ok && again.outcome.ok && again.outcome.changes).toEqual([]);
+    expect(deals.facts.size).toBe(2);
+
+    const stored = JSON.stringify([...deals.deals.values(), ...deals.facts.values()]);
+    expect(stored).not.toContain("anna@example.com");
+    expect(stored).toMatch(/"subjectKey":"[a-f0-9]{64}"/);
+
+    const summary = await svc.dealSummary(PROJECT);
+    expect(summary.get("csv")).toMatchObject({
+      outcome: "ok",
+      fetched: 2,
+      unmappedStages: ["opció"],
+    });
+    expect((await svc.currentDeals(PROJECT, "csv")).map((d) => d.externalId)).toEqual([
+      "D-1",
+      "D-2",
+    ]);
+  });
+
+  it("answers with a sentence where the deals store is absent or the CRM offers no pull", async () => {
+    const svc = connectorService({
+      db: memoryDb(),
+      account: ACCOUNT,
+      env: { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER },
+      now: () => new Date("2026-09-07T10:00:00Z"),
+      http: async () => ({ status: 500, headers: {}, text: "" }),
+    });
+    const absent = await svc.syncDeals(PROJECT, "lomnio");
+    expect(absent.ok).toBe(false);
+    if (!absent.ok) expect(absent.problem).toMatch(/deals store/);
+
+    const withStore = dealsService(memoryDealsDb(), { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER });
+    await withStore.save(
+      PROJECT,
+      "realpad",
+      { developerId: 1, projectId: 2, screenId: 3 },
+      { login: "l", password: "p" },
+      true,
+    );
+    const excel = await withStore.syncDeals(PROJECT, "realpad");
+    expect(excel.ok).toBe(false);
+    if (!excel.ok) expect(excel.problem).toMatch(/Excel/);
   });
 });

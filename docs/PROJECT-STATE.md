@@ -10,25 +10,25 @@ whatever it points at. Update this file at the end of every meaningful session.
 
 ## Where the project is
 
-| Milestone                                    | Status                                                                                                                                                                                                                       |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                                                                                                                                                                                           |
-| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                                                                                                                                                                                      |
-| M1 closure amendment                         | ✅ accepted · `b7d4869`                                                                                                                                                                                                      |
-| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                                                                                                                                                                                      |
-| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349`                                                                                                                                                                       |
-| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`                                                                                                                                                                             |
-| M2.2 Visual reboot — concepts                | ✅ **the user proceeded on 2026-09-07** with the spatial direction as built (see below)                                                                                                                                      |
-| **M2.3 Showroom Intelligence refocus**       | ✅ reviewed by the user on the Vercel Preview on 2026-09-07; one defect raised and fixed (segments)                                                                                                                          |
-| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                                                                                                 |
-| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                                                                                       |
-| **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user                                                                     |
-| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                                                                                       |
-| M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                                                |
-| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                 |
-| M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                                             |
-| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                                                                                    |
-| **M10 CRM connectors**                       | 🟡 **built and read by the product** (`7226e07` + the catalogue seam, ADR-0036) — adapters, sync, persistence, screen, Project drawing a delivered stock, and sparse units drawn with their gaps said in words; deals remain |
+| Milestone                                    | Status                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                                                                                                                                                                                                                                                                                             |
+| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                                                                                                                                                                                                                                                                                        |
+| M1 closure amendment                         | ✅ accepted · `b7d4869`                                                                                                                                                                                                                                                                                                        |
+| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                                                                                                                                                                                                                                                                                        |
+| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349`                                                                                                                                                                                                                                                                         |
+| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`                                                                                                                                                                                                                                                                               |
+| M2.2 Visual reboot — concepts                | ✅ **the user proceeded on 2026-09-07** with the spatial direction as built (see below)                                                                                                                                                                                                                                        |
+| **M2.3 Showroom Intelligence refocus**       | ✅ reviewed by the user on the Vercel Preview on 2026-09-07; one defect raised and fixed (segments)                                                                                                                                                                                                                            |
+| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                                                                                                                                                                                                   |
+| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                                                                                                                                                                                         |
+| **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user                                                                                                                                                                       |
+| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                                                                                                                                                                                         |
+| M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                                                                                                                                                  |
+| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                                                                                                                   |
+| M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                                                                                                                                               |
+| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                                                                                                                                                                                      |
+| **M10 CRM connectors**                       | 🟡 **built and read by the product** (`7226e07` + the catalogue seam, ADR-0036) — adapters, sync, persistence, screen, Project drawing a delivered stock, sparse units drawn with their gaps said in words, and deals delivered, diffed into stage facts, stored and shown on the integrations screen; the ladder seam remains |
 
 ## Cloud resources — do not ask for these again
 
@@ -216,10 +216,28 @@ repair` list in `supabase/README.md`, and prove it from the integrations screen 
    Project, Units and unit pages: no `null`, `NaN` or empty cell anywhere. A unit type
    vocabulary (parking, cellar) is still absent, so a parking place with no room count sits in
    the unstated-rooms row; that is ADR-0036's open `flat_type` question, not a rendering gap.
-3. **Deals.** REALPAD's business cases arrive only as Excel through Data Takeout; Lomnio's as
-   `lead.stage`; Monday's as a status column. Each needs the stage-mapping table on the
-   integrations screen (ADR-0036 decision 4) and a `deal.stage.changed` fact into the ladder.
-   Reserved and Sold already arrive with the unit feeds.
+3. 🟡 **Deals: delivered, stored and shown; the ladder is the piece left.** Since 2026-09-07
+   the connectors carry the CRM's deals the way they carry the catalogue: `CrmDeal` in
+   `@observer/contracts` (`deals.ts`: stage mapped by the tenant's table to the seven canonical
+   stages or carried raw as null; the buyer a keyed hash of email, else phone, under
+   `OBSERVER_SUBJECT_PEPPER`, never the value), `diffDeals` into `opened` / `stage_changed` /
+   `withdrawn` facts whose id is SHA-256 over scope, deal, kind, word and time; adapters for
+   Lomnio `/v1/leads`, a Monday deals board and a deals sheet (`packages/connectors/src/deals.ts`);
+   migration `20260907180000_observer_deals.sql` (`deals_current`, append-only
+   `deal_stage_changes` keyed by event id, `deal_syncs`; executed on PGlite, applied nowhere); the
+   service's `syncDeals` / `importDealsCsv` / `dealSummary` / `recentDealChanges` /
+   `currentDeals`; the daily cron syncs deals after the catalogue for Lomnio and Monday; and on
+   the integrations screen a "Stage words" table per connector, a deals board id and deal columns
+   for Monday, deal columns and a "Deals sheet" upload for the spreadsheet, a "Deals" row per
+   plane and a "Recent stage changes" table. Proven on the local control plane: a deals sheet
+   read as "4 opened" with one unmapped word and one rejected row, the same sheet again as
+   "0 opened, 0 changed stage, 0 withdrawn", a second sheet as "1 opened, 2 changed stage,
+   1 withdrawn", and no email, phone or subject key in the HTML or the console. REALPAD's
+   business cases arrive only as Excel through Data Takeout with an unpublished Lifecycle
+   vocabulary; that adapter waits for one real export and answers with a sentence until then.
+   **What is left:** a `DealSource` seam beside `CatalogueSource`, so Sales Flow's ladder
+   (`FlowLadder`, written and mounted nowhere) reads the current deals per canonical stage with
+   `verified: true` for what the CRM states and says "not connected" where no deals arrive.
 4. **M3's remaining surfaces**, from the 2026-09-07 inventory: mount `FlowLadder` (written, unused);
    time in stage; stalled opportunities; the attention-versus-conversion matrix; contacts and the
    unified timeline (`/people` redirects today); intent distribution; the policy-version guard

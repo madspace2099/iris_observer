@@ -50,6 +50,19 @@ export async function GET(request: Request): Promise<Response> {
         connector: c.kind,
         outcome: result.ok ? (result.outcome.ok ? "ok" : result.outcome.reason) : "refused",
       });
+      /*
+       * The deals, where the CRM offers them to a pull: Lomnio's leads and a
+       * Monday deals board. A connector with no deals board named answers
+       * with a sentence, which is recorded as refused and costs nothing.
+       */
+      if (c.kind === "lomnio" || c.kind === "monday") {
+        const deals = await service.syncDeals(project.project_id, c.kind);
+        results.push({
+          project: project.project_id,
+          connector: `${c.kind}:deals`,
+          outcome: deals.ok ? (deals.outcome.ok ? "ok" : deals.outcome.reason) : "refused",
+        });
+      }
     }
   }
   return Response.json({ synced: results.length, results });

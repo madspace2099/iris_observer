@@ -2,16 +2,42 @@
 
 import { useActionState, useId } from "react";
 
-import { importCsvAction, type ImportState } from "@/lib/madspace/connector-actions";
+import {
+  importCsvAction,
+  importDealsCsvAction,
+  type ImportState,
+} from "@/lib/madspace/connector-actions";
 
 const IDLE: ImportState = { problem: null, summary: null, rejected: [] };
 
 /**
  * The manual path's upload. A CSV goes in, the same sync loop runs, and the
- * rows that could not become a unit are listed by line rather than dropped.
+ * rows that could not become a unit, or a deal, are listed by line rather
+ * than dropped. Two sheets, one form: the pricelist and the deals differ in
+ * their columns and their action, and in nothing the operator sees.
  */
-export function CsvUpload({ projectId }: { readonly projectId: string }) {
-  const [state, submit, pending] = useActionState(importCsvAction, IDLE);
+const SHEETS = {
+  units: {
+    action: importCsvAction,
+    label: "Spreadsheet",
+    hint: "A CSV export of the pricelist, comma- or semicolon-separated, with the headers named in the columns above. Up to 5 MB.",
+  },
+  deals: {
+    action: importDealsCsvAction,
+    label: "Deals sheet",
+    hint: "A CSV export of the deals, comma- or semicolon-separated, with the headers named in the deal columns above. The email and phone columns are hashed on the way in. Up to 5 MB.",
+  },
+} as const;
+
+export function CsvUpload({
+  projectId,
+  sheet = "units",
+}: {
+  readonly projectId: string;
+  readonly sheet?: keyof typeof SHEETS;
+}) {
+  const which = SHEETS[sheet];
+  const [state, submit, pending] = useActionState(which.action, IDLE);
   const id = useId();
 
   return (
@@ -19,12 +45,9 @@ export function CsvUpload({ projectId }: { readonly projectId: string }) {
       <input type="hidden" name="project" value={projectId} />
       <div className="mad-field" data-invalid={state.problem === null ? undefined : "true"}>
         <label className="mad-field-label" htmlFor={id}>
-          Spreadsheet
+          {which.label}
         </label>
-        <p className="mad-field-hint">
-          A CSV export of the pricelist, comma- or semicolon-separated, with the headers named in
-          the columns above. Up to 5 MB.
-        </p>
+        <p className="mad-field-hint">{which.hint}</p>
         <input
           className="mad-input"
           id={id}

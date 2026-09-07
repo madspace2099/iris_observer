@@ -89,11 +89,15 @@ interface Maps {
   readonly columns: Record<string, string>;
   readonly statusMap: Record<string, string>;
   readonly orientationMap: Record<string, string>;
+  readonly stageMap: Record<string, string>;
+  readonly dealColumns: Record<string, string>;
 }
 
 function configFrom(kind: ConnectorKind, form: FormData, maps: Maps): unknown {
   const currency = optional(form, "currency");
   const orientationMap = maps.orientationMap;
+  /* No deal columns typed means no deals sheet or board: null, not an empty mapping the schema would refuse. */
+  const dealColumns = Object.keys(maps.dealColumns).length === 0 ? null : maps.dealColumns;
   switch (kind) {
     case "realpad":
       return {
@@ -105,7 +109,7 @@ function configFrom(kind: ConnectorKind, form: FormData, maps: Maps): unknown {
         orientationMap,
       };
     case "lomnio":
-      return { statusMap: maps.statusMap, currency, orientationMap };
+      return { statusMap: maps.statusMap, currency, orientationMap, stageMap: maps.stageMap };
     case "monday":
       return {
         boardId: text(form, "boardId"),
@@ -113,9 +117,19 @@ function configFrom(kind: ConnectorKind, form: FormData, maps: Maps): unknown {
         statusMap: maps.statusMap,
         currency,
         orientationMap,
+        dealsBoardId: optional(form, "dealsBoardId"),
+        dealColumns,
+        stageMap: maps.stageMap,
       };
     case "csv":
-      return { columns: maps.columns, statusMap: maps.statusMap, currency, orientationMap };
+      return {
+        columns: maps.columns,
+        statusMap: maps.statusMap,
+        currency,
+        orientationMap,
+        dealColumns,
+        stageMap: maps.stageMap,
+      };
   }
 }
 
@@ -154,6 +168,8 @@ export async function saveConnectorAction(
     columns: parseMapLines(text(form, "columns")),
     statusMap: parseMapLines(text(form, "statusMap")),
     orientationMap: parseMapLines(text(form, "orientationMap")),
+    stageMap: parseMapLines(text(form, "stageMap")),
+    dealColumns: parseMapLines(text(form, "dealColumns")),
   };
   const result = await found.service.save(
     projectUuid,
@@ -234,6 +250,73 @@ export async function importCsvAction(
   return {
     problem: null,
     summary: `Read ${String(outcome.fetched)} units: ${String(added)} added, ${String(changed)} changed, ${String(withdrawn)} withdrawn.${unknown}`,
+    rejected: result.rejected.map((r) => `Row ${String(r.line)}: ${r.reason}.`),
+  };
+}
+
+export async function syncDealsAction(projectUuid: string, kind: string): Promise<SyncResult> {
+  if (!isConnectorKind(kind)) return { ok: false, summary: "Unknown connector." };
+  const found = await estate(projectUuid);
+  if (!found.ok) return { ok: false, summary: found.problem };
+
+  const result = await found.service.syncDeals(projectUuid, kind);
+  revalidatePath(`/madspace/projects/${projectUuid}/integrations`);
+  if (!result.ok) return { ok: false, summary: result.problem };
+
+  const outcome = result.outcome;
+  if (!outcome.ok) {
+    const wait =
+      outcome.retryAfterSeconds === null
+        ? ""
+        : ` Try again in ${String(outcome.retryAfterSeconds)} seconds.`;
+    return { ok: false, summary: `${outcome.detail}${wait}` };
+  }
+  return { ok: true, summary: dealSummary(outcome) };
+}
+
+function dealSummary(outcome: {
+  readonly fetched: number;
+  readonly changes: readonly { readonly kind: string }[];
+  readonly unmappedStages: readonly string[];
+}): string {
+  const opened = outcome.changes.filter((c) => c.kind === "opened").length;
+  const changed = outcome.changes.filter((c) => c.kind === "stage_changed").length;
+  const withdrawn = outcome.changes.filter((c) => c.kind === "withdrawn").length;
+  const unmapped =
+    outcome.unmappedStages.length === 0
+      ? ""
+      : ` ${String(outcome.unmappedStages.length)} stage word(s) are not mapped yet: ${outcome.unmappedStages.join(", ")}.`;
+  return `Fetched ${String(outcome.fetched)} deals: ${String(opened)} opened, ${String(changed)} changed stage, ${String(withdrawn)} withdrawn.${unmapped}`;
+}
+
+export async function importDealsCsvAction(
+  _previous: ImportState,
+  form: FormData,
+): Promise<ImportState> {
+  const projectUuid = text(form, "project");
+  const found = await estate(projectUuid);
+  if (!found.ok) return { problem: found.problem, summary: null, rejected: [] };
+
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { problem: "Choose a CSV file to upload.", summary: null, rejected: [] };
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return {
+      problem: "The file is larger than 5 MB. Export the deals alone.",
+      summary: null,
+      rejected: [],
+    };
+  }
+
+  const result = await found.service.importDealsCsv(projectUuid, await file.text());
+  revalidatePath(`/madspace/projects/${projectUuid}/integrations`);
+  if (!result.ok) return { problem: result.problem, summary: null, rejected: [] };
+  const outcome = result.outcome;
+  if (!outcome.ok) return { problem: outcome.detail, summary: null, rejected: [] };
+  return {
+    problem: null,
+    summary: dealSummary(outcome).replace(/^Fetched/, "Read"),
     rejected: result.rejected.map((r) => `Row ${String(r.line)}: ${r.reason}.`),
   };
 }

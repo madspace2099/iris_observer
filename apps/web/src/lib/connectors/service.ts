@@ -3,25 +3,37 @@ import "server-only";
 import {
   CatalogueSnapshotSchema,
   CatalogueUnitSchema,
+  CrmDealSchema,
+  DealSnapshotSchema,
   ProjectIdSchema,
   TenantIdSchema,
   placementOf,
   type CatalogueSnapshot,
   type CatalogueUnit,
   type ConnectorKind,
+  type CrmDeal,
 } from "@observer/contracts";
 import {
   csvCatalogue,
+  csvDeals,
   dbCatalogueStore,
+  dbDealStore,
+  lomnioFetchDeals,
   lomnioFetchSnapshot,
   lowerCaseHeaders,
+  mondayFetchDeals,
   mondayFetchSnapshot,
   realpadFetchSnapshot,
+  recordDealSyncOutcome,
   recordSyncOutcome,
   refusal,
   runCatalogueSync,
+  runDealSync,
   verifyLomnioSignature,
   type CatalogueDb,
+  type DealFetchOutcome,
+  type DealSyncOutcome,
+  type DealsDb,
   type FetchOutcome,
   type Http,
   type SyncOutcome,
@@ -58,11 +70,25 @@ import { encryptionConfigured, open, seal, type EnvSource } from "@/lib/credenti
 
 export interface ServiceDeps {
   readonly db: CatalogueDb;
+  /**
+   * The deals port. Absent on a server whose database predates the deals
+   * migration; every deal operation then answers with a sentence rather than
+   * a stack trace, and the catalogue keeps working.
+   */
+  readonly deals?: DealsDb;
   readonly http: Http;
   readonly env: EnvSource;
   readonly now: () => Date;
   /** The account every façade is scoped to. Never from a request. */
   readonly account: string;
+}
+
+export interface LastDealSync {
+  readonly at: string;
+  readonly outcome: string;
+  readonly fetched: number;
+  readonly unmappedStages: readonly string[];
+  readonly detail: string;
 }
 
 export interface LastSync {
@@ -431,6 +457,202 @@ export function connectorService(deps: ServiceDeps) {
     return verifyLomnioSignature(rawBody, signatureHeader, secret) ? "ok" : "rejected";
   }
 
+  /* --- deals --------------------------------------------------------------- */
+
+  const NO_DEALS_STORE = "The deals store is not available on this server.";
+
+  /**
+   * The subject pepper, under which a buyer's email or phone becomes a key.
+   * The same secret Ask Observer keys its subjects with; a server without it
+   * cannot key anybody and says so rather than storing a person.
+   */
+  function subjectPepper(): string | null {
+    const value = deps.env["OBSERVER_SUBJECT_PEPPER"]?.trim() ?? "";
+    return value.length >= 32 ? value : null;
+  }
+
+  function dealFetcherFor(
+    kind: ConnectorKind,
+    config: unknown,
+    credential: Record<string, unknown> | null,
+    projectUuid: string,
+    pepper: string,
+  ): (() => Promise<DealFetchOutcome>) | Refused {
+    const scope = scopeFor(account, projectUuid);
+    const ctx = { http: deps.http, now: deps.now };
+    switch (kind) {
+      case "lomnio": {
+        if (credential === null) return { ok: false, problem: "Lomnio has no credential stored." };
+        const c = config as LomnioConfig;
+        const k = credential as { token: string };
+        return () => lomnioFetchDeals(k, { stageMap: c.stageMap }, scope, ctx, pepper);
+      }
+      case "monday": {
+        if (credential === null) return { ok: false, problem: "Monday has no credential stored." };
+        const c = config as MondayConfig;
+        if (c.dealsBoardId === null || c.dealColumns === null) {
+          return {
+            ok: false,
+            problem:
+              "Name the deals board and its columns in Monday settings before syncing deals.",
+          };
+        }
+        const k = credential as { token: string };
+        const columns = c.dealColumns;
+        return () =>
+          mondayFetchDeals(
+            k,
+            { boardId: c.dealsBoardId as string, columns, stageMap: c.stageMap },
+            scope,
+            ctx,
+            pepper,
+          );
+      }
+      case "csv":
+        return {
+          ok: false,
+          problem: "A deals sheet is uploaded, not fetched. Use the deals upload on this screen.",
+        };
+      case "realpad":
+        return {
+          ok: false,
+          problem:
+            "REALPAD delivers deals only as an Excel export through Data Takeout, which this connector does not read yet.",
+        };
+    }
+  }
+
+  async function syncDeals(
+    projectUuid: string,
+    kind: ConnectorKind,
+  ): Promise<{ readonly ok: true; readonly outcome: DealSyncOutcome } | Refused> {
+    const deals = deps.deals;
+    if (deals === undefined) return { ok: false, problem: NO_DEALS_STORE };
+    const rows = await db.connectorConfigs(account, projectUuid);
+    const row = rows.find((r) => r.connector === kind);
+    if (row === undefined) {
+      return { ok: false, problem: `${CONNECTOR_NAMES[kind]} is not configured for this project.` };
+    }
+    const config = CONFIG_SCHEMAS[kind].safeParse(row.config);
+    if (!config.success) {
+      return { ok: false, problem: `The stored ${CONNECTOR_NAMES[kind]} settings are incomplete.` };
+    }
+    const pepper = subjectPepper();
+    if (pepper === null) {
+      return {
+        ok: false,
+        problem:
+          "This server holds no subject pepper, so a deal's buyer cannot be keyed. Nothing was synced.",
+      };
+    }
+    let credential: Record<string, unknown> | null;
+    try {
+      credential = await openCredential(projectUuid, kind);
+    } catch {
+      const outcome = refusal(
+        "misconfigured",
+        "The stored credential could not be opened on this server. Paste it again.",
+      );
+      await recordDealSyncOutcome(deals, account, projectUuid, kind, outcome);
+      return { ok: true, outcome };
+    }
+    const fetcher = dealFetcherFor(kind, config.data, credential, projectUuid, pepper);
+    if ("problem" in fetcher) return fetcher;
+    const outcome = await runDealSync(fetcher, dbDealStore(deals, account, projectUuid), {
+      ...scopeFor(account, projectUuid),
+      connector: kind,
+    });
+    await recordDealSyncOutcome(deals, account, projectUuid, kind, outcome);
+    return { ok: true, outcome };
+  }
+
+  async function importDealsCsv(
+    projectUuid: string,
+    text: string,
+  ): Promise<
+    | {
+        readonly ok: true;
+        readonly outcome: DealSyncOutcome;
+        readonly rejected: readonly { readonly line: number; readonly reason: string }[];
+      }
+    | Refused
+  > {
+    const deals = deps.deals;
+    if (deals === undefined) return { ok: false, problem: NO_DEALS_STORE };
+    const rows = await db.connectorConfigs(account, projectUuid);
+    const row = rows.find((r) => r.connector === "csv");
+    const config = row === undefined ? null : CONFIG_SCHEMAS.csv.safeParse(row.config);
+    if (config === null || !config.success || config.data.dealColumns === null) {
+      return { ok: false, problem: "Name the deals sheet's columns before uploading it." };
+    }
+    const pepper = subjectPepper();
+    if (pepper === null) {
+      return {
+        ok: false,
+        problem:
+          "This server holds no subject pepper, so a deal's buyer cannot be keyed. Nothing was read.",
+      };
+    }
+    const parsed = csvDeals(
+      text,
+      { columns: config.data.dealColumns, stageMap: config.data.stageMap },
+      pepper,
+    );
+    const snapshot = DealSnapshotSchema.parse({
+      ...scopeFor(account, projectUuid),
+      connector: "csv",
+      fetchedAt: deps.now().toISOString().replace("Z", "+00:00"),
+      deals: parsed.deals,
+    });
+    const outcome = await runDealSync(
+      async () => ({ ok: true, snapshot }),
+      dbDealStore(deals, account, projectUuid),
+      { ...scopeFor(account, projectUuid), connector: "csv" },
+    );
+    await recordDealSyncOutcome(deals, account, projectUuid, "csv", outcome);
+    return { ok: true, outcome, rejected: parsed.rejected };
+  }
+
+  /** The last deal sync per connector, for the screen. Empty when the store is absent. */
+  async function dealSummary(projectUuid: string): Promise<ReadonlyMap<string, LastDealSync>> {
+    const deals = deps.deals;
+    if (deals === undefined) return new Map();
+    const rows = await deals.dealSyncLast(account, projectUuid);
+    return new Map(
+      rows.map((r) => [
+        r.connector,
+        {
+          at: r.started_at,
+          outcome: r.outcome,
+          fetched: r.fetched,
+          unmappedStages: Array.isArray(r.unmapped_stages)
+            ? r.unmapped_stages.filter((w): w is string => typeof w === "string")
+            : [],
+          detail: r.detail,
+        },
+      ]),
+    );
+  }
+
+  /** The newest stage facts any connector recorded for the project. */
+  async function recentDealChanges(projectUuid: string, limit = 20) {
+    const deals = deps.deals;
+    return deals === undefined ? [] : deals.dealChanges(account, projectUuid, limit);
+  }
+
+  /** The deals a connector currently holds, parsed; rows that do not parse are dropped. */
+  async function currentDeals(projectUuid: string, kind: ConnectorKind): Promise<CrmDeal[]> {
+    const deals = deps.deals;
+    if (deals === undefined) return [];
+    const rows = await deals.dealsCurrent(account, projectUuid, kind);
+    const out: CrmDeal[] = [];
+    for (const row of rows) {
+      const parsed = CrmDealSchema.safeParse(row.deal);
+      if (parsed.success) out.push(parsed.data);
+    }
+    return out;
+  }
+
   return {
     list,
     save,
@@ -441,6 +663,11 @@ export function connectorService(deps: ServiceDeps) {
     currentUnits,
     placement,
     verifyLomnioWebhook,
+    syncDeals,
+    importDealsCsv,
+    dealSummary,
+    recentDealChanges,
+    currentDeals,
   };
 }
 

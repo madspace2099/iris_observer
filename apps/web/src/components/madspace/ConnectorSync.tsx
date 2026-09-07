@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { ConfirmDialog } from "@/components/madspace/ConfirmDialog";
 import { StatusChip } from "@/components/madspace/StatusMark";
-import { removeCredentialAction, syncConnectorAction } from "@/lib/madspace/connector-actions";
+import {
+  removeCredentialAction,
+  syncConnectorAction,
+  syncDealsAction,
+} from "@/lib/madspace/connector-actions";
 
 /**
  * Sync now, and forget the credential — the two operations on a configured
@@ -35,12 +39,15 @@ export function ConnectorSync({
   kind,
   name,
   canSync,
+  canSyncDeals = false,
   hasCredential,
 }: {
   readonly projectId: string;
   readonly kind: string;
   readonly name: string;
   readonly canSync: boolean;
+  /** A CRM whose deals this product can pull: Lomnio's leads, a Monday deals board. */
+  readonly canSyncDeals?: boolean;
   readonly hasCredential: boolean;
 }) {
   const router = useRouter();
@@ -82,6 +89,23 @@ export function ConnectorSync({
           }
         >
           {pending ? `Syncing ${name}…` : "Sync now"}
+        </button>
+      ) : null}
+      {canSync && canSyncDeals ? (
+        <button
+          className="mad-button"
+          data-emphasis="secondary"
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const result = await syncDealsAction(projectId, kind);
+              setSaid({ ok: result.ok, text: result.summary });
+              router.refresh();
+            })
+          }
+        >
+          {pending ? `Syncing ${name}…` : "Sync deals now"}
         </button>
       ) : null}
       {hasCredential ? (

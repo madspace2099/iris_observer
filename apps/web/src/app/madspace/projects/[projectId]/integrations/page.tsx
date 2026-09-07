@@ -6,7 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 import { liveConnectorService } from "@/lib/connectors/live";
 import { CREDENTIAL_WORDS } from "@/lib/connectors/configs";
-import type { ConnectorSummary } from "@/lib/connectors/service";
+import type { ConnectorSummary, LastDealSync } from "@/lib/connectors/service";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ConnectorForm } from "@/components/madspace/ConnectorForm";
 import { ConnectorSync } from "@/components/madspace/ConnectorSync";
@@ -48,6 +48,8 @@ export default async function IntegrationsPage({
   const service = plane.ok ? await liveConnectorService() : null;
   const connectors = service === null ? null : await service.list(projectId);
   const changes = service === null ? [] : await service.recentChanges(projectId, 20);
+  const dealSyncs = service === null ? new Map() : await service.dealSummary(projectId);
+  const stageChanges = service === null ? [] : await service.recentDealChanges(projectId, 20);
   /*
    * How much of each delivered catalogue Project can draw. Only for a
    * connector whose last sync succeeded: a refused sync has nothing to place.
@@ -118,10 +120,59 @@ export default async function IntegrationsPage({
             projectId={projectId}
             connector={connector}
             placement={placements.get(connector.kind) ?? null}
+            deals={(dealSyncs as ReadonlyMap<string, LastDealSync>).get(connector.kind) ?? null}
             now={now}
           />
         ))
       )}
+
+      <section className="mad-plane" aria-labelledby="stages-heading">
+        <div className="obs-section-head">
+          <h2 id="stages-heading">Recent stage changes</h2>
+        </div>
+        {stageChanges.length === 0 ? (
+          <p className="mad-empty">
+            No stage changes recorded yet. The first deal sync records every deal as opened.
+          </p>
+        ) : (
+          <TableWrap labelledBy="stages-heading">
+            <table className="mad-table">
+              <thead>
+                <tr>
+                  <th scope="col">Deal</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Stage</th>
+                  <th scope="col">Unit</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stageChanges.map((change) => (
+                  <tr key={change.event_id}>
+                    <td className="mad-td-source">
+                      <span className="mad-code">{change.external_id}</span>
+                    </td>
+                    <td>
+                      <StatusChip tone={stageTone(change.kind)}>
+                        {stageWord(change.kind)}
+                      </StatusChip>
+                    </td>
+                    <td>
+                      <span className="mad-td-sub">{stageMove(change)}</span>
+                    </td>
+                    <td>
+                      <span className="mad-td-sub">{change.unit_code ?? "Not stated"}</span>
+                    </td>
+                    <td>{change.connector}</td>
+                    <td className="mad-td-figure">{instant(change.at).text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        )}
+      </section>
 
       <section className="mad-plane" aria-labelledby="changes-heading">
         <div className="obs-section-head">
@@ -186,6 +237,35 @@ function changeTone(kind: string): MarkTone {
   return "operator";
 }
 
+function stageWord(kind: string): string {
+  if (kind === "opened") return "Opened";
+  if (kind === "withdrawn") return "Withdrawn";
+  return "Moved";
+}
+
+function stageTone(kind: string): MarkTone {
+  if (kind === "opened") return "good";
+  if (kind === "withdrawn") return "settled";
+  return "operator";
+}
+
+/** "meeting → offer" in canonical words, with the source's own word where none is mapped. */
+function stageMove(change: {
+  readonly from_stage: string | null;
+  readonly from_raw: string | null;
+  readonly to_stage: string | null;
+  readonly to_raw: string | null;
+}): string {
+  const word = (stage: string | null, raw: string | null) =>
+    stage ?? (raw === null ? "none" : `${raw} (not mapped)`);
+  if (change.from_raw === null) return word(change.to_stage, change.to_raw);
+  if (change.to_raw === null) return `${word(change.from_stage, change.from_raw)} to none`;
+  return `${word(change.from_stage, change.from_raw)} to ${word(change.to_stage, change.to_raw)}`;
+}
+
+/** Which CRMs this product can pull deals from. REALPAD's arrive only as Excel. */
+const DEALS_PULLED: readonly string[] = ["lomnio", "monday"];
+
 function syncTone(outcome: string): MarkTone {
   if (outcome === "ok") return "good";
   if (outcome === "rate_limited") return "await";
@@ -229,13 +309,22 @@ function ConnectorPlane({
   projectId,
   connector,
   placement,
+  deals,
   now,
 }: {
   readonly projectId: string;
   readonly connector: ConnectorSummary;
   readonly placement: PlacementSummary | null;
+  /** The last deal sync for this connector, or null when none ran. */
+  readonly deals: LastDealSync | null;
   readonly now: Date;
 }) {
+  const dealsConfigured =
+    connector.kind === "csv" || connector.kind === "monday"
+      ? typeof connector.config["dealColumns"] === "object" &&
+        connector.config["dealColumns"] !== null
+      : connector.kind === "lomnio";
+  const dealsAge = deals === null ? null : ageSince(deals.at, now);
   const state: { word: string; tone: MarkTone } = !connector.configured
     ? { word: "Not connected", tone: "none" }
     : !connector.enabled
@@ -284,6 +373,35 @@ function ConnectorPlane({
             )}
           </dd>
         </div>
+        <div className="mad-meta-item">
+          <dt className="mad-meta-label">Deals</dt>
+          <dd
+            className="mad-meta-value"
+            data-missing={deals === null || deals.outcome !== "ok" ? "true" : undefined}
+          >
+            {connector.kind === "realpad" ? (
+              "Excel export only. Not read yet."
+            ) : !dealsConfigured ? (
+              connector.kind === "csv" ? (
+                "No deals sheet named."
+              ) : (
+                "No deals board named."
+              )
+            ) : deals === null ? (
+              "Never"
+            ) : (
+              <>
+                <StatusChip tone={syncTone(deals.outcome)}>{syncWord(deals.outcome)}</StatusChip>{" "}
+                {dealsAge ?? instant(deals.at).text}
+                {deals.outcome === "ok" ? ` · ${String(deals.fetched)} deals` : ""}
+                {deals.outcome !== "ok" && deals.detail.length > 0 ? ` · ${deals.detail}` : ""}
+                {deals.unmappedStages.length === 0
+                  ? ""
+                  : ` · ${String(deals.unmappedStages.length)} stage word(s) not mapped: ${deals.unmappedStages.slice(0, 5).join(", ")}`}
+              </>
+            )}
+          </dd>
+        </div>
         {placement === null ? null : (
           <div className="mad-meta-item">
             <dt className="mad-meta-label">On Project</dt>
@@ -304,6 +422,7 @@ function ConnectorPlane({
         kind={connector.kind}
         name={connector.name}
         canSync={connector.configured && connector.kind !== "csv" && connector.hasCredential}
+        canSyncDeals={DEALS_PULLED.includes(connector.kind) && dealsConfigured}
         hasCredential={connector.hasCredential}
       />
 
@@ -331,6 +450,9 @@ function ConnectorPlane({
 
       {connector.kind === "csv" && connector.configured ? (
         <CsvUpload projectId={projectId} />
+      ) : null}
+      {connector.kind === "csv" && connector.configured && dealsConfigured ? (
+        <CsvUpload projectId={projectId} sheet="deals" />
       ) : null}
     </section>
   );

@@ -3,6 +3,7 @@ import {
   CATALOGUE_STATUSES,
   CONNECTOR_KINDS,
   CompassSchema,
+  DealStageSchema,
   type ConnectorKind,
 } from "@observer/contracts";
 
@@ -50,6 +51,28 @@ const ColumnMappingSchema = z.strictObject({
   updatedAt: z.string().trim().min(1).max(64).optional(),
 });
 
+/**
+ * The tenant's stage words → the seven canonical stages (ADR-0036 decision
+ * 4). A word not in the table is carried raw and counted for this table,
+ * never guessed.
+ */
+const StageMapSchema = z.record(z.string().min(1).max(200), DealStageSchema).default({});
+
+/** Which column holds what in a deals board or a deals sheet. Id and stage are the minimum. */
+const DealColumnsSchema = z
+  .strictObject({
+    externalId: z.string().trim().min(1).max(64),
+    stage: z.string().trim().min(1).max(64),
+    unitCode: z.string().trim().min(1).max(64).optional(),
+    email: z.string().trim().min(1).max(64).optional(),
+    phone: z.string().trim().min(1).max(64).optional(),
+    stageEnteredAt: z.string().trim().min(1).max(64).optional(),
+    openedAt: z.string().trim().min(1).max(64).optional(),
+    updatedAt: z.string().trim().min(1).max(64).optional(),
+  })
+  .nullable()
+  .default(null);
+
 export const RealpadConfigSchema = z.strictObject({
   developerId: z.number().int().positive(),
   projectId: z.number().int().positive(),
@@ -63,6 +86,8 @@ export const LomnioConfigSchema = z.strictObject({
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
   orientationMap: OrientationMapSchema,
+  /** Lomnio's `stage.code` words. The leads endpoint is fixed; only the words are the tenant's. */
+  stageMap: StageMapSchema,
 });
 
 export const MondayConfigSchema = z.strictObject({
@@ -71,6 +96,10 @@ export const MondayConfigSchema = z.strictObject({
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
   orientationMap: OrientationMapSchema,
+  /** Deals live on their own board, or on none: both are the client's to say. */
+  dealsBoardId: z.string().trim().min(1).max(64).nullable().default(null),
+  dealColumns: DealColumnsSchema,
+  stageMap: StageMapSchema,
 });
 
 export const CsvConfigSchema = z.strictObject({
@@ -78,6 +107,9 @@ export const CsvConfigSchema = z.strictObject({
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
   orientationMap: OrientationMapSchema,
+  /** A second sheet, of deals, by its own headers. */
+  dealColumns: DealColumnsSchema,
+  stageMap: StageMapSchema,
 });
 
 export const CONFIG_SCHEMAS = {
