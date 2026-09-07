@@ -772,6 +772,17 @@ real link and returns focus on Escape; the refused REALPAD save says "a number i
 under its field; the meeting summary refuses the developer. Twenty-six pages are in the review
 package with those checks recorded per page.
 
+**The Playwright regression, triaged.** Five specs run against the dev server (navigation,
+layout integrity, chart rules, authorisation, portal quality) failed 28 tests; every one of the 28
+failed identically on a worktree at `c365fdf`, so none was a regression of the night. They were
+the briefing-era locators ADR-0033 retired (`.obs-lede`, `.obs-prompt`, a "Briefing" nav item,
+`.iris-matrix-row`) and a route list that navigated to a redirect mid-check. Rewritten for the
+product as it is: the ten-second test on Ask IRIS and the briefing, the register as a table that
+drops no column, the Ask dock covering nothing, the developer switch on an analytical surface.
+The rewritten layout check then found two real things — the viewer name and the Ask scope name
+ellipsised without a title — and the journey check a third: the Project tab row was unclickable
+by mouse on every Project page since `32ea300`, painted under the main column. All three fixed.
+
 **Working practice.** Every new figure is a field of one read model: the matrix, the time in
 stage and the stalled list are computed in `packages/synthetic` and typed in
 `packages/readmodels`, and the pages only print them (ADR-0012). The demonstration CRM covers

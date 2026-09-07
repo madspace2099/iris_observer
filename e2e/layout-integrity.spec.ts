@@ -141,21 +141,24 @@ test.describe("every metric stays reachable", () => {
       await signInAs(page, "Petra Novák");
       await page.goto("/alpha/northgate/units");
 
-      const row = page.locator(".iris-matrix-row").first();
+      const row = page.locator(".ox-table tbody tr").first();
       await expect(row).toBeVisible();
 
       /*
-       * Six cells, always.
+       * Every column, always.
        *
-       * The narrow layout used to drop Shortlisted and Trend with an
-       * `nth-child(n + 5) { display: none }`, taking two measurements away from
-       * the reader most likely to be on a laptop and offering no way back to
-       * them.
+       * The register is a real table now (`DataTable`), and the rule it
+       * replaced a matrix to keep is the same: a narrow width may stack the
+       * cells or scroll the table inside its own wrapper, but it never drops
+       * a measurement. Nothing in the row may be `display: none`, and the
+       * header's column count is the row's.
        */
+      const header = await page.locator(".ox-table thead th").count();
       const cells = await row.evaluate((el) =>
         Array.from(el.children).filter((c) => getComputedStyle(c).display !== "none").length,
       );
-      expect(cells, `only ${cells} cells visible at ${vp.name}`).toBe(6);
+      expect(header).toBeGreaterThanOrEqual(6);
+      expect(cells, `only ${cells} of ${header} cells visible at ${vp.name}`).toBe(header);
     });
   }
 
@@ -164,26 +167,35 @@ test.describe("every metric stays reachable", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
     // A stack of bare numbers is unreadable without the header it lost.
-    for (const label of ["Meetings", "Typical look", "Shortlisted", "Trend"]) {
-      await expect(page.locator(`.iris-matrix-row [data-label="${label}"]`).first()).toBeAttached();
+    for (const label of ["Meetings", "Views", "Shortlisted", "Unit"]) {
+      await expect(page.locator(`.ox-table tbody td[data-label="${label}"]`).first()).toBeAttached();
     }
   });
 });
 
-test.describe("the Observer rail covers nothing", () => {
-  for (const surface of ["project", "agents", "presentation", "units", "storytelling", "meetings"]) {
+test.describe("the Ask dock covers nothing", () => {
+  /*
+   * The Observer rail became the docked Ask IRIS composer (`.ask-dock`,
+   * ADR-0033), fixed at the bottom of every project page but Ask IRIS
+   * itself. The claim is the one the rail had: at the true end of the page
+   * it covers no text. `storytelling` is a redirect to `features` and is
+   * checked under that name; the report joined the list tonight.
+   */
+  for (const surface of ["project", "agents", "presentation", "units", "features", "meetings", "flow", "report"]) {
     test(`clears the content on ${surface}`, async ({ page }) => {
       await signInAs(page, "Petra Novák");
-      await page.goto(`/alpha/northgate/${surface}`);
+      await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(250);
 
       const overlaps = await page.evaluate(() => {
-        const rail = document.querySelector(".obs-rail");
+        const rail = document.querySelector(".ask-dock");
         if (rail === null) return 0;
         const r = rail.getBoundingClientRect();
         let hits = 0;
-        for (const el of Array.from(document.querySelectorAll<HTMLElement>(".iris-plane *, .iris-doors *"))) {
+        for (const el of Array.from(
+          document.querySelectorAll<HTMLElement>(".iris-plane *, .iris-doors *, .ox-plane *"),
+        )) {
           if (el.children.length > 0) continue;
           if ((el.textContent ?? "").trim().length === 0) continue;
           const b = el.getBoundingClientRect();
@@ -198,82 +210,10 @@ test.describe("the Observer rail covers nothing", () => {
   }
 });
 
-test.describe("Observer holds still while it answers", () => {
-  /*
-   * Waits for an answer, and refuses to accept anything else.
-   *
-   * Both tests below used to fill the box, wait six seconds and measure. On a
-   * deployment where every question was being refused, nothing rendered, the
-   * orb sat perfectly still, and they passed — proving that a thing which never
-   * happened did not move the layout.
-   *
-   * `.obs-answer-role` carrying "Observer's reading" exists only on a rendered
-   * answer. A refusal renders one sentence and an "Ask again" control, and has
-   * no such label, so waiting for it is waiting for the real thing.
-   */
-  async function askAndAwaitAnswer(page: Page, question: string) {
-    /*
-     * The default 30s test timeout fires before the wait below can, which
-     * turns a genuinely slow first answer — a cold lambda plus a reasoning
-     * model — into a failure that looks like a layout defect. The budget has
-     * to cover the answer, not just the measuring.
-     */
-    test.setTimeout(150_000);
-    await page.getByPlaceholder(/^Ask Observer about/).fill(question);
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-
-    const reading = page.locator(".obs-answer-role", { hasText: /Observer.s reading/ }).first();
-    // A cold lambda plus a reasoning model is not quick, and the point of this
-    // test is what happens once the answer is actually there.
-    await expect(reading, "no answer rendered — the layout assertion would be vacuous").toBeVisible({
-      timeout: 90_000,
-    });
-    // Let the expansion settle before measuring where things ended up.
-    await page.waitForTimeout(400);
-  }
-
-  test("the orb does not move when an answer arrives", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    await page.waitForTimeout(700);
-
-    const orb = page.locator(".obs-console-orb");
-    const before = await orb.boundingBox();
-    expect(before, "the orb was not on the page to begin with").not.toBeNull();
-
-    await askAndAwaitAnswer(page, "What changed this month?");
-
-    const after = await orb.boundingBox();
-    const moved = Math.abs((after?.y ?? 0) - (before?.y ?? 0));
-
-    /*
-     * A few pixels, not half a screen.
-     *
-     * The console centred its two columns, so expanding the answer re-centred
-     * the grid and slid the orb down the page — a presence that lurches when it
-     * starts speaking does not read as one.
-     */
-    expect(
-      moved,
-      `the orb moved ${moved}px: y ${Math.round(before?.y ?? 0)} before, ${Math.round(after?.y ?? 0)} after a rendered answer`,
-    ).toBeLessThanOrEqual(4);
-  });
-
-  test("the prompt does not move either", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    await page.waitForTimeout(700);
-
-    const prompt = page.locator(".obs-prompt");
-    const before = await prompt.boundingBox();
-    expect(before, "the prompt was not on the page to begin with").not.toBeNull();
-
-    await askAndAwaitAnswer(page, "Compare the sales agents");
-
-    const after = await prompt.boundingBox();
-    const moved = Math.abs((after?.y ?? 0) - (before?.y ?? 0));
-
-    expect(
-      moved,
-      `the prompt moved ${moved}px: y ${Math.round(before?.y ?? 0)} before, ${Math.round(after?.y ?? 0)} after a rendered answer`,
-    ).toBeLessThanOrEqual(4);
-  });
-});
+/*
+ * "Observer holds still while it answers" measured the briefing's orb and
+ * prompt (`.obs-console-orb`, `.obs-prompt`). ADR-0033 made Ask IRIS the
+ * landing surface and the briefing a link on it; that composition and its
+ * class names are gone, so the two tests could only wait out their budget.
+ * The answer sheet's own layout is exercised by `ask-iris-compare.spec.ts`.
+ */

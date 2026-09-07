@@ -59,24 +59,40 @@ test.describe("a sales agent sees the team on their own project", () => {
 
   test("still gets their own patterns", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
-    const nav = page.getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link", { name: "Briefing" })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Detail surfaces" })).toBeVisible();
+    /*
+     * The four sections of the approved navigation (ADR-0033: Ask IRIS is
+     * the landing surface; the briefing is a link on it, not a nav item),
+     * and her own presentation patterns behind Sales Agents.
+     */
+    const nav = page.getByRole("navigation", { name: "Sections" }).first();
+    for (const name of ["ASK IRIS", "Sales Flow", "Project", "Sales Agents"]) {
+      await expect(nav.getByRole("link", { name })).toBeVisible();
+    }
+    await nav.getByRole("link", { name: "Sales Agents" }).click();
+    await page.waitForURL(/\/agents/);
+    await expect(page.getByText("Monika Kováčová").first()).toBeVisible();
   });
 });
 
 test.describe("an agency manager can reach both developers", () => {
   test("is offered a developer switch", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
-    // The grant existed and the navigation did not; the only route was a URL.
+    /*
+     * The context band with the developer switch is drawn on the analytical
+     * surfaces; Ask IRIS, the landing, carries its own scope control instead.
+     * The grant existed and the navigation did not; the only route was a URL.
+     */
+    await page.goto("/alpha/northgate/flow");
     await expect(page.getByRole("combobox", { name: "Developer" })).toBeVisible();
   });
 
   test("switching developer opens that developer's project", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
+    await page.goto("/alpha/northgate/flow");
     await page.getByRole("combobox", { name: "Developer" }).selectOption("beta");
     await page.waitForURL(/\/beta\//);
-    await expect(page.locator(".obs-lede")).toContainText(/presentation/i);
+    await expect(page.getByRole("combobox", { name: "Project" })).toContainText(/Kingsford/);
+    await expect(page.locator("h1").first()).toContainText(/meeting|presentation|record/i);
   });
 
   test("never sees the two developers aggregated", async ({ page }) => {
@@ -152,11 +168,12 @@ test.describe("projects do not share figures", () => {
   test("two projects under one developer read differently", async ({ page }) => {
     await signInAs(page, "Petra Novák");
 
-    await page.goto("/alpha/northgate/showroom?period=last_28_days");
-    const northgate = await page.locator(".obs-lede").innerText();
+    /* The verdict on Sales Flow is each project's own sentence. */
+    await page.goto("/alpha/northgate/flow?period=last_28_days");
+    const northgate = await page.locator("h1").first().innerText();
 
-    await page.goto("/alpha/riverside/showroom?period=last_28_days");
-    const riverside = await page.locator(".obs-lede").innerText();
+    await page.goto("/alpha/riverside/flow?period=last_28_days");
+    const riverside = await page.locator("h1").first().innerText();
 
     expect(northgate).not.toBe(riverside);
   });
