@@ -23,11 +23,11 @@ whatever it points at. Update this file at the end of every meaningful session.
 | **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user                                                                                                                                                                                                                                                                                                                                                       |
-| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| M3 Remaining intelligence surfaces           | 🟡 **frontend review-ready 2026-09-07 night** — time in stage and the stalled list on the ladder, the attention × conversion matrix, the competition bars, the policy-version guard; contacts/unified timeline and intent distribution are not built (see the overnight section)                                                                                                                                                                                                                               |
 | M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                                                                                                                                                                                                                                                                                                                                  |
 | M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                                                                                                                                                                                                                                                                                                   |
 | M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                                                                                                                                                                                                                                                                                                                                                                      |
+| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`), **directory** (tenants, agencies, people from the demonstration directory, `c85f469`); no tenant/user/agency tables, no branding, no flags; no tenants, users, agencies, branding, flags                                                                                                                                                                                                                          |
 | **M10 CRM connectors**                       | 🟡 **READY FOR PREVIEW ACCEPTANCE** (`4d6fcfb`, ADR-0036) — every adapter built, the REALPAD deals adapter included (`644a79b`); the whole path accepted on the local control plane by `e2e/m10-acceptance.spec.ts` (8 of 8, target `local-pglite`); the two migrations executed on the whole chain (`e580f64`); **nothing on the Preview**: three secrets, two migrations and a push are the operator's, then the same suite with `OBSERVER_ACCEPTANCE_TARGET=preview`. The matrix is at the end of this file |
 
 ## Cloud resources — do not ask for these again
@@ -261,10 +261,15 @@ The order follows the dependency chain, not the milestone numbers.
    the local control plane: with the spreadsheet enabled, `/alpha/ister-tower/flow` drew Lead 4,
    Meeting 4, Negotiation 3, Offer 3, Reservation 1, Purchase 0 of 4 deals with the note; with
    it disabled, the sentence and no rung.
-4. **M3's remaining surfaces**, from the 2026-09-07 inventory: mount `FlowLadder` (written, unused);
-   time in stage; stalled opportunities; the attention-versus-conversion matrix; contacts and the
-   unified timeline (`/people` redirects today); intent distribution; the policy-version guard
-   `docs/10-policies.md` §30 specifies and nothing implements.
+4. ✅ **M3's frontend, mostly done on the night of 2026-09-07** (see the overnight section):
+   `FlowLadder` mounted with time in stage and the stalled list; the attention × conversion
+   matrix on Project; the competition bars on a unit; the policy-version guard on every
+   comparison; the internal report and the meeting summary as pages (M4's frontend). Still not
+   built, and why: contacts and the unified timeline (identity stays on the meeting surface by
+   construction — `VisitorLabel` carries no contact, `docs/05-identity.md` §5 lists the drill-down
+   as not built, and the timeline needs CRM and WEBIRIS joins from M6/M7); intent distribution (no
+   derivation of `IntentLevel` exists in the contracts or the synthetic world, and inventing one
+   would be a lead-temperature score ADR-0021 forbids on the ladder).
 5. **M4, M5, M8** in that order: a report generator behind the orphaned `ExportReport`; a scenario
    registry that replays facts through the ingest API (ADR-0007 is breached by the seeded
    generator); the per-source event vocabularies that `EventRegistry` is waiting for.
@@ -739,3 +744,37 @@ then supplies the header ids for its deal columns.
 table listing and migration listing for `tfcchobwobpadenampyh` were refused or timed out from this
 session; Vercel's project metadata was readable and carries no environment-variable names; the
 Preview's runtime logs were not readable. None of that was worked around.
+
+---
+
+## The overnight frontend completion — night of 2026-09-07 to 2026-09-08
+
+**Mandate:** complete the reviewable frontend of M3–M10 by 07:00, page by page, without a redesign
+and without new backend. **Start** `c365fdf` at 20:32; the review package and the ledger are in the
+session scratchpad (`overnight/review/index.html`). Frontend readiness is not milestone
+acceptance: every row below is a screen a reader can open and judge, and the roadmap's backend,
+security and deployment gates still govern the milestones.
+
+| Milestone | Frontend delivered tonight                                                                                                                                                                                                                                                                                                                           | Still open, and why                                                                                                                                                          |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M3        | Sales Flow: time in stage on every rung and the stalled list, a demonstration CRM standing in for Northgate (`f3772fd`); Project: the attention × conversion matrix (`34533f3`); Unit: competition as bars (`078f5a3`); the policy-version guard on Sales Flow, Presentation DNA and the report (`341ce54`); Riverside's funnel no longer prints NaN | Contacts and the unified timeline; intent distribution — both by doctrine or missing contract, not by time (next action 4)                                                   |
+| M4        | `/report`: the internal sales-intelligence report as a page, printed through the browser; the export dialog's "Shareable page" opens it (`e9efa13`); `/report?meeting=<id>`: the meeting summary, the export dialog on the replay (`b4c209b`)                                                                                                        | The server-side vector PDF generator; the buyer-facing sanitised document (a separate contract, ADR-0018)                                                                    |
+| M5        | Nothing new; the states the existing projects force (no CRM, young, healthy with a demonstration CRM) are in the review package                                                                                                                                                                                                                      | The scenario registry and ingest batches (backend); the scenarios not yet represented                                                                                        |
+| M6–M8     | No frontend deliverable (schema, ingestion, catalogues); ingestion health is read on Diagnostics                                                                                                                                                                                                                                                     | Backend                                                                                                                                                                      |
+| M9        | `/madspace/directory`: tenants, agencies and people from the demonstration directory, stated as such (`c85f469`); a route-level loading state for the operations surface                                                                                                                                                                             | Tenant, user and agency tables; creating, inviting, suspending; branding and feature flags (no documented field list or contract — a product decision, not a screen to draw) |
+| M10       | The Integrations audit's remaining findings closed: validation in an operator's words, the Lomnio webhook address on the plane, the choice row's cursor, focus after a forget (`2055df7`)                                                                                                                                                            | Preview acceptance (secrets, migrations, push — the operator's); the REALPAD header ids from one real export                                                                 |
+
+**How each page was verified.** Signed in through the real form as the account the page is for,
+captured at 1440 × 900 and 390 × 844, axe (WCAG 2.x A/AA) clean, no console or page error, no
+horizontal overflow, no "null", "NaN" or "undefined" in the visible text, and the workflow driven
+through the real controls: the export dialog opens on Enter, focuses Close, offers the page as a
+real link and returns focus on Escape; the refused REALPAD save says "a number is needed here"
+under its field; the meeting summary refuses the developer. Twenty-six pages are in the review
+package with those checks recorded per page.
+
+**Working practice.** Every new figure is a field of one read model: the matrix, the time in
+stage and the stalled list are computed in `packages/synthetic` and typed in
+`packages/readmodels`, and the pages only print them (ADR-0012). The demonstration CRM covers
+one scenario by slug (`DEMONSTRATION_CRM_SLUGS`) so the ISTER TOWER twin keeps its connector's
+ladder or nobody's. A React key is never a 64-hex digest: the stage-change rows are keyed by what
+they show.
