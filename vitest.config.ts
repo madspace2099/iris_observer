@@ -133,6 +133,22 @@ export default defineConfig({
      * What the low-water column does say is that the margin is thin: the full
      * suite touched 0.15GB free. That is a reason to re-measure when the next
      * database suites land, not a reason to change a measured number now.
+     *
+     * ## RE-MEASURED at 112 files on 2026-09-07: the parent was never the cause
+     *
+     * Two complete runs at this setting exited 1 with `Timeout calling
+     * "onTaskUpdate"` beside 3249 passed tests, while a sampler showed free
+     * memory never below 1.2GB and node never above 2.8GB. The error then
+     * reproduced with ONE file, ONE worker and nothing else running: a
+     * 65-second `Atomics.wait` in a `beforeAll`, and again in a test body.
+     * The deadline is birpc's sixty seconds, kept on the worker's side. The
+     * parent answers at once; a worker blocked in synchronous work cannot
+     * read the answer, and when it resumes Node runs the expired timer before
+     * the I/O that carries the reply. So the rule this bound never expressed:
+     * NO SYNCHRONOUS STRETCH IN A WORKER MAY APPROACH SIXTY SECONDS. The one
+     * that did — two `build()` calls back to back in
+     * `package-generation.test.ts` — now lets the loop turn between them. The
+     * worker count stays, because it was not what this was about.
      */
     maxWorkers: 4,
     minWorkers: 4,

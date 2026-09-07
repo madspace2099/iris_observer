@@ -89,12 +89,28 @@ describe("package generation", () => {
    */
   let owned!: TestPackageOperation;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     owned = openPackageOperation(scratch, fullHead);
     first = build(join(scratch, "a"), {
       gateRecordRoot: owned.root,
       operation: owned.operation,
     });
+    /*
+     * LET THE EVENT LOOP TURN BETWEEN THE TWO BUILDS.
+     *
+     * `build()` is synchronous, and two back to back held this worker's event
+     * loop for longer than the sixty seconds Vitest's worker-to-parent RPC
+     * allows. The parent answers the in-flight `onTaskUpdate` at once, but a
+     * blocked worker cannot read the answer, and when it resumes Node runs the
+     * expired timer before the I/O that carries the reply — so the whole run
+     * ended with `Timeout calling "onTaskUpdate"`, one unhandled error and
+     * exit 1 beside 3249 passed tests. Reproduced on 2026-09-07 with a single
+     * file, a single worker and a 65-second `Atomics.wait` in a hook, nothing
+     * else running. The pause lets the reply land and the next update leave
+     * before the second build; each build alone (about 32 seconds under the
+     * four-worker suite) is well inside the deadline.
+     */
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
     second = build(join(scratch, "b"), {
       gateRecordRoot: owned.root,
       operation: owned.operation,
