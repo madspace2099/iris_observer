@@ -82,9 +82,11 @@ Observer's contact model and should not contradict it.
 
 ## Integrations to verify
 
-| System                        | Question                                                             | Blocks                                           |
-| ----------------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
-| REALPAD                       | Is there a usable API, and on what terms?                            | CRM connector, pipeline stages below Shortlisted |
-| WEBIRIS                       | Is there a stable visitor identifier, and with what cookie lifetime? | deterministic same-device back-linking           |
-| Booking flow                  | Does it live in WEBIRIS, in the CRM, or both?                        | which system mints `meeting_id`                  |
-| Interior walkthrough platform | Can it post a session summary back?                                  | interior dwell inside deep-dive metrics          |
+| System                        | Question                                                                                                                                                          | Blocks                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| REALPAD                       | **Verified 2026-09-07 — ADR-0036.** `dev.realpadsoftware.com`: v10 form-encoded web service, XML catalogue hourly, Excel-only deals, no push yet.                 | CRM connector — shape settled; `flat_type` table and Lifecycle values still to request |
+| Lomnio                        | **Verified 2026-09-07 — ADR-0036.** `app.lomnio.com/docs/api`: OpenAPI 3.1, project-scoped bearer token, JSON units with `room_count`, HMAC-signed webhooks.      | CRM connector                                                                          |
+| Monday                        | **Verified 2026-09-07 — ADR-0036.** `developer.monday.com`: GraphQL, personal/app token, `items_page`, board webhooks. Unit columns are per-client configuration. | CRM connector — needs the column-mapping screen                                        |
+| WEBIRIS                       | Is there a stable visitor identifier, and with what cookie lifetime?                                                                                              | deterministic same-device back-linking                                                 |
+| Booking flow                  | Does it live in WEBIRIS, in the CRM, or both?                                                                                                                     | which system mints `meeting_id`                                                        |
+| Interior walkthrough platform | Can it post a session summary back?                                                                                                                               | interior dwell inside deep-dive metrics                                                |

@@ -1,0 +1,21 @@
+{
+  "name": "@observer/connectors",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM and catalogue connectors: credentialed pull adapters that deliver one canonical unit catalogue (ADR-0036).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observer/contracts": "workspace:*",
+    "fast-xml-parser": "^5.2.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

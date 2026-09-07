@@ -1,0 +1,270 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Kicker } from "@observer/ui";
+
+import { requireViewer } from "@/lib/session";
+import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { liveConnectorService } from "@/lib/connectors/live";
+import { CREDENTIAL_WORDS } from "@/lib/connectors/configs";
+import type { ConnectorSummary } from "@/lib/connectors/service";
+import { ageSince, instant } from "@/lib/madspace/format";
+import { ConnectorForm } from "@/components/madspace/ConnectorForm";
+import { ConnectorSync } from "@/components/madspace/ConnectorSync";
+import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
+import { CsvUpload } from "@/components/madspace/CsvUpload";
+import { InfoNote } from "@/components/madspace/InfoNote";
+import { StatusChip, type MarkTone } from "@/components/madspace/StatusMark";
+
+export const metadata: Metadata = { title: "Integrations" };
+
+/**
+ * Integrations — the CRM behind one project, and the catalogue it delivers.
+ *
+ * Four connectors, one enabled at a time in practice: REALPAD, Lomnio, Monday
+ * and a spreadsheet. Each plane leads with its state — connected, credential
+ * held, last sync and its verdict — before the form that changes it, per
+ * principle 02. Nothing here shows a credential, a config secret or a CRM
+ * response body; a refusal is a category and a sentence.
+ */
+export default async function IntegrationsPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  const viewer = await requireViewer();
+  if (viewer.role !== "madspace_admin") redirect("/");
+
+  const { projectId } = await params;
+  const plane = await controlPlane();
+  const projects = plane.ok
+    ? await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT })
+    : null;
+  const project =
+    projects?.ok === true
+      ? (projects.value.find((row) => row.project_id === projectId) ?? null)
+      : null;
+
+  const service = plane.ok ? await liveConnectorService() : null;
+  const connectors = service === null ? null : await service.list(projectId);
+  const changes = service === null ? [] : await service.recentChanges(projectId, 20);
+  const now = new Date();
+
+  const active = connectors?.filter((c) => c.enabled) ?? [];
+  const lede =
+    connectors === null
+      ? "The control plane could not be read."
+      : active.length === 0
+        ? "No CRM is connected. The catalogue on this project is the synthetic one until a connector is enabled and synced."
+        : `${active.map((c) => c.name).join(", ")} enabled.`;
+
+  return (
+    <>
+      <header className="mad-head">
+        <div className="mad-head-text">
+          <Kicker>Integrations</Kicker>
+          <h1 className="mad-title">{project?.name ?? "Unknown project"}</h1>
+          <p className="mad-lede">
+            {lede}
+            <InfoNote label="how a CRM connection works" align="start">
+              <p>
+                Every client hands over one credential for their CRM. Observer pulls the whole unit
+                catalogue on a schedule, keeps the current snapshot, and records every addition,
+                change and withdrawal it finds between two pulls. A CRM that can push changes only
+                brings the next pull forward.
+              </p>
+              <p>
+                Status words are the client&rsquo;s own vocabulary and are mapped by a person here
+                before a connector is switched on. A word the mapping does not cover is recorded as
+                unknown, never guessed.
+              </p>
+            </InfoNote>
+          </p>
+        </div>
+      </header>
+
+      {!plane.ok ? (
+        <ControlPlaneAbsent absence={plane.absence} />
+      ) : connectors === null ? (
+        <p className="mad-form-problem" role="alert">
+          The catalogue store is unavailable on this server.
+        </p>
+      ) : (
+        connectors.map((connector) => (
+          <ConnectorPlane
+            key={connector.kind}
+            projectId={projectId}
+            connector={connector}
+            now={now}
+          />
+        ))
+      )}
+
+      <section className="mad-plane" aria-labelledby="changes-heading">
+        <div className="obs-section-head">
+          <h2 id="changes-heading">Recent catalogue changes</h2>
+        </div>
+        {changes.length === 0 ? (
+          <p className="mad-empty">
+            No changes recorded yet. The first sync records every unit as added.
+          </p>
+        ) : (
+          <div className="mad-table-wrap">
+            <table className="mad-table">
+              <thead>
+                <tr>
+                  <th scope="col">Unit</th>
+                  <th scope="col">Change</th>
+                  <th scope="col">Fields</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Recorded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {changes.map((change, index) => (
+                  <tr key={`${change.recorded_at}-${change.code}-${String(index)}`}>
+                    <td className="mad-td-source">
+                      <span className="mad-code">{change.code}</span>
+                    </td>
+                    <td>
+                      <StatusChip tone={changeTone(change.kind)}>
+                        {changeWord(change.kind)}
+                      </StatusChip>
+                    </td>
+                    <td className="mad-td-sub">
+                      {Array.isArray(change.changed_fields) && change.changed_fields.length > 0
+                        ? change.changed_fields.map(String).join(", ")
+                        : "—"}
+                    </td>
+                    <td>{change.connector}</td>
+                    <td className="mad-td-figure">{instant(change.recorded_at).text}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+function changeWord(kind: string): string {
+  if (kind === "added") return "Added";
+  if (kind === "withdrawn") return "Withdrawn";
+  return "Changed";
+}
+
+function changeTone(kind: string): MarkTone {
+  if (kind === "added") return "good";
+  if (kind === "withdrawn") return "settled";
+  return "operator";
+}
+
+function syncTone(outcome: string): MarkTone {
+  if (outcome === "ok") return "good";
+  if (outcome === "rate_limited") return "await";
+  return "wrong";
+}
+
+function syncWord(outcome: string): string {
+  switch (outcome) {
+    case "ok":
+      return "Synced";
+    case "unauthorised":
+      return "Credential refused";
+    case "rate_limited":
+      return "Rate limited";
+    case "unavailable":
+      return "Source unavailable";
+    case "malformed":
+      return "Unreadable answer";
+    case "misconfigured":
+      return "Settings refused";
+    default:
+      return outcome;
+  }
+}
+
+function ConnectorPlane({
+  projectId,
+  connector,
+  now,
+}: {
+  readonly projectId: string;
+  readonly connector: ConnectorSummary;
+  readonly now: Date;
+}) {
+  const state: { word: string; tone: MarkTone } = !connector.configured
+    ? { word: "Not connected", tone: "none" }
+    : !connector.enabled
+      ? { word: "Disabled", tone: "operator" }
+      : connector.kind !== "csv" && !connector.hasCredential
+        ? { word: "No credential", tone: "await" }
+        : { word: "Enabled", tone: "good" };
+  const last = connector.lastSync;
+  const lastAge = last === null ? null : ageSince(last.at, now);
+
+  return (
+    <section className="mad-plane" aria-labelledby={`${connector.kind}-heading`}>
+      <div className="obs-section-head">
+        <h2 id={`${connector.kind}-heading`}>{connector.name}</h2>
+        <StatusChip tone={state.tone}>{state.word}</StatusChip>
+      </div>
+
+      <dl className="mad-meta">
+        <div className="mad-meta-item">
+          <dt className="mad-meta-label">Credential</dt>
+          <dd
+            className="mad-meta-value"
+            data-missing={connector.hasCredential ? undefined : "true"}
+          >
+            {connector.kind === "csv"
+              ? "None needed"
+              : connector.hasCredential
+                ? `Stored · ends ${connector.credentialTail ?? "····"}`
+                : `Not stored — ${CREDENTIAL_WORDS[connector.kind]}`}
+          </dd>
+        </div>
+        <div className="mad-meta-item">
+          <dt className="mad-meta-label">Last sync</dt>
+          <dd className="mad-meta-value" data-missing={last === null ? "true" : undefined}>
+            {last === null ? (
+              "Never"
+            ) : (
+              <>
+                <StatusChip tone={syncTone(last.outcome)}>{syncWord(last.outcome)}</StatusChip>{" "}
+                {lastAge === null ? instant(last.at).text : lastAge}
+                {last.outcome === "ok" && last.fetched !== null
+                  ? ` · ${String(last.fetched)} units`
+                  : ""}
+                {last.outcome !== "ok" && last.detail.length > 0 ? ` · ${last.detail}` : ""}
+              </>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      <ConnectorSync
+        projectId={projectId}
+        kind={connector.kind}
+        name={connector.name}
+        canSync={connector.configured && connector.kind !== "csv" && connector.hasCredential}
+        hasCredential={connector.hasCredential}
+      />
+
+      <ConnectorForm
+        projectId={projectId}
+        kind={connector.kind}
+        name={connector.name}
+        configured={connector.configured}
+        enabled={connector.enabled}
+        config={connector.config}
+        hasCredential={connector.hasCredential}
+      />
+
+      {connector.kind === "csv" && connector.configured ? (
+        <CsvUpload projectId={projectId} />
+      ) : null}
+    </section>
+  );
+}

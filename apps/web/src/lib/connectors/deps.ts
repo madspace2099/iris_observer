@@ -1,0 +1,28 @@
+import "server-only";
+
+import { postgrestCatalogueDb, sqlCatalogueDb, type CatalogueDb } from "@observer/connectors";
+
+import { resolveServerSupabase } from "@/lib/supabase-env";
+import { localControlPlaneQuery } from "@/lib/sources/local-db";
+
+/**
+ * The catalogue port a deployment is given — the same two sources, in the same
+ * strict order, as `sources/deps.ts`: the hosted database first, and only then
+ * the DEV-ONLY local PGlite, so a configured deployment can never be shadowed
+ * by a stray environment variable.
+ *
+ * Resolved per call rather than at module load, for the reason that file
+ * gives: a variable added after a serverless instance evaluated its modules
+ * is invisible until the instance is recycled.
+ */
+
+const platformFetch = (input: string, init?: RequestInit): Promise<Response> => fetch(input, init);
+
+export async function catalogueDbAsync(): Promise<CatalogueDb | null> {
+  const supabase = resolveServerSupabase();
+  if (supabase !== null) {
+    return postgrestCatalogueDb({ url: supabase.url, key: supabase.key, fetch: platformFetch });
+  }
+  const query = await localControlPlaneQuery();
+  return query === null ? null : sqlCatalogueDb(query);
+}

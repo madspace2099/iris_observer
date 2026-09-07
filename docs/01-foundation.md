@@ -121,12 +121,14 @@ This produces a clean division of responsibility, and it should be stated as a p
 
 1. Observer keeps a **canonical internal model** (`Unit`, `Contact`, `Deal`, `Stage`). Connectors map into it.
    Nothing in the core may reference REALPAD directly.
-2. Connectors: `realpad`, `monday`, `csv/manual`. The manual path must always work — a client without a
-   supported CRM must still be able to use the product, degraded.
+2. Connectors: `realpad`, `monday`, `lomnio`, `csv/manual`. The manual path must always work — a client
+   without a supported CRM must still be able to use the product, degraded. What each exposes and how
+   a connector is shaped is ADR-0036.
 3. **Matching key** between systems: email first, phone second. Both are available (see §5).
-4. **Open risk — must be verified before committing to the design:** does REALPAD expose a usable API, and
-   under what terms? If it does not, the deal-stage data has to be entered by the agent, which pushes the
-   burden back onto the person whose goodwill we depend on. That would change the product.
+4. **Verified 2026-09-07 (ADR-0036):** REALPAD exposes an API. The catalogue is a form-encoded, XML,
+   login-and-password v10 web service fetched hourly; deals and customers are reachable only as Excel
+   exports under a five-minute cooldown; there is no push and no token until their announced REST API
+   ships. Usable, on those terms. The agent-entered fallback this risk described is not needed.
 
 ---
 

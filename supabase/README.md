@@ -58,6 +58,24 @@ granted to `service_role` alone: `admit_ai_request`, `complete_ai_request`, and
 uses it to tell a wrong-key 401 apart from a wrong-project 404; no browser role
 may execute anything in `public`.
 
+## The catalogue and the connectors — executed, not applied
+
+`20260907100000_observer_catalogue_and_connectors.sql` (ADR-0036) adds five
+tables under the ingestion owner (it already owns `projects`, and a table with
+RLS on and no policy shows its rows to its owner alone — a separate owner saw
+the table and none of its rows):
+`connector_configs`, `connector_credentials` (sealed by the application,
+exactly as `account_credentials` is), `catalogue_units` (the current snapshot,
+withdrawn rather than deleted), `catalogue_changes` (append-only, trigger-
+enforced) and `catalogue_syncs` (every attempt, refused ones included). Nine
+`security definer` façades in `public`, every one taking `p_account` first and
+resolving the project through it; `service_role` alone may execute them.
+
+It has been **executed against PGlite on every test run**
+(`supabase/test/catalogue-connectors.test.ts`, which also asserts the grants
+by asking PostgreSQL) and **applied to no hosted project**. Add it to the
+`migration repair` list above when it is.
+
 ## Expand and contract
 
 The audit change ships as two migrations, and the second must wait.

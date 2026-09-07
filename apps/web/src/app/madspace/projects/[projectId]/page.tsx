@@ -239,6 +239,19 @@ export default async function MadspaceProjectPage({
           )}
         </div>
       </section>
+
+      <section className="mad-plane" aria-labelledby="integrations-heading">
+        <div className="obs-section-head">
+          <h2 id="integrations-heading">CRM and catalogue</h2>
+          <ActionLink href={`/madspace/projects/${projectId}/integrations`} emphasis="secondary">
+            Integrations
+          </ActionLink>
+        </div>
+        <p className="mad-lede">
+          The CRM this project&rsquo;s unit catalogue is pulled from, its credential, and the
+          changes each sync found.
+        </p>
+      </section>
     </>
   );
 }

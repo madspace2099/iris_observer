@@ -171,13 +171,25 @@ export function observerLocalDirectory(): string {
  */
 const CONNECTION = Symbol.for("observer.local-control-plane.connection");
 
+/**
+ * The port and the raw query it was built from, together.
+ *
+ * The catalogue connectors have their own port over the same façade style
+ * (`@observer/connectors`), and it is built from the same query function —
+ * one PGlite, two ports, never two databases on one directory.
+ */
+interface LocalConnection {
+  readonly db: ObserverDb;
+  readonly query: SqlQuery;
+}
+
 interface ConnectionHolder {
-  [CONNECTION]?: Promise<ObserverDb> | undefined;
+  [CONNECTION]?: Promise<LocalConnection> | undefined;
 }
 
 const holder = globalThis as unknown as ConnectionHolder;
 
-async function connect(): Promise<ObserverDb> {
+async function connect(): Promise<LocalConnection> {
   /*
    * Dynamic, and this is the line that keeps the WASM out of a production
    * build. A static import would be resolved and bundled whatever the guards
@@ -215,7 +227,7 @@ async function connect(): Promise<ObserverDb> {
     return { rows: result.rows as unknown[] };
   };
 
-  return pgliteDb(query);
+  return { db: pgliteDb(query), query };
 }
 
 /**
@@ -226,6 +238,17 @@ async function connect(): Promise<ObserverDb> {
  * retryable by reloading the page rather than by restarting the server.
  */
 export async function localControlPlaneDb(): Promise<ObserverDb | null> {
+  const connection = await localConnection();
+  return connection === null ? null : connection.db;
+}
+
+/** The same connection's raw query, for the catalogue port. Null under the same gates. */
+export async function localControlPlaneQuery(): Promise<SqlQuery | null> {
+  const connection = await localConnection();
+  return connection === null ? null : connection.query;
+}
+
+async function localConnection(): Promise<LocalConnection | null> {
   if (!localControlPlaneEnabled()) return null;
 
   const existing = holder[CONNECTION];

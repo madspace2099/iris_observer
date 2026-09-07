@@ -22,3 +22,4 @@ export * from "./brief";
 export * from "./intent";
 export * from "./observation";
 export * from "./observer-answer";
+export * from "./catalogue";
