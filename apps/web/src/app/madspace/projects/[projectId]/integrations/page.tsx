@@ -263,8 +263,8 @@ function stageMove(change: {
   return `${word(change.from_stage, change.from_raw)} to ${word(change.to_stage, change.to_raw)}`;
 }
 
-/** Which CRMs this product can pull deals from. REALPAD's arrive only as Excel. */
-const DEALS_PULLED: readonly string[] = ["lomnio", "monday"];
+/** Which CRMs this product can pull deals from. REALPAD's arrive as an Excel export, read the same way. */
+const DEALS_PULLED: readonly string[] = ["lomnio", "monday", "realpad"];
 
 function syncTone(outcome: string): MarkTone {
   if (outcome === "ok") return "good";
@@ -320,10 +320,10 @@ function ConnectorPlane({
   readonly now: Date;
 }) {
   const dealsConfigured =
-    connector.kind === "csv" || connector.kind === "monday"
-      ? typeof connector.config["dealColumns"] === "object" &&
-        connector.config["dealColumns"] !== null
-      : connector.kind === "lomnio";
+    connector.kind === "lomnio"
+      ? true
+      : typeof connector.config["dealColumns"] === "object" &&
+        connector.config["dealColumns"] !== null;
   const dealsAge = deals === null ? null : ageSince(deals.at, now);
   const state: { word: string; tone: MarkTone } = !connector.configured
     ? { word: "Not connected", tone: "none" }
@@ -379,11 +379,11 @@ function ConnectorPlane({
             className="mad-meta-value"
             data-missing={deals === null || deals.outcome !== "ok" ? "true" : undefined}
           >
-            {connector.kind === "realpad" ? (
-              "Excel export only. Not read yet."
-            ) : !dealsConfigured ? (
+            {!dealsConfigured ? (
               connector.kind === "csv" ? (
                 "No deals sheet named."
+              ) : connector.kind === "realpad" ? (
+                "No export columns named."
               ) : (
                 "No deals board named."
               )

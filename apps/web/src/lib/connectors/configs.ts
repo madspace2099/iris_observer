@@ -59,17 +59,28 @@ const ColumnMappingSchema = z.strictObject({
 const StageMapSchema = z.record(z.string().min(1).max(200), DealStageSchema).default({});
 
 /** Which column holds what in a deals board or a deals sheet. Id and stage are the minimum. */
-const DealColumnsSchema = z
-  .strictObject({
-    externalId: z.string().trim().min(1).max(64),
-    stage: z.string().trim().min(1).max(64),
-    unitCode: z.string().trim().min(1).max(64).optional(),
-    email: z.string().trim().min(1).max(64).optional(),
-    phone: z.string().trim().min(1).max(64).optional(),
-    stageEnteredAt: z.string().trim().min(1).max(64).optional(),
-    openedAt: z.string().trim().min(1).max(64).optional(),
-    updatedAt: z.string().trim().min(1).max(64).optional(),
-  })
+const DealColumnFields = z.strictObject({
+  externalId: z.string().trim().min(1).max(64),
+  stage: z.string().trim().min(1).max(64),
+  unitCode: z.string().trim().min(1).max(64).optional(),
+  email: z.string().trim().min(1).max(64).optional(),
+  phone: z.string().trim().min(1).max(64).optional(),
+  stageEnteredAt: z.string().trim().min(1).max(64).optional(),
+  openedAt: z.string().trim().min(1).max(64).optional(),
+  updatedAt: z.string().trim().min(1).max(64).optional(),
+});
+const DealColumnsSchema = DealColumnFields.nullable().default(null);
+
+/**
+ * REALPAD's business-case export, by its stable header ids (`headermode=ids`),
+ * which the published documents do not list: a person reads them off one
+ * real export and types them here. `stage` is the Lifecycle column, `status`
+ * the Status column whose WON and LOST the adapter maps by REALPAD's own
+ * meaning; the rest are the fields every deals table shares.
+ */
+const RealpadDealColumnsSchema = DealColumnFields.extend({
+  status: z.string().trim().min(1).max(64).optional(),
+})
   .nullable()
   .default(null);
 
@@ -80,6 +91,10 @@ export const RealpadConfigSchema = z.strictObject({
   includeHidden: z.boolean().default(false),
   currency: CurrencySchema.default(null),
   orientationMap: OrientationMapSchema,
+  /** Null until the export's header ids are known; no deal is read before that. */
+  dealColumns: RealpadDealColumnsSchema,
+  /** The tenant's Lifecycle ids. WON and LOST need no line: they are REALPAD's. */
+  stageMap: StageMapSchema,
 });
 
 export const LomnioConfigSchema = z.strictObject({
@@ -133,6 +148,14 @@ export type CsvConfig = z.infer<typeof CsvConfigSchema>;
 export const RealpadCredentialSchema = z.strictObject({
   login: z.string().trim().min(1).max(200),
   password: z.string().min(1).max(500),
+  /**
+   * The Data Takeout pair, when REALPAD issued the deals scope separately
+   * from the pricelist one (ADR-0036: "optionally a second pair"). Absent,
+   * the deals are fetched with the pricelist pair and REALPAD says whether
+   * that pair may.
+   */
+  takeoutLogin: z.string().trim().min(1).max(200).nullable().default(null),
+  takeoutPassword: z.string().min(1).max(500).nullable().default(null),
 });
 export const LomnioCredentialSchema = z.strictObject({
   token: z.string().trim().min(8).max(1000),
@@ -159,7 +182,8 @@ export const CONNECTOR_NAMES: Readonly<Record<ConnectorKind, string>> = {
 
 /** How the credential is described to the person pasting it, per connector. */
 export const CREDENTIAL_WORDS: Readonly<Record<ConnectorKind, string>> = {
-  realpad: "the pricelist login and password REALPAD support issued for this project",
+  realpad:
+    "the pricelist login and password REALPAD support issued for this project, and the Data Takeout pair if deals were issued separately",
   lomnio: "the project's API token from Lomnio",
   monday: "an API token from the monday.com developer settings",
   csv: "nothing — a spreadsheet is uploaded, not connected",
@@ -184,9 +208,9 @@ export function parseMapLines(raw: string): Record<string, string> {
   return out;
 }
 
-/** The inverse, for a form that shows what is stored. */
-export function mapToLines(map: Record<string, unknown> | undefined): string {
-  if (map === undefined) return "";
+/** The inverse, for a form that shows what is stored. A table not yet named is stored as null and shows as nothing. */
+export function mapToLines(map: Record<string, unknown> | null | undefined): string {
+  if (map === undefined || map === null) return "";
   return Object.entries(map)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
     .map(([k, v]) => `${k}=${v}`)

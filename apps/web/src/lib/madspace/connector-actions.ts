@@ -107,6 +107,8 @@ function configFrom(kind: ConnectorKind, form: FormData, maps: Maps): unknown {
         includeHidden: form.get("includeHidden") === "on",
         currency,
         orientationMap,
+        dealColumns,
+        stageMap: maps.stageMap,
       };
     case "lomnio":
       return { statusMap: maps.statusMap, currency, orientationMap, stageMap: maps.stageMap };
@@ -138,7 +140,14 @@ function credentialFrom(kind: ConnectorKind, form: FormData): unknown | null {
     case "realpad": {
       const login = text(form, "login");
       const password = typeof form.get("password") === "string" ? String(form.get("password")) : "";
-      return login.length === 0 && password.length === 0 ? null : { login, password };
+      if (login.length === 0 && password.length === 0) return null;
+      const takeoutLogin = optional(form, "takeoutLogin");
+      const takeoutPassword =
+        typeof form.get("takeoutPassword") === "string" &&
+        String(form.get("takeoutPassword")).length > 0
+          ? String(form.get("takeoutPassword"))
+          : null;
+      return { login, password, takeoutLogin, takeoutPassword };
     }
     case "lomnio": {
       const token = text(form, "token");

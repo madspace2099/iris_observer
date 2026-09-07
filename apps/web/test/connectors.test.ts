@@ -13,6 +13,7 @@ import type {
 
 import { mapToLines, parseMapLines } from "@/lib/connectors/configs";
 import { connectorService, scopeFor } from "@/lib/connectors/service";
+import { workbook } from "../../../packages/connectors/test/support/workbook";
 
 /**
  * The connector service against a fake CRM and an in-memory port.
@@ -162,6 +163,9 @@ describe("mapping lines", () => {
     const lines = "foglalt=reserved\n\nno-equals\n=empty\nszabad = available \n";
     expect(parseMapLines(lines)).toEqual({ foglalt: "reserved", szabad: "available" });
     expect(mapToLines({ a: "b", c: 1 })).toBe("a=b");
+    /* A table not yet named is stored as null; the form shows it as nothing rather than failing to render. */
+    expect(mapToLines(null)).toBe("");
+    expect(mapToLines(undefined)).toBe("");
   });
 });
 
@@ -213,6 +217,8 @@ describe("connectorService", () => {
       includeHidden: false,
       currency: "CZK",
       orientationMap: {},
+      dealColumns: null,
+      stageMap: {},
     });
 
     const synced = await svc.sync(PROJECT, "realpad");
@@ -526,6 +532,145 @@ describe("connectorService, deals", () => {
     ]);
   });
 
+  it("reads REALPAD's business-case export with the Data Takeout pair, once per move", async () => {
+    const deals = memoryDealsDb();
+    const requests: { url: string; body: string; binary: boolean | undefined }[] = [];
+    let rows: string[][] = [
+      ["1001", "1", "12", "A-101"],
+      ["1002", "3", "14", "A-102"],
+    ];
+    const svc = connectorService({
+      db: memoryDb(),
+      deals,
+      account: ACCOUNT,
+      env: { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER },
+      now: () => new Date("2026-09-07T10:00:00Z"),
+      http: async (request) => {
+        requests.push({ url: request.url, body: request.body ?? "", binary: request.binary });
+        if (!request.url.endsWith("/list-excel-business-cases")) {
+          return { status: 404, headers: {}, text: "" };
+        }
+        return {
+          status: 200,
+          headers: {},
+          text: "",
+          bytes: workbook([["deal_id", "status_id", "lifecycle_id", "main_unit_id"], ...rows]),
+        };
+      },
+    });
+    /* Before the header ids are named, the sync answers with a sentence and asks nothing of REALPAD. */
+    await svc.save(
+      PROJECT,
+      "realpad",
+      { developerId: 1, projectId: 3356887, screenId: 2 },
+      {
+        login: "acme-pricelist",
+        password: "p1",
+        takeoutLogin: "acme-takeout",
+        takeoutPassword: "p2",
+      },
+      true,
+    );
+    const unnamed = await svc.syncDeals(PROJECT, "realpad");
+    expect(unnamed.ok).toBe(false);
+    if (!unnamed.ok) expect(unnamed.problem).toMatch(/header ids/);
+    expect(requests).toEqual([]);
+
+    await svc.save(
+      PROJECT,
+      "realpad",
+      {
+        developerId: 1,
+        projectId: 3356887,
+        screenId: 2,
+        dealColumns: {
+          externalId: "deal_id",
+          status: "status_id",
+          stage: "lifecycle_id",
+          unitCode: "main_unit_id",
+        },
+        stageMap: { "12": "meeting", "14": "offer" },
+      },
+      null,
+      true,
+    );
+    const first = await svc.syncDeals(PROJECT, "realpad");
+    expect(
+      first.ok &&
+        first.outcome.ok &&
+        first.outcome.changes.map((c) => [c.externalId, c.kind, c.to, c.toRaw]),
+    ).toEqual([
+      ["1001", "opened", "meeting", "12"],
+      ["1002", "opened", "purchase", "WON"],
+    ]);
+    /* The Data Takeout pair went to REALPAD, as a file request for one project with stable header ids. */
+    const sent = Object.fromEntries(new URLSearchParams(requests[0]?.body ?? ""));
+    expect(sent).toEqual({
+      login: "acme-takeout",
+      password: "p2",
+      projectids: "3356887",
+      headermode: "ids",
+      xlsx: "1",
+    });
+    expect(requests[0]?.binary).toBe(true);
+
+    const again = await svc.syncDeals(PROJECT, "realpad");
+    expect(again.ok && again.outcome.ok && again.outcome.changes).toEqual([]);
+    rows = [["1001", "2", "12", "A-101"]];
+    const moved = await svc.syncDeals(PROJECT, "realpad");
+    expect(
+      moved.ok &&
+        moved.outcome.ok &&
+        moved.outcome.changes.map((c) => [c.externalId, c.kind, c.to]),
+    ).toEqual([
+      ["1001", "stage_changed", "lost"],
+      ["1002", "withdrawn", null],
+    ]);
+    expect(deals.facts.size).toBe(4);
+    expect(deals.syncs.at(-1)).toMatchObject({
+      outcome: "ok",
+      fetched: 1,
+      changed: 1,
+      withdrawn: 1,
+    });
+    /* No credential and no person in what was stored. */
+    const stored = JSON.stringify([
+      ...deals.deals.values(),
+      ...deals.facts.values(),
+      ...deals.syncs,
+    ]);
+    expect(stored).not.toContain("p2");
+    expect(stored).not.toContain("acme-takeout");
+  });
+
+  it("falls back to the pricelist pair when no Data Takeout pair was issued", async () => {
+    const deals = memoryDealsDb();
+    const bodies: string[] = [];
+    const svc = connectorService({
+      db: memoryDb(),
+      deals,
+      account: ACCOUNT,
+      env: { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER },
+      now: () => new Date("2026-09-07T10:00:00Z"),
+      http: async (request) => {
+        bodies.push(request.body ?? "");
+        return { status: 401, headers: {}, text: "bad login acme-pricelist" };
+      },
+    });
+    await svc.save(
+      PROJECT,
+      "realpad",
+      { developerId: 1, projectId: 2, screenId: 3, dealColumns: { externalId: "d", stage: "l" } },
+      { login: "acme-pricelist", password: "p1" },
+      true,
+    );
+    const refused = await svc.syncDeals(PROJECT, "realpad");
+    expect(new URLSearchParams(bodies[0]).get("login")).toBe("acme-pricelist");
+    expect(refused.ok && !refused.outcome.ok && refused.outcome.reason).toBe("unauthorised");
+    expect(deals.syncs.at(-1)).toMatchObject({ outcome: "unauthorised" });
+    expect(JSON.stringify(deals.syncs)).not.toContain("acme-pricelist");
+  });
+
   it("answers with a sentence where the deals store is absent or the CRM offers no pull", async () => {
     const svc = connectorService({
       db: memoryDb(),
@@ -539,15 +684,9 @@ describe("connectorService, deals", () => {
     if (!absent.ok) expect(absent.problem).toMatch(/deals store/);
 
     const withStore = dealsService(memoryDealsDb(), { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER });
-    await withStore.save(
-      PROJECT,
-      "realpad",
-      { developerId: 1, projectId: 2, screenId: 3 },
-      { login: "l", password: "p" },
-      true,
-    );
-    const excel = await withStore.syncDeals(PROJECT, "realpad");
-    expect(excel.ok).toBe(false);
-    if (!excel.ok) expect(excel.problem).toMatch(/Excel/);
+    await withStore.save(PROJECT, "csv", { columns: { code: "Kód" } }, null, true);
+    const sheet = await withStore.syncDeals(PROJECT, "csv");
+    expect(sheet.ok).toBe(false);
+    if (!sheet.ok) expect(sheet.problem).toMatch(/uploaded, not fetched/);
   });
 });

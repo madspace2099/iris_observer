@@ -23,6 +23,7 @@ import {
   lowerCaseHeaders,
   mondayFetchDeals,
   mondayFetchSnapshot,
+  realpadFetchDeals,
   realpadFetchSnapshot,
   recordDealSyncOutcome,
   recordSyncOutcome,
@@ -513,12 +514,37 @@ export function connectorService(deps: ServiceDeps) {
           ok: false,
           problem: "A deals sheet is uploaded, not fetched. Use the deals upload on this screen.",
         };
-      case "realpad":
-        return {
-          ok: false,
-          problem:
-            "REALPAD delivers deals only as an Excel export through Data Takeout, which this connector does not read yet.",
+      case "realpad": {
+        if (credential === null) return { ok: false, problem: "REALPAD has no credential stored." };
+        const c = config as RealpadConfig;
+        if (c.dealColumns === null) {
+          return {
+            ok: false,
+            problem:
+              "Name the business-case export's header ids in REALPAD settings before syncing deals.",
+          };
+        }
+        const k = credential as {
+          login: string;
+          password: string;
+          takeoutLogin: string | null;
+          takeoutPassword: string | null;
         };
+        /* The Data Takeout pair where one was issued; the pricelist pair otherwise. */
+        const pair =
+          k.takeoutLogin !== null && k.takeoutPassword !== null
+            ? { login: k.takeoutLogin, password: k.takeoutPassword }
+            : { login: k.login, password: k.password };
+        const columns = c.dealColumns;
+        return () =>
+          realpadFetchDeals(
+            pair,
+            { projectId: c.projectId, columns, stageMap: c.stageMap },
+            scope,
+            ctx,
+            pepper,
+          );
+      }
     }
   }
 
@@ -682,6 +708,14 @@ export function platformHttp(timeoutMs = 30_000): Http {
       body: request.body,
       signal: AbortSignal.timeout(timeoutMs),
     });
+    if (request.binary === true) {
+      return {
+        status: response.status,
+        headers: lowerCaseHeaders(response.headers),
+        text: "",
+        bytes: new Uint8Array(await response.arrayBuffer()),
+      };
+    }
     return {
       status: response.status,
       headers: lowerCaseHeaders(response.headers),

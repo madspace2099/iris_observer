@@ -12,6 +12,8 @@ export * from "./shared";
 export * from "./record";
 export * from "./csv";
 export * from "./realpad";
+export * from "./realpad-deals";
+export * from "./xlsx";
 export * from "./lomnio";
 export * from "./monday";
 export * from "./sync";

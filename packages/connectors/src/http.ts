@@ -13,6 +13,12 @@ export interface HttpRequest {
   readonly method: "GET" | "POST";
   readonly headers: Readonly<Record<string, string>>;
   readonly body?: string;
+  /**
+   * The adapter expects a file, not text. REALPAD's Data Takeout answers
+   * with a workbook; decoding it as UTF-8 would destroy it, so a binary
+   * request asks for the bytes and reads nothing into `text`.
+   */
+  readonly binary?: boolean;
 }
 
 export interface HttpResponse {
@@ -20,6 +26,8 @@ export interface HttpResponse {
   /** Header names lower-cased, so `retry-after` is found however it was sent. */
   readonly headers: Readonly<Record<string, string>>;
   readonly text: string;
+  /** The body as delivered, present only for a request that asked for `binary`. */
+  readonly bytes?: Uint8Array;
 }
 
 export type Http = (request: HttpRequest) => Promise<HttpResponse>;

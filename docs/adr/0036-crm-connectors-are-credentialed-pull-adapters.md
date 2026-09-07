@@ -51,6 +51,23 @@ the page they say it on; where a portal is silent, this document says so rather 
   `list-excel-customer-consents`. Use `headermode=ids` and `xlsx=1`. Five-minute cooldown per
   `(endpoint, credential)`, waived by a narrow filter (one project, a date range of at most 31 days,
   or a full-text term of six characters or more). No JSON, no webhooks.
+- **The business-case export, read again on 2026-09-07 for the deals adapter**
+  (`/integrations/data-takeout`, verbatim where quoted). Filters share one grammar: `projectids`
+  (comma-separated integers), `fulltext`, `creationdatefrom` / `creationdateto` (`YYYY-MM-DD`,
+  inclusive), `statusids`; for `list-excel-business-cases` the cooldown is waived by "1 Project, or
+  fulltext ≥ 6 chars", and a `429` names when to call again. `headermode` is one of `default`,
+  `labels`, `ids`, `labels_ids`, `ids_labels`; `ids` "will export headers as one row with the columns
+  identified by special strings that are guaranteed to be stable", and the page says to use it "for
+  any automated integration" — **but it does not list the strings.** One row per Deal, with these
+  columns always present: Customer ID, Salesman ID, Status ID (enum), Lifecycle ID (enum), Main Unit
+  ID, Additional Customer IDs, Additional Product IDs, Project ID; and, on by default under Column
+  Selection, Deal ID and Inquiry ID. Status is published — `1` ACTIVE ("being negotiated / paid"),
+  `2` LOST, `3` WON, `4` SLEEPING — Lifecycle is not. No email and no phone are in this export;
+  customers are `list-excel-customers-contacts`. What follows for the adapter
+  (`packages/connectors/src/realpad-deals.ts`): the header ids are typed into the column table after
+  being read off one real export (`pnpm connectors:realpad-inspect`), WON and LOST map fixed, the
+  Lifecycle ids go through the tenant's stage table like every other stage vocabulary, and a REALPAD
+  deal has no subject key.
 - **Leads.** `create-lead` accepts name, surname, one of email or E.164 phone, project, `unitid` or
   `internalid`, `preferencerooms` (`1+kk|2+1`), `preferencepricemax`, campaign, referral, consents,
   and returns the customer id — the same id for a customer REALPAD already knew, so de-duplication is
@@ -167,7 +184,8 @@ push is an accelerator, never the source of truth.**
 | Unmappable disposition → `rooms = null`, shown as its own row   | `PROPOSED`                 | never-a-zero rule                                   |
 | Orientation vocabulary is declared per tenant                   | `OPEN`                     | REALPAD's own example mixes `SV`/`J` with `W`/`S-E` |
 | REALPAD `flat_type` table                                       | `OPEN`                     | not published; ask support@realpadsoftware.com      |
-| REALPAD business-case Lifecycle values                          | `OPEN`                     | not published; needs one real export                |
+| REALPAD business-case Lifecycle values                          | `OPEN`                     | not published; configuration, like every stage word |
+| REALPAD `headermode=ids` header strings                         | `OPEN`                     | not published; read off one real export             |
 | Whether a showroom visitor becomes a CRM lead                   | `OPEN`                     | product decision, not taken here                    |
 | Whether a studio is `rooms = 1` or its own layout               | `OPEN`                     | needs a real catalogue that contains one            |
 

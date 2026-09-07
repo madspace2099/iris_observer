@@ -58,8 +58,12 @@ const FIELDS: Readonly<Record<ConnectorKind, readonly string[]>> = {
     "screenId",
     "login",
     "password",
+    "takeoutLogin",
+    "takeoutPassword",
     "currency",
     "orientationMap",
+    "dealColumns",
+    "stageMap",
   ],
   lomnio: ["token", "signingSecret", "statusMap", "currency", "orientationMap", "stageMap"],
   monday: [
@@ -249,6 +253,35 @@ export function ConnectorForm({
             autoComplete="username"
           />
           <Field field="password" label="Password" type="password" autoComplete="new-password" />
+          <Field
+            field="takeoutLogin"
+            label="Data Takeout login"
+            placeholder="project-name-takeout"
+            autoComplete="off"
+            hint="Only if REALPAD issued the deals export under its own pair. Empty, and the pricelist pair is used for deals too. Pasted together with the pair above; a stored credential is replaced whole."
+          />
+          <Field
+            field="takeoutPassword"
+            label="Data Takeout password"
+            type="password"
+            autoComplete="new-password"
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=header id as the business-case export prints it with headermode=ids. ${DEAL_COLUMNS_FIELDS} Also status, the Status column: WON and LOST are read from it. Leave empty and no deals are read.`}
+            placeholder={
+              "externalId=<Deal ID header>\nstatus=<Status ID header>\nstage=<Lifecycle ID header>\nunitCode=<Main Unit ID header>"
+            }
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The Lifecycle ids the export carries, as REALPAD numbers them. ${STAGE_HINT} WON and LOST need no line.`}
+            placeholder={"11=lead\n12=meeting\n14=offer\n15=reservation"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
         </>
       ) : null}
 
