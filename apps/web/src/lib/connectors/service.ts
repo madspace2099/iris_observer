@@ -114,6 +114,41 @@ export interface ConnectorSummary {
 export type Refused = { readonly ok: false; readonly problem: string; readonly field?: string };
 
 /**
+ * A validator's issue as a sentence an operator can act on.
+ *
+ * "Invalid input: expected number, received null" is a fact about a type
+ * system; "a whole number is needed here" is what the person at the form
+ * has to do. The field itself is pointed at separately, under the control.
+ */
+function issueWords(
+  issue: { readonly code: string; readonly message: string } | undefined,
+): string {
+  if (issue === undefined) return "a value is missing";
+  const expected = (issue as { readonly expected?: unknown }).expected;
+  switch (issue.code) {
+    case "invalid_type":
+      if (expected === "number") return "a number is needed here";
+      if (expected === "string") return "some text is needed here";
+      if (expected === "boolean") return "a yes or no is needed here";
+      return "this field needs a value";
+    case "too_small":
+      return "this value is too short or too small";
+    case "too_big":
+      return "this value is too long or too large";
+    case "invalid_value":
+    case "invalid_enum_value":
+      return "this is not one of the allowed words";
+    case "unrecognized_keys":
+      return "a field the connector does not know was sent";
+    case "invalid_format":
+    case "invalid_string":
+      return "this is not in the expected form";
+    default:
+      return issue.message.charAt(0).toLowerCase() + issue.message.slice(1);
+  }
+}
+
+/**
  * The read models' identifiers for a control-plane project.
  *
  * The control plane keys a project by uuid; the catalogue snapshot carries
@@ -187,7 +222,7 @@ export function connectorService(deps: ServiceDeps) {
       const issue = config.error.issues[0];
       return {
         ok: false,
-        problem: `The ${CONNECTOR_NAMES[kind]} settings could not be read: ${issue?.message ?? "a value is missing"}.`,
+        problem: `The ${CONNECTOR_NAMES[kind]} settings could not be read: ${issueWords(issue)}.`,
         field: issue?.path.map(String).join("."),
       };
     }
@@ -209,7 +244,7 @@ export function connectorService(deps: ServiceDeps) {
         const issue = credential.error.issues[0];
         return {
           ok: false,
-          problem: `The credential could not be read: ${issue?.message ?? "a value is missing"}.`,
+          problem: `The credential could not be read: ${issueWords(issue)}.`,
           field: issue?.path.map(String).join("."),
         };
       }

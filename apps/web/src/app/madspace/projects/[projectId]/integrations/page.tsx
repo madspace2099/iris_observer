@@ -364,6 +364,16 @@ function ConnectorPlane({
                 : `Not stored. Needs ${CREDENTIAL_WORDS[connector.kind]}.`}
           </dd>
         </div>
+        {connector.kind === "lomnio" ? (
+          <div className="mad-meta-item">
+            <dt className="mad-meta-label">Webhook address</dt>
+            <dd className="mad-meta-value">
+              <span className="mad-code">{`/api/observer/connectors/lomnio/${projectId}`}</span> on
+              this deployment&rsquo;s address. Lomnio signs every delivery with the signing secret
+              stored beside the token; an unsigned or wrongly signed delivery is refused.
+            </dd>
+          </div>
+        ) : null}
         <div className="mad-meta-item">
           <dt className="mad-meta-label">Last sync</dt>
           <dd className="mad-meta-value" data-missing={last === null ? "true" : undefined}>

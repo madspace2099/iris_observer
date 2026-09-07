@@ -1233,7 +1233,12 @@ a.mad-row:focus-visible {
   align-items: baseline;
   padding: var(--space-3) var(--space-4);
   min-height: 3rem;
-  cursor: pointer;
+  /*
+   * The row is not the control. Only the box and the label toggle it, so
+   * the hand cursor belongs to those two and not to the detail text beside
+   * them, which a click does nothing to.
+   */
+  cursor: default;
   background: var(--surface-raised);
   transition: background var(--duration-fast) var(--ease);
 }
@@ -1260,6 +1265,7 @@ a.mad-row:focus-visible {
 }
 
 .mad-choice-name {
+  cursor: pointer;
   font-size: var(--text-md);
   line-height: var(--text-md-lh);
   font-weight: var(--weight-semibold);

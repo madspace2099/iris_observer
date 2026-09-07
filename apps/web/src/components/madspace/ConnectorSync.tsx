@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { ConfirmDialog } from "@/components/madspace/ConfirmDialog";
@@ -55,6 +55,7 @@ export function ConnectorSync({
   const [said, setSaid] = useState<{ readonly ok: boolean; readonly text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const saidRef = useRef<HTMLParagraphElement>(null);
 
   if (!canSync && !hasCredential && said === null) return null;
 
@@ -68,6 +69,12 @@ export function ConnectorSync({
       }
       setConfirming(false);
       setSaid({ ok: true, text: "The credential was forgotten." });
+      /*
+       * The trigger is gone once the credential is: focus would otherwise
+       * fall to the body. The status sentence is what changed, so it takes
+       * focus, after React has committed it.
+       */
+      requestAnimationFrame(() => saidRef.current?.focus());
       router.refresh();
     });
   }
@@ -121,7 +128,7 @@ export function ConnectorSync({
           Forget credential
         </button>
       ) : null}
-      <p className="mad-said" role="status" aria-live="polite">
+      <p className="mad-said" role="status" aria-live="polite" ref={saidRef} tabIndex={-1}>
         {said === null ? (
           ""
         ) : (
