@@ -456,7 +456,13 @@ export function Funnel({
   /** Names the group the comparison figures are measured against. */
   totalLabel: string;
 }) {
-  const first = steps[0]?.count ?? 1;
+  /*
+   * The denominator, guarded. A cohort of zero meetings is a real answer
+   * (Riverside records no outcomes), and 0 / 0 printed "NaN%" at the top of
+   * its funnel. The floor of one leaves every bar at zero width and the
+   * first step at 0%, which is what a group with nothing in it looks like.
+   */
+  const first = Math.max(1, steps[0]?.count ?? 1);
 
   return (
     <div className="iris-funnel">

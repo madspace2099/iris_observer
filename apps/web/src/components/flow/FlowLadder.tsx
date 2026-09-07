@@ -60,6 +60,12 @@ export interface LadderStage {
   readonly rate: string | null;
   /** The same step among the comparison group, already formatted. */
   readonly comparisonRate: string | null;
+  /**
+   * One more line the read model wrote for this rung — time in stage, on the
+   * deal ladder — printed under the drop. Optional, because the behaviour
+   * funnel has no such figure and must not show an empty line for it.
+   */
+  readonly meta?: string | null;
 }
 
 export function FlowLadder({
@@ -144,6 +150,10 @@ export function FlowLadder({
                     ? `none left after ${previous.label}`
                     : `−${lost} after ${previous.label}`}
                 </span>
+              )}
+
+              {stage.meta === undefined || stage.meta === null ? null : (
+                <span className="ox-stage-drop">{stage.meta}</span>
               )}
             </span>
           </div>

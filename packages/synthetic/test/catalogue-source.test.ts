@@ -258,12 +258,34 @@ describe("a repository composed with a deal source", () => {
 
   it("says the CRM is not connected where no deals arrive, and never a rung at zero", async () => {
     const repo = new SyntheticObserverRepository({ dealSource: deals });
-    const flow = await repo.getSalesFlow(NORTHGATE);
+    /* Riverside declares no CRM: nothing stands in, and the sentence says so. */
+    const flow = await repo.getSalesFlow({ ...NORTHGATE, projectSlug: "riverside" });
     expect(flow.ladder).toEqual({
       source: "not_connected",
       note: expect.stringContaining("not connected"),
     });
+    /* A twin built from the control plane is not a scenario: no connector, no ladder. */
     const plain = new SyntheticObserverRepository();
     expect((await plain.getSalesFlow(ISTER)).ladder.source).toBe("not_connected");
+  });
+
+  it("stands the demonstration CRM in for a scenario that declares one, named as such", async () => {
+    const repo = new SyntheticObserverRepository({ dealSource: deals });
+    const flow = await repo.getSalesFlow(NORTHGATE);
+    expect(flow.ladder.source).toBe("crm");
+    if (flow.ladder.source !== "crm") return;
+    expect(flow.ladder.connector).toBe("synthetic");
+    expect(flow.ladder.note).toContain("the demonstration CRM");
+    /* Time in stage and the stalled list are read from the stated stage dates, longest first. */
+    expect(flow.ladder.stages.every((s) => typeof s.daysDisplay === "string")).toBe(true);
+    const days = flow.ladder.stalled.map((d) => d.daysInStage);
+    expect(days).toEqual([...days].sort((x, y) => y - x));
+    expect(flow.ladder.stalled.every((d) => d.stage !== "purchase" && d.stage !== "lost")).toBe(
+      true,
+    );
+    expect(flow.ladder.stalled[0]?.unitHref).toContain("/alpha/northgate/units/");
+    /* The same again is byte-identical: a demonstration is deterministic. */
+    const again = await repo.getSalesFlow(NORTHGATE);
+    expect(again.ladder).toEqual(flow.ladder);
   });
 });

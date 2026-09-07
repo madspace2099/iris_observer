@@ -46,7 +46,7 @@ import type {
 } from "@observer/readmodels";
 import type { CatalogueSource, DealSource } from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
-import { dealsFor, provideDeals } from "./deals";
+import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
@@ -206,9 +206,18 @@ export class SyntheticObserverRepository implements ObserverRepository {
   /** The CRM's deals for this project, if a connector delivered them, for the ladder. */
   private async overlayDeals(project: ProjectSummary): Promise<void> {
     const source = this.options.dealSource;
+    const delivered = source === undefined ? null : await source.dealsFor(project);
+    /*
+     * The connector first; the demonstration CRM only where none answered
+     * and the scenario is one the demonstration CRM covers (`DEMONSTRATION_CRM_SLUGS`).
+     * ISTER TOWER declares a CRM too but is the twin of a control-plane project
+     * whose connector is the real path, so it never gets demonstration deals:
+     * its ladder is its connector's or nobody's.
+     */
+    const scenario = delivered === null && DEMONSTRATION_CRM_SLUGS.has(project.slug);
     provideDeals(
       project.id as string,
-      source === undefined ? null : await source.dealsFor(project),
+      scenario ? syntheticDeals(sessionsForProject(project.id as string), TODAY) : delivered,
     );
   }
 

@@ -553,7 +553,11 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
-    ladder: buildDealLadder(deals, locale),
+    ladder: buildDealLadder(
+      deals,
+      locale,
+      (code) => `/${context.tenant.slug}/${context.project.slug}/units/${code}`,
+    ),
   };
 }
 

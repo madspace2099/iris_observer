@@ -4,7 +4,7 @@ import { KPI_WINDOWS, type KpiWindowId, type PeriodPreset } from "@observer/read
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { FlowLadder } from "@/components/flow";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -347,7 +347,10 @@ export default async function FlowPage({
           </h2>
           {view.ladder.source === "crm" ? (
             <>
-              <FlowLadder stages={view.ladder.stages} noun="deals" />
+              <FlowLadder
+                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
+                noun="deals"
+              />
               <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
                 {view.ladder.note}
               </p>
@@ -357,6 +360,49 @@ export default async function FlowPage({
             <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
           )}
         </div>
+
+        {/*
+         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
+         * by stage, sorted by time stuck). Time in stage sits on the ladder's
+         * own rungs above; this is the same deals one by one, longest on
+         * their rung first, each opening the unit it is about. The list is
+         * ordered by time and never by outcome, and an undated deal is
+         * counted beside it rather than drawn at zero days.
+         */}
+        {view.ladder.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <div>
+              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+                Stalled deals, longest on their rung first
+              </h2>
+              {view.ladder.stalled.length === 0 ? (
+                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
+              ) : (
+                <>
+                  <RankedBars
+                    rows={view.ladder.stalled.map((deal) => ({
+                      id: deal.externalId,
+                      label:
+                        deal.unitCode === null
+                          ? deal.externalId
+                          : `${deal.unitCode} · ${deal.externalId}`,
+                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
+                      value: deal.daysInStage,
+                      display: deal.daysDisplay,
+                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
+                    }))}
+                    measured
+                  />
+                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                    {view.ladder.stalledNote}
+                  </p>
+                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+                </>
+              )}
+            </div>
+          </>
+        ) : null}
 
         <hr className="iris-rule iris-section-rule" />
 
