@@ -378,7 +378,9 @@ export function AskFrame({
                  */}
                 <ClosableDetails className="ask-model-details" name="ask-composer-menu">
                   <summary className="ask-model" aria-label="Model">
-                    <span className="ask-model-name">{composerLabel}</span>
+                    <span className="ask-model-name" title={composerLabel}>
+                      {composerLabel}
+                    </span>
                     <ChevronDown />
                   </summary>
 
@@ -471,7 +473,10 @@ export function AskFrame({
               <div className="ask-scope-wrap">
                 <ClosableDetails className="ask-model-details" name="ask-composer-menu">
                   <summary className="ask-model" aria-label="Which project this question is about">
-                    <span className="ask-model-name">
+                    <span
+                      className="ask-model-name"
+                      title={scopeLabel(scope, projectSlug, projectLabel, otherProjects)}
+                    >
                       {scopeLabel(scope, projectSlug, projectLabel, otherProjects)}
                     </span>
                     <ChevronDown />

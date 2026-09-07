@@ -23,15 +23,27 @@ const VIEWPORTS = [
   { name: "393", width: 393, height: 852 },
 ] as const;
 
+/*
+ * Every surface a reader can open under a project today, by the segment the
+ * shell navigates to. `storytelling` is gone from the list because it is a
+ * permanent redirect to `features` (ADR-0033): navigating to it mid-check
+ * destroyed the evaluation context and failed every viewport for the wrong
+ * reason. The report and the meeting summary joined the product on the
+ * night of 2026-09-07 and are checked like the rest.
+ */
 const SURFACES = [
+  "ask",
   "showroom",
   "flow",
   "project",
   "agents",
   "presentation",
   "units",
-  "storytelling",
+  "features",
   "meetings",
+  "audience",
+  "attention",
+  "report",
 ] as const;
 
 
@@ -107,7 +119,7 @@ test.describe("no surface clips its own text or widens the page", () => {
       await signInAs(page, "Petra Novák");
 
       for (const surface of SURFACES) {
-        await page.goto(`/alpha/northgate/${surface}`);
+        await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
         await page.waitForTimeout(200);
 
         const overflow = await page.evaluate(

@@ -582,7 +582,9 @@ export function Shell({
 
         <div className="irs-header-end irs-header-end--wide">
           <div className="irs-who">
-            <div className="irs-who-name">{viewer.displayName}</div>
+            <div className="irs-who-name" title={viewer.displayName}>
+              {viewer.displayName}
+            </div>
             <div className="irs-who-role">{viewer.roleLabel}</div>
           </div>
           {variant === "ask" ? accountAsk : account}
@@ -718,7 +720,9 @@ export function Shell({
                 </div>
 
                 <div className="irs-mobile-who">
-                  <div className="irs-who-name">{viewer.displayName}</div>
+                  <div className="irs-who-name" title={viewer.displayName}>
+                    {viewer.displayName}
+                  </div>
                   <div className="irs-who-role">{viewer.roleLabel}</div>
                 </div>
                 <div className="irs-mobile-account">{account}</div>
