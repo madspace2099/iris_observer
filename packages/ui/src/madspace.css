@@ -1337,6 +1337,45 @@ a.mad-row:focus-visible {
   border-top: 1px solid var(--line-subtle);
 }
 
+/*
+ * THE SETTINGS FOLD.
+ *
+ * A connector's configuration is detail: it changes once, and the operator's
+ * question on this screen is the state, not the fields. The plane leads with
+ * its state row and its actions; the form sits behind a native `<details>`,
+ * closed until asked for, in the same `▸` treatment `.obs-rules` already uses.
+ * The summary borrows the secondary button so it reads as the control it is,
+ * and a summary is a list-item by default, so the marker is removed here and
+ * `display` set, exactly as the Ask IRIS disclosures do it.
+ */
+.mad-fold > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.mad-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mad-fold > summary::before {
+  content: "▸";
+  color: var(--text-tertiary);
+}
+
+.mad-fold[open] > summary::before {
+  content: "▾";
+}
+
+.mad-fold > .mad-form {
+  margin-top: var(--space-5);
+}
+
 .mad-submit {
   display: inline-flex;
   align-items: center;

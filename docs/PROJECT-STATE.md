@@ -580,6 +580,34 @@ Hungarian compass codes were mapped, then four of five units, and Project showed
 segments at 0.00× with the verdict falling back to the meeting count. `apps/web/src/lib/repository.ts`
 is composed with `liveCatalogueSource`, memoised for thirty seconds per project.
 
+### The Integrations screen, audited and folded
+
+An Impeccable audit of `/madspace/projects/[projectId]/integrations` on the local control plane
+(measured at 390, 768, 1440 and 1920; axe; a 40-stop keyboard walk; the CSV upload through the real
+file input; a fixture token never echoed into HTML, inputs, console, URLs or POST bodies) found the
+page structurally wrong and otherwise sound: every provider form stood fully open whatever its
+state, 7414 px on desktop and 8475 px on a phone, with the only configured source fourth in order
+at y≈5250. The distill pass that followed put each connector's form behind a native `<details>`
+(`.mad-fold`, the `.obs-rules` marker treatment, the secondary button look), closed until asked
+for, with the state row, the actions and the spreadsheet upload staying in front of it; the lede
+now says "Spreadsheet (CSV) configured, not enabled." where it said "No CRM is connected." Measured
+after: 2712 px on desktop, 3425 px on a phone, the configured source at y=1289, one form and one
+field visible on load instead of five and thirty-one, ten focus stops to reach it instead of
+thirty-three; every state word, credential line, last sync and "On Project" line visible with the
+forms closed; Enter opens and Space closes each fold with focus staying on the control; scoped axe
+clean at both widths. Note: the repository has no translations system, so the one new string
+(`"<name> settings"`) is English like the rest of the surface.
+
+Still open on that screen, in the order the audit ranked them: "Forget credential" is an
+unconfirmed, quietly styled irreversible action; the changes table scrolls sideways on a phone
+with no keyboard access (axe serious); a refused save carries a raw validation message and no
+`aria-describedby`; implementation vocabulary in the hints and the Fields column (`statusRaw`,
+`interiorSqm`, `pre_reserved`, `units:read`); the Lomnio webhook endpoint is never shown; no
+route-level loading state; live regions exist only after an action; the `.mad-choice` row looks
+clickable beyond the box and the label word; inputs use an 8 px radius the system reserves for the
+scrollbar thumb. Credential save, sync and forget could not be exercised on this machine because
+`OBSERVER_CREDENTIAL_KEY` is not set locally; the screen says so in one sentence.
+
 ### Remaining debt from this day
 
 - Sparse delivered units are counted, not drawn (next action 2's remaining rule).

@@ -61,12 +61,23 @@ export default async function IntegrationsPage({
   const now = new Date();
 
   const active = connectors?.filter((c) => c.enabled) ?? [];
+  const configured = connectors?.filter((c) => c.configured && !c.enabled) ?? [];
+  /*
+   * The situation in one sentence, per principle 02. A connector that is
+   * configured but switched off is neither "connected" nor "not connected",
+   * and saying the first would hide the switch; saying the second would hide
+   * the work already done. So it is named as what it is.
+   */
+  const synthetic =
+    "The catalogue on this project is the synthetic one until a connector is enabled and synced.";
   const lede =
     connectors === null
       ? "The control plane could not be read."
-      : active.length === 0
-        ? "No CRM is connected. The catalogue on this project is the synthetic one until a connector is enabled and synced."
-        : `${active.map((c) => c.name).join(", ")} enabled.`;
+      : active.length > 0
+        ? `${active.map((c) => c.name).join(", ")} enabled.`
+        : configured.length > 0
+          ? `${configured.map((c) => c.name).join(", ")} configured, not enabled. ${synthetic}`
+          : `No CRM is connected. ${synthetic}`;
 
   return (
     <>
@@ -291,15 +302,27 @@ function ConnectorPlane({
         hasCredential={connector.hasCredential}
       />
 
-      <ConnectorForm
-        projectId={projectId}
-        kind={connector.kind}
-        name={connector.name}
-        configured={connector.configured}
-        enabled={connector.enabled}
-        config={connector.config}
-        hasCredential={connector.hasCredential}
-      />
+      {/*
+       * The settings sit behind a native disclosure, closed until asked for.
+       * The state row above answers the operator's question; the form changes
+       * once and would otherwise stand four screens tall in front of the next
+       * connector's state. The same `<details>` the rules disclosure and Ask
+       * IRIS already use; nothing is scripted.
+       */}
+      <details className="mad-fold">
+        <summary className="mad-button" data-emphasis="secondary">
+          {`${connector.name} settings`}
+        </summary>
+        <ConnectorForm
+          projectId={projectId}
+          kind={connector.kind}
+          name={connector.name}
+          configured={connector.configured}
+          enabled={connector.enabled}
+          config={connector.config}
+          hasCredential={connector.hasCredential}
+        />
+      </details>
 
       {connector.kind === "csv" && connector.configured ? (
         <CsvUpload projectId={projectId} />
