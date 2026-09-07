@@ -45,6 +45,7 @@ import type {
   UnitDetailView,
 } from "@observer/readmodels";
 import type { CatalogueSource, DealSource } from "@observer/readmodels";
+import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
@@ -200,7 +201,21 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const period = await this.resolvePeriod(project.id, preset);
     await this.overlayCatalogue(project);
     await this.overlayDeals(project);
-    return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY };
+    /*
+     * One policy governs the synthetic world, so the period and its baseline
+     * are always comparable; the refusal is computed rather than assumed, so
+     * a second policy version arriving with M6 changes the answer here and
+     * nowhere else.
+     */
+    const attribution = {
+      version: DEFAULT_ATTRIBUTION_POLICY.version,
+      effectiveFrom: DEFAULT_ATTRIBUTION_POLICY.effectiveFrom,
+      comparisonRefusal: comparisonRefusalReason(
+        DEFAULT_ATTRIBUTION_POLICY,
+        DEFAULT_ATTRIBUTION_POLICY,
+      ),
+    };
+    return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY, attribution };
   }
 
   /** The CRM's deals for this project, if a connector delivered them, for the ladder. */

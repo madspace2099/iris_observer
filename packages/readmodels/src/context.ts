@@ -132,4 +132,23 @@ export interface ViewContext {
   readonly project: ProjectSummary;
   readonly period: Period;
   readonly generatedAt: string;
+  /**
+   * THE POLICY-VERSION GUARD (docs/10-policies.md §1).
+   *
+   * Every figure on a screen was computed under one attribution policy, and
+   * a comparison with a baseline period is meaningful only if both periods
+   * were measured under compatible ones — the same window and the same
+   * qualifying link. The version is exposed on every view so a report can
+   * print it; `comparisonRefusal` is the reason the baseline comparison is
+   * refused, or null when the two are comparable. A screen that draws a
+   * comparison prints the refusal instead of the figures when it is set.
+   */
+  readonly attribution: AttributionContext;
+}
+
+export interface AttributionContext {
+  readonly version: string;
+  readonly effectiveFrom: string;
+  /** Null when the period and its baseline may be compared. */
+  readonly comparisonRefusal: string | null;
 }

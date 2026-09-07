@@ -297,7 +297,8 @@ export default async function ReportPage({
               {report.scope.label}
             </h2>
             <p className="ox-section-note">
-              Audience: internal.{" "}
+              Audience: internal. Attribution policy {report.context.attribution.version}, effective{" "}
+              {report.context.attribution.effectiveFrom.slice(0, 10)}.{" "}
               {report.unavailableCount === 0
                 ? "Every section can be written from what this project has."
                 : `${report.unavailableCount} of ${report.sections.length} sections would be blank, and each says why.`}

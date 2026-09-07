@@ -9,6 +9,9 @@ import { TableWrap } from "@/components/madspace/TableWrap";
 
 export const metadata: Metadata = { title: "Directory" };
 
+/** "1 agency", "2 agencies": the count and its noun, never the noun alone. */
+const plural = (n: number, one: string, other: string) => `${String(n)} ${n === 1 ? one : other}`;
+
 /**
  * THE DIRECTORY — tenants, agencies and people, as the demonstration knows them.
  *
@@ -41,10 +44,12 @@ export default async function DirectoryPage() {
           <Kicker>MADSPACE operations</Kicker>
           <h1 className="mad-title">Directory</h1>
           <p className="mad-lede">
-            {directory.tenants.length} tenants, {directory.agencies.length} agencies and{" "}
-            {directory.people.length} people, as the demonstration directory holds them. Every one
-            of them is synthetic: there is no tenant, user or agency table behind this screen yet,
-            so nothing here can be created, invited or changed, and no control claims otherwise.
+            {plural(directory.tenants.length, "tenant", "tenants")},{" "}
+            {plural(directory.agencies.length, "agency", "agencies")} and{" "}
+            {plural(directory.people.length, "person", "people")}, as the demonstration directory
+            holds them. Every one of them is synthetic: there is no tenant, user or agency table
+            behind this screen yet, so nothing here can be created, invited or changed, and no
+            control claims otherwise.
           </p>
         </div>
       </header>

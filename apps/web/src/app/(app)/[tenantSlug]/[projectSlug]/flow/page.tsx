@@ -200,20 +200,39 @@ export default async function FlowPage({
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             What changed since {view.context.period.baselineLabel}
           </h2>
-          <div className="iris-changes">
-            {summary.changes.map((change) => (
-              <article className="iris-change" key={change.id}>
-                <p className="iris-change-label">{change.label}</p>
-                <p className="iris-change-delta" data-direction={change.direction}>
-                  {change.deltaDisplay}
-                </p>
-                <p className="iris-change-detail">{change.detail}</p>
-                <Link className="iris-action" href={dynamicRoute(change.href)}>
-                  Look at it
-                </Link>
-              </article>
-            ))}
-          </div>
+          {/*
+           * THE POLICY-VERSION GUARD (docs/10-policies.md §1): a comparison
+           * across two attribution policies is refused with its reason, never
+           * silently drawn. Under one policy the figures are drawn and the
+           * version is stated beneath them, so a reader of a printed page
+           * knows what "comparable" rested on.
+           */}
+          {view.context.attribution.comparisonRefusal !== null ? (
+            <p className="iris-meta iris-meta-measured">
+              This comparison is refused: {view.context.attribution.comparisonRefusal} Both periods
+              have to be measured under a compatible attribution policy before their figures can be
+              set against each other.
+            </p>
+          ) : (
+            <div className="iris-changes">
+              {summary.changes.map((change) => (
+                <article className="iris-change" key={change.id}>
+                  <p className="iris-change-label">{change.label}</p>
+                  <p className="iris-change-delta" data-direction={change.direction}>
+                    {change.deltaDisplay}
+                  </p>
+                  <p className="iris-change-detail">{change.detail}</p>
+                  <Link className="iris-action" href={dynamicRoute(change.href)}>
+                    Look at it
+                  </Link>
+                </article>
+              ))}
+            </div>
+          )}
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+            Both periods measured under attribution policy {view.context.attribution.version},
+            effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
+          </p>
           <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             How the presentations were run, not how many there were. A direction compares two
             periods at the stated sample size — it is not a trend, and not a cause.
