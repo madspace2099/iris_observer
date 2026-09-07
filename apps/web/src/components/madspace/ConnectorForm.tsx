@@ -205,10 +205,10 @@ export function ConnectorForm({
           />
           <Field
             field="realpadProjectId"
-            label="REALPAD project id"
+            label="Project ID"
             defaultValue={stringOf(config["projectId"])}
             placeholder="3356887"
-            hint="From list-projects, or from REALPAD support."
+            hint="From your CRM provider's project list, or from their support team."
           />
           <Field
             field="screenId"
@@ -229,18 +229,18 @@ export function ConnectorForm({
                 Include hidden units
               </label>
               <span className="mad-choice-detail">
-                Units REALPAD hides from the public pricelist are fetched too.
+                Units your CRM hides from the public pricelist are fetched too.
               </span>
             </div>
           </div>
           <div className="mad-field">
             <span className="mad-field-label">
               Credential
-              <InfoNote label="what REALPAD issues and how it is kept">
+              <InfoNote label="what your CRM issues and how it is kept">
                 <p>
-                  REALPAD issues a login and password per project and per use case. The pricelist
-                  pair is the one this connector needs; it is sealed under this server&rsquo;s key
-                  and never shown again.
+                  Your CRM provider issues a login and password per project and per use case. The
+                  pricelist pair is the one this connector needs; it is sealed under this
+                  server&rsquo;s key and never shown again.
                 </p>
               </InfoNote>
             </span>
@@ -258,7 +258,7 @@ export function ConnectorForm({
             label="Data Takeout login"
             placeholder="project-name-takeout"
             autoComplete="off"
-            hint="Only if REALPAD issued the deals export under its own pair. Empty, and the pricelist pair is used for deals too. Pasted together with the pair above; a stored credential is replaced whole."
+            hint="Only if your CRM issued the deals export under its own pair. Empty, and the pricelist pair is used for deals too. Pasted together with the pair above; a stored credential is replaced whole."
           />
           <Field
             field="takeoutPassword"
@@ -278,7 +278,7 @@ export function ConnectorForm({
           <Lines
             field="stageMap"
             label="Stage words"
-            hint={`The Lifecycle ids the export carries, as REALPAD numbers them. ${STAGE_HINT} WON and LOST need no line.`}
+            hint={`The Lifecycle ids the export carries, as your CRM numbers them. ${STAGE_HINT} WON and LOST need no line.`}
             placeholder={"11=lead\n12=meeting\n14=offer\n15=reservation"}
             defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
           />
