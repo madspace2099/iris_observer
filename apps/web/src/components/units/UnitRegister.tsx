@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import type { PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
+import { NOT_STATED, roomsWord } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -14,6 +15,7 @@ import {
 import { StatusChip, VerifiedOutcome } from "./UnitStatus";
 import {
   REGISTER_PAGE,
+  ROOMS_UNSTATED,
   SCOPE_OPTIONS,
   STATUS_OPTIONS,
   filterRows,
@@ -263,11 +265,16 @@ export function UnitRegister({
          * product with different configuration.
          */
         ...[...new Set(rows.map((row) => row.rooms))]
+          .filter((rooms): rooms is number => rooms !== null)
           .sort((a, b) => a - b)
           .map((rooms) => ({
             value: String(rooms),
-            label: `${rooms} ${rooms === 1 ? "room" : "rooms"}`,
+            label: roomsWord(rooms),
           })),
+        /* Units whose count is not stated are their own choice, never hidden in "Any". */
+        ...(rows.some((row) => row.rooms === null)
+          ? [{ value: ROOMS_UNSTATED, label: roomsWord(null) }]
+          : []),
       ],
     },
     {
@@ -319,9 +326,10 @@ export function UnitRegister({
         </Link>
       ),
       status: <StatusChip status={row.status} />,
-      rooms: row.rooms,
-      floor: row.floor,
-      area: row.areaSqm,
+      /* A count, a floor or an area the catalogue did not state is the word, not an empty cell. */
+      rooms: row.rooms ?? NOT_STATED,
+      floor: row.floor ?? NOT_STATED,
+      area: row.areaSqm ?? NOT_STATED,
       price: row.priceDisplay,
       meetings: row.meetings,
       views: row.views,

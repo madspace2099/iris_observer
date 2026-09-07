@@ -228,7 +228,11 @@ export default async function ProjectPage({
               <Link
                 className="iris-action"
                 data-emphasis="primary"
-                href={dynamicRoute(`/${tenantSlug}/${projectSlug}/audience?rooms=${segment.rooms}`)}
+                href={dynamicRoute(
+                  segment.rooms === null
+                    ? `/${tenantSlug}/${projectSlug}/audience`
+                    : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
+                )}
                 style={{ marginTop: "1rem" }}
               >
                 Build an audience from this

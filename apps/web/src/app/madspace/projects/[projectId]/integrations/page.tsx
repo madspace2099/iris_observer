@@ -215,7 +215,15 @@ interface PlacementSummary {
   readonly total: number;
   readonly placed: number;
   readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+  /** What the drawn units are shown without, counted; said on Project in words. */
+  readonly gaps: readonly { readonly reason: string; readonly count: number }[];
 }
+
+const counted = (list: readonly { readonly reason: string; readonly count: number }[]) =>
+  list
+    .slice(0, 3)
+    .map((r) => `${String(r.count)} ${r.reason}`)
+    .join("; ");
 
 function ConnectorPlane({
   projectId,
@@ -284,12 +292,8 @@ function ConnectorPlane({
               data-missing={placement.placed === 0 ? "true" : undefined}
             >
               {`${String(placement.placed)} of ${String(placement.total)} units drawn`}
-              {placement.reasons.length === 0
-                ? ""
-                : `. Not drawn: ${placement.reasons
-                    .slice(0, 3)
-                    .map((r) => `${String(r.count)} ${r.reason}`)
-                    .join("; ")}`}
+              {placement.reasons.length === 0 ? "" : `. Not drawn: ${counted(placement.reasons)}`}
+              {placement.gaps.length === 0 ? "" : `. Gaps: ${counted(placement.gaps)}`}
             </dd>
           </div>
         )}

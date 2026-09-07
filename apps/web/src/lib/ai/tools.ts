@@ -9,6 +9,7 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
+import { areaWord, roomsWord } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 
 /**
@@ -457,7 +458,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
           facts: [
             {
               label: r.unitCode,
-              value: `${r.rooms} rooms · ${r.areaSqm} m² · ${r.priceDisplay}`,
+              value: `${roomsWord(r.rooms)} · ${areaWord(r.areaSqm)} · ${r.priceDisplay}`,
               note: r.status,
             },
             { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
@@ -502,7 +503,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         facts: top.map((r) => ({
           label: r.unitCode,
           value: `${r.meetings} meetings`,
-          note: `${r.rooms} rooms · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
+          note: `${roomsWord(r.rooms)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
         })),
         sources: OBSERVED,
         evidence: view.evidence,

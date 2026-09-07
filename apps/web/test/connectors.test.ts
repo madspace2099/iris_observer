@@ -322,11 +322,16 @@ describe("connectorService", () => {
       PROJECT,
       "Kód;Szobák;Emelet;m2;Ár;Tájolás;Státusz\nA-1;2;1;50;1;D;szabad\nA-2;3;2;60;1;Ny;szabad\nP-1;;1;12;1;D;szabad\n",
     );
+    /*
+     * Every unit for sale is drawn; what the sheet left out is counted as a
+     * gap the surfaces say in words, not as a reason to leave the unit off.
+     */
     const placement = await svc.placement(PROJECT, "csv");
     expect(placement).toEqual({
       total: 3,
-      placed: 1,
-      reasons: [
+      placed: 3,
+      reasons: [],
+      gaps: [
         { reason: "orientation code not mapped (Ny)", count: 1 },
         { reason: "no room count", count: 1 },
       ],

@@ -1,5 +1,13 @@
 import type { UnitAttentionRow } from "@observer/readmodels";
 
+/** What the rooms filter carries for units whose count the catalogue did not state. */
+export const ROOMS_UNSTATED = "unstated";
+
+/** The filter value a row answers to: its count, or the word for none. */
+export function roomsKey(rooms: number | null): string {
+  return rooms === null ? ROOMS_UNSTATED : String(rooms);
+}
+
 /**
  * THE REGISTER'S QUERY, AND WHY ALL OF IT LIVES IN THE URL.
  *
@@ -224,10 +232,11 @@ export function filterRows(
   return rows.filter((row) => {
     if (query.scope === "opened" && row.meetings === 0) return false;
     if (query.status !== "all" && row.status !== query.status) return false;
-    if (query.rooms !== "all" && String(row.rooms) !== query.rooms) return false;
+    if (query.rooms !== "all" && roomsKey(row.rooms) !== query.rooms) return false;
     if (needle === "") return true;
     return (
-      row.unitCode.toLowerCase().includes(needle) || row.orientation.toLowerCase().includes(needle)
+      row.unitCode.toLowerCase().includes(needle) ||
+      (row.orientation ?? "").toLowerCase().includes(needle)
     );
   });
 }
@@ -250,12 +259,17 @@ const STATUS_ORDER: Readonly<Record<UnitAttentionRow["status"], number>> = {
  * quietly: the row wants a raw `price` beside its display, exactly as
  * `UnitAttributes` on the unit's own page already carries both.
  */
-function keyOf(row: UnitAttentionRow, key: UnitSortKey): number | string {
+function keyOf(row: UnitAttentionRow, key: UnitSortKey): number | string | null {
   switch (key) {
     case "code":
       return row.unitCode;
     case "status":
       return STATUS_ORDER[row.status];
+    /*
+     * A count, a floor or an area the catalogue did not state has no key:
+     * it is not zero and not the largest, it is absent, and `sortRows` puts
+     * it after every stated value whichever way the column is ordered.
+     */
     case "rooms":
       return row.rooms;
     case "floor":
@@ -297,6 +311,11 @@ export function sortRows(
   return [...rows].sort((a, b) => {
     const left = keyOf(a, query.sort);
     const right = keyOf(b, query.sort);
+    /* Absent is last, whichever way the stated values run. */
+    if (left === null || right === null) {
+      if (left === right) return a.unitCode.localeCompare(b.unitCode);
+      return left === null ? 1 : -1;
+    }
     const compared =
       typeof left === "string" && typeof right === "string"
         ? left.localeCompare(right)

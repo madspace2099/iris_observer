@@ -8,6 +8,7 @@ import type {
   UnitChange,
   UnitStatus,
 } from "@observer/readmodels";
+import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -122,7 +123,7 @@ export function Movement({
                 {unit.code}
               </Link>
             ),
-            apartment: `Floor ${unit.floor}, block ${unit.block} · ${unit.rooms} rooms · ${unit.areaSqm} m² · facing ${unit.orientation}`,
+            apartment: `${floorWord(unit.floor)}, block ${unit.block} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)}`,
             price: <span className="ox-figure">{unit.priceDisplay}</span>,
             status: (
               <span className="ox-chip" data-tone={STATUS_TONES[unit.status]}>

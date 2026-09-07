@@ -244,10 +244,11 @@ export interface UnitAttentionRow {
   readonly unitId: string;
   readonly unitCode: string;
   readonly status: "available" | "reserved" | "sold";
-  readonly rooms: number;
-  readonly areaSqm: number;
-  readonly orientation: string;
-  readonly floor: number;
+  /** Each `null` when the catalogue did not state it; the row says so in words. */
+  readonly rooms: number | null;
+  readonly areaSqm: number | null;
+  readonly orientation: string | null;
+  readonly floor: number | null;
   readonly priceDisplay: string;
   /** Distinct meetings in which the unit appeared. People, not events. */
   readonly meetings: number;

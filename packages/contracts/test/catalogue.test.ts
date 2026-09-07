@@ -143,7 +143,7 @@ describe("compassFor and placementOf", () => {
     expect(compassFor([], {})).toBeNull();
   });
 
-  it("places a fully described flat and says exactly what a sparse one lacks", () => {
+  it("places a fully described flat with no gaps", () => {
     const placed = placementOf(unit({ code: "A-101" }), { J: "S" });
     expect(placed).toEqual({
       ok: true,
@@ -153,26 +153,46 @@ describe("compassFor and placementOf", () => {
       price: 6050000,
       orientation: "S",
       status: "available",
+      gaps: [],
     });
+  });
 
-    const parking = placementOf(
+  it("draws a sparse unit and names each thing the catalogue did not state", () => {
+    /*
+     * A unit for sale is drawn whatever it lacks; the read models say the
+     * absence in words. Only a status the surfaces have no word for keeps a
+     * unit off them, and that is the one refusal left.
+     */
+    const sparse = placementOf(
       unit({
         code: "P-7",
         floor: null,
         rooms: null,
         unitType: "parking",
         areas: { interiorSqm: null, exteriorSqm: null, grossSqm: 12 },
-        price: { withVat: null, withoutVat: 250000, currency: "CZK" },
-        orientation: [],
-        status: "not_for_sale",
-        statusRaw: "4",
+        price: { withVat: null, withoutVat: null, currency: "CZK" },
+        orientation: ["Z"],
+        status: "available",
+        statusRaw: "0",
       }),
       {},
     );
-    expect(parking).toEqual({
-      ok: false,
-      reasons: ["no floor", "no room count", "status not for sale", "no orientation"],
+    expect(sparse).toEqual({
+      ok: true,
+      floor: null,
+      rooms: null,
+      areaSqm: 12,
+      price: null,
+      orientation: null,
+      status: "available",
+      gaps: ["no floor", "no room count", "no price", "orientation code not mapped (Z)"],
     });
+
+    const notForSale = placementOf(
+      unit({ code: "P-8", status: "not_for_sale", statusRaw: "4", orientation: [] }),
+      {},
+    );
+    expect(notForSale).toEqual({ ok: false, reasons: ["status not for sale"] });
   });
 
   it("collapses a pre-reservation onto reserved, which is what the surfaces draw", () => {

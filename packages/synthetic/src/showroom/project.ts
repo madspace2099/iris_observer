@@ -33,7 +33,8 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
-import { count, evidenceRef, money, movement, ok, percent, signedPercent } from "../format";
+import { areaWord, roomsWord } from "@observer/readmodels";
+import { count, evidenceRef, moneyOr, movement, ok, percent, signedPercent } from "../format";
 import { agentById, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
@@ -954,7 +955,7 @@ export function buildUnitAttention(
       areaSqm: unit.areaSqm,
       orientation: unit.orientation,
       floor: unit.floor,
-      priceDisplay: money(unit.price, currency, locale),
+      priceDisplay: moneyOr(unit.price, currency, locale),
       meetings,
       views: touches.reduce((a, t) => a + t.views, 0),
       medianDwellSeconds: Math.round(median(dwells)),
@@ -1053,7 +1054,7 @@ export function buildUnitAttention(
 
     detail = {
       row: selected,
-      headline: `${selected.unitCode} · ${selected.rooms} rooms · ${selected.areaSqm} m² · ${selected.priceDisplay}`,
+      headline: `${selected.unitCode} · ${roomsWord(selected.rooms)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
       findings,
       competitors: [...together.entries()]
         .map(([unitCode, v]) => ({ unitCode, together: v.together, keptOther: v.keptOther }))

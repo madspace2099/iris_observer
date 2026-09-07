@@ -93,7 +93,10 @@ export function SegmentDetail({
           className="ox-btn"
           href={dynamicRoute(
             withPeriod(
-              selected === null ? `${root}/audience` : `${root}/audience?rooms=${selected.rooms}`,
+              /* The unstated-rooms segment has no count to filter by; it opens the builder plain. */
+              selected === null || selected.rooms === null
+                ? `${root}/audience`
+                : `${root}/audience?rooms=${String(selected.rooms)}`,
               period,
             ),
           )}

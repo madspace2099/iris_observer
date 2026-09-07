@@ -9,6 +9,7 @@ import type {
   PulseUnit,
 } from "@observer/readmodels";
 import type { ExecutiveOverview } from "@observer/readmodels";
+import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
 
 /**
  * The laboratory workspace.
@@ -111,7 +112,8 @@ function luminanceFor(attention: number): string {
 }
 
 function growFor(unit: PulseUnit): number {
-  return Math.round(26 + (unit.areaSqm - 55) * 0.9);
+  /* An unstated area draws at the middling width; the tooltip says it is not stated. */
+  return Math.round(26 + ((unit.areaSqm ?? 60) - 55) * 0.9);
 }
 
 function tone(direction: "up" | "down", better: "up" | "down" | "neither") {
@@ -143,7 +145,7 @@ function Pulse({
       aria-label={`${pulse.buildingLabel}: ${pulse.totals.units} units across ${pulse.floors.length} floors`}
     >
       {pulse.floors.map((floor) => (
-        <div className="iris-pulse-floor" key={floor.floor}>
+        <div className="iris-pulse-floor" key={floor.label}>
           <span className="iris-pulse-floor-label">{floor.label}</span>
           <div className="iris-pulse-row">
             {floor.units.map((unit) => (
@@ -163,7 +165,7 @@ function Pulse({
                 data-match={matchedUnitIds?.has(unit.unitId) ? "true" : undefined}
                 aria-pressed={selectedUnitId === unit.unitId}
                 onClick={() => onSelectUnit(selectedUnitId === unit.unitId ? null : unit)}
-                title={`${unit.code} · ${unit.rooms} rooms · ${unit.areaSqm} m² · ${unit.orientation} · ${unit.status} · ${unit.meaningfulViews} meaningful views`}
+                title={`${unit.code} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)} · ${unit.status} · ${unit.meaningfulViews} meaningful views`}
               >
                 <span className="iris-sr">
                   {unit.code}, {unit.status}, {unit.meaningfulViews} meaningful views
@@ -419,9 +421,9 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
             ? "reserved"
             : "sold";
       return {
-        kicker: `${unit.code} · floor ${unit.floor} · ${unit.orientation}`,
+        kicker: `${unit.code} · ${floorWord(unit.floor).toLowerCase()} · ${aspectWord(unit.orientation)}`,
         text: `${unit.code} is ${status} at ${unit.priceDisplay}, and ${unit.uniqueContacts} people have looked at it properly.`,
-        lede: `${unit.rooms} rooms, ${unit.areaSqm} m², ${unit.meaningfulViews} meaningful views this period. Interest is ${unit.trend}.`,
+        lede: `${roomsWord(unit.rooms)}, ${areaWord(unit.areaSqm)}, ${unit.meaningfulViews} meaningful views this period. Interest is ${unit.trend}.`,
       };
     }
     if (segment !== null) {
@@ -602,11 +604,11 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
         <dl>
           <dt>Type</dt>
           <dd>
-            {unit.rooms} rooms · {unit.areaSqm} m²
+            {roomsWord(unit.rooms)} · {areaWord(unit.areaSqm)}
           </dd>
           <dt>Aspect</dt>
           <dd>
-            {unit.orientation} · floor {unit.floor}
+            {aspectWord(unit.orientation)} · {floorWord(unit.floor).toLowerCase()}
           </dd>
           <dt>Price</dt>
           <dd>{unit.priceDisplay}</dd>

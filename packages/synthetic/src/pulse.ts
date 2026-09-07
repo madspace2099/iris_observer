@@ -10,7 +10,7 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { ProjectIdSchema } from "@observer/contracts";
-import { evidenceRef, money } from "./format";
+import { evidenceRef, moneyOr } from "./format";
 import { unitsForProject } from "./world";
 
 /**
@@ -118,14 +118,22 @@ function unitCode(block: string, floor: number, index: number): string {
   return `${block}-${floor}${String(index).padStart(2, "0")}`;
 }
 
+/**
+ * A unit as a catalogue states it.
+ *
+ * The synthetic world states everything; a delivered catalogue does not, and
+ * each of the five attributes is `null` where the source gave nothing. Every
+ * builder that reads one must say the absence in words rather than compute
+ * through it, which is why the type refuses to let a null add or compare.
+ */
 export interface RawUnit {
   code: string;
   block: string;
-  floor: number;
-  rooms: number;
-  areaSqm: number;
+  floor: number | null;
+  rooms: number | null;
+  areaSqm: number | null;
   orientation: PulseUnit["orientation"];
-  price: number;
+  price: number | null;
   status: UnitStatus;
 }
 
@@ -136,11 +144,28 @@ export interface RawUnit {
  * list written by hand names the two counts the first scenario had and drops
  * every one-room and four-room flat from a scale that claims to cover the
  * stock. A real catalogue arrives from the CRM with whatever counts the
- * developer built, and the segments have to follow it.
+ * developer built, and the segments have to follow it. A unit whose count
+ * the catalogue does not state is not in this list; it gets its own row
+ * (`hasUnstatedRooms`), never a guessed count.
  */
-export function roomCounts(units: ReadonlyArray<{ readonly rooms: number }>): readonly number[] {
-  return [...new Set(units.map((u) => u.rooms))].sort((a, b) => a - b);
+export function roomCounts(
+  units: ReadonlyArray<{ readonly rooms: number | null }>,
+): readonly number[] {
+  const counts = new Set<number>();
+  for (const unit of units) if (unit.rooms !== null) counts.add(unit.rooms);
+  return [...counts].sort((a, b) => a - b);
 }
+
+/** Whether any unit's room count is unstated, so the stock needs the extra row. */
+export function hasUnstatedRooms(units: ReadonlyArray<{ readonly rooms: number | null }>): boolean {
+  return units.some((u) => u.rooms === null);
+}
+
+/** The segment id and label for the units whose room count is not stated. */
+export const UNSTATED_ROOMS_SEGMENT = { id: "rooms-unstated", label: "Rooms not stated" } as const;
+
+/** The label for the floor row that holds units whose floor is not stated. */
+export const UNSTATED_FLOOR_LABEL = "Floor not stated";
 
 const ROOM_WORDS: Readonly<Record<number, string>> = {
   1: "One",
@@ -233,7 +258,7 @@ function attentionFor(unit: RawUnit): number {
   if (unit.rooms === 2) score += 0.34; // the segment the verdict is about
   if (unit.orientation === "S") score += 0.2;
   if (unit.orientation === "SW") score += 0.08;
-  if (unit.floor >= 4 && unit.floor <= 6) score += 0.14;
+  if (unit.floor !== null && unit.floor >= 4 && unit.floor <= 6) score += 0.14;
   if (unit.floor === 1) score -= 0.1;
   if (unit.status === "sold") score -= 0.08;
 
@@ -432,7 +457,7 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       areaSqm: unit.areaSqm,
       orientation: unit.orientation,
       price: unit.price,
-      priceDisplay: money(unit.price, currency, locale),
+      priceDisplay: moneyOr(unit.price, currency, locale),
       status: unit.status,
       meaningfulViews: unit.meaningfulViews,
       uniqueContacts: unit.uniqueContacts,
@@ -452,7 +477,14 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     };
   });
 
-  const byFloor = new Map<number, PulseUnit[]>();
+  /*
+   * Floors, top first, and one more row at the bottom for the units whose
+   * catalogue states no floor. They are stock; a building that left them out
+   * would claim fewer units than it sells. The row is labelled in words and
+   * sorts last, below the ground floor, because "below everything" is the
+   * only place that does not imply a level.
+   */
+  const byFloor = new Map<number | null, PulseUnit[]>();
   for (const unit of units) {
     const list = byFloor.get(unit.floor) ?? [];
     list.push(unit);
@@ -460,10 +492,10 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
   }
 
   const floors: PulseFloor[] = [...byFloor.entries()]
-    .sort((a, b) => b[0] - a[0]) // top floor first: the building as it stands
+    .sort((a, b) => (b[0] ?? -Infinity) - (a[0] ?? -Infinity))
     .map(([floor, floorUnits]) => ({
       floor,
-      label: `L${floor}`,
+      label: floor === null ? UNSTATED_FLOOR_LABEL : `L${floor}`,
       units: floorUnits.sort((a, b) => a.code.localeCompare(b.code)),
       available: floorUnits.filter((u) => u.status === "available").length,
       attention:
@@ -494,6 +526,12 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     };
   }
 
+  /*
+   * A unit whose room count is not stated is its own row, never folded into
+   * a guessed count and never dropped: the scale claims to cover the stock.
+   * A unit whose floor is not stated belongs to no band, and one whose aspect
+   * is not stated faces neither south nor west; both stay in the totals.
+   */
   const segments: PulseSegment[] = [
     ...roomCounts(units).map((rooms) =>
       segment(
@@ -504,6 +542,17 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
         observed ? (ROOM_CONVERSION[rooms] ?? null) : null,
       ),
     ),
+    ...(hasUnstatedRooms(units)
+      ? [
+          segment(
+            UNSTATED_ROOMS_SEGMENT.id,
+            "rooms",
+            UNSTATED_ROOMS_SEGMENT.label,
+            (u) => u.rooms === null,
+            null,
+          ),
+        ]
+      : []),
     segment(
       "aspect-s",
       "orientation",
@@ -518,15 +567,27 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       (u) => u.orientation === "W",
       observed ? 0.8 : null,
     ),
-    segment("floors-low", "floor_band", "Floors 1–3", (u) => u.floor <= 3, null),
+    segment(
+      "floors-low",
+      "floor_band",
+      "Floors 1–3",
+      (u) => u.floor !== null && u.floor <= 3,
+      null,
+    ),
     segment(
       "floors-mid",
       "floor_band",
       "Floors 4–6",
-      (u) => u.floor >= 4 && u.floor <= 6,
+      (u) => u.floor !== null && u.floor >= 4 && u.floor <= 6,
       observed ? 1.2 : null,
     ),
-    segment("floors-high", "floor_band", "Floors 7–8", (u) => u.floor >= 7, null),
+    segment(
+      "floors-high",
+      "floor_band",
+      "Floors 7–8",
+      (u) => u.floor !== null && u.floor >= 7,
+      null,
+    ),
   ];
 
   const root = `/${context.tenant.slug}/${context.project.slug}`;

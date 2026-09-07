@@ -34,7 +34,13 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { catalogueFor, roomCounts, roomLabel } from "../pulse";
+import {
+  UNSTATED_ROOMS_SEGMENT,
+  catalogueFor,
+  hasUnstatedRooms,
+  roomCounts,
+  roomLabel,
+} from "../pulse";
 import { count, evidenceRef, percent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
@@ -551,7 +557,8 @@ export function buildSalesFlow(
 interface RoomSegmentSpec {
   readonly id: string;
   readonly label: string;
-  readonly rooms: number;
+  /** `null` for the row that holds units whose room count is not stated. */
+  readonly rooms: number | null;
 }
 
 /**
@@ -563,12 +570,25 @@ interface RoomSegmentSpec {
  * segments now follow the stock, so a catalogue that arrives from a CRM with
  * five counts gets five rows, and one with two still gets two.
  */
-function roomSegments(catalogue: ReadonlyArray<{ readonly rooms: number }>): RoomSegmentSpec[] {
-  return roomCounts(catalogue).map((rooms) => ({
+/*
+ * One segment per stated count, and one more for the units whose count the
+ * catalogue did not state — its own row, never folded into a guess, so the
+ * scale still covers the stock (ADR-0036).
+ */
+function roomSegments(
+  catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
+): RoomSegmentSpec[] {
+  const stated = roomCounts(catalogue).map((rooms) => ({
     id: `rooms-${rooms}`,
     label: roomLabel(rooms),
     rooms,
   }));
+  return hasUnstatedRooms(catalogue)
+    ? [
+        ...stated,
+        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_SEGMENT.label, rooms: null },
+      ]
+    : stated;
 }
 
 /**

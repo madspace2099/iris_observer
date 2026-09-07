@@ -35,15 +35,24 @@ export type UnitChange = (typeof UNIT_CHANGES)[number];
 
 export type DemandTrend = "rising" | "flat" | "falling";
 
+/**
+ * A unit as the catalogue states it, and as the showroom observed it.
+ *
+ * Floor, room count, area, aspect and price are what a catalogue stated —
+ * and a real catalogue does not state all of them for every unit. Each is
+ * `null` when the source gave nothing, and the surfaces say so in words where
+ * the figure would have stood. `priceDisplay` carries that word when `price`
+ * is null, so a cell never has to invent one.
+ */
 export interface PulseUnit {
   readonly unitId: string;
   readonly code: string;
   readonly block: string;
-  readonly floor: number;
-  readonly rooms: number;
-  readonly areaSqm: number;
-  readonly orientation: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
-  readonly price: number;
+  readonly floor: number | null;
+  readonly rooms: number | null;
+  readonly areaSqm: number | null;
+  readonly orientation: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" | null;
+  readonly price: number | null;
   readonly priceDisplay: string;
   readonly status: UnitStatus;
 
@@ -61,7 +70,8 @@ export interface PulseUnit {
 }
 
 export interface PulseFloor {
-  readonly floor: number;
+  /** `null` for the one row that holds units whose catalogue states no floor. */
+  readonly floor: number | null;
   readonly label: string;
   readonly units: readonly PulseUnit[];
   /** Floor totals, so a floor can be read without summing cells by eye. */

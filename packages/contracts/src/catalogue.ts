@@ -159,12 +159,14 @@ const PLACED_STATUS: Partial<Record<CatalogueStatus, PlacedStatus>> = {
 export type Placement =
   | {
       readonly ok: true;
-      readonly floor: number;
-      readonly rooms: number;
-      readonly areaSqm: number;
-      readonly price: number;
-      readonly orientation: Compass;
+      readonly floor: number | null;
+      readonly rooms: number | null;
+      readonly areaSqm: number | null;
+      readonly price: number | null;
+      readonly orientation: Compass | null;
       readonly status: PlacedStatus;
+      /** What the source did not state, in words. The unit is drawn with the gap said. */
+      readonly gaps: readonly string[];
     }
   | { readonly ok: false; readonly reasons: readonly string[] };
 
@@ -190,41 +192,48 @@ export function compassFor(
 /**
  * Whether the showroom read models can draw this unit, and with what.
  *
- * The stacking plan, the parity scale and the unit register all need a floor,
- * a room count, an area, a price, a compass point and one of three states.
- * A unit missing any of them is not placed — and the reason is returned in
- * words, so the integrations screen can say "12 units are not shown on
- * Project: 9 have an orientation code that is not mapped" instead of
- * inventing a floor or a count to fill the gap.
+ * One thing decides drawability: a state the surfaces have a word for.
+ * Available, reserved and sold are drawn; a unit that is not for sale,
+ * delayed or of unknown status is not, and the reason is returned in words
+ * so the integrations screen can say so.
+ *
+ * A floor, a room count, an area, a price and a compass point are wanted,
+ * not required. A unit lacking one is still drawn — the read models say the
+ * absence in words where the figure would have stood — and the gap is named
+ * here, so the same screen can say "3 units without a price" instead of a
+ * number being invented to fill it, and instead of the unit vanishing.
  */
 export function placementOf(unit: CatalogueUnit, orientationMap: OrientationMap): Placement {
-  const reasons: string[] = [];
   const areaSqm = unit.areas.interiorSqm ?? unit.areas.grossSqm;
   const price = unit.price.withVat ?? unit.price.withoutVat;
   const status = PLACED_STATUS[unit.status];
   const orientation = compassFor(unit.orientation, orientationMap);
 
-  if (unit.floor === null) reasons.push("no floor");
-  if (unit.rooms === null) reasons.push("no room count");
-  if (areaSqm === null) reasons.push("no area");
-  if (price === null) reasons.push("no price");
-  if (status === undefined) reasons.push(`status ${unit.status.replaceAll("_", " ")}`);
+  if (status === undefined) {
+    return { ok: false, reasons: [`status ${unit.status.replaceAll("_", " ")}`] };
+  }
+
+  const gaps: string[] = [];
+  if (unit.floor === null) gaps.push("no floor");
+  if (unit.rooms === null) gaps.push("no room count");
+  if (areaSqm === null) gaps.push("no area");
+  if (price === null) gaps.push("no price");
   if (orientation === null) {
-    reasons.push(
+    gaps.push(
       unit.orientation.length === 0
         ? "no orientation"
         : `orientation code not mapped (${unit.orientation.join(", ")})`,
     );
   }
-  if (reasons.length > 0) return { ok: false, reasons };
   return {
     ok: true,
-    floor: unit.floor as number,
-    rooms: unit.rooms as number,
-    areaSqm: areaSqm as number,
-    price: price as number,
-    orientation: orientation as Compass,
-    status: status as PlacedStatus,
+    floor: unit.floor,
+    rooms: unit.rooms,
+    areaSqm,
+    price,
+    orientation,
+    status,
+    gaps,
   };
 }
 

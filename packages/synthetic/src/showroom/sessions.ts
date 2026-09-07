@@ -592,7 +592,7 @@ function buildSteps(
  */
 function unitWeight(unit: RawUnit): number {
   const roomWeight = unit.rooms === 2 ? 1.55 : 0.75;
-  const floorWeight = unit.floor >= 3 && unit.floor <= 6 ? 1.35 : 0.8;
+  const floorWeight = unit.floor !== null && unit.floor >= 3 && unit.floor <= 6 ? 1.35 : 0.8;
   const aspectWeight = unit.orientation === "S" ? 1.25 : unit.orientation === "SW" ? 1.05 : 0.85;
   const statusWeight = unit.status === "sold" ? 0.35 : unit.status === "reserved" ? 0.7 : 1;
   return roomWeight * floorWeight * aspectWeight * statusWeight;
@@ -762,7 +762,9 @@ function buildFilters(
     out.push({
       field: "price",
       value: `under €${cap.toLocaleString("en-GB")}`,
-      matches: catalogue.filter((c) => c.price <= cap && c.status === "available").length,
+      matches: catalogue.filter(
+        (c) => c.price !== null && c.price <= cap && c.status === "available",
+      ).length,
       availability: "requires_ue5_v2_event",
     });
   }
@@ -780,7 +782,8 @@ function buildFilters(
     out.push({
       field: "floor",
       value: "7 and above",
-      matches: catalogue.filter((c) => c.floor >= 7 && c.status === "available").length,
+      matches: catalogue.filter((c) => c.floor !== null && c.floor >= 7 && c.status === "available")
+        .length,
       availability: "requires_ue5_v2_event",
     });
   }

@@ -48,7 +48,15 @@ const DELIVERED = {
     unit("C-1"),
     unit("C-2", { rooms: 4, floor: 5, orientation: ["SV"], status: "reserved", statusRaw: "2" }),
     unit("C-3", { rooms: 4, floor: 6, status: "sold", statusRaw: "3" }),
-    unit("P-1", { rooms: null, layout: null, kitchen: null, unitType: "parking" }),
+    // A unit the sheet says almost nothing about: no floor, no count, no price.
+    unit("P-1", {
+      rooms: null,
+      layout: null,
+      kitchen: null,
+      unitType: "parking",
+      floor: null,
+      price: { withVat: null, withoutVat: null, currency: "CZK" },
+    }),
     unit("C-4", { orientation: ["Z"] }),
   ],
 };
@@ -60,33 +68,55 @@ const source: CatalogueSource = {
 };
 
 describe("rawUnitsFromCatalogue", () => {
-  it("places what it can draw and names what it cannot", () => {
+  it("draws every unit for sale and names what each was stated without", () => {
     const overlay = rawUnitsFromCatalogue(DELIVERED.units, DELIVERED.orientationMap);
-    expect(overlay.units.map((u) => [u.code, u.rooms, u.orientation, u.status])).toEqual([
-      ["C-1", 1, "S", "available"],
-      ["C-2", 4, "NE", "reserved"],
-      ["C-3", 4, "S", "sold"],
+    expect(
+      overlay.units.map((u) => [u.code, u.floor, u.rooms, u.price, u.orientation, u.status]),
+    ).toEqual([
+      ["C-1", 2, 1, 4200000, "S", "available"],
+      ["C-2", 5, 4, 4200000, "NE", "reserved"],
+      ["C-3", 6, 4, 4200000, "S", "sold"],
+      ["P-1", null, null, null, "S", "available"],
+      ["C-4", 2, 1, 4200000, null, "available"],
     ]);
-    expect(overlay.unplaced).toEqual([
-      { code: "P-1", reason: "no room count" },
-      { code: "C-4", reason: "orientation code not mapped (Z)" },
+    expect(overlay.unplaced).toEqual([]);
+    expect(overlay.gaps).toEqual([
+      { code: "P-1", gap: "no floor" },
+      { code: "P-1", gap: "no room count" },
+      { code: "P-1", gap: "no price" },
+      { code: "C-4", gap: "orientation code not mapped (Z)" },
     ]);
+  });
+
+  it("keeps a unit off the surfaces only for a status they have no word for", () => {
+    const overlay = rawUnitsFromCatalogue(
+      [unit("X-1", { status: "not_for_sale", statusRaw: "4" })],
+      DELIVERED.orientationMap,
+    );
+    expect(overlay.units).toEqual([]);
+    expect(overlay.unplaced).toEqual([{ code: "X-1", reason: "status not for sale" }]);
   });
 });
 
 describe("a repository composed with a catalogue source", () => {
   const repo = new SyntheticObserverRepository({ catalogueSource: source });
 
-  it("builds the project's segments from the delivered stock", async () => {
+  it("builds the project's segments from the delivered stock, unstated counts as their own row", async () => {
     const view = await repo.getProjectView(ISTER, null);
-    expect(view.segments.map((s) => s.id)).toEqual(["rooms-1", "rooms-4"]);
-    expect(view.segments.map((s) => s.availableUnits)).toEqual([1, 0]);
+    expect(view.segments.map((s) => s.id)).toEqual(["rooms-1", "rooms-4", "rooms-unstated"]);
+    expect(view.segments.map((s) => s.label)).toEqual([
+      "One-room",
+      "Four-room",
+      "Rooms not stated",
+    ]);
+    expect(view.segments.map((s) => s.rooms)).toEqual([1, 4, null]);
+    expect(view.segments.map((s) => s.availableUnits)).toEqual([2, 0, 1]);
   });
 
   it("draws the delivered stock with no invented attention", async () => {
     const pulse = await repo.getProjectPulse(ISTER);
     const units = pulse.floors.flatMap((f) => f.units);
-    expect(units.map((u) => u.code).sort()).toEqual(["C-1", "C-2", "C-3"]);
+    expect(units.map((u) => u.code).sort()).toEqual(["C-1", "C-2", "C-3", "C-4", "P-1"]);
     for (const u of units) {
       expect(u.attention).toBe(0);
       expect(u.meaningfulViews).toBe(0);
@@ -95,10 +125,42 @@ describe("a repository composed with a catalogue source", () => {
       expect(u.change).toBeNull();
       expect(u.intent).toBeNull();
     }
-    expect(pulse.totals).toMatchObject({ units: 3, available: 1, reserved: 1, sold: 1 });
+    expect(pulse.totals).toMatchObject({ units: 5, available: 3, reserved: 1, sold: 1 });
     expect(pulse.totals.soldInPeriod).toBeNull();
     for (const s of pulse.segments) expect(s.conversionRatio).toBeNull();
     expect(pulse.evidence.observationCount).toBe(0);
+  });
+
+  it("draws a unit the catalogue barely describes, and says so in words", async () => {
+    const pulse = await repo.getProjectPulse(ISTER);
+    // Top floor first; the units with no stated floor sit in one last row.
+    expect(pulse.floors.map((f) => f.label)).toEqual(["L6", "L5", "L2", "Floor not stated"]);
+    const last = pulse.floors[pulse.floors.length - 1];
+    expect(last?.floor).toBeNull();
+    expect(last?.units.map((u) => u.code)).toEqual(["P-1"]);
+    const p1 = last?.units[0];
+    expect(p1).toMatchObject({ rooms: null, price: null, priceDisplay: "Not stated" });
+    const c4 = pulse.floors.flatMap((f) => f.units).find((u) => u.code === "C-4");
+    expect(c4?.orientation).toBeNull();
+    expect(pulse.segments.find((s) => s.id === "rooms-unstated")).toMatchObject({
+      label: "Rooms not stated",
+      unitIds: [p1?.unitId],
+      available: 1,
+    });
+
+    const detail = await repo.getUnitDetail(ISTER, "P-1");
+    expect(detail.unit).toMatchObject({
+      floor: null,
+      rooms: null,
+      price: null,
+      priceDisplay: "Not stated",
+      pricePerSqmDisplay: "Price not stated",
+    });
+    expect(detail.headline).toContain("Rooms not stated");
+
+    const register = await repo.getUnitAttention(ISTER, null);
+    const row = register.rows.find((r) => r.unitCode === "P-1");
+    expect(row).toMatchObject({ rooms: null, floor: null, priceDisplay: "Not stated" });
   });
 
   it("lets no invented session touch a delivered unit", async () => {

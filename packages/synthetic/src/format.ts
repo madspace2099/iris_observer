@@ -19,6 +19,20 @@ export function money(value: number, currency: string, locale: string): string {
   }).format(value);
 }
 
+/**
+ * The word a surface shows where a catalogue stated nothing.
+ *
+ * One word, everywhere: a floor, a count, an area, an aspect or a price the
+ * source left out reads "Not stated", never a zero, a dash or an empty cell.
+ * A reader can then tell a gap in the catalogue from a figure of nothing.
+ */
+export const NOT_STATED = "Not stated";
+
+/** `money`, or the word for a price the catalogue did not state. */
+export function moneyOr(value: number | null, currency: string, locale: string): string {
+  return value === null ? NOT_STATED : money(value, currency, locale);
+}
+
 export function compactMoney(value: number, currency: string, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",

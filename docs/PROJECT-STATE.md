@@ -28,7 +28,7 @@ whatever it points at. Update this file at the end of every meaningful session.
 | M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                             |
 | M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                         |
 | M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                                                                |
-| **M10 CRM connectors**                       | 🟡 **built and read by the product** (`7226e07` + the catalogue seam, ADR-0036) — adapters, sync, persistence, screen, and Project drawing a delivered stock; deals and the sparse-unit rendering remain |
+| **M10 CRM connectors**                       | 🟡 **built and read by the product** (`7226e07` + the catalogue seam, ADR-0036) — adapters, sync, persistence, screen, Project drawing a delivered stock, and sparse units drawn with their gaps said in words; deals remain |
 
 ## Cloud resources — do not ask for these again
 
@@ -199,17 +199,23 @@ The order follows the dependency chain, not the milestone numbers.
    `tfcchobwobpadenampyh` through the SQL Editor as the earlier ones were, add it to the `migration
 repair` list in `supabase/README.md`, and prove it from the integrations screen with a CSV
    upload — the same path this session proved on the local control plane.
-2. ✅ **Done, with one rule left to lift.** The product reads a synced catalogue through the
-   `CatalogueSource` seam (composed in `apps/web/src/lib/repository.ts`, asked in `context()`):
-   the connector's stock replaces the synthetic stock for the twin project, invented sessions
-   never touch a delivered unit, and attention on delivered units is what they have earned —
-   none, until ingestion delivers sessions. What is left: the showroom read models still assume
-   every unit has a floor, a room count, an area, a price and a compass point, so a unit lacking
-   one is **not drawn** and is counted with its reason on the integrations screen ("4 of 5 units
-   drawn. Not drawn: 1 status unknown"). Lifting that means `rooms`, `floor`, `orientation`,
-   `areaSqm` and `price` going nullable through `PulseUnit`, `UnitAttributes` and
-   `UnitAttentionRow` and every render of them saying the absence in words — roughly thirty
-   sites, each needing the visual review the doctrine asks for.
+2. ✅ **Done, rule lifted.** The product reads a synced catalogue through the `CatalogueSource`
+   seam (composed in `apps/web/src/lib/repository.ts`, asked in `context()`): the connector's
+   stock replaces the synthetic stock for the twin project, invented sessions never touch a
+   delivered unit, and attention on delivered units is what they have earned — none, until
+   ingestion delivers sessions. Since 2026-09-07 a unit the catalogue barely describes is drawn
+   too: `floor`, `rooms`, `areaSqm`, `orientation` and `price` are nullable through `RawUnit`,
+   `PulseUnit`, `UnitAttributes` and `UnitAttentionRow`; `placementOf` refuses a unit only for
+   a status the surfaces have no word for and returns the rest as `gaps`; the words live in
+   `@observer/readmodels` (`words.ts`: "Rooms not stated", "Floor not stated", "Area not
+   stated", "Aspect not stated", "Not stated"); the Pulse gains a last "Floor not stated" row
+   and a "Rooms not stated" segment (ADR-0036's own rule), the register a "Rooms not stated"
+   filter choice and absent-last ordering, and the integrations screen counts the gaps ("7 of 8
+   units drawn. Not drawn: 1 status unknown. Gaps: 2 no room count; 1 no floor; 1 no area").
+   Proven on the local control plane with a sparse sheet through the real upload and the real
+   Project, Units and unit pages: no `null`, `NaN` or empty cell anywhere. A unit type
+   vocabulary (parking, cellar) is still absent, so a parking place with no room count sits in
+   the unstated-rooms row; that is ADR-0036's open `flat_type` question, not a rendering gap.
 3. **Deals.** REALPAD's business cases arrive only as Excel through Data Takeout; Lomnio's as
    `lead.stage`; Monday's as a status column. Each needs the stage-mapping table on the
    integrations screen (ADR-0036 decision 4) and a `deal.stage.changed` fact into the ladder.

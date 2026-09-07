@@ -44,14 +44,15 @@ import type {
   ViewContext,
   VisitorLabelKind,
 } from "@observer/readmodels";
-import { visitorLabel } from "@observer/readmodels";
-import { catalogueFor, type RawUnit } from "../pulse";
+import { areaWord, roomsWord, visitorLabel } from "@observer/readmodels";
+import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
 import {
   count,
   empty,
   evidenceRef,
   insufficient,
   money,
+  moneyOr,
   ok,
   percent,
   unavailable,
@@ -501,8 +502,17 @@ export function buildUnitDetail(
     status: raw.status,
     statusLabel: STATUS_LABELS[raw.status],
     price: raw.price,
-    priceDisplay: money(raw.price, currency, locale),
-    pricePerSqmDisplay: `${money(Math.round(raw.price / Math.max(1, raw.areaSqm)), currency, locale)} / m²`,
+    priceDisplay: moneyOr(raw.price, currency, locale),
+    /*
+     * A rate needs both figures. With either unstated the rate is not
+     * computed, and the word says which half the catalogue left out.
+     */
+    pricePerSqmDisplay:
+      raw.price === null
+        ? "Price not stated"
+        : raw.areaSqm === null
+          ? "Area not stated"
+          : `${money(Math.round(raw.price / Math.max(1, raw.areaSqm)), currency, locale)} / m²`,
   };
 
   const inPeriod = `${context.period.label.toLowerCase()}`;
@@ -887,8 +897,8 @@ export function buildUnitDetail(
 
   const headline =
     row.meetings === 0
-      ? `${unit.unitCode} · ${unit.rooms} rooms · ${unit.areaSqm} m² · ${unit.priceDisplay}`
-      : `${unit.unitCode} · ${unit.rooms} rooms · ${unit.areaSqm} m² · ${unit.priceDisplay} · opened in ${count(row.meetings, locale)} meeting${row.meetings === 1 ? "" : "s"}`;
+      ? `${unit.unitCode} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay}`
+      : `${unit.unitCode} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay} · opened in ${count(row.meetings, locale)} meeting${row.meetings === 1 ? "" : "s"}`;
 
   return {
     context,
@@ -1172,7 +1182,8 @@ export function buildAgentDetail(
   /* --- what their buyers were looking at ----------------------------------- */
 
   const catalogue = catalogueFor(context.project.id as string);
-  const roomsPresent = [...new Set(catalogue.map((u) => u.rooms))].sort((a, b) => a - b);
+  /* Stated counts only; a unit with none belongs to no room bucket here. */
+  const roomsPresent = roomCounts(catalogue);
   const codesByRooms = new Map<number, Set<string>>(
     roomsPresent.map((rooms) => [
       rooms,

@@ -365,11 +365,15 @@ export function connectorService(deps: ServiceDeps) {
   }
 
   /**
-   * How much of a delivered catalogue the product can draw, and why not the rest.
+   * How much of a delivered catalogue the product draws, why not the rest,
+   * and what the drawn units are shown without.
    *
-   * The reasons are grouped and counted so the screen can say "9 have an
+   * Both lists are grouped and counted so the screen can say "9 have an
    * orientation code that is not mapped" beside the mapping field that fixes
-   * it, instead of listing forty-eight rows.
+   * it, instead of listing forty-eight rows. A unit is not drawn only for a
+   * status the surfaces have no word for; a missing floor, count, area, price
+   * or aspect is a gap the surfaces say in words, and it is counted here so
+   * the operator knows what the source left out.
    */
   async function placement(
     projectUuid: string,
@@ -378,28 +382,29 @@ export function connectorService(deps: ServiceDeps) {
     readonly total: number;
     readonly placed: number;
     readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+    readonly gaps: readonly { readonly reason: string; readonly count: number }[];
   }> {
     const rows = await db.connectorConfigs(account, projectUuid);
     const config = CONFIG_SCHEMAS[kind].safeParse(rows.find((r) => r.connector === kind)?.config);
     const orientationMap = config.success ? config.data.orientationMap : {};
     const units = await currentUnits(projectUuid, kind);
-    const counts = new Map<string, number>();
+    const reasons = new Map<string, number>();
+    const gaps = new Map<string, number>();
     let placed = 0;
     for (const unit of units) {
       const verdict = placementOf(unit, orientationMap);
       if (verdict.ok) {
         placed += 1;
+        for (const gap of verdict.gaps) gaps.set(gap, (gaps.get(gap) ?? 0) + 1);
         continue;
       }
-      for (const reason of verdict.reasons) counts.set(reason, (counts.get(reason) ?? 0) + 1);
+      for (const reason of verdict.reasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
     }
-    return {
-      total: units.length,
-      placed,
-      reasons: [...counts.entries()]
+    const counted = (map: Map<string, number>) =>
+      [...map.entries()]
         .map(([reason, count]) => ({ reason, count }))
-        .sort((a, b) => b.count - a.count),
-    };
+        .sort((a, b) => b.count - a.count);
+    return { total: units.length, placed, reasons: counted(reasons), gaps: counted(gaps) };
   }
 
   /**

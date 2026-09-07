@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import type { PeriodPreset, PulseFloor, PulseUnit, UnitStatus } from "@observer/readmodels";
+import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -34,6 +35,12 @@ const CHANGE_WORDS: Readonly<Record<NonNullable<PulseUnit["change"]>, string>> =
   demand_drop: "fewer views than the period before",
   new_interest: "first views in this period",
 };
+
+/**
+ * The width a cell takes when its area is not stated: a plain, middling
+ * flat, so the row still draws. Never read as a figure — the name says so.
+ */
+const UNSTATED_AREA_GROW = 60;
 
 const TREND_WORDS: Readonly<Record<PulseUnit["trend"], string>> = {
   rising: "rising",
@@ -135,7 +142,7 @@ export function StackPlan({
         </p>
 
         {floors.map((floor) => (
-          <div className="ox-stack-floor" key={floor.floor}>
+          <div className="ox-stack-floor" key={floor.label}>
             <span className="ox-stack-label">{floor.label}</span>
             <div className="ox-stack-units">
               {floor.units.map((unit) => (
@@ -191,16 +198,22 @@ function Cell({
    * `flex-grow` and `flex-basis` are inline because the sheet gives the cell a
    * `min-width` and nothing else; see the gap noted on the component above.
    */
+  /*
+   * A cell's width is its floor area. A unit whose area the catalogue did not
+   * state still needs a width to be drawn at all, so it takes a plain default
+   * rather than vanishing; the accessible name beside it says the area is not
+   * stated, so the width is never read as a figure.
+   */
   const style = {
-    flexGrow: unit.areaSqm,
+    flexGrow: unit.areaSqm ?? UNSTATED_AREA_GROW,
     flexBasis: 0,
     ...(sold ? {} : { "--ox-heat": unit.attention.toFixed(3) }),
   } as CSSProperties;
 
   const change = unit.change === null ? null : CHANGE_WORDS[unit.change];
   const name = [
-    `${unit.code}, floor ${unit.floor}, block ${unit.block}`,
-    `${unit.rooms} rooms, ${unit.areaSqm} square metres, facing ${unit.orientation}`,
+    `${unit.code}, ${floorWord(unit.floor).toLowerCase()}, block ${unit.block}`,
+    `${roomsWord(unit.rooms)}, ${areaWord(unit.areaSqm)}, ${aspectWord(unit.orientation)}`,
     unit.priceDisplay,
     STATUS_WORDS[unit.status],
     `${unit.meaningfulViews} meaningful views from ${unit.uniqueContacts} people, ${TREND_WORDS[unit.trend]}`,

@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import {
+  NOT_STATED,
+  NotFoundError,
+  NotPermittedError,
+  aspectWord,
+  floorWord,
+} from "@observer/readmodels";
 import type { UnitAttentionDetail, UnitDetailView } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
@@ -188,7 +194,7 @@ export default async function UnitPage({
         kicker={`${context.project.name} · Units · ${periodLabel}`}
         title={unit.unitCode}
         answer={detail.headline}
-        lede={`Floor ${unit.floor}, block ${unit.block}, facing ${unit.orientation}. ${unit.pricePerSqmDisplay}.`}
+        lede={`${floorWord(unit.floor)}, block ${unit.block}, ${aspectWord(unit.orientation)}. ${unit.pricePerSqmDisplay}.`}
         crumbs={[
           { label: context.project.name, href: `${root}/project` },
           { label: "Units", href: base },
@@ -239,28 +245,40 @@ export default async function UnitPage({
                 label="Price per m²"
                 value={<span className="ox-figure">{unit.pricePerSqmDisplay}</span>}
               />
-              <TallyItem label="Rooms" value={<span className="ox-figure">{unit.rooms}</span>} />
+              {/*
+               * A figure the catalogue did not state is the word for it, never
+               * an empty cell: JSX draws `null` as nothing, and nothing under
+               * "Rooms" would read as a blank the product forgot to fill.
+               */}
+              <TallyItem
+                label="Rooms"
+                value={<span className="ox-figure">{unit.rooms ?? NOT_STATED}</span>}
+              />
               <TallyItem
                 label="Area"
                 value={
-                  <span className="ox-value">
-                    <span className="ox-figure">{unit.areaSqm}</span>
-                    <span className="ox-of">m²</span>
-                  </span>
+                  unit.areaSqm === null ? (
+                    <span className="ox-figure">{NOT_STATED}</span>
+                  ) : (
+                    <span className="ox-value">
+                      <span className="ox-figure">{unit.areaSqm}</span>
+                      <span className="ox-of">m²</span>
+                    </span>
+                  )
                 }
               />
               <TallyItem
                 label="Floor"
                 value={
                   <span className="ox-value">
-                    <span className="ox-figure">{unit.floor}</span>
+                    <span className="ox-figure">{unit.floor ?? NOT_STATED}</span>
                     <span className="ox-of">block {unit.block}</span>
                   </span>
                 }
               />
               <TallyItem
                 label="Orientation"
-                value={<span className="ox-figure">{unit.orientation}</span>}
+                value={<span className="ox-figure">{unit.orientation ?? NOT_STATED}</span>}
               />
             </Tally>
 

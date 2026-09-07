@@ -6,10 +6,10 @@ import type { RawUnit } from "./pulse";
  *
  * The connectors deliver `CatalogueUnit`, which says honestly what a source
  * did not state. The pulse and the unit surfaces build from `RawUnit`, which
- * assumes a floor, a count, an area, a price and a compass point on every
- * row, because the synthetic world always had them. Until those read models
- * learn to draw an absence, a unit that lacks one of them is not placed —
- * it is counted and named, so the gap is on a screen rather than filled.
+ * now says the same: a floor, a count, an area, a price or a compass point
+ * the source left out is `null`, and every surface reads it as a word rather
+ * than a figure. Only a status the surfaces have no word for keeps a unit off
+ * them, and that unit is counted and named so the gap is on a screen.
  */
 
 export interface UnplacedUnit {
@@ -17,9 +17,16 @@ export interface UnplacedUnit {
   readonly reason: string;
 }
 
+/** A drawn unit's stated gap, so a screen can count what the source left out. */
+export interface UnitGap {
+  readonly code: string;
+  readonly gap: string;
+}
+
 export interface CatalogueOverlay {
   readonly units: RawUnit[];
   readonly unplaced: UnplacedUnit[];
+  readonly gaps: UnitGap[];
 }
 
 export function rawUnitsFromCatalogue(
@@ -28,12 +35,14 @@ export function rawUnitsFromCatalogue(
 ): CatalogueOverlay {
   const units: RawUnit[] = [];
   const unplaced: UnplacedUnit[] = [];
+  const gaps: UnitGap[] = [];
   for (const unit of delivered) {
     const placed = placementOf(unit, orientationMap);
     if (!placed.ok) {
       unplaced.push({ code: unit.code, reason: placed.reasons.join(", ") });
       continue;
     }
+    for (const gap of placed.gaps) gaps.push({ code: unit.code, gap });
     units.push({
       code: unit.code,
       block: unit.building ?? "",
@@ -45,5 +54,5 @@ export function rawUnitsFromCatalogue(
       status: placed.status,
     });
   }
-  return { units, unplaced };
+  return { units, unplaced, gaps };
 }

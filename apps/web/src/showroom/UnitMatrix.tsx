@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { UnitAttentionRow } from "@observer/readmodels";
+import { areaWord, roomsWord } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { Measure } from "./Measure";
 
@@ -86,7 +87,7 @@ export function UnitMatrix({
             <span className="iris-matrix-code">
               {row.unitCode}
               <em>
-                {row.rooms} rooms · {row.areaSqm} m²
+                {roomsWord(row.rooms)} · {areaWord(row.areaSqm)}
               </em>
             </span>
             {/*

@@ -152,8 +152,9 @@ export interface SegmentInterest {
   /**
    * The room count this segment is defined by. Carried so a consumer can
    * build a criterion from the segment itself rather than parse its id.
+   * `null` for the segment of units whose count the catalogue did not state.
    */
-  readonly rooms: number;
+  readonly rooms: number | null;
   readonly availableUnits: number;
   readonly stockShare: number;
   readonly attentionShare: number;

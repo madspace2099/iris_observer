@@ -232,13 +232,14 @@ export interface UnitAttributes {
   readonly unitId: string;
   readonly unitCode: string;
   readonly block: string;
-  readonly floor: number;
-  readonly rooms: number;
-  readonly areaSqm: number;
-  readonly orientation: string;
+  /** Each `null` when the catalogue did not state it; the display strings say so. */
+  readonly floor: number | null;
+  readonly rooms: number | null;
+  readonly areaSqm: number | null;
+  readonly orientation: string | null;
   readonly status: "available" | "reserved" | "sold";
   readonly statusLabel: string;
-  readonly price: number;
+  readonly price: number | null;
   readonly priceDisplay: string;
   readonly pricePerSqmDisplay: string;
 }
