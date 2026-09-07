@@ -281,6 +281,12 @@ describe("the secret auditor exempts nothing", () => {
     /*
      * THE PROOF THE DECLARATION WAS UNNECESSARY. The repaired history contains
      * no commit carrying the shape, so the scan is clean with nothing exempted.
+     *
+     * The auditor walks the working tree, the browser bundle and every commit
+     * on the branch (236 at the time of writing). Idle that is 16 seconds; in
+     * the full suite it shares the machine with the packager suites and was
+     * measured at 31 seconds, one over the 30-second default. A timeout would
+     * read as a finding the auditor never made, so the budget is explicit.
      */
     const out = execFileSync(process.execPath, ["scripts/secret-audit.mjs"], {
       cwd: join(import.meta.dirname, "..", ".."),
@@ -289,5 +295,5 @@ describe("the secret auditor exempts nothing", () => {
     });
     expect(out).toContain("secret audit: clean");
     expect(out).toMatch(/history\s+origin\/main\.\.HEAD/);
-  });
+  }, 120_000);
 });

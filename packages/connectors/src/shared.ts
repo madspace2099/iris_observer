@@ -39,7 +39,9 @@ export function rawStatus(raw: string | number | null | undefined): string {
 export function readNumber(raw: string | number | null | undefined): number | null {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
-  let text = raw.replace(/[\s ]/g, "").trim();
+  // \s already matches the no-break and narrow no-break spaces spreadsheets
+  // use as thousands separators, so no literal NBSP has to sit in the source.
+  let text = raw.replace(/\s/g, "").trim();
   if (text.length === 0) return null;
   const lastComma = text.lastIndexOf(",");
   const lastDot = text.lastIndexOf(".");

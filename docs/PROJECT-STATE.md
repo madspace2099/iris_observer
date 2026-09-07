@@ -496,9 +496,16 @@ tail's, so the step reported green while four tests failed underneath — the re
 list of PGlite-booting suites (`scripts/release/vitest-runner-reporter.ts`) did not name the new
 catalogue suite, and the three packager suites refuse any tree that is not clean, which another
 session's `.impeccable/` residue and a build-rewritten `next-env.d.ts` had made it. Both are fixed
-in the commit after `48417c3`: the suite is registered, `.impeccable/` is gitignored, and the
-whole suite was re-run with its own exit status before the state below was written. The lesson
-stands in the working-practice section: never read a gate through a pipe.
+in the commit after `48417c3`: the suite is registered and `.impeccable/` is gitignored. The
+whole suite re-run with its own exit status then showed one more: the secret-audit history test
+(`supabase/test/no-secret-recipes.test.ts`) timed out at 31 seconds against the 30-second default,
+because the auditor walks 835 files, the browser bundle and 236 branch commits while the packager
+suites share the machine (16 seconds idle). Standalone the auditor is clean; the test now carries
+an explicit 120-second budget so a slow machine cannot read as a finding. `pnpm lint`, read the
+same way, had been hiding one error of its own: a literal no-break space inside a regex class in
+`packages/connectors/src/shared.ts` (`no-irregular-whitespace`); `\s` already matches it, so the
+class collapsed to `\s` and the NBSP case in `packages/connectors/test/shared.test.ts` still
+passes. The lesson stands in the working-practice section: never read a gate through a pipe.
 
 ### What the inventories found, condensed
 
