@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   CATALOGUE_FACADES,
   DEALS_FACADES,
@@ -10,7 +10,7 @@ import {
 } from "@observer/connectors";
 
 import { installCronStandIn } from "./support/cron-stand-in";
-import { closeSuiteDatabases, openDatabase } from "./support/pglite";
+import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
 
 /**
  * THE TWO M10 MIGRATIONS, AS THE PREVIEW WOULD RECEIVE THEM.
@@ -101,6 +101,8 @@ beforeAll(async () => {
   }
 });
 
+/* Both hooks, as every PGlite suite must: the bound test asks for them by name, and a suite with no per-test database still says so. */
+afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
 
 describe("ordering", () => {
