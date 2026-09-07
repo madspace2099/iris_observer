@@ -245,7 +245,7 @@ export interface ObserverRepository {
    * a scheme with no CRM is told which parts of its report would be blank
    * before it asks for one rather than afterwards.
    */
-  getReportScope(query: OverviewQuery): Promise<ReportScopeView>;
+  getReportScope(query: OverviewQuery, meetingId?: string | null): Promise<ReportScopeView>;
 
   /**
    * The people presenting on this project, in this period.

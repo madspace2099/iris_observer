@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import type { ReportSection, ReportSectionAvailability } from "@observer/readmodels";
+import type { MeetingId } from "@observer/contracts";
+import type {
+  PeriodPreset,
+  ReportSection,
+  ReportSectionAvailability,
+  Viewer,
+} from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
@@ -75,7 +81,7 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; meeting?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -85,6 +91,17 @@ export default async function ReportPage({
 
   const period = presetFrom(search.period);
   const query = { viewer, tenantSlug, projectSlug, period };
+  const meetingId =
+    typeof search.meeting === "string" && search.meeting.length > 0 ? search.meeting : null;
+  /*
+   * A meeting summary is the meeting route's own material, and that route
+   * excludes the developer (ADR-0018 keeps everything about one buyer on
+   * agent surfaces). The same rule, enforced on the same surface list.
+   */
+  if (meetingId !== null) {
+    requireSurface(viewer, "[meetingId]", `/${tenantSlug}/${projectSlug}`);
+    return <MeetingReport query={query} meetingId={meetingId} />;
+  }
 
   const [report, flow, project, agents, meetings] = await Promise.all([
     repository.getReportScope(query),
@@ -318,6 +335,102 @@ export default async function ReportPage({
         {report.sections.map((section) => (
           <ReportPlane key={section.id} section={section} period={period}>
             {section.availability === "unavailable" ? null : content[section.id]}
+          </ReportPlane>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One meeting's summary, on the same page: the sequence the replay
+ * reconstructs, printed as a list rather than a timeline so it survives
+ * paper, and the evidence it rests on. Internal audience, like the rest.
+ */
+async function MeetingReport({
+  query,
+  meetingId,
+}: {
+  readonly query: { viewer: Viewer; tenantSlug: string; projectSlug: string; period: PeriodPreset };
+  readonly meetingId: string;
+}) {
+  const [report, replay] = await Promise.all([
+    repository.getReportScope(query, meetingId),
+    repository.getMeetingReplay({ ...query, meetingId: meetingId as MeetingId }),
+  ]);
+  const root = `/${query.tenantSlug}/${query.projectSlug}`;
+  const period = query.period;
+  const content: Readonly<Record<string, ReactNode>> = {
+    "meeting-summary": (
+      <>
+        <Tally>
+          <TallyItem label="Started" value={replay.startedDisplay} />
+          <TallyItem label="Length" value={replay.durationDisplay} />
+          <TallyItem label="Presented by" value={replay.agentName} />
+          <TallyItem label="Recorded outcome" value={replay.outcomeLabel} />
+        </Tally>
+        <ol className="ox-report-contents">
+          {replay.steps.map((step) => (
+            <li key={step.ordinal}>
+              {step.label}
+              {step.unitCode === null || step.label.includes(step.unitCode)
+                ? ""
+                : ` · ${step.unitCode}`}
+              {step.dwellDisplay === null ? "" : ` · ${step.dwellDisplay}`}
+              {step.detail === null ? "" : ` — ${step.detail}`}
+            </li>
+          ))}
+        </ol>
+        {replay.gaps.length === 0 ? null : (
+          <p className="ox-section-note">{replay.gaps.join(" ")}</p>
+        )}
+      </>
+    ),
+    "evidence-appendix": (
+      <DataTable
+        caption="The session record behind this summary."
+        columns={[
+          { key: "section", label: "Section" },
+          { key: "state", label: "State" },
+          { key: "evidence", label: "Evidence" },
+        ]}
+        rows={report.sections.map((section) => ({
+          key: section.id,
+          cells: {
+            section: <a href={`#${section.id}`}>{section.label}</a>,
+            state: AVAILABILITY_WORDS[section.availability],
+            evidence: <Evidence evidence={section.evidence} period={period} />,
+          },
+        }))}
+        period={period}
+      />
+    ),
+  };
+  return (
+    <div className="ox-page ox-report">
+      <PageHead
+        kicker={`${report.context.project.name} · Meeting summary · ${report.scope.label}`}
+        title="Meeting summary"
+        answer={replay.headline}
+        lede="One presentation, reconstructed from the session record and printed as a sequence. The audience is internal: the buyer-facing meeting report is a separate, sanitised contract and is not assembled here."
+        crumbs={[
+          { label: report.context.project.name, href: `${root}/project` },
+          { label: "Meetings", href: `${root}/meetings` },
+          { label: replay.startedDisplay, href: `${root}/meetings/${meetingId}` },
+          { label: "Summary" },
+        ]}
+        aside={
+          <>
+            <Synthetic />
+            <PrintPage />
+          </>
+        }
+        period={period}
+      />
+      <div className="ox-body">
+        {report.sections.map((section) => (
+          <ReportPlane key={section.id} section={section} period={period}>
+            {content[section.id]}
           </ReportPlane>
         ))}
       </div>

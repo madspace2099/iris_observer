@@ -551,9 +551,17 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return thread;
   }
 
-  async getReportScope(query: OverviewQuery): Promise<ReportScopeView> {
+  async getReportScope(
+    query: OverviewQuery,
+    meetingId: string | null = null,
+  ): Promise<ReportScopeView> {
     const { context, current } = await this.slices(query);
-    return buildReportScope(context, current);
+    if (meetingId === null) return buildReportScope(context, current);
+    const session = sessionById(meetingId);
+    if (session === undefined || session.projectId !== context.project.id) {
+      throw new NotFoundError(`Meeting "${meetingId}"`);
+    }
+    return buildReportScope(context, current, session);
   }
 
   async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {

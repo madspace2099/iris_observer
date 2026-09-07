@@ -2,6 +2,7 @@ import { outcomeIsUnknown, type InsightSource, type ShowroomSession } from "@obs
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import type { ReportScopeView, ReportSection, ViewContext } from "@observer/readmodels";
 import { catalogueFor } from "./pulse";
+import { buildMeetingList } from "./showroom/project";
 import { count, evidenceRef, percent } from "./format";
 import { SYNTHETIC_AGENTS } from "./showroom/sessions";
 
@@ -35,7 +36,9 @@ function share(part: number, whole: number): number {
 export function buildReportScope(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
+  meeting: ShowroomSession | null = null,
 ): ReportScopeView {
+  if (meeting !== null) return buildMeetingReportScope(context, meeting);
   const locale = context.project.locale;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const crm = context.project.connectedSources.includes("crm");
@@ -207,5 +210,73 @@ export function buildReportScope(
     },
     unavailableCount: sections.filter((s) => s.availability === "unavailable").length,
     evidence: evidence("scope", n),
+  };
+}
+
+/**
+ * One meeting's summary as a report scope — the internal half of M4's
+ * "buyer meeting report". The buyer-facing document is a separate,
+ * sanitised contract (ADR-0018) and is not this: the scope is stated
+ * internal and its two sections are the presentation reconstructed as a
+ * sequence and the evidence behind it. A legacy import carries the order
+ * of the sections and not their timing, so its summary is partial and says
+ * so rather than drawing a timeline it does not have.
+ */
+function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession): ReportScopeView {
+  const root = `/${context.tenant.slug}/${context.project.slug}`;
+  const summary = buildMeetingList(context, [meeting])[0];
+  const label =
+    summary === undefined ? meeting.meetingId : `${summary.label} · ${summary.agentName}`;
+  const evidence = (id: string, observations: number) =>
+    evidenceRef(
+      `report-${context.project.slug}-meeting-${meeting.meetingId}-${id}`,
+      "observed_sequence",
+      `${root}/report?meeting=${meeting.meetingId}`,
+      observations,
+    );
+  const sections: readonly ReportSection[] = [
+    {
+      id: "meeting-summary",
+      label: "The meeting, as a sequence",
+      summary:
+        "What was shown, in what order, which units were opened and what the meeting recorded at the end.",
+      availability: meeting.timingUnavailable ? "partial" : "ready",
+      reason: meeting.timingUnavailable
+        ? "This meeting came from the legacy import, which records the order of sections and not their timing. The sequence is written; the pacing is not."
+        : null,
+      sources: OBSERVED,
+      sampleSize: null,
+      evidence: evidence("sequence", meeting.steps.length),
+    },
+    {
+      id: "evidence-appendix",
+      label: "Evidence appendix",
+      summary:
+        "The session record this summary rests on, with its source, its step count and the reference that resolves to it.",
+      availability: "ready",
+      reason: null,
+      sources: OBSERVED,
+      sampleSize: null,
+      evidence: evidence("appendix", meeting.steps.length),
+    },
+  ];
+  return {
+    context,
+    scope: {
+      kind: "meeting",
+      label,
+      projectName: context.project.name,
+      meetingId: meeting.meetingId,
+    },
+    periodLabel: context.period.label,
+    sections,
+    generation: {
+      state: "preview_only",
+      statement:
+        "Nothing generates a document yet. This screen states what a meeting summary would contain from the session record.",
+      milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+    },
+    unavailableCount: 0,
+    evidence: evidence("scope", meeting.steps.length),
   };
 }

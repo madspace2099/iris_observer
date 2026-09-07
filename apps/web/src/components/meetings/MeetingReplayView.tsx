@@ -1,5 +1,6 @@
 import Link from "next/link";
-import type { MeetingReplay, PeriodPreset } from "@observer/readmodels";
+import type { MeetingReplay, PeriodPreset, ReportScopeView } from "@observer/readmodels";
+import { ExportReport } from "@/components/report";
 
 import { Evidence, PageHead, Sources, Synthetic } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
@@ -64,8 +65,11 @@ export function MeetingReplayView({
   period,
   base,
   crmConnected,
+  report,
 }: {
   readonly replay: MeetingReplay;
+  /** The meeting's own report scope, for the export dialog and the page it opens. */
+  readonly report: ReportScopeView;
   readonly period: PeriodPreset;
   /** `/{tenantSlug}/{projectSlug}`. The register and the project hang off it. */
   readonly base: string;
@@ -109,6 +113,10 @@ export function MeetingReplayView({
             <Link className="ox-btn" href={dynamicRoute(withPeriod(`${base}/meetings`, period))}>
               Every meeting in the period
             </Link>
+            <ExportReport
+              report={report}
+              pageHref={withPeriod(`${base}/report?meeting=${replay.meetingId}`, period)}
+            />
           </>
         }
         period={period}

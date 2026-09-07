@@ -65,12 +65,17 @@ export default async function MeetingPage({
       projectSlug,
       meetingId: meetingId as MeetingId,
     });
+    const report = await repository.getReportScope(
+      { viewer, tenantSlug, projectSlug, period },
+      meetingId,
+    );
 
     return (
       <MeetingReplayView
         replay={replay}
         period={period}
         base={base}
+        report={report}
         /*
          * Read from the project's own declared sources on the replay's context,
          * not from anything about this meeting. It changes which sentence the
