@@ -697,6 +697,15 @@
   flex-wrap: wrap;
   gap: var(--ox-section);
   margin: 0 0 calc(var(--ox-major) * -1);
+  /*
+   * Above the main column. The negative margin tucks the column's top
+   * padding under this row, and `.irs-shell > *` gives every child
+   * `z-index: 1`, so the column, painted later, sat on top of the tabs:
+   * visible, focusable, and unclickable by mouse at their own centre
+   * (`elementFromPoint` answered `.irs-main`). One step up restores the
+   * pointer without moving a pixel.
+   */
+  z-index: 2;
   padding: 0 calc(var(--ox-inset) + var(--ox-pad));
   border-bottom: 1px solid var(--ox-line-hair);
 }
