@@ -505,7 +505,20 @@ an explicit 120-second budget so a slow machine cannot read as a finding. `pnpm 
 same way, had been hiding one error of its own: a literal no-break space inside a regex class in
 `packages/connectors/src/shared.ts` (`no-irregular-whitespace`); `\s` already matches it, so the
 class collapsed to `\s` and the NBSP case in `packages/connectors/test/shared.test.ts` still
-passes. The lesson stands in the working-practice section: never read a gate through a pipe.
+passes (`2c326d5`).
+
+With both fixed, the whole suite still exited 1: every test passed and Vitest reported one
+unhandled error, `[vitest-worker]: Timeout calling "onTaskUpdate"`. `vitest.config.ts` had
+attributed that error to a parent starved by machine load, but a memory sampler showed free RAM
+never below 1.2 GB across two runs, and the error then reproduced with one file, one worker and
+nothing else running: a 65-second `Atomics.wait` in a `beforeAll`, and again in a test body. The
+deadline is birpc's sixty seconds on the worker's side; the parent answers at once, a worker
+blocked in synchronous work cannot read the answer, and on resuming Node runs the expired timer
+before the I/O carrying the reply. The one synchronous stretch over sixty seconds was
+`package-generation.test.ts` building twice back to back in one hook; a 100 ms pause between the
+builds lets the reply land (`72f1f83`). The whole suite then exited 0 on the clean tree: 112
+files, 3249 passed, 1 skipped, no errors, 204 seconds, free RAM never below 1.7 GB. The lesson
+stands in the working-practice section: never read a gate through a pipe.
 
 ### What the inventories found, condensed
 
@@ -546,6 +559,13 @@ written was moved out of the tree (it only listed paths the root ignore now cove
 **Never read a gate through a pipe.** `pnpm test 2>&1 | tail` exits with the tail's status, so a
 failing suite prints "exit 0". Run the suite into a log file and echo its own exit code, or use
 `set -o pipefail`. Four failures hid behind that pipe for a whole day of otherwise careful work.
+
+**No synchronous stretch in a test worker may approach sixty seconds.** Vitest's worker reports
+progress to its parent over an RPC with a sixty-second deadline kept on the worker's side. A hook
+or test body that blocks the event loop longer than that (a `build()` twice in a row, a long
+`execFileSync`) makes the run exit 1 with `Timeout calling "onTaskUpdate"` beside a full pass. It
+is not machine load and not the worker count; it reproduces with one file and one worker. Split
+the work with an `await`, or run it in a child process. Details in `vitest.config.ts`.
 
 ### The catalogue seam, later the same day
 
