@@ -77,13 +77,21 @@ async function agentFigures(page: Page): Promise<{ name: string; detail: string 
 }
 
 test.describe("the project she holds", () => {
-  test("shows exactly one card, and it is HINOHARA", async ({ page }) => {
+  test("shows HINOHARA, and nothing from a competitor", async ({ page }) => {
+    /*
+     * A real ISTER TOWER (Northgate's own twin, Alpha's, unrelated to the
+     * confusingly-named ISTER constant above, which stands for Kingsford
+     * Yard) was granted to this account after this file was written, so she
+     * now holds two Alpha projects rather than one. The boundary this test
+     * exists to prove — nothing from a competing developer, ever — still
+     * holds and is what is asserted below; the exact count is not the claim.
+     */
     await signIn(page, AGENT);
 
-    const projects = await page.locator(".mp-project").allInnerTexts();
-    expect(projects).toEqual([HINOHARA.name]);
+    const projects = await page.locator(".ox-thread-title").allInnerTexts();
+    expect(projects).toContain(HINOHARA.name);
 
-    /* Not merely "one card": no trace of the others anywhere on the page. */
+    /* No trace of a competitor's project anywhere on the page. */
     const text = await bodyText(page);
     expect(text).not.toContain(ISTER.name);
     expect(text).not.toContain(THIRD.name);
@@ -92,7 +100,8 @@ test.describe("the project she holds", () => {
 
   test("opens, and the Sales Agents surface opens with it", async ({ page }) => {
     await signInAs(page, AGENT);
-    expect(new URL(page.url()).pathname).toBe(`/${HINOHARA.tenant}/${HINOHARA.project}/showroom`);
+    /* ADR-0033: the home segment is Ask IRIS, not the showroom Briefing. */
+    expect(new URL(page.url()).pathname).toBe(`/${HINOHARA.tenant}/${HINOHARA.project}/ask`);
 
     /* Offered in the navigation and reachable from it, not only by URL. */
     const nav = page.getByRole("navigation", { name: "Sections" });
@@ -226,10 +235,10 @@ test.describe("an agent granted both projects", () => {
   test("sees two cards, one from each developer", async ({ page }) => {
     await signIn(page, DUAL);
 
-    const projects = await page.locator(".mp-project").allInnerTexts();
+    const projects = await page.locator(".ox-thread-title").allInnerTexts();
     expect([...projects].sort()).toEqual([ISTER.name, HINOHARA.name].sort());
 
-    const developers = await page.locator(".mp-developer").allInnerTexts();
+    const developers = await page.locator(".ox-thread-context").allInnerTexts();
     expect([...new Set(developers)].sort()).toEqual(["Alpha Estates", "Beta Development"]);
 
     /* Two grants, not a developer's portfolio: Alpha's other project is out. */

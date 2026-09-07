@@ -12,13 +12,13 @@ import type { Page } from "@playwright/test";
  * The four accounts hold different, explicit, per-project grants, which is what
  * makes the authorisation cases meaningful:
  *
- *   Petra    Alpha Estates      Northgate + Riverside      (two, one developer)
- *   Tomáš    Meridian Sales     Northgate + Kingsford      (two, two developers)
- *   Monika   Meridian Sales     Northgate                  (one)
- *   MADSPACE MADSPACE           all three
+ *   Petra    Alpha Estates      Northgate + Riverside + ISTER TOWER   (three, one developer)
+ *   Tomáš    Meridian Sales     Northgate + Kingsford + ISTER TOWER   (three, two developers)
+ *   Monika   Meridian Sales     Northgate + ISTER TOWER               (two)
+ *   MADSPACE MADSPACE           every project on both tenants
  *
- * Tomáš is the interesting one: he holds one project belonging to Alpha and one
- * belonging to Beta, and does NOT hold Alpha's other project. A grant is per
+ * Tomáš is the interesting one: he holds projects belonging to Alpha and to
+ * Beta, and does NOT hold Alpha's other project (Riverside). A grant is per
  * project, never per developer, and adding a project to a developer grants
  * nobody anything.
  */
@@ -29,6 +29,10 @@ const ACCOUNTS = {
   petra: "petra.novak@alpha-estates.example",
   tomas: "tomas.varga@meridian-sales.example",
   monika: "monika.kovacova@meridian-sales.example",
+  /* Holds exactly one project (ISTER TOWER), which is what the single-project
+     landing case below needs. Monika now holds two and can no longer stand in
+     for it. */
+  martin: "martin.kovac@meridian-sales.example",
   madspace: "operations@madspace.example",
 } as const;
 
@@ -54,10 +58,17 @@ async function signIn(page: Page, email: string, password = PASSWORD): Promise<v
   await page.waitForLoadState("networkidle");
 }
 
-/** The project names on the cards, in the order they are shown. */
+/*
+ * The project row is `.ox-thread-row` now (`.mp-card`/`.mp-project` are dead
+ * CSS left over from the picker's pre-`ox-` implementation): a title, the
+ * developer as context, and one action. No cover image in the current
+ * design — the row is text, not a card with art.
+ */
+
+/** The project names on the rows, in the order they are shown. */
 async function projectCards(page: Page): Promise<string[]> {
   return page.evaluate(() =>
-    [...document.querySelectorAll(".mp-project")].map((el) => (el.textContent ?? "").trim()),
+    [...document.querySelectorAll(".ox-thread-title")].map((el) => (el.textContent ?? "").trim()),
   );
 }
 
@@ -85,15 +96,15 @@ test.describe("the guards, before anything is signed in", () => {
 
 test.describe("signing in", () => {
   test("takes a correct credential to the projects, never straight into one", async ({ page }) => {
-    await signIn(page, ACCOUNTS.monika);
+    await signIn(page, ACCOUNTS.martin);
     expect(new URL(page.url()).pathname).toBe("/projects");
 
     /*
-     * Monika holds exactly one project and still lands here. Opening it is a
-     * decision she makes; a single-project account being thrown into its only
+     * Martin holds exactly one project and still lands here. Opening it is a
+     * decision he makes; a single-project account being thrown into its only
      * project never learns that the choice existed.
      */
-    expect(await projectCards(page)).toEqual(["Northgate Residences"]);
+    expect(await projectCards(page)).toEqual(["ISTER TOWER"]);
   });
 
   test("refuses a wrong password without saying which half was wrong", async ({ page }) => {
@@ -163,7 +174,11 @@ test.describe("signing in", () => {
 test.describe("the projects a reader is shown are the projects they hold", () => {
   test("a developer sees their own company's projects", async ({ page }) => {
     await signIn(page, ACCOUNTS.petra);
-    expect(await projectCards(page)).toEqual(["Northgate Residences", "Riverside Walk"]);
+    expect(await projectCards(page)).toEqual([
+      "Northgate Residences",
+      "Riverside Walk",
+      "ISTER TOWER",
+    ]);
   });
 
   test("an agency manager sees one project from each developer they sell for", async ({ page }) => {
@@ -176,17 +191,16 @@ test.describe("the projects a reader is shown are the projects they hold", () =>
     expect(cards).not.toContain("Riverside Walk");
   });
 
-  test("a sales agent assigned to one project sees one card", async ({ page }) => {
+  test("a sales agent sees exactly the projects she is granted", async ({ page }) => {
     await signIn(page, ACCOUNTS.monika);
-    expect(await projectCards(page)).toEqual(["Northgate Residences"]);
+    expect(await projectCards(page)).toEqual(["Northgate Residences", "ISTER TOWER"]);
   });
 
-  test("each card carries a cover, a developer, a project and one action", async ({ page }) => {
+  test("each row carries a developer, a project and one action", async ({ page }) => {
     await signIn(page, ACCOUNTS.monika);
-    const card = page.locator(".mp-card").first();
-    await expect(card.locator(".mp-cover")).toHaveCount(1);
-    await expect(card.locator(".mp-developer")).toHaveText("Alpha Estates");
-    await expect(card.locator(".mp-project")).toHaveText("Northgate Residences");
+    const card = page.locator(".ox-thread-row").first();
+    await expect(card.locator(".ox-thread-context")).toHaveText("Alpha Estates");
+    await expect(card.locator(".ox-thread-title")).toHaveText("Northgate Residences");
     await expect(card.getByRole("link", { name: /Open Observer/ })).toBeVisible();
 
     /* And nothing the selector is not for. */
@@ -196,15 +210,20 @@ test.describe("the projects a reader is shown are the projects they hold", () =>
     }
   });
 
-  test("opening a project reaches that project's Briefing", async ({ page }) => {
+  test("opening a project reaches that project's Ask IRIS", async ({ page }) => {
+    /*
+     * ADR-0033 moved the home segment from the showroom Briefing to Ask IRIS.
+     * "Open Observer" now opens `/{tenant}/{project}/ask`, so this waits for
+     * and asserts that surface rather than the retired one.
+     */
     await signIn(page, ACCOUNTS.monika);
     await Promise.all([
-      page.waitForURL(/showroom/),
+      page.waitForURL(/\/ask$/),
       page.getByRole("link", { name: /Open Observer/ }).first().click(),
     ]);
     await page.waitForLoadState("networkidle");
-    expect(new URL(page.url()).pathname).toBe("/alpha/northgate/showroom");
-    await expect(page.getByText(/showroom presentations/i).first()).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe("/alpha/northgate/ask");
+    await expect(page.locator(".ask-hero").first()).toBeVisible();
   });
 });
 
@@ -275,7 +294,7 @@ test.describe("leaving", () => {
   test("going back after signing out does not show the previous account", async ({ page }) => {
     await signIn(page, ACCOUNTS.petra);
     await Promise.all([
-      page.waitForURL(/showroom/),
+      page.waitForURL(/\/ask$/),
       page.getByRole("link", { name: /Open Observer/ }).first().click(),
     ]);
     await page.waitForLoadState("networkidle");
@@ -306,7 +325,7 @@ test.describe("leaving", () => {
   test("the workspace offers a way back to the projects", async ({ page }) => {
     await signIn(page, ACCOUNTS.petra);
     await Promise.all([
-      page.waitForURL(/showroom/),
+      page.waitForURL(/\/ask$/),
       page.getByRole("link", { name: /Open Observer/ }).first().click(),
     ]);
     await page.waitForLoadState("networkidle");

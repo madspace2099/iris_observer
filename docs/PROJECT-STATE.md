@@ -789,3 +789,53 @@ stage and the stalled list are computed in `packages/synthetic` and typed in
 one scenario by slug (`DEMONSTRATION_CRM_SLUGS`) so the ISTER TOWER twin keeps its connector's
 ladder or nobody's. A React key is never a 64-hex digest: the stage-change rows are keyed by what
 they show.
+
+### Continuation, 00:30–07:00, two founder decisions and the rest of the queue
+
+Two explicit, scoped decisions arrived after the report above: the REALPAD connector's visible
+name changes to "CRM API Connection" (presentation only), and the seven MADSPACE operations
+routes (Integrations, Directory, Diagnostics, New project, Project detail, Projects, MADSPACE
+home) leave the warm-paper presentation and adopt the Observer graphite ground. Both are done,
+recorded in ADR-0037, commit `625e09e`.
+
+**The rename.** `CONNECTOR_NAMES.realpad` (`apps/web/src/lib/connectors/configs.ts`) is the one
+place the name is declared; every heading, disclosure, button, dialog and status/validation
+sentence in the Integrations experience reads it. Field-level labels that name an actual REALPAD
+API concept (REALPAD project id, the Data Takeout pair) are left alone on purpose: renaming those
+would make the configuration instructions false, which the founder's brief explicitly forbade.
+The internal `realpad` identifier, its adapter, request shape and credential schema are
+unchanged. Verified before/after with a real browser session: 5 REALPAD-brand labels became "CRM
+API Connection"; 5 REALPAD occurrences remain, all field-technical.
+
+**The theme.** `.mad-portal`'s tokens are restated at `.ox-graphite`'s own ADR-0034 values (ink,
+surfaces, the six-alpha border ramp, the four status pairs); the studio-blue accent override is
+removed so the brand accent applies; Inter, which had no asset in the repository and silently
+rendered the reader's OS font, is withdrawn for the same Manrope the rest of the product loads. A
+`@media print` block keeps the original paper values for print. `docs/20-madspace-admin-design-
+system.md` §0/§2/§8 amended in place (superseded tables kept for the PDF cross-reference); ADR-
+0037 records the decision. All seven routes verified at 390/768/1440/1920 as the MADSPACE
+account: axe clean, no console error, no overflow, no clipped label, at every width; Integrations
+additionally through its collapsed, opened-form, validation-refusal and destructive-dialog
+states, axe clean on each.
+
+**Report and print, verified.** The real Project → Report link and the meeting Export dialog's
+"Open the report page" both reached, sections and period/scope confirmed, browser print emulated
+and a PDF persisted for each (app chrome excluded, no clipping, no blank page). One pre-existing
+axe "region" (landmark) finding reproduces identically on `/flow`, an already-shipped page using
+the same shell components — not introduced tonight, not fixed in this pass (shell-wide, outside
+the seven-page and report scope this mandate set).
+
+**M5, resolved against the actual scenario specification (`docs/08-scenarios.md`), nothing
+invented.** Verified live: disconnected CRM (Riverside), missing CRM at project level (Kingsford),
+one developer across three projects (Petra), agency isolation across two developers (Akhilesh:
+Northgate for Alpha vs Kingsford for Beta, denied on Riverside), agent-level insufficient sample
+(Ister Tower's Lucia Horváth, 9 recorded meetings). Confirmed missing, honestly: a second agency
+on one project, the velocity-drop detector, a single-unit demand-drop warning, the named Viktória
+reference journey, and the identity-join cases — the last blocked by the same VisitorLabel privacy
+contract already recorded against Contacts, not a new blocker.
+
+**M9, unchanged conclusion.** Branding and feature flags remain SPECIFICATION_BLOCKED: no field
+list or contract exists anywhere in the documentation, and a visual decision does not create one.
+
+Full evidence, screenshots, PDFs and JSON: `overnight/admin/{before,after}`,
+`overnight/report-print`, session scratchpad.
