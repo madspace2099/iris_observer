@@ -76,6 +76,22 @@ It has been **executed against PGlite on every test run**
 by asking PostgreSQL) and **applied to no hosted project**. Add it to the
 `migration repair` list above when it is.
 
+## The deals — executed, not applied
+
+`20260907180000_observer_deals.sql` (ADR-0021, ADR-0036 decision 4) adds
+three tables under the same owner: `deals_current` (the snapshot, withdrawn
+by membership rather than by comparing fetch instants, and refusing any row
+that carries an email, phone, name or customer field), `deal_stage_changes`
+(append-only `deal.stage.changed` facts keyed by their own SHA-256 event id,
+so a replayed sync conflicts and inserts nothing) and `deal_syncs`. Five
+façades: `observer_deals_apply`, `observer_deals_current`,
+`observer_deal_changes`, `observer_deal_sync_record`, `observer_deal_sync_last`;
+`service_role` alone may execute them, and no browser role may read a table.
+
+Executed against PGlite on every test run (`supabase/test/deals-connectors.test.ts`),
+applied to no hosted project. It depends on the catalogue migration above;
+apply them in order, and add both to the `migration repair` list when they are.
+
 ## Expand and contract
 
 The audit change ships as two migrations, and the second must wait.

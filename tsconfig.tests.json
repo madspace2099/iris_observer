@@ -103,6 +103,7 @@
      * both are the shape of test this list exists for.
      */
     "supabase/test/catalogue-connectors.test.ts",
+    "supabase/test/deals-connectors.test.ts",
     "apps/web/test/connectors.test.ts",
     "apps/web/test/unit-register-sparse.test.ts"
   ]

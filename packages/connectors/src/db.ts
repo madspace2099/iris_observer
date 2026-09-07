@@ -158,7 +158,7 @@ export interface CatalogueDb {
 
 export type SqlQuery = (sql: string, params: readonly unknown[]) => Promise<{ rows: unknown[] }>;
 
-function arity(name: CatalogueFacade, args: string, params: readonly unknown[]): void {
+function arity(name: string, args: string, params: readonly unknown[]): void {
   const written = args.match(/\$\d+/g)?.length ?? 0;
   if (written !== params.length) {
     throw new Error(
@@ -167,9 +167,10 @@ function arity(name: CatalogueFacade, args: string, params: readonly unknown[]):
   }
 }
 
-async function table(
+/** `select * from public.<façade>(…)`, shared with the deals port. */
+export async function table(
   query: SqlQuery,
-  name: CatalogueFacade,
+  name: string,
   args: string,
   params: readonly unknown[],
 ): Promise<readonly unknown[]> {
@@ -177,9 +178,10 @@ async function table(
   return (await query(`select * from public.${name}(${args})`, params)).rows;
 }
 
-async function scalar<T>(
+/** `select public.<façade>(…) as value`, shared with the deals port. */
+export async function scalar<T>(
   query: SqlQuery,
-  name: CatalogueFacade,
+  name: string,
   args: string,
   params: readonly unknown[],
 ): Promise<T> {
@@ -190,7 +192,7 @@ async function scalar<T>(
   return (row as { readonly value: T }).value;
 }
 
-const asNumber = (value: unknown): number =>
+export const asNumber = (value: unknown): number =>
   typeof value === "string" ? Number(value) : (value as number);
 
 function sealedRow(row: unknown): SealedCredentialRow | null {
@@ -319,9 +321,9 @@ export interface PostgrestConfig {
 }
 
 export class CatalogueFacadeError extends Error {
-  readonly facade: CatalogueFacade;
+  readonly facade: string;
   readonly status: number;
-  constructor(facade: CatalogueFacade, status: number) {
+  constructor(facade: string, status: number) {
     super(`${facade} refused over PostgREST — HTTP ${status}`);
     this.name = "CatalogueFacadeError";
     this.facade = facade;
@@ -329,9 +331,10 @@ export class CatalogueFacadeError extends Error {
   }
 }
 
-async function rpc(
+/** One PostgREST RPC to a façade, shared with the deals port. */
+export async function rpc(
   config: PostgrestConfig,
-  facade: CatalogueFacade,
+  facade: string,
   args: Readonly<Record<string, unknown>>,
 ): Promise<unknown> {
   const base = config.url.replace(/\/+$/, "");
@@ -352,7 +355,7 @@ async function rpc(
   }
 }
 
-const rows = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
+export const rows = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
 
 export function postgrestCatalogueDb(config: PostgrestConfig): CatalogueDb {
   return {

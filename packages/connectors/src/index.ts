@@ -17,3 +17,4 @@ export * from "./monday";
 export * from "./sync";
 export * from "./deals";
 export * from "./db";
+export * from "./deals-db";
