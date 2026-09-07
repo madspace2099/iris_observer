@@ -142,6 +142,7 @@ describe("surface audience", () => {
        * SCREEN (Phase 1 of the frontend completion block, retiring that row).
        */
       "presentation", // linked from /project directly — its owning context
+      "report", // linked from /project and from the export dialog's "Open the report page"
       // "units" and "meetings" need no entry: PROJECT_NAV already covers both.
       "storytelling", // a permanent redirect for old bookmarks/links only —
       // its live destination, /features, is reachable via PROJECT_NAV; the

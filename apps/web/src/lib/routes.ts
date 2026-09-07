@@ -241,6 +241,20 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
   /*
+   * REPORT — the internal sales-intelligence report, as a page (M4).
+   *
+   * The same read models the screens draw, in the order the export dialog
+   * describes, so the reference every `ReportSection.evidence` already carries
+   * has somewhere to land. Every role that may open Project, because it is
+   * Project's own figures on one page; the audience is stated internal on the
+   * cover and nothing here is the buyer-facing contract (ADR-0018).
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/report",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+  /*
    * ATTENTION — what is not going to sell itself.
    *
    * The list Ask IRIS points at when it is asked which apartments need

@@ -24,3 +24,4 @@
 
 export { ExportReport, type ExportReportView } from "./ExportReport";
 export { ReportSections } from "./ReportSections";
+export { PrintPage } from "./PrintPage";

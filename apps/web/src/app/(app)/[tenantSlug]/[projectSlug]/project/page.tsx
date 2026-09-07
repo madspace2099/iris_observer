@@ -10,6 +10,8 @@ import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { PairedRates, ParityScale } from "@/showroom/charts";
 import { BulletChart, JourneyFlow } from "@/showroom/charts2";
 import { FlowScroller } from "@/showroom/FlowScroller";
+import { ExportReport } from "@/components/report";
+import { withPeriod } from "@/lib/period";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -52,10 +54,12 @@ export default async function ProjectPage({
     period: presetFrom(search.period) as PeriodPreset,
   };
 
-  const [view, charts] = await Promise.all([
+  const [view, charts, report] = await Promise.all([
     repository.getProjectView(query, search.segment ?? null),
     repository.getProjectCharts(query),
+    repository.getReportScope(query),
   ]);
+  const reportHref = withPeriod(`/${tenantSlug}/${projectSlug}/report`, query.period);
 
   const root = `/${tenantSlug}/${projectSlug}/project`;
   const qs = (segment: string) =>
@@ -86,13 +90,27 @@ export default async function ProjectPage({
          * audience from this" pill already on this page, rather than the full
          * sentence a first pass gave it, which held its line past 390px.
          */}
-        <p className="iris-meta">
+        <p className="iris-meta iris-actions">
           <Link
             className="iris-action"
             href={dynamicRoute(`/${tenantSlug}/${projectSlug}/presentation`)}
           >
             Presentation DNA →
           </Link>
+          {/*
+           * THE REPORT, REACHED FROM THE SCREEN WHOSE FIGURES IT PRINTS.
+           *
+           * The page is the document (M4's internal sales-intelligence
+           * report, drawn rather than generated), and the dialog beside it
+           * is where a reader sees which sections it would carry before
+           * opening it. Both mount here because Project is the scope they
+           * describe; Meeting Detail will mount the same dialog for one
+           * meeting once the port can answer for one.
+           */}
+          <Link className="iris-action" href={dynamicRoute(reportHref)}>
+            Report →
+          </Link>
+          <ExportReport report={report} pageHref={reportHref} />
         </p>
 
         {/* --- the plan, and where the project stands against it ---------- */}

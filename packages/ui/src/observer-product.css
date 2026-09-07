@@ -2728,3 +2728,62 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* --- the report page: a document drawn on the product's own planes ------- */
+
+/*
+ * The contents list on the cover is a list of anchors, set as running text
+ * rather than a table: a table of two words per row is the kind of
+ * scaffolding this system refuses. The ladder inside the outcomes section
+ * keeps the funnel's own rhythm and only gains the plane's vertical seam.
+ */
+.ox-report-contents {
+  margin: 0;
+  padding: 0 0 0 1.25em;
+  display: grid;
+  gap: 0.25rem;
+  font-size: var(--ox-body);
+}
+
+.ox-report-ladder {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+/*
+ * PRINT: the page is the document. The shell's chrome, the Ask dock and the
+ * print control itself leave; the planes stop floating on graphite and sit
+ * on white with dark ink, because a printed page has one ground; a plane is
+ * kept whole across a page break where the browser can manage it. Nothing
+ * else changes, so what prints is what was read.
+ */
+@media print {
+  .irs-header,
+  .irs-mobile-bar,
+  .ask-dock,
+  .ox-report .ox-btn {
+    display: none !important;
+  }
+
+  html,
+  body,
+  .irs-shell,
+  .irs-main,
+  .ox-report,
+  .ox-report .ox-plane {
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  .ox-report .ox-plane {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .ox-report a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

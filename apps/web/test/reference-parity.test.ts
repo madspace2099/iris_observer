@@ -175,6 +175,12 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * re-asked. Reached by name from Ask IRIS; deliberately not a nav item.
    */
   "/[tenantSlug]/[projectSlug]/attention",
+  /*
+   * Report — M4's internal sales-intelligence report as a page, the route
+   * every `ReportSection.evidence` already named. Reached from Project and
+   * from the export dialog; deliberately not a nav item.
+   */
+  "/[tenantSlug]/[projectSlug]/report",
 
   /*
    * The stress sibling of the lab, and deliberately a separate route rather

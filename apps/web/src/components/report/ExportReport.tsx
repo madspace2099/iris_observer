@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useId, useState } from "react";
 import type { ReportGeneration, ReportScope, ReportSection } from "@observer/readmodels";
 
@@ -109,9 +111,16 @@ function formatLabel(id: FormatId): string {
 
 export function ExportReport({
   report,
+  pageHref,
   weight = "quiet",
 }: {
   readonly report: ExportReportView;
+  /**
+   * The report as a page, which is the one format that exists: `/report`
+   * draws every section this dialog describes. Already carrying the period,
+   * because the caller knows it and this component must not guess it.
+   */
+  readonly pageHref: string;
   /** `quiet` beside other page controls; `primary` where export is the point. */
   readonly weight?: "primary" | "quiet";
 }) {
@@ -241,9 +250,9 @@ export function ExportReport({
            * colour alone.
            */}
           <p className="ox-result">
-            <span className="ox-chip" data-tone="watch">
+            <span className="ox-chip" data-tone={format === "page" ? "good" : "watch"}>
               <span className="ox-chip-mark" aria-hidden="true" />
-              Preview-ready
+              {format === "page" ? "Available now" : "Preview-ready"}
             </span>
             <span>
               {formatLabel(format)} · {included.length} of {writable.length} writable sections ·{" "}
@@ -259,7 +268,9 @@ export function ExportReport({
 
         <div className="ox-dialog-foot">
           <p className="ox-dialog-note" id={noteId}>
-            {report.generation.statement} {report.generation.milestone}
+            {format === "page"
+              ? "The shareable page is this report drawn on a screen of its own, printable through the browser. It is the one format that exists today."
+              : `${report.generation.statement} ${report.generation.milestone}`}
           </p>
 
           <button
@@ -282,15 +293,22 @@ export function ExportReport({
            * handler at all, so there is no path from pressing it to a file, an
            * empty download or a spinner that never resolves.
            */}
-          <button
-            type="button"
-            className="ox-btn"
-            aria-disabled="true"
-            aria-describedby={noteId}
-            title={report.generation.statement}
-          >
-            Generate document
-          </button>
+          {format === "page" ? (
+            <Link className="ox-btn" data-weight="primary" href={pageHref as never}>
+              Open the report page
+            </Link>
+          ) : null}
+          {format === "page" ? null : (
+            <button
+              type="button"
+              className="ox-btn"
+              aria-disabled="true"
+              aria-describedby={noteId}
+              title={report.generation.statement}
+            >
+              Generate document
+            </button>
+          )}
         </div>
       </Dialog>
     </>
