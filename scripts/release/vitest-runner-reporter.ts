@@ -338,6 +338,7 @@ export const PGLITE_SUITES: readonly string[] = [
   "analytics-events.test.ts",
   "audit-contract.test.ts",
   "authenticate.test.ts",
+  "catalogue-connectors.test.ts",
   "contract-readiness.test.ts",
   "credential-grants.test.ts",
   "cron-health.test.ts",

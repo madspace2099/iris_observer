@@ -53,3 +53,9 @@ _review/
 
 # Local control-plane database (dev only). Delete the directory to reset.
 .observer-local/
+
+# The Impeccable skill's live-mode state and critique snapshots: agent tooling
+# beside the code, written by whichever session has live mode open. Not source,
+# and the release packager refuses a tree that is not clean.
+.impeccable/
+**/.impeccable/
