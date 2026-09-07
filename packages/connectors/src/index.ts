@@ -15,4 +15,5 @@ export * from "./realpad";
 export * from "./lomnio";
 export * from "./monday";
 export * from "./sync";
+export * from "./deals";
 export * from "./db";
