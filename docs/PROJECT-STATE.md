@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-07 · **Branch:** `feature/observer-reference-parity`, pushed to `origin` on
-2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Seven commits since then are local only.
+2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Eighteen commits since then are local only.
 
 ---
 
@@ -193,12 +193,20 @@ can (the `flat_type` table, the business-case Lifecycle values).
 
 The order follows the dependency chain, not the milestone numbers.
 
-1. **Make the connector layer real on the Preview.** Set `OBSERVER_CREDENTIAL_KEY` (64 hex) and
-   `CRON_SECRET` on the Vercel project (Preview scope), apply
-   `supabase/migrations/20260907100000_observer_catalogue_and_connectors.sql` to
-   `tfcchobwobpadenampyh` through the SQL Editor as the earlier ones were, add it to the `migration
-repair` list in `supabase/README.md`, and prove it from the integrations screen with a CSV
-   upload — the same path this session proved on the local control plane.
+1. **Make the connector layer real on the Preview.** Set `OBSERVER_CREDENTIAL_KEY` (64 hex),
+   `CRON_SECRET` and, for deals, `OBSERVER_SUBJECT_PEPPER` (32+ bytes; Ask Observer already
+   wants it) on the Vercel project (Preview scope), apply
+   `supabase/migrations/20260907100000_observer_catalogue_and_connectors.sql` and then
+   `supabase/migrations/20260907180000_observer_deals.sql` to `tfcchobwobpadenampyh` through the
+   SQL Editor as the earlier ones were, add both to the `migration repair` list in
+   `supabase/README.md`, and prove it from the integrations screen with a pricelist upload and a
+   deals sheet — the same path this session proved on the local control plane. Every step is
+   the operator's: a secret is generated in a password manager and pasted, never produced here.
+   **Then the REALPAD deals adapter**, which is the one M10 piece not built: it needs one real
+   `list-excel-business-cases` export fetched with `headermode=ids` (the column ids and the
+   Lifecycle vocabulary the published documents do not carry) and the Data Takeout filter
+   parameter names; with those, the xlsx reads with `node:zlib` and `fast-xml-parser`, the
+   columns are configuration like Monday's, and Status 3 WON / 2 LOST map fixed.
 2. ✅ **Done, rule lifted.** The product reads a synced catalogue through the `CatalogueSource`
    seam (composed in `apps/web/src/lib/repository.ts`, asked in `context()`): the connector's
    stock replaces the synthetic stock for the twin project, invented sessions never touch a
