@@ -3,42 +3,48 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-06 · **Branch:** `feature/observer-reference-parity` · **PR #1 open. Not merged.**
+**Last updated:** 2026-09-07 · **Branch:** `feature/observer-reference-parity`, pushed to `origin` on
+2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Six commits since then are local only.
 
 ---
 
 ## Where the project is
 
-| Milestone                                    | Status                                                 |
-| -------------------------------------------- | ------------------------------------------------------ |
-| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                     |
-| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                |
-| M1 closure amendment                         | ✅ accepted · `b7d4869`                                |
-| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                |
-| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349` |
-| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`       |
-| M2.2 Visual reboot — concepts                | 🟡 built; awaiting the user's selection                |
-| **M2.3 Showroom Intelligence refocus**       | 🟡 **built; awaiting visual and product approval**     |
-| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**           |
-| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`** |
-| **Demo release candidate**                   | 🟡 **on Preview; model live, audit rebuilt**           |
-| M3 Remaining intelligence surfaces           | ⛔ blocked on approval                                 |
+| Milestone                                    | Status                                                                                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                                                                                                                       |
+| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                                                                                                                  |
+| M1 closure amendment                         | ✅ accepted · `b7d4869`                                                                                                                                  |
+| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                                                                                                                  |
+| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349`                                                                                                   |
+| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`                                                                                                         |
+| M2.2 Visual reboot — concepts                | ✅ **the user proceeded on 2026-09-07** with the spatial direction as built (see below)                                                                  |
+| **M2.3 Showroom Intelligence refocus**       | ✅ reviewed by the user on the Vercel Preview on 2026-09-07; one defect raised and fixed (segments)                                                      |
+| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                             |
+| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                   |
+| **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user |
+| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                   |
+| M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals            |
+| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`             |
+| M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                         |
+| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                |
+| **M10 CRM connectors**                       | 🟡 **foundation built** (`7226e07`, ADR-0036) — adapters, sync, persistence, screen; **not yet read by the product's read models**                       |
 
 ## Cloud resources — do not ask for these again
 
 Full runbook in `docs/18-deployment.md`. No secret value is recorded anywhere in this repository.
 
-|                  |                                                                                                                                                                                                           |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                                                                                                                              |
-| Supabase preview | **`IRIS OBSERVER`, ref `tfcchobwobpadenampyh`, `eu-west-1`, `ACTIVE_HEALTHY`, €0/mo** — the project the Preview actually reaches                                                                          |
-| Supabase unused  | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf` — provisioned first, holds the same migrations, never reached by the Preview. Left alone.                                                             |
-| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                                                                                                                              |
-| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                                                                                                                   |
-| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                                                                                                                      |
-| **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                                                                                                                           |
-| **Preview URL**  | **https://iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app** — the release candidate                                                                                             |
-| Vercel variables | `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY` — reaching Preview builds and working. The Supabase pair is supplied by the Supabase–Vercel integration, which is why hand-set values never took. |
+|                  |                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub           | `madspace2099/iris_observer` — public, branch `main`, pushed                                                                                                                                                                                                                                                                                                                                                                                  |
+| Supabase preview | **`IRIS OBSERVER`, ref `tfcchobwobpadenampyh`, `eu-west-1`, `ACTIVE_HEALTHY`, €0/mo** — the project the Preview actually reaches                                                                                                                                                                                                                                                                                                              |
+| Supabase unused  | `iris-observer-staging`, ref `jtvqecusxzogqubxpoyf` — provisioned first, holds the same migrations, never reached by the Preview. Left alone.                                                                                                                                                                                                                                                                                                 |
+| Supabase legacy  | `vrhrzlvhyxrkxxcjxmaf` — the obsolete MVP project. Left alone, never reused.                                                                                                                                                                                                                                                                                                                                                                  |
+| Vercel team      | `madspace's projects` (`team_DcZjnqXKYp579zibvXU3UiNE`), **hobby** plan                                                                                                                                                                                                                                                                                                                                                                       |
+| Vercel project   | `iris-observer` (`prj_4pqpmpB8VwLbq06V1TTd3zTWp15p`), root `apps/web`, region `fra1`                                                                                                                                                                                                                                                                                                                                                          |
+| **Live URL**     | **https://iris-observer.vercel.app** — serving `3515402`, two milestones behind                                                                                                                                                                                                                                                                                                                                                               |
+| **Preview URL**  | **https://iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app** — the branch alias for `feature/observer-reference-parity`; it follows every push. The older `release/observer-demo-rc1` alias still exists.                                                                                                                                                                                                           |
+| Vercel variables | `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, and since 2026-09-07 `OBSERVER_DEMO_ACCOUNTS=1` (Preview, set by the user) — reaching Preview builds. The Supabase pair is supplied by the Supabase–Vercel integration, which is why hand-set values never took. **Not set anywhere yet:** `OBSERVER_CREDENTIAL_KEY` (needed before a CRM credential can be stored) and `CRON_SECRET` (needed before the daily catalogue sync runs). |
 
 **One thing to know.** The deployment landed on **Production**, not Preview: `create_git_project`
 deploys from the linked repository's production branch, and `main` is it. That was not the intent and
@@ -149,39 +155,69 @@ Storytelling and Meeting Replay. The conversion funnel left the navigation.
   per-step timing, so the honest gap has to be rendered.
 - Three laboratory routes exist and no production route has changed: `/lab/sign-in`,
   `/lab/overview-a`, `/lab/overview-b`. They are declared in `SURFACES` as MADSPACE-only.
-- No ingestion and no production authentication. All deliberate; see the roadmap. The database
-  now holds exactly one thing: the shared rate-limit counters and a contentless request audit.
-- The synthetic repository is the only data source and sits behind `ObserverRepository`.
+- **Ingestion exists; production authentication does not.** Seventeen-plus-one migrations build
+  the `observer` schema from source: the AI ceilings and audit, provider credentials, model budget,
+  the source identity spine, activation codes and source credentials, the append-only
+  `analytics_events` store, `source_operations`, and — since 2026-09-07 — connector configs,
+  sealed connector credentials, the current catalogue, its append-only change log and every sync
+  attempt. Three endpoints (`/functions/v1/observer-activate|heartbeat|ingest`) run as Next route
+  handlers and are proven end to end against PGlite. `docs/ue5-ingestion-contract.md` still says
+  "nothing here is implemented"; that header is stale.
+- **Room segments follow the catalogue** (`800237a`). Project, the Overview pulse and the audience
+  builder derive their segments from the distinct room counts the stock contains; nothing names a
+  count by hand any more, and Ister Tower shows its one- and four-room flats.
+- **The CRM connector layer exists and is not yet read by the product** (`7226e07`, ADR-0036).
+  REALPAD, Lomnio, Monday and CSV adapters, one sync loop, a PostgREST/SQL port, the migration and
+  the `/madspace/projects/[id]/integrations` screen are built and proven; the read models still
+  take their catalogue from `packages/synthetic`. The seam that flips it is named in the next
+  actions.
+- The synthetic repository is the only data source behind `ObserverRepository`. It is the only
+  implementation of the port.
 
-## The one decision waiting on the user
+## The decision the user took on 2026-09-07
 
-**Which Executive Overview concept to build on** — narrative-first, spatial-first, or a described
-hybrid. The Showroom surfaces were built on the spatial direction with the narrative concept's
-verdict typography, which was the recommendation; the concepts remain at `/lab` for comparison. Both are implemented as isolated laboratory routes and neither has replaced a production
-route. Nothing else proceeds until this is chosen.
+**Proceed.** After reviewing the demo on the Preview URL the user directed development to continue
+from M2.2/M3 through M10 without further review rounds ("mehet a fejlesztés egészen M10-ig"). The
+Executive Overview question that had blocked M3 is closed by that instruction: the production
+surfaces stand on the spatial direction with the narrative concept's verdict typography, exactly
+as built and reviewed; the `/lab` concepts remain as record. The one product defect the review
+raised — segments hard-coded to two-room and three-room — is fixed in `800237a`.
 
-The critique, the defects found and fixed by inspection, and a recommendation
-(**spatial-first, carrying the narrative concept's verdict typography**) are in
-`docs/15-visual-concepts.md`.
+The commercial shape of the CRM work was set in the same brief: every client hands MADSPACE one
+credential for their CRM; most use REALPAD, some Monday, at least one Lomnio. Their developer
+portals were read the same day and the facts are in ADR-0036, which also lists what only the
+client can answer (their orientation codes, their stage vocabulary) and what only REALPAD support
+can (the `flat_type` table, the business-case Lifecycle values).
 
 ## Next recommended action
 
-Two of these were the user's and were done directly in the Vercel/OpenAI dashboards on 2026-09-06:
+The order follows the dependency chain, not the milestone numbers.
 
-1. ✅ **Done.** `OPENAI_API_KEY` carries a fresh value, Preview-scoped, in the `iris-observer`
-   project's Environment Variables. (`SUPABASE_URL` and `SUPABASE_SECRET_KEY` were already
-   Preview-scoped on inspection — only `OPENAI_API_KEY` needed the fix.)
-2. ✅ **Done.** New key pasted and saved; the compromised one's revocation is the user's own call
-   in the OpenAI dashboard, left to them (never touched here). The `release/observer-demo-rc1`
-   Preview deployment (`iris-observer-git-release-observer-demo-rc1-madspaces-projects.vercel.app`,
-   commit `3f298a6`) was redeployed afterward from its own row in Deployments — not from the
-   generic top-level "Redeploy" shortcut, which defaults to Production/`main` and would have
-   rebuilt a 9-day-stale commit on the wrong environment. Build finished Ready in 49s; the sign-in
-   screen loads cleanly on the fresh deployment. Whether Ask IRIS actually answers with the new
-   key was not tested — that needs a real sign-in and a real request, deliberately left to the
-   user rather than spent from here.
-3. User reviews the release candidate on the Preview URL and approves or rejects it.
-4. Only then: merge, tag, promote, and M3. None of those has been done.
+1. **Make the connector layer real on the Preview.** Set `OBSERVER_CREDENTIAL_KEY` (64 hex) and
+   `CRON_SECRET` on the Vercel project (Preview scope), apply
+   `supabase/migrations/20260907100000_observer_catalogue_and_connectors.sql` to
+   `tfcchobwobpadenampyh` through the SQL Editor as the earlier ones were, add it to the `migration
+repair` list in `supabase/README.md`, and prove it from the integrations screen with a CSV
+   upload — the same path this session proved on the local control plane.
+2. **Let the product read a synced catalogue.** The seam is decided, not built: a `CatalogueSource`
+   port on `SyntheticObserverRepository` (async, resolved in `context()`), `RawUnit.rooms` made
+   nullable through the pulse, screens and showroom read-model types with an "Unclassified" row on
+   the parity scale so stock still sums to one, and the control-plane project matched to the
+   read-model project by `observer.projects.slug`. Until this lands, a synced catalogue is stored
+   and shown on the integrations screen and nowhere else.
+3. **Deals.** REALPAD's business cases arrive only as Excel through Data Takeout; Lomnio's as
+   `lead.stage`; Monday's as a status column. Each needs the stage-mapping table on the
+   integrations screen (ADR-0036 decision 4) and a `deal.stage.changed` fact into the ladder.
+   Reserved and Sold already arrive with the unit feeds.
+4. **M3's remaining surfaces**, from the 2026-09-07 inventory: mount `FlowLadder` (written, unused);
+   time in stage; stalled opportunities; the attention-versus-conversion matrix; contacts and the
+   unified timeline (`/people` redirects today); intent distribution; the policy-version guard
+   `docs/10-policies.md` §30 specifies and nothing implements.
+5. **M4, M5, M8** in that order: a report generator behind the orphaned `ExportReport`; a scenario
+   registry that replays facts through the ingest API (ADR-0007 is breached by the seeded
+   generator); the per-source event vocabularies that `EventRegistry` is waiting for.
+6. **Push** to update the demo. Six commits since the last push are local; the user's word is
+   needed before `origin` moves.
 
 ---
 
@@ -211,15 +247,16 @@ Recorded in full in `docs/adr/`. The ones that constrain daily work:
 
 ## Unresolved decisions
 
-| Question                                              | Blocks                              | Owner             |
-| ----------------------------------------------------- | ----------------------------------- | ----------------- |
-| Narrative-first or spatial-first Executive Overview   | the visual rollout                  | **the user, now** |
-| Whether the assistant is named AI-RIS in Observer too | Ask Observer's greeting and voice   | MADSPACE          |
-| Does REALPAD expose a usable API                      | the CRM connector milestone         | MADSPACE          |
-| Interior platform — can it post back                  | interior dwell in deep-dive metrics | MADSPACE          |
-| WEBIRIS stable visitor identifier and cookie lifetime | deterministic back-linking          | MADSPACE          |
-| Which system mints the booking                        | `meeting_id` ownership in practice  | MADSPACE          |
-| Seats per project or per installation                 | the entitlement model               | MADSPACE          |
+| Question                                                                      | Blocks                               | Owner                        |
+| ----------------------------------------------------------------------------- | ------------------------------------ | ---------------------------- |
+| Narrative-first or spatial-first Executive Overview                           | the visual rollout                   | **the user, now**            |
+| Whether the assistant is named AI-RIS in Observer too                         | Ask Observer's greeting and voice    | MADSPACE                     |
+| ~~Does REALPAD expose a usable API~~ — **yes; verified 2026-09-07, ADR-0036** | the CRM connector milestone          | resolved                     |
+| REALPAD `flat_type` table and business-case Lifecycle values                  | the REALPAD adapter's status mapping | MADSPACE — a support request |
+| Interior platform — can it post back                                          | interior dwell in deep-dive metrics  | MADSPACE                     |
+| WEBIRIS stable visitor identifier and cookie lifetime                         | deterministic back-linking           | MADSPACE                     |
+| Which system mints the booking                                                | `meeting_id` ownership in practice   | MADSPACE                     |
+| Seats per project or per installation                                         | the entitlement model                | MADSPACE                     |
 
 ## Review gates before production
 
@@ -391,5 +428,106 @@ confirming Ask IRIS actually answers with the new one).
 
 ### Next recommended action
 
-Nothing above blocks anything else in this document. The unresolved decision that blocks the rest
-of the roadmap is still the Executive Overview concept choice, recorded earlier in this file.
+Superseded by the 2026-09-07 section below; the user's decision that day unblocked the roadmap.
+
+---
+
+## The demo, the CRM verification and the connector layer — 2026-09-07
+
+Branch `feature/observer-reference-parity`. Commits, oldest first: `d9879e3` (Sales Flow verdict
+on closed periods, flag/finding sample sizes — pushed), `c0c7496` (formatting and lint gates
+restored), `800237a` (room segments derived from the catalogue), `7226e07` (ADR-0036, contracts,
+connectors, migration, integrations screen), and this document.
+
+### The demo
+
+The user asked for the demo online. The monorepo is too large for Vercel's file upload, so the
+branch was pushed (with the user's explicit yes) and the already-linked `iris-observer` Vercel
+project built it: `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`.
+The deployed server had no account directory until the user set `OBSERVER_DEMO_ACCOUNTS=1` in the
+Vercel dashboard and redeployed from the branch's own row — not the top-level Redeploy, which
+targets `main`. The repository is public on GitHub and was handed to Akhilesh, who is building the
+Unreal Engine and Supabase side that will connect to the online Observer.
+
+### The CRM facts, in one paragraph
+
+REALPAD: `POST https://cms.realpad.eu/ws/v10/{endpoint}`, form-encoded, `login`+`password` per
+project and use case, XML catalogue via `get-project` with `flat_disposition` (`2+kk`),
+`flat_status` (0–5), `flat_type` (1–36/99, table unpublished), no per-flat timestamp, hourly fetch
+recommended; deals and customers only as Excel via Data Takeout under a five-minute cooldown; no
+push; token/OAuth/push/REST on their roadmap without a date. Lomnio: `app.lomnio.com/api/v1`,
+bearer token per project with scopes, JSON units with `room_count` and `layout_type`, Laravel
+pagination, HMAC-signed webhooks. Monday: GraphQL `items_page`, personal or app token, columns are
+per-client configuration. Full detail with sources: ADR-0036.
+
+### What was built and how it was proven
+
+- `packages/contracts/src/catalogue.ts` — the canonical unit, snapshot and change; `parseDisposition`;
+  `diffCatalogue`. 10 tests.
+- `packages/connectors/` — REALPAD, Lomnio (plus webhook verification), Monday and CSV adapters over
+  an injected `Http`; `runCatalogueSync`; `CatalogueDb` with `sqlCatalogueDb` and
+  `postgrestCatalogueDb` calling the same nine façades. 42 tests, no network anywhere.
+- `supabase/migrations/20260907100000_…` — five tables under the ingestion owner, nine definer
+  façades, RLS on with no policy. 12 tests on PGlite, including grants asked of PostgreSQL. Found by
+  executing: a separate owner role with a SELECT grant saw `projects` and none of its rows, because
+  RLS with no policy shows a table only to its owner.
+- `apps/web/src/lib/connectors/` — the service (seal on save, open on sync, four characters on the
+  screen), the live wiring, the config and credential schemas. 7 tests against a fake CRM and an
+  in-memory port.
+- `/madspace/projects/[id]/integrations` — four planes on the client-portal design system, state
+  first; `Sync now`; `Forget credential`; a CSV upload that lists refused rows by line; the recent
+  change register. Proven on the local control plane: a Hungarian sheet with five units and one
+  bad row read as "5 added", "Row 6: no unit code", `Synced · 5 units`.
+- `/api/observer/connectors/sync` (GET, `CRON_SECRET`, `0 6 * * *` in `apps/web/vercel.json` — the
+  hobby plan allows daily) and `/api/observer/connectors/lomnio/[projectId]` (POST, HMAC verified,
+  schedules the pull with `after()`).
+- `.env.example` documents `OBSERVER_CREDENTIAL_KEY`, `OBSERVER_CREDENTIAL_KEY_VERSION` and
+  `CRON_SECRET`, which it had not.
+
+Every commit: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, the full vitest gate including
+the PGlite migration suites, and a production build for the segment change.
+
+### What the inventories found, condensed
+
+Two read-only surveys on 2026-09-07 corrected this document's picture of M3–M9. Done, partial and
+missing per milestone:
+
+- **M3** — done: segment interest, attention index, demand and zero-result searches, presentation
+  coverage, agent figures with sample protection, baseline machinery. Partial: the stage ladder
+  (`FlowLadder` written, mounted nowhere — `/flow` draws a behaviour funnel), rung conversion,
+  unit competition (a table, no graph), follow-up (delay figure is a literal), period comparison
+  (explicit only on `/presentation?mode=periods`). Missing: time in stage, stalled opportunities,
+  the attention-versus-conversion matrix, contacts and unified timelines, intent distribution, the
+  policy-version guard.
+- **M4** — `buildReportScope` and the `ExportReport` dialog exist; the dialog is mounted nowhere,
+  no `/report` route, no PDF library anywhere.
+- **M5** — no scenario registry; four projects cover five of the scenario shapes; sessions come
+  from a seeded generator, not from batches through the ingest API.
+- **M6** — see the milestone table; `packages/db` is a placeholder and ADR-0004 is unimplemented.
+- **M7** — three endpoints proven; `packages/simulator` is a placeholder whose `bin` points at a
+  file that does not exist; only the UE5 wire form is implemented, `projection.ts` is not on the
+  request path.
+- **M8** — the fact taxonomy and the `EventRegistry` mechanism exist; every per-source vocabulary
+  is missing and `docs/03-event-map.md` names events in prose only.
+- **M9** — projects, installations, activation, diagnostics, integrations exist; tenants, users,
+  agencies, branding and feature flags do not.
+
+### Working practice, learned the hard way
+
+A second Claude Code session was running against this repository in a terminal tab with the
+Impeccable skill's live mode active. Its `live-server` (port 8400) and `live-poll` loop wrote
+"carbonize" edits into `page.tsx`, `charts.css` and `layout.tsx` several times, and killing the
+process did not stop it because the other session restarted it. The mechanism, not the process,
+is what to stop: `.claude/skills/impeccable/scripts/impeccable.cmd live-server stop` shuts the
+shared server and removes the injected script tag. `.impeccable/` and `**/.impeccable/` are now
+ignored by Prettier and ESLint for the same reason.
+
+### Remaining debt from this day
+
+- The read models do not read the synced catalogue (next action 2).
+- `ConnectorForm` is one component with four branches; when a fifth connector arrives it should
+  become four.
+- The Lomnio webhook route re-pulls on every `unit.*` event; a burst of events is a burst of pulls
+  against a 100-requests-a-minute limit. Coalesce before a real client turns push on.
+- `scopeFor` mints the read-model identifiers from the control-plane uuid; next action 2 replaces
+  it with the slug match.
