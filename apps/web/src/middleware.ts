@@ -33,7 +33,8 @@ import { LAST_PROJECT_COOKIE } from "@/lib/cookie-names";
  * segments as a candidate. A path that turns out not to be a real project
  * costs one wasted cookie write; `resolveLandingPath` refuses to use it.
  */
-const EXCLUDED = /^\/(sign-in|projects|settings|madspace|design-lab|lab|iris|api|_next|favicon\.ico|brand)(\/|$)/;
+const EXCLUDED =
+  /^\/(sign-in|projects|settings|madspace|design-lab|lab|iris|api|_next|favicon\.ico|brand)(\/|$)/;
 
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;

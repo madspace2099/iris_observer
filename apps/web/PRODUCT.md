@@ -47,7 +47,7 @@ It joins WEBIRIS (online buyer behaviour before anybody is known), the CRM (cont
 - **Nothing is fabricated to make a screen or chart look finished.** A gap in the synthetic data is stated as a gap, not papered over.
 - **A live language model is now connected on the release-candidate Preview deployment.** The deterministic-answer behavior remains as the fallback path when the model cannot be reached, not the default — `status.live` on each answer says which one actually produced it. The Production URL is a separate, older deployment and is not confirmed to hold the same connection.
 - **Multi-tenant, multi-project, role-gated.** An account's grants determine which tenants, projects and figures it can see; enforced in the repository layer, not only in the UI.
-- Terminology a reader is expected to already know: *tenant* (a developer's organisation), *project* (one development, e.g. a residential tower), *unit* (one sellable apartment/property within a project), *showroom* (where meetings happen), *evidence tier* (observed/attributed/verified).
+- Terminology a reader is expected to already know: _tenant_ (a developer's organisation), _project_ (one development, e.g. a residential tower), _unit_ (one sellable apartment/property within a project), _showroom_ (where meetings happen), _evidence tier_ (observed/attributed/verified).
 
 ## Brand Commitments
 

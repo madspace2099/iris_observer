@@ -125,7 +125,9 @@ export async function connect(formData: FormData): Promise<void> {
   }
 
   redirect(
-    dynamicRoute(backTo(formData, `done=${result.replaced ? "replaced" : "connected"}&p=${provider}`)),
+    dynamicRoute(
+      backTo(formData, `done=${result.replaced ? "replaced" : "connected"}&p=${provider}`),
+    ),
   );
 }
 

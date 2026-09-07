@@ -51,9 +51,7 @@ describe("resolveLandingPath", () => {
     // still-authorised project is the only way this resolves to a project at
     // all rather than falling to /projects.
     jarWithLastProject("alpha/ister-tower");
-    await expect(resolveLandingPath(VIEWERS.agencyManager)).resolves.toBe(
-      "/alpha/ister-tower/ask",
-    );
+    await expect(resolveLandingPath(VIEWERS.agencyManager)).resolves.toBe("/alpha/ister-tower/ask");
   });
 
   it("falls through a remembered project this account never held", async () => {

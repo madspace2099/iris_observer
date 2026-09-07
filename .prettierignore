@@ -16,6 +16,14 @@ playwright.config.ts
 # Screenshots, contact sheets and comparison output. Generated, not authored.
 artifacts/
 
+# Agent tooling that lives beside the code but is not the code: the Impeccable
+# skill's own scripts and vendored browser bundles, and the state directories
+# its live mode writes. Formatting them would only make the next upgrade of the
+# tool an unreadable diff.
+.claude/
+.impeccable/
+**/.impeccable/
+
 # Generated from packages/contracts/src/ue5 by "pnpm contracts:ue5".
 docs/ue5-contract/
 

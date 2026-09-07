@@ -558,7 +558,12 @@ function BudgetPanel({
           <p>
             Catalogue {CATALOGUE_VERSION}, priced from OpenAI&rsquo;s published rates as read on{" "}
             {PRICES_VERIFIED_AT} at{" "}
-            <a className="os-link" href={PRICE_SOURCE_URL} rel="noreferrer noopener" target="_blank">
+            <a
+              className="os-link"
+              href={PRICE_SOURCE_URL}
+              rel="noreferrer noopener"
+              target="_blank"
+            >
               developers.openai.com
             </a>
             . A vendor can change a price the day after somebody checks it, so this is a dated
@@ -739,8 +744,8 @@ function ProviderPanel({
       */}
       {blocked === null && [...connections.values()].every((c) => c == null) && (
         <p className="ox-lede">
-          <strong>Add your OpenAI API key</strong> to start. Observer asks your questions on your own
-          OpenAI account, and cannot ask any until it has one.
+          <strong>Add your OpenAI API key</strong> to start. Observer asks your questions on your
+          own OpenAI account, and cannot ask any until it has one.
         </p>
       )}
 
@@ -766,9 +771,13 @@ function ProviderPanel({
           holder the same way.
         </p>
         <ul>
-          <li>Create a dedicated project with the provider for Observer rather than reusing one.</li>
+          <li>
+            Create a dedicated project with the provider for Observer rather than reusing one.
+          </li>
           <li>Set a monthly spending limit on it, so the worst case is bounded.</li>
-          <li>Grant the key only the permissions Observer needs — model responses, nothing more.</li>
+          <li>
+            Grant the key only the permissions Observer needs — model responses, nothing more.
+          </li>
         </ul>
       </div>
 

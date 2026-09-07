@@ -13,12 +13,23 @@ import type { SwitchOption } from "../src/components/ContextSwitcher";
  * rendering it. `withCurrentSection` is where the real section is substituted
  * back in before the options ever reach the switcher's own `<select>`.
  */
-const ASK_OPTION: SwitchOption = { value: "northgate", label: "Northgate", href: "/alpha/northgate/ask" };
-const ISTER_OPTION: SwitchOption = { value: "ister-tower", label: "ISTER TOWER", href: "/alpha/ister-tower/ask" };
+const ASK_OPTION: SwitchOption = {
+  value: "northgate",
+  label: "Northgate",
+  href: "/alpha/northgate/ask",
+};
+const ISTER_OPTION: SwitchOption = {
+  value: "ister-tower",
+  label: "ISTER TOWER",
+  href: "/alpha/ister-tower/ask",
+};
 
 describe("withCurrentSection", () => {
   it("leaves every option untouched on the home segment itself", () => {
-    expect(withCurrentSection([ASK_OPTION, ISTER_OPTION], "ask")).toEqual([ASK_OPTION, ISTER_OPTION]);
+    expect(withCurrentSection([ASK_OPTION, ISTER_OPTION], "ask")).toEqual([
+      ASK_OPTION,
+      ISTER_OPTION,
+    ]);
   });
 
   it("leaves every option untouched for an empty segment", () => {

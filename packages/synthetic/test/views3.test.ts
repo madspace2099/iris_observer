@@ -311,11 +311,13 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
   });
 
   it("compares the whole selected period against the whole baseline period, by label, not by week or month", () => {
-    const sessions = Array.from({ length: 10 }, (_, i) =>
-      session(utc(2027, 2, 1 + i), i < 6 ? "purchase" : "not_interested"), // 60% progressed
+    const sessions = Array.from(
+      { length: 10 },
+      (_, i) => session(utc(2027, 2, 1 + i), i < 6 ? "purchase" : "not_interested"), // 60% progressed
     );
-    const previous = Array.from({ length: 10 }, (_, i) =>
-      session(utc(2027, 0, 1 + i), i < 3 ? "purchase" : "not_interested"), // 30% progressed
+    const previous = Array.from(
+      { length: 10 },
+      (_, i) => session(utc(2027, 0, 1 + i), i < 3 ? "purchase" : "not_interested"), // 30% progressed
     );
     const view = buildSalesFlow(CLOSED_CONTEXT, sessions, TODAY, previous);
     expect(view.verdict).toBe(

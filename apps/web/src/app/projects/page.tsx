@@ -102,7 +102,11 @@ export default async function Projects() {
               Administration
             </Link>
           ) : null}
-          <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/settings/ai?from=%2Fprojects")}>
+          <Link
+            className="ox-btn"
+            data-weight="quiet"
+            href={dynamicRoute("/settings/ai?from=%2Fprojects")}
+          >
             Settings
           </Link>
           <form action={signOut}>
@@ -130,8 +134,8 @@ export default async function Projects() {
           {cards.length === 0 ? (
             <p className="ox-lede">
               No project has been opened for your account yet. A project appears here as soon as
-              MADSPACE grants your account access to it — access is granted per project, and
-              nothing is shared automatically.
+              MADSPACE grants your account access to it — access is granted per project, and nothing
+              is shared automatically.
             </p>
           ) : (
             <ul className="ox-threads">

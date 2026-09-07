@@ -22,6 +22,13 @@ export default tseslint.config(
        */
       "**/_ask-reference/**",
       "artifacts/**",
+      /*
+       * Agent tooling beside the code, not the code: the Impeccable skill's
+       * scripts ship minified browser bundles, and its live mode writes state
+       * directories. Neither is this repository's to lint.
+       */
+      ".claude/**",
+      "**/.impeccable/**",
     ],
   },
   js.configs.recommended,

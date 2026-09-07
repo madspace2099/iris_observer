@@ -105,7 +105,8 @@ describe("sales flow", () => {
     // separately, outside the committed suite, precisely because they will
     // drift.
     const flow = await syntheticRepository.getSalesFlow(QUERY);
-    const lead = /^(The showroom is running; no outcomes are being recorded\.|Too early to call:|Meetings are holding up and progressing well:|Worth a look:|A mixed signal:)/;
+    const lead =
+      /^(The showroom is running; no outcomes are being recorded\.|Too early to call:|Meetings are holding up and progressing well:|Worth a look:|A mixed signal:)/;
     expect(flow.verdict).toMatch(lead);
     // Never a literal direction word next to the figures — the deadband can
     // make the *signal* "good" even when the raw percentage dipped, so

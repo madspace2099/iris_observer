@@ -248,7 +248,11 @@ export function findAmbiguousComparison(
   scope: AskScope,
   projectSlug: string,
   otherProjects: readonly AskScopeProject[],
-): { readonly text: string; readonly slugs: readonly string[]; readonly otherNames: readonly string[] } | null {
+): {
+  readonly text: string;
+  readonly slugs: readonly string[];
+  readonly otherNames: readonly string[];
+} | null {
   if (scope.kind !== "current" || question.trim() === "") return null;
 
   const lower = question.toLowerCase();
@@ -514,8 +518,8 @@ export function AskFrame({
                     {(() => {
                       const note = (
                         <p className="ask-menu-note">
-                          All and Compare state what this deployment cannot yet answer, rather
-                          than guess at a combined figure.
+                          All and Compare state what this deployment cannot yet answer, rather than
+                          guess at a combined figure.
                         </p>
                       );
                       if (otherProjects.length === 0) return note;
@@ -548,7 +552,9 @@ export function AskFrame({
                                 name="with"
                                 value={projectSlug}
                                 defaultChecked={
-                                  scope.kind === "compare" ? scope.slugs.includes(projectSlug) : true
+                                  scope.kind === "compare"
+                                    ? scope.slugs.includes(projectSlug)
+                                    : true
                                 }
                               />
                               <span>{projectLabel}</span>

@@ -12,8 +12,8 @@ light around their perimeter. The delivered artefact draws it in a fragment
 shader; an HTML export does not carry a shader intact, so the first two attempts
 reconstructed it from the geometry.
 
-Both were rejected on sight, in the same words: *"a Travelling effektus
-ugyanolyan rossz mint volt"*. The second attempt fixed everything the first got
+Both were rejected on sight, in the same words: _"a Travelling effektus
+ugyanolyan rossz mint volt"_. The second attempt fixed everything the first got
 wrong — additive compositing via `mix-blend-mode: plus-lighter`, an unclipped
 bloom behind the card, the head and its halo on a shared `offset-path` — and
 still read as a dim speck dragging a smudge.
@@ -32,7 +32,7 @@ knee to. `plus-lighter` over four gradients reproduces the geometry exactly and
 loses the physics entirely — which is precisely how it looked.
 
 `perimT` is the second thing that does not survive translation. It converts a
-pixel to its normalised arc-length position along the *actual rounded* outline,
+pixel to its normalised arc-length position along the _actual rounded_ outline,
 measuring straight runs and corner arcs separately, so the head holds one speed
 through the corners. `offset-path: padding-box` approximates it. `atan2` — the
 obvious substitute — does not attempt it, and produces a rectangular gradient
@@ -60,7 +60,7 @@ draw this at all. All three paths exist and converge on one line: if the context
 is refused or the program fails to build, the canvas is removed from the DOM.
 `ask-iris.css` keys the still CSS halo on the canvas being ABSENT, so removing it
 restores the halo. There is no flag, no state and no second code path — the
-presence of the canvas *is* the condition, which is also why it is the
+presence of the canvas _is_ the condition, which is also why it is the
 pre-hydration paint.
 
 **The animation never reaches React.** The canvas is created imperatively and
@@ -71,7 +71,7 @@ surrendered via `WEBGL_lose_context` on unmount, because browsers cap live
 contexts near 16 and silently drop the oldest.
 
 **Reduced motion freezes rather than removes.** `uMotion = 0`, `uTime` pinned at
-2.1, one frame drawn, no loop started — and the media query is *observed*, so
+2.1, one frame drawn, no loop started — and the media query is _observed_, so
 changing the setting mid-session takes effect without a reload. 2.1 rather than 0
 deliberately: at 0 the breath sits at its floor and the head lands on top of an
 anchor, making the one still frame both the dimmest and the least legible of the

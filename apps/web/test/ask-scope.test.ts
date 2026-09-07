@@ -192,12 +192,8 @@ describe("findAmbiguousComparison — natural language override", () => {
         ?.otherNames,
     ).toEqual(["Northgate Residences", "Riverside Walk"]);
     expect(
-      findAmbiguousComparison(
-        "Northgate versus Riverside",
-        { kind: "current" },
-        ISTER_SLUG,
-        OTHERS,
-      )?.otherNames,
+      findAmbiguousComparison("Northgate versus Riverside", { kind: "current" }, ISTER_SLUG, OTHERS)
+        ?.otherNames,
     ).toEqual(["Northgate Residences", "Riverside Walk"]);
   });
 
@@ -219,12 +215,7 @@ describe("findAmbiguousComparison — natural language override", () => {
     // ordinary sentence like the one below ("...flat rate" contains "at").
     const short: AskScopeProject = { slug: "at", name: "At Northgate" };
     expect(
-      findAmbiguousComparison(
-        "Compare the flat rate",
-        { kind: "current" },
-        ISTER_SLUG,
-        [short],
-      ),
+      findAmbiguousComparison("Compare the flat rate", { kind: "current" }, ISTER_SLUG, [short]),
     ).toBeNull();
   });
 });
