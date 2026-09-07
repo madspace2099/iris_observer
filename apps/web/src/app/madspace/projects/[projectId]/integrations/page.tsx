@@ -147,9 +147,17 @@ export default async function IntegrationsPage({
                   <th scope="col">At</th>
                 </tr>
               </thead>
+              {/*
+               * Rows keyed by what they show, not by the event id: a key is
+               * serialised into the page, and a sixty-four-hex digest in the
+               * HTML is indistinguishable from a subject key to any scan. The
+               * event id stays in the store, where it does its work.
+               */}
               <tbody>
                 {stageChanges.map((change) => (
-                  <tr key={change.event_id}>
+                  <tr
+                    key={`${change.external_id}·${change.kind}·${change.to_raw ?? ""}·${change.at}`}
+                  >
                     <td className="mad-td-source">
                       <span className="mad-code">{change.external_id}</span>
                     </td>
