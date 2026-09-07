@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-07 · **Branch:** `feature/observer-reference-parity`, pushed to `origin` on
-2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Five commits since then are local only.
+2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Seven commits since then are local only.
 
 ---
 
@@ -221,7 +221,7 @@ repair` list in `supabase/README.md`, and prove it from the integrations screen 
 5. **M4, M5, M8** in that order: a report generator behind the orphaned `ExportReport`; a scenario
    registry that replays facts through the ingest API (ADR-0007 is breached by the seeded
    generator); the per-source event vocabularies that `EventRegistry` is waiting for.
-6. **Push** to update the demo. Five commits since the last push are local; the user's word is
+6. **Push** to update the demo. Seven commits since the last push are local; the user's word is
    needed before `origin` moves.
 
 ---
@@ -489,8 +489,16 @@ per-client configuration. Full detail with sources: ADR-0036.
 - `.env.example` documents `OBSERVER_CREDENTIAL_KEY`, `OBSERVER_CREDENTIAL_KEY_VERSION` and
   `CRON_SECRET`, which it had not.
 
-Every commit: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, the full vitest gate including
-the PGlite migration suites, and a production build for the segment change.
+Every commit: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, the suites the change touched,
+and a production build. **What the full gate actually said, found at the end of the day:** every
+whole-suite run had been read through `pnpm test 2>&1 | tail -8`, and a pipe's exit status is the
+tail's, so the step reported green while four tests failed underneath — the release reporter's
+list of PGlite-booting suites (`scripts/release/vitest-runner-reporter.ts`) did not name the new
+catalogue suite, and the three packager suites refuse any tree that is not clean, which another
+session's `.impeccable/` residue and a build-rewritten `next-env.d.ts` had made it. Both are fixed
+in the commit after `48417c3`: the suite is registered, `.impeccable/` is gitignored, and the
+whole suite was re-run with its own exit status before the state below was written. The lesson
+stands in the working-practice section: never read a gate through a pipe.
 
 ### What the inventories found, condensed
 
@@ -525,7 +533,12 @@ Impeccable skill's live mode active. Its `live-server` (port 8400) and `live-pol
 process did not stop it because the other session restarted it. The mechanism, not the process,
 is what to stop: `.claude/skills/impeccable/scripts/impeccable.cmd live-server stop` shuts the
 shared server and removes the injected script tag. `.impeccable/` and `**/.impeccable/` are now
-ignored by Prettier and ESLint for the same reason.
+ignored by Prettier, ESLint and git for the same reason; the `apps/web/.gitignore` the tool had
+written was moved out of the tree (it only listed paths the root ignore now covers).
+
+**Never read a gate through a pipe.** `pnpm test 2>&1 | tail` exits with the tail's status, so a
+failing suite prints "exit 0". Run the suite into a log file and echo its own exit code, or use
+`set -o pipefail`. Four failures hid behind that pipe for a whole day of otherwise careful work.
 
 ### The catalogue seam, later the same day
 
