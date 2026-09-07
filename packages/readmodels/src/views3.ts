@@ -108,8 +108,16 @@ export interface AgentOutcomeRing {
   readonly meetings: number;
   readonly slices: readonly OutcomeSlice[];
   readonly progressedShare: number;
-  /** Set only when the pattern is worth a conversation, never as a score. */
-  readonly flag: { readonly severity: "watch" | "concern"; readonly text: string } | null;
+  /**
+   * Set only when the pattern is worth a conversation, never as a score.
+   *
+   * `sampleSize` is the exact population `text`'s own figures are drawn from
+   * (not always the same one -- a "no outcome recorded" flag is stated over
+   * every meeting, the others over only the decided ones) -- so a finding
+   * built from this flag can cite the same number rather than a different
+   * one from a different field.
+   */
+  readonly flag: { readonly severity: "watch" | "concern"; readonly text: string; readonly sampleSize: number } | null;
   readonly href: string;
 }
 

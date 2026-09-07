@@ -289,8 +289,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
-    const { context, current } = await this.slices(query);
-    return buildSalesFlow(context, current, this.today);
+    const { context, current, previous } = await this.slices(query);
+    return buildSalesFlow(context, current, this.today, previous);
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {

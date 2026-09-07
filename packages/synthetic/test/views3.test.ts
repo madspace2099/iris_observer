@@ -47,11 +47,17 @@ function session(startedAt: Date, outcome: ShowroomSession["outcome"]): Showroom
   };
 }
 
-// Only `tenant.slug`, `project.slug` and `project.locale` are ever read by
-// `buildSalesFlow`; everything else here is a type-satisfying stand-in.
+// `tenant.slug`, `project.slug`, `project.locale` and `period.to` are the
+// fields `buildSalesFlow` reads; everything else here is a type-satisfying
+// stand-in. `period.to` is year 9999 on purpose: every test below places
+// sessions around its own `today` and exercises the week/month recency
+// path (`stillRunning`), so the period must outlast any `today` used here
+// without needing a per-test value. The closed-period path (`period.to` in
+// the past) has its own describe block further down, with its own context.
 const CONTEXT = {
   tenant: { slug: "test-tenant" },
   project: { slug: "test-project", locale: "en-GB" },
+  period: { to: utc(9999, 0, 1).toISOString(), label: "the period", baselineLabel: "before" },
 } as unknown as ViewContext;
 
 describe("trend — classification immediately below, at, and above every cutoff", () => {
@@ -114,7 +120,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
   it("no outcomes recorded: reuses the opening screen's own sentence", () => {
     const today = utc(2027, 5, 15);
     const sessions = Array.from({ length: 10 }, () => session(today, "skipped"));
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe("The showroom is running; no outcomes are being recorded.");
   });
 
@@ -123,7 +129,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     const thisWeek = Array.from({ length: 8 }, (_, i) =>
       session(today, i < 5 ? "purchase" : "not_interested"),
     );
-    const view = buildSalesFlow(CONTEXT, thisWeek, today);
+    const view = buildSalesFlow(CONTEXT, thisWeek, today, []);
     expect(view.verdict).toBe(
       "Too early to call: 8 meetings this week, and 63% of recorded meetings progressed this week. There's no earlier comparable period yet.",
     );
@@ -138,7 +144,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 6 }, () => session(today, "purchase")),
       ...Array.from({ length: 4 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
       "Meetings are holding up and progressing well: 10 meetings this week against 10 last week, and 60% of recorded meetings progressed, against 40% before.",
     );
@@ -159,7 +165,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 6 }, () => session(today, "purchase")),
       ...Array.from({ length: 7 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
       "Meetings are holding up and progressing well: 13 meetings this week against 10 last week, and 46% of recorded meetings progressed, against 50% before.",
     );
@@ -174,7 +180,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 5 }, () => session(lastWeekStart, "not_interested")),
       ...Array.from({ length: 6 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
       "Worth a look: 6 meetings this week against 10 last week, and 0% of recorded meetings progressed, against 50% before.",
     );
@@ -189,7 +195,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 3 }, () => session(today, "purchase")),
       ...Array.from({ length: 7 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
       "A mixed signal: 10 meetings this week against 10 last week, and 30% of recorded meetings progressed, against 50% before.",
     );
@@ -209,7 +215,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 6 }, () => session(today, "purchase")),
       ...Array.from({ length: 4 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toContain("Meetings are holding up and progressing well");
   });
 
@@ -225,7 +231,7 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 6 }, () => session(today, "purchase")),
       ...Array.from({ length: 4 }, () => session(today, "not_interested")),
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toContain("A mixed signal");
     expect(view.verdict).not.toContain("Worth a look");
     expect(view.verdict).not.toContain("holding up");
@@ -252,12 +258,68 @@ describe("buildSalesFlow verdict — every reachable state", () => {
       ...Array.from({ length: 7 }, (_, i) => session(utc(2027, 2, 5 + i), "not_interested")), // last month, 5-11 Mar (inside the clip)
       ...Array.from({ length: 15 }, () => session(utc(2027, 2, 20), "purchase")), // last month, 20 Mar — outside the clip, must be excluded
     ];
-    const view = buildSalesFlow(CONTEXT, sessions, today);
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
     // This month: 1+1+4+4 = 10 meetings, 6 progressed (purchase) = 60%.
     // Last month, clipped to 1-12 March: 3+7 = 10 meetings, 3 progressed = 30%.
     // The 15 sessions on 20 March are outside the clip and must not appear.
     expect(view.verdict).toBe(
       "Meetings are holding up and progressing well: 10 meetings this month against 10 last month, first 12 days, and 60% of recorded meetings progressed, against 30% before.",
+    );
+  });
+});
+
+describe("buildSalesFlow verdict — a closed period, viewed after it ended", () => {
+  // `today` is always in August; every closed-period test below places its
+  // sessions in spring, so "this week"/"this month" relative to the real
+  // clock contain none of them — the exact shape of the bug this describe
+  // block exists to prove fixed. `period.to` in the past is what makes
+  // `stillRunning` false and switches `buildSalesFlow` onto the whole-period
+  // path instead of the recency buckets the block above tests.
+  const TODAY = utc(2027, 7, 24); // 24 August 2027
+  const CLOSED_CONTEXT = {
+    tenant: { slug: "test-tenant" },
+    project: { slug: "test-project", locale: "en-GB" },
+    period: {
+      to: utc(2027, 3, 1).toISOString(), // period ended 1 April 2027 — well before TODAY
+      label: "the selected quarter",
+      baselineLabel: "the quarter before",
+    },
+  } as unknown as ViewContext;
+
+  it("regression: recorded outcomes in a closed period must not read as none, just because 'this week' (relative to today) contains none of them", () => {
+    // 61 sessions in spring, nowhere near `today` in August — the exact
+    // dataset shape that made the old week/month-bucket verdict read
+    // "no outcomes are being recorded" while the ring two sections down,
+    // built from the same `sessions`, showed 56 of 61 decided.
+    const sessions = [
+      ...Array.from({ length: 56 }, (_, i) => session(utc(2027, 2, 1 + (i % 28)), "purchase")),
+      ...Array.from({ length: 5 }, (_, i) => session(utc(2027, 2, 2 + i), "skipped")),
+    ];
+    const view = buildSalesFlow(CLOSED_CONTEXT, sessions, TODAY, []);
+    expect(view.verdict).not.toBe("The showroom is running; no outcomes are being recorded.");
+    expect(view.verdict).toContain("61 meetings");
+  });
+
+  it("no baseline: a closed period with an empty previous period reads as too-early, not as a week-over-week comparison", () => {
+    const sessions = Array.from({ length: 8 }, (_, i) =>
+      session(utc(2027, 2, 1 + i), i < 5 ? "purchase" : "not_interested"),
+    );
+    const view = buildSalesFlow(CLOSED_CONTEXT, sessions, TODAY, []);
+    expect(view.verdict).toBe(
+      "Too early to call: 8 meetings the selected quarter, and 63% of recorded meetings progressed the selected quarter. There's no earlier comparable period yet.",
+    );
+  });
+
+  it("compares the whole selected period against the whole baseline period, by label, not by week or month", () => {
+    const sessions = Array.from({ length: 10 }, (_, i) =>
+      session(utc(2027, 2, 1 + i), i < 6 ? "purchase" : "not_interested"), // 60% progressed
+    );
+    const previous = Array.from({ length: 10 }, (_, i) =>
+      session(utc(2027, 0, 1 + i), i < 3 ? "purchase" : "not_interested"), // 30% progressed
+    );
+    const view = buildSalesFlow(CLOSED_CONTEXT, sessions, TODAY, previous);
+    expect(view.verdict).toBe(
+      "Meetings are holding up and progressing well: 10 meetings the selected quarter against 10 the quarter before, and 60% of recorded meetings progressed, against 30% before.",
     );
   });
 });

@@ -276,6 +276,7 @@ function outcomeFlag(
     return {
       severity: "watch",
       text: `${sessions.length - decided.length} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
+      sampleSize: sessions.length,
     };
   }
   const notInterested = decided.filter((s) => s.outcome === "not_interested").length;
@@ -285,12 +286,14 @@ function outcomeFlag(
     return {
       severity: "concern",
       text: `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
+      sampleSize: decided.length,
     };
   }
   if (progressed < teamProgressed * 0.75) {
     return {
       severity: "watch",
       text: `${percent(progressed, "en-GB")} progressed against ${percent(teamProgressed, "en-GB")} for the team, over ${decided.length} recorded meetings.`,
+      sampleSize: decided.length,
     };
   }
   return null;
@@ -315,12 +318,87 @@ function buildRing(
   };
 }
 
+/**
+ * The two figures a verdict compares, named.
+ *
+ * A subset of `FlowPeriod` -- every `FlowPeriod` already satisfies this
+ * shape, so the recency buckets from `buildPeriods` pass straight in; the
+ * whole-period case below builds one directly, with no bucket and no `id`,
+ * because none of `verdictFrom`'s reasoning ever needs one.
+ */
+interface PeriodSummary {
+  readonly label: string;
+  readonly meetings: number;
+  readonly outcomeRecorded: number;
+  readonly progressed: number;
+}
+
+function summarizePeriod(sessions: readonly ShowroomSession[], label: string): PeriodSummary {
+  return {
+    label,
+    meetings: sessions.length,
+    outcomeRecorded: sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+    progressed: sessions.filter((s) => hasProgressed(s.outcome)).length,
+  };
+}
+
+/**
+ * The verdict's own state machine, factored out so both the "period still
+ * running" path (recency buckets: this week/month against last) and the
+ * "closed period" path (the whole selected period against its own baseline)
+ * produce it the same way, from the same two-summary shape, rather than
+ * duplicating four states and a deadbanded signal twice.
+ */
+function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: string): string {
+  const outcomesRecorded = current.outcomeRecorded > 0;
+  const hasBaseline = prior.meetings > 0;
+
+  const volumeClause = hasBaseline
+    ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
+    : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
+
+  if (!outcomesRecorded) {
+    // Same fact as the opening screen's equivalent state; same sentence.
+    return "The showroom is running; no outcomes are being recorded.";
+  }
+  if (!hasBaseline) {
+    const currentProgressed = share(current.progressed, current.outcomeRecorded);
+    return `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+  }
+
+  const currentProgressed = share(current.progressed, current.outcomeRecorded);
+  const priorProgressed =
+    prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
+  const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
+  const progressTrend: Trend =
+    prior.outcomeRecorded === 0
+      ? currentProgressed > 0.3
+        ? "up"
+        : "flat"
+      : trend(currentProgressed / priorProgressed, 0.9);
+  const signal =
+    volumeTrend === "up" && progressTrend === "up"
+      ? "good"
+      : volumeTrend === "down" && progressTrend === "down"
+        ? "poor"
+        : "attention";
+
+  // "Against", never "up from" or "down from" -- see the docblock this
+  // reasoning was moved from, immediately below in `buildSalesFlow`.
+  return signal === "good"
+    ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+    : signal === "poor"
+      ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+      : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
+}
+
 /* --- 1. Sales Flow ----------------------------------------------------------- */
 
 export function buildSalesFlow(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
   today: Date,
+  previous: readonly ShowroomSession[],
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -346,10 +424,14 @@ export function buildSalesFlow(
 
   const flagged = rings.filter((r) => r.flag !== null);
   if (flagged[0]?.flag != null) {
+    // The evidence below cites `flag.sampleSize`, not `flagged[0].meetings` --
+    // the flag's own text is stated over the population that number names
+    // (usually the decided meetings, not every meeting the agent had), and
+    // the evidence has to agree with the sentence it is evidence for.
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: `${percent(teamProgressed, locale)} of the team's recorded meetings progressed`,
+      baseline: `${percent(teamProgressed, locale)} for the team`,
       soWhat:
         "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
       nextStep: { label: `Open ${flagged[0].name.split(" ")[0]}`, href: flagged[0].href },
@@ -357,9 +439,9 @@ export function buildSalesFlow(
         `flow-${flagged[0].agentId}`,
         "statistical_association",
         flagged[0].href,
-        flagged[0].meetings,
+        flagged[0].flag.sampleSize,
       ),
-      sampleSize: flagged[0].meetings,
+      sampleSize: flagged[0].flag.sampleSize,
       sources: [...WITH_OUTCOME],
       caveat: null,
     });
@@ -386,73 +468,61 @@ export function buildSalesFlow(
   const lastMonth = periods.find((p) => p.id === "last_month");
 
   /*
-   * The verdict says which way things are moving, not only how many.
+   * The verdict says which way things are moving, not only how many -- and
+   * it has to move with whatever window is actually selected, or it drifts
+   * out of sync with the ring and findings below it, which always read the
+   * full selected period.
    *
-   * Volume and progression share one window here rather than two. The KPI
-   * row above answers to its own control (`charts.kpis`, a separate figure
-   * over a separate window on purpose), but gluing a quarter-scoped
-   * progression clause onto a week-scoped volume clause in the SAME sentence
-   * would recreate the exact "two numbers, two scopes, one claim" confusion
-   * that separation exists to avoid. `trend()`'s deadband is the same one the
-   * opening screen uses, so the same meeting's worth of noise cannot tip one
-   * screen's verdict and not the other's.
+   * `stillRunning` mirrors the repository's own `slices()` (the only other
+   * place this product decides whether a period includes today), computed
+   * locally rather than threaded through because `buildSalesFlow` already
+   * receives both `context` and `today`. When the selected period is still
+   * running, the verdict keeps drilling into week-vs-last-week (or
+   * month-vs-last-month) recency buckets, because that finer window is a
+   * genuinely more current signal than "this quarter so far" would be, and
+   * disturbing that is out of scope here. When the period is closed --
+   * "Last completed quarter" and similar -- those buckets are computed from
+   * `sessions`, which is by then *already* filtered to that period, so
+   * "this week" inside e.g. April-June read against an August `today` finds
+   * nothing: not a quieter signal, an empty one, which the four-state
+   * machine below reads as "no outcomes recorded" even when the ring two
+   * sections down is showing dozens of them from the same `sessions` array.
+   * A closed period instead compares its own whole span against its own
+   * baseline (`previous`, `context.period.baselineFrom/To` -- the same
+   * mechanism "What changed" already uses lower on this page), which needs
+   * no recency bucket and is never empty merely because the period is over.
+   *
+   * Volume and progression share one window here rather than two either
+   * way. The KPI row above answers to its own control (`charts.kpis`, a
+   * separate figure over a separate window on purpose), but gluing a
+   * quarter-scoped progression clause onto a week-scoped volume clause in
+   * the SAME sentence would recreate the exact "two numbers, two scopes,
+   * one claim" confusion that separation exists to avoid. `trend()`'s
+   * deadband is the same one the opening screen uses, so the same
+   * meeting's worth of noise cannot tip one screen's verdict and not the
+   * other's. "Against", never "up from" or "down from": `signal` below is
+   * deadbanded on purpose (a ratio that clears the floor reads as "up" even
+   * when the raw percentage dipped slightly) — right for deciding which of
+   * the three verdicts to print, wrong for a literal direction word next to
+   * the actual figures. "Up from 46%" printed beside a true 42% is not a
+   * rounding quirk, it is a false sentence — see `verdictFrom`, above.
    */
+  const stillRunning =
+    new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
   let verdict: string;
-  if (week === undefined || lastWeek === undefined || month === undefined || lastMonth === undefined) {
-    verdict = `${count(sessions.length, locale)} meetings this period.`;
-  } else {
-    const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
-    const current = weekIsReadable ? week : month;
-    const prior = weekIsReadable ? lastWeek : lastMonth;
-    const outcomesRecorded = current.outcomeRecorded > 0;
-    const hasBaseline = prior.meetings > 0;
-
-    const volumeClause = hasBaseline
-      ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
-      : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
-
-    if (!outcomesRecorded) {
-      // Same fact as the opening screen's equivalent state; same sentence.
-      verdict = "The showroom is running; no outcomes are being recorded.";
-    } else if (!hasBaseline) {
-      const currentProgressed = share(current.progressed, current.outcomeRecorded);
-      verdict = `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+  if (stillRunning) {
+    if (week === undefined || lastWeek === undefined || month === undefined || lastMonth === undefined) {
+      verdict = `${count(sessions.length, locale)} meetings this period.`;
     } else {
-      const currentProgressed = share(current.progressed, current.outcomeRecorded);
-      const priorProgressed =
-        prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
-      const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
-      const progressTrend: Trend =
-        prior.outcomeRecorded === 0
-          ? currentProgressed > 0.3
-            ? "up"
-            : "flat"
-          : trend(currentProgressed / priorProgressed, 0.9);
-      const signal =
-        volumeTrend === "up" && progressTrend === "up"
-          ? "good"
-          : volumeTrend === "down" && progressTrend === "down"
-            ? "poor"
-            : "attention";
-
-      /*
-       * "Against", never "up from" or "down from".
-       *
-       * `signal` is deadbanded on purpose (a ratio that clears the floor reads
-       * as "up" even when the raw percentage dipped slightly) — right for
-       * deciding which of the three verdicts to print, wrong for a literal
-       * direction word next to the actual figures. "Up from 46%" printed
-       * beside a true 42% is not a rounding quirk, it is a false sentence.
-       * The lead phrase below carries the judgment; the figures stay neutral
-       * and let the reader compare them directly.
-       */
-      verdict =
-        signal === "good"
-          ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-          : signal === "poor"
-            ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-            : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
+      const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
+      verdict = verdictFrom(weekIsReadable ? week : month, weekIsReadable ? lastWeek : lastMonth, locale);
     }
+  } else {
+    verdict = verdictFrom(
+      summarizePeriod(sessions, context.period.label),
+      summarizePeriod(previous, context.period.baselineLabel),
+      locale,
+    );
   }
 
   return {

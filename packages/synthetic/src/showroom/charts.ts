@@ -166,7 +166,13 @@ export function buildKpis(
         medNow === null || medBefore === null || medBefore === 0
           ? null
           : signedPercent((medNow - medBefore) / medBefore, locale),
-      tone: medNow === null || medBefore === null ? "flat" : tone(medNow, medBefore, "up"),
+      // Neutral always, not `tone(medNow, medBefore, "up")": a longer median
+      // is not a win and a shorter one is not a loss -- this is a
+      // descriptive measure with no earned direction, the same reason
+      // "How many, not how well" keeps Presentations-given volume neutral
+      // elsewhere on this page. Colouring it good/bad was a copy-paste of
+      // the up-is-good rule the genuinely directional figures use.
+      tone: "flat",
       points: seriesOf((slice) => {
         const timed = slice.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
         return timed.length === 0 ? null : median(timed);
@@ -206,7 +212,10 @@ export function buildKpis(
       value: count(units, locale),
       qualifier: `${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
       delta: unitsBefore === 0 ? null : signedPercent((units - unitsBefore) / unitsBefore, locale),
-      tone: tone(units, unitsBefore, "up"),
+      // Neutral, same reasoning as Typical length above: which units get
+      // opened is decided by buyer interest, not by the showroom, so a
+      // count moving either way earns no verdict here.
+      tone: "flat",
       points: seriesOf((slice) => slice.reduce((a, s) => a + s.units.length, 0)),
     },
   ];
