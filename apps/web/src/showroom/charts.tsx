@@ -331,6 +331,106 @@ export function PairedRates({
  * on, and by how far". A bar from zero answers neither; a marker on an axis
  * centred at parity answers both.
  */
+/**
+ * THE ATTENTION × CONVERSION MATRIX — docs/02-views.md §4.2's frame, drawn.
+ *
+ * Four cells, each a marketing instruction, each holding the segments that
+ * fall in it: high attention above parity, high conversion at or above the
+ * project's own share. A segment without a quadrant is listed beneath the
+ * frame with the read model's reason — below the minimum sample, or no CRM —
+ * rather than forced into a cell. Nothing here computes a rate: the index,
+ * the shares and the placement all arrive from the read model.
+ */
+const QUADRANTS = [
+  { id: "hero", title: "Hero", instruction: "Sell more of this; lead the campaign with it." },
+  {
+    id: "mispriced",
+    title: "Mispriced or oversold",
+    instruction: "They look, they don't buy: check the price, check the promise.",
+  },
+  {
+    id: "hidden_gem",
+    title: "Hidden gem",
+    instruction: "Converts when seen; agents aren't showing it. Fixable today.",
+  },
+  {
+    id: "dead_stock",
+    title: "Dead stock",
+    instruction: "Neither seen nor sold: reposition, bundle, or discount.",
+  },
+] as const;
+
+export function QuadrantMatrix({
+  rows,
+  locale,
+}: {
+  rows: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly index: number;
+    readonly share: number | null;
+    readonly projectShare: number | null;
+    readonly decided: number;
+    readonly quadrant: (typeof QUADRANTS)[number]["id"] | null;
+    readonly withheld: string | null;
+    readonly href: string;
+  }[];
+  locale: string;
+}) {
+  const pct = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
+  const placed = rows.filter((r) => r.quadrant !== null);
+  const withheld = rows.filter((r) => r.quadrant === null);
+
+  return (
+    <div className="iris-quad">
+      <p className="iris-code iris-quad-axis" aria-hidden="true">
+        ← lower conversion · higher conversion →
+      </p>
+      <div className="iris-quad-grid" role="list" aria-label="Segments by attention and conversion">
+        {QUADRANTS.map((q) => {
+          const inCell = placed.filter((r) => r.quadrant === q.id);
+          return (
+            <div className="iris-quad-cell" data-quadrant={q.id} key={q.id} role="listitem">
+              <p className="iris-quad-title">{q.title}</p>
+              <p className="iris-quad-instruction">{q.instruction}</p>
+              {inCell.length === 0 ? (
+                <p className="iris-quad-empty">No segment here.</p>
+              ) : (
+                <ul className="iris-quad-segments">
+                  {inCell.map((r) => (
+                    <li key={r.id}>
+                      <a href={r.href}>{r.label}</a>
+                      <span>
+                        {r.index.toFixed(2)}× attention ·{" "}
+                        {r.share === null ? "—" : pct.format(r.share)} converted
+                        {r.projectShare === null ? "" : ` against ${pct.format(r.projectShare)}`} ·
+                        n = {r.decided}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="iris-code iris-quad-axis" aria-hidden="true">
+        ↑ higher attention · lower attention ↓
+      </p>
+      {withheld.length === 0 ? null : (
+        <ul className="iris-quad-withheld">
+          {withheld.map((r) => (
+            <li key={r.id}>
+              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention, not placed.{" "}
+              {r.withheld}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ParityScale({
   rows,
   max = 2,

@@ -28,6 +28,7 @@ import type {
   ProjectView,
   RepeatDistribution,
   SalesFlowView,
+  SegmentConversion,
   SegmentInterest,
   ShowroomFinding,
   ShowroomHome,
@@ -42,6 +43,7 @@ import {
   roomCounts,
   roomLabel,
 } from "../pulse";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { buildDealLadder } from "../deals";
 import { count, evidenceRef, percent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
@@ -672,6 +674,51 @@ function buildSegment(
 
   const topPlace = [...placeSeconds.values()].sort((a, b) => b.secs - a.secs)[0];
 
+  /*
+   * THE ATTENTION × CONVERSION READING.
+   *
+   * Conversion is the share of decided meetings (an outcome recorded) that
+   * progressed, among the meetings that opened a unit of this segment,
+   * against the same share over every decided meeting. The documented
+   * minimum (docs/02-views.md §3: n = 20) gates the quadrant, and a project
+   * with no CRM has no outcome to read, so the quadrant is withheld with
+   * the reason rather than drawn from nothing. High attention is above
+   * parity; high conversion is at or above the project's own share.
+   */
+  const decidedMeetings = meetings.filter((s) => !outcomeIsUnknown(s.outcome));
+  const decidedAll = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
+  const progressed = decidedMeetings.filter((s) => hasProgressed(s.outcome)).length;
+  const crm = context.project.connectedSources.includes("crm");
+  const conversionShare =
+    decidedMeetings.length === 0 ? null : share(progressed, decidedMeetings.length);
+  const projectShare =
+    decidedAll.length === 0
+      ? null
+      : share(decidedAll.filter((s) => hasProgressed(s.outcome)).length, decidedAll.length);
+  const withheld = !crm
+    ? "No CRM is connected, so no outcome is recorded and conversion cannot be read."
+    : decidedMeetings.length < AGENT_MIN_SAMPLE
+      ? `Not enough decided meetings yet (${String(decidedMeetings.length)} of ${String(AGENT_MIN_SAMPLE)}).`
+      : null;
+  const conversion: SegmentConversion = {
+    decided: decidedMeetings.length,
+    progressed,
+    share: conversionShare,
+    projectShare,
+    minimum: AGENT_MIN_SAMPLE,
+    quadrant:
+      withheld !== null || conversionShare === null || projectShare === null
+        ? null
+        : index >= 1
+          ? conversionShare >= projectShare
+            ? "hero"
+            : "mispriced"
+          : conversionShare >= projectShare
+            ? "hidden_gem"
+            : "dead_stock",
+    withheld,
+  };
+
   /* How they examined these units, against how they examined everything else. */
   const others = touches.filter((t) => !inSegment.has(t.unitCode));
   const rate = (xs: typeof touches, f: (t: (typeof touches)[number]) => boolean) =>
@@ -728,6 +775,7 @@ function buildSegment(
      * "what should the next campaign show".
      */
     examinedHow,
+    conversion,
     soWhat:
       topPlace === undefined
         ? `${spec.label} units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`
@@ -914,6 +962,15 @@ export function buildProjectView(
         ? `${meetings(sessions.length, locale)}.`
         : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
     segments,
+    matrixNote: context.project.connectedSources.includes("crm")
+      ? `Attention is the segment's share of looking time against its share of available stock; conversion is the share of decided meetings that progressed, against ${percent(
+          share(
+            sessions.filter((s) => !outcomeIsUnknown(s.outcome) && hasProgressed(s.outcome)).length,
+            sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+          ),
+          locale,
+        )} for the project. A segment is placed only with ${String(AGENT_MIN_SAMPLE)} or more decided meetings; the pattern is an association, never a cause.`
+      : "No CRM is connected to this project, so no meeting carries an outcome and nothing can be placed on the conversion axis. Attention alone is on the scale above.",
     selectedSegment: selected,
     demand,
     places: places.slice(0, 18),

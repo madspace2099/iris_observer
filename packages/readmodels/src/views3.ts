@@ -199,6 +199,31 @@ export interface SegmentInterest {
     readonly otherRate: number;
   }[];
   readonly soWhat: string;
+  /**
+   * The attention × conversion reading (docs/02-views.md §4.2): where this
+   * segment falls against parity on attention and against the project on
+   * conversion. `quadrant` is null below the documented minimum sample or
+   * where no CRM records an outcome, and the words say which.
+   */
+  readonly conversion: SegmentConversion;
+}
+
+export const SEGMENT_QUADRANTS = ["hero", "mispriced", "hidden_gem", "dead_stock"] as const;
+export type SegmentQuadrant = (typeof SEGMENT_QUADRANTS)[number];
+
+export interface SegmentConversion {
+  /** Meetings that opened a unit of this segment and recorded an outcome. */
+  readonly decided: number;
+  readonly progressed: number;
+  /** progressed / decided, or null when nothing was decided. */
+  readonly share: number | null;
+  /** The same share over every decided meeting on the project. */
+  readonly projectShare: number | null;
+  /** The documented minimum for a verdict, so the screen can say how far short. */
+  readonly minimum: number;
+  readonly quadrant: SegmentQuadrant | null;
+  /** Why there is no quadrant, in words; null when there is one. */
+  readonly withheld: string | null;
 }
 
 export interface StatedDemand {
@@ -226,6 +251,8 @@ export interface ProjectView {
   readonly context: ViewContext;
   readonly verdict: string;
   readonly segments: readonly SegmentInterest[];
+  /** What the attention × conversion frame rests on, said once for the whole matrix. */
+  readonly matrixNote: string;
   readonly selectedSegment: SegmentInterest | null;
   readonly demand: readonly StatedDemand[];
   readonly places: readonly PlaceInterest[];

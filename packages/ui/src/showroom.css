@@ -2470,3 +2470,94 @@
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
+
+/* --- the attention × conversion matrix ------------------------------------ */
+
+/*
+ * Four planes on one hairline grid, not four cards: the frame is the chart.
+ * The two axis captions are decorative (the cell titles carry the meaning
+ * for a screen reader) and use the same code voice as every other axis
+ * note in this sheet. Colour is reserved: the hero cell takes the accent
+ * mark a decided figure earns and nothing else is coloured, because a
+ * red-and-green matrix would score segments the way the doctrine refuses.
+ */
+.iris-quad {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 56rem;
+}
+
+.iris-quad-axis {
+  color: var(--ink-3);
+  text-align: center;
+}
+
+.iris-quad-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line-strong);
+}
+
+.iris-quad-cell {
+  padding: 0.875rem 1rem 1rem;
+  /* The plane shows through; only the hairlines between the cells are drawn. */
+  border-right: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  min-height: 8rem;
+}
+
+.iris-quad-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.iris-quad-cell[data-quadrant="hero"] .iris-quad-title {
+  color: var(--accent);
+}
+
+.iris-quad-instruction,
+.iris-quad-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+.iris-quad-segments {
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.iris-quad-segments li {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.iris-quad-segments a {
+  font-weight: 600;
+}
+
+.iris-quad-segments span {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.iris-quad-withheld {
+  margin: 0.25rem 0 0;
+  padding: 0 0 0 1.25em;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+@media (max-width: 40rem) {
+  .iris-quad-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

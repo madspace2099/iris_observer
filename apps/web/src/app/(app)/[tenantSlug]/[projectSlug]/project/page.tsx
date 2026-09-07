@@ -7,7 +7,7 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
-import { PairedRates, ParityScale } from "@/showroom/charts";
+import { PairedRates, ParityScale, QuadrantMatrix } from "@/showroom/charts";
 import { BulletChart, JourneyFlow } from "@/showroom/charts2";
 import { FlowScroller } from "@/showroom/FlowScroller";
 import { ExportReport } from "@/components/report";
@@ -159,6 +159,44 @@ export default async function ProjectPage({
               index: s.index,
               note: `${Math.round(s.attentionShare * 100)}% of looking time on ${Math.round(s.stockShare * 100)}% of stock`,
             }))}
+          />
+        </div>
+
+        <hr className="iris-rule" />
+
+        {/*
+         * THE ATTENTION × CONVERSION MATRIX, docs/02-views.md §4.2: "the single
+         * most actionable frame in the product". Each cell is a segment, not a
+         * unit, so it maps onto a marketing decision; a segment the read model
+         * would not place is listed under the frame with its reason.
+         */}
+        <div>
+          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            Attention against conversion
+          </p>
+          <QuadrantMatrix
+            locale={view.context.project.locale}
+            rows={view.segments.map((s) => ({
+              id: s.id,
+              label: s.label,
+              index: s.index,
+              share: s.conversion.share,
+              projectShare: s.conversion.projectShare,
+              decided: s.conversion.decided,
+              quadrant: s.conversion.quadrant,
+              withheld: s.conversion.withheld,
+              href: qs(s.id),
+            }))}
+          />
+          <p className="iris-meta" style={{ marginTop: ".75rem", maxWidth: "70ch" }}>
+            {view.matrixNote}
+          </p>
+          <SourceChips
+            sources={
+              view.context.project.connectedSources.includes("crm")
+                ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+                : ["IRIS_SHOWROOM_DERIVED"]
+            }
           />
         </div>
 
