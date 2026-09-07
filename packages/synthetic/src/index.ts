@@ -9,7 +9,15 @@
 
 export * from "./world";
 export * from "./repository";
-export { buildProjectPulse, buildAskSession } from "./pulse";
+export {
+  buildProjectPulse,
+  buildAskSession,
+  catalogueFor,
+  provideCatalogue,
+  hasDeliveredCatalogue,
+} from "./pulse";
+export { rawUnitsFromCatalogue } from "./catalogue-overlay";
+export type { CatalogueOverlay, UnplacedUnit } from "./catalogue-overlay";
 export { VIKTORIA_MEETING_ID, COUPLE_MEETING_ID } from "./agent";
 
 export * from "./showroom/sessions";

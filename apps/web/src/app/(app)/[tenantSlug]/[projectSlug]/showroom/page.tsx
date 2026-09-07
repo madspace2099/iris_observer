@@ -305,9 +305,11 @@ export default async function BriefingPage({
 
             <p className="ox-section-note">
               {pulse.totals.units} units · {pulse.totals.available} available ·{" "}
-              {pulse.totals.reserved} reserved · {pulse.totals.sold} sold,{" "}
-              {pulse.totals.soldInPeriod} of them in this period. Every cell opens the unit&rsquo;s
-              own page.
+              {pulse.totals.reserved} reserved · {pulse.totals.sold} sold
+              {pulse.totals.soldInPeriod === null
+                ? "; how many of them in this period is not observed yet"
+                : `, ${pulse.totals.soldInPeriod} of them in this period`}
+              . Every cell opens the unit&rsquo;s own page.
             </p>
 
             <div className="ox-finding-foot">

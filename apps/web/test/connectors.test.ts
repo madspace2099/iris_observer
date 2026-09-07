@@ -209,6 +209,7 @@ describe("connectorService", () => {
       screenId: 2,
       includeHidden: false,
       currency: "CZK",
+      orientationMap: {},
     });
 
     const synced = await svc.sync(PROJECT, "realpad");
@@ -292,6 +293,49 @@ describe("connectorService", () => {
     if (!imported.outcome.ok) throw new Error("expected a report");
     expect(imported.outcome.fetched).toBe(1);
     expect(db.units.get("csv")?.[0]).toMatchObject({ code: "A-1", rooms: 2, status: "available" });
+  });
+
+  it("reports how much of a delivered catalogue the product can draw, and why not the rest", async () => {
+    const db = memoryDb();
+    const svc = service(db, () => ({ status: 200, text: "" }));
+    await svc.save(
+      PROJECT,
+      "csv",
+      {
+        columns: {
+          code: "Kód",
+          rooms: "Szobák",
+          floor: "Emelet",
+          interiorSqm: "m2",
+          priceWithVat: "Ár",
+          orientation: "Tájolás",
+          status: "Státusz",
+        },
+        statusMap: { szabad: "available" },
+        currency: "HUF",
+        orientationMap: { D: "S" },
+      },
+      null,
+      true,
+    );
+    await svc.importCsv(
+      PROJECT,
+      "Kód;Szobák;Emelet;m2;Ár;Tájolás;Státusz\nA-1;2;1;50;1;D;szabad\nA-2;3;2;60;1;Ny;szabad\nP-1;;1;12;1;D;szabad\n",
+    );
+    const placement = await svc.placement(PROJECT, "csv");
+    expect(placement).toEqual({
+      total: 3,
+      placed: 1,
+      reasons: [
+        { reason: "orientation code not mapped (Ny)", count: 1 },
+        { reason: "no room count", count: 1 },
+      ],
+    });
+    expect((await svc.currentUnits(PROJECT, "csv")).map((u) => u.code)).toEqual([
+      "A-1",
+      "A-2",
+      "P-1",
+    ]);
   });
 
   it("verifies a Lomnio webhook only against a stored signing secret", async () => {

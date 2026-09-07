@@ -47,6 +47,17 @@ export default async function IntegrationsPage({
   const service = plane.ok ? await liveConnectorService() : null;
   const connectors = service === null ? null : await service.list(projectId);
   const changes = service === null ? [] : await service.recentChanges(projectId, 20);
+  /*
+   * How much of each delivered catalogue Project can draw. Only for a
+   * connector whose last sync succeeded: a refused sync has nothing to place.
+   */
+  const placements = new Map<string, PlacementSummary>();
+  if (service !== null && connectors !== null) {
+    for (const c of connectors) {
+      if (c.lastSync?.outcome === "ok")
+        placements.set(c.kind, await service.placement(projectId, c.kind));
+    }
+  }
   const now = new Date();
 
   const active = connectors?.filter((c) => c.enabled) ?? [];
@@ -94,6 +105,7 @@ export default async function IntegrationsPage({
             key={connector.kind}
             projectId={projectId}
             connector={connector}
+            placement={placements.get(connector.kind) ?? null}
             now={now}
           />
         ))
@@ -133,7 +145,9 @@ export default async function IntegrationsPage({
                     <td className="mad-td-sub">
                       {Array.isArray(change.changed_fields) && change.changed_fields.length > 0
                         ? change.changed_fields.map(String).join(", ")
-                        : "—"}
+                        : change.kind === "added"
+                          ? "Every field"
+                          : "None"}
                     </td>
                     <td>{change.connector}</td>
                     <td className="mad-td-figure">{instant(change.recorded_at).text}</td>
@@ -185,13 +199,21 @@ function syncWord(outcome: string): string {
   }
 }
 
+interface PlacementSummary {
+  readonly total: number;
+  readonly placed: number;
+  readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+}
+
 function ConnectorPlane({
   projectId,
   connector,
+  placement,
   now,
 }: {
   readonly projectId: string;
   readonly connector: ConnectorSummary;
+  readonly placement: PlacementSummary | null;
   readonly now: Date;
 }) {
   const state: { word: string; tone: MarkTone } = !connector.configured
@@ -222,7 +244,7 @@ function ConnectorPlane({
               ? "None needed"
               : connector.hasCredential
                 ? `Stored · ends ${connector.credentialTail ?? "····"}`
-                : `Not stored — ${CREDENTIAL_WORDS[connector.kind]}`}
+                : `Not stored. Needs ${CREDENTIAL_WORDS[connector.kind]}.`}
           </dd>
         </div>
         <div className="mad-meta-item">
@@ -242,6 +264,23 @@ function ConnectorPlane({
             )}
           </dd>
         </div>
+        {placement === null ? null : (
+          <div className="mad-meta-item">
+            <dt className="mad-meta-label">On Project</dt>
+            <dd
+              className="mad-meta-value"
+              data-missing={placement.placed === 0 ? "true" : undefined}
+            >
+              {`${String(placement.placed)} of ${String(placement.total)} units drawn`}
+              {placement.reasons.length === 0
+                ? ""
+                : `. Not drawn: ${placement.reasons
+                    .slice(0, 3)
+                    .map((r) => `${String(r.count)} ${r.reason}`)
+                    .join("; ")}`}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <ConnectorSync

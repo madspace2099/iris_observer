@@ -98,7 +98,8 @@ export interface ProjectPulse {
     readonly available: number;
     readonly reserved: number;
     readonly sold: number;
-    readonly soldInPeriod: number;
+    /** Null when nothing observed the period — a delivered catalogue with no sessions behind it. */
+    readonly soldInPeriod: number | null;
   };
   /** Meaningful views on the busiest unit; the denominator for luminance. */
   readonly peakViews: number;

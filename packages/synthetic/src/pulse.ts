@@ -263,6 +263,27 @@ const CHANGE_FOR: Record<string, UnitChange> = {
 const catalogues = new Map<string, readonly RawUnit[]>();
 
 /**
+ * Projects whose catalogue a connector delivered, replacing the synthetic one.
+ *
+ * Set by the repository before it builds a view, from the `CatalogueSource`
+ * it was composed with. What it changes is the stock and nothing else: a
+ * delivered unit has no synthetic attention, no pinned change and no
+ * narrative figure, because those are observations and the catalogue is not
+ * one (ADR-0036). `null` restores the synthetic catalogue.
+ */
+const delivered = new Map<string, readonly RawUnit[]>();
+
+export function provideCatalogue(projectId: string, units: readonly RawUnit[] | null): void {
+  if (units === null) delivered.delete(projectId);
+  else delivered.set(projectId, units);
+}
+
+/** True while a connector's catalogue stands in for the synthetic one. */
+export function hasDeliveredCatalogue(projectId: string): boolean {
+  return delivered.has(projectId);
+}
+
+/**
  * Schemes whose stacking plan is written out rather than derived.
  *
  * A `BuildingSpec` describes a building as a rule — blocks times floors times
@@ -298,7 +319,25 @@ function enumeratedCatalogue(projectId: string): readonly RawUnit[] {
   }));
 }
 
+/**
+ * The stock a surface describes: a connector's catalogue when one was
+ * delivered for the project, the synthetic one otherwise.
+ */
 export function catalogueFor(projectId: string): readonly RawUnit[] {
+  return delivered.get(projectId) ?? syntheticCatalogueFor(projectId);
+}
+
+/**
+ * The synthetic building, whatever a connector delivered.
+ *
+ * The one reader that must never see a delivered catalogue is the session
+ * generator: it invents showroom behaviour, and inventing it against a real
+ * developer's unit codes would put fabricated meetings on real flats. Its
+ * sessions keep touching the synthetic units, which a delivered stock does not
+ * contain — so a delivered unit shows exactly the attention it has earned,
+ * which is none until ingestion delivers sessions of its own.
+ */
+export function syntheticCatalogueFor(projectId: string): readonly RawUnit[] {
   const cached = catalogues.get(projectId);
   if (cached !== undefined) return cached;
 
@@ -343,20 +382,30 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     currency: context.project.currency,
   };
 
+  /*
+   * A delivered catalogue carries no observed attention. The synthetic
+   * scoring below is a stand-in for sessions that never happened, and
+   * applying it to a real developer's flats would put invented interest on
+   * screen against real codes. Zero is the true figure until sessions arrive.
+   */
+  const observed = !hasDeliveredCatalogue(context.project.id as string);
+
   const withAttention = raw.map((unit) => {
-    const attention = attentionFor(unit);
+    const attention = observed ? attentionFor(unit) : 0;
     const meaningfulViews = Math.round(attention * 46);
     const r = seed(`${unit.code}:trend`);
     return {
       ...unit,
       attention,
       meaningfulViews,
-      uniqueContacts: Math.max(0, Math.round(meaningfulViews * (0.45 + r * 0.2))),
-      trend: (attention > 0.62
-        ? "rising"
-        : attention < 0.25
-          ? "falling"
-          : "flat") as PulseUnit["trend"],
+      uniqueContacts: observed ? Math.max(0, Math.round(meaningfulViews * (0.45 + r * 0.2))) : 0,
+      trend: (!observed
+        ? "flat"
+        : attention > 0.62
+          ? "rising"
+          : attention < 0.25
+            ? "falling"
+            : "flat") as PulseUnit["trend"],
     };
   });
 
@@ -389,9 +438,9 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       uniqueContacts: unit.uniqueContacts,
       attention: peakViews === 0 ? 0 : unit.meaningfulViews / peakViews,
       trend: unit.trend,
-      change: CHANGE_FOR[unit.code] ?? null,
+      change: observed ? (CHANGE_FOR[unit.code] ?? null) : null,
       intent:
-        unit.status !== "available"
+        unit.status !== "available" || !observed
           ? null
           : unit.attention > 0.72
             ? "high"
@@ -452,13 +501,31 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
         "rooms",
         roomLabel(rooms),
         (u) => u.rooms === rooms,
-        ROOM_CONVERSION[rooms] ?? null,
+        observed ? (ROOM_CONVERSION[rooms] ?? null) : null,
       ),
     ),
-    segment("aspect-s", "orientation", "South-facing", (u) => u.orientation === "S", 1.1),
-    segment("aspect-w", "orientation", "West-facing", (u) => u.orientation === "W", 0.8),
+    segment(
+      "aspect-s",
+      "orientation",
+      "South-facing",
+      (u) => u.orientation === "S",
+      observed ? 1.1 : null,
+    ),
+    segment(
+      "aspect-w",
+      "orientation",
+      "West-facing",
+      (u) => u.orientation === "W",
+      observed ? 0.8 : null,
+    ),
     segment("floors-low", "floor_band", "Floors 1–3", (u) => u.floor <= 3, null),
-    segment("floors-mid", "floor_band", "Floors 4–6", (u) => u.floor >= 4 && u.floor <= 6, 1.2),
+    segment(
+      "floors-mid",
+      "floor_band",
+      "Floors 4–6",
+      (u) => u.floor >= 4 && u.floor <= 6,
+      observed ? 1.2 : null,
+    ),
     segment("floors-high", "floor_band", "Floors 7–8", (u) => u.floor >= 7, null),
   ];
 
@@ -475,10 +542,17 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       available: units.filter((u) => u.status === "available").length,
       reserved: units.filter((u) => u.status === "reserved").length,
       sold: units.filter((u) => u.status === "sold").length,
-      soldInPeriod: 7,
+      // Seven is the scenario's figure; a delivered catalogue has no observed period yet.
+      soldInPeriod: observed ? 7 : null,
     },
     peakViews,
-    evidence: evidenceRef("northgate.pulse", "observed_sequence", `${root}/project`, 46),
+    // A delivered catalogue rests on no observed sessions yet; the count says so.
+    evidence: evidenceRef(
+      "northgate.pulse",
+      "observed_sequence",
+      `${root}/project`,
+      observed ? 46 : 0,
+    ),
   };
 }
 

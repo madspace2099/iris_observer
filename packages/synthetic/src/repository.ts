@@ -44,10 +44,12 @@ import type {
   ReportScopeView,
   UnitDetailView,
 } from "@observer/readmodels";
+import type { CatalogueSource } from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
-import { buildAskSession, buildProjectPulse } from "./pulse";
+import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
+import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   SYNTHETIC_AGENTS,
   sessionById,
@@ -131,7 +133,22 @@ const PERIODS: Record<PeriodPreset, Omit<Period, "preset">> = {
   },
 };
 
+/**
+ * What a composition root may hand the repository.
+ *
+ * `catalogueSource` is the seam ADR-0036 names: asked before every view is
+ * built, and when it answers with a connector's catalogue that stock replaces
+ * the synthetic one for the project — the stock only. Attention, changes and
+ * narrative figures come from observed sessions, and a delivered unit that no
+ * session has opened shows none rather than an invented one.
+ */
+export interface SyntheticRepositoryOptions {
+  readonly catalogueSource?: CatalogueSource;
+}
+
 export class SyntheticObserverRepository implements ObserverRepository {
+  constructor(private readonly options: SyntheticRepositoryOptions = {}) {}
+
   async listTenants(viewer: Viewer): Promise<readonly TenantSummary[]> {
     return TENANTS.filter((t) => viewer.tenantIds.includes(t.id));
   }
@@ -174,7 +191,27 @@ export class SyntheticObserverRepository implements ObserverRepository {
     );
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
     const period = await this.resolvePeriod(project.id, preset);
+    await this.overlayCatalogue(project);
     return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY };
+  }
+
+  /**
+   * The connector's catalogue for this project, if one was delivered, in
+   * place of the synthetic one — decided on every build, so a connector that
+   * is disabled between two requests takes effect on the second. A repository
+   * composed without a source restores the synthetic catalogue for the same
+   * reason: what it shows must be what it was told, not what an earlier
+   * instance in the same process was told.
+   */
+  private async overlayCatalogue(project: ProjectSummary): Promise<void> {
+    const source = this.options.catalogueSource;
+    const delivered = source === undefined ? null : await source.catalogueFor(project);
+    provideCatalogue(
+      project.id as string,
+      delivered === null
+        ? null
+        : rawUnitsFromCatalogue(delivered.units, delivered.orientationMap).units,
+    );
   }
 
   async getExecutiveOverview(query: OverviewQuery): Promise<ExecutiveOverview> {

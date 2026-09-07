@@ -4,31 +4,31 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-07 · **Branch:** `feature/observer-reference-parity`, pushed to `origin` on
-2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Six commits since then are local only.
+2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Five commits since then are local only.
 
 ---
 
 ## Where the project is
 
-| Milestone                                    | Status                                                                                                                                                   |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                                                                                                                       |
-| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                                                                                                                  |
-| M1 closure amendment                         | ✅ accepted · `b7d4869`                                                                                                                                  |
-| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                                                                                                                  |
-| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349`                                                                                                   |
-| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`                                                                                                         |
-| M2.2 Visual reboot — concepts                | ✅ **the user proceeded on 2026-09-07** with the spatial direction as built (see below)                                                                  |
-| **M2.3 Showroom Intelligence refocus**       | ✅ reviewed by the user on the Vercel Preview on 2026-09-07; one defect raised and fixed (segments)                                                      |
-| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                             |
-| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                   |
-| **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user |
-| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                   |
-| M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals            |
-| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`             |
-| M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                         |
-| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                |
-| **M10 CRM connectors**                       | 🟡 **foundation built** (`7226e07`, ADR-0036) — adapters, sync, persistence, screen; **not yet read by the product's read models**                       |
+| Milestone                                    | Status                                                                                                                                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0 Workspace foundation                      | ✅ accepted · `d73ba18`, `3214b51`                                                                                                                                                                       |
+| M1 Product Intelligence Contract             | ✅ accepted · `a30fcb8`                                                                                                                                                                                  |
+| M1 closure amendment                         | ✅ accepted · `b7d4869`                                                                                                                                                                                  |
+| M2 UI foundation and first slices            | ✅ **technically** accepted · `2bb84eb`                                                                                                                                                                  |
+| M2.1 Visual acceptance and model corrections | ✅ model, security and typography accepted · `50d0349`                                                                                                                                                   |
+| **M2.1 visual layer**                        | ❌ **rejected.** See `docs/12-visual-autopsy.md`                                                                                                                                                         |
+| M2.2 Visual reboot — concepts                | ✅ **the user proceeded on 2026-09-07** with the spatial direction as built (see below)                                                                                                                  |
+| **M2.3 Showroom Intelligence refocus**       | ✅ reviewed by the user on the Vercel Preview on 2026-09-07; one defect raised and fixed (segments)                                                                                                      |
+| **Infrastructure checkpoint**                | ✅ **deployed and verified on the live URL**                                                                                                                                                             |
+| Production remediation, 19 sections          | ✅ built · `8b4d7c1` · **local only, never on `main`**                                                                                                                                                   |
+| **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user                                                 |
+| M3 Remaining intelligence surfaces           | 🟡 **unblocked 2026-09-07**; partial — the gap list is in the 2026-09-07 section below                                                                                                                   |
+| M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                            |
+| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                             |
+| M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                         |
+| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`); no tenants, users, agencies, branding, flags                                                                |
+| **M10 CRM connectors**                       | 🟡 **built and read by the product** (`7226e07` + the catalogue seam, ADR-0036) — adapters, sync, persistence, screen, and Project drawing a delivered stock; deals and the sparse-unit rendering remain |
 
 ## Cloud resources — do not ask for these again
 
@@ -199,12 +199,17 @@ The order follows the dependency chain, not the milestone numbers.
    `tfcchobwobpadenampyh` through the SQL Editor as the earlier ones were, add it to the `migration
 repair` list in `supabase/README.md`, and prove it from the integrations screen with a CSV
    upload — the same path this session proved on the local control plane.
-2. **Let the product read a synced catalogue.** The seam is decided, not built: a `CatalogueSource`
-   port on `SyntheticObserverRepository` (async, resolved in `context()`), `RawUnit.rooms` made
-   nullable through the pulse, screens and showroom read-model types with an "Unclassified" row on
-   the parity scale so stock still sums to one, and the control-plane project matched to the
-   read-model project by `observer.projects.slug`. Until this lands, a synced catalogue is stored
-   and shown on the integrations screen and nowhere else.
+2. ✅ **Done, with one rule left to lift.** The product reads a synced catalogue through the
+   `CatalogueSource` seam (composed in `apps/web/src/lib/repository.ts`, asked in `context()`):
+   the connector's stock replaces the synthetic stock for the twin project, invented sessions
+   never touch a delivered unit, and attention on delivered units is what they have earned —
+   none, until ingestion delivers sessions. What is left: the showroom read models still assume
+   every unit has a floor, a room count, an area, a price and a compass point, so a unit lacking
+   one is **not drawn** and is counted with its reason on the integrations screen ("4 of 5 units
+   drawn. Not drawn: 1 status unknown"). Lifting that means `rooms`, `floor`, `orientation`,
+   `areaSqm` and `price` going nullable through `PulseUnit`, `UnitAttributes` and
+   `UnitAttentionRow` and every render of them saying the absence in words — roughly thirty
+   sites, each needing the visual review the doctrine asks for.
 3. **Deals.** REALPAD's business cases arrive only as Excel through Data Takeout; Lomnio's as
    `lead.stage`; Monday's as a status column. Each needs the stage-mapping table on the
    integrations screen (ADR-0036 decision 4) and a `deal.stage.changed` fact into the ladder.
@@ -216,7 +221,7 @@ repair` list in `supabase/README.md`, and prove it from the integrations screen 
 5. **M4, M5, M8** in that order: a report generator behind the orphaned `ExportReport`; a scenario
    registry that replays facts through the ingest API (ADR-0007 is breached by the seeded
    generator); the per-source event vocabularies that `EventRegistry` is waiting for.
-6. **Push** to update the demo. Six commits since the last push are local; the user's word is
+6. **Push** to update the demo. Five commits since the last push are local; the user's word is
    needed before `origin` moves.
 
 ---
@@ -522,9 +527,22 @@ is what to stop: `.claude/skills/impeccable/scripts/impeccable.cmd live-server s
 shared server and removes the injected script tag. `.impeccable/` and `**/.impeccable/` are now
 ignored by Prettier and ESLint for the same reason.
 
+### The catalogue seam, later the same day
+
+`packages/readmodels/src/catalogue-source.ts` is the port; `SyntheticObserverRepository` takes it
+as an option and asks it in `context()`; `provideCatalogue` in `packages/synthetic/src/pulse.ts`
+holds the delivered stock beside the synthetic one, and `catalogueFor` prefers it while
+`syntheticCatalogueFor` — the session generator's only reader — never sees it. `placementOf` in
+`@observer/contracts` decides what the surfaces can draw and says why not; the orientation
+vocabulary is a per-connector mapping (`orientationMap`, ADR-0036's open rule, now configuration).
+Proven on the local control plane: the CSV catalogue uploaded earlier drew nothing until its
+Hungarian compass codes were mapped, then four of five units, and Project showed One- to Four-room
+segments at 0.00× with the verdict falling back to the meeting count. `apps/web/src/lib/repository.ts`
+is composed with `liveCatalogueSource`, memoised for thirty seconds per project.
+
 ### Remaining debt from this day
 
-- The read models do not read the synced catalogue (next action 2).
+- Sparse delivered units are counted, not drawn (next action 2's remaining rule).
 - `ConnectorForm` is one component with four branches; when a fifth connector arrives it should
   become four.
 - The Lomnio webhook route re-pulls on every `unit.*` event; a burst of events is a burst of pulls

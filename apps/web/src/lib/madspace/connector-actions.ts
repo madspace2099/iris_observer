@@ -85,12 +85,15 @@ function integer(form: FormData, key: string): number | null {
   return Number(value);
 }
 
-function configFrom(
-  kind: ConnectorKind,
-  form: FormData,
-  maps: { columns: Record<string, string>; statusMap: Record<string, string> },
-): unknown {
+interface Maps {
+  readonly columns: Record<string, string>;
+  readonly statusMap: Record<string, string>;
+  readonly orientationMap: Record<string, string>;
+}
+
+function configFrom(kind: ConnectorKind, form: FormData, maps: Maps): unknown {
   const currency = optional(form, "currency");
+  const orientationMap = maps.orientationMap;
   switch (kind) {
     case "realpad":
       return {
@@ -99,18 +102,20 @@ function configFrom(
         screenId: integer(form, "screenId"),
         includeHidden: form.get("includeHidden") === "on",
         currency,
+        orientationMap,
       };
     case "lomnio":
-      return { statusMap: maps.statusMap, currency };
+      return { statusMap: maps.statusMap, currency, orientationMap };
     case "monday":
       return {
         boardId: text(form, "boardId"),
         columns: maps.columns,
         statusMap: maps.statusMap,
         currency,
+        orientationMap,
       };
     case "csv":
-      return { columns: maps.columns, statusMap: maps.statusMap, currency };
+      return { columns: maps.columns, statusMap: maps.statusMap, currency, orientationMap };
   }
 }
 
@@ -145,9 +150,10 @@ export async function saveConnectorAction(
   const found = await estate(projectUuid);
   if (!found.ok) return { problem: found.problem, field: null, saved: false };
 
-  const maps = {
+  const maps: Maps = {
     columns: parseMapLines(text(form, "columns")),
     statusMap: parseMapLines(text(form, "statusMap")),
+    orientationMap: parseMapLines(text(form, "orientationMap")),
   };
   const result = await found.service.save(
     projectUuid,

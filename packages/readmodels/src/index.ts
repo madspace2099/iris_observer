@@ -18,3 +18,4 @@ export * from "./charts";
 export * from "./screens";
 export * from "./report";
 export * from "./ports";
+export * from "./catalogue-source";

@@ -287,6 +287,14 @@ export function ConnectorForm({
         hint="ISO 4217, three letters. Applied when the source does not name one."
       />
 
+      <Lines
+        field="orientationMap"
+        label="Orientation codes"
+        hint="One per line, raw=compass, for the codes this source writes. Compass points: N, NE, E, SE, S, SW, W, NW. A unit whose code is not mapped is kept but not drawn on Project until it is."
+        placeholder={"J=S\nSV=NE\nZ=W\nJZ=SW"}
+        defaultValue={mapToLines(config["orientationMap"] as Record<string, unknown> | undefined)}
+      />
+
       <div className="mad-field">
         <div className="mad-choice">
           <input type="checkbox" id={id("enabled")} name="enabled" defaultChecked={enabled} />

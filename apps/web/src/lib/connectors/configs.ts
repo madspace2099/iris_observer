@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { CATALOGUE_STATUSES, CONNECTOR_KINDS, type ConnectorKind } from "@observer/contracts";
+import {
+  CATALOGUE_STATUSES,
+  CONNECTOR_KINDS,
+  CompassSchema,
+  type ConnectorKind,
+} from "@observer/contracts";
 
 /**
  * WHAT EACH CONNECTOR NEEDS TO BE TOLD, AND WHAT IT MUST NEVER BE TOLD HERE.
@@ -16,6 +21,8 @@ import { CATALOGUE_STATUSES, CONNECTOR_KINDS, type ConnectorKind } from "@observ
  */
 
 const StatusMapSchema = z.record(z.string().min(1).max(64), z.enum(CATALOGUE_STATUSES));
+/** The tenant's compass codes → the eight points the product draws. `J=S`, `SV=NE`. */
+const OrientationMapSchema = z.record(z.string().min(1).max(8), CompassSchema).default({});
 const CurrencySchema = z
   .string()
   .trim()
@@ -49,11 +56,13 @@ export const RealpadConfigSchema = z.strictObject({
   screenId: z.number().int().positive(),
   includeHidden: z.boolean().default(false),
   currency: CurrencySchema.default(null),
+  orientationMap: OrientationMapSchema,
 });
 
 export const LomnioConfigSchema = z.strictObject({
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
+  orientationMap: OrientationMapSchema,
 });
 
 export const MondayConfigSchema = z.strictObject({
@@ -61,12 +70,14 @@ export const MondayConfigSchema = z.strictObject({
   columns: ColumnMappingSchema,
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
+  orientationMap: OrientationMapSchema,
 });
 
 export const CsvConfigSchema = z.strictObject({
   columns: ColumnMappingSchema,
   statusMap: StatusMapSchema.default({}),
   currency: CurrencySchema.default(null),
+  orientationMap: OrientationMapSchema,
 });
 
 export const CONFIG_SCHEMAS = {

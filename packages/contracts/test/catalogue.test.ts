@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   CatalogueSnapshotSchema,
   CatalogueUnitSchema,
+  compassFor,
   diffCatalogue,
   parseDisposition,
+  placementOf,
   type CatalogueUnit,
 } from "../src/catalogue";
 
@@ -127,5 +129,56 @@ describe("diffCatalogue", () => {
       unit({ code: "A-101", price: { withVat: 6100000, withoutVat: 5041322, currency: "CZK" } }),
     ];
     expect(diffCatalogue(before, after)[0]?.changedFields).toEqual(["price"]);
+  });
+});
+
+describe("compassFor and placementOf", () => {
+  it("reads the tenant's mapping first and an exact compass code second, never a guess", () => {
+    expect(compassFor(["J"], { J: "S" })).toBe("S");
+    expect(compassFor(["sv"], { SV: "NE" })).toBe("NE");
+    expect(compassFor(["sw"], {})).toBe("SW");
+    // Czech S is north; without a mapping it is not read as south.
+    expect(compassFor(["S"], { S: "N" })).toBe("N");
+    expect(compassFor(["Z"], {})).toBeNull();
+    expect(compassFor([], {})).toBeNull();
+  });
+
+  it("places a fully described flat and says exactly what a sparse one lacks", () => {
+    const placed = placementOf(unit({ code: "A-101" }), { J: "S" });
+    expect(placed).toEqual({
+      ok: true,
+      floor: 3,
+      rooms: 2,
+      areaSqm: 54.2,
+      price: 6050000,
+      orientation: "S",
+      status: "available",
+    });
+
+    const parking = placementOf(
+      unit({
+        code: "P-7",
+        floor: null,
+        rooms: null,
+        unitType: "parking",
+        areas: { interiorSqm: null, exteriorSqm: null, grossSqm: 12 },
+        price: { withVat: null, withoutVat: 250000, currency: "CZK" },
+        orientation: [],
+        status: "not_for_sale",
+        statusRaw: "4",
+      }),
+      {},
+    );
+    expect(parking).toEqual({
+      ok: false,
+      reasons: ["no floor", "no room count", "status not for sale", "no orientation"],
+    });
+  });
+
+  it("collapses a pre-reservation onto reserved, which is what the surfaces draw", () => {
+    const placed = placementOf(unit({ code: "A-1", status: "pre_reserved", statusRaw: "1" }), {
+      J: "S",
+    });
+    expect(placed.ok && placed.status).toBe("reserved");
   });
 });

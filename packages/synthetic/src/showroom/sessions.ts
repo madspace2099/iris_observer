@@ -17,7 +17,7 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
-import { catalogueFor, type RawUnit } from "../pulse";
+import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 
 /**
  * The synthetic showroom, generated deterministically.
@@ -874,7 +874,9 @@ export function showroomSessions(): readonly ShowroomSession[] {
   const sessions: ShowroomSession[] = [];
 
   for (const dataset of PROJECT_DATASETS) {
-    const catalogue = catalogueFor(dataset.projectId);
+    // The synthetic building, never a delivered one: these sessions are
+    // invented, and invented behaviour must not land on a real unit code.
+    const catalogue = syntheticCatalogueFor(dataset.projectId);
     const roster = agentsForProject(dataset.projectId);
     let index = 0;
 

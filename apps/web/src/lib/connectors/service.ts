@@ -2,9 +2,12 @@ import "server-only";
 
 import {
   CatalogueSnapshotSchema,
+  CatalogueUnitSchema,
   ProjectIdSchema,
   TenantIdSchema,
+  placementOf,
   type CatalogueSnapshot,
+  type CatalogueUnit,
   type ConnectorKind,
 } from "@observer/contracts";
 import {
@@ -350,6 +353,55 @@ export function connectorService(deps: ServiceDeps) {
     return db.catalogueChanges(account, projectUuid, limit);
   }
 
+  /** The catalogue a connector currently holds, parsed; rows that do not parse are dropped. */
+  async function currentUnits(projectUuid: string, kind: ConnectorKind): Promise<CatalogueUnit[]> {
+    const rows = await db.catalogueCurrent(account, projectUuid, kind);
+    const units: CatalogueUnit[] = [];
+    for (const row of rows) {
+      const parsed = CatalogueUnitSchema.safeParse(row.unit);
+      if (parsed.success) units.push(parsed.data);
+    }
+    return units;
+  }
+
+  /**
+   * How much of a delivered catalogue the product can draw, and why not the rest.
+   *
+   * The reasons are grouped and counted so the screen can say "9 have an
+   * orientation code that is not mapped" beside the mapping field that fixes
+   * it, instead of listing forty-eight rows.
+   */
+  async function placement(
+    projectUuid: string,
+    kind: ConnectorKind,
+  ): Promise<{
+    readonly total: number;
+    readonly placed: number;
+    readonly reasons: readonly { readonly reason: string; readonly count: number }[];
+  }> {
+    const rows = await db.connectorConfigs(account, projectUuid);
+    const config = CONFIG_SCHEMAS[kind].safeParse(rows.find((r) => r.connector === kind)?.config);
+    const orientationMap = config.success ? config.data.orientationMap : {};
+    const units = await currentUnits(projectUuid, kind);
+    const counts = new Map<string, number>();
+    let placed = 0;
+    for (const unit of units) {
+      const verdict = placementOf(unit, orientationMap);
+      if (verdict.ok) {
+        placed += 1;
+        continue;
+      }
+      for (const reason of verdict.reasons) counts.set(reason, (counts.get(reason) ?? 0) + 1);
+    }
+    return {
+      total: units.length,
+      placed,
+      reasons: [...counts.entries()]
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
   /**
    * Whether a Lomnio webhook body was signed by this project's secret.
    *
@@ -374,7 +426,17 @@ export function connectorService(deps: ServiceDeps) {
     return verifyLomnioSignature(rawBody, signatureHeader, secret) ? "ok" : "rejected";
   }
 
-  return { list, save, removeCredential, sync, importCsv, recentChanges, verifyLomnioWebhook };
+  return {
+    list,
+    save,
+    removeCredential,
+    sync,
+    importCsv,
+    recentChanges,
+    currentUnits,
+    placement,
+    verifyLomnioWebhook,
+  };
 }
 
 export type ConnectorService = ReturnType<typeof connectorService>;

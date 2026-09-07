@@ -193,6 +193,13 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
   "/design-lab/observer",
 
   "/design-lab/stress/[screen]/[variant]",
+
+  /*
+   * Integrations — the CRM behind one project, on the MADSPACE operations
+   * surface (ADR-0036). Reached from the project's own page; the daily sync
+   * and the Lomnio webhook are API handlers beside it and are not pages.
+   */
+  "/madspace/projects/[projectId]/integrations",
 ];
 
 describe("every route the reference served is still served", () => {

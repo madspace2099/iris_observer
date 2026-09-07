@@ -281,6 +281,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },
+  /*
+   * The CRM behind one project (ADR-0036): which connector, its sealed
+   * credential, the last sync and what it changed. Internal, because a
+   * client's CRM credential is MADSPACE's to hold and nobody else's to see.
+   */
+  {
+    route: "/madspace/projects/[projectId]/integrations",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
   { route: "/madspace/sources/[sourceId]", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
 

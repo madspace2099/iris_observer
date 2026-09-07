@@ -187,7 +187,11 @@ push is an accelerator, never the source of truth.**
   which the constant had been dropping from a scale that claimed to cover the stock.
 - **Three questions go to the client, not to a guess:** their orientation codes, their stage
   vocabulary, and a REALPAD support request for the `flat_type` table. They belong on the
-  integrations screen's checklist.
+  integrations screen's checklist. The orientation codes are already a field there
+  (`orientationMap`), which closes that open rule as configuration rather than as a guess.
+- **The product reads a delivered catalogue through one seam** — `CatalogueSource` on the
+  repository — and draws the units it can place (`placementOf`); invented sessions never touch a
+  delivered unit, so a real flat shows the attention it has earned and no more.
 
 ## References
 

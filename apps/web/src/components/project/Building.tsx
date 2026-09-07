@@ -137,11 +137,22 @@ export function Building({
         <TallyItem
           label="Sold in this period"
           value={
-            <Count
-              value={pulse.totals.soldInPeriod}
-              of={`of ${pulse.totals.sold} sold in all`}
-              note={`of ${pulse.totals.sold} sold in all — none of them inside this period`}
-            />
+            pulse.totals.soldInPeriod === null ? (
+              /*
+               * A delivered catalogue with no observed sessions behind it. Not
+               * a zero: nothing has measured this period yet, and a zero would
+               * say that nothing sold.
+               */
+              <span className="ox-value">
+                <span className="ox-of">Not observed yet</span>
+              </span>
+            ) : (
+              <Count
+                value={pulse.totals.soldInPeriod}
+                of={`of ${pulse.totals.sold} sold in all`}
+                note={`of ${pulse.totals.sold} sold in all — none of them inside this period`}
+              />
+            )
           }
         />
         <TallyItem

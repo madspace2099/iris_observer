@@ -136,6 +136,98 @@ export function parseDisposition(raw: string | null | undefined): {
   return { rooms: null, kitchen: null };
 }
 
+/* --- what the product can place ---------------------------------------------- */
+
+/** The eight points the showroom read models draw a unit's aspect with. */
+export const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
+export const CompassSchema = z.enum(COMPASS_POINTS);
+export type Compass = z.infer<typeof CompassSchema>;
+
+/** The tenant's own orientation codes, mapped to compass points by a person. */
+export type OrientationMap = Readonly<Record<string, string>>;
+
+/** The three availability states the showroom surfaces draw. */
+export type PlacedStatus = "available" | "reserved" | "sold";
+
+const PLACED_STATUS: Partial<Record<CatalogueStatus, PlacedStatus>> = {
+  available: "available",
+  pre_reserved: "reserved",
+  reserved: "reserved",
+  sold: "sold",
+};
+
+export type Placement =
+  | {
+      readonly ok: true;
+      readonly floor: number;
+      readonly rooms: number;
+      readonly areaSqm: number;
+      readonly price: number;
+      readonly orientation: Compass;
+      readonly status: PlacedStatus;
+    }
+  | { readonly ok: false; readonly reasons: readonly string[] };
+
+/**
+ * Which compass point a unit faces, by the tenant's mapping first and by an
+ * exact compass code second. Never a guess: REALPAD's own example mixes Czech
+ * and English letters on one line, and `S` is south in one and north in the
+ * other.
+ */
+export function compassFor(
+  codes: readonly string[],
+  orientationMap: OrientationMap,
+): Compass | null {
+  for (const raw of codes) {
+    const key = raw.trim();
+    const mapped = orientationMap[key] ?? orientationMap[key.toUpperCase()];
+    const candidate = (mapped ?? key).toUpperCase();
+    if ((COMPASS_POINTS as readonly string[]).includes(candidate)) return candidate as Compass;
+  }
+  return null;
+}
+
+/**
+ * Whether the showroom read models can draw this unit, and with what.
+ *
+ * The stacking plan, the parity scale and the unit register all need a floor,
+ * a room count, an area, a price, a compass point and one of three states.
+ * A unit missing any of them is not placed — and the reason is returned in
+ * words, so the integrations screen can say "12 units are not shown on
+ * Project: 9 have an orientation code that is not mapped" instead of
+ * inventing a floor or a count to fill the gap.
+ */
+export function placementOf(unit: CatalogueUnit, orientationMap: OrientationMap): Placement {
+  const reasons: string[] = [];
+  const areaSqm = unit.areas.interiorSqm ?? unit.areas.grossSqm;
+  const price = unit.price.withVat ?? unit.price.withoutVat;
+  const status = PLACED_STATUS[unit.status];
+  const orientation = compassFor(unit.orientation, orientationMap);
+
+  if (unit.floor === null) reasons.push("no floor");
+  if (unit.rooms === null) reasons.push("no room count");
+  if (areaSqm === null) reasons.push("no area");
+  if (price === null) reasons.push("no price");
+  if (status === undefined) reasons.push(`status ${unit.status.replaceAll("_", " ")}`);
+  if (orientation === null) {
+    reasons.push(
+      unit.orientation.length === 0
+        ? "no orientation"
+        : `orientation code not mapped (${unit.orientation.join(", ")})`,
+    );
+  }
+  if (reasons.length > 0) return { ok: false, reasons };
+  return {
+    ok: true,
+    floor: unit.floor as number,
+    rooms: unit.rooms as number,
+    areaSqm: areaSqm as number,
+    price: price as number,
+    orientation: orientation as Compass,
+    status: status as PlacedStatus,
+  };
+}
+
 /* --- change, derived from two snapshots ------------------------------------- */
 
 export const UNIT_CHANGE_KINDS = ["added", "changed", "withdrawn"] as const;

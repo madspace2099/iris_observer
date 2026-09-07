@@ -24,7 +24,14 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["node"],
-    "paths": { "@/*": ["./apps/web/src/*"] }
+    "paths": { "@/*": ["./apps/web/src/*"] },
+    /*
+     * The composition root now reaches a `.tsx` module through the catalogue
+     * source (`control-plane.ts` imports a mark tone type from `StatusMark`),
+     * and TypeScript refuses to resolve one at all without a JSX setting —
+     * even for a type-only import. Preserve, because nothing here emits.
+     */
+    "jsx": "preserve"
   },
   "include": [
     "apps/web/test/ai-audit.test.ts",
@@ -86,6 +93,16 @@
      * satisfies every `not.toContain` in the file while measuring nothing.
      * Checking it means the helpers themselves cannot silently take `undefined`.
      */
-    "apps/web/test/observer-product-design.test.ts"
+    "apps/web/test/observer-product-design.test.ts",
+
+    /*
+     * THE CATALOGUE AND THE CONNECTORS (ADR-0036).
+     *
+     * The migration suite asks PostgreSQL about grants by signature string,
+     * and the service suite feeds a fake CRM through the real sealing path —
+     * both are the shape of test this list exists for.
+     */
+    "supabase/test/catalogue-connectors.test.ts",
+    "apps/web/test/connectors.test.ts"
   ]
 }

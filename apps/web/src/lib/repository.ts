@@ -1,5 +1,7 @@
 import type { ObserverRepository } from "@observer/readmodels";
-import { syntheticRepository } from "@observer/synthetic";
+import { SyntheticObserverRepository } from "@observer/synthetic";
+
+import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
 
 /**
  * The composition root.
@@ -8,8 +10,14 @@ import { syntheticRepository } from "@observer/synthetic";
  * Every screen imports `repository`, never `@observer/synthetic`, so swapping
  * the synthetic implementation for the database one is a change to this file
  * and nothing else (ADR-0007).
+ *
+ * The one thing composed in today: the catalogue source (ADR-0036). When a
+ * project has a connector with a successful sync, its stock replaces the
+ * synthetic stock for that project — the stock, not the sessions.
  */
-export const repository: ObserverRepository = syntheticRepository;
+export const repository: ObserverRepository = new SyntheticObserverRepository({
+  catalogueSource: liveCatalogueSource,
+});
 
 /*
  * THE MODEL TRANSPORT, INSTALLED ONCE.

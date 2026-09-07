@@ -583,7 +583,10 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
           <dd>{pulse.totals.reserved}</dd>
           <dt>Sold</dt>
           <dd>
-            {pulse.totals.sold} · {pulse.totals.soldInPeriod} this period
+            {pulse.totals.sold} ·{" "}
+            {pulse.totals.soldInPeriod === null
+              ? "this period not observed"
+              : `${pulse.totals.soldInPeriod} this period`}
           </dd>
           <dt>Peak interest</dt>
           <dd>{pulse.peakViews} meaningful views</dd>
