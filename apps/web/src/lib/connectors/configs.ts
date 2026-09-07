@@ -173,8 +173,19 @@ export const CREDENTIAL_SCHEMAS = {
   csv: null,
 } as const;
 
+/**
+ * The single source of the connector's user-facing name.
+ *
+ * `realpad` is "CRM API Connection", a founder-approved presentation-only
+ * rename: the internal connector identifier, its adapter, its request URLs
+ * and header ids, its credential schema and its provider-specific field
+ * meanings are unchanged; only what an admin reads on screen changed. Every
+ * heading, disclosure, button, dialog title and status sentence in the
+ * Integrations experience reads this map rather than naming a provider
+ * itself, so the rename applies everywhere the connector is named at once.
+ */
 export const CONNECTOR_NAMES: Readonly<Record<ConnectorKind, string>> = {
-  realpad: "REALPAD",
+  realpad: "CRM API Connection",
   lomnio: "Lomnio",
   monday: "Monday",
   csv: "Spreadsheet (CSV)",

@@ -28,30 +28,28 @@
  * because 2000 lines of working layout already speak that vocabulary and
  * renaming them would be a large diff that changes nothing on screen.
  *
- * `--ink` in particular is NOT a new token: `iris.css` defines it as #f2f5f8
- * for the dark product. Here it is #111111. That is the swap working.
+ * `--ink` in particular is NOT a new token: it is restated here from
+ * `.ox-graphite` (ADR-0034, ADR-0037) at the values that ground already
+ * measured, rather than declared fresh. That is the swap working.
  * ========================================================================= */
 
 /*
  * THE GROUND THE BROWSER PAINTS, which a descendant cannot reach.
  *
- * `body` is #07090c, the dark product ground, and the portal is a div inside
- * it. The shell is taller than the viewport so it covers that in normal
- * scrolling, and the black showed anyway: an overscroll bounce paints the
- * canvas, and the canvas takes its colour from the root element, not from
- * whatever happens to be under the pointer.
- *
- * A descendant cannot restyle its ancestor, so `--surface-page` is declared
- * HERE rather than on `.mad-portal`, and `:has()` scopes it to a document that
- * actually renders the portal. One declaration, read by the root, by the body
- * and by the portal, so the three cannot drift apart. `color-scheme` goes with
- * it because a light page with a dark scrollbar is the same mistake at the
- * edge of the frame.
+ * ADR-0037 (2026-09-08): the founder asked the seven `/madspace` operations
+ * routes to leave the warm-paper presentation ADR-0034/`docs/20` gave them and
+ * adopt the Observer graphite ground instead. `body` is already #07090c, the
+ * dark product ground, and the portal is a div inside it; before this decision
+ * this block repainted that ground to paper for any document rendering the
+ * portal. It no longer needs to: the portal's ground now IS the product's, so
+ * this block states that explicitly (rather than deleting it, since the shell
+ * is taller than the viewport and an overscroll bounce paints the root
+ * element's own colour) instead of leaving the boundary undeclared.
  */
 :root:has(.mad-portal) {
-  --surface-page: #f6f5f3; /* warm paper */
+  --surface-page: #07090c; /* the Observer graphite ground, ADR-0037 */
 
-  color-scheme: light;
+  color-scheme: dark;
   background: var(--surface-page);
 }
 
@@ -60,58 +58,73 @@
 }
 
 .mad-portal {
-  /* --- ink ------------------------------------------------------------- */
-  --ink: #111111; /* 15.0:1 headings, primary text, filled buttons */
-  --ink-2: #4a4a4a; /* 9.0:1 body copy, descriptions */
-  --ink-3: #5c5c5c; /* 7.0:1 emphasised micro-labels */
-  --ink-4: #6b6b6b; /* 5.3:1 labels, metadata, captions. The workhorse. */
-  --mark-disabled: #b0aeaa; /* 2.3:1 marks and disabled fills. NEVER text. */
+  /*
+   * --- ink, restated from ADR-0034's own measured graphite table ---------
+   * `--ink`/`--ink-2`/`--ink-3`/`--ink-4` are `.ox-graphite`'s own values
+   * (observer-product.css), not new ones: 18.08:1 / 9.98:1 / 7.71:1 / 6.17:1
+   * on the panel this system already composites onto. `--mark-disabled` is
+   * `--ox-ink-disabled`.
+   */
+  --ink: #f4f7fc;
+  --ink-2: rgb(244 247 252 / 74%);
+  --ink-3: #98a4b8;
+  --ink-4: #8592a8; /* 6.17:1, the floor. Labels, metadata, captions. The workhorse. */
+  --mark-disabled: #4c5568; /* marks and disabled fills. NEVER text. */
 
-  /* --- surfaces --------------------------------------------------------- */
-  /* `--surface-page` is declared at the root; see THE GROUND below. */
-  --surface-card: #ffffff;
-  --surface-tint: #edebe7;
-  --surface-inset: rgb(17 17 17 / 4%);
+  /* --- surfaces, restated from tokens.css / .ox-graphite ----------------- */
+  /* `--surface-page` is declared at the root; see THE GROUND above. */
+  --surface-card: #0d1117; /* `--surface-raised`: opaque backing for header, nav, popover, dialog */
+  --surface-tint: rgb(140 165 205 / 8%); /* `--ox-panel-2` */
+  --surface-inset: rgb(140 165 205 / 4%); /* `--ox-inset-fill` */
 
-  /* --- borders: one ink, six alphas, nothing else ----------------------- */
-  --border-hairline: rgb(17 17 17 / 6%); /* rows inside a panel */
-  --border-panel: rgb(17 17 17 / 9%); /* the default panel and grid line */
-  --border-line: rgb(17 17 17 / 12%); /* segmented controls, tabs */
-  --border-field: rgb(17 17 17 / 16%); /* inputs, selects, secondary buttons */
-  --border-dashed: rgb(17 17 17 / 24%); /* drop targets, empty slots */
-  --border-hover: rgb(17 17 17 / 35%); /* hover on a bordered card */
+  /* --- borders: one ink, six alphas, `.ox-graphite`'s own ramp ----------- */
+  --border-hairline: rgb(130 150 185 / 9%); /* rows inside a panel */
+  --border-panel: rgb(130 150 185 / 13%); /* the default panel and grid line */
+  --border-line: rgb(130 150 185 / 18%); /* segmented controls, tabs */
+  --border-field: rgb(130 150 185 / 24%); /* inputs, selects, secondary buttons */
+  --border-dashed: rgb(130 150 185 / 32%); /* drop targets, empty slots */
+  --border-hover: rgb(130 150 185 / 46%); /* hover on a bordered card */
 
   /*
    * --- status: six states, six shapes, two colours each -----------------
    *
-   * The saturated value carries the mark and the 1px border; the darker value
-   * carries the label, because green and amber text on their own tint fall
-   * below 4.5:1. The shape is what survives greyscale and colour blindness, so
-   * `.mad-mark` is the thing that must always be present, not these.
+   * The saturated value carries the mark and the 1px border; the lighter
+   * value carries the label, lifted on this ground to hold contrast, exactly
+   * as ADR-0034 already measured for `.ox-graphite`. The shape is what
+   * survives greyscale and colour blindness, so `.mad-mark` is the thing
+   * that must always be present, not these. "Waiting for MADSPACE" reuses
+   * `--ox-human`: the brand accent already carries that same meaning
+   * ("a person decided this") on every other Observer screen.
    */
-  --state-good: #0f5c39;
-  --state-good-mark: #1f8a5b;
-  --state-good-tint: #f4f9f6;
+  --state-good: #8ad9b0;
+  --state-good-mark: #4fbf88;
+  --state-good-tint: rgb(79 191 136 / 12%);
 
-  --state-wait-client: #8a5200;
-  --state-wait-client-mark: #b9791a;
-  --state-wait-client-tint: #faf7f2;
+  --state-wait-client: #e6c07a;
+  --state-wait-client-mark: #d9a441;
+  --state-wait-client-tint: rgb(217 164 65 / 12%);
 
-  --state-wait-studio: #0f6fd0;
-  --state-wait-studio-mark: #2c81d6;
-  --state-wait-studio-tint: #f6fafe;
+  --state-wait-studio: #7cc9ff;
+  --state-wait-studio-mark: #00a3ff;
+  --state-wait-studio-tint: rgb(0 163 255 / 12%);
 
-  --state-late: #b3261e;
-  --state-late-mark: #c65d57;
-  --state-late-tint: #fbf3f3;
+  --state-late: #f0a49e;
+  --state-late-mark: #e07a72;
+  --state-late-tint: rgb(224 122 114 / 12%);
 
   --state-neutral: var(--ink-4);
   --state-neutral-tint: var(--surface-inset);
 
-  /* --- type ------------------------------------------------------------- */
-  --portal-font:
-    "Inter", "Inter Fallback", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue",
-    Arial, sans-serif;
+  /*
+   * --- type ---------------------------------------------------------------
+   * ADR-0037: Inter was specified here and never delivered (no asset ever
+   * shipped; the stack silently rendered "Inter Fallback", a metric-matched
+   * stand-in for the reader's own OS font, for as long as this adoption was
+   * in force). The founder's request to adopt the Observer visual language
+   * includes its typography, so `/madspace` now loads the same self-hosted
+   * Manrope stack as everywhere else, keeping this system's own scale below.
+   */
+  --portal-font: var(--font-sans);
 
   /*
    * Fluid above 22px, so a 1920px hero and a 480px phone share one token
@@ -156,8 +169,14 @@
    * Structure comes from hairlines. A shadow here means the thing is floating
    * above the page, and only a popover or a modal is.
    */
-  --shadow-popover: 0 8px 24px rgb(17 17 17 / 12%), 0 1px 2px rgb(17 17 17 / 8%);
-  --shadow-modal: 0 24px 64px rgb(17 17 17 / 20%), 0 2px 6px rgb(17 17 17 / 10%);
+  /*
+   * Black shadows, same as `.ox-graphite`'s own dialog panel and `tokens.css`'s
+   * `--shadow-overlay`: on a dark ground the shadow still reads as depth
+   * against neighbouring panels, which is why Observer's own elevated surface
+   * uses black at a higher alpha rather than a lighter or coloured shadow.
+   */
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 32%), 0 1px 2px rgb(0 0 0 / 24%);
+  --shadow-modal: 0 24px 64px rgb(0 0 0 / 55%), 0 2px 6px rgb(0 0 0 / 35%);
 
   /* --- the application's existing vocabulary, re-pointed ---------------- */
   --surface-base: var(--surface-page);
@@ -165,7 +184,7 @@
   --surface-panel: var(--surface-card);
   --surface-overlay: var(--surface-card);
   --surface-hover: var(--surface-inset);
-  --surface-active: rgb(17 17 17 / 7%);
+  --surface-active: rgb(244 247 252 / 7%);
 
   --line-subtle: var(--border-panel);
   --line-strong: var(--border-field);
@@ -173,7 +192,9 @@
   --text-primary: var(--ink);
   --text-secondary: var(--ink-2);
   --text-tertiary: var(--ink-4);
-  --text-inverse: #ffffff;
+  /* The opposite of `--ink`, which is now light: the dark ground's own colour,
+     `tokens.css`'s own `--text-inverse`, for text on a filled light control. */
+  --text-inverse: #07090c;
 
   --radius-sm: 8px;
   --radius-md: var(--portal-radius);
@@ -198,17 +219,17 @@
   --verdict-unknown-wash: var(--surface-inset);
 
   /*
-   * The accent is the studio's blue, and it is the focus ring's colour. It is
-   * NOT #00a3ff: that is the IRIS product's brand accent on a near-black
-   * ground, and at 3.1:1 on warm paper it would fail the contract this system
-   * measures itself against.
+   * The accent is the brand accent, ADR-0037.
+   *
+   * On warm paper `#00a3ff` measured 2.73:1 and failed the contract this
+   * system holds itself to, so the studio blue stood in. On this ground it is
+   * `.ox-graphite`'s own accent, measured at 7.10:1 on the panel, and it is
+   * declared once at `:root` (`tokens.css`) rather than redeclared here: this
+   * block simply no longer overrides it, so the brand value applies exactly
+   * as it does on every other Observer screen, "waiting for MADSPACE" and all.
    */
-  --iris-accent: var(--state-wait-studio);
-  --iris-accent-strong: #0b5fb4;
-  --iris-accent-dim: #7ba7d8;
-  --iris-accent-wash: var(--state-wait-studio-tint);
 
-  color-scheme: light;
+  color-scheme: dark;
   background: var(--surface-page);
   color: var(--ink-2);
   font-family: var(--portal-font);
@@ -228,19 +249,73 @@
 }
 
 /*
- * Inter, with a metric-matched stand-in until the woff2 arrives.
- *
- * The same arrangement `tokens.css` makes for Manrope, for the same reason: the
- * override keeps the eventual swap from shifting a single line. Declared at the
- * top level because `@font-face` is not scoped by a class.
+ * ADR-0037 withdrew Inter: `--portal-font` now points at `--font-sans`
+ * (Manrope), whose own metric-matched fallback face `tokens.css` already
+ * registers. The "Inter Fallback" `@font-face` this block used to declare had
+ * no real Inter to ever fall back FROM (no asset was added, no `@fontsource`
+ * dependency, no host `<link>`); it rendered the reader's own OS font for as
+ * long as the paper adoption was in force, and is removed rather than kept
+ * as an unused declaration.
  */
-@font-face {
-  font-family: "Inter Fallback";
-  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial");
-  ascent-override: 96%;
-  descent-override: 24%;
-  line-gap-override: 0%;
-  size-adjust: 100%;
+
+/*
+ * Print restores the client-portal paper the founder's decision replaced on
+ * screen. `docs/20-madspace-admin-design-system.md` §9: screen and print are
+ * governed by their own requirements, and a dark ground has no print contract
+ * anywhere in this product to begin with (`iris-shell.css`, `ask-iris.css`,
+ * `observer-product.css` all print on white). Declared last inside the block
+ * so print always wins over the screen values above it.
+ */
+@media print {
+  .mad-portal {
+    --ink: #111111;
+    --ink-2: #4a4a4a;
+    --ink-3: #5c5c5c;
+    --ink-4: #6b6b6b;
+    --mark-disabled: #b0aeaa;
+
+    --surface-card: #ffffff;
+    --surface-tint: #edebe7;
+    --surface-inset: rgb(17 17 17 / 4%);
+
+    --border-hairline: rgb(17 17 17 / 6%);
+    --border-panel: rgb(17 17 17 / 9%);
+    --border-line: rgb(17 17 17 / 12%);
+    --border-field: rgb(17 17 17 / 16%);
+    --border-dashed: rgb(17 17 17 / 24%);
+    --border-hover: rgb(17 17 17 / 35%);
+
+    --state-good: #0f5c39;
+    --state-good-mark: #1f8a5b;
+    --state-good-tint: #f4f9f6;
+    --state-wait-client: #8a5200;
+    --state-wait-client-mark: #b9791a;
+    --state-wait-client-tint: #faf7f2;
+    --state-wait-studio: #0f6fd0;
+    --state-wait-studio-mark: #2c81d6;
+    --state-wait-studio-tint: #f6fafe;
+    --state-late: #b3261e;
+    --state-late-mark: #c65d57;
+    --state-late-tint: #fbf3f3;
+
+    --text-inverse: #ffffff;
+    --iris-accent: #0f6fd0;
+
+    color-scheme: light;
+    background: #f6f5f3;
+    color: var(--ink-2);
+  }
+
+  :root:has(.mad-portal) {
+    background: #f6f5f3;
+    color-scheme: light;
+  }
+
+  .mad-portal .obs-header,
+  .mad-portal .obs-nav,
+  .mad-portal > footer.mad-note {
+    display: none;
+  }
 }
 
 /*
@@ -2652,7 +2727,8 @@ button.mad-quiet {
   padding: var(--rhythm-section) var(--rhythm-major);
   border-radius: var(--portal-radius);
   background: var(--ink);
-  color: #ffffff;
+  /* `--ink` is now light (ADR-0037); its opposite is `--text-inverse`, never a literal. */
+  color: var(--text-inverse);
 }
 
 .mad-scope-band-kicker {
@@ -2660,7 +2736,7 @@ button.mad-quiet {
   letter-spacing: var(--track-micro);
   text-transform: uppercase;
   font-weight: var(--weight-semibold);
-  color: rgb(255 255 255 / 62%);
+  color: color-mix(in srgb, var(--text-inverse) 62%, transparent);
 }
 
 .mad-scope-band-title {
@@ -2668,14 +2744,14 @@ button.mad-quiet {
   font-size: var(--text-heading-3);
   letter-spacing: var(--track-heading-3);
   font-weight: var(--weight-medium);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .mad-scope-band-detail {
   margin: 0;
   font-size: var(--text-body);
   line-height: var(--lh-body);
-  color: rgb(255 255 255 / 78%);
+  color: color-mix(in srgb, var(--text-inverse) 78%, transparent);
 }
 
 /* --- type, restated on the portal's scale --------------------------------- */
@@ -2763,13 +2839,18 @@ button.mad-quiet {
 .mad-portal .mad-button[data-emphasis="primary"] {
   background: var(--ink);
   border-color: var(--ink);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
+/*
+ * Hover LIGHTENS on graphite: `--ink` is already near the top of the scale, so
+ * the direction that reads as "responding" rather than "fading" is toward
+ * white, the mirror of the darken-toward-black this rule used on paper.
+ */
 .mad-portal .obs-action[data-emphasis="primary"]:hover,
 .mad-portal .mad-button[data-emphasis="primary"]:hover {
-  background: #000000;
-  border-color: #000000;
+  background: color-mix(in srgb, var(--ink) 85%, #fff);
+  border-color: color-mix(in srgb, var(--ink) 85%, #fff);
 }
 
 .mad-portal .obs-action,
@@ -2923,13 +3004,15 @@ button.mad-quiet {
 }
 
 /*
- * Hover DARKENS on paper. Lightening a filled destructive control is the
- * dark-ground direction, and on white it makes the button fade as the pointer
- * arrives, which reads as the control going away rather than responding.
+ * ADR-0037: this override darkened the destructive control's hover toward
+ * black, the paper direction ("lightening it is the dark-ground direction,
+ * and on white it makes the button fade as the pointer arrives"). The ground
+ * is dark again, so that direction is exactly wrong here; the override is
+ * removed rather than flipped, because the base rule two thousand lines above
+ * (`.mad-action[data-weight="terminal"]:hover`, `--verdict-weak` toward
+ * `#fff`) already lightens, and was written for this ground in the first
+ * place.
  */
-.mad-portal .mad-action[data-weight="terminal"]:hover {
-  background: color-mix(in srgb, var(--state-late) 88%, #000000);
-}
 
 /*
  * The activation code sat on the darkest ground the dark palette had, so it
@@ -3044,18 +3127,20 @@ button.mad-quiet {
 .mad-portal .mad-submit {
   background: var(--ink);
   border-color: var(--ink);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .mad-portal .mad-action[data-weight="primary"]:hover,
 .mad-portal .mad-action[data-weight="confirm"]:hover,
 .mad-portal .mad-submit:hover {
-  background: #000000;
-  border-color: #000000;
+  background: color-mix(in srgb, var(--ink) 85%, #fff);
+  border-color: color-mix(in srgb, var(--ink) 85%, #fff);
 }
 
 /*
- * INTER ON /madspace, WITHOUT EXCEPTION.
+ * MANROPE ON /madspace, WITHOUT EXCEPTION (ADR-0037; this rule predates it and
+ * named the font it was fighting at the time as the exception rather than the
+ * rule, which is now reversed).
  *
  * `.mad-submit` set `font-family: var(--font-sans)`, which is Manrope, and an
  * element's own declaration beats the family inherited from `.mad-portal`. The

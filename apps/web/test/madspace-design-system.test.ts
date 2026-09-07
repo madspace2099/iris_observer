@@ -235,18 +235,36 @@ describe("the stylesheet honours the system", () => {
     }
   });
 
-  it("carries the values the specification states", () => {
+  it("carries the values ADR-0037 states", () => {
     /*
      * Spot-checked rather than exhaustive, and on the five that carry meaning:
-     * the warm paper everything sits on, the ink everything is written in, and
+     * the ground everything sits on, the ink everything is written in, and
      * the lightest colour any text may use. A wrong value in any of these is a
      * different product.
+     *
+     * ADR-0037 (2026-09-08) moved this system onto the Observer graphite
+     * ground; these are `.ox-graphite`'s own measured values (ADR-0034),
+     * restated here rather than declared fresh. The values `docs/20`
+     * originally specified (the client-portal PDF's warm paper) are checked
+     * inside the `@media print` block instead, where they still apply.
      */
-    expect(rules).toMatch(/--surface-page:\s*#f6f5f3/i);
-    expect(rules).toMatch(/--surface-card:\s*#ffffff/i);
-    expect(rules).toMatch(/--ink:\s*#111111/i);
-    expect(rules).toMatch(/--ink-4:\s*#6b6b6b/i);
-    expect(rules).toMatch(/--mark-disabled:\s*#b0aeaa/i);
+    expect(rules).toMatch(/--surface-page:\s*#07090c/i);
+    expect(rules).toMatch(/--surface-card:\s*#0d1117/i);
+    expect(rules).toMatch(/--ink:\s*#f4f7fc/i);
+    expect(rules).toMatch(/--ink-4:\s*#8592a8/i);
+    expect(rules).toMatch(/--mark-disabled:\s*#4c5568/i);
+  });
+
+  it("keeps the print ground on paper", () => {
+    /*
+     * Screen and print are governed by their own requirements (docs/20 §9):
+     * the dark ground never reaches a printed page, and this is the one place
+     * the client-portal PDF's original palette still applies.
+     */
+    const print = rules.slice(rules.indexOf("@media print"));
+    expect(print).toMatch(/--surface-card:\s*#ffffff/i);
+    expect(print).toMatch(/--ink:\s*#111111/i);
+    expect(print).toMatch(/background:\s*#f6f5f3/i);
   });
 
   it("puts no shadow on a card or a panel", () => {

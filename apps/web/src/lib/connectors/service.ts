@@ -310,7 +310,8 @@ export function connectorService(deps: ServiceDeps) {
     const ctx = { http: deps.http, now: deps.now };
     switch (kind) {
       case "realpad": {
-        if (credential === null) return { ok: false, problem: "REALPAD has no credential stored." };
+        if (credential === null)
+          return { ok: false, problem: `${CONNECTOR_NAMES.realpad} has no credential stored.` };
         const c = config as RealpadConfig;
         const k = credential as { login: string; password: string };
         return () => realpadFetchSnapshot(k, { ...c, currency: c.currency }, scope, ctx);
@@ -550,13 +551,13 @@ export function connectorService(deps: ServiceDeps) {
           problem: "A deals sheet is uploaded, not fetched. Use the deals upload on this screen.",
         };
       case "realpad": {
-        if (credential === null) return { ok: false, problem: "REALPAD has no credential stored." };
+        if (credential === null)
+          return { ok: false, problem: `${CONNECTOR_NAMES.realpad} has no credential stored.` };
         const c = config as RealpadConfig;
         if (c.dealColumns === null) {
           return {
             ok: false,
-            problem:
-              "Name the business-case export's header ids in REALPAD settings before syncing deals.",
+            problem: `Name the business-case export's header ids in ${CONNECTOR_NAMES.realpad} settings before syncing deals.`,
           };
         }
         const k = credential as {

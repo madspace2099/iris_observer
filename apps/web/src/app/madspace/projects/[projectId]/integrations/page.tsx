@@ -5,7 +5,7 @@ import { Kicker } from "@observer/ui";
 import { requireViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 import { liveConnectorService } from "@/lib/connectors/live";
-import { CREDENTIAL_WORDS } from "@/lib/connectors/configs";
+import { CONNECTOR_NAMES, CREDENTIAL_WORDS } from "@/lib/connectors/configs";
 import type { ConnectorSummary, LastDealSync } from "@/lib/connectors/service";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ConnectorForm } from "@/components/madspace/ConnectorForm";
@@ -172,7 +172,7 @@ export default async function IntegrationsPage({
                     <td>
                       <span className="mad-td-sub">{change.unit_code ?? "Not stated"}</span>
                     </td>
-                    <td>{change.connector}</td>
+                    <td>{connectorLabel(change.connector)}</td>
                     <td className="mad-td-figure">{instant(change.at).text}</td>
                   </tr>
                 ))}
@@ -220,7 +220,7 @@ export default async function IntegrationsPage({
                           ? "Every field"
                           : "None"}
                     </td>
-                    <td>{change.connector}</td>
+                    <td>{connectorLabel(change.connector)}</td>
                     <td className="mad-td-figure">{instant(change.recorded_at).text}</td>
                   </tr>
                 ))}
@@ -255,6 +255,11 @@ function stageTone(kind: string): MarkTone {
   if (kind === "opened") return "good";
   if (kind === "withdrawn") return "settled";
   return "operator";
+}
+
+/** The connector's display name for a raw stored id, so a change log never prints the technical word. */
+function connectorLabel(kind: string): string {
+  return (CONNECTOR_NAMES as Readonly<Record<string, string>>)[kind] ?? kind;
 }
 
 /** "meeting → offer" in canonical words, with the source's own word where none is mapped. */

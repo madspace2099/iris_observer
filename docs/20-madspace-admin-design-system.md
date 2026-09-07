@@ -20,13 +20,18 @@ so — and this is what that separation now looks like.
 
 ### Three adoption decisions
 
-**Light by default.** The operations screens were graphite-dark. The system is greyscale on warm
-paper with an inverse dark theme available, so the screens invert. This is the largest single change
-and the one most visible in review.
+**Greyscale-on-a-ground, colour means status.** The client-portal PDF specified warm paper; ADR-0037
+(2026-09-08) moved the same greyscale-plus-status system onto the Observer graphite ground the
+customer product already uses, at the founder's explicit request. What is adopted from the PDF is the
+_system_, one ink ramp, one status vocabulary, hairlines not shadows, not its literal paper colour.
+`.mad-portal` still turns the whole surface over from one class, the mechanism ADR-0037 keeps: a token
+swap, never a filter, so fixed headers and modals stay intact.
 
-**Inter on `/madspace`, Manrope everywhere else.** The IRIS doctrine locks Manrope by brand and
-Figma; this system specifies Inter with tabular figures. Both are true, and they are true of
-different products. The font switches at the `/madspace` boundary and nowhere else.
+**Manrope on `/madspace`, as everywhere else.** This system specified Inter with tabular figures; no
+Inter asset was ever added to the repository, and the declared stack silently rendered in the reader's
+OS font the whole time it was in force. ADR-0037 withdrew the Inter adoption and points `/madspace` at
+the same self-hosted Manrope the rest of the product loads, keeping this system's own type scale,
+tracking and 12px floor.
 
 **No em dash, and no bare dash.** The system's language rule. The operations copy leaned on the em
 dash for almost every subordinate clause, so this is a rewrite rather than a find-and-replace, and it
@@ -48,23 +53,36 @@ explanation was sitting in front of the answer instead of behind a disclosure.
 
 ### Ink
 
-| Token             | Value     | Contrast | Use                                                  |
-| ----------------- | --------- | -------- | ---------------------------------------------------- |
-| `--ink`           | `#111111` | 15.0:1   | Headings, primary text, filled buttons               |
-| `--ink-2`         | `#4A4A4A` | 9.0:1    | Body copy, descriptions                              |
-| `--ink-3`         | `#5C5C5C` | 7.0:1    | Emphasised micro-labels                              |
-| `--ink-4`         | `#6B6B6B` | 5.3:1    | The workhorse: labels, metadata, captions            |
-| `--mark-disabled` | `#B0AEAA` | 2.3:1    | Decorative marks and disabled fills. **Never text.** |
+**Superseded by ADR-0037 (2026-09-08).** The values below are the client-portal PDF's own paper
+figures, kept here for anyone reading the PDF beside this document. What `/madspace` renders is the
+Observer graphite ink ramp, ADR-0034's own measured table: `--ink` `#f4f7fc` (18.08:1), `--ink-2`
+`rgb(244 247 252 / 74%)` (9.98:1), `--ink-3` `#98a4b8` (7.71:1), `--ink-4` `#8592a8` (6.17:1, the
+floor), `--mark-disabled` `#4c5568`. The workhorse role, the contrast ordering and "never text" on the
+disabled mark all carry over unchanged; only the values do not.
+
+| Token             | Value (PDF, superseded) | Contrast | Use                                                  |
+| ----------------- | ----------------------- | -------- | ---------------------------------------------------- |
+| `--ink`           | `#111111`               | 15.0:1   | Headings, primary text, filled buttons               |
+| `--ink-2`         | `#4A4A4A`               | 9.0:1    | Body copy, descriptions                              |
+| `--ink-3`         | `#5C5C5C`               | 7.0:1    | Emphasised micro-labels                              |
+| `--ink-4`         | `#6B6B6B`               | 5.3:1    | The workhorse: labels, metadata, captions            |
+| `--mark-disabled` | `#B0AEAA`               | 2.3:1    | Decorative marks and disabled fills. **Never text.** |
 
 ### Surfaces
 
-| Token             | Value                | Use                                        |
-| ----------------- | -------------------- | ------------------------------------------ |
-| `--surface-page`  | `#F6F5F3`            | Warm paper. The app background.            |
-| `--surface-card`  | `#FFFFFF`            | Every panel, card and field.               |
-| `--surface-tint`  | `#EDEBE7`            | Image wells and empty media.               |
-| `--surface-inset` | `rgb(17 17 17 / 4%)` | Recessed rows, banners.                    |
-| ink as surface    | `#111111`            | Organisation-scope bands, primary buttons. |
+**Superseded by ADR-0037.** `/madspace` now paints the Observer graphite ground: `--surface-page`
+(the shell ground) `#07090c`, `--surface-card` (panel, header, nav, popover, dialog; opaque where the
+translucent panel wash `rgb(140 165 205 / 5%)` needs a solid backing) `#0d1117`, `--surface-tint`
+`rgb(140 165 205 / 8%)`, `--surface-inset` `rgb(140 165 205 / 4%)`, ink-as-surface now light-ink-as-
+surface through `--text-inverse` rather than a literal black or white. The PDF's own paper values:
+
+| Token             | Value (PDF, superseded) | Use                                        |
+| ----------------- | ----------------------- | ------------------------------------------ |
+| `--surface-page`  | `#F6F5F3`               | Warm paper. The app background.            |
+| `--surface-card`  | `#FFFFFF`               | Every panel, card and field.               |
+| `--surface-tint`  | `#EDEBE7`               | Image wells and empty media.               |
+| `--surface-inset` | `rgb(17 17 17 / 4%)`    | Recessed rows, banners.                    |
+| ink as surface    | `#111111`               | Organisation-scope bands, primary buttons. |
 
 ### Status
 
@@ -73,14 +91,19 @@ border, the darker value for the label, because green and amber text on their ow
 4.5:1. The mark shape is produced by one function, so a state cannot appear with the wrong shape in
 one place and the right one in another.
 
-| State                | Mark          | Label ink | Tint      | Meaning                                                                             |
-| -------------------- | ------------- | --------- | --------- | ----------------------------------------------------------------------------------- |
-| On track             | filled circle | `#0F5C39` | `#F4F9F6` | Running to the agreed dates, nothing owed by either side                            |
-| Waiting for client   | hollow ring   | `#8A5200` | `#FAF7F2` | Missing uploads, unanswered feedback, an unsigned handover                          |
-| Waiting for MADSPACE | diamond       | `#0F6FD0` | `#F6FAFE` | Reviews, fixes and publications owed by the studio                                  |
-| Delayed              | triangle      | `#B3261E` | `#FBF3F3` | The delivery date has moved. The reason and the day count are always stated with it |
-| Completed            | square        | `#0F5C39` | `#F4F9F6` | Accepted and signed off. The project recedes in the list                            |
-| Customer care        | bar           | `--ink-4` | none      | Reopened after handover for a new request. Neutral, not a warning                   |
+| State                | Mark          | Label ink (PDF, superseded) | Tint (PDF, superseded) | Meaning                                                                             |
+| -------------------- | ------------- | --------------------------- | ---------------------- | ----------------------------------------------------------------------------------- |
+| On track             | filled circle | `#0F5C39`                   | `#F4F9F6`              | Running to the agreed dates, nothing owed by either side                            |
+| Waiting for client   | hollow ring   | `#8A5200`                   | `#FAF7F2`              | Missing uploads, unanswered feedback, an unsigned handover                          |
+| Waiting for MADSPACE | diamond       | `#0F6FD0`                   | `#F6FAFE`              | Reviews, fixes and publications owed by the studio                                  |
+| Delayed              | triangle      | `#B3261E`                   | `#FBF3F3`              | The delivery date has moved. The reason and the day count are always stated with it |
+| Completed            | square        | `#0F5C39`                   | `#F4F9F6`              | Accepted and signed off. The project recedes in the list                            |
+| Customer care        | bar           | `--ink-4`                   | none                   | Reopened after handover for a new request. Neutral, not a warning                   |
+
+**Superseded by ADR-0037.** On the graphite ground the six shapes and their meanings are unchanged;
+the two-colour pairing per state is now `--ox-good`/`--ox-good-mark`, `--ox-watch`/`--ox-watch-mark`,
+`--ox-human`/`--ox-human-mark` (Waiting for MADSPACE, since blue already means exactly that state) and
+`--ox-poor`/`--ox-poor-mark`, all measured for the panel ground in ADR-0034.
 
 ### Borders
 
@@ -194,17 +217,31 @@ Measured, not assumed.
 | **Status marks**     | Six states, six shapes. Each sits beside a spelled-out label, so colour is never the only signal.                                                                                                |
 | **Language**         | No em dash and no bare dash. Currency through `Intl.NumberFormat`, dates through `Intl.DateTimeFormat`, plurals through `Intl.PluralRules`.                                                      |
 
-## 8. Inverse theme
+## 8. The ground, and the mechanism that turns it over
 
-Dark mode is a token swap on a class, never a CSS filter. A filter on `body` would make it the
-containing block for every `position: fixed` element, which breaks modals, the image viewer and the
-header. The class redeclares the same token names with dark values, so photographs keep their true
-colours and overlays keep their geometry. Status hues lighten to hold contrast against the dark
-surfaces.
+**Superseded by ADR-0037 (2026-09-08).** This section originally offered an optional dark theme
+alongside the paper default. The founder's request made the dark ground the only one `/madspace`
+screens now render; the paper values live on only as the print ground (§9) and as the historical
+record in this document's superseded tables above.
 
-| Token            | Inverse   |
-| ---------------- | --------- |
-| `--surface-page` | `#0E0E0D` |
-| `--surface-card` | `#181817` |
-| `--ink`          | `#F2F1EF` |
-| status green     | `#4FBF88` |
+What did not change is the mechanism, and it is worth keeping exactly as designed: a token swap on a
+class, never a CSS filter. A filter on `body` would make it the containing block for every
+`position: fixed` element, which breaks modals, the image viewer and the header. `.mad-portal`
+redeclares the same token names, this document's own vocabulary, with the Observer graphite values,
+so overlays keep their geometry and nothing outside the class (the Observer product itself) is
+repainted. Status hues lighten to hold contrast against the dark surfaces, exactly as ADR-0034 already
+does for the customer-facing `.ox-graphite` ground; `/madspace` now uses the same measured pairs.
+
+| Token            | Now (ADR-0037)             | Was (PDF paper, superseded) |
+| ---------------- | -------------------------- | --------------------------- |
+| `--surface-page` | `#07090c`                  | `#F6F5F3`                   |
+| `--surface-card` | `#0d1117`                  | `#FFFFFF`                   |
+| `--ink`          | `#f4f7fc`                  | `#111111`                   |
+| status green     | `#8ad9b0` / mark `#4fbf88` | `#0F5C39`                   |
+
+## 9. Print
+
+A printed page (Diagnostics, Directory, a project's Integrations state) restores the paper values
+inside `.mad-portal` under `@media print`: ink on white, no dark ground carried to paper. Screen and
+print are governed by their own requirements, and this is the one place the PDF's original palette
+still renders.
