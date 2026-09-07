@@ -307,6 +307,12 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   },
   { route: "/madspace/sources/[sourceId]", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
+  /*
+   * DIRECTORY — tenants, agencies and people (M9), read from the demonstration
+   * directory because no tenant, user or agency table exists yet. The page
+   * says so; MADSPACE alone may open it.
+   */
+  { route: "/madspace/directory", audience: "internal", requiresRole: ["madspace_admin"] },
 
   /*
    * The design lab. Development only, and gated twice.

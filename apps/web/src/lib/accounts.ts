@@ -2,7 +2,7 @@ import "server-only";
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { Viewer } from "@observer/readmodels";
-import { VIEWERS, type ViewerKey } from "@observer/synthetic";
+import { PROJECTS, TENANTS, VIEWERS, type ViewerKey } from "@observer/synthetic";
 
 /**
  * ACCOUNTS, WHICH ARE NOT PROFILES.
@@ -212,4 +212,105 @@ export function viewerForAccount(account: Account): Viewer {
 export function demoDirectory(): readonly { email: string; displayName: string }[] {
   if (!demoAccountsEnabled()) return [];
   return DIRECTORY.map((a) => ({ email: a.email, displayName: a.displayName }));
+}
+
+/* --- the directory, for the MADSPACE administration surface -------------- */
+
+const ROLE_WORDS: Readonly<Record<Viewer["role"], string>> = {
+  developer: "Developer",
+  agency_manager: "Agency manager",
+  sales_agent: "Sales agent",
+  madspace_admin: "MADSPACE administrator",
+};
+
+export interface DirectoryTenant {
+  readonly id: string;
+  readonly slug: string;
+  readonly name: string;
+  readonly projects: readonly { readonly slug: string; readonly name: string }[];
+  /** Accounts holding at least one of its projects. */
+  readonly accounts: number;
+}
+
+export interface DirectoryAgency {
+  readonly name: string;
+  readonly tenants: readonly string[];
+  readonly projects: readonly string[];
+  readonly managers: number;
+  readonly agents: number;
+}
+
+export interface DirectoryPerson {
+  readonly name: string;
+  readonly email: string;
+  readonly roleWord: string;
+  readonly organisation: string;
+  readonly projects: readonly string[];
+}
+
+export interface DirectoryView {
+  readonly tenants: readonly DirectoryTenant[];
+  readonly agencies: readonly DirectoryAgency[];
+  readonly people: readonly DirectoryPerson[];
+}
+
+/**
+ * Tenants, agencies and people, as the demonstration directory holds them.
+ *
+ * Composed here because this file is the one place outside the composition
+ * root that may name the synthetic world (`surfaces.test.ts`): it is where an
+ * address becomes a viewer, and the directory page reads the same accounts
+ * the sign-in accepts. Nothing here is a store; there is no tenant, user or
+ * agency table yet, and the page that draws this says so.
+ */
+export function directoryView(): DirectoryView {
+  const accounts = DIRECTORY.map((account) => ({ account, viewer: VIEWERS[account.viewerKey] }));
+  const projectName = (id: string) => PROJECTS.find((p) => p.id === id)?.name ?? id;
+
+  const tenants: DirectoryTenant[] = TENANTS.map((tenant) => ({
+    id: tenant.id,
+    slug: tenant.slug,
+    name: tenant.name,
+    projects: PROJECTS.filter((p) => p.tenantId === tenant.id).map((p) => ({
+      slug: p.slug,
+      name: p.name,
+    })),
+    accounts: accounts.filter(({ viewer }) =>
+      viewer.projectIds.some((id) => PROJECTS.some((p) => p.id === id && p.tenantId === tenant.id)),
+    ).length,
+  }));
+
+  const agencyNames = [
+    ...new Set(
+      accounts
+        .filter(({ viewer }) => viewer.role === "agency_manager" || viewer.role === "sales_agent")
+        .map(({ viewer }) => viewer.organisationName),
+    ),
+  ].sort();
+  const agencies: DirectoryAgency[] = agencyNames.map((name) => {
+    const members = accounts.filter(({ viewer }) => viewer.organisationName === name);
+    const projectIds = [...new Set(members.flatMap(({ viewer }) => viewer.projectIds))];
+    const tenantIds = [
+      ...new Set(
+        projectIds.flatMap((id) => PROJECTS.filter((p) => p.id === id).map((p) => p.tenantId)),
+      ),
+    ];
+    return {
+      name,
+      tenants: tenantIds.map((id) => TENANTS.find((t) => t.id === id)?.name ?? id),
+      projects: projectIds.map(projectName),
+      managers: members.filter(({ viewer }) => viewer.role === "agency_manager").length,
+      agents: members.filter(({ viewer }) => viewer.role === "sales_agent").length,
+    };
+  });
+
+  const people: DirectoryPerson[] = accounts.map(({ account, viewer }) => ({
+    name: account.displayName,
+    email: account.email,
+    roleWord: ROLE_WORDS[viewer.role],
+    organisation: viewer.organisationName,
+    projects: viewer.projectIds.map(projectName),
+  }));
+
+  return { tenants, agencies, people };
 }

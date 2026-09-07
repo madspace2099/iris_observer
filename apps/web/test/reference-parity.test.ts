@@ -107,6 +107,11 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
   "/madspace/projects/[projectId]/sources/new",
   "/madspace/sources/[sourceId]",
   "/madspace/diagnostics",
+  /*
+   * Directory — M9's tenants, agencies and people, from the demonstration
+   * directory until the tables that will hold them exist.
+   */
+  "/madspace/directory",
 
   /*
    * Ask IRIS — the approved design's flagship, at a real URL and under review.

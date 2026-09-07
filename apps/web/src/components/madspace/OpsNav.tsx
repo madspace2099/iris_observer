@@ -44,6 +44,13 @@ const ITEMS = [
     exact: false,
     owns: [] as readonly string[],
   },
+  {
+    /* Tenants, agencies and people: account-wide, like Diagnostics. */
+    href: "/madspace/directory",
+    label: "Directory",
+    exact: false,
+    owns: [] as readonly string[],
+  },
 ] as const;
 
 export function OpsNav() {
