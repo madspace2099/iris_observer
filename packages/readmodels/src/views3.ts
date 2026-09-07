@@ -1,5 +1,6 @@
 import type { InsightSource, MeetingOutcome, PlaceCategory, SectionId } from "@observer/contracts";
 import type { ViewContext } from "./context";
+import type { DealLadder } from "./deal-source";
 import type { EvidenceRef } from "./metric-value";
 import type { ShowroomFinding } from "./showroom";
 
@@ -134,6 +135,12 @@ export interface SalesFlowView {
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
   readonly evidence: EvidenceRef;
+  /**
+   * The deal ladder, which is the CRM's (ADR-0021). Drawn from the deals a
+   * connector delivered; says "not connected" where none did, never a rung
+   * at zero.
+   */
+  readonly ladder: DealLadder;
 }
 
 /* --- 2. Project -------------------------------------------------------------- */

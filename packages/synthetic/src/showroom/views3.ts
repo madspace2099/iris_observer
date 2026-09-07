@@ -20,6 +20,7 @@ import type {
   AgentsView,
   AudienceCriteria,
   AudienceView,
+  DeliveredDeals,
   FlowPeriod,
   HomeFigure,
   OutcomeSlice,
@@ -41,6 +42,7 @@ import {
   roomCounts,
   roomLabel,
 } from "../pulse";
+import { buildDealLadder } from "../deals";
 import { count, evidenceRef, percent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
@@ -405,6 +407,8 @@ export function buildSalesFlow(
   sessions: readonly ShowroomSession[],
   today: Date,
   previous: readonly ShowroomSession[],
+  /** The CRM's deals, when a connector delivered them; null draws "not connected". */
+  deals: DeliveredDeals | null = null,
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -549,6 +553,7 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
+    ladder: buildDealLadder(deals, locale),
   };
 }
 

@@ -44,8 +44,9 @@ import type {
   ReportScopeView,
   UnitDetailView,
 } from "@observer/readmodels";
-import type { CatalogueSource } from "@observer/readmodels";
+import type { CatalogueSource, DealSource } from "@observer/readmodels";
 import { PROJECTS, TENANTS, TODAY } from "./world";
+import { dealsFor, provideDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
@@ -144,6 +145,12 @@ const PERIODS: Record<PeriodPreset, Omit<Period, "preset">> = {
  */
 export interface SyntheticRepositoryOptions {
   readonly catalogueSource?: CatalogueSource;
+  /**
+   * The seam for the CRM's deals, beside the catalogue's: asked before every
+   * view, and the Sales Flow ladder draws what it answers. Absent, the ladder
+   * says the CRM is not connected; the synthetic world never invents a deal.
+   */
+  readonly dealSource?: DealSource;
 }
 
 export class SyntheticObserverRepository implements ObserverRepository {
@@ -192,7 +199,17 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
     const period = await this.resolvePeriod(project.id, preset);
     await this.overlayCatalogue(project);
+    await this.overlayDeals(project);
     return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY };
+  }
+
+  /** The CRM's deals for this project, if a connector delivered them, for the ladder. */
+  private async overlayDeals(project: ProjectSummary): Promise<void> {
+    const source = this.options.dealSource;
+    provideDeals(
+      project.id as string,
+      source === undefined ? null : await source.dealsFor(project),
+    );
   }
 
   /**
@@ -327,7 +344,13 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
     const { context, current, previous } = await this.slices(query);
-    return buildSalesFlow(context, current, this.today, previous);
+    return buildSalesFlow(
+      context,
+      current,
+      this.today,
+      previous,
+      dealsFor(context.project.id as string),
+    );
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {

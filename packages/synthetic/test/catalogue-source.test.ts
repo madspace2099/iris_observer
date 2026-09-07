@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { CatalogueUnit } from "@observer/contracts";
-import type { CatalogueSource, OverviewQuery, Viewer } from "@observer/readmodels";
+import type { CatalogueUnit, CrmDeal, DealStage } from "@observer/contracts";
+import type { CatalogueSource, DealSource, OverviewQuery, Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import { rawUnitsFromCatalogue } from "../src/catalogue-overlay";
 
@@ -38,6 +38,21 @@ function unit(code: string, over: Partial<CatalogueUnit> = {}): CatalogueUnit {
     availableFrom: null,
     updatedAt: null,
     ...over,
+  };
+}
+
+function crmDeal(externalId: string, stage: DealStage | null, raw?: string): CrmDeal {
+  return {
+    externalId,
+    unitCode: null,
+    subjectKey: null,
+    stage,
+    stageRaw: raw ?? stage ?? "x",
+    stageEnteredAt: null,
+    openedAt: null,
+    updatedAt: null,
+    won: null,
+    lost: null,
   };
 }
 
@@ -200,5 +215,55 @@ describe("a repository composed with a catalogue source", () => {
     const pulse = await plain.getProjectPulse(ISTER);
     expect(pulse.floors.flatMap((f) => f.units).some((u) => u.code.startsWith("IT-"))).toBe(true);
     expect(pulse.totals.soldInPeriod).not.toBeNull();
+  });
+});
+
+describe("a repository composed with a deal source", () => {
+  const deals: DealSource = {
+    async dealsFor(project) {
+      if (project.slug !== "ister-tower") return null;
+      return {
+        connector: "csv",
+        fetchedAt: "2026-09-07T10:00:00.000+00:00",
+        deals: [
+          crmDeal("D-1", "meeting"),
+          crmDeal("D-2", "offer"),
+          crmDeal("D-3", "offer"),
+          crmDeal("D-4", "purchase"),
+          crmDeal("D-5", "lost"),
+          crmDeal("D-6", null, "opció"),
+        ],
+      };
+    },
+  };
+
+  it("draws the ladder from where each deal stands, verified, with the unmapped and the lost beside it", async () => {
+    const repo = new SyntheticObserverRepository({ dealSource: deals });
+    const flow = await repo.getSalesFlow(ISTER);
+    expect(flow.ladder.source).toBe("crm");
+    if (flow.ladder.source !== "crm") return;
+    expect(flow.ladder.stages.map((s) => [s.id, s.count, s.verified])).toEqual([
+      ["lead", 4, true],
+      ["meeting", 4, true],
+      ["negotiation", 3, true],
+      ["offer", 3, true],
+      ["reservation", 1, true],
+      ["purchase", 1, true],
+    ]);
+    expect(flow.ladder.stages[3]?.rate).toBe("75%");
+    expect(flow.ladder).toMatchObject({ connector: "csv", unmapped: 1, lost: 1, total: 6 });
+    expect(flow.ladder.note).toContain("1 deal carry a stage word not mapped yet");
+    expect(flow.ladder.note).toContain("1 lost");
+  });
+
+  it("says the CRM is not connected where no deals arrive, and never a rung at zero", async () => {
+    const repo = new SyntheticObserverRepository({ dealSource: deals });
+    const flow = await repo.getSalesFlow(NORTHGATE);
+    expect(flow.ladder).toEqual({
+      source: "not_connected",
+      note: expect.stringContaining("not connected"),
+    });
+    const plain = new SyntheticObserverRepository();
+    expect((await plain.getSalesFlow(ISTER)).ladder.source).toBe("not_connected");
   });
 });

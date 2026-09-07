@@ -2,6 +2,7 @@ import type { ObserverRepository } from "@observer/readmodels";
 import { SyntheticObserverRepository } from "@observer/synthetic";
 
 import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
+import { liveDealSource } from "@/lib/connectors/deal-source";
 
 /**
  * The composition root.
@@ -11,12 +12,15 @@ import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
  * the synthetic implementation for the database one is a change to this file
  * and nothing else (ADR-0007).
  *
- * The one thing composed in today: the catalogue source (ADR-0036). When a
- * project has a connector with a successful sync, its stock replaces the
- * synthetic stock for that project — the stock, not the sessions.
+ * Two things composed in today, both from ADR-0036: the catalogue source,
+ * whose stock replaces the synthetic stock for a project with a synced
+ * connector — the stock, not the sessions — and the deal source, whose
+ * deals draw the Sales Flow ladder; without it the ladder says the CRM is
+ * not connected.
  */
 export const repository: ObserverRepository = new SyntheticObserverRepository({
   catalogueSource: liveCatalogueSource,
+  dealSource: liveDealSource,
 });
 
 /*

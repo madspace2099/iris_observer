@@ -6,6 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { FlowLadder } from "@/components/flow";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import {
@@ -331,6 +332,30 @@ export default async function FlowPage({
             {charts.funnel.disclaimer}
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+        </div>
+
+        <hr className="iris-rule iris-section-rule" />
+
+        {/*
+         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
+         * connector delivered, every rung verified because the CRM stated it,
+         * and where none did the sentence says so rather than six rungs at zero.
+         */}
+        <div>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+            The deal ladder, as the CRM states it
+          </h2>
+          {view.ladder.source === "crm" ? (
+            <>
+              <FlowLadder stages={view.ladder.stages} noun="deals" />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {view.ladder.note}
+              </p>
+              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          ) : (
+            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
+          )}
         </div>
 
         <hr className="iris-rule iris-section-rule" />
