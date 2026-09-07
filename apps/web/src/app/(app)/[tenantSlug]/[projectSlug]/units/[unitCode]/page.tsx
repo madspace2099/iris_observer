@@ -175,18 +175,7 @@ export default async function UnitPage({
     },
   }));
 
-  const comparisonRows: readonly DataRow[] = (comparison?.competitors ?? []).map((competitor) => ({
-    key: competitor.unitCode,
-    cells: {
-      unit: (
-        <Link href={dynamicRoute(withPeriod(`${base}/${competitor.unitCode}`, period))}>
-          {competitor.unitCode}
-        </Link>
-      ),
-      together: competitor.together,
-      keptOther: competitor.keptOther,
-    },
-  }));
+  const competitors = comparison?.competitors ?? [];
 
   return (
     <div className="ox-page">
@@ -445,23 +434,49 @@ export default async function UnitPage({
               </p>
             </div>
 
-            {comparisonRows.length === 0 ? (
+            {competitors.length === 0 ? (
               <Empty
                 title="Never placed in Compare"
                 note={`${unit.unitCode} was not weighed against another unit in ${periodLabel.toLowerCase()}.`}
               />
             ) : (
-              <DataTable
-                caption={`Units ${unit.unitCode} was compared against in ${periodLabel.toLowerCase()}.`}
-                columns={[
-                  { key: "unit", label: "Unit" },
-                  { key: "together", label: "Compared together", numeric: true },
-                  { key: "keptOther", label: "The other was kept", numeric: true },
-                ]}
-                rows={comparisonRows}
-                codeColumn="unit"
-                period={period}
-              />
+              /*
+               * THE COMPETITION GRAPH (docs/08-scenarios.md, "many comparisons,
+               * few wins"): each rival as a bar of how often it was the one
+               * kept, out of the times the two were weighed together. The same
+               * rungs the ladder draws, because the rule is the same: the width
+               * is a proportion of two counts the read model supplied, and the
+               * figure beside it prints both, so nobody estimates an angle.
+               */
+              <div
+                className="ox-funnel"
+                role="list"
+                aria-label={`Units ${unit.unitCode} was compared against in ${periodLabel.toLowerCase()}, by how often the other was kept`}
+              >
+                {competitors.map((competitor) => (
+                  <div className="ox-stage" key={competitor.unitCode} role="listitem">
+                    <span className="ox-stage-label">
+                      <Link
+                        href={dynamicRoute(withPeriod(`${base}/${competitor.unitCode}`, period))}
+                      >
+                        {competitor.unitCode}
+                      </Link>
+                    </span>
+                    <span className="ox-stage-bar">
+                      <span
+                        className="ox-stage-fill"
+                        style={{
+                          width: `${((competitor.keptOther / Math.max(1, competitor.together)) * 100).toFixed(1)}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="ox-stage-figures">
+                      <span className="ox-figure">{competitor.keptOther}</span>
+                      <span className="ox-of">kept of {competitor.together} compared together</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {comparison === null || comparison.relatedFilters.length === 0 ? (
