@@ -117,7 +117,11 @@ export interface AgentOutcomeRing {
    * built from this flag can cite the same number rather than a different
    * one from a different field.
    */
-  readonly flag: { readonly severity: "watch" | "concern"; readonly text: string; readonly sampleSize: number } | null;
+  readonly flag: {
+    readonly severity: "watch" | "concern";
+    readonly text: string;
+    readonly sampleSize: number;
+  } | null;
   readonly href: string;
 }
 
@@ -145,6 +149,11 @@ export interface SalesFlowView {
 export interface SegmentInterest {
   readonly id: string;
   readonly label: string;
+  /**
+   * The room count this segment is defined by. Carried so a consumer can
+   * build a criterion from the segment itself rather than parse its id.
+   */
+  readonly rooms: number;
   readonly availableUnits: number;
   readonly stockShare: number;
   readonly attentionShare: number;
@@ -329,6 +338,8 @@ export interface AudienceMatch {
 export interface AudienceView {
   readonly context: ViewContext;
   readonly criteria: AudienceCriteria;
+  /** The room counts this project's catalogue actually contains, ascending. */
+  readonly roomChoices: readonly { readonly rooms: number; readonly label: string }[];
   readonly description: string;
   readonly matches: readonly AudienceMatch[];
   readonly total: number;

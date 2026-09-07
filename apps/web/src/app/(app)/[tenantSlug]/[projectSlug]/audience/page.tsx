@@ -28,12 +28,6 @@ export const metadata: Metadata = { title: "Audience" };
  * behaviour. "Probably has children" is a reading a human may make from it;
  * Observer states the behaviour and lets them make it.
  */
-const ROOM_OPTIONS = [
-  { value: "", label: "Any unit" },
-  { value: "2", label: "Two-room" },
-  { value: "3", label: "Three-room" },
-] as const;
-
 export default async function AudiencePage({
   params,
   searchParams,
@@ -53,7 +47,12 @@ export default async function AudiencePage({
   requireSurface(viewer, "audience", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
-  const rooms = search.rooms === "2" || search.rooms === "3" ? Number(search.rooms) : null;
+  // Any positive whole number is a legitimate question to ask of the
+  // catalogue; one it does not contain simply matches nothing, which the
+  // page already says honestly. The tab strip below offers only the counts
+  // the project actually has.
+  const requestedRooms = Number(search.rooms);
+  const rooms = Number.isInteger(requestedRooms) && requestedRooms > 0 ? requestedRooms : null;
   const category = (PLACE_CATEGORIES as readonly string[]).includes(search.category ?? "")
     ? (search.category as PlaceCategory)
     : null;
@@ -94,12 +93,19 @@ export default async function AudiencePage({
           <div>
             <p className="iris-kicker">Unit</p>
             <div className="iris-segmented" role="tablist" aria-label="Unit type">
-              {ROOM_OPTIONS.map((o) => (
+              <Link
+                role="tab"
+                aria-selected={rooms === null}
+                href={dynamicRoute(qs({ rooms: null }))}
+              >
+                Any unit
+              </Link>
+              {view.roomChoices.map((o) => (
                 <Link
-                  key={o.value || "any"}
+                  key={o.rooms}
                   role="tab"
-                  aria-selected={(rooms === null ? "" : String(rooms)) === o.value}
-                  href={dynamicRoute(qs({ rooms: o.value === "" ? null : o.value }))}
+                  aria-selected={rooms === o.rooms}
+                  href={dynamicRoute(qs({ rooms: String(o.rooms) }))}
                 >
                   {o.label}
                 </Link>

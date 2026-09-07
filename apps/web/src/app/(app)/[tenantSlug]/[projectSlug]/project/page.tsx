@@ -53,7 +53,7 @@ export default async function ProjectPage({
   };
 
   const [view, charts] = await Promise.all([
-    repository.getProjectView(query, search.segment ?? "rooms-2"),
+    repository.getProjectView(query, search.segment ?? null),
     repository.getProjectCharts(query),
   ]);
 
@@ -228,9 +228,7 @@ export default async function ProjectPage({
               <Link
                 className="iris-action"
                 data-emphasis="primary"
-                href={dynamicRoute(
-                  `/${tenantSlug}/${projectSlug}/audience?rooms=${segment.id === "rooms-2" ? 2 : 3}`,
-                )}
+                href={dynamicRoute(`/${tenantSlug}/${projectSlug}/audience?rooms=${segment.rooms}`)}
                 style={{ marginTop: "1rem" }}
               >
                 Build an audience from this

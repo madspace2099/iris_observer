@@ -34,7 +34,7 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { catalogueFor } from "../pulse";
+import { catalogueFor, roomCounts, roomLabel } from "../pulse";
 import { count, evidenceRef, percent } from "../format";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
@@ -511,11 +511,20 @@ export function buildSalesFlow(
     new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
   let verdict: string;
   if (stillRunning) {
-    if (week === undefined || lastWeek === undefined || month === undefined || lastMonth === undefined) {
+    if (
+      week === undefined ||
+      lastWeek === undefined ||
+      month === undefined ||
+      lastMonth === undefined
+    ) {
       verdict = `${count(sessions.length, locale)} meetings this period.`;
     } else {
       const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
-      verdict = verdictFrom(weekIsReadable ? week : month, weekIsReadable ? lastWeek : lastMonth, locale);
+      verdict = verdictFrom(
+        weekIsReadable ? week : month,
+        weekIsReadable ? lastWeek : lastMonth,
+        locale,
+      );
     }
   } else {
     verdict = verdictFrom(
@@ -539,15 +548,46 @@ export function buildSalesFlow(
 
 /* --- 2. Project -------------------------------------------------------------- */
 
-const SEGMENTS = [
-  { id: "rooms-2", label: "Two-room", rooms: 2 },
-  { id: "rooms-3", label: "Three-room", rooms: 3 },
-] as const;
+interface RoomSegmentSpec {
+  readonly id: string;
+  readonly label: string;
+  readonly rooms: number;
+}
+
+/**
+ * One segment per room count the catalogue contains, smallest first.
+ *
+ * There used to be a two-entry constant here — two-room and three-room — and
+ * the parity scale built from it said "X% of looking time on Y% of stock"
+ * while leaving every one-room and four-room flat out of both numbers. The
+ * segments now follow the stock, so a catalogue that arrives from a CRM with
+ * five counts gets five rows, and one with two still gets two.
+ */
+function roomSegments(catalogue: ReadonlyArray<{ readonly rooms: number }>): RoomSegmentSpec[] {
+  return roomCounts(catalogue).map((rooms) => ({
+    id: `rooms-${rooms}`,
+    label: roomLabel(rooms),
+    rooms,
+  }));
+}
+
+/**
+ * The segment a sentence may be built on: enough meetings behind it to say
+ * something, and the furthest from parity among those. Below the floor the
+ * page still shows every figure; it just does not lead with one.
+ */
+const SEGMENT_SENTENCE_FLOOR = 5;
+
+function leadSegment(segments: readonly SegmentInterest[]): SegmentInterest | undefined {
+  return [...segments]
+    .filter((s) => s.meetings > SEGMENT_SENTENCE_FLOOR)
+    .sort((a, b) => Math.abs(b.index - 1) - Math.abs(a.index - 1))[0];
+}
 
 function buildSegment(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
-  spec: (typeof SEGMENTS)[number],
+  spec: RoomSegmentSpec,
 ): SegmentInterest {
   const locale = context.project.locale;
   /*
@@ -633,6 +673,7 @@ function buildSegment(
   return {
     id: spec.id,
     label: spec.label,
+    rooms: spec.rooms,
     availableUnits: available.length,
     stockShare,
     attentionShare,
@@ -672,8 +713,19 @@ export function buildProjectView(
 ): ProjectView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const segments = SEGMENTS.map((spec) => buildSegment(context, sessions, spec));
-  const selected = segments.find((s) => s.id === selectedSegmentId) ?? null;
+  const segments = roomSegments(catalogueFor(context.project.id as string)).map((spec) =>
+    buildSegment(context, sessions, spec),
+  );
+  /*
+   * No segment asked for opens the first one — the band below the tabs is
+   * the point of the page, and "first" is the smallest count, the same
+   * order the tab strip reads in. A segment asked for by name that the
+   * catalogue does not have selects nothing, which the tabs show honestly.
+   */
+  const selected =
+    selectedSegmentId === null
+      ? (segments[0] ?? null)
+      : (segments.find((s) => s.id === selectedSegmentId) ?? null);
 
   /* Stated demand. */
   const demandMap = new Map<string, StatedDemand>();
@@ -758,21 +810,21 @@ export function buildProjectView(
 
   const findings: ShowroomFinding[] = [];
 
-  const twoRoom = segments.find((s) => s.id === "rooms-2");
-  if (twoRoom !== undefined && twoRoom.meetings > 5) {
+  const lead = leadSegment(segments);
+  if (lead !== undefined) {
     findings.push({
       id: "project-segment",
-      statement: `${twoRoom.label} units draw ${twoRoom.index.toFixed(2)}× their share of looking time, and ${percent(twoRoom.favouriteShare, locale)} of every shortlisting in the period.`,
-      baseline: `${percent(twoRoom.stockShare, locale)} of available stock`,
-      soWhat: twoRoom.soWhat,
-      nextStep: { label: `Open ${twoRoom.label}`, href: `${base}/project?segment=${twoRoom.id}` },
+      statement: `${lead.label} units draw ${lead.index.toFixed(2)}× their share of looking time, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
+      baseline: `${percent(lead.stockShare, locale)} of available stock`,
+      soWhat: lead.soWhat,
+      nextStep: { label: `Open ${lead.label}`, href: `${base}/project?segment=${lead.id}` },
       evidence: evidenceRef(
         "project-segment",
         "statistical_association",
         `${base}/project`,
-        twoRoom.meetings,
+        lead.meetings,
       ),
-      sampleSize: twoRoom.meetings,
+      sampleSize: lead.meetings,
       sources: [...DERIVED],
       caveat: null,
     });
@@ -829,9 +881,9 @@ export function buildProjectView(
   return {
     context,
     verdict:
-      twoRoom === undefined
+      lead === undefined
         ? `${meetings(sessions.length, locale)}.`
-        : `Two-room units are ${percent(twoRoom.stockShare, locale)} of the stock and take ${percent(twoRoom.attentionShare, locale)} of the attention.`,
+        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
     segments,
     selectedSegment: selected,
     demand,
@@ -1081,8 +1133,13 @@ export function buildAudience(
       };
     });
 
-  const roomText = criteria.rooms === null ? "any unit" : `a ${criteria.rooms}-room unit`;
+  const roomText =
+    criteria.rooms === null ? "any unit" : `a ${roomLabel(criteria.rooms).toLowerCase()} unit`;
   const favText = criteria.favouritedOnly ? "shortlisted" : "opened";
+  const roomChoices = roomCounts(catalogueFor(context.project.id as string)).map((rooms) => ({
+    rooms,
+    label: roomLabel(rooms),
+  }));
   const placeText =
     criteria.placeCategory === null
       ? ""
@@ -1091,6 +1148,7 @@ export function buildAudience(
   return {
     context,
     criteria,
+    roomChoices,
     description: `Meetings where the buyer ${favText} ${roomText}${placeText}.`,
     matches,
     total: matches.length,
@@ -1175,7 +1233,9 @@ export function buildHome(
   const volumeTrend: Trend = weekIsReadable
     ? trend(week / lastWeek, 0.8)
     : lastMonth === 0
-      ? (month > 0 ? "up" : "flat")
+      ? month > 0
+        ? "up"
+        : "flat"
       : trend(month / lastMonth, 0.8);
   const progressTrend: Trend =
     previousProgressed === 0
@@ -1318,8 +1378,8 @@ export function buildHome(
           href: `${base}/agents/${flagged.agent.id}`,
         };
 
-  const project = buildProjectView(context, sessions, "rooms-2");
-  const twoRoom = project.segments.find((s) => s.id === "rooms-2");
+  const project = buildProjectView(context, sessions, null);
+  const lead = leadSegment(project.segments);
   const agents = SYNTHETIC_AGENTS.filter((a) => sessions.some((s) => s.agentId === a.id)).length;
 
   return {
@@ -1342,9 +1402,9 @@ export function buildHome(
         label: "Project",
         question: "What do buyers want, and what do they linger on?",
         headline:
-          twoRoom === undefined
+          lead === undefined
             ? "Segments, filters and places"
-            : `Two-room units draw ${twoRoom.index.toFixed(1)}× their share of attention`,
+            : `${lead.label} units draw ${lead.index.toFixed(1)}× their share of attention`,
         href: `${base}/project`,
       },
       {

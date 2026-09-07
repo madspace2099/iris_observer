@@ -129,6 +129,42 @@ export interface RawUnit {
   status: UnitStatus;
 }
 
+/**
+ * The room counts a catalogue actually contains, ascending.
+ *
+ * Room segments are derived from the stock rather than declared: a segment
+ * list written by hand names the two counts the first scenario had and drops
+ * every one-room and four-room flat from a scale that claims to cover the
+ * stock. A real catalogue arrives from the CRM with whatever counts the
+ * developer built, and the segments have to follow it.
+ */
+export function roomCounts(units: ReadonlyArray<{ readonly rooms: number }>): readonly number[] {
+  return [...new Set(units.map((u) => u.rooms))].sort((a, b) => a - b);
+}
+
+const ROOM_WORDS: Readonly<Record<number, string>> = {
+  1: "One",
+  2: "Two",
+  3: "Three",
+  4: "Four",
+  5: "Five",
+  6: "Six",
+};
+
+export function roomLabel(rooms: number): string {
+  const word = ROOM_WORDS[rooms];
+  return word === undefined ? `${rooms}-room` : `${word}-room`;
+}
+
+/**
+ * Conversion against the project average, per room count.
+ *
+ * These two are the first scenario's pinned narrative figures. A count with
+ * no pinned figure gets `null` — unknown, never a guess — which every reader
+ * of `PulseSegment` already handles for the floor bands.
+ */
+const ROOM_CONVERSION: Readonly<Record<number, number | null>> = { 2: 0.5, 3: 1.3 };
+
 function buildCatalogue(spec: BuildingSpec): RawUnit[] {
   const units: RawUnit[] = [];
 
@@ -410,8 +446,15 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
   }
 
   const segments: PulseSegment[] = [
-    segment("rooms-2", "rooms", "Two-room", (u) => u.rooms === 2, 0.5),
-    segment("rooms-3", "rooms", "Three-room", (u) => u.rooms === 3, 1.3),
+    ...roomCounts(units).map((rooms) =>
+      segment(
+        `rooms-${rooms}`,
+        "rooms",
+        roomLabel(rooms),
+        (u) => u.rooms === rooms,
+        ROOM_CONVERSION[rooms] ?? null,
+      ),
+    ),
     segment("aspect-s", "orientation", "South-facing", (u) => u.orientation === "S", 1.1),
     segment("aspect-w", "orientation", "West-facing", (u) => u.orientation === "W", 0.8),
     segment("floors-low", "floor_band", "Floors 1–3", (u) => u.floor <= 3, null),

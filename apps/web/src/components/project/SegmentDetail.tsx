@@ -45,18 +45,16 @@ import { Plane } from "./Section";
  * two charts rather than a register, so paper is not earned here: paper is for
  * the stacking plan, the filter table and the movement register on this screen.
  *
- * ## Why the action is the audience builder and why it carries no criteria
+ * ## Why the action is the audience builder and what it carries
  *
  * A screen without an action is not finished, and the useful thing to do with
  * "these buyers behave like this" is to reach them. The link therefore goes to
- * the audience builder — and it goes there with NO criteria attached, which is
- * a deliberate retreat from the baseline screen. That one built
- * `?rooms=${segment.id === "rooms-2" ? 2 : 3}`, which reads the segment's
- * definition out of its identifier string and silently answers "3" for every
- * segment that is not two-room, including an orientation or a price band.
- * `SegmentInterest` carries no href and no criteria, so the honest link is the
- * one that opens the builder rather than the one that pretends to have filled
- * it in. Reported as a gap.
+ * the audience builder, carrying the selected segment's own room count —
+ * `SegmentInterest.rooms`, the definition the segment was built from. The
+ * baseline screen once derived that number from the identifier string
+ * (`segment.id === "rooms-2" ? 2 : 3`), which answered "3" for every segment
+ * that was not two-room; the read model now states the count and the link
+ * reads it. With no segment selected the link opens the builder unfilled.
  */
 export function SegmentDetail({
   segments,
@@ -93,8 +91,17 @@ export function SegmentDetail({
       aside={
         <Link
           className="ox-btn"
-          href={dynamicRoute(withPeriod(`${root}/audience`, period))}
-          title="Opens the audience builder. The segment's own definition is not carried across; see the note in this component."
+          href={dynamicRoute(
+            withPeriod(
+              selected === null ? `${root}/audience` : `${root}/audience?rooms=${selected.rooms}`,
+              period,
+            ),
+          )}
+          title={
+            selected === null
+              ? "Opens the audience builder."
+              : `Opens the audience builder for ${selected.label.toLowerCase()} units.`
+          }
         >
           Build an audience
         </Link>
