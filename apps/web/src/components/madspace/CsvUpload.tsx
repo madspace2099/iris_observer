@@ -25,18 +25,29 @@ export function CsvUpload({ projectId }: { readonly projectId: string }) {
           A CSV export of the pricelist, comma- or semicolon-separated, with the headers named in
           the columns above. Up to 5 MB.
         </p>
-        <input className="mad-input" id={id} name="file" type="file" accept=".csv,text/csv" />
+        <input
+          className="mad-input"
+          id={id}
+          name="file"
+          type="file"
+          accept=".csv,text/csv"
+          aria-invalid={state.problem === null ? undefined : true}
+          aria-describedby={state.problem === null ? undefined : `${id}-problem`}
+        />
+        {/* The refusal under the control, and the control points at it. */}
+        {state.problem === null ? null : (
+          <p className="mad-field-error" id={`${id}-problem`} role="alert">
+            {state.problem}
+          </p>
+        )}
       </div>
-      {state.problem === null ? null : (
-        <p className="mad-form-problem" role="alert">
-          {state.problem}
-        </p>
-      )}
-      {state.summary === null ? null : (
-        <p className="mad-said" role="status">
-          {state.summary}
-        </p>
-      )}
+      {/*
+       * Rendered whenever the form is, empty until there is something to say,
+       * so a screen reader is already watching the region when the count lands.
+       */}
+      <p className="mad-said" role="status" aria-live="polite">
+        {state.summary ?? ""}
+      </p>
       {state.rejected.length === 0 ? null : (
         <ul className="mad-alerts">
           {state.rejected.map((line) => (

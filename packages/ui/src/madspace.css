@@ -1428,6 +1428,21 @@ a.mad-row:focus-visible {
   text-decoration-color: var(--text-tertiary);
 }
 
+/*
+ * The same quiet word on a button. A `<button>` arrives with the platform's
+ * grey fill and outset border, and the underlined link look was being painted
+ * on top of them. Removed here, once, rather than on each button that borrows
+ * the class; nothing else about the look changes.
+ */
+button.mad-quiet {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 /* --- operator controls ------------------------------------------------------------- */
 
 /*

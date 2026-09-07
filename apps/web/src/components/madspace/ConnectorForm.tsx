@@ -42,6 +42,37 @@ function stringOf(value: unknown): string {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
+/**
+ * The form field a refusal belongs to, from the path the service names.
+ *
+ * The service reports the schema's path (`projectId`, `columns.code`), and
+ * the form names its controls after what the operator sees (`realpadProjectId`,
+ * one `columns` textarea). A refusal that can be tied to a control is said
+ * under that control, with the control pointing at it; one that cannot is
+ * said once, for the whole form.
+ */
+const FIELDS: Readonly<Record<ConnectorKind, readonly string[]>> = {
+  realpad: [
+    "developerId",
+    "realpadProjectId",
+    "screenId",
+    "login",
+    "password",
+    "currency",
+    "orientationMap",
+  ],
+  lomnio: ["token", "signingSecret", "statusMap", "currency", "orientationMap"],
+  monday: ["boardId", "token", "columns", "statusMap", "currency", "orientationMap"],
+  csv: ["columns", "statusMap", "currency", "orientationMap"],
+};
+
+function failingField(kind: ConnectorKind, path: string | null): string | null {
+  if (path === null) return null;
+  const head = path.split(".")[0] ?? path;
+  const field = kind === "realpad" && head === "projectId" ? "realpadProjectId" : head;
+  return FIELDS[kind].includes(field) ? field : null;
+}
+
 export function ConnectorForm({
   projectId,
   kind,
@@ -54,7 +85,15 @@ export function ConnectorForm({
   const [state, submit, pending] = useActionState(saveConnectorAction, IDLE);
   const base = useId();
   const id = (field: string) => `${base}-${field}`;
-  const invalid = (field: string) => (state.field === field ? "true" : undefined);
+  const failing = failingField(kind, state.field);
+  const invalid = (field: string) => (failing === field ? "true" : undefined);
+  /* The refusal under the control it belongs to, and the control points at it. */
+  const Problem = ({ field }: { field: string }) =>
+    failing === field && state.problem !== null ? (
+      <p className="mad-field-error" id={`${id(field)}-problem`} role="alert">
+        {state.problem}
+      </p>
+    ) : null;
 
   const Field = ({
     field,
@@ -88,7 +127,9 @@ export function ConnectorForm({
         autoComplete={autoComplete}
         spellCheck={false}
         aria-invalid={invalid(field) === undefined ? undefined : true}
+        aria-describedby={invalid(field) === undefined ? undefined : `${id(field)}-problem`}
       />
+      <Problem field={field} />
     </div>
   );
 
@@ -118,7 +159,10 @@ export function ConnectorForm({
         defaultValue={defaultValue}
         placeholder={placeholder}
         spellCheck={false}
+        aria-invalid={invalid(field) === undefined ? undefined : true}
+        aria-describedby={invalid(field) === undefined ? undefined : `${id(field)}-problem`}
       />
+      <Problem field={field} />
     </div>
   );
 
@@ -309,16 +353,19 @@ export function ConnectorForm({
         </div>
       </div>
 
-      {state.problem === null ? null : (
+      {/* A refusal with no control to stand under is said once, for the whole form. */}
+      {state.problem === null || failing !== null ? null : (
         <p className="mad-form-problem" role="alert">
           {state.problem}
         </p>
       )}
-      {state.saved && state.problem === null ? (
-        <p className="mad-said" role="status">
-          Saved.
-        </p>
-      ) : null}
+      {/*
+       * Rendered whenever the form is, empty until there is something to say,
+       * so a screen reader is already watching the region when "Saved." lands.
+       */}
+      <p className="mad-said" role="status" aria-live="polite">
+        {state.saved && state.problem === null ? "Saved." : ""}
+      </p>
 
       <div className="mad-form-actions">
         <button

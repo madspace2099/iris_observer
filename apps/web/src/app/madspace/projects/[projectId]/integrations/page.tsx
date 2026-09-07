@@ -14,6 +14,7 @@ import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
 import { CsvUpload } from "@/components/madspace/CsvUpload";
 import { InfoNote } from "@/components/madspace/InfoNote";
 import { StatusChip, type MarkTone } from "@/components/madspace/StatusMark";
+import { TableWrap } from "@/components/madspace/TableWrap";
 
 export const metadata: Metadata = { title: "Integrations" };
 
@@ -131,7 +132,7 @@ export default async function IntegrationsPage({
             No changes recorded yet. The first sync records every unit as added.
           </p>
         ) : (
-          <div className="mad-table-wrap">
+          <TableWrap labelledBy="changes-heading">
             <table className="mad-table">
               <thead>
                 <tr>
@@ -166,7 +167,7 @@ export default async function IntegrationsPage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         )}
       </section>
     </>

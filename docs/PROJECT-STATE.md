@@ -598,15 +598,33 @@ forms closed; Enter opens and Space closes each fold with focus staying on the c
 clean at both widths. Note: the repository has no translations system, so the one new string
 (`"<name> settings"`) is English like the rest of the surface.
 
-Still open on that screen, in the order the audit ranked them: "Forget credential" is an
-unconfirmed, quietly styled irreversible action; the changes table scrolls sideways on a phone
-with no keyboard access (axe serious); a refused save carries a raw validation message and no
-`aria-describedby`; implementation vocabulary in the hints and the Fields column (`statusRaw`,
-`interiorSqm`, `pre_reserved`, `units:read`); the Lomnio webhook endpoint is never shown; no
-route-level loading state; live regions exist only after an action; the `.mad-choice` row looks
-clickable beyond the box and the label word; inputs use an 8 px radius the system reserves for the
-scrollbar thumb. Credential save, sync and forget could not be exercised on this machine because
-`OBSERVER_CREDENTIAL_KEY` is not set locally; the screen says so in one sentence.
+The harden pass that followed took the four safety and accessibility findings, each reproduced
+on the rendered page first. To reach the credential path at all, a dev-only key was generated
+straight into `apps/web/.env.development.local` (gitignored, never printed, only ever sealing
+fixture credentials in the local PGlite); delete that one file to return the machine to how it
+was. Measured before: "Forget credential" fired on one Enter with no dialog, and the browser's
+grey button chrome showed under its underline; after the refresh removed the buttons the
+component returned nothing, so "The credential was forgotten." never reached the screen; the
+changes table at 390 px (340 px wrapper, 647 px scroll width) had no `tabindex`, role or name
+(axe serious); the refused REALPAD save marked the field invalid with no `aria-describedby` and
+its sentence 1300 px below; no `role=status` container existed until an event created one.
+After: the press opens the source lifecycle's `ConfirmDialog` (Cancel focused; Escape and Cancel
+both return focus to the trigger with the credential still stored; Tab, Enter on the confirming
+button forgets it) and the sentence stays in a persistent polite status line; the wrapper is a
+focusable, heading-named `group` only while it overflows (arrow keys scroll it; no tab stop on
+desktop where nothing overflows); the refusal sits under the failing control as
+`.mad-field-error`, pointed at by `aria-describedby`, 58 px from the field; every form carries
+its status line from the start, `aria-live="polite"`. Scoped axe clean at 390 and 1440; the
+fixture token never appeared in HTML, inputs, console, URLs or POST bodies. The `<details>` folds
+stayed closed by default.
+
+Still open on that screen: implementation vocabulary in the hints, the Fields column and the raw
+validation sentence (`statusRaw`, `interiorSqm`, `pre_reserved`, `units:read`, "Invalid input:
+expected number, received null"); the Lomnio webhook endpoint is never shown; no route-level
+loading state; the `.mad-choice` row looks clickable beyond the box and the label word; inputs
+use an 8 px radius the system reserves for the scrollbar thumb; after a confirmed forget, focus
+lands on the body because the trigger is gone. The five `.mad-table-wrap` tables on Diagnostics
+share the pre-fix scroll behaviour and were left alone, being another route.
 
 ### Remaining debt from this day
 
