@@ -839,3 +839,32 @@ list or contract exists anywhere in the documentation, and a visual decision doe
 
 Full evidence, screenshots, PDFs and JSON: `overnight/admin/{before,after}`,
 `overnight/report-print`, session scratchpad.
+
+**The Integrations rename, finished.** The founder's follow-up correctly identified that "REALPAD
+project id" and four other field labels/hints under the disclosure still named the brand. Fixed:
+"Project ID" (matching the plain "Developer id"/"Screen id" labels already beside it), "your CRM
+provider" and "your CRM" in the hints and the credential InfoNote. "Pricelist" and "Data Takeout"
+are left alone — they name a credential type, not the brand, and renaming them would make the
+instruction wrong. Verified live: 0 REALPAD occurrences anywhere on the page including the opened
+form and the InfoNote panel, 0 in an aria-label or title, 4 occurrences of "CRM API Connection", no
+clipping, no overflow, axe clean.
+
+**Two account-picker specs (`account-login.spec.ts`, `agent-authorisation.spec.ts`) updated.** The
+projects picker was rewritten to `ox-` classes at some point before tonight
+(`.ox-thread-row`/`.ox-thread-title`/`.ox-thread-context`; the `.mp-card`/`.mp-project`/
+`.mp-developer`/`.mp-cover` classes both specs targeted do not exist in the current markup at all),
+ADR-0033 moved the project home segment to Ask IRIS (`HOME_SEGMENT = "ask"`, commit `3d90c63`,
+so "Open Observer" now opens `/ask` rather than `/showroom`), and Ister Tower was added to
+Monika's and Petra's account grants in the M10 work before tonight, making three project-count
+assertions stale on their own terms. Every fix updates a locator or an expected value to the
+verified current behaviour while leaving the requirement under test, and every unauthorized-access
+and tenant/project isolation assertion in both files, untouched; the one dropped claim ("each card
+carries a cover image") is dropped because the current row design has no cover image at all, a
+verified fact about the redesign rather than a weakened check. Full per-test classification
+(requirement protected, evidence the old expectation was wrong, what the replacement still proves)
+is in the session ledger.
+
+**Discovered, not fixed:** `lab.spec.ts:68` checks a per-column "explain this measurement" info
+button on the Units register that does not exist anywhere on the page today (checked directly) — a
+real feature gap from an earlier redesign, not a locator problem, and restoring it is a real
+product change outside tonight's bounded scope. Left failing rather than patched or deleted.
