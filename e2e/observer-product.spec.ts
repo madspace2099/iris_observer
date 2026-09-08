@@ -205,10 +205,38 @@ test.describe("the Observer product review package", () => {
    */
   test("holds together at 1280, 1024 and 768", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
+    /*
+     * THIRTY-NINE SEQUENTIAL NAVIGATIONS ON ONE PAGE, NOT A HUNG ROUTE.
+     *
+     * Earlier reports (2026-09-08) named this "`page.goto` on `/ask` times
+     * out the SECOND time this page instance navigates there" and suspected
+     * TravelingLight's WebGL canvas (ADR-0035, `prompt-glow.ts`) — its
+     * `requestAnimationFrame` loop is the only ongoing per-frame work on that
+     * route. Read closely (both `prompt-glow.ts`'s `destroy()` and its React
+     * wrapper `PromptGlow.tsx`'s `useEffect` cleanup), that code disposes
+     * correctly: the loop is cancelled, every listener removed, the
+     * ResizeObserver disconnected, the WebGL context explicitly lost. Rerun
+     * at Playwright's stock 30s per-test timeout, the failure reproduced —
+     * but on `/units/IT-A-12-07`, a route with no WebGL canvas at all,
+     * proving the earlier diagnosis wrong rather than confirming it.
+     *
+     * This loop is thirteen screens times three widths — thirty-nine full
+     * `page.goto`s against a Turbopack DEV server, several the first hit of
+     * that route in this server's lifetime and so a real on-demand compile,
+     * all against Playwright's default 30s budget for the WHOLE test. Which
+     * navigation is "in flight" when that clock runs out is themselves
+     * arbitrary — hence `/ask` in one report and a unit page in this one.
+     * Timed clean at 90s (54.4s, one worker, this machine); `test.setTimeout`
+     * below gives the same headroom `ask-security.spec.ts` and
+     * `madspace-screenshots.spec.ts` already give their own multi-navigation
+     * tests, rather than trimming the thirty-nine real checks down to fit an
+     * arbitrary default.
+     */
+    test.setTimeout(180_000);
     await signInAs(page, "Petra Novák");
     /*
      * Petra's own thirteen, not "15 below-sample" (Akhilesh's — excluding it
-     * is not the reason this test still fails; see below).
+     * is not the reason this test was ever slow; see above).
      */
     for (const width of [1280, 1024, 768]) {
       for (const shot of SCREENS.filter((s) => s.account === undefined)) {
@@ -217,22 +245,6 @@ test.describe("the Observer product review package", () => {
       }
     }
   });
-  /*
-   * STILL FAILING, ROOT-CAUSED BUT NOT FIXED (2026-09-08): `page.goto` on
-   * `/ask` (shot 01, this test's first) times out on `waitUntil: "load"` the
-   * SECOND time this one page instance navigates there — every OTHER test in
-   * this file opens `/ask` exactly once, on a fresh page, and passes; this
-   * one revisits it across three widths on one page. TravelingLight's WebGL
-   * canvas (ADR-0035, `prompt-glow.ts`) is the only thing on this route with
-   * an ongoing `requestAnimationFrame` loop and no documented cleanup on
-   * unmount; that is the leading suspect, not confirmed. Pre-existing —
-   * reproduces identically with every account/Kingsford change in this file
-   * reverted — and out of scope to chase further here: it is a rendering-
-   * lifecycle question about an approved, deliberately-unmodified effect
-   * (ADR-0035 says "do not change this implementation"), not a locator or a
-   * fixture. "draws no link that does not resolve" below fails the same way,
-   * for the same reason, on the same route.
-   */
 
   /**
    * NO DEAD ROUTES, ASSERTED BY WALKING WHAT THE PAGES ACTUALLY RENDER.
@@ -245,18 +257,17 @@ test.describe("the Observer product review package", () => {
    */
   test("draws no link that does not resolve", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "crawled once");
+    /* Thirteen pages plus every distinct internal link each one draws — see
+     * "holds together" above for why this shape of test needs real headroom
+     * rather than Playwright's stock 30s. */
+    test.setTimeout(180_000);
     await signInAs(page, "Petra Novák");
     await page.setViewportSize({ width: 1440, height: 900 });
 
     const seen = new Set<string>();
     const broken: string[] = [];
 
-    /*
-     * Petra's own thirteen, not "15 below-sample" (Akhilesh's). This test
-     * still fails on the very first of the thirteen regardless — see the
-     * root-cause note on "holds together" above, which fails the identical
-     * way on the identical route (`/ask`, revisited on one page instance).
-     */
+    /* Petra's own thirteen, not "15 below-sample" (Akhilesh's). */
     for (const shot of SCREENS.filter((s) => s.account === undefined)) {
       await page.goto(shot.path);
       await expect(page.locator(".ox-root")).toBeVisible();
