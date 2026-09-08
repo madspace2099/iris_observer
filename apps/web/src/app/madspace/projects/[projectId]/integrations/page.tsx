@@ -4,15 +4,20 @@ import { Kicker } from "@observer/ui";
 
 import { requireViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
-import { liveConnectorService } from "@/lib/connectors/live";
+import { liveConnectorService, liveSessionSourceService } from "@/lib/connectors/live";
 import { CONNECTOR_NAMES, CREDENTIAL_WORDS } from "@/lib/connectors/configs";
 import type { ConnectorSummary, LastDealSync } from "@/lib/connectors/service";
+import type { SessionSourceSummary } from "@/lib/connectors/session-source-service";
+import { readModelProjectIdFor } from "@/lib/connectors/session-source";
+import { SESSION_SOURCE_CREDENTIAL_WORDS } from "@/lib/connectors/session-source-configs";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ConnectorForm } from "@/components/madspace/ConnectorForm";
 import { ConnectorSync } from "@/components/madspace/ConnectorSync";
 import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
 import { CsvUpload } from "@/components/madspace/CsvUpload";
 import { InfoNote } from "@/components/madspace/InfoNote";
+import { SessionSourceForm } from "@/components/madspace/SessionSourceForm";
+import { SessionSourceSync } from "@/components/madspace/SessionSourceSync";
 import { StatusChip, type MarkTone } from "@/components/madspace/StatusMark";
 import { TableWrap } from "@/components/madspace/TableWrap";
 
@@ -50,6 +55,16 @@ export default async function IntegrationsPage({
   const changes = service === null ? [] : await service.recentChanges(projectId, 20);
   const dealSyncs = service === null ? new Map() : await service.dealSummary(projectId);
   const stageChanges = service === null ? [] : await service.recentDealChanges(projectId, 20);
+
+  const sessionService = plane.ok ? await liveSessionSourceService() : null;
+  const sessionSources = sessionService === null ? null : await sessionService.list(projectId);
+  /*
+   * Whether this control-plane project has an Observer project to attach
+   * sessions to at all — the same twin match `syncSessionSourceAction` makes
+   * server-side before it will run, surfaced here so the reason a fresh
+   * project cannot sync yet is visible before the operator tries.
+   */
+  const sessionReadModelProjectId = project === null ? null : readModelProjectIdFor(project);
   /*
    * How much of each delivered catalogue Project can draw. Only for a
    * connector whose last sync succeeded: a refused sync has nothing to place.
@@ -121,6 +136,52 @@ export default async function IntegrationsPage({
             connector={connector}
             placement={placements.get(connector.kind) ?? null}
             deals={(dealSyncs as ReadonlyMap<string, LastDealSync>).get(connector.kind) ?? null}
+            now={now}
+          />
+        ))
+      )}
+
+      {/*
+       * SHOWROOM TELEMETRY — separate from the CRM connectors above.
+       *
+       * A different kind of source (`session-source-service.ts` says why): it
+       * delivers sessions, not a unit catalogue, and it is deliberately its
+       * own plane rather than another row in the CRM list above, per the same
+       * "kept separate" instruction that keeps `ShowroomSourceKind` out of
+       * `ConnectorKind`.
+       */}
+      <header className="mad-head" style={{ marginTop: "2rem" }}>
+        <div className="mad-head-text">
+          <Kicker>Showroom telemetry</Kicker>
+          <h2 className="mad-title" style={{ fontSize: "1.35rem" }}>
+            Session sources
+          </h2>
+          <p className="mad-lede">
+            What the showroom itself recorded, as distinct from the CRM above. One authorised
+            demonstration source today: Akhilesh&rsquo;s Supabase project.
+            <InfoNote label="what readable means here" align="start">
+              <p>
+                A source can answer, be authorised, and still return only what its own row-level
+                security allows. Connected means the key was accepted. It does not mean every
+                session Observer could use is in reach, and Sync now reports the two counts
+                separately rather than folding one into the other.
+              </p>
+            </InfoNote>
+          </p>
+        </div>
+      </header>
+
+      {!plane.ok ? null : sessionSources === null ? (
+        <p className="mad-form-problem" role="alert">
+          This server&rsquo;s database predates session-source storage.
+        </p>
+      ) : (
+        sessionSources.map((source) => (
+          <SessionSourcePlane
+            key={source.kind}
+            projectId={projectId}
+            source={source}
+            readModelProjectId={sessionReadModelProjectId}
             now={now}
           />
         ))
@@ -477,6 +538,103 @@ function ConnectorPlane({
       {connector.kind === "csv" && connector.configured && dealsConfigured ? (
         <CsvUpload projectId={projectId} sheet="deals" />
       ) : null}
+    </section>
+  );
+}
+
+/** The showroom-telemetry mirror of `ConnectorPlane`, one plane per `ShowroomSourceKind`. */
+function SessionSourcePlane({
+  projectId,
+  source,
+  readModelProjectId,
+  now,
+}: {
+  readonly projectId: string;
+  readonly source: SessionSourceSummary;
+  /** `null` when no Observer project answers to this control-plane project yet. */
+  readonly readModelProjectId: string | null;
+  readonly now: Date;
+}) {
+  const state: { word: string; tone: MarkTone } = !source.configured
+    ? { word: "Not connected", tone: "none" }
+    : !source.enabled
+      ? { word: "Disabled", tone: "operator" }
+      : !source.hasCredential
+        ? { word: "No credential", tone: "await" }
+        : { word: "Enabled", tone: "good" };
+  const last = source.lastSync;
+  const lastAge = last === null ? null : ageSince(last.at, now);
+
+  return (
+    <section className="mad-plane" aria-labelledby={`${source.kind}-heading`}>
+      <div className="obs-section-head">
+        <h2 id={`${source.kind}-heading`}>{source.name}</h2>
+        <StatusChip tone={state.tone}>{state.word}</StatusChip>
+      </div>
+
+      <dl className="mad-meta">
+        <div className="mad-meta-item">
+          <dt className="mad-meta-label">Credential</dt>
+          <dd
+            className="mad-meta-value"
+            data-missing={source.hasCredential ? undefined : "true"}
+          >
+            {source.hasCredential
+              ? `Stored · ends ${source.credentialTail ?? "····"}`
+              : `Not stored. Needs ${SESSION_SOURCE_CREDENTIAL_WORDS[source.kind]}.`}
+          </dd>
+        </div>
+        <div className="mad-meta-item">
+          <dt className="mad-meta-label">Last sync</dt>
+          <dd className="mad-meta-value" data-missing={last === null ? "true" : undefined}>
+            {last === null ? (
+              "Never"
+            ) : (
+              <>
+                <StatusChip tone={syncTone(last.outcome)}>{syncWord(last.outcome)}</StatusChip>{" "}
+                {lastAge === null ? instant(last.at).text : lastAge}
+                {last.outcome === "ok"
+                  ? ` · ${String(last.fetched)} fetched, ${String(last.accepted)} accepted, ${String(last.rejected)} rejected`
+                  : ""}
+                {last.outcome !== "ok" && last.detail.length > 0 ? ` · ${last.detail}` : ""}
+              </>
+            )}
+          </dd>
+        </div>
+        {readModelProjectId !== null ? null : (
+          <div className="mad-meta-item">
+            <dt className="mad-meta-label">Observer project</dt>
+            <dd className="mad-meta-value" data-missing="true">
+              No Observer project matches this one yet by name, so Sync now has nothing to attach
+              sessions to.
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <SessionSourceSync
+        projectId={projectId}
+        kind={source.kind}
+        name={source.name}
+        canSync={
+          source.configured && source.enabled && source.hasCredential && readModelProjectId !== null
+        }
+        hasCredential={source.hasCredential}
+      />
+
+      <details className="mad-fold">
+        <summary className="mad-button" data-emphasis="secondary">
+          {`${source.name} settings`}
+        </summary>
+        <SessionSourceForm
+          projectId={projectId}
+          kind={source.kind}
+          name={source.name}
+          configured={source.configured}
+          enabled={source.enabled}
+          hasCredential={source.hasCredential}
+        />
+      </details>
     </section>
   );
 }

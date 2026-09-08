@@ -1055,9 +1055,29 @@ export function showroomSessions(): readonly ShowroomSession[] {
   return sessions;
 }
 
-/** Every session belonging to one project. */
+/**
+ * A REAL SOURCE'S SESSIONS, IN PLACE OF THE SYNTHETIC WORLD'S, FOR ONE PROJECT.
+ *
+ * The same seam `provideDeals`/`dealsFor` give the deal ladder: asked once
+ * per request, by the repository's `overlaySessions`, and set here for the
+ * duration of that request. A project nothing has provided for reads the
+ * synthetic generator as before — this is an override, not a merge, because
+ * a project with a real source has no synthetic sessions to merge with.
+ */
+const provided = new Map<string, readonly ShowroomSession[]>();
+
+export function provideSessions(projectId: string, sessions: readonly ShowroomSession[] | null): void {
+  if (sessions === null) provided.delete(projectId);
+  else provided.set(projectId, sessions);
+}
+
+function sessionsOfProject(projectId: string): readonly ShowroomSession[] {
+  return provided.get(projectId) ?? showroomSessions().filter((s) => s.projectId === projectId);
+}
+
+/** Every session belonging to one project — the provided ones if any, else the synthetic world's. */
 export function sessionsForProject(projectId: string): readonly ShowroomSession[] {
-  return showroomSessions().filter((s) => s.projectId === projectId);
+  return sessionsOfProject(projectId);
 }
 
 /**
@@ -1074,8 +1094,7 @@ export function sessionsInPeriod(
 ): readonly ShowroomSession[] {
   const from = Date.parse(fromIso);
   const to = Date.parse(toIso);
-  return showroomSessions().filter((s) => {
-    if (s.projectId !== projectId) return false;
+  return sessionsOfProject(projectId).filter((s) => {
     const at = Date.parse(s.startedAt);
     return at >= from && at <= to;
   });
@@ -1089,9 +1108,10 @@ export function sessionsInPeriod(
  * refusal rather than another developer's presentation.
  */
 export function sessionById(meetingId: string, projectId?: string): ShowroomSession | undefined {
-  return showroomSessions().find(
-    (s) => s.meetingId === meetingId && (projectId === undefined || s.projectId === projectId),
-  );
+  if (projectId !== undefined) {
+    return sessionsOfProject(projectId).find((s) => s.meetingId === meetingId);
+  }
+  return showroomSessions().find((s) => s.meetingId === meetingId);
 }
 
 export { SECTION_IDS, sectionLabel };

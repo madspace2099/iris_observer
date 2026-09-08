@@ -3,10 +3,13 @@ import "server-only";
 import {
   postgrestCatalogueDb,
   postgrestDealsDb,
+  postgrestSessionsDb,
   sqlCatalogueDb,
   sqlDealsDb,
+  sqlSessionsDb,
   type CatalogueDb,
   type DealsDb,
+  type SessionsDb,
 } from "@observer/connectors";
 
 import { resolveServerSupabase } from "@/lib/supabase-env";
@@ -42,4 +45,14 @@ export async function dealsDbAsync(): Promise<DealsDb | null> {
   }
   const query = await localControlPlaneQuery();
   return query === null ? null : sqlDealsDb(query);
+}
+
+/** The showroom-session-snapshot port, resolved the same way and from the same database. */
+export async function sessionsDbAsync(): Promise<SessionsDb | null> {
+  const supabase = resolveServerSupabase();
+  if (supabase !== null) {
+    return postgrestSessionsDb({ url: supabase.url, key: supabase.key, fetch: platformFetch });
+  }
+  const query = await localControlPlaneQuery();
+  return query === null ? null : sqlSessionsDb(query);
 }

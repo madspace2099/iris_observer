@@ -37,6 +37,18 @@ export const TODAY = "2026-08-24T09:00:00.000+02:00";
 export const TENANTS: readonly TenantSummary[] = [
   { id: tenantId("tnt_demoalpha01"), slug: "alpha", name: "Alpha Estates" },
   { id: tenantId("tnt_demobeta002"), slug: "beta", name: "Beta Development" },
+  /*
+   * NOT A DEVELOPER. A holding tenant for one integration demonstration.
+   *
+   * Alpha Estates and Beta Development stand in for real customers, and
+   * every number an agency manager or a developer sees is allowed to sum
+   * across their own projects. A live external source plugged into either
+   * of them would quietly join that arithmetic. This tenant exists so the
+   * Akhilesh Supabase demonstration below has an isolated home instead —
+   * its name says what it is rather than inventing a developer that does
+   * not exist.
+   */
+  { id: tenantId("tnt_madspacedemo1"), slug: "madspace-integration", name: "MADSPACE Integration Sandbox" },
 ] as const;
 
 /**
@@ -244,6 +256,55 @@ export const PROJECTS: readonly ProjectSummary[] = [
       },
     ],
   },
+  /*
+   * AKHILESH DEMO SOURCE — one integration demonstration, not a development.
+   *
+   * The only project in `tnt_madspacedemo1`. It exists to prove the Supabase
+   * showroom-telemetry connector end to end: an admin-configured source
+   * whose sessions actually reach a product page, sourced from a real
+   * external Supabase project supplied by Akhilesh (UE5 + Supabase
+   * collaborator) rather than fixture data authored here.
+   *
+   * `connectedSources` lists exactly one entry because that is exactly what
+   * this source can honestly claim. Akhilesh's project exposes a single
+   * `user_sessions` table and nothing that behaves like a WEB IRIS feed, a
+   * CRM or a unit catalogue — see `docs/16-showroom-intelligence-audit.md`.
+   * Listing more here would make the product render "connected" for a
+   * source that was never inspected, which is exactly the readability-is-
+   * not-ingestion distinction this integration exists to respect.
+   *
+   * `sources` still declares all four feeds, `neverSeen` for the three this
+   * source does not have — same reasoning as Riverside's CRM row above: an
+   * absent feed and a feed nobody wired up read as different sentences, and
+   * dropping the row would make a reader infer one from a shorter list. The
+   * showroom entry's `connected`/`lastSeenAt` is this narrative panel's own
+   * static fixture, exactly like every other project's — it does not track
+   * the real sync; the real sync's own outcome is read from the control
+   * plane by `liveSessionSource` and rendered on the MADSPACE integrations
+   * and source-detail screens instead.
+   */
+  {
+    id: projectId("prj_akhileshdemo1"),
+    tenantId: tenantId("tnt_madspacedemo1"),
+    slug: "akhilesh-demo-source",
+    name: "Akhilesh Demo Source",
+    currency: "EUR",
+    locale: "en-GB",
+    timeZone: "Europe/Bratislava",
+    connectedSources: ["showroom"],
+    sources: [
+      {
+        id: "src_ad_showroom",
+        displayName: "Akhilesh Supabase Demo Feed",
+        kind: "showroom",
+        connected: true,
+        lastSeenAt: "2026-08-24T08:00:00.000+02:00",
+      },
+      neverSeen("src_ad_webiris", "WEB IRIS", "webiris"),
+      neverSeen("src_ad_crm", "CRM", "crm"),
+      neverSeen("src_ad_catalogue", "Unit catalogue", "catalogue"),
+    ],
+  },
 ] as const;
 
 /**
@@ -358,12 +419,17 @@ export const VIEWERS = {
     userId: "usr_madspace_ops",
     displayName: "MADSPACE Operations",
     role: "madspace_admin",
-    tenantIds: [tenantId("tnt_demoalpha01"), tenantId("tnt_demobeta002")],
+    tenantIds: [
+      tenantId("tnt_demoalpha01"),
+      tenantId("tnt_demobeta002"),
+      tenantId("tnt_madspacedemo1"),
+    ],
     projectIds: [
       projectId("prj_northgate01"),
       projectId("prj_riversidew1"),
       projectId("prj_istertower1"),
       projectId("prj_beta0000001"),
+      projectId("prj_akhileshdemo1"),
     ],
     agentId: null,
     organisationName: "MADSPACE",

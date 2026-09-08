@@ -295,3 +295,16 @@ export interface ShowroomSession {
    */
   readonly timingUnavailable: boolean;
 }
+
+/**
+ * A source of real showroom SESSIONS, as distinct from `ConnectorKind`
+ * (`packages/contracts/src/catalogue.ts`), which is a source of CATALOGUE
+ * units and CRM deals. Deliberately its own type rather than a member added
+ * to that one: a telemetry source has no units and no deal stages, and a
+ * connector that satisfied `ConnectorKind`'s config/credential shapes would
+ * misrepresent what it actually delivers. The two share only the generic
+ * project-scoped config/credential STORAGE the admin already has (any
+ * string kind, sealed the same way) — never the vendor-specific schemas.
+ */
+export const SHOWROOM_SOURCE_KINDS = ["supabase_showroom"] as const;
+export type ShowroomSourceKind = (typeof SHOWROOM_SOURCE_KINDS)[number];

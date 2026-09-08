@@ -44,7 +44,7 @@ import type {
   ReportScopeView,
   UnitDetailView,
 } from "@observer/readmodels";
-import type { CatalogueSource, DealSource } from "@observer/readmodels";
+import type { CatalogueSource, DealSource, ShowroomSessionSource } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
@@ -54,6 +54,7 @@ import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   SYNTHETIC_AGENTS,
+  provideSessions,
   sessionById,
   sessionsForProject,
   sessionsInPeriod,
@@ -152,6 +153,15 @@ export interface SyntheticRepositoryOptions {
    * says the CRM is not connected; the synthetic world never invents a deal.
    */
   readonly dealSource?: DealSource;
+  /**
+   * The seam for a project whose showroom sessions come from a real
+   * telemetry source rather than the synthetic generator — asked before
+   * every view, same as the two above. Answering with sessions REPLACES the
+   * synthetic ones for that project everywhere `sessionsForProject`/
+   * `sessionsInPeriod`/`sessionById` are read; a project nothing was
+   * delivered for is untouched.
+   */
+  readonly sessionSource?: ShowroomSessionSource;
 }
 
 export class SyntheticObserverRepository implements ObserverRepository {
@@ -200,6 +210,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
     const period = await this.resolvePeriod(project.id, preset);
     await this.overlayCatalogue(project);
+    // Before overlayDeals: the demonstration-CRM path reads sessionsForProject.
+    await this.overlaySessions(project);
     await this.overlayDeals(project);
     /*
      * One policy governs the synthetic world, so the period and its baseline
@@ -234,6 +246,18 @@ export class SyntheticObserverRepository implements ObserverRepository {
       project.id as string,
       scenario ? syntheticDeals(sessionsForProject(project.id as string), TODAY) : delivered,
     );
+  }
+
+  /**
+   * A real telemetry source's sessions for this project, in place of the
+   * synthetic generator's — the same seam as the catalogue's and the deals',
+   * decided on every build. A repository composed without a source, or a
+   * project no source delivered for, reads the synthetic world as before.
+   */
+  private async overlaySessions(project: ProjectSummary): Promise<void> {
+    const source = this.options.sessionSource;
+    const delivered = source === undefined ? null : await source.sessionsFor(project);
+    provideSessions(project.id as string, delivered === null ? null : delivered.sessions);
   }
 
   /**

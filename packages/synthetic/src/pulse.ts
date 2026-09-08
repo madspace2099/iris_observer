@@ -434,7 +434,15 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     };
   });
 
-  const peakViews = Math.max(...withAttention.map((u) => u.meaningfulViews));
+  /*
+   * `Math.max()` over zero arguments is `-Infinity`, not `0` — a project with
+   * no units (no catalogue delivered yet) would otherwise carry that straight
+   * into `ProjectPulse.peakViews` and, from there, into Ask Observer's own
+   * "strongest verified interest" sentence. The `=== 0` guard at every reader
+   * of `peakViews` already expects zero for an unmeasured project; this is
+   * what makes that guard reachable.
+   */
+  const peakViews = withAttention.length === 0 ? 0 : Math.max(...withAttention.map((u) => u.meaningfulViews));
 
   const units: PulseUnit[] = withAttention.map((unit) => {
     return {
@@ -603,8 +611,14 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       available: units.filter((u) => u.status === "available").length,
       reserved: units.filter((u) => u.status === "reserved").length,
       sold: units.filter((u) => u.status === "sold").length,
-      // Seven is the scenario's figure; a delivered catalogue has no observed period yet.
-      soldInPeriod: observed ? 7 : null,
+      /*
+       * Seven is the scenario's figure; a delivered catalogue has no observed
+       * period yet. Neither answer is honest for a project with no units at
+       * all — there is no scenario to hold a figure for, sold or otherwise —
+       * so an empty catalogue keeps the same "not observed" `null` rather
+       * than inheriting Northgate's number by default.
+       */
+      soldInPeriod: observed && raw.length > 0 ? 7 : null,
     },
     peakViews,
     // A delivered catalogue rests on no observed sessions yet; the count says so.

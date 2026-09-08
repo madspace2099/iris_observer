@@ -103,10 +103,18 @@ export interface SyncRecordInput {
 }
 
 export interface CatalogueDb {
+  /*
+   * These five are the generic, project-scoped config/credential storage —
+   * `connector` is any kind string the caller's own schema already
+   * validated, not only a `ConnectorKind`. `ShowroomSourceKind`
+   * (`packages/contracts/src/showroom.ts`) reuses exactly these, and only
+   * these; the catalogue/sync methods below stay `ConnectorKind`-typed
+   * because they are genuinely catalogue-specific.
+   */
   connectorConfigSet(
     account: string,
     project: string,
-    connector: ConnectorKind,
+    connector: string,
     config: Record<string, unknown>,
     enabled: boolean,
   ): Promise<boolean>;
@@ -114,18 +122,18 @@ export interface CatalogueDb {
   connectorCredentialSet(
     account: string,
     project: string,
-    connector: ConnectorKind,
+    connector: string,
     sealed: SealedCredentialInput,
   ): Promise<boolean>;
   connectorCredentialRead(
     account: string,
     project: string,
-    connector: ConnectorKind,
+    connector: string,
   ): Promise<SealedCredentialRow | null>;
   connectorCredentialRemove(
     account: string,
     project: string,
-    connector: ConnectorKind,
+    connector: string,
   ): Promise<boolean>;
   /** Null when the project is not the account's: nothing was written. */
   catalogueApply(

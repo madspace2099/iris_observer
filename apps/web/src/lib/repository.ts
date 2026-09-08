@@ -3,6 +3,7 @@ import { SyntheticObserverRepository } from "@observer/synthetic";
 
 import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
 import { liveDealSource } from "@/lib/connectors/deal-source";
+import { liveSessionSource } from "@/lib/connectors/session-source";
 
 /**
  * The composition root.
@@ -21,6 +22,7 @@ import { liveDealSource } from "@/lib/connectors/deal-source";
 export const repository: ObserverRepository = new SyntheticObserverRepository({
   catalogueSource: liveCatalogueSource,
   dealSource: liveDealSource,
+  sessionSource: liveSessionSource,
 });
 
 /*

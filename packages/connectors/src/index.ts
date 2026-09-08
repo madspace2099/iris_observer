@@ -20,3 +20,5 @@ export * from "./sync";
 export * from "./deals";
 export * from "./db";
 export * from "./deals-db";
+export * from "./supabase-showroom";
+export * from "./sessions-db";
