@@ -17,8 +17,9 @@ import {
   type UpcomingMeeting,
   type ViewContext,
 } from "@observer/readmodels";
+import { daysBetween } from "./deals";
 import { comparison, count, days, evidenceRef, money, ok, percent, unavailable } from "./format";
-import { UNITS, unitById } from "./world";
+import { TODAY, UNITS, unitById } from "./world";
 
 /**
  * The sales agent's surfaces: their Overview, and the pre-meeting brief.
@@ -35,6 +36,16 @@ import { UNITS, unitById } from "./world";
 
 export const VIKTORIA_MEETING_ID: MeetingId = MeetingIdSchema.parse("mtg_viktoria0827");
 export const COUPLE_MEETING_ID: MeetingId = MeetingIdSchema.parse("mtg_bartos00829");
+
+/**
+ * Daniel and Eva Bartoš's last meeting, and the one instant `daysSinceMeeting`
+ * is computed from — not a separately hand-typed day count. `metrics.people.
+ * follow_up_delay`'s own contract is a duration derived from two timestamps;
+ * a literal `16` beside it was exactly the fabricated figure the product
+ * doctrine's own rule forbids, and it would have gone stale the moment
+ * `TODAY` ever moved without anyone noticing, since nothing recomputed it.
+ */
+const DANIEL_LAST_MEETING_AT = "2026-08-08T11:00:00.000+02:00";
 
 /** Fixture identifiers are parsed, so a typo fails at module load. */
 const unit = (value: string): UnitId => UnitIdSchema.parse(value);
@@ -424,15 +435,23 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       ]
     : [];
 
+  /*
+   * The follow-up threshold `metrics.people.follow_up_delay` states
+   * (7 days) is a rule, kept as a literal because it is one; the day count
+   * measured against it is derived, not typed twice.
+   */
+  const FOLLOW_UP_THRESHOLD_DAYS = 7;
+  const danielDaysSinceMeeting = daysBetween(DANIEL_LAST_MEETING_AT, TODAY) ?? 0;
+
   const followUps: readonly FollowUpItem[] = [
     {
       contactId: "cnt_danielpair1",
       displayName: "Daniel and Eva Bartoš",
       lastMeetingLabel: "8 August",
-      daysSinceMeeting: 16,
+      daysSinceMeeting: danielDaysSinceMeeting,
       reason: "Shortlisted two units, no contact since the meeting.",
       href: `${root}/people`,
-      urgency: "overdue",
+      urgency: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "overdue" : "due",
     },
   ];
 
@@ -440,7 +459,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
     context,
     verdict: {
       state: "attention_needed",
-      headline: "Two meetings this week, and one buyer has been waiting 16 days for a reply.",
+      headline: `Two meetings this week, and one buyer has been waiting ${String(danielDaysSinceMeeting)} days for a reply.`,
       supporting: "Your briefs are ready for Thursday. Daniel and Eva are the overdue one.",
       evidence: ev("agent.verdict", "observed_sequence", `${root}/people`, 2),
       rulesetVersion: "verdict-1.0.0",
@@ -448,9 +467,9 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         {
           metricId: "people.follow_up_delay",
           label: "Longest wait",
-          display: "16 days",
-          rule: "No buyer waiting longer than 7 days after a meeting",
-          outcome: "fail",
+          display: days(danielDaysSinceMeeting),
+          rule: `No buyer waiting longer than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
+          outcome: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "fail" : "pass",
         },
         {
           metricId: "unit.shares",

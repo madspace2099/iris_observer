@@ -58,7 +58,7 @@ const CONNECTOR_WORDS: Readonly<Record<DeliveredDeals["connector"], string>> = {
 const DAY_MS = 86_400_000;
 
 /** Whole days from a stated instant to the fetch; null when the CRM stated no instant. */
-function daysBetween(from: string | null, to: string): number | null {
+export function daysBetween(from: string | null, to: string): number | null {
   if (from === null) return null;
   const a = Date.parse(from);
   const b = Date.parse(to);
