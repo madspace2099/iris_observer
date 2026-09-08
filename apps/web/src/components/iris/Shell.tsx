@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import type { PeriodPreset } from "@observer/readmodels";
@@ -289,9 +290,16 @@ function rowFor(
  * logo on every page. The same wordmark exists as a 1.2KB vector, so that is
  * what ships.
  */
-function Brand() {
-  return (
-    <div className="irs-brand">
+/**
+ * The wordmark, and — per the founder's project-switching decision — the way
+ * back to the current project's Ask IRIS from anywhere in the product.
+ *
+ * `href` is optional so the mark still renders unlinked wherever `Shell` is
+ * given no project to return to; every caller today has one.
+ */
+function Brand({ href }: { readonly href?: Route }) {
+  const mark = (
+    <>
       {/*
        * A plain `img`, not `next/image`. The optimiser exists to resize and
        * re-encode rasters; this is a 1.2KB vector at a fixed 21px height, so
@@ -303,7 +311,13 @@ function Brand() {
       <span className="irs-brand-sub" aria-label="by MADSPACE">
         by MADSPACE
       </span>
-    </div>
+    </>
+  );
+  if (href === undefined) return <div className="irs-brand">{mark}</div>;
+  return (
+    <Link className="irs-brand" href={href} aria-label="IRIS by MADSPACE — this project's Ask IRIS">
+      {mark}
+    </Link>
   );
 }
 
@@ -551,7 +565,7 @@ export function Shell({
   return (
     <div className="irs-shell ox-root ox-graphite" data-variant={variant}>
       <header className="irs-header">
-        <Brand />
+        <Brand href={dynamicRoute(withPeriod(`${base}/${HOME_SEGMENT}`, period))} />
 
         {/*
          * `aria-label="Sections"` rather than "Primary": it is what the
@@ -581,6 +595,33 @@ export function Shell({
         </nav>
 
         <div className="irs-header-end irs-header-end--wide">
+          {/*
+           * PROJECT SWITCHING ON ASK IRIS ITSELF.
+           *
+           * The founder's decision: an account authorised for several projects
+           * must be able to move between them from inside Observer, and Ask
+           * IRIS is where every sign-in lands — so the one place the export's
+           * own composition has no room for a full context band is exactly the
+           * one place a switch has to work anyway. Reusing `ContextSwitcher`
+           * rather than a bespoke menu, restyled by `.irs-header-end .obs-action`
+           * to sit beside `Sign out` at the same height. Gated on more than one
+           * project so a single-project account (Martin) sees no new control —
+           * the same gate the developer switcher already uses below.
+           *
+           * This is deliberately NOT the "which project this question is
+           * about" control inside the Ask composer itself — that changes what
+           * IRIS answers about without navigating; this changes where the
+           * reader IS. Conflating the two would leak one project's comparison
+           * scope onto another project's screen, which is the one thing this
+           * decision must not do.
+           */}
+          {variant === "ask" && projects.length > 1 ? (
+            <ContextSwitcher
+              label="Switch project"
+              value={scope.projectSlug}
+              options={withCurrentSection(projects, segment)}
+            />
+          ) : null}
           <div className="irs-who">
             <div className="irs-who-name" title={viewer.displayName}>
               {viewer.displayName}

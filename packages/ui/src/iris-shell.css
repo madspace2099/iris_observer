@@ -1111,6 +1111,53 @@
 }
 
 /*
+ * THE PROJECT SWITCH, ONLY ON ASK IRIS.
+ *
+ * `ContextSwitcher` renders `.obs-context > select.obs-action` from the
+ * older component sheet, `appearance: none` and no arrow of its own. Restyled
+ * here to the export's own pill — same 38px/19px/border/ground as
+ * `.irs-signout` beside it — the way `.ox-context .obs-action` already
+ * restyles the identical pair for the analytical header; this is that same
+ * permitted pattern, scoped to this header instead.
+ */
+.irs-shell[data-variant="ask"] .irs-header-end .obs-context {
+  display: contents;
+}
+
+.irs-shell[data-variant="ask"] .irs-header-end .obs-action {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  min-height: 0;
+  padding: 0 26px 0 14px;
+  border-radius: 19px;
+  border: 1px solid rgb(150 175 215 / 30%);
+  background:
+    linear-gradient(45deg, transparent 50%, #aab4c4 50%) right 12px center / 6px 6px no-repeat,
+    linear-gradient(135deg, #aab4c4 50%, transparent 50%) right 8px center / 6px 6px no-repeat,
+    rgb(6 14 30 / 55%);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  color: #e8eef8;
+  max-width: 16ch;
+  transition:
+    border-color 180ms ease-out,
+    background-color 180ms ease-out;
+}
+
+.irs-shell[data-variant="ask"] .irs-header-end .obs-action:hover {
+  border-color: rgb(180 205 240 / 48%);
+}
+
+@media (width <= 1199px) {
+  /* `.irs-who` drops here; the switch is the widest thing left and shrinks with it. */
+  .irs-shell[data-variant="ask"] .irs-header-end .obs-action {
+    max-width: 11ch;
+  }
+}
+
+/*
  * PRINT: a printed page has one ground and no chrome. The header and the
  * mobile bar leave; the shell and its main column sit on white with dark ink.
  * Owned here because these are this sheet's names (observer-product.css owns
