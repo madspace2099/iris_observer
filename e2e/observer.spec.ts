@@ -102,8 +102,15 @@ test.describe("sales agent", () => {
      * choose between things, and those are drill-downs behind the three views.
      * All four are open to a sales agent — the doors are the product, not a
      * management report.
+     *
+     * "Briefing" was the landing nav item before ADR-0033 made Ask IRIS the
+     * landing surface (the briefing survives as a link on it, not a nav item;
+     * authorization.spec.ts and quality.spec.ts were already updated for this
+     * before tonight). This file's "executive overview" tests above still pass
+     * because none of them reads the nav; this is the one assertion in the
+     * whole file that names the retired item.
      */
-    for (const section of ["Briefing", "Sales Flow", "Project"]) {
+    for (const section of ["ASK IRIS", "Sales Flow", "Project"]) {
       await expect(nav.getByRole("link", { name: section })).toBeVisible();
     }
 
