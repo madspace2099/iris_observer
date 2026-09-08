@@ -65,6 +65,14 @@ interface Shot {
   readonly path: string;
   /** Something that must be on the page before it is worth photographing. */
   readonly proof: string;
+  /**
+   * The account this shot is opened as. Petra Novák by default; overridden
+   * only for "15 below-sample" (Kingsford Yard, Beta Development), which
+   * Petra does not hold at all — every other screen was, until this field
+   * existed, silently opened by an account with no grant to it, refused, and
+   * photographed the refusal.
+   */
+  readonly account?: string;
 }
 
 /**
@@ -98,6 +106,8 @@ const SCREENS: readonly Shot[] = [
     name: "below-sample",
     path: "/beta/kingsford/agents",
     proof: "Sales Agents",
+    /* Petra does not hold Kingsford Yard (Beta Development); Akhilesh does. */
+    account: "Akhilesh Undev",
   },
 ];
 
@@ -112,9 +122,16 @@ async function open(page: Page, shot: Shot, width: number, height: number): Prom
    * The shell's own root, and then the screen's own words. A `notFound()` or a
    * refusal renders a page that screenshots perfectly well and shows nothing
    * being reviewed, which is the failure this whole file exists to prevent.
+   *
+   * The proof is searched inside `#main` (`Shell.tsx`'s own landmark), not the
+   * whole page: four of these proof strings ("Project", "Units", "Meetings",
+   * "Features") are also nav-item labels, and the shell renders a second,
+   * hidden copy of its nav inside the mobile menu that precedes `<main>` in
+   * DOM order — `getByText(...).first()` was finding that hidden copy instead
+   * of the page's own heading, every time, on every one of those four screens.
    */
   await expect(page.locator(".ox-root")).toBeVisible();
-  await expect(page.getByText(shot.proof, { exact: false }).first()).toBeVisible();
+  await expect(page.locator("#main").getByText(shot.proof, { exact: false }).first()).toBeVisible();
 }
 
 /**
@@ -145,7 +162,7 @@ test.describe("the Observer product review package", () => {
   for (const shot of SCREENS) {
     test(`${shot.id} ${shot.name} at 1440`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
-      await signInAs(page, "Petra Novák");
+      await signInAs(page, shot.account ?? "Petra Novák");
       await open(page, shot, 1440, 900);
       await assertNoOverflow(page, `${shot.name} at 1440`);
       await capture(page, `${shot.id}-${shot.name}-1440`);
@@ -158,7 +175,7 @@ test.describe("the Observer product review package", () => {
       test.skip(test.info().project.name !== "desktop", "captured once");
       test.skip(shot === undefined, `no screen with id ${id}`);
       if (shot === undefined) return;
-      await signInAs(page, "Petra Novák");
+      await signInAs(page, shot.account ?? "Petra Novák");
       await open(page, shot, 390, 844);
       await assertNoOverflow(page, `${shot.name} at 390`);
       await capture(page, `${shot.id}-${shot.name}-390`);
@@ -171,7 +188,7 @@ test.describe("the Observer product review package", () => {
       test.skip(test.info().project.name !== "desktop", "captured once");
       test.skip(shot === undefined, `no screen with id ${id}`);
       if (shot === undefined) return;
-      await signInAs(page, "Petra Novák");
+      await signInAs(page, shot.account ?? "Petra Novák");
       await open(page, shot, 1920, 1080);
       await assertNoOverflow(page, `${shot.name} at 1920`);
       await capture(page, `${shot.id}-${shot.name}-1920`);
@@ -189,13 +206,33 @@ test.describe("the Observer product review package", () => {
   test("holds together at 1280, 1024 and 768", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await signInAs(page, "Petra Novák");
+    /*
+     * Petra's own thirteen, not "15 below-sample" (Akhilesh's — excluding it
+     * is not the reason this test still fails; see below).
+     */
     for (const width of [1280, 1024, 768]) {
-      for (const shot of SCREENS) {
+      for (const shot of SCREENS.filter((s) => s.account === undefined)) {
         await open(page, shot, width, 900);
         await assertNoOverflow(page, `${shot.name} at ${String(width)}`);
       }
     }
   });
+  /*
+   * STILL FAILING, ROOT-CAUSED BUT NOT FIXED (2026-09-08): `page.goto` on
+   * `/ask` (shot 01, this test's first) times out on `waitUntil: "load"` the
+   * SECOND time this one page instance navigates there — every OTHER test in
+   * this file opens `/ask` exactly once, on a fresh page, and passes; this
+   * one revisits it across three widths on one page. TravelingLight's WebGL
+   * canvas (ADR-0035, `prompt-glow.ts`) is the only thing on this route with
+   * an ongoing `requestAnimationFrame` loop and no documented cleanup on
+   * unmount; that is the leading suspect, not confirmed. Pre-existing —
+   * reproduces identically with every account/Kingsford change in this file
+   * reverted — and out of scope to chase further here: it is a rendering-
+   * lifecycle question about an approved, deliberately-unmodified effect
+   * (ADR-0035 says "do not change this implementation"), not a locator or a
+   * fixture. "draws no link that does not resolve" below fails the same way,
+   * for the same reason, on the same route.
+   */
 
   /**
    * NO DEAD ROUTES, ASSERTED BY WALKING WHAT THE PAGES ACTUALLY RENDER.
@@ -214,7 +251,13 @@ test.describe("the Observer product review package", () => {
     const seen = new Set<string>();
     const broken: string[] = [];
 
-    for (const shot of SCREENS) {
+    /*
+     * Petra's own thirteen, not "15 below-sample" (Akhilesh's). This test
+     * still fails on the very first of the thirteen regardless — see the
+     * root-cause note on "holds together" above, which fails the identical
+     * way on the identical route (`/ask`, revisited on one page instance).
+     */
+    for (const shot of SCREENS.filter((s) => s.account === undefined)) {
       await page.goto(shot.path);
       await expect(page.locator(".ox-root")).toBeVisible();
 
@@ -250,7 +293,7 @@ test.describe("the Observer product review package", () => {
   for (const shot of SCREENS) {
     test(`${shot.id} ${shot.name} has no axe violations`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "checked once");
-      await signInAs(page, "Petra Novák");
+      await signInAs(page, shot.account ?? "Petra Novák");
       await open(page, shot, 1440, 900);
 
       const results = await new AxeBuilder({ page })
