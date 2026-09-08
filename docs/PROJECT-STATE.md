@@ -3,9 +3,9 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-08 (night) · **Branch:** `feature/observer-reference-parity`, pushed to
+**Last updated:** 2026-09-09 (night) · **Branch:** `feature/observer-reference-parity`, pushed to
 `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are local
-only, latest `2c7f109`.
+only, latest `e263191`.
 
 ---
 
@@ -994,8 +994,80 @@ narrative "7" onto any uncatalogued project regardless of whether it actually ha
 fixed with the same "empty means honestly empty" rule the rest of the file already follows for
 this exact scenario.
 
-**Not yet done, in order:** §7 project switching (the gap `account-login.spec.ts` and this file's
-own 2026-09-08 10:35 entry already named — a multi-project account within one tenant has no
-in-shell way back to the picker); §8 the repeated Ask-navigation defect, reproduced as a genuine
-runtime defect rather than re-asserted as the TravelingLight guess; the M3–M10 requirement matrix;
-the full QA gate sequence; the Hungarian final report.
+### Continuation, same night, §7 project switching, §8 Ask-navigation, M3-7, and the QA gate — `2c7f109` → `e263191`
+
+**§7 project switching, built and verified live.** The gap this file's own 2026-09-08 10:35 entry
+named — a multi-project account within one tenant had no in-shell way back to the picker — is
+closed on Ask IRIS specifically, the one screen that had no context band at all and the one every
+sign-in lands on. `Shell.tsx` reuses the existing `ContextSwitcher`/`repository.listProjects`
+pattern already driving the Sales Flow/Project/Sales Agents switcher, restyled into the Ask header
+beside Sign out, gated on `projects.length > 1` so a single-project account sees nothing new; the
+wordmark now links to the current project's Ask IRIS from every surface. Verified live as Petra
+(three projects, one tenant — switches and lands correctly, section preserved) and Martin (one
+project — no switcher shown); `e2e/project-switching.spec.ts` added, 14 passed/1 skipped (the one
+skip is the pre-existing switcher's own mobile-hamburger affordance, unchanged by this work).
+
+**§8 Ask-navigation, root-caused correctly and closed.** The prior report's TravelingLight/WebGL
+suspicion (`prompt-glow.ts`'s `requestAnimationFrame` loop) does not hold up: both the imperative
+cleanup and its React wrapper's `useEffect` return dispose completely (cancel the loop, remove
+every listener, disconnect the `ResizeObserver`, explicitly lose the WebGL context). Rerun at
+Playwright's stock 30s timeout, the failure reproduced on `/units/IT-A-12-07` — a route with no
+WebGL canvas — disproving the diagnosis rather than confirming it. Real cause: `observer-
+product.spec.ts`'s "holds together" test makes 39 sequential `page.goto` calls against a Turbopack
+dev server in one 30s budget; whichever navigation is in flight when that budget expires is
+arbitrary, which is why the reported route differed between reports. Fixed with `test.setTimeout`,
+the same headroom `ask-security.spec.ts`/`madspace-screenshots.spec.ts` already give their own
+multi-navigation tests. Both affected tests pass reliably now (confirmed over multiple runs).
+
+**M3-7, the one M3–M10 slice actually implemented tonight.** A background research agent produced
+a full, evidence-cited M3–M10 requirement matrix (six buckets: specified-and-implementable /
+implemented-not-integrated / integrated-not-verified / demonstrable-via-approved-adapter /
+genuinely-specification-blocked / dependent-on-hosted-acceptance) and recommended two bounded
+slices. Only the smaller was taken, given the hours left: the agent overview's "16 days" follow-up
+figure (`packages/synthetic/src/agent.ts`) was a hand-typed literal beside a hand-typed "8 August"
+label, kept in sync by nobody — exactly the fabricated-figure case the product doctrine's own rule
+forbids, on a number a verdict card renders live. Now computed from one real timestamp via
+`deals.ts`'s `daysBetween` (exported for this), against `people.follow_up_delay`'s own 7-day
+threshold; urgency and the metric's pass/fail outcome follow the same comparison rather than being
+asserted independently of it. Verified live, signed in as Monika: "waiting 15 days" (the honest
+figure the new timestamp produces), "FAIL" against the 7-day rule, consistent everywhere it
+appears. The agent's other pick — completing the Viktória reference journey against
+`docs/08-scenarios.md` §1's dated 12-step table — and the fully-coded-but-unwired
+`unit.sharp_demand_decline` metric were both left untaken; neither is started. Full matrix, with
+citations, is in the session transcript rather than copied here — ask for it if a future session
+needs the detail rather than re-deriving it.
+
+**QA gate.** `pnpm verify` (format, typecheck, lint, unit+integration test, build) run to a clean
+pass at `e263191`: format clean, typecheck clean across all 11 packages plus tests and scripts,
+ESLint clean, **3623 tests passed, 24 skipped, 0 failed** across two independent full runs
+(vitest's own count moved from the baseline 3321 as this session's own new tests were added),
+production build succeeded (every route compiled). `node scripts/secret-audit.mjs` clean,
+independently reconfirmed three times (standalone, and twice more inside the vitest run's own
+`no-secret-recipes.test.ts`, including a full branch-history scan each time). The gate first failed
+four ways, all caused by this session's own new code, all fixed and reverified: `session-source.ts`
+imported `@observer/synthetic` directly outside the composition root (moved the reverse lookup into
+`repository.ts`, the one file `surfaces.test.ts`/ADR-0007 allow to name the synthetic world);
+`SessionSourceForm.tsx` used two em dashes in reader-facing copy (reworded); `m10-migration-
+readiness.test.ts` asserted the catalogue and deals migrations were literally the newest two files,
+true only until this session's own showroom-sessions migration sorted after both (now checks their
+relative order instead of the directory's tail); `isolation.test.ts` required every project to have
+its own synthetic sessions, which the new Akhilesh demo project deliberately does not (excluded by
+slug, reasoning stated inline — its sessions come from a live connector overlay whose own fallback
+is an empty filter, never a borrowed row).
+
+**E2E: the two directly relevant files verified; a full sweep was attempted and is honestly
+incomplete.** `observer-product.spec.ts` and `project-switching.spec.ts` both verified clean across
+multiple complete runs. A broader pass was then attempted three ways — the full suite against the
+dev server, the full suite against a fresh production build, a single-worker desktop-only pass —
+and each hit page-load timeouts unrelated to this session's product code: this machine was down to
+2.4 GB free RAM and 68% CPU load, traced to orphaned Node/Chromium processes left behind by earlier
+stopped Playwright runs (`TaskStop` ends the wrapper process but not every child). Killed the
+orphaned processes (CPU load fell to 17%), retried single-worker; individual tests now pass but at
+roughly one per 1-2 minutes on this machine's current baseline load, too slow to complete the ~500
+remaining desktop-project tests inside the hours left before the deadline. One targeted, bounded
+check did complete before time ran out: `layout-integrity.spec.ts`'s "no surface clips its own text
+or widens the page" at 1920px — the layout check most directly exercising `Shell.tsx`, the file
+this session's project-switching work changed everywhere it is used — passed clean. **The
+remaining ~30 spec files are genuinely not re-verified tonight** and that is stated here rather
+than implied otherwise; nothing in them was touched by this session's own commits, and the
+resource ceiling, not a discovered failure, is why they were not run to completion.
