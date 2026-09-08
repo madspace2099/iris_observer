@@ -3,8 +3,9 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-07 · **Branch:** `feature/observer-reference-parity`, pushed to `origin` on
-2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Twenty-three commits since then are local only.
+**Last updated:** 2026-09-08 (night) · **Branch:** `feature/observer-reference-parity`, pushed to
+`origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are local
+only, latest `2c7f109`.
 
 ---
 
@@ -938,3 +939,63 @@ mechanism), not a stale locator, and not this pass's to make.
 
 **Final gates at `70fe48e`:** format, lint, typecheck, vitest (119 files, 3321 passed, 1 skipped, 0
 failed, run alone on a clean tree), production build and secret audit all clean.
+
+### Continuation, night of 2026-09-08, the Akhilesh Supabase demo — `70fe48e` → `2c7f109`
+
+**Mandate:** connect Akhilesh's supplied Supabase demo project through the real MADSPACE admin,
+prove real data reaches a real product page, then continue through §7 project switching, §8 the
+Ask-navigation defect, and M3–M10 per the founder's numbered brief. Deadline 2026-09-09 07:00
+Europe/Bratislava.
+
+**The schema, established by bounded live probing, not guessed.** Akhilesh's project exposes
+exactly one relevant table, `public.user_sessions`: `session_id`, `created_at`, and a
+`session_data` JSONB blob holding what the legacy dashboard showed —
+`docs/16-showroom-intelligence-audit.md` confirmed consistent (same unit codes, same "not found
+in registry" catalogue gap). No separate catalogue, CRM or WEB IRIS table exists in this project.
+
+**Built, mirroring the existing `DealSource`/`CatalogueSource` overlay pattern exactly:** a
+`ShowroomSessionSource` port (`packages/readmodels/src/session-source.ts`), a Supabase adapter
+(`packages/connectors/src/supabase-showroom.ts` — bounded pagination, deterministic order, GET
+only, host pinned to the exact authorised origin by `z.literal`), a `SessionsDb` storage port with
+a new migration (local PGlite only, never applied to any hosted project), a `ShowroomSourceKind`
+kept deliberately separate from `ConnectorKind`, and a MADSPACE Integrations plane
+(`SessionSourceForm`/`SessionSourceSync`) kept separate from the REALPAD-backed CRM connectors.
+The demo project (`Akhilesh Demo Source`, tenant `MADSPACE Integration Sandbox`, its own
+`tnt_madspacedemo1` — never Alpha Estates or Beta Development, so imported sessions cannot join
+either tenant's real figures) was added to `packages/synthetic/src/world.ts` and granted to the
+`madspace` viewer.
+
+**Verified end to end, live, through the real admin form:** created via `/madspace/projects/new`
+(control-plane id `c4841820-840f-46e3-8a4c-4aed48d2dba3`); Supabase URL + anon key saved and
+persisted across reload (credential shown only as "ends o2hc", never in full); Sync now fetched
+11, accepted 11, rejected 0 — matching the audit's own row count exactly. The Project overview for
+`/madspace-integration/akhilesh-demo-source` shows "11 meetings", the Meetings register lists all
+11 with real unit codes (`IT 13 B6`, `IT 23 B2`, …), real recorded outcomes, `agt_demo_akhilesh`
+as agent, "Not linked to a contact" as visitor on every row (no name/phone/email anywhere), and the
+honest "no CRM connected" unavailable state on Sold/follow-up rather than a fabricated number.
+Screenshots in `artifacts/akhilesh-supabase-demo/` (gitignored, local only). Zero writes to
+Akhilesh's Supabase at any point — the adapter issues GET only, confirmed by reading the file, and
+nothing in this pass touched RLS, schema, keys or Auth.
+
+**One local-machine blocker found and worked around, not a product defect.** The dev server
+launched through the Browser pane's `preview_start` failed every outbound HTTPS call with
+`UNABLE_TO_VERIFY_LEAF_SIGNATURE` — Avast's local TLS-interception root (`NODE_EXTRA_CA_CERTS`,
+already set in this machine's shell environment) was not inherited by that subsystem's spawned
+process. Worked around by starting `next dev` directly (background Bash, which does inherit it)
+and attaching the Browser pane to the already-running server by URL instead of by launch config.
+Not a code change, not a security weakening, and irrelevant to any other environment — recorded
+here so a future session does not re-diagnose it.
+
+**Two real bugs fixed along the way, found by an Explore agent tracing every synthetic generator
+against a project with zero fixture rows:** `packages/synthetic/src/pulse.ts`'s `peakViews` was an
+unguarded `Math.max()` over zero units, which is `-Infinity` in JS and would have printed literally
+in Ask Observer's "strongest verified interest" sentence; and `soldInPeriod` hard-coded Northgate's
+narrative "7" onto any uncatalogued project regardless of whether it actually had units. Both
+fixed with the same "empty means honestly empty" rule the rest of the file already follows for
+this exact scenario.
+
+**Not yet done, in order:** §7 project switching (the gap `account-login.spec.ts` and this file's
+own 2026-09-08 10:35 entry already named — a multi-project account within one tenant has no
+in-shell way back to the picker); §8 the repeated Ask-navigation defect, reproduced as a genuine
+runtime defect rather than re-asserted as the TravelingLight guess; the M3–M10 requirement matrix;
+the full QA gate sequence; the Hungarian final report.
