@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { signIn } from "./sign-in";
+import { signIn, signInAs } from "./sign-in";
 
 /**
  * PROJECT SWITCHING FROM INSIDE OBSERVER — the founder's decision recorded in
@@ -31,8 +31,11 @@ test.describe("project switching", () => {
   test("a multi-project account can move between its own projects from Ask IRIS", async ({
     page,
   }) => {
-    await signIn(page, "Petra Novák");
-    await page.waitForURL(/\/alpha\/(northgate|riverside|ister-tower)\/ask/);
+    /* Petra's grants list Northgate first (`signInAs`'s own docs), so a bare
+     * `signIn` — which lands a several-project account on the /projects
+     * picker, not on a project — is not enough here. */
+    await signInAs(page, "Petra Novák");
+    await page.waitForURL(/\/alpha\/northgate\/ask/);
 
     const switcher = page.getByRole("combobox", { name: "Switch project" });
     await expect(switcher).toBeVisible();
@@ -49,8 +52,15 @@ test.describe("project switching", () => {
   test("switching preserves the current section rather than resetting to Ask IRIS", async ({
     page,
   }) => {
-    await signIn(page, "Petra Novák");
-    await page.waitForURL(/\/alpha\/[a-z-]+\/ask/);
+    /*
+     * The pre-existing (not new) Sales Flow / Project / Sales Agents switcher
+     * this exercises sits behind the mobile hamburger menu below 1199px —
+     * `iris-shell.css`'s own rule hides `.ox-context` there. That affordance
+     * is unchanged by this work and has its own coverage; desktop is enough
+     * to prove `withCurrentSection` carries the section across a switch.
+     */
+    test.skip(test.info().project.name === "mobile", "the pre-existing switcher, behind the menu");
+    await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/flow");
 
     const switcher = page.getByRole("combobox", { name: "Project" }).first();
@@ -75,12 +85,18 @@ test.describe("project switching", () => {
   });
 
   test("the Ask comparison-scope control is untouched by the new switcher", async ({ page }) => {
-    await signIn(page, "Petra Novák");
-    await page.waitForURL(/\/alpha\/[a-z-]+\/ask/);
+    await signInAs(page, "Petra Novák");
 
-    /* Three projects held: "current", "all" and "compare" are all offered. */
-    await expect(page.getByRole("radio", { name: "current" })).toBeVisible();
-    await expect(page.getByRole("radio", { name: "all" })).toBeVisible();
-    await expect(page.getByRole("radio", { name: "compare" })).toBeVisible();
+    /* The scope picker is a closed <details> until asked for — same as the
+     * model picker beside it (AskScreen.tsx). Its <summary> carries the
+     * label as an aria-label rather than as its text (the text is the
+     * current scope's own name instead), so a direct attribute selector is
+     * more reliable here than guessing at the role a <summary> maps to. */
+    await page.locator('summary[aria-label="Which project this question is about"]').click();
+
+    /* Three projects held: Current, All and Compare are all offered. */
+    await expect(page.getByRole("radio", { name: "Current" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "All" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Compare" })).toBeVisible();
   });
 });
