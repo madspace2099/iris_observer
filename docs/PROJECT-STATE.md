@@ -868,3 +868,73 @@ is in the session ledger.
 button on the Units register that does not exist anywhere on the page today (checked directly) — a
 real feature gap from an earlier redesign, not a locator problem, and restoring it is a real
 product change outside tonight's bounded scope. Left failing rather than patched or deleted.
+
+### Continuation, 2026-09-08 08:56–10:35, `096614b` → `70fe48e`
+
+The overnight deadline had passed by the time this continuation started; it ran as ordinary work
+with no deadline, not a second "overnight."
+
+**The Units register "explain itself" gap, resolved.** `lab.spec.ts:68`'s premise was checked
+against the shipped `UnitRegister` component's own docblock, which records the decision directly:
+the interactive per-column info button was deliberately superseded by an always-present "How to
+read this register" definitions list, because `DataColumn.label` cannot hold a control — "reported
+as a gap in the shared layer rather than worked around by hand-rolling a second table." The old
+test also named columns ("Attention", "Typical look", "Trend") that do not exist on the register at
+all. Replaced with `e2e/units-register.spec.ts`, which verifies the real thirteen columns and the
+real definitions list, reachable with no interaction and clean at 390px; moved out of `lab.spec.ts`
+because that file's `/lab/*` mobile-skip does not apply to a shipping product page.
+
+**M5 "Multiple agencies" (docs/08-scenarios.md §3), implemented.** ISTER TOWER's roster gains a
+fourth presenter, Sabina Diallo of Tatra Realty, deliberately below `AGENT_MIN_SAMPLE`, alongside
+the existing above-threshold Meridian Sales team. `AgentProfile.organisationName` threads the
+agency onto every roster card as a byline. Building this correctly surfaced a real defect: the
+roster's cards drew a percentage verdict and a team-comparison flag with no sample-size check at
+all — at Northgate's own default period, three of its four presenters are below the 20-meeting
+floor and were shown a bare percentage. Fixed at the source `AgentDetailView` already uses
+(`belowMinimum`/`suppressionNote`, same wording, now also on `AgentProfile`); the roster suppresses
+the percentage, the flag and the "leans on" line below the floor.
+
+**observer-product.spec.ts, 23 → 32 of 34 passing.** Four proof-text checks ("Project", "Units",
+"Meetings", "Features") were resolving to a hidden nav-item duplicate ahead of the real page
+heading in DOM order (`getByText(...).first()`, no scope); fixed by scoping to `#main`. Separately,
+"15 below-sample" (Kingsford Yard) was opened by every shot's shared Petra Novák sign-in, and Petra
+does not hold that project — every capture and check for it was silently exercising a refusal page.
+Fixed with a per-shot `account` override to Akhilesh Undev, who holds it. Two failures remain,
+precisely root-caused and confirmed unrelated to either fix above (reproduces identically with both
+reverted): `page.goto("/ask")`'s `waitUntil: "load"` does not resolve the SECOND time one page
+instance navigates there within a test; every other test opens `/ask` once, on a fresh page, and
+passes. TravelingLight's WebGL canvas (ADR-0035) is the only thing on that route with an unmanaged
+`requestAnimationFrame` loop and is the leading suspect, not confirmed, and is the one implementation
+this repository says not to change — left failing and documented at both call sites rather than
+excluded or weakened.
+
+**Two more stale assertions, corrected.** `observer.spec.ts` still named the retired "Briefing" nav
+item (ADR-0033: Ask IRIS); fixed. A mistake in this morning's own `62d9b02` was found and fixed:
+that commit demonstrated the single-project sign-in case with Martin Kováč, on the assumption the
+product still stops at the picker for a single-project account — it does not (the shared
+`signInAs` helper's own comment already says so; the product opens a single-project account's one
+project directly). The test now demonstrates the multi-project half of its own claim instead, with
+Petra. **Corrected, not fixed:** `settings-ai.spec.ts`'s reported failure was re-tested in true
+isolation and passed with its original, unmodified assertion — the earlier failure was cross-test
+contamination in a combined run, the same pattern already seen with `portal-quality.spec.ts`; no
+change was needed or made.
+
+**The dev-server/production-build split, reconciled rather than newly discovered.** Three more spec
+files (`design-lab*.spec.ts`, `madspace-screenshots.spec.ts`, `observer-product.spec.ts`) document
+in their own header comments that they require the dev server with `OBSERVER_LOCAL_CONTROL_PLANE=1`
+and cannot pass under the default production-build invocation, which deliberately disables both the
+local control plane and `/design-lab`. Confirmed by running each against the dev server: design-lab,
+135/135; madspace-screenshots, 7/7 (directly confirming the seven-page dark theme did not break
+MADSPACE); observer-product, 32/34 as above.
+
+**Genuine, confirmed, not fixed:** a developer or agency manager with more than one project under
+one tenant has no in-shell way back to the projects picker once inside a project — no nav item, no
+logo link, no account-menu entry (checked directly). The cross-tenant "Developer" switch (the
+context band on the analytical surfaces) does not cover this: it switches developer/tenant, and a
+single-tenant account like Petra's three projects never sees it. `account-login.spec.ts`'s "the
+workspace offers a way back to the projects" names this correctly and is left failing rather than
+weakened — this is a real navigation/IA decision (extend the existing switcher pattern, or another
+mechanism), not a stale locator, and not this pass's to make.
+
+**Final gates at `70fe48e`:** format, lint, typecheck, vitest (119 files, 3321 passed, 1 skipped, 0
+failed, run alone on a clean tree), production build and secret audit all clean.
