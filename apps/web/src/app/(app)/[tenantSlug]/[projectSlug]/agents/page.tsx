@@ -84,18 +84,35 @@ export default async function AgentsPage({
           {view.agents.map((a) => (
             <article className="iris-ring-card" key={a.agentId}>
               <h3>{a.name}</h3>
+              <p className="iris-meta" style={{ margin: "0 0 .5rem" }}>
+                {a.organisationName}
+              </p>
               <OutcomeRing
                 slices={a.ring.slices}
                 total={a.meetings}
                 size={126}
                 label={`${a.name}: ${a.meetings} meetings`}
               />
-              <p className="iris-code" style={{ margin: 0 }}>
-                {Math.round(a.ring.progressedShare * 100)}% progressed · median{" "}
-                {a.medianDurationDisplay}
-              </p>
+              {a.belowMinimum ? (
+                /*
+                 * BELOW AGENT_MIN_SAMPLE: no rank, no trend, no team
+                 * comparison — the same floor `AgentDetailView` already
+                 * states, applied here where a percentage and a flag would
+                 * otherwise draw a verdict from a handful of meetings. The
+                 * ring above still shows the raw outcome counts; this is the
+                 * sentence that says why nothing here is compared.
+                 */
+                <p className="iris-meta" style={{ margin: 0 }}>
+                  {a.suppressionNote}
+                </p>
+              ) : (
+                <p className="iris-code" style={{ margin: 0 }}>
+                  {Math.round(a.ring.progressedShare * 100)}% progressed · median{" "}
+                  {a.medianDurationDisplay}
+                </p>
+              )}
               <OutcomeKey slices={a.ring.slices} />
-              {a.signature === null ? null : (
+              {a.belowMinimum || a.signature === null ? null : (
                 <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
                   Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
                   team&rsquo;s share.
@@ -110,7 +127,7 @@ export default async function AgentsPage({
                   </span>
                 </p>
               )}
-              {a.ring.flag === null ? null : (
+              {a.belowMinimum || a.ring.flag === null ? null : (
                 <p className="iris-ring-flag" data-severity={a.ring.flag.severity}>
                   {a.ring.flag.text}
                 </p>

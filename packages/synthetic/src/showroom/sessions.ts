@@ -231,6 +231,41 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     outcomeBias: -0.02,
     meetingShare: 0.45,
   },
+  /*
+   * A SECOND AGENCY ON ISTER TOWER — docs/08-scenarios.md §3, "Multiple
+   * agencies": two agencies on one project, one above and one below the
+   * sample threshold.
+   *
+   * Every other project's roster is one agency; ISTER TOWER's own is Meridian
+   * Sales throughout, same as the rest. Fair comparison between agencies
+   * cannot be shown on a project no second agency ever worked, so this one
+   * name joins Martin, Lucia Horváth and Monika there rather than being
+   * invented as a fourth Meridian presenter — a developer with one exclusive
+   * agency and a developer running two on the same building are different
+   * commercial arrangements, and this is a demonstration of the second.
+   *
+   * Deliberately thin. `AGENT_MIN_SAMPLE` is 20; Martin already clears it by
+   * a wide margin on this project (meetingShare 0.46), so one more small
+   * presenter is what completes the pair the scenario asks for — a reader
+   * comparing Sabina against Martin sees the sample-size floor apply to one
+   * agency's newcomer and not the other's lead, which is the whole point:
+   * agency is not a proxy for competence, and a thin sample says nothing
+   * about which agency someone sells for.
+   */
+  {
+    id: "agt_sabina",
+    name: "Sabina Diallo",
+    organisationName: "Tatra Realty",
+    surroundingsEarly: 0.49,
+    amenitiesSkip: 0.14,
+    compareUse: 0.36,
+    returnToShortlist: 0.33,
+    coverageBias: 0.55,
+    homeDwell: 1.15,
+    unitsShownMean: 3.9,
+    outcomeBias: 0.01,
+    meetingShare: 0.1,
+  },
 ];
 
 export function agentById(id: string): SyntheticAgent | undefined {
@@ -431,12 +466,15 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
     code: "it",
     seed: 0x2f5b,
     /*
-     * Three presenters. Monika works this project as well as Northgate, which
-     * is the ordinary arrangement inside one agency and the case that catches a
-     * surface totalling a person across projects — her ISTER figures and her
-     * Northgate figures are two answers, never one.
+     * Four presenters, two agencies. Monika works this project as well as
+     * Northgate, which is the ordinary arrangement inside one agency and the
+     * case that catches a surface totalling a person across projects — her
+     * ISTER figures and her Northgate figures are two answers, never one.
+     * Sabina Diallo (Tatra Realty) is the second agency `SYNTHETIC_AGENTS`
+     * names above; her presence here, alongside three Meridian Sales
+     * presenters, is docs/08-scenarios.md §3's "Multiple agencies" case.
      */
-    agentIds: ["agt_martinkovac", "agt_luciahorvath", "agt_monika"],
+    agentIds: ["agt_martinkovac", "agt_luciahorvath", "agt_monika", "agt_sabina"],
     periods: [
       { phase: "earlier", from: "2026-01-12", to: "2026-03-31", meetings: 44 },
       { phase: "previous", from: "2026-04-01", to: "2026-06-30", meetings: 61 },

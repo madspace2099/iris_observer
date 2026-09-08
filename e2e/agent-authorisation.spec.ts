@@ -66,12 +66,26 @@ async function agentsNamed(page: Page): Promise<string[]> {
   return page.locator(".iris-ring-card h3").allInnerTexts();
 }
 
-/** Every figure the rings carry, so two projects can be compared as data. */
-async function agentFigures(page: Page): Promise<{ name: string; detail: string }[]> {
+/**
+ * Every figure the rings carry, so two projects can be compared as data.
+ *
+ * `p.iris-code`, not the bare class: below `AGENT_MIN_SAMPLE` the card's own
+ * progressed-percentage paragraph is replaced by a suppression sentence
+ * (`.iris-meta`, see `detail === ""` below), and `.iris-rating`'s MADSPACE-only
+ * response count is a `<span class="iris-code">` nested inside a different
+ * paragraph — the bare class matches both, and a naive `querySelector` would
+ * silently pick up the rating span once the progressed paragraph is gone.
+ */
+async function agentFigures(
+  page: Page,
+): Promise<{ name: string; detail: string; suppressed: string | null }[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll(".iris-ring-card")].map((card) => ({
       name: (card.querySelector("h3")?.textContent ?? "").trim(),
-      detail: (card.querySelector(".iris-code")?.textContent ?? "").trim(),
+      /* Empty for a below-threshold agent: no percentage, no rank, by design. */
+      detail: (card.querySelector("p.iris-code")?.textContent ?? "").trim(),
+      /* Set instead of `detail`, on the same threshold — never both, never neither. */
+      suppressed: card.querySelectorAll(".iris-meta")[1]?.textContent?.trim() ?? null,
     })),
   );
 }
@@ -122,9 +136,17 @@ test.describe("the project she holds", () => {
      * Each colleague carries their own figures, which is what makes this a team
      * view rather than a list of names: a card with a name and no numbers would
      * satisfy "sees every agent" and tell her nothing.
+     *
+     * Below AGENT_MIN_SAMPLE that is the suppression sentence, not a
+     * percentage (docs/10-policies.md §6: no verdict, no rank below the
+     * floor) — the Quarter-to-date default for this project currently puts
+     * three of its four presenters under the 20-meeting floor, which this
+     * assertion has to honour rather than assume away.
      */
     for (const row of await agentFigures(page)) {
-      expect(row.detail, row.name).toMatch(/progressed/);
+      const carriesSomething =
+        /progressed/.test(row.detail) || (row.suppressed !== null && /needed for a verdict/.test(row.suppressed));
+      expect(carriesSomething, `${row.name}: "${row.detail}" / "${row.suppressed}"`).toBe(true);
     }
   });
 
@@ -322,7 +344,14 @@ test.describe("an agent granted both projects", () => {
     for (const target of [HINOHARA, THIRD]) {
       await page.goto(`/${target.tenant}/${target.project}/agents`);
       byProject[target.name] = Object.fromEntries(
-        (await agentFigures(page)).map((row) => [row.name, row.detail]),
+        /*
+         * Below AGENT_MIN_SAMPLE, `detail` (the percentage) is empty by
+         * design — but the suppression sentence names the meeting count in
+         * words, and that count is still this project's own. Two projects
+         * with different sample sizes were exactly the case most likely to
+         * both fall short at once, which is what happened here.
+         */
+        (await agentFigures(page)).map((row) => [row.name, row.detail || (row.suppressed ?? "")]),
       );
     }
 

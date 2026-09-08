@@ -315,7 +315,25 @@ export interface AgentSectionUse {
 export interface AgentProfile {
   readonly agentId: string;
   readonly name: string;
+  /**
+   * The agency this agent presents for. Every project has had exactly one
+   * until docs/08-scenarios.md §3's "Multiple agencies" case (ISTER TOWER);
+   * printed regardless, since a byline that only appears on the one project
+   * with two agencies would itself be the tell that something is being
+   * hidden the rest of the time.
+   */
+  readonly organisationName: string;
   readonly meetings: number;
+  /**
+   * `meetings < AGENT_MIN_SAMPLE` (docs/10-policies.md §6), carried on the
+   * profile itself rather than left for the card to compute — the same rule
+   * `AgentDetailView` already states, applied where the roster shows a
+   * verdict too. Below it, the card prints `suppressionNote` in place of a
+   * percentage and a team-comparison flag: figures stand, no rank or trend.
+   */
+  readonly belowMinimum: boolean;
+  /** Null when the sample clears the minimum. Never an empty string. */
+  readonly suppressionNote: string | null;
   readonly medianDurationDisplay: string;
   readonly ring: AgentOutcomeRing;
   readonly repeats: readonly RepeatDistribution[];

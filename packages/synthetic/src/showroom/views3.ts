@@ -1030,6 +1030,8 @@ export function buildAgentsView(
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
 
+    const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
+
     const myTotal = mine.reduce((acc, s) => acc + totalSeconds(s), 0);
     /*
      * One row per section, carrying the whole answer.
@@ -1081,7 +1083,12 @@ export function buildAgentsView(
     return {
       agentId: a.id,
       name: a.name,
+      organisationName: a.organisationName,
       meetings: mine.length,
+      belowMinimum,
+      suppressionNote: belowMinimum
+        ? `${count(mine.length, locale)} meetings in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`
+        : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
       repeats: repeatDistribution(mine),
