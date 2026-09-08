@@ -48,7 +48,11 @@ export const TENANTS: readonly TenantSummary[] = [
    * its name says what it is rather than inventing a developer that does
    * not exist.
    */
-  { id: tenantId("tnt_madspacedemo1"), slug: "madspace-integration", name: "MADSPACE Integration Sandbox" },
+  {
+    id: tenantId("tnt_madspacedemo1"),
+    slug: "madspace-integration",
+    name: "MADSPACE Integration Sandbox",
+  },
 ] as const;
 
 /**

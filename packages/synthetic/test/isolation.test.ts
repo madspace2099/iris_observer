@@ -52,9 +52,20 @@ describe("every session belongs to exactly one project", () => {
     for (const s of showroomSessions()) {
       byProject.set(s.projectId, (byProject.get(s.projectId) ?? 0) + 1);
     }
-    // Every project in the world has data of its own. A project with none is a
-    // project whose screens will borrow someone else's.
-    for (const project of PROJECTS) {
+    /*
+     * Every STATIC project in the world has data of its own. A project with
+     * none is a project whose screens will borrow someone else's — for every
+     * project this generator is the source of truth for.
+     *
+     * `akhilesh-demo-source` is deliberately not one of those: its sessions
+     * come from a live Supabase connector overlay (`sessionsOfProject` in
+     * `showroom/sessions.ts` checks that override first, and its own
+     * fallback is a `.filter()` — genuinely empty, never a borrowed row),
+     * so a zero count here is the intended state whenever the connector is
+     * disabled or not yet synced, not the silent-borrowing bug this test
+     * exists to catch.
+     */
+    for (const project of PROJECTS.filter((p) => p.slug !== "akhilesh-demo-source")) {
       expect(
         byProject.get(project.id as string) ?? 0,
         `${project.slug} has no sessions`,

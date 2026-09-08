@@ -327,9 +327,7 @@ export interface SupabaseSessionsOutcome {
   readonly accepted: readonly ShowroomSession[];
   readonly rejected: number;
 }
-export type SupabaseFetchOutcome =
-  | SupabaseSessionsOutcome
-  | ReturnType<typeof refusal>;
+export type SupabaseFetchOutcome = SupabaseSessionsOutcome | ReturnType<typeof refusal>;
 
 const PAGE_SIZE = 200;
 const MAX_ROWS = 2000;

@@ -130,11 +130,7 @@ export interface CatalogueDb {
     project: string,
     connector: string,
   ): Promise<SealedCredentialRow | null>;
-  connectorCredentialRemove(
-    account: string,
-    project: string,
-    connector: string,
-  ): Promise<boolean>;
+  connectorCredentialRemove(account: string, project: string, connector: string): Promise<boolean>;
   /** Null when the project is not the account's: nothing was written. */
   catalogueApply(
     account: string,

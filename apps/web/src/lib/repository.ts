@@ -1,9 +1,42 @@
 import type { ObserverRepository } from "@observer/readmodels";
-import { SyntheticObserverRepository } from "@observer/synthetic";
+import { PROJECTS, SyntheticObserverRepository } from "@observer/synthetic";
 
 import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
 import { liveDealSource } from "@/lib/connectors/deal-source";
 import { liveSessionSource } from "@/lib/connectors/session-source";
+
+function normalised(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * The read-model project id for a control-plane project row, or `null`.
+ *
+ * The MADSPACE Integrations screen syncs a showroom-telemetry source by
+ * control-plane project UUID, but the sessions it fetches are stamped with
+ * the READ-MODEL project id — the same identity `session-source.ts`'s own
+ * twin match resolves in the other direction. This is that match run in
+ * reverse, and it lives here rather than beside it because only the
+ * composition root, `session.ts` and `accounts.ts` may name the synthetic
+ * world (ADR-0007, `apps/web/test/surfaces.test.ts`) — a connector adapter
+ * asking a control-plane row to become a read-model id is exactly the
+ * fixture-reading a component must not do for itself. `null` means no
+ * synthetic-world project answers to this row yet, which the sync action
+ * turns into a sentence rather than stamping a wrong or invented id.
+ */
+export function readModelProjectIdFor(twin: {
+  readonly slug: string | null;
+  readonly name: string;
+}): string | null {
+  const project =
+    PROJECTS.find((p) => twin.slug !== null && p.slug === twin.slug) ??
+    PROJECTS.find((p) => normalised(p.name) === normalised(twin.name)) ??
+    null;
+  return project === null ? null : (project.id as string);
+}
 
 /**
  * The composition root.

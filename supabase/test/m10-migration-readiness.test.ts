@@ -108,7 +108,17 @@ afterAll(closeSuiteDatabases);
 describe("ordering", () => {
   it("puts the catalogue before the deals, and both after everything already applied", () => {
     const list = files();
-    expect(list.slice(-2)).toEqual([CATALOGUE, DEALS]);
+    /*
+     * The catalogue and deals migrations are adjacent and in order, not
+     * necessarily the newest two files in the directory — a later, unrelated
+     * migration (the showroom-telemetry source, 2026-09-08) now sorts after
+     * both, and asserting the literal tail here would break again the next
+     * time anyone adds a migration after M10's own pair.
+     */
+    const catalogueAt = list.indexOf(CATALOGUE);
+    const dealsAt = list.indexOf(DEALS);
+    expect(catalogueAt, "catalogue migration must be present").toBeGreaterThan(-1);
+    expect(dealsAt, "deals migration immediately follows the catalogue one").toBe(catalogueAt + 1);
     const stamp = (f: string) => Number(f.slice(0, 14));
     for (let i = 1; i < list.length; i += 1) {
       const previous = list[i - 1] ?? "";

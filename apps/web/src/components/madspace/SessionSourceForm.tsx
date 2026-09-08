@@ -77,7 +77,7 @@ export function SessionSourceForm({
       <div className="mad-field">
         <span className="mad-field-label">Project URL</span>
         <p className="mad-field-hint">
-          The one Supabase project this source is authorised for. Not editable here — a different
+          The one Supabase project this source is authorised for. Not editable here: a different
           project needs its own source kind.
         </p>
         <p className="mad-code">{AUTHORISED_SUPABASE_SHOWROOM_URL}</p>
@@ -93,8 +93,8 @@ export function SessionSourceForm({
           Anon API key
         </label>
         <p className="mad-field-hint">
-          The project&rsquo;s own anon-role key, issued for read access under row-level security —
-          never a service-role key.
+          The project&rsquo;s own anon-role key, issued for read access under row-level security.
+          Never a service-role key.
         </p>
         <input
           className="mad-input"

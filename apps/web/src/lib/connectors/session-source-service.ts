@@ -64,7 +64,11 @@ export interface SessionSourceSummary {
   } | null;
 }
 
-export type SessionRefused = { readonly ok: false; readonly problem: string; readonly field?: string };
+export type SessionRefused = {
+  readonly ok: false;
+  readonly problem: string;
+  readonly field?: string;
+};
 
 function binding(account: string, projectUuid: string, kind: ShowroomSourceKind) {
   return { accountId: account, provider: `session-source:${kind}:${projectUuid}` };
@@ -76,7 +80,8 @@ export function sessionSourceService(deps: SessionServiceDeps) {
   async function list(projectUuid: string): Promise<SessionSourceSummary[]> {
     const rows = await db.connectorConfigs(account, projectUuid);
     const byKind = new Map(rows.map((r) => [r.connector, r]));
-    const syncs = deps.sessions === undefined ? [] : await deps.sessions.sessionsSyncLast(account, projectUuid);
+    const syncs =
+      deps.sessions === undefined ? [] : await deps.sessions.sessionsSyncLast(account, projectUuid);
     const syncByKind = new Map(syncs.map((s) => [s.connector, s]));
     return SHOWROOM_SOURCE_KINDS.map((kind) => {
       const row = byKind.get(kind);
@@ -146,7 +151,11 @@ export function sessionSourceService(deps: SessionServiceDeps) {
           field: issue?.path.map(String).join("."),
         };
       }
-      const sealed = seal(JSON.stringify(credential.data), binding(account, projectUuid, kind), deps.env);
+      const sealed = seal(
+        JSON.stringify(credential.data),
+        binding(account, projectUuid, kind),
+        deps.env,
+      );
       const written = await db.connectorCredentialSet(account, projectUuid, kind, {
         keyVersion: sealed.version,
         nonce: sealed.nonce,
@@ -155,11 +164,13 @@ export function sessionSourceService(deps: SessionServiceDeps) {
         lastFour: sessionSourceCredentialTail(credential.data),
         revision: deps.now().getTime(),
       });
-      if (!written) return { ok: false, problem: "The project could not be found, so nothing was saved." };
+      if (!written)
+        return { ok: false, problem: "The project could not be found, so nothing was saved." };
     }
 
     const written = await db.connectorConfigSet(account, projectUuid, kind, config.data, enabled);
-    if (!written) return { ok: false, problem: "The project could not be found, so nothing was saved." };
+    if (!written)
+      return { ok: false, problem: "The project could not be found, so nothing was saved." };
     return { ok: true };
   }
 
@@ -174,7 +185,12 @@ export function sessionSourceService(deps: SessionServiceDeps) {
     const sealed = await db.connectorCredentialRead(account, projectUuid, kind);
     if (sealed === null) return null;
     const plaintext = open(
-      { version: sealed.key_version, nonce: sealed.nonce, ciphertext: sealed.ciphertext, tag: sealed.auth_tag },
+      {
+        version: sealed.key_version,
+        nonce: sealed.nonce,
+        ciphertext: sealed.ciphertext,
+        tag: sealed.auth_tag,
+      },
       binding(account, projectUuid, kind),
       deps.env,
     );
@@ -203,11 +219,17 @@ export function sessionSourceService(deps: SessionServiceDeps) {
     const rows = await db.connectorConfigs(account, projectUuid);
     const row = rows.find((r) => r.connector === kind);
     if (row === undefined) {
-      return { ok: false, problem: `${SESSION_SOURCE_NAMES[kind]} is not configured for this project.` };
+      return {
+        ok: false,
+        problem: `${SESSION_SOURCE_NAMES[kind]} is not configured for this project.`,
+      };
     }
     const config = SESSION_SOURCE_CONFIG_SCHEMAS[kind].safeParse(row.config);
     if (!config.success) {
-      return { ok: false, problem: `The stored ${SESSION_SOURCE_NAMES[kind]} settings are incomplete.` };
+      return {
+        ok: false,
+        problem: `The stored ${SESSION_SOURCE_NAMES[kind]} settings are incomplete.`,
+      };
     }
 
     let credential: Record<string, unknown> | null;

@@ -6,7 +6,7 @@ import { currentViewer } from "@/lib/session";
 import { liveSessionSourceService } from "@/lib/connectors/live";
 import type { SessionSourceService } from "@/lib/connectors/session-source-service";
 import { isShowroomSourceKind } from "@/lib/connectors/session-source-configs";
-import { readModelProjectIdFor } from "@/lib/connectors/session-source";
+import { readModelProjectIdFor } from "@/lib/repository";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 
 /**
@@ -33,7 +33,11 @@ export interface SessionSyncResult {
 }
 
 type Estate =
-  | { readonly ok: true; readonly service: SessionSourceService; readonly readModelProjectId: string | null }
+  | {
+      readonly ok: true;
+      readonly service: SessionSourceService;
+      readonly readModelProjectId: string | null;
+    }
   | { readonly ok: false; readonly problem: string };
 
 async function estate(projectUuid: string): Promise<Estate> {
@@ -53,7 +57,9 @@ async function estate(projectUuid: string): Promise<Estate> {
     };
   }
   const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  const row = projects.ok ? (projects.value.find((p) => p.project_id === projectUuid) ?? null) : null;
+  const row = projects.ok
+    ? (projects.value.find((p) => p.project_id === projectUuid) ?? null)
+    : null;
   if (row === null) {
     return { ok: false, problem: "That project is not in this estate. Nothing was saved." };
   }

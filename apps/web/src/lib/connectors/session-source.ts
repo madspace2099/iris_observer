@@ -1,8 +1,11 @@
 import "server-only";
 
-import type { DeliveredSessions, ProjectSummary, ShowroomSessionSource } from "@observer/readmodels";
+import type {
+  DeliveredSessions,
+  ProjectSummary,
+  ShowroomSessionSource,
+} from "@observer/readmodels";
 import { SHOWROOM_SOURCE_KINDS } from "@observer/contracts";
-import { PROJECTS } from "@observer/synthetic";
 
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 
@@ -20,7 +23,10 @@ import { liveSessionSourceService } from "./live";
  */
 
 const MEMO_MS = 30_000;
-const memo = new Map<string, { readonly until: number; readonly value: DeliveredSessions | null }>();
+const memo = new Map<
+  string,
+  { readonly until: number; readonly value: DeliveredSessions | null }
+>();
 
 function normalised(name: string): string {
   return name
@@ -80,25 +86,3 @@ export function forgetSessionMemo(): void {
 
 /** So a caller can tell a telemetry-source kind from a `ConnectorKind` without importing contracts twice. */
 export const SESSION_SOURCE_KIND_LIST = SHOWROOM_SOURCE_KINDS;
-
-/**
- * The read-model project id for a control-plane project row, or `null`.
- *
- * The MADSPACE Integrations screen syncs by control-plane project UUID, but
- * `supabaseShowroomFetchSessions` stamps the READ-MODEL project id onto every
- * `ShowroomSession` it produces — the same identity `overlaySessions` keys its
- * delivery by. This is `resolve`'s own twin match, run in the other direction,
- * so the two stay one rule rather than two that could drift apart. `null`
- * means no synthetic-world project answers to this row yet, which the sync
- * action turns into a sentence rather than stamping a wrong or invented id.
- */
-export function readModelProjectIdFor(twin: {
-  readonly slug: string | null;
-  readonly name: string;
-}): string | null {
-  const project =
-    PROJECTS.find((p) => twin.slug !== null && p.slug === twin.slug) ??
-    PROJECTS.find((p) => normalised(p.name) === normalised(twin.name)) ??
-    null;
-  return project === null ? null : (project.id as string);
-}

@@ -8,8 +8,8 @@ import { liveConnectorService, liveSessionSourceService } from "@/lib/connectors
 import { CONNECTOR_NAMES, CREDENTIAL_WORDS } from "@/lib/connectors/configs";
 import type { ConnectorSummary, LastDealSync } from "@/lib/connectors/service";
 import type { SessionSourceSummary } from "@/lib/connectors/session-source-service";
-import { readModelProjectIdFor } from "@/lib/connectors/session-source";
 import { SESSION_SOURCE_CREDENTIAL_WORDS } from "@/lib/connectors/session-source-configs";
+import { readModelProjectIdFor } from "@/lib/repository";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ConnectorForm } from "@/components/madspace/ConnectorForm";
 import { ConnectorSync } from "@/components/madspace/ConnectorSync";
@@ -575,10 +575,7 @@ function SessionSourcePlane({
       <dl className="mad-meta">
         <div className="mad-meta-item">
           <dt className="mad-meta-label">Credential</dt>
-          <dd
-            className="mad-meta-value"
-            data-missing={source.hasCredential ? undefined : "true"}
-          >
+          <dd className="mad-meta-value" data-missing={source.hasCredential ? undefined : "true"}>
             {source.hasCredential
               ? `Stored · ends ${source.credentialTail ?? "····"}`
               : `Not stored. Needs ${SESSION_SOURCE_CREDENTIAL_WORDS[source.kind]}.`}

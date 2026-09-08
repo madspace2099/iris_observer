@@ -442,7 +442,8 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
    * of `peakViews` already expects zero for an unmeasured project; this is
    * what makes that guard reachable.
    */
-  const peakViews = withAttention.length === 0 ? 0 : Math.max(...withAttention.map((u) => u.meaningfulViews));
+  const peakViews =
+    withAttention.length === 0 ? 0 : Math.max(...withAttention.map((u) => u.meaningfulViews));
 
   const units: PulseUnit[] = withAttention.map((unit) => {
     return {

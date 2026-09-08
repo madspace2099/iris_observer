@@ -77,7 +77,12 @@ const applyRow = (row: unknown): SessionsApplyRow | null => {
 
 const lastRow = (r: unknown): SessionSyncLastRow => {
   const row = r as SessionSyncLastRow;
-  return { ...row, fetched: asNumber(row.fetched), accepted: asNumber(row.accepted), rejected: asNumber(row.rejected) };
+  return {
+    ...row,
+    fetched: asNumber(row.fetched),
+    accepted: asNumber(row.accepted),
+    rejected: asNumber(row.rejected),
+  };
 };
 
 export function sqlSessionsDb(query: SqlQuery): SessionsDb {
@@ -97,7 +102,8 @@ export function sqlSessionsDb(query: SqlQuery): SessionsDb {
         project,
         connector,
       ]);
-      const row = list[0] as { readonly sessions: unknown; readonly fetched_at: string } | undefined;
+      const row = list[0] as
+        { readonly sessions: unknown; readonly fetched_at: string } | undefined;
       if (row === undefined || !Array.isArray(row.sessions)) return null;
       return { sessions: row.sessions as readonly ShowroomSession[], fetchedAt: row.fetched_at };
     },
@@ -146,7 +152,8 @@ export function postgrestSessionsDb(config: PostgrestConfig): SessionsDb {
       const list = rows(
         await rpc(config, "observer_sessions_current", { p_account, p_project, p_connector }),
       );
-      const row = list[0] as { readonly sessions: unknown; readonly fetched_at: string } | undefined;
+      const row = list[0] as
+        { readonly sessions: unknown; readonly fetched_at: string } | undefined;
       if (row === undefined || !Array.isArray(row.sessions)) return null;
       return { sessions: row.sessions as readonly ShowroomSession[], fetchedAt: row.fetched_at };
     },

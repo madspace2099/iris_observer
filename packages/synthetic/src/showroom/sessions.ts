@@ -1066,7 +1066,10 @@ export function showroomSessions(): readonly ShowroomSession[] {
  */
 const provided = new Map<string, readonly ShowroomSession[]>();
 
-export function provideSessions(projectId: string, sessions: readonly ShowroomSession[] | null): void {
+export function provideSessions(
+  projectId: string,
+  sessions: readonly ShowroomSession[] | null,
+): void {
   if (sessions === null) provided.delete(projectId);
   else provided.set(projectId, sessions);
 }
