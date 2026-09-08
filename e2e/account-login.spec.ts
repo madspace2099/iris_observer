@@ -29,10 +29,6 @@ const ACCOUNTS = {
   petra: "petra.novak@alpha-estates.example",
   tomas: "tomas.varga@meridian-sales.example",
   monika: "monika.kovacova@meridian-sales.example",
-  /* Holds exactly one project (ISTER TOWER), which is what the single-project
-     landing case below needs. Monika now holds two and can no longer stand in
-     for it. */
-  martin: "martin.kovac@meridian-sales.example",
   madspace: "operations@madspace.example",
 } as const;
 
@@ -95,16 +91,34 @@ test.describe("the guards, before anything is signed in", () => {
 });
 
 test.describe("signing in", () => {
-  test("takes a correct credential to the projects, never straight into one", async ({ page }) => {
-    await signIn(page, ACCOUNTS.martin);
-    expect(new URL(page.url()).pathname).toBe("/projects");
-
+  test("takes a correct credential to the projects, not straight into one, for a multi-project account", async ({
+    page,
+  }) => {
     /*
-     * Martin holds exactly one project and still lands here. Opening it is a
-     * decision he makes; a single-project account being thrown into its only
-     * project never learns that the choice existed.
+     * CORRECTED FROM THIS MORNING'S FIRST ATTEMPT.
+     *
+     * That attempt swapped in Martin (genuinely single-project today) to
+     * demonstrate the single-project case, on the assumption that a
+     * single-project account still stops at the picker. It does not: the
+     * shared `signInAs` helper's own comment says so directly ("the
+     * single-project path through resolveLandingPath lands there directly"),
+     * and Martin's sign-in now times out waiting for the Projects heading
+     * because the product opens his one project immediately. That is real,
+     * current, intentional product behaviour, not a bug this suite should
+     * paper over — it belongs to the shared helper's own documented case,
+     * not to a claim this test makes about every credential.
+     *
+     * What this test can still honestly prove is the multi-project half of
+     * its own name: a credential with more than one grant lands on the
+     * picker, not inside a project it did not choose.
      */
-    expect(await projectCards(page)).toEqual(["ISTER TOWER"]);
+    await signIn(page, ACCOUNTS.petra);
+    expect(new URL(page.url()).pathname).toBe("/projects");
+    expect(await projectCards(page)).toEqual([
+      "Northgate Residences",
+      "Riverside Walk",
+      "ISTER TOWER",
+    ]);
   });
 
   test("refuses a wrong password without saying which half was wrong", async ({ page }) => {
