@@ -14,6 +14,41 @@
  * inverse (a wall-clock reading back to an instant) is the usual two-pass
  * offset search — exact everywhere except inside a DST gap, where the hour
  * does not exist and the instant after the gap is answered.
+ *
+ * ## Three policies worth stating rather than leaving accidental
+ *
+ * **The host's own zone never leaks in.** Every function here takes an
+ * explicit IANA zone and reads it only through `Intl.DateTimeFormat`'s own
+ * `timeZone` option — never through a bare `Date` getter (`getHours`,
+ * `toLocaleString` with no zone, `getTimezoneOffset`), which is what would
+ * read the *host's* clock. A server in UTC and a desk in Bratislava must
+ * produce byte-identical output for the same instant and the same project
+ * zone; `time.test.ts` proves it by mutating `process.env.TZ` mid-process
+ * and confirming these functions do not move while `Date`'s own local
+ * getters do.
+ *
+ * **An unrecognised zone fails loudly.** `Intl.DateTimeFormat` throws
+ * `RangeError: Invalid time zone specified` for a zone name it does not
+ * know, and nothing here catches that. A project record with a corrupted or
+ * mistyped `timeZone` must stop the request, not silently fall back to
+ * the host's zone and publish a wrong number that reads as a real one.
+ *
+ * **A DST gap or an ambiguous hour resolves deterministically, not
+ * correctly** — because for those sixty-odd minutes a year, "correctly"
+ * has no single answer. `zonedInstant` is asked for a wall-clock reading
+ * that either never happened (spring forward: 02:00–02:59 do not occur)
+ * or happened twice (fall back: they occur once at each offset). Two facts
+ * about what it does, both pinned by `time.test.ts` against readings taken
+ * independently with `Intl.DateTimeFormat` directly rather than by asking
+ * this module to grade its own homework:
+ *   - **The gap** resolves to the instant reading the same minute past the
+ *     hour once the clock has finished jumping — asking for the 02:30 that
+ *     never happened returns the 03:30 that follows it.
+ *   - **The repeated hour** resolves to its second, later occurrence — the
+ *     one at the offset already in force once the ambiguity is over.
+ * Both are stable across repeated calls with the same input. Neither
+ * matters to any actual Observer date: every generated meeting sits inside
+ * ordinary working hours, nowhere near a transition.
  */
 
 export interface ZoneParts {

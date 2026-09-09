@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
-import type { ShowroomSession } from "@observer/contracts";
+import { afterEach, describe, expect, it } from "vitest";
+import type { CrmDeal, ShowroomSession } from "@observer/contracts";
 import type { ViewContext } from "@observer/readmodels";
 import { buildSalesFlow, bucketBounds, trend, DEADBAND } from "../src/showroom/views3";
+import { provideCatalogue, type RawUnit } from "../src/pulse";
 
 /**
  * The verdict's judgment mechanism, and the month-clipping bug it exposed.
@@ -323,5 +324,126 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
     expect(view.verdict).toBe(
       "Meetings are holding up and progressing well: 10 meetings the selected quarter against 10 the quarter before, and 60% of recorded meetings progressed, against 30% before.",
     );
+  });
+});
+
+/*
+ * ============================================================================
+ * THE DEAL LADDER'S UNIT LINKS — the same "does the catalogue actually hold
+ * this code" contract `screens.test.ts`'s "the register's unit references"
+ * pins for the meeting register, checked here for the stalled-deal list
+ * `buildSalesFlow` draws through `buildDealLadder`. `buildSalesFlow` is
+ * called directly (as every other test in this file does) rather than
+ * through the repository, so the catalogue seam below (`provideCatalogue`)
+ * is the same one a live connector writes to, undisturbed by
+ * `overlayCatalogue`'s per-request reset — nothing here calls the
+ * repository, so nothing wipes it mid-test.
+ * ============================================================================
+ */
+describe("the deal ladder's unit references follow the register's own contract", () => {
+  const DEAL_PROJECT_ID = "prj_test_deal_ladder_only"; // never a real project: isolation is provable, not coincidental
+  const DEAL_CONTEXT = {
+    tenant: { slug: "test-tenant" },
+    project: {
+      id: DEAL_PROJECT_ID,
+      slug: "test-project",
+      locale: "en-GB",
+      timeZone: "UTC",
+    },
+    period: { to: utc(9999, 0, 1).toISOString(), label: "the period", baselineLabel: "before" },
+  } as unknown as ViewContext;
+
+  function deal(externalId: string, unitCode: string | null): CrmDeal {
+    return {
+      externalId,
+      unitCode,
+      subjectKey: null,
+      stage: "negotiation", // an OPEN stage, so it appears in `stalled`
+      stageRaw: "Negotiating",
+      stageEnteredAt: utc(2027, 0, 1).toISOString(),
+      openedAt: utc(2026, 11, 1).toISOString(),
+      updatedAt: utc(2027, 0, 1).toISOString(),
+      won: null,
+      lost: null,
+    };
+  }
+
+  afterEach(() => {
+    provideCatalogue(DEAL_PROJECT_ID, null); // never leak a fixture catalogue into another file
+  });
+
+  /** Narrows `DealLadder`'s "not connected" branch away, for a ladder built from real deals. */
+  function stalledOf(ladder: ReturnType<typeof buildSalesFlow>["ladder"]) {
+    if (ladder.source === "not_connected") throw new Error("expected a CRM-backed ladder");
+    return ladder.stalled;
+  }
+
+  it("links a stalled deal's unit only when THIS project's own catalogue holds the code — a code that is real elsewhere does not satisfy it", () => {
+    const ownCode: RawUnit = {
+      code: "T-101",
+      block: "T",
+      floor: 1,
+      rooms: 2,
+      areaSqm: 55,
+      orientation: "N",
+      price: 200_000,
+      status: "available",
+    };
+    provideCatalogue(DEAL_PROJECT_ID, [ownCode]);
+
+    const deals = {
+      connector: "realpad" as const,
+      fetchedAt: utc(2027, 0, 2).toISOString(),
+      deals: [
+        deal("d-own", "T-101"), // this project's own catalogue: linked
+        deal("d-foreign", "A-402"), // a REAL Northgate code -- not in THIS catalogue: not linked
+        deal("d-freetext", "LEGACY-SPREADSHEET-CODE"), // no catalogue anywhere: readable, not linked
+        deal("d-none", null), // the source stated no unit at all
+      ],
+    };
+
+    const view = buildSalesFlow(DEAL_CONTEXT, [], utc(2027, 0, 10), [], deals);
+    const byId = new Map(stalledOf(view.ladder).map((s) => [s.externalId, s]));
+
+    expect(byId.get("d-own")?.unitHref).toBe("/test-tenant/test-project/units/T-101");
+    expect(byId.get("d-own")?.unitCode).toBe("T-101"); // the code itself is always readable
+
+    expect(byId.get("d-foreign")?.unitHref).toBeNull();
+    expect(byId.get("d-foreign")?.unitCode).toBe("A-402"); // still shown, just not a link to nowhere
+
+    expect(byId.get("d-freetext")?.unitHref).toBeNull();
+    expect(byId.get("d-freetext")?.unitCode).toBe("LEGACY-SPREADSHEET-CODE");
+
+    expect(byId.get("d-none")?.unitHref).toBeNull();
+    expect(byId.get("d-none")?.unitCode).toBeNull();
+  });
+
+  it("encodes a catalogue code that needs it, rather than dropping the character or leaving it raw in the path", () => {
+    const spacedCode: RawUnit = {
+      code: "A 4/02", // a space and a slash: neither is a valid raw path segment
+      block: "A",
+      floor: 4,
+      rooms: 3,
+      areaSqm: 78,
+      orientation: "S",
+      price: 260_000,
+      status: "reserved",
+    };
+    provideCatalogue(DEAL_PROJECT_ID, [spacedCode]);
+
+    const deals = {
+      connector: "realpad" as const,
+      fetchedAt: utc(2027, 0, 2).toISOString(),
+      deals: [deal("d-spaced", "A 4/02")],
+    };
+
+    const view = buildSalesFlow(DEAL_CONTEXT, [], utc(2027, 0, 10), [], deals);
+    const stalled = stalledOf(view.ladder).find((s) => s.externalId === "d-spaced");
+    expect(stalled?.unitHref).toBe(
+      `/test-tenant/test-project/units/${encodeURIComponent("A 4/02")}`,
+    );
+    // Concretely, not just "whatever encodeURIComponent does" -- pinned so a
+    // future switch to a different escaping function is a visible diff here.
+    expect(stalled?.unitHref).toBe("/test-tenant/test-project/units/A%204%2F02");
   });
 });

@@ -222,7 +222,16 @@ test.describe("Ask IRIS against the delivered design", () => {
     await page.goto(ASK);
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
-    await expect(page.getByRole("link", { name: "ASK IRIS" })).toHaveAttribute(
+    /*
+     * `exact: true`, since the project-switching work gave the wordmark its
+     * own accessible name "…this project's Ask IRIS" — a non-exact match on
+     * "ASK IRIS" now also catches the brand link (it has no `aria-current`
+     * at all) alongside the nav item this assertion actually means, and
+     * Playwright's strict mode correctly refuses the ambiguity rather than
+     * picking one silently. The nav item is still the only element this
+     * checks: its own accessible name is exactly "ASK IRIS".
+     */
+    await expect(page.getByRole("link", { name: "ASK IRIS", exact: true })).toHaveAttribute(
       "aria-current",
       "page",
     );

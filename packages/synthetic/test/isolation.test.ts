@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { PROJECTS, TENANTS, VIEWERS } from "../src/world";
-import { syntheticRepository } from "../src/repository";
+import { SyntheticObserverRepository, syntheticRepository } from "../src/repository";
 import { sessionsForProject, showroomSessions } from "../src/showroom/sessions";
-import type { PeriodPreset, Viewer } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  type ShowroomSessionSource,
+  type Viewer,
+} from "@observer/readmodels";
+import type { ShowroomSession } from "@observer/contracts";
 
 /**
  * Tenant and project isolation.
@@ -442,6 +449,181 @@ describe("the summary window ignores the period, never the project", () => {
     expect(kingsford).toBeGreaterThan(0);
     expect(value).toBe(northgate);
     expect(value).not.toBe(northgate + riverside + kingsford);
+  });
+});
+
+/* --- a meeting belongs to exactly one project, at the replay and report seams -- */
+
+/**
+ * THE REGRESSION THE HARDEN PASS FIXED, PINNED.
+ *
+ * `getMeetingReplay` and `getReportScope(…, meetingId)` used to look a
+ * meeting up with `sessionById(meetingId)` — no project argument — which
+ * searched every project's sessions at once. A meeting id is exactly as
+ * guessable as `mtg_ng0001`, so the fix is not "check afterwards that the
+ * session's own `projectId` matches" (a second read of data already fetched,
+ * easy to forget on the next call site that is added); it is that the SEARCH
+ * ITSELF never looks outside the resolved project, via `sessionById(id,
+ * projectId)` → `sessionsOfProject(projectId)`. These tests recreate the
+ * shape of the old bug — a real meeting id from one project, asked for under
+ * a different, real, held project — and confirm the six cases the mandate
+ * names: a meeting inside its own project, a meeting id from a different
+ * project, a project the viewer does not hold at all, an id delivered
+ * through the connector overlay (the Akhilesh-demo path), an id that exists
+ * nowhere, and the corresponding report-scope path.
+ */
+describe("a meeting belongs to exactly one project — replay and report-scope", () => {
+  const petra = VIEWERS.developer as Viewer; // holds northgate, riverside, ister-tower
+  const tomas = Object.values(VIEWERS).find((v) => v.role === "agency_manager") as Viewer; // northgate, ister-tower, kingsford — NOT riverside
+  const northgateMeetingId = sessionsForProject("prj_northgate01")[0]?.meetingId;
+  const riversideMeetingId = sessionsForProject("prj_riversidew1")[0]?.meetingId;
+  if (northgateMeetingId === undefined || riversideMeetingId === undefined) {
+    throw new Error("fixtures moved: no meeting id available to seed these tests");
+  }
+
+  function replayQuery(v: Viewer, tenantSlug: string, projectSlug: string, meetingId: string) {
+    return { viewer: v, tenantSlug, projectSlug, meetingId: meetingId as never };
+  }
+
+  it("a valid meeting, inside the project that actually holds it, replays", async () => {
+    const replay = await syntheticRepository.getMeetingReplay(
+      replayQuery(petra, "alpha", "northgate", northgateMeetingId),
+    );
+    expect(replay.meetingId).toBe(northgateMeetingId);
+  });
+
+  it("a real meeting id from a DIFFERENT project is refused as not-found, not replayed under the wrong project", async () => {
+    // The exact shape of the old bug: Riverside's own meeting id, asked for
+    // through Northgate's address. Petra holds both projects, so a leak here
+    // is not even a cross-DEVELOPER leak (isolation.test.ts's other cases
+    // already forbid that) — it is the read model quietly answering the
+    // wrong project's question with the right project's authorisation.
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(petra, "alpha", "northgate", riversideMeetingId),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("the corresponding report-scope path refuses the same cross-project id the same way", async () => {
+    const query = {
+      viewer: petra,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "quarter_to_date" as PeriodPreset,
+    };
+    await expect(
+      syntheticRepository.getReportScope(query, riversideMeetingId),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    // And the meeting's own project reads it back fine, from the same call shape.
+    const riversideQuery = { ...query, projectSlug: "riverside" };
+    const scoped = await syntheticRepository.getReportScope(riversideQuery, riversideMeetingId);
+    expect(scoped).toBeDefined();
+  });
+
+  it("a project the viewer does not hold at all is refused before any meeting lookup happens", async () => {
+    // Tomáš's grant list does not include Riverside (see isolation.test.ts's
+    // own "two projects under one developer" cases for the same fact used
+    // against getHome). The refusal must fire on the PROJECT, whether or not
+    // the meeting id he tried is real.
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(tomas, "alpha", "riverside", riversideMeetingId),
+      ),
+    ).rejects.toBeInstanceOf(NotPermittedError);
+  });
+
+  it("an unknown meeting id, on a project the viewer does hold, is not-found", async () => {
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(petra, "alpha", "northgate", "mtg_does_not_exist_anywhere"),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  describe("an imported (connector-overlay) meeting follows the identical contract", () => {
+    /*
+     * The Akhilesh demo project's real sessions arrive over the network from
+     * the live Supabase source and are not reproduced here (no remote calls
+     * in a unit test, no manufactured records). What IS exercised is the
+     * exact mechanism that delivers them: a `ShowroomSessionSource` plugged
+     * into the repository's own `sessionSource` option — the identical seam
+     * `overlaySessions` reads on every request — answering for the demo
+     * project alone and `null` for everything else, exactly as the real
+     * connector does for a project it was not configured against. This is
+     * deliberately a SEPARATE repository instance: the shared
+     * `syntheticRepository` singleton used everywhere else in this file has
+     * no configured source, so `overlaySessions` calls `provideSessions(id,
+     * null)` for every project on every request by design (`repository.ts`'s
+     * own doc-comment: "what it shows must be what it was told, not what an
+     * earlier instance in the same process was told") — reaching into the
+     * module-private override directly, from a test, would have been
+     * fighting that contract rather than exercising it.
+     */
+    const demoProjectId = "prj_akhileshdemo1";
+    const madspace = VIEWERS.madspace as Viewer;
+    const imported: ShowroomSession = {
+      sessionId: "ses_demo_overlay01",
+      meetingId: "mtg_demo_overlay01",
+      projectId: demoProjectId,
+      agentId: "agt_demo_akhilesh",
+      channel: "showroom",
+      contactId: null,
+      startedAt: "2026-08-24T07:00:00.000Z",
+      endedAt: "2026-08-24T07:20:00.000Z",
+      durationSeconds: 1200,
+      outcome: "reservation",
+      steps: [],
+      units: [],
+      environment: [],
+      filters: [],
+      places: [],
+      screenshots: 0,
+      irisRating: null,
+      priorMeetings: 0,
+      timingUnavailable: false,
+    };
+    const demoOnlySource: ShowroomSessionSource = {
+      async sessionsFor(project) {
+        if ((project.id as string) !== demoProjectId) return null;
+        return {
+          connector: "test-fixture",
+          sessions: [imported],
+          fetchedAt: "2026-08-24T08:00:00.000Z",
+        };
+      },
+    };
+    const repoWithOverlay = new SyntheticObserverRepository({ sessionSource: demoOnlySource });
+
+    it("replays inside its own project once delivered, and is invisible to every other project", async () => {
+      const replay = await repoWithOverlay.getMeetingReplay(
+        replayQuery(madspace, "madspace-integration", "akhilesh-demo-source", imported.meetingId),
+      );
+      expect(replay.meetingId).toBe(imported.meetingId);
+      // Answered from the RESOLVED project's own context, not a bare copy of
+      // the fixture -- proof the read went through the real project
+      // resolution rather than short-circuiting on the meeting id alone.
+      expect(replay.context.project.slug).toBe("akhilesh-demo-source");
+
+      // The same id, asked for under a project the source did not deliver it
+      // for -- Northgate's own static fixtures do not contain this id
+      // either, and `demoOnlySource` answers `null` for Northgate, so the
+      // ordinary synthetic path (which also lacks it) applies.
+      await expect(
+        repoWithOverlay.getMeetingReplay(
+          replayQuery(madspace, "alpha", "northgate", imported.meetingId),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+
+      // And a repository instance with NO configured source -- every other
+      // test in this file, and the production composition root when no
+      // connector is set up for this tenant -- never sees it at all.
+      await expect(
+        syntheticRepository.getMeetingReplay(
+          replayQuery(madspace, "madspace-integration", "akhilesh-demo-source", imported.meetingId),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
   });
 });
 
