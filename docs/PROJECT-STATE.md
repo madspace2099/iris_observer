@@ -3,9 +3,9 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-09 (night) · **Branch:** `feature/observer-reference-parity`, pushed to
-`origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are local
-only, latest `e263191`.
+**Last updated:** 2026-09-09 (afternoon) · **Branch:** `feature/observer-reference-parity`, pushed
+to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
+local only, latest `adf0981`.
 
 ---
 
@@ -1204,3 +1204,188 @@ page renders. Then show the founder the one visible change of composition made h
 decision of theirs: the "All projects" row at the foot of the Ask header's project switch, and the
 navigation sitting left of centre on the administrator's laptop-width header rather than under
 the account cluster.
+
+### Continuation, 2026-09-09 afternoon — verifying the morning report, not repeating it — `94a4b89` → `adf0981`
+
+**The mandate.** Do not re-audit; verify what the morning report claimed, close the acceptance
+gates it left open, and reconcile the QA sweep against real functional E2E coverage.
+
+**§1 `time.ts`, hardened rather than assumed correct.** The morning's 16 tests proved the ordinary
+case; 21 new ones prove the properties the report claimed without pinning: host independence
+(`process.env.TZ` mutated mid-process — a bare `Date` getter moves, `zoneParts`/labels/`bucketBounds`
+do not, across four wildly different host zones), that the instant handed in is never rewritten,
+half-open period boundaries (`[from, to)`, checked at the exact millisecond), the week/month/
+year/leap-day edges (a leap February's 29-day ceiling, not a hard-coded 28; a January→December
+rollover that also crosses a year), the two DST irregularities in Europe/Bratislava — the missing
+hour (29 March) and the repeated one (25 October) — pinned against ground truth from a second,
+more primitive `Intl` call rather than the function under test grading its own homework, and an
+unrecognised zone failing loudly (`RangeError`) rather than silently reading the host's. Both
+policies (DST resolution, invalid-zone failure) are now stated in `time.ts`'s own docblock, not
+just tested. `session-schedule.test.ts` (new) covers the generator's own contract: determinism,
+identifiers that encode no timestamp, working hours in the _project's_ zone (Kingsford's UTC hours
+now provably differ from Northgate's), and proof the connector overlay never touches the static
+generator.
+
+**§2 the meeting-replay and unit-link fixes, proven against the actual bug shape.** Six new tests
+in `isolation.test.ts` recreate the historical vulnerability precisely: a real meeting id from a
+_different_ project, asked for under a project the viewer _does_ hold (the exact shape of the old
+leak) — refused `NotFoundError`, both on `getMeetingReplay` and `getReportScope`; a project the
+viewer does not hold at all, refused `NotPermittedError` before any meeting lookup; an unknown id;
+and the connector-overlay path exercised through a real `ShowroomSessionSource` stub plugged into
+the repository's own `sessionSource` option — not the module-private override, which a repository
+with no configured source wipes on every request by design, and reaching into it directly would
+have been fighting that contract rather than exercising it. Two new tests in `views3.test.ts` cover
+the deal ladder's identical contract: a real _foreign_ catalogue code (a genuine Northgate unit)
+does not satisfy Riverside's lookup even though it is a real code somewhere; free text stays
+readable with no link; and a catalogue code needing escaping produces a concretely pinned encoded
+path, not just "whatever `encodeURIComponent` does today."
+
+**§3 the link-crawl test, and what "smallest correction" actually meant.** Against its own
+_documented_ environment — `playwright.config.ts`'s default `webServer` builds and serves
+production — the entire `observer-product.spec.ts` file, including "draws no link that does not
+resolve," passed clean (34 passed, 1 skipped, 2.7 minutes for the build and all 35 tests). The
+correction needed was zero lines of test code: the earlier dev-server run was simply the wrong
+environment for a budget calibrated against production. Re-confirmed inside the full 383-test
+production run later the same afternoon.
+
+**§4 the QA sweep, reconciled against real functional coverage, not conflated with it.** The
+596 desktop / 596 mobile page visits are role×project×route _combinations_, not 596 distinct pages:
+254 fixed-surface visits (16 declared surfaces × however many projects × six accounts), 260 sampled
+detail pages (capped at 4 units / 4 meetings / 6 agents / 3 conversations per project), 75
+MADSPACE-admin-surface visits, the rest refusal/anonymous checks — 484 distinct (account, project,
+surface) combinations altogether. It is a rendered-route smoke sweep: page loads, DOM reads,
+link-following. It exercises no form submission beyond sign-in, no persistence round-trip, no
+destructive confirmation, no multi-step state change, no interaction-dependent authorisation
+(a click, a select, a drag) — those are what the full E2E suite is for, and this pass ran it.
+
+**§5 the full E2E suite, run to completion, classified by environment rather than lumped into one
+number.** `workers: 1`, `--project=desktop` only (`wide`/`mobile` were not run this pass — a
+resource choice, stated rather than hidden). Three environments, each given its own batch:
+
+- **Dev-only** (their own docblocks: the route calls `notFound()` when `NODE_ENV==="production"`,
+  unconditionally — `localControlPlaneEnabled()` in `apps/web/src/lib/sources/local-db.ts` refuses
+  outright in production regardless of any flag): `design-lab-a11y.spec.ts`, `design-lab-stress
+.spec.ts`, `design-lab.spec.ts`, `madspace-screenshots.spec.ts`. Run against the dev server
+  (`OBSERVER_BASE_URL=http://localhost:3310`): **142/143 passed, 1 skipped, 0 failed.** The first
+  attempt at all four ran against production by mistake (my own batching error, corrected once
+  identified) and every one of their tests failed identically on a 30s click-timeout waiting for a
+  button a production build never renders — proving the classification rather than a product
+  defect, but the wasted run is recorded rather than erased.
+- **Production** (everything else, 34 files, 398 tests): **run to completion. 10 confirmed
+  failures, all in two files** (`showroom.spec.ts`, `showroom-screenshots.spec.ts`) that pre-date
+  three _already-shipped, already-documented, already-tested-elsewhere_ product decisions these two
+  files were never updated for: the Storytelling→Features redirect (`nav-reachability.spec.ts`
+  tests the current behaviour and passes), the retired `SECONDARY_NAV` row (same), and `StackPlan`
+  replacing `UnitMatrix` on `/units` (`.iris-matrix-row` no longer exists there — `StackPlan`'s
+  `Cell` is a link to the unit's own page, not an in-page expand). Recommendation: retire or rewrite
+  both files against the current component/navigation generation rather than patch ten individual
+  selectors under guesswork; their functional intent is already covered by `nav-reachability.spec
+.ts`, `observer.spec.ts`, `observer-product.spec.ts` and `ask-security.spec.ts` with current
+  selectors. One test (`ask-iris-compare.spec.ts`, "takes 6.45 seconds to go round") failed an
+  animation-timing assertion by 6.7% (0.064 against a 0.06 ceiling) — not re-verified in isolation;
+  reported as suspected environment-timing sensitivity, not a confirmed regression, because it
+  wasn't isolated and re-run before the report was written. One test (the file's own last,
+  "Ask Observer answers from evidence, on any surface", `test.setTimeout(150_000)`) was stopped
+  before its own generous budget elapsed — genuinely undetermined, not a failure, not a pass.
+  The three files after it (`sign-in-baseline.spec.ts`, `units-register.spec.ts`, `views
+-screenshots.spec.ts`, 15 tests) were run separately to completion: **15/15 passed.**
+- **Explicitly gated** (`m10-acceptance.spec.ts`, opt-in via `OBSERVER_M10_ACCEPTANCE`, fails
+  closed by its own design): its 8 tests ran inside the production batch and all 8 passed —
+  consistent with the existing M10 matrix's own "8 of 8, target local-pglite" evidence, not
+  independently re-verified against a live flag this pass.
+
+**One real, previously-unreported regression found and fixed along the way**:
+`ask-iris-compare.spec.ts`'s `getByRole("link", { name: "ASK IRIS" })` (no `exact`) became
+ambiguous the moment the wordmark's own accessible name started containing the substring "Ask
+IRIS" (the earlier project-switching session's own work) — Playwright's strict mode correctly
+refused to guess between the wordmark and the nav item. Fixed with `exact: true`, which is what the
+assertion always meant; verified clean in the full run afterwards.
+
+**§6 `pnpm verify`, without a redundant rebuild.** `format:check` clean (full repo); `typecheck`
+clean (`pnpm -r exec tsc --noEmit`, all 11 packages plus tests and scripts); `lint` clean (`eslint
+.`, whole repo, zero warnings); `build` — not re-run standalone; the production build already
+succeeded three times as the E2E suite's own `webServer` step, which is what this gate actually
+checks. `test` (`vitest run`, whole repo): **one apparent failure, resolved as a timeout-budget
+issue, not a defect.** The first full run (concurrent with the E2E production batch — a resource
+timing mistake of this pass's own, corrected) showed 3 failed / 3343 passed and vitest's own
+internal RPC timing out, both symptoms of the two heavy processes competing for the same CPU. Run
+again in isolation: **1 failed / 3368 passed / 1 skipped** — `supabase/test/artefact-consistency
+.test.ts`'s "finds no token the repository cannot account for", timed out at vitest's 30 000 ms
+default. Re-run alone with `--testTimeout=120000`: **passed, in 30 434 ms** — three hundred
+milliseconds over the default, on a slow `execFileSync` git-history walk this test's own docblock
+says should take "a second." Not a bug; the default budget is tight for this machine. **Full repo
+vitest is 3369/3370 correct**, the one exception being a timeout ceiling, confirmed by direct
+re-run, not by inference.
+
+**§7 source-integration honesty, verified from the shipped code, not by touching Akhilesh's
+Supabase again.** Two items the morning report left open, resolved by reading the storage layer
+rather than resyncing: **repeated-sync idempotency** — `observer_sessions_apply`'s own SQL
+(`supabase/migrations/20260908230000_observer_showroom_sessions.sql`) is `insert ... on conflict
+(project_id, connector) do update set sessions = excluded.sessions` — one snapshot row per
+project+connector, always overwritten, so a second sync cannot duplicate rows by construction, not
+by convention. **Restart persistence** — the local control plane's `PGlite.create({ dataDir })`
+(`apps/web/src/lib/sources/local-db.ts`) points at a real, repo-relative directory on disk
+(`.observer-local/control-plane`), not an in-memory instance; the same file-backed store holds both
+the session snapshots and the sealed connector credentials (`db.connectorCredentialSet` in
+`session-source-service.ts`), so both survive a process restart. Neither claim required a live call
+to Akhilesh's project. **Source-project scope, source-to-screen mapping, external read-only
+behaviour** were already verified live in the morning session and are not re-claimed as newly
+proven here.
+
+**§8 the M9 `/madspace` root, checked against the existing ledger rather than re-litigated.** Its
+own lede ("Not part of this demonstration") is deliberate and current: `docs/PROJECT-STATE.md`'s
+own M9 status (line 31, and the SPECIFICATION_BLOCKED note at what is now further up this file)
+already records that tenant/user/agency CRUD, branding and feature flags have no field contract to
+build against — a genuine specification gap, not a stub standing in for finished work. It is not a
+dead end: `OpsNav` (`apps/web/src/components/madspace/OpsNav.tsx`), rendered on every `/madspace`
+page including the root, links to Administration, Projects, Diagnostics and Directory — all four
+real, all four already proven live in the morning session and re-confirmed passing in this one's
+E2E run (`madspace-screenshots.spec.ts`, 7/7 against dev). No code change; citing the existing
+classification is the correct answer here, per the mandate's own rule for a permitted
+non-deliverable.
+
+**§9 the M3–M10 ledger — read, not re-derived.** M6 (physical data layer) and M7 (ingestion) remain
+🟡 partial exactly as recorded above (no domain tables for meetings/contacts/deals; no CRM/WEBIRIS
+adapters); M8 (event catalogues) remains ⛔ not started (`EventRegistry` is null, by design — see
+`docs/roadmap.md`, ADR-0032, and the "do not write UE5 C++ in this phase" rule this repository's own
+`CLAUDE.md` states). Two items from the prior session's own agent-recommended queue — the Viktória
+reference-journey completion (`docs/08-scenarios.md` §1) and the fully-specified-but-unwired
+`unit.sharp_demand_decline` metric — were assessed for size this pass rather than attempted: the
+metric is not a quick wire-up as it first appeared (its registry entry specifies a trailing-12-week,
+weekly-windowed calculation with its own minimum-sample rule on the base, distinct from and more
+sophisticated than `attention.ts`'s already-wired `demand_dropping` two-point comparison; building
+it means a new per-unit weekly aggregation, not reusing an existing one). Both remain **specified
+and implementable, not started** — deliberately deferred this pass in favour of finishing the
+acceptance gates and this report, which the same mandate also required, rather than rushing either
+under time pressure. Scope is recorded here so a future session starts from this paragraph, not
+from zero.
+
+**§10 project switching, checked against every constraint the founder actually set.** "All
+projects" is additional, not a replacement: Petra's three own projects still lead the list
+(`project-switching.spec.ts`, 5/5, re-confirmed in the full run); it is not a sign-in destination
+(sign-in still lands on `/ask`, unchanged); it lives in the Ask header's _project_ switcher, with no
+tenant dimension anywhere near it; it performs the identical `router.push` every other option in
+that same control already performs — no new interaction with Ask's own reasoning scope; `/projects`
+itself still does its own authorisation, unchanged, so nothing exposes a project the account does
+not hold; the wordmark's own behaviour (the active project's Ask IRIS) was not touched. Screenshots
+sent to the user this session (`header-1440-madspace.png`, `header-1200-madspace.png`, a fresh
+production `01-ask-iris-1440.png`) are unreviewed by a human — a passing regression test is not
+visual approval, and is not claimed as one here.
+
+**Working tree and commits.** `adf0981` "Harden time.ts and meeting isolation; fix a stale E2E
+locator" — 6 files, +599/−8 (`e2e/ask-iris-compare.spec.ts`, `packages/synthetic/src/time.ts`,
+`packages/synthetic/test/{isolation,time,views3,session-schedule}.test.ts`). Tree is clean at
+`adf0981`. **No push, no merge, no deploy, no hosted mutation, no secret rotation** — everything in
+this section ran against the local dev server (port 3310), a locally-built production server (port
+3210, stopped after use), and this repository's local PGlite control plane.
+
+**Next recommended action.** (1) A human look at the three screenshots above — the only
+undecided-by-a-human composition change this pass made. (2) Retire or rewrite `showroom.spec.ts`
+and `showroom-screenshots.spec.ts` against the current navigation/component generation, or delete
+them if their ground is now fully covered by `nav-reachability.spec.ts` / `observer.spec.ts` /
+`observer-product.spec.ts` — do not patch ten selectors by guesswork. (3) Isolate and re-run
+`ask-iris-compare.spec.ts`'s "takes 6.45 seconds to go round" alone, to settle product-vs-environment
+before it is filed either way. (4) When there is a machine and a session free for it: `wide` and
+`mobile` Playwright projects, not run this pass. (5) Pick up M9's tenant/user/agency/branding/flags
+only once a field contract exists to build against — not before; pick up the Viktória journey or
+`sharp_demand_decline` as their own bounded sessions, using the scope notes in §9 above.
