@@ -161,7 +161,22 @@
 
 .irs-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  /*
+   * The side columns share the width equally, so the navigation sits at the
+   * centre — until the account cluster on the right is wider than its half.
+   * Then the right column grows to hold the cluster and the navigation moves
+   * left by the difference.
+   *
+   * With `minmax(0, 1fr)` on the right it did not: the cluster overflowed its
+   * column leftwards and lay across the last navigation item. Measured on the
+   * administrator's header, whose cluster carries the demonstration badge,
+   * Projects, Settings, Administration and Sign out: 71px of overlap at 1440,
+   * 151px at 1280, 191px at 1200 — a link under another link is a link nobody
+   * can click, and the developer's cluster overlapped by 55px at 1280 too. An
+   * off-centre navigation is a composition compromise; a covered one is a
+   * defect. The gap below 1440 is tightened so the shift stays small.
+   */
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
   align-items: center;
   height: var(--iris-header-height);
   padding: 0 var(--iris-shell-pad);
@@ -292,6 +307,33 @@
   min-width: 0;
 }
 
+/*
+ * Laptop widths: the account cluster keeps every control, packed closer, and
+ * the reader's name and role give up width first — they are the one thing in
+ * the cluster that is information rather than a control, and the full name
+ * stays on hover (`title`). The block is capped rather than the name alone
+ * because the role line beneath it ("MADSPACE administrator") is the wider of
+ * the two and would otherwise hold the block open. The grid above then has
+ * less to make room for, so the navigation moves less: about 50px at 1440 for
+ * the administrator instead of 125. The second step keeps the wordmark clear
+ * of the navigation at 1200, the narrowest width the wide header renders at.
+ */
+@media (width <= 1599px) {
+  .irs-shell:not([data-variant="ask"]) .irs-header-end {
+    gap: 10px;
+  }
+
+  .irs-shell:not([data-variant="ask"]) .irs-who {
+    max-width: 104px;
+  }
+}
+
+@media (width <= 1279px) {
+  .irs-shell:not([data-variant="ask"]) .irs-who {
+    max-width: 76px;
+  }
+}
+
 .irs-who-name {
   font-size: 13px;
   line-height: 1.2;
@@ -306,6 +348,8 @@
   line-height: 1.2;
   color: var(--iris-text-quiet);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* --- the main column --------------------------------------------------------- */

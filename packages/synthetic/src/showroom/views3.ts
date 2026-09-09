@@ -45,7 +45,8 @@ import {
 } from "../pulse";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { buildDealLadder } from "../deals";
-import { count, evidenceRef, percent } from "../format";
+import { count, dayLabel, evidenceRef, percent } from "../format";
+import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 
 /**
@@ -157,18 +158,22 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * The synthetic world's today is 24 August 2026. Deriving the buckets from it
  * rather than from `Date.now()` keeps the dataset deterministic — a demo whose
  * figures change overnight cannot be screenshotted or asserted on.
+ *
+ * The days are the PROJECT'S days. "Today" for a Bratislava sales office
+ * starts at its own midnight, not at UTC midnight two hours later, so the
+ * bounds are cut in `timeZone`. UTC is the default only so a caller that has
+ * no project (the tests hand-place sessions at UTC midnights) keeps its
+ * arithmetic literal.
  */
-export function bucketBounds(today: Date) {
+export function bucketBounds(today: Date, timeZone = "UTC") {
   const day = 24 * 60 * 60 * 1000;
-  const startOfDay = (d: Date) =>
-    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const t0 = startOfDay(today).getTime();
+  const t0 = startOfDayIn(today, timeZone).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
-  const weekday = (startOfDay(today).getUTCDay() + 6) % 7;
-  const thisWeek = t0 - weekday * day;
+  const weekday = zoneParts(today, timeZone).weekday;
+  const thisWeek = startOfWeekIn(today, timeZone).getTime();
   const elapsedDays = weekday + 1;
-  const thisMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1);
-  const lastMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1);
+  const thisMonth = startOfMonthIn(today, timeZone).getTime();
+  const lastMonth = startOfMonthIn(today, timeZone, -1).getTime();
   const elapsedDaysInMonth = Math.round((t0 - thisMonth) / day) + 1;
   /*
    * A shorter previous month cannot be clipped past its own length.
@@ -221,8 +226,12 @@ export function bucketBounds(today: Date) {
   ];
 }
 
-function buildPeriods(sessions: readonly ShowroomSession[], today: Date): FlowPeriod[] {
-  return bucketBounds(today).map((b) => {
+function buildPeriods(
+  sessions: readonly ShowroomSession[],
+  today: Date,
+  timeZone: string,
+): FlowPeriod[] {
+  return bucketBounds(today, timeZone).map((b) => {
     const inside = sessions.filter((s) => {
       const at = Date.parse(s.startedAt);
       return at >= b.from && at < b.to;
@@ -414,7 +423,7 @@ export function buildSalesFlow(
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const periods = buildPeriods(sessions, today);
+  const periods = buildPeriods(sessions, today, context.project.timeZone);
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const teamProgressed = share(
     decided.filter((s) => hasProgressed(s.outcome)).length,
@@ -555,10 +564,16 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
-    ladder: buildDealLadder(
-      deals,
-      locale,
-      (code) => `/${context.tenant.slug}/${context.project.slug}/units/${code}`,
+    ladder: buildDealLadder(deals, locale, context.project.timeZone, (code) =>
+      /*
+       * Only a code the catalogue holds gets a link; a CRM can name a unit the
+       * catalogue never stated, and a link to it would resolve to the
+       * product's own "this isn't here". Encoded, because a CRM's code is free
+       * text and a space or a slash in it is not a path.
+       */
+      catalogueFor(context.project.id as string).some((u) => u.code === code)
+        ? `/${context.tenant.slug}/${context.project.slug}/units/${encodeURIComponent(code)}`
+        : null,
     ),
   };
 }
@@ -1176,6 +1191,7 @@ export function buildAudience(
   criteria: AudienceCriteria,
 ): AudienceView {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const roomCodes =
     criteria.rooms === null
@@ -1212,10 +1228,7 @@ export function buildAudience(
 
       return {
         meetingId: s.meetingId,
-        startedDisplay: new Date(s.startedAt).toLocaleDateString(locale, {
-          day: "numeric",
-          month: "short",
-        }),
+        startedDisplay: dayLabel(s.startedAt, locale, timeZone),
         agentName: agent?.name ?? s.agentId,
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
@@ -1284,7 +1297,7 @@ export function buildHome(
     previousDecided.length,
   );
 
-  const periods = buildPeriods(sessions, today);
+  const periods = buildPeriods(sessions, today, context.project.timeZone);
   const week = periods.find((p) => p.id === "this_week")?.meetings ?? 0;
   const lastWeek = periods.find((p) => p.id === "last_week")?.meetings ?? 0;
 

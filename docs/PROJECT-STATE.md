@@ -1071,3 +1071,136 @@ this session's project-switching work changed everywhere it is used — passed c
 remaining ~30 spec files are genuinely not re-verified tonight** and that is stated here rather
 than implied otherwise; nothing in them was touched by this session's own commits, and the
 resource ceiling, not a discovered failure, is why they were not run to completion.
+
+### Continuation, 2026-09-09 morning, the QA sweep and its fixes — from `00b3028`
+
+**The ask.** Test the whole Observer as a QA engineer would, then fix everything found. The full
+Playwright suite (~1,578 cases) cannot complete on this machine in a working morning (see the
+resource ceiling above), so the sweep was done with a purpose-built, role-aware crawler,
+`scripts/qa-sweep.mjs` (now committed as a reusable tool): it signs in as each of the six
+demonstration accounts, walks every surface of every project the account holds plus a bounded set
+of unit/meeting/agent/conversation details, and records console and page errors, failed requests,
+forbidden text (`undefined`, `NaN`, `null`, `[object Object]`), a main region stuck on its loading
+copy, horizontal overflow, axe WCAG 2.x A/AA violations, and whether a refusal happened where one
+was expected (MADSPACE on `/people`, the admin surface for non-admins, a project the account does
+not hold, every project route signed out). `node scripts/qa-sweep.mjs http://localhost:3310
+[--mobile] [--only=account,…]` writes `artifacts/qa-sweep/report.{md,json}`. The first desktop pass
+covered 600 pages: zero forbidden text, zero overflow, zero failed requests, zero axe violations,
+and the defects below.
+
+**What was found, and what was done about each.**
+
+1. **`/overview` fell into the error boundary** for ISTER TOWER, the Akhilesh demo project, and
+   for a sales agent on any project but Northgate ("This screen could not be loaded … Try again",
+   with a Try again that could never help). Root cause: the page returned an async view component
+   from inside a try/catch, so the component's `NotFoundError` was thrown by React, outside the
+   catch. The read now happens on the page itself; a project the overview is not composed for gets
+   an honest state message with one action, Open Project, which carries the same figures for every
+   project. (`overview/page.tsx`; the duplicate local `presetFrom` went with it.)
+2. **The Ask page logged `NotPermittedError` on every refused URL** while the layout was already
+   rendering the refusal panel — a server-side `⨯` per request that read as a fault in the log.
+   The page now returns nothing on a refusal or an unknown project, the same pattern as its
+   siblings.
+3. **The demo project's meeting pages said "No brief for this meeting"** for meetings that had
+   run. `getMeetingReplay` looked the id up in the static showroom fixtures only, so a session that
+   arrived through a connector overlay was invisible to it; the same lookup was unscoped by
+   project, so a meeting id from one project could in principle be read under another project's
+   address. Both `getMeetingReplay` and `getReportScope` now resolve through
+   `sessionById(meetingId, projectId)`, which consults the project's overlay first and stays inside
+   the project.
+4. **Register unit chips linked to codes the catalogue does not hold** (every chip on the demo
+   project, which has no catalogue), so each led to the product's own "This isn't here".
+   `MeetingRow.unitsViewed` is now `readonly UnitReference[]` (`{ code, href | null }`) — the read
+   model decides the link because only it can see the catalogue — and the register prints a code
+   with no page as a plain chip titled "Not in the unit catalogue". The deal ladder's stalled-deal
+   unit links got the same catalogue check and URL encoding. Covered by a new test in
+   `screens.test.ts`.
+5. **`/report?meeting=<unknown>` crashed into the error boundary.** The `?meeting=` branch now
+   maps `NotFoundError` to the not-found page and a refusal to nothing (the layout has it).
+6. **Every date and time was printed on the HOST's clock, not the project's.** `toLocaleString`
+   and friends were called without `timeZone` in eleven places (meeting registers and replays,
+   unit timelines, weekly buckets, the flow charts, the deal ladder, Ask history stamps, the
+   pre-meeting brief, which also hard-coded `en-GB`), so a 10:30 Bratislava meeting reads "08:30"
+   on a UTC host such as Vercel, and Kingsford (`Europe/London`) was an hour off even here. Worse,
+   three computations were cut in UTC: the activity heatmap's weekday/hour cells (a 09:10 Bratislava
+   meeting fell into a 07:00 cell the grid does not have and dropped out of `meetingsCounted`), the
+   Today / This week / This month buckets, and the KPI window's end of day. And the meetings-per-
+   week trend used epoch weeks, which begin on a Thursday. New `packages/synthetic/src/time.ts`
+   (zone parts, zoned instants, day/week/month starts, month keys, all via `Intl`, no library) and
+   `dayLabel`/`clockLabel`/`monthLabel`/`monthYearLabel` in `format.ts`; every site now reads
+   `context.project.timeZone`. The trend's weeks start on the project's Monday and a week with no
+   meetings is drawn at zero rather than skipped (skipping it let the annotation call a quiet
+   fortnight a week-on-week change). The synthetic generator's working hours are now the project's
+   own 09:00–16:59 (they were `setUTCHours`), with the `r()` draw order untouched so every other
+   value in every session is what it was. `bucketBounds` keeps its UTC arithmetic when no zone is
+   given, so the hand-placed test fixtures are unchanged. 16 new tests in `time.test.ts`, pinned
+   against instants whose Bratislava and London readings are known by hand, summer and winter.
+7. **Ask IRIS offered no way back to the projects list** — every sign-in lands there, and the
+   export's reduced header has no Projects link — which `account-login.spec.ts` had been saying
+   for as long as the variant existed. The project switch in that header now ends with an
+   "All projects" row (`/projects`); the spec selects it. A single-project account still sees no
+   switch, as before.
+8. **The header's account cluster lay across the navigation at laptop widths.** Measured on the
+   administrator's header (badge, Projects, Settings, Administration, Sign out): 71px of overlap at
+   1440, 151px at 1280, 191px at 1200; the developer's overlapped by 55px at 1280. The right grid
+   column was `minmax(0, 1fr)`, so a cluster wider than its half overflowed leftwards over the
+   last navigation item. It is `minmax(max-content, 1fr)` now — centred navigation whenever it
+   fits, otherwise the navigation moves left rather than being covered — and below 1600px the
+   cluster packs closer and the name/role block is capped (the role line, not the name, was what
+   held it open). Re-measured: no overlap at 1440, 1280 or 1200; the navigation sits 72px left of
+   centre at 1440 for the administrator and nowhere for the developer.
+
+**Not defects, left alone, stated so nobody re-investigates:** the 15 "not refused" rows in the
+first sweep were `requireSurface` redirects to a permitted surface (MADSPACE `/people` → `/agents`),
+which is the designed refusal; the crawler now counts a redirect away from the address as one.
+`/madspace` for non-admins is the documented stub. HSTS is absent on the dev server because
+`next.config.ts` leaves it to the platform, deliberately.
+
+**Verification.** `pnpm -r exec tsc --noEmit` clean; `pnpm lint` clean; Prettier clean on every
+changed file; vitest scoped to `packages/synthetic`, `packages/readmodels` and `apps/web` (the
+release-packaging suites need a clean tree): 784 passed, then 33/33 on `screens.test.ts` with the
+new register test. Live, signed in as MADSPACE Operations against the dev server: ISTER TOWER's
+`/overview` renders the composed-for message with its Open Project link; `/report?meeting=mtg_nope`
+renders the not-found page; the Akhilesh demo register shows 13 unlinked, titled chips and its
+meeting page streams the full replay (confirmed from the response body — the Claude Browser pane
+itself never applies React's streamed-boundary swap on slow pages, which is a tooling artefact and
+is recorded as such); Northgate's register links all 283 chips to `/units/<code>`; the flow page's
+heatmap counts all 74 presentations with "Busiest: Wed at 09:00" in local hours and the trend's
+labels are Mondays; "All projects" in the Ask header lands on `/projects`.
+
+**The re-run sweeps.** Desktop, all six accounts: **596 pages, 0 findings.** Mobile (Pixel 7), all
+six accounts: 596 pages, 10 findings, all one root cause — axe `scrollable-region-focusable`
+(serious) on the Sales Agents detail's "What their buyers opened" chart, whose plot scrolled
+sideways. The cause was the paired chart's own tablet rule in `showroom.css`: below 60rem it
+collapsed to three columns and hid the last cell of every row, which dropped the PROJECT'S figure
+(the number the paired chart exists to set the agent's against) from every tablet and phone, and
+left the head's agent name in a 3rem track that "AKHILESH" overflowed, making the whole plot a
+scroll region. Four cells at every width now; on phones the label takes its own line above the
+track. Re-swept on mobile for the account that showed it: 76 pages, 0 findings. Looked at:
+`artifacts/qa-shots/paired-chart-412.png` (both values and both column names present, nothing
+scrolls), `header-{1440,1280,1200}-madspace.png`, `demo-register-chips.png`,
+`demo-meeting-replay.png`, `ister-overview.png` — the directory is git-ignored; the scripts that
+produced them (`shots.mjs`, `links.mjs`) sit beside them and re-run in a minute.
+
+**The targeted E2E specs, against the dev server (`OBSERVER_BASE_URL`), desktop project, one
+worker:** `account-login.spec.ts` 19/19 — including "the workspace offers a way back to the
+projects", the case that had failed for as long as the Ask variant existed; `project-switching.
+spec.ts` 5/5 after its option count moved from 3 to 4 (the fourth is "All projects", asserted by
+label); `observer-product.spec.ts` 33 passed, 1 skipped, and one failure: "draws no link that does
+not resolve" exceeded its own 180-second budget. Measured directly (`links.mjs`): the crawl issues
+221 distinct GETs, none broken, 210 seconds of server time at this machine's current dev-server
+latency (Turbopack, ~1s a page; the units and meetings registers alone are 147 of them). The
+budget was set for the production build the Playwright config starts by default, where it held;
+it is a machine-speed ceiling on the dev server, not a dead link, and the test is left as it is.
+
+**Not run:** the full E2E suite (~1,578 cases, see the ceiling above) and `pnpm verify`'s build
+and release-packaging suites, which need a clean tree and a production build — both belong to
+the next session's gate, on this commit.
+
+**Next recommended action.** Run `pnpm verify` on a clean tree at this commit and, when the
+machine is free, the full Playwright suite against the production build (`pnpm test:e2e`, no
+`OBSERVER_BASE_URL`) — the QA crawler cannot see what a spec asserts about behaviour, only what a
+page renders. Then show the founder the one visible change of composition made here without a
+decision of theirs: the "All projects" row at the foot of the Ask header's project switch, and the
+navigation sitting left of centre on the administrator's laptop-width header rather than under
+the account cluster.

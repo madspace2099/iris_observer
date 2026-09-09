@@ -344,7 +344,12 @@ test.describe("leaving", () => {
     ]);
     await page.waitForLoadState("networkidle");
 
-    await page.getByRole("link", { name: "Projects", exact: true }).click();
+    /*
+     * Ask IRIS wears the export's reduced header, which has no Projects link;
+     * its project switch carries the way back instead, as the last option.
+     * Petra is on several projects, so the switch is rendered for her.
+     */
+    await page.getByRole("combobox", { name: "Switch project" }).selectOption("__all");
     /* The router navigation, not the network's quiet. See the keyboard case. */
     await page.waitForURL(/\/projects/);
     expect(new URL(page.url()).pathname).toBe("/projects");

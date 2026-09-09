@@ -1,5 +1,10 @@
 import Link from "next/link";
-import { FOLLOW_UP_LABELS, type MeetingRow, type PeriodPreset } from "@observer/readmodels";
+import {
+  FOLLOW_UP_LABELS,
+  type MeetingRow,
+  type PeriodPreset,
+  type UnitReference,
+} from "@observer/readmodels";
 
 import { DataTable, Unavailable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
@@ -72,27 +77,37 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * absence of one.
  */
 function Units({
-  codes,
-  base,
+  units,
   period,
 }: {
-  readonly codes: readonly string[];
-  readonly base: string;
+  readonly units: readonly UnitReference[];
   readonly period: PeriodPreset;
 }) {
-  if (codes.length === 0) return <span className="ox-n">None opened</span>;
+  if (units.length === 0) return <span className="ox-n">None opened</span>;
 
+  /*
+   * A code the catalogue does not hold is printed, not linked. The read model
+   * decided that (`UnitReference.href`), because only it can see the
+   * catalogue; this component's one job is to not draw a door where there is
+   * no room behind it.
+   */
   return (
     <span className="ox-row-states">
-      {codes.map((code) => (
-        <Link
-          className="ox-evidence"
-          key={code}
-          href={dynamicRoute(withPeriod(`${base}/units/${encodeURIComponent(code)}`, period))}
-        >
-          {code}
-        </Link>
-      ))}
+      {units.map((unit) =>
+        unit.href === null ? (
+          <span className="ox-evidence" key={unit.code} title="Not in the unit catalogue">
+            {unit.code}
+          </span>
+        ) : (
+          <Link
+            className="ox-evidence"
+            key={unit.code}
+            href={dynamicRoute(withPeriod(unit.href, period))}
+          >
+            {unit.code}
+          </Link>
+        ),
+      )}
     </span>
   );
 }
@@ -111,15 +126,18 @@ const COLUMNS: readonly DataColumn[] = [
 
 export function MeetingRegister({
   rows,
-  base,
   period,
   caption,
   emptyState,
   crmConnected,
 }: {
+  /**
+   * Every route a row needs (`href`, each `unitsViewed[].href`) arrives
+   * absolute from the read model, so no base path is taken here: the one
+   * place that knows whether a unit code has a page is the one that writes
+   * the link.
+   */
   readonly rows: readonly MeetingRow[];
-  /** `/{tenantSlug}/{projectSlug}`. Unit and meeting routes hang off it. */
-  readonly base: string;
   readonly period: PeriodPreset;
   /** What this register lists, in a sentence, including its ordering. */
   readonly caption: string;
@@ -154,7 +172,7 @@ export function MeetingRegister({
           {row.durationDisplay}
         </span>
       ),
-      units: <Units codes={row.unitsViewed} base={base} period={period} />,
+      units: <Units units={row.unitsViewed} period={period} />,
       favourites: row.favourites,
       outcome: (
         <Chip

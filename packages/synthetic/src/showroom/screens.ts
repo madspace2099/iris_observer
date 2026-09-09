@@ -47,7 +47,9 @@ import type {
 import { areaWord, roomsWord, visitorLabel } from "@observer/readmodels";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
 import {
+  clockLabel,
   count,
+  dayLabel,
   empty,
   evidenceRef,
   insufficient,
@@ -108,14 +110,6 @@ function duration(seconds: number): string {
   return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
-function day(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" });
-}
-
-function clock(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-}
-
 function reached(session: ShowroomSession, sectionId: SectionId): boolean {
   return session.steps.some((s) => s.sectionId === sectionId);
 }
@@ -157,7 +151,12 @@ interface Bucket {
  * the last twelve, so a year-to-date period stays readable and the label still
  * says which twelve.
  */
-function weeklyBuckets(fromIso: string, toIso: string, locale: string): readonly Bucket[] {
+function weeklyBuckets(
+  fromIso: string,
+  toIso: string,
+  locale: string,
+  timeZone: string,
+): readonly Bucket[] {
   const week = 7 * 24 * 60 * 60 * 1000;
   const from = Date.parse(fromIso);
   const to = Date.parse(toIso);
@@ -166,7 +165,7 @@ function weeklyBuckets(fromIso: string, toIso: string, locale: string): readonly
   const all: Bucket[] = [];
   for (let start = from; start < to; start += week) {
     const end = Math.min(start + week, to);
-    all.push({ from: start, to: end, label: day(new Date(start).toISOString(), locale) });
+    all.push({ from: start, to: end, label: dayLabel(new Date(start), locale, timeZone) });
   }
   return all.slice(-12);
 }
@@ -222,6 +221,14 @@ export function buildMeetingRows(
 ): readonly MeetingRow[] {
   const crm = crmConnected(context);
   const byId = new Map(sessions.map((s) => [s.meetingId, s]));
+  const root = base(context);
+  /*
+   * Which codes have a page. A session records whatever code the showroom
+   * showed; the catalogue is what decides whether that code is a unit this
+   * project can open — a legacy import, or a delivered catalogue that has
+   * since withdrawn a flat, both leave codes with no page behind them.
+   */
+  const catalogueCodes = new Set(catalogueFor(context.project.id as string).map((u) => u.code));
 
   return buildMeetingList(context, sessions).flatMap<MeetingRow>((summary) => {
     const session = byId.get(summary.meetingId);
@@ -237,7 +244,12 @@ export function buildMeetingRows(
           visitorKindFor(session),
           session.contactId === null ? null : session.priorMeetings,
         ),
-        unitsViewed: session.units.map((u) => u.unitCode),
+        unitsViewed: session.units.map((u) => ({
+          code: u.unitCode,
+          href: catalogueCodes.has(u.unitCode)
+            ? `${root}/units/${encodeURIComponent(u.unitCode)}`
+            : null,
+        })),
         favourites: session.units.filter((u) => u.favourited).length,
         followUp,
         followUpLabel:
@@ -470,6 +482,7 @@ export function buildUnitDetail(
   unitCode: string,
 ): UnitDetailView | null {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const currency = context.project.currency;
   const root = base(context);
   const crm = crmConnected(context);
@@ -576,7 +589,7 @@ export function buildUnitDetail(
     const agentName = agentById(session.agentId)?.name ?? session.agentId;
     const meetingHref = `${root}/meetings/${session.meetingId}`;
     const channelLabel = SESSION_CHANNEL_LABELS[session.channel];
-    const stamp = `${day(session.startedAt, locale)} · ${clock(session.startedAt, locale)}`;
+    const stamp = `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`;
 
     const add = (
       kind: UnitTimelineEntry["kind"],
@@ -592,7 +605,7 @@ export function buildUnitDetail(
         label,
         detail,
         at,
-        atDisplay: at === null ? day(session.startedAt, locale) : stamp,
+        atDisplay: at === null ? dayLabel(session.startedAt, locale, timeZone) : stamp,
         channel: session.channel,
         channelLabel,
         tier,
@@ -827,7 +840,12 @@ export function buildUnitDetail(
 
   /* --- the trend ----------------------------------------------------------- */
 
-  const buckets = weeklyBuckets(context.period.from, context.period.to, locale);
+  const buckets = weeklyBuckets(
+    context.period.from,
+    context.period.to,
+    locale,
+    context.project.timeZone,
+  );
   const observations = row.views;
   const belowUnitMinimum = observations < UNIT_MIN_SAMPLE;
 
@@ -1291,7 +1309,12 @@ export function buildAgentDetail(
     });
   }
 
-  const buckets = weeklyBuckets(context.period.from, context.period.to, locale);
+  const buckets = weeklyBuckets(
+    context.period.from,
+    context.period.to,
+    locale,
+    context.project.timeZone,
+  );
 
   return {
     context,

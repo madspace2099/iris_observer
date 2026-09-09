@@ -18,7 +18,12 @@ import {
   type AskScope,
   type AskScopeProject,
 } from "@/components/ask-iris/AskScreen";
-import type { PeriodPreset, Viewer } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  type Viewer,
+} from "@observer/readmodels";
 
 export const metadata: Metadata = { title: "Ask IRIS" };
 
@@ -117,7 +122,24 @@ export default async function AskPage({
    */
   const demo = first(search, "demo");
 
-  const { tenant, project } = await repository.resolveProject(viewer, tenantSlug, projectSlug);
+  /*
+   * A refused or unknown project renders NOTHING here, on purpose.
+   *
+   * The layout has already resolved the same project and, when it refuses,
+   * renders its own "not available" panel without this page inside it. Layouts
+   * and pages render in parallel, so this page used to throw the same refusal a
+   * second time — never seen by the reader, but logged by the server as an
+   * unhandled error on every refused address, which is this route in
+   * particular: `requireSurface` sends every refused reader here.
+   */
+  let tenant;
+  let project;
+  try {
+    ({ tenant, project } = await repository.resolveProject(viewer, tenantSlug, projectSlug));
+  } catch (error) {
+    if (error instanceof NotPermittedError || error instanceof NotFoundError) return null;
+    throw error;
+  }
 
   /*
    * What actually composed the answer, named honestly.

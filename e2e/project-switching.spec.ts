@@ -39,7 +39,10 @@ test.describe("project switching", () => {
 
     const switcher = page.getByRole("combobox", { name: "Switch project" });
     await expect(switcher).toBeVisible();
-    await expect(switcher.locator("option")).toHaveCount(3);
+    /* Her three projects, then the way back to the list of all of them
+     * (`ALL_PROJECTS_OPTION` in Shell.tsx; `account-login.spec.ts` walks it). */
+    await expect(switcher.locator("option")).toHaveCount(4);
+    await expect(switcher.locator("option").last()).toHaveText("All projects");
 
     await switcher.selectOption({ label: "Riverside Walk" });
     await page.waitForURL(/\/alpha\/riverside\/ask/);

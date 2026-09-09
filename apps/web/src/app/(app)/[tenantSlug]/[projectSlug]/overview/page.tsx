@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import type { PeriodPreset } from "@observer/readmodels";
 import {
   ActionLink,
   AiSummary,
@@ -15,22 +14,17 @@ import {
   StateMessage,
   VerdictStrip,
 } from "@observer/ui";
-import { NotPermittedError } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type AgentOverview,
+  type ExecutiveOverview,
+} from "@observer/readmodels";
+import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Overview" };
-
-const PRESETS: readonly PeriodPreset[] = [
-  "quarter_to_date",
-  "last_28_days",
-  "last_quarter",
-  "year_to_date",
-];
-
-function presetFrom(value: string | undefined): PeriodPreset {
-  return PRESETS.includes(value as PeriodPreset) ? (value as PeriodPreset) : "quarter_to_date";
-}
 
 /**
  * Overview is role-aware rather than role-filtered.
@@ -39,6 +33,17 @@ function presetFrom(value: string | undefined): PeriodPreset {
  * same screen; they want different screens. Showing an agent the executive
  * view with half the cards blanked would tell them their colleagues' figures
  * exist and that they may not see them, which is worse than either.
+ *
+ * ## The read happens HERE, not inside the view components
+ *
+ * This page used to `return <AgentView query={query} />` inside a try/catch.
+ * That catch never ran: returning an async component defers its rendering
+ * — and its throw — to React, outside the try. So a project this overview is
+ * not composed for (ISTER TOWER, the Akhilesh demo, and for a sales agent
+ * anything but Northgate) fell through to `error.tsx`, which told the reader
+ * the figures "did not arrive" and offered a Try again that could never help.
+ * Awaiting the read here puts the refusal and the not-composed case back on
+ * this page, where each can be stated as what it is.
  */
 export default async function OverviewPage({
   params,
@@ -52,12 +57,16 @@ export default async function OverviewPage({
   const { period } = await searchParams;
 
   const query = { viewer, tenantSlug, projectSlug, period: presetFrom(period) };
+  const root = `/${tenantSlug}/${projectSlug}`;
 
+  let read:
+    | { readonly kind: "agent"; readonly overview: AgentOverview }
+    | { readonly kind: "executive"; readonly overview: ExecutiveOverview };
   try {
-    if (viewer.role === "sales_agent") {
-      return <AgentView query={query} />;
-    }
-    return <ExecutiveView query={query} />;
+    read =
+      viewer.role === "sales_agent"
+        ? { kind: "agent", overview: await repository.getAgentOverview(query) }
+        : { kind: "executive", overview: await repository.getExecutiveOverview(query) };
   } catch (error) {
     // The layout already renders the refusal for this project; the page must
     // not also throw, or an ordinary permission boundary reaches the error
@@ -70,18 +79,40 @@ export default async function OverviewPage({
         />
       );
     }
+    /*
+     * Not composed for this project — a true sentence, not a fault. The
+     * repository says so with `NotFoundError` rather than answering with
+     * another project's story (its own docblock records why), and the same
+     * figures live on Project, which is composed for every project.
+     */
+    if (error instanceof NotFoundError) {
+      return (
+        <StateMessage
+          title="No overview is composed for this project yet"
+          detail="Project carries the same figures for every project, read from the same records."
+          action={
+            <div className="obs-actions" style={{ marginTop: "var(--space-3)" }}>
+              <ActionLink href={`${root}/project`} emphasis="primary">
+                Open Project
+              </ActionLink>
+            </div>
+          }
+        />
+      );
+    }
     throw error;
   }
+
+  return read.kind === "agent" ? (
+    <AgentView overview={read.overview} />
+  ) : (
+    <ExecutiveView overview={read.overview} />
+  );
 }
 
 /* --- the developer's overview --------------------------------------------- */
 
-async function ExecutiveView({
-  query,
-}: {
-  query: Parameters<typeof repository.getExecutiveOverview>[0];
-}) {
-  const overview = await repository.getExecutiveOverview(query);
+function ExecutiveView({ overview }: { readonly overview: ExecutiveOverview }) {
   const { context } = overview;
   const [headlineChange, ...remainingChanges] = overview.changes;
 
@@ -158,8 +189,7 @@ async function ExecutiveView({
 
 /* --- the agent's overview -------------------------------------------------- */
 
-async function AgentView({ query }: { query: Parameters<typeof repository.getAgentOverview>[0] }) {
-  const overview = await repository.getAgentOverview(query);
+function AgentView({ overview }: { readonly overview: AgentOverview }) {
   const { context } = overview;
 
   return (

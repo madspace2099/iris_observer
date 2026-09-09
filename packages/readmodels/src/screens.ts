@@ -150,14 +150,28 @@ export const FOLLOW_UP_LABELS: Record<FollowUpState, string> = {
  * still returns the summary, every surface that already reads one keeps
  * working, and the two can never drift into two ideas of what a meeting is.
  */
+/** A unit code as a register prints it, with its own page when the catalogue holds it. */
+export interface UnitReference {
+  readonly code: string;
+  readonly href: string | null;
+}
+
 export interface MeetingRow extends MeetingSummary {
   /** Which surface the presentation ran on. Never inferred (`SESSION_CHANNELS`). */
   readonly channel: SessionChannel;
   readonly channelLabel: string;
   /** Never a name, an email or a phone number. See `VisitorLabel`. */
   readonly visitor: VisitorLabel;
-  /** Unit codes opened in this meeting, in the order they were first opened. */
-  readonly unitsViewed: readonly string[];
+  /**
+   * Units opened in this meeting, in the order they were first opened.
+   *
+   * Each carries the href of its own page, or `null` when the catalogue does
+   * not hold that code — a showroom can record a code the catalogue has never
+   * stated (a legacy import, a unit withdrawn since), and a register that
+   * linked every code sent readers to a page that could only say the link was
+   * wrong. The register prints an unlinked code as a code, not as a link.
+   */
+  readonly unitsViewed: readonly UnitReference[];
   readonly favourites: number;
   readonly followUp: FollowUpState;
   readonly followUpLabel: string;

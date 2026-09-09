@@ -58,6 +58,21 @@ export async function BriefView({
   const { brief, units, evidence } = view;
   const ref = (id: string): EvidenceRef | null => evidence[id] ?? null;
   const activity = brief.observed.onlineActivity;
+  /*
+   * The project's locale and zone, never a literal "en-GB" on the host's
+   * clock: the meeting is at the showroom's 10:00, and this page is read from
+   * wherever the server happens to run.
+   */
+  const { locale, timeZone } = view.context.project;
+  const whenFormat = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  });
+  const dayFormat = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", timeZone });
 
   return (
     <>
@@ -69,13 +84,7 @@ export async function BriefView({
         <p className="obs-muted" style={{ marginTop: "var(--space-2)" }}>
           {brief.context.scheduledFor === null
             ? "No scheduled time"
-            : new Date(brief.context.scheduledFor).toLocaleString("en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            : whenFormat.format(new Date(brief.context.scheduledFor))}
           {" · "}
           {brief.context.isReturningBuyer
             ? `${brief.context.previousMeetingCount} previous meetings`
@@ -112,17 +121,11 @@ export async function BriefView({
                 {activity.sessionCount} between{" "}
                 {activity.firstSeenAt === null
                   ? "—"
-                  : new Date(activity.firstSeenAt).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "long",
-                    })}{" "}
+                  : dayFormat.format(new Date(activity.firstSeenAt))}{" "}
                 and{" "}
                 {activity.lastSeenAt === null
                   ? "—"
-                  : new Date(activity.lastSeenAt).toLocaleDateString("en-GB", {
-                      day: "numeric",
-                      month: "long",
-                    })}
+                  : dayFormat.format(new Date(activity.lastSeenAt))}
               </dd>
               <dt>Last seen</dt>
               <dd>{activity.daysSinceLastVisit ?? "—"} days ago</dd>

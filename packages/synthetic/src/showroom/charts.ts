@@ -29,7 +29,16 @@ import type {
 } from "@observer/readmodels";
 import { KPI_WINDOWS } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
-import { count, evidenceRef, percent, signedPercent } from "../format";
+import {
+  count,
+  dayLabel,
+  evidenceRef,
+  monthLabel,
+  monthYearLabel,
+  percent,
+  signedPercent,
+} from "../format";
+import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
 import { meetings } from "./views3";
 
@@ -74,12 +83,12 @@ export function buildKpis(
   today: Date,
   windowId: KpiWindowId,
   locale: string,
+  timeZone: string,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
-  const end = new Date(today);
-  end.setUTCHours(23, 59, 59, 999);
-  const to = end.getTime();
+  // The window closes at the end of the project's own day, not UTC's.
+  const to = endOfDayIn(today, timeZone).getTime();
   const from = to - spec.days * day;
   const previousFrom = from - spec.days * day;
 
@@ -237,15 +246,23 @@ export function buildKpis(
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-export function buildActivity(sessions: readonly ShowroomSession[]): ActivityMatrix {
+export function buildActivity(
+  sessions: readonly ShowroomSession[],
+  timeZone: string,
+): ActivityMatrix {
   const hours = Array.from({ length: 10 }, (_, i) => `${String(9 + i).padStart(2, "0")}:00`);
   const cells: Record<string, number> = {};
   let counted = 0;
 
   for (const s of sessions) {
-    const at = new Date(s.startedAt);
-    const weekday = WEEKDAYS[(at.getUTCDay() + 6) % 7];
-    const hour = `${String(at.getUTCHours()).padStart(2, "0")}:00`;
+    /*
+     * The office's weekday and hour, not UTC's. Read in UTC, a 09:10 meeting
+     * in Bratislava landed in a 07:00 cell the grid does not have and fell
+     * out of `meetingsCounted` altogether.
+     */
+    const at = zoneParts(s.startedAt, timeZone);
+    const weekday = WEEKDAYS[at.weekday];
+    const hour = `${String(at.hour).padStart(2, "0")}:00`;
     if (weekday === undefined || !hours.includes(hour)) continue;
     cells[`${weekday}|${hour}`] = (cells[`${weekday}|${hour}`] ?? 0) + 1;
     counted += 1;
@@ -489,6 +506,7 @@ export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
+  timeZone: string,
 ): RankedRow[] {
   return [...sessions]
     .filter((s) => !s.timingUnavailable)
@@ -496,7 +514,7 @@ export function buildLongestMeetings(
     .slice(0, 8)
     .map((s) => ({
       id: s.meetingId,
-      label: new Date(s.startedAt).toLocaleDateString(locale, { day: "numeric", month: "short" }),
+      label: dayLabel(s.startedAt, locale, timeZone),
       sub: `${agentById(s.agentId)?.name ?? s.agentId} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds),
@@ -527,11 +545,12 @@ const OUTCOME_COLOURS: Record<MeetingOutcome, string> = {
 export function buildComposition(
   sessions: readonly ShowroomSession[],
   locale: string,
+  timeZone: string,
 ): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
-    const at = new Date(s.startedAt);
-    const key = `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, "0")}`;
+    // The office's month: a meeting late on 31 July is a July meeting there.
+    const key = monthKeyIn(s.startedAt, timeZone);
     months.set(key, [...(months.get(key) ?? []), s]);
   }
 
@@ -549,7 +568,7 @@ export function buildComposition(
     columns: [...months.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, xs]) => ({
-        label: new Date(`${key}-01T00:00:00Z`).toLocaleDateString(locale, { month: "short" }),
+        label: monthLabel(xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`, locale, timeZone),
         total: xs.length,
         parts: Object.fromEntries(order.map((o) => [o, xs.filter((s) => s.outcome === o).length])),
       })),
@@ -559,20 +578,44 @@ export function buildComposition(
 
 /* --- meetings per week, with the moment something changed ------------------------ */
 
-export function buildTrend(sessions: readonly ShowroomSession[], locale: string): TrendSeries {
+export function buildTrend(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+  timeZone: string,
+): TrendSeries {
+  /*
+   * Weeks start on the project's Monday, at its own midnight. They used to
+   * be epoch weeks — `floor(ms / 7 days)`, which begin on a Thursday in UTC —
+   * so every point was labelled with a Thursday and "the week" ran Thursday
+   * to Wednesday, which no sales office counts.
+   *
+   * A week with no meetings is drawn at zero rather than left out. Leaving it
+   * out put two weeks with a quiet fortnight between them side by side, and
+   * the annotation below then called that gap a week-on-week change. Zero
+   * meetings in a week is a real reading, not an absent one.
+   */
   const weeks = new Map<number, number>();
-  const day = 24 * 60 * 60 * 1000;
   for (const s of sessions) {
-    const at = Date.parse(s.startedAt);
-    const week = Math.floor(at / (7 * day));
+    const week = startOfWeekIn(Date.parse(s.startedAt), timeZone).getTime();
     weeks.set(week, (weeks.get(week) ?? 0) + 1);
   }
 
-  const ordered = [...weeks.entries()].sort((a, b) => a[0] - b[0]);
-  const points = ordered.map(([week, value]) => ({
-    label: new Date(week * 7 * day).toLocaleDateString(locale, { day: "numeric", month: "short" }),
-    value,
-  }));
+  const starts = [...weeks.keys()].sort((a, b) => a - b);
+  const first = starts[0];
+  const last = starts[starts.length - 1];
+  const points: { label: string; value: number }[] = [];
+  if (first !== undefined && last !== undefined) {
+    const day = 24 * 60 * 60 * 1000;
+    for (let week = first; week <= last;) {
+      points.push({
+        label: dayLabel(new Date(week), locale, timeZone),
+        value: weeks.get(week) ?? 0,
+      });
+      // Seven days on, re-anchored to Monday midnight so a clock change inside
+      // the week cannot drift the next start by an hour.
+      week = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+    }
+  }
 
   /*
    * The annotation is the largest week-on-week change.
@@ -618,6 +661,7 @@ export function buildTargets(
   projectId: string,
   today: Date,
   locale: string,
+  timeZone: string,
   crmConnected: boolean,
 ): SalesTarget[] {
   // This project's stock. The sales plan was Northgate's on every project.
@@ -632,7 +676,7 @@ export function buildTargets(
   const span = targetDate.getTime() - startedOn.getTime();
   const pace = (elapsed / span) * total;
 
-  const format = (d: Date) => d.toLocaleDateString(locale, { month: "short", year: "numeric" });
+  const format = (d: Date) => monthYearLabel(d, locale, timeZone);
 
   /*
    * SOLD AND RESERVED ARE CRM OUTCOMES, NOT CATALOGUE ATTRIBUTES.
@@ -715,18 +759,19 @@ export function buildFlowCharts(
   windowId: KpiWindowId,
 ): FlowCharts {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const charts = buildAgentCharts(sessions, base, locale);
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale),
-    activity: buildActivity(sessions),
-    composition: buildComposition(sessions, locale),
-    trend: buildTrend(sessions, locale),
+    kpis: buildKpis(all, today, windowId, locale, timeZone),
+    activity: buildActivity(sessions, timeZone),
+    composition: buildComposition(sessions, locale, timeZone),
+    trend: buildTrend(sessions, locale, timeZone),
     funnel: buildBehaviourFunnel(sessions, locale),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale),
+    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }
@@ -736,10 +781,11 @@ export function buildProjectCharts(
   sessions: readonly ShowroomSession[],
   today: Date,
   locale: string,
+  timeZone: string,
   crmConnected: boolean,
 ): ProjectCharts {
   return {
-    targets: buildTargets(projectId, today, locale, crmConnected),
+    targets: buildTargets(projectId, today, locale, timeZone, crmConnected),
     journey: buildJourney(sessions, locale),
   };
 }

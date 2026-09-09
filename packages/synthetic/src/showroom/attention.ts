@@ -19,7 +19,7 @@ import type {
 } from "@observer/readmodels";
 import { ATTENTION_KIND_DEFINITIONS } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
-import { count, evidenceRef, percent } from "../format";
+import { count, dayLabel, evidenceRef, percent } from "../format";
 
 /**
  * What is worth a person's attention, across every screen at once.
@@ -324,7 +324,7 @@ export function buildAttention(
         label:
           s.lastSeenAt === null
             ? `${s.displayName} · never seen`
-            : `${s.displayName} · last seen ${new Date(s.lastSeenAt).toLocaleDateString(locale, { day: "numeric", month: "short" })}`,
+            : `${s.displayName} · last seen ${dayLabel(s.lastSeenAt, locale, context.project.timeZone)}`,
         href: null,
       })),
       sampleSize: context.project.sources.length,

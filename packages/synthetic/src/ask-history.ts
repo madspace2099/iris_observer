@@ -12,7 +12,7 @@ import type {
   AskTurn,
   ViewContext,
 } from "@observer/readmodels";
-import { count, evidenceRef, percent } from "./format";
+import { clockLabel, count, dayLabel, evidenceRef, percent } from "./format";
 import { agentById } from "./showroom/sessions";
 
 /**
@@ -45,12 +45,8 @@ function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
 }
 
-function stampDisplay(iso: string, locale: string): string {
-  const at = new Date(iso);
-  return `${at.toLocaleDateString(locale, { day: "numeric", month: "short" })} · ${at.toLocaleTimeString(
-    locale,
-    { hour: "2-digit", minute: "2-digit" },
-  )}`;
+function stampDisplay(iso: string, locale: string, timeZone: string): string {
+  return `${dayLabel(iso, locale, timeZone)} · ${clockLabel(iso, locale, timeZone)}`;
 }
 
 /**
@@ -361,6 +357,7 @@ function plans(context: ViewContext, sessions: readonly ShowroomSession[]): read
 
 function summarise(context: ViewContext, plan: ThreadPlan): AskThreadSummary {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const askedAt = new Date(
     Date.parse(context.generatedAt) - plan.daysAgo * DAY_MS - plan.minutesAgo * 60 * 1000,
   ).toISOString();
@@ -371,7 +368,7 @@ function summarise(context: ViewContext, plan: ThreadPlan): AskThreadSummary {
     // a title nobody can check against what is inside the thread.
     title: first?.question ?? "Ask Observer",
     askedAt,
-    askedAtDisplay: stampDisplay(askedAt, locale),
+    askedAtDisplay: stampDisplay(askedAt, locale, timeZone),
     projectLabel: context.project.name,
     periodLabel: context.period.label,
     selectionLabel: plan.selectionLabel,
@@ -408,6 +405,7 @@ export function buildAskThread(
   threadId: string,
 ): AskThread | null {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const plan = plans(context, sessions).find((p) => p.id === threadId);
   if (plan === undefined) return null;
@@ -427,7 +425,7 @@ export function buildAskThread(
     const at = new Date(opened + index * 4 * 60 * 1000).toISOString();
     return {
       id: `${plan.id}_${index + 1}`,
-      askedAtDisplay: stampDisplay(at, locale),
+      askedAtDisplay: stampDisplay(at, locale, timeZone),
       answer,
     } satisfies AskTurn;
   });

@@ -439,6 +439,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       current,
       this.today,
       context.project.locale,
+      context.project.timeZone,
       context.project.connectedSources.includes("crm"),
     );
   }
@@ -508,7 +509,17 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getMeetingReplay(query: BriefQuery): Promise<MeetingReplay> {
     const context = await this.context(query);
-    const session = sessionById(query.meetingId);
+    /*
+     * Looked up WITHIN the resolved project, for two reasons that are one.
+     * Without the project, `sessionById` searches the static world only, so a
+     * meeting a connector delivered (the Supabase demo's eleven) was never
+     * found and its own register linked to "No brief for this meeting"; and
+     * it searched every project's meetings, so a meeting id from a project
+     * this viewer does not hold would have replayed under a project they do.
+     * `context()` has already run `overlaySessions`, so the project-scoped
+     * lookup sees exactly what the register listed.
+     */
+    const session = sessionById(query.meetingId, context.project.id as string);
     if (session === undefined) throw new NotFoundError(`Meeting "${query.meetingId}"`);
     return buildMeetingReplay(context, session);
   }
@@ -581,7 +592,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
   ): Promise<ReportScopeView> {
     const { context, current } = await this.slices(query);
     if (meetingId === null) return buildReportScope(context, current);
-    const session = sessionById(meetingId);
+    const session = sessionById(meetingId, context.project.id as string);
     if (session === undefined || session.projectId !== context.project.id) {
       throw new NotFoundError(`Meeting "${meetingId}"`);
     }

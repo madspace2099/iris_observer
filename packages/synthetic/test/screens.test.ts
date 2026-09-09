@@ -3,6 +3,7 @@ import { ATTENTION_KIND_DEFINITIONS, NotFoundError } from "@observer/readmodels"
 import type { AlertSeverity, MeetingFilters, OverviewQuery, Viewer } from "@observer/readmodels";
 import { AGENT_MIN_SAMPLE, UNIT_MIN_SAMPLE } from "@observer/metrics";
 import { SyntheticObserverRepository, SYNTHETIC_AGENTS, VIEWERS } from "../src/index";
+import { catalogueFor } from "../src/pulse";
 
 /**
  * The drill-down surfaces.
@@ -33,6 +34,37 @@ const KINGSFORD = query(VIEWERS.agencyManager as Viewer, "beta", "kingsford");
 const EVERY_PROJECT = [ISTER, NORTHGATE, RIVERSIDE, KINGSFORD];
 
 /* --- the meeting list ------------------------------------------------------- */
+
+describe("the register's unit references", () => {
+  /*
+   * A session records whatever code the showroom showed. Only the catalogue
+   * knows whether that code has a page, so the read model decides the link
+   * and the register never draws a door with no room behind it: the QA sweep
+   * found chips on a project without a catalogue leading to the product's own
+   * "this isn't here".
+   */
+  it("links a unit only when the catalogue has a page for it", async () => {
+    let linked = 0;
+    for (const project of EVERY_PROJECT) {
+      const view = await repo.getMeetings(project, NO_FILTERS);
+      const codes = new Set(catalogueFor(view.context.project.id as string).map((u) => u.code));
+      for (const row of view.rows) {
+        for (const unit of row.unitsViewed) {
+          if (codes.has(unit.code)) {
+            linked += 1;
+            expect(unit.href).toBe(
+              `/${project.tenantSlug}/${project.projectSlug}/units/${encodeURIComponent(unit.code)}`,
+            );
+          } else {
+            expect(unit.href).toBeNull();
+          }
+        }
+      }
+    }
+    // Not vacuous: Northgate's sessions open catalogue units by construction.
+    expect(linked).toBeGreaterThan(0);
+  });
+});
 
 describe("getMeetings", () => {
   it("returns a context-bearing view, not a bare array", async () => {

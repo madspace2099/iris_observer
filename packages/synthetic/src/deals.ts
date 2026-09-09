@@ -10,7 +10,7 @@ import type {
   DeliveredDeals,
   StalledDeal,
 } from "@observer/readmodels";
-import { percent } from "./format";
+import { dayLabel, percent } from "./format";
 
 /**
  * THE CRM'S DEALS, HELD FOR THE LADDER.
@@ -167,6 +167,8 @@ export const NOT_CONNECTED_NOTE =
 export function buildDealLadder(
   deals: DeliveredDeals | null,
   locale: string,
+  /** The project's zone: the day a deal entered its stage is the office's day. */
+  timeZone: string,
   unitHref: (unitCode: string) => string | null = () => null,
 ): DealLadder {
   if (deals === null) return { source: "not_connected", note: NOT_CONNECTED_NOTE };
@@ -210,7 +212,6 @@ export function buildDealLadder(
   const undated = open.filter(
     (d) => daysBetween(d.stageEnteredAt, deals.fetchedAt) === null,
   ).length;
-  const entered = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
   const stalled: StalledDeal[] = open
     .flatMap((d) => {
       const n = daysBetween(d.stageEnteredAt, deals.fetchedAt);
@@ -223,7 +224,7 @@ export function buildDealLadder(
           unitCode: d.unitCode,
           daysInStage: n,
           daysDisplay: days(n),
-          enteredDisplay: entered.format(new Date(d.stageEnteredAt)),
+          enteredDisplay: dayLabel(d.stageEnteredAt, locale, timeZone),
           unitHref: d.unitCode === null ? null : unitHref(d.unitCode),
         },
       ];

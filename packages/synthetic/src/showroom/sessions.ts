@@ -18,6 +18,8 @@ import {
   type WeatherPreset,
 } from "@observer/contracts";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
+import { zoneParts, zonedInstant } from "../time";
+import { PROJECTS } from "../world";
 
 /**
  * The synthetic showroom, generated deterministically.
@@ -919,6 +921,14 @@ export function showroomSessions(): readonly ShowroomSession[] {
     // invented, and invented behaviour must not land on a real unit code.
     const catalogue = syntheticCatalogueFor(dataset.projectId);
     const roster = agentsForProject(dataset.projectId);
+    /*
+     * Working hours are the project's, on its own clock. They were set with
+     * `setUTCHours(9..16)`, which put a Bratislava office's meetings at 11:00
+     * to 18:59 local and left the last of them outside the activity grid's
+     * day. The draw order of `r()` below is unchanged, so every other value in
+     * every session is exactly what it was.
+     */
+    const timeZone = PROJECTS.find((p) => p.id === dataset.projectId)?.timeZone ?? "UTC";
     let index = 0;
 
     for (const bounds of dataset.periods) {
@@ -933,8 +943,17 @@ export function showroomSessions(): readonly ShowroomSession[] {
 
         // Meetings land on working days, spread across the period, weighted
         // toward late morning and mid-afternoon.
-        const at = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
-        at.setUTCHours(9 + Math.floor(r() * 8), Math.floor(r() * 60), 0, 0);
+        const spread = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
+        const onDay = zoneParts(spread, timeZone);
+        const at = zonedInstant(
+          onDay.year,
+          onDay.month,
+          onDay.day,
+          9 + Math.floor(r() * 8),
+          Math.floor(r() * 60),
+          0,
+          timeZone,
+        );
 
         const timingUnavailable = phase === "previous" && i < dataset.legacyImports;
         const order = buildSequence(r, agent);

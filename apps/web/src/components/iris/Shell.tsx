@@ -234,6 +234,25 @@ export function withCurrentSection(
 }
 
 /**
+ * THE WAY BACK TO THE PROJECTS LIST, FROM ASK IRIS.
+ *
+ * The Ask header is the export's: a name and a `Sign out` pill, no Projects
+ * link — that lives on every other surface's header. Which left a reader who
+ * signed in (every sign-in lands on Ask IRIS) with no way to the list of their
+ * projects except the browser's Back button, and an E2E case that had said so
+ * for as long as the variant existed. The project switch is the one control
+ * the Ask header does carry, and "all of them" is a natural last entry in a
+ * list of projects: the same select, one more row, no new chrome on the
+ * composition the export fixes. `withCurrentSection` leaves it alone because
+ * its href does not end in the home segment.
+ */
+export const ALL_PROJECTS_OPTION: SwitchOption = {
+  value: "__all",
+  label: "All projects",
+  href: "/projects",
+};
+
+/**
  * The sub-navigation row, and which item in it is the page.
  *
  * Only Project owns one. It used to be that every OTHER section drew
@@ -619,7 +638,7 @@ export function Shell({
             <ContextSwitcher
               label="Switch project"
               value={scope.projectSlug}
-              options={withCurrentSection(projects, segment)}
+              options={[...withCurrentSection(projects, segment), ALL_PROJECTS_OPTION]}
             />
           ) : null}
           <div className="irs-who">

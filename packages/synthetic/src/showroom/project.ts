@@ -34,7 +34,17 @@ import type {
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import { areaWord, roomsWord } from "@observer/readmodels";
-import { count, evidenceRef, moneyOr, movement, ok, percent, signedPercent } from "../format";
+import {
+  clockLabel,
+  count,
+  dayLabel,
+  evidenceRef,
+  moneyOr,
+  movement,
+  ok,
+  percent,
+  signedPercent,
+} from "../format";
 import { agentById, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
@@ -106,14 +116,6 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
-}
-
-function formatClock(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDay(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 /* --- coverage -------------------------------------------------------------- */
@@ -728,6 +730,7 @@ export function buildPresentationIntelligence(
 
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
   const steps: ReplayStep[] = [];
@@ -743,7 +746,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
       kind: "section",
       label: sectionLabel(step.sectionId),
       detail: step.itemLabel,
-      atDisplay: step.enteredAt === null ? null : formatClock(step.enteredAt, locale),
+      atDisplay: step.enteredAt === null ? null : clockLabel(step.enteredAt, locale, timeZone),
       dwellDisplay: step.dwellSeconds === null ? null : formatDuration(step.dwellSeconds),
       sectionId: step.sectionId,
       unitCode: null,
@@ -848,7 +851,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     kind: "outcome",
     label: OUTCOME_LABELS[session.outcome],
     detail: "Recorded by the agent at the end of the meeting",
-    atDisplay: formatClock(session.endedAt, locale),
+    atDisplay: clockLabel(session.endedAt, locale, timeZone),
     dwellDisplay: null,
     sectionId: null,
     unitCode: null,
@@ -881,7 +884,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
     agentName: agent?.name ?? session.agentId,
     agentHref: agent === undefined ? null : `${base}/agents/${agent.id}`,
-    startedDisplay: `${formatDay(session.startedAt, locale)} · ${formatClock(session.startedAt, locale)}`,
+    startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
     durationDisplay: formatDuration(session.durationSeconds),
     outcome: session.outcome,
     outcomeLabel: OUTCOME_LABELS[session.outcome],
@@ -903,14 +906,15 @@ export function buildMeetingList(
   sessions: readonly ShowroomSession[],
 ): readonly MeetingSummary[] {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   return [...sessions]
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
     .map((s) => ({
       meetingId: s.meetingId,
-      label: `${formatDay(s.startedAt, locale)} · ${formatClock(s.startedAt, locale)}`,
+      label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
       agentName: agentById(s.agentId)?.name ?? s.agentId,
-      startedDisplay: formatDay(s.startedAt, locale),
+      startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: formatDuration(s.durationSeconds),
       outcome: s.outcome,
       outcomeLabel: OUTCOME_LABELS[s.outcome],

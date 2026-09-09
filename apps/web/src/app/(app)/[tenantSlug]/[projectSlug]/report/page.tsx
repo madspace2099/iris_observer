@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import type { MeetingId } from "@observer/contracts";
-import type {
-  PeriodPreset,
-  ReportSection,
-  ReportSectionAvailability,
-  Viewer,
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  type ReportSection,
+  type ReportSectionAvailability,
+  type Viewer,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
@@ -354,10 +357,28 @@ async function MeetingReport({
   readonly query: { viewer: Viewer; tenantSlug: string; projectSlug: string; period: PeriodPreset };
   readonly meetingId: string;
 }) {
-  const [report, replay] = await Promise.all([
-    repository.getReportScope(query, meetingId),
-    repository.getMeetingReplay({ ...query, meetingId: meetingId as MeetingId }),
-  ]);
+  /*
+   * `?meeting=` is a URL parameter, so it is whatever the address bar says:
+   * a meeting this project never held, a mistyped id, or another project's
+   * meeting pasted under this one's address. The repository refuses each of
+   * those with `NotFoundError` (the scope check is its own, in
+   * `getReportScope`), and the honest page for a link to nothing is the
+   * not-found page — not the error boundary, whose "did not arrive, try
+   * again" would promise a retry can produce a meeting that does not exist.
+   * A refusal of the project itself is already on screen from the layout.
+   */
+  let report;
+  let replay;
+  try {
+    [report, replay] = await Promise.all([
+      repository.getReportScope(query, meetingId),
+      repository.getMeetingReplay({ ...query, meetingId: meetingId as MeetingId }),
+    ]);
+  } catch (error) {
+    if (error instanceof NotFoundError) notFound();
+    if (error instanceof NotPermittedError) return null;
+    throw error;
+  }
   const root = `/${query.tenantSlug}/${query.projectSlug}`;
   const period = query.period;
   const content: Readonly<Record<string, ReactNode>> = {
