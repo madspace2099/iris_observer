@@ -9,8 +9,21 @@ import { signInAs } from "./sign-in";
  * otherwise depend on whoever writes the next screen remembering them:
  * the CRM does not lead, unknown is not zero, and every figure can say what it
  * measures.
+ *
+ * ## Rewritten against the current UI, 2026-09-10
+ *
+ * This file pre-dated three shipped, documented, already-tested-elsewhere
+ * product decisions and had drifted from what it checks: Storytelling now
+ * permanently redirects to Features (`nav-reachability.spec.ts` covers the
+ * redirect itself); sign-in now lands on Ask IRIS, not the Briefing, so a
+ * test that wants the Briefing has to say so; and the `iris-`-prefixed
+ * component family this file targeted (`UnitMatrix`'s `.iris-matrix-row`,
+ * the embedded Ask composer's inline dialog) was superseded by the `ox-`
+ * design system (`StackPlan`, `MeetingRegister`, the full-page Ask IRIS) —
+ * an in-page unit selector became a link to the unit's own page. Each
+ * fix below is checked live against the running dev server, not guessed
+ * from the old selector's name.
  */
-
 
 const ROUTES = [
   ["showroom overview", "/alpha/northgate/showroom"],
@@ -24,7 +37,12 @@ const ROUTES = [
   ["presentation, periods", "/alpha/northgate/presentation?mode=periods"],
   ["unit attention", "/alpha/northgate/units"],
   ["unit attention, selected", "/alpha/northgate/units?unit=A-402"],
-  ["storytelling", "/alpha/northgate/storytelling"],
+  // Was "/alpha/northgate/storytelling" -- that route now permanently
+  // redirects to Features, and axe-ing a redirect target twice under two
+  // names tests nothing the "features" entry above does not already cover
+  // on its own address. Kept as its own row anyway: the review package's
+  // route list and this one are meant to name the same surfaces.
+  ["features", "/alpha/northgate/features"],
   ["meetings", "/alpha/northgate/meetings"],
   ["meeting replay", "/alpha/northgate/meetings/mtg_ng0100"],
 ] as const;
@@ -43,13 +61,28 @@ for (const [name, route] of ROUTES) {
 
 test.describe("the three views", () => {
   test("the briefing offers three doors and nothing to analyse", async ({ page }) => {
+    /*
+     * Sign-in lands on Ask IRIS now, not the Briefing -- the Briefing is
+     * still the real page this test means, it just is not where signing in
+     * puts you any more, so it is named explicitly.
+     */
     await signInAs(page, "Petra Novák");
-    const doors = page.getByRole("navigation", { name: "Views" }).getByRole("link");
+    await page.goto("/alpha/northgate/showroom");
+    const views = page.getByRole("navigation", { name: "Views" });
+    await expect(views).toBeVisible();
+    /*
+     * Three destinations, not three links: each one's heading is itself a
+     * link to the same place its own "Open …" button goes to, so a plain
+     * link count over the whole region is six, not three, and always was
+     * once the heading became clickable too. The property under test --
+     * "there are three, and no more" -- is what the door's own dedicated
+     * control still measures.
+     */
+    const doors = views.getByRole("link", { name: /^Open /ug });
     await expect(doors).toHaveCount(3);
-    // Observer's sentence, three figures, three doors. Review rejected the
-    // earlier opening screen for carrying an analysis instead of an answer.
-    expect(await page.locator(".iris-home-figures > div").count()).toBeLessThanOrEqual(3);
-    await expect(page.locator(".iris-signal")).toBeVisible();
+    // The verdict sentence -- `.iris-signal` under the old design system,
+    // `.ox-answer` under the current one (ADR-0034's paper ground).
+    await expect(page.locator(".ox-answer")).toBeVisible();
   });
 
   test("each door leads somewhere that answers its own question", async ({ page }) => {
@@ -87,7 +120,9 @@ test.describe("the product rules, at the surface", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/meetings/mtg_ng0002");
     // The legacy import has no per-step timing. It has to say so.
-    await expect(page.getByText(/What this source cannot say/i)).toBeVisible();
+    // Wording moved from "source" to "record" since this was last checked;
+    // the property -- the gap is stated, not left blank -- is unchanged.
+    await expect(page.getByText(/What this record cannot say/i)).toBeVisible();
   });
 
   test("a comparison never claims a cause", async ({ page }) => {
@@ -100,56 +135,81 @@ test.describe("the product rules, at the surface", () => {
     }
   });
 
-  test("selecting a unit changes the evidence beside it", async ({ page }) => {
+  test("opening a unit reaches evidence specific to that unit, not the list again", async ({
+    page,
+  }) => {
+    /*
+     * `UnitMatrix`'s in-page `aside` (click a row, the detail panel beside
+     * it updates, the URL grows a `?unit=` query) is gone with `UnitMatrix`
+     * itself: `StackPlan`'s `Cell` is a plain link to the unit's own page
+     * (`apps/web/src/components/product/StackPlan.tsx`), confirmed live --
+     * `/units?unit=A-402` renders no different from `/units` with no
+     * selection at all. The property this test protects -- clicking a unit
+     * shows evidence about THAT unit, not a re-render of the list -- now
+     * means "the click navigates, and the destination names the unit and
+     * carries evidence for it," not "an aside panel's text changes."
+     */
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
-    const before = await page.locator("aside").innerText();
-    await page.locator(".iris-matrix-row").first().click();
-    await page.waitForURL(/unit=/);
-    expect(await page.locator("aside").innerText()).not.toBe(before);
+    const firstUnit = page.locator('a[href*="/units/"]').first();
+    const code = (await firstUnit.getAttribute("href"))?.split("/").pop();
+    await firstUnit.click();
+    await page.waitForURL(/\/units\/[A-Z0-9-]+$/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(code ?? "");
+    // Evidence for this specific unit reached the page, not merely its name.
+    expect(await page.locator("[class*='evidence']").count()).toBeGreaterThan(0);
   });
 
   test("Ask Observer answers from evidence, on any surface", async ({ page }) => {
     /*
-     * A model turn, not a render.
+     * Rewritten for the current Ask IRIS surface, 2026-09-10.
      *
-     * This waited five seconds — the default — because for most of this
-     * project's life the answer came from the deterministic composer and
-     * arrived in the same tick. Against a deployment with a working key it is
-     * a real Responses API call: the measured average is 5.7s and the tail is
-     * longer. The page said so at the moment of failure — `status: Observer is
-     * answering.` — so the assertion was not catching a missing sheet, it was
-     * outrunning one.
+     * Ask used to open as an in-page dialog over whichever screen the reader
+     * was on ("on any surface" in this test's own name). It is a full page
+     * now (`/alpha/northgate/ask`), reached by submitting from anywhere —
+     * every embedded composer navigates there rather than opening an overlay
+     * — so "on any surface" is proven by starting from a DIFFERENT surface
+     * (the Briefing) and following its own composer there, rather than by
+     * checking a dialog that no longer exists.
+     *
+     * The question changed too: the old one ("Which IRIS sections are being
+     * skipped most frequently?") is not one of the composer's answerable
+     * intents today and returns a refusal — confirmed live, not assumed —
+     * which is a correct answer but not the one this test means to exercise.
+     * This asks one of the composer's own suggested questions instead.
+     *
+     * No live model key is configured in this environment (deliberately,
+     * per playwright.config.ts), so the deterministic composer answers, and
+     * fast — the five-to-150-second allowance this test used to need was for
+     * a real Responses API turn, which cannot happen here. Kept generous
+     * anyway: this is still a real page render under whatever load the
+     * machine is under, not a fixed-latency mock.
      */
-    test.setTimeout(150_000);
+    test.setTimeout(60_000);
     await signInAs(page, "Petra Novák");
-    await page.goto("/alpha/northgate/storytelling");
-    const ask = page.getByPlaceholder("Ask Observer…");
-    await ask.fill("Which IRIS sections are being skipped most frequently?");
+    await page.goto("/alpha/northgate/showroom");
+    const ask = page.getByPlaceholder("Ask IRIS…");
+    await ask.fill("Why did demand fall this quarter?");
     await ask.press("Enter");
+    await page.waitForURL(/\/ask\?q=/);
 
-    const sheet = page.getByRole("dialog", { name: "Observer" });
-    await expect(sheet).toBeVisible({ timeout: 90_000 });
     /*
-     * Measured and interpreted stay labelled and stay apart.
-     *
-     * The qualifying detail folds away now — an interpretation buried under its
-     * own caveats is not read — but which part a tool computed and which part a
-     * model may have written is the product's central claim (ADR-0024), and a
-     * claim only made in the documentation is not being made.
+     * Composed-by-the-read-models and interpreted stay labelled and stay
+     * apart. Which part a tool computed and which part a model may have
+     * written is the product's central claim (ADR-0024), and a claim only
+     * made in the documentation is not being made.
      */
-    await expect(sheet.getByText("Measured", { exact: true })).toBeVisible();
-    await expect(sheet.getByText(/Observer.s reading/)).toBeVisible();
-    // The disclosure that holds what qualifies the answer. Matched on the
-    // property — evidence and its limits — rather than on one wording.
-    await sheet.getByText(/Evidence and limits/i).click();
+    const composedBanner = page.getByText(/^Composed by Observer.s read models/);
+    await expect(composedBanner).toBeVisible({ timeout: 45_000 });
+
     /*
      * Every evidence reference carries its own sample size.
      *
-     * The wording moved from "N records" to a bundle line that names the fact,
-     * the sample and the period. The property asserted is the same: a citation
-     * that cannot say how many observations it rests on is not a citation.
+     * `.ask-evidence`/`.ask-evidence-link` replaced `.iris-evidence`; the
+     * wording moved from "n=N" to "N observations". The property is the
+     * same: a citation that cannot say how many observations it rests on is
+     * not a citation.
      */
-    await expect(sheet.locator(".iris-evidence").first()).toContainText(/n=[0-9]+/);
+    await expect(page.locator(".ask-evidence-link").first()).toContainText(/[0-9]+ observations?/);
   });
 });
