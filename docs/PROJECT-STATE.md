@@ -3,9 +3,9 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-09 (afternoon) · **Branch:** `feature/observer-reference-parity`, pushed
+**Last updated:** 2026-09-10 · **Branch:** `feature/observer-reference-parity`, pushed
 to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only, latest `adf0981`.
+local only, latest `b92d149`.
 
 ---
 
@@ -1389,3 +1389,114 @@ before it is filed either way. (4) When there is a machine and a session free fo
 `mobile` Playwright projects, not run this pass. (5) Pick up M9's tenant/user/agency/branding/flags
 only once a field contract exists to build against — not before; pick up the Viktória journey or
 `sharp_demand_decline` as their own bounded sessions, using the scope notes in §9 above.
+
+### Continuation, 2026-09-10 — "make it client-ready": the stale-test rewrite, `mobile`, and two real bugs the walkthrough caught — `beae3d9` → `b92d149`
+
+**The mandate.** Open-ended this time — "continue the development so it becomes usable,
+client-ready" — read as: no dead ends in client-visible flows, a test suite that can be trusted
+again, and a manual look at the surfaces a developer, an agency manager and a MADSPACE
+administrator would actually open, not a new milestone push. M6/M7/M8 and M9's tenant/agency CRUD
+remain untouched and out of scope for the reason §9 above already gives.
+
+**`showroom.spec.ts` and `showroom-screenshots.spec.ts`, rewritten rather than patched (`beae3d9`,
+predates this section but unrecorded until now).** Item (2) from the action list above. Both files
+pre-dated three shipped, already-tested-elsewhere product changes — Storytelling→Features, the
+retired secondary nav, `UnitMatrix`→`StackPlan` — and every replacement assertion was checked live
+against the running dev server (accessibility tree, raw HTML, a standalone timing script) before it
+was written, not guessed from the old selector's name. One real ambiguous-locator bug surfaced and
+was fixed along the way: `showroom-screenshots.spec.ts`'s "ask observer" capture used
+`getByPlaceholder("Ask IRIS…")`, which now matches both the main composer and the docked `AskDock`
+mounted on every project page; narrowed to `#ask-prompt`. Both files: **29/29 passing.**
+
+**The `mobile` Playwright project, run for the first time this pass.** Item (4) from the action
+list. First attempt, six client-critical files against a server the run itself pointed at the dev
+port: 91 passed, 2 skipped, **8 failed** — six of them one parameterised test
+(`layout-integrity.spec.ts`, "no surface clips its own text or widens the page", one case per
+viewport) and two `mobile-menu-containment.spec.ts` cases. Both files' failures were re-diagnosed
+from scratch rather than filed on that first number, because the summary line undercounted its own
+failures (the `.last-run.json` Playwright itself writes was the tell, not the terminal output) and
+because the run had, without being asked to, pointed itself at the dev server rather than the
+config's own documented production `webServer` — confirmed by the one artefact only a dev server
+can produce: a "Tab reached the page beneath: NEXTJS-PORTAL" failure, `NEXTJS-PORTAL` being the dev
+overlay's own portal root, absent from every production build.
+
+**Two of the eight were a real bug, not the environment.** `mobile-menu-containment.spec.ts`'s
+"covers `<main>` and the docked composer with inert" failed on `A.irs-brand` — the header wordmark
+link — being reachable by Tab and by tap the entire time the open mobile sheet was supposed to be
+the only thing a reader could reach. Real in either environment: `Shell.tsx`'s `inert` effect
+(`apps/web/src/components/iris/Shell.tsx`) covered `#main` and `.ask-dock` and never covered
+`<header>`, and `Brand` always renders a real `<Link>` there. Fixed by adding `.irs-header` to the
+covered set — safe because `.irs-mobile-bar` (the trigger, the sheet) is a documented _sibling_ of
+`<header>`, never a descendant, so containing the header cannot reach into the thing that opened it.
+Verified against the live dev server first (the exact `leaks` query the spec runs, injected by
+hand, returned `[]` after the fix; `[]` was also confirmed to be what it returned on close), then
+against a real production build: `mobile-menu-containment.spec.ts` **7/7.**
+
+**The other six were the dev-server misrouting, not a defect** — confirmed rather than assumed: a
+standalone script (`artifacts/qa-shots/features-timing-check.mjs`, gitignored, same pattern as the
+earlier `ask-timing-check.mjs`) hit every surface in the loop once each against the same dev server
+in complete isolation and found nothing near the 30-second ceiling (939–1604ms per surface,
+`features` itself at 1109ms). Re-run against the real production `webServer`
+(`artifacts/e2e-runs/mobile-recheck.log`), the six became **one**: `1920`'s pass through all twelve
+surfaces timed out at `/alpha/northgate/report`'s own `page.goto`, the other six viewport passes and
+every other navigation to the same surfaces across the rest of the file (`report` included, more
+than once) resolving in one to two seconds. Two independent production runs, two different surfaces
+failing (`features` the first time, `report` the second, always on the run's first viewport pass
+against a server that had just started), is a cold-start-after-boot cost occasionally pushing a
+twelve-navigation loop over its budget, not a property of either page — no code or test change made
+on this evidence; a confident fix would need to know which specific cost is paying that tax, which
+this pass did not establish, and guessing at a timeout bump on two data points is exactly what the
+standing rule against loosening budgets carelessly exists to prevent. Recorded rather than filed as
+closed.
+
+**A second, unrelated bug found on the manual walkthrough, not by any spec.** The Akhilesh Demo
+Source project page (`/madspace-integration/akhilesh-demo-source/project`, the one real external
+Supabase source this repository has) showed "Floor 0–0", "Price 0–0" and "surface 0–0" as the three
+_most_-applied filters in "What buyers searched for" — a nonsensical reading (no buyer sets a price
+range of €0–€0) that three simultaneous instances of on the same session made a default value read
+as a source: `packages/connectors/src/supabase-showroom.ts`'s `buildFilters` treated a range object
+as "applied" whenever either `Min` or `Max` was _present_, and Akhilesh's real UE5 telemetry
+serialises an untouched range dimension as `{Min: 0, Max: 0}` rather than omitting it — confirmed
+by the shape of the finding itself (three unrelated dimensions, all exactly zero-to-zero, sharing
+the single highest application count) rather than by a fresh live pull against his Supabase, which
+the standing constraint asks not to repeat without need. This is squarely the doctrine's own "never
+render an absent value as zero" rule, on the one surface that proves the real external connector end
+to end. Fixed: a range still sitting on `{Min: 0, Max: 0}` is now left out, matching the function's
+own already-documented "one row per active dimension" contract; a genuine zero-to-something range
+(a ground-floor filter, say) is unaffected, and the connector had no test file at all before this
+pass — `packages/connectors/test/supabase-showroom.test.ts` is new, 11 cases, the regression shape
+pinned explicitly rather than only the happy path.
+
+**The manual walkthrough itself.** MADSPACE Administration, Projects, Diagnostics and Directory
+(admin account); Sales Flow, Project (Overview/Units/Meetings/Features), a unit detail page, a
+meeting replay, Sales Agents, Audience and Attention on Northgate; Sales Flow and Project on the
+Akhilesh Demo Source project specifically, since it is the one surface a real external-data rough
+edge would show up on first — which is exactly where it did. Nothing else rough, unfinished or
+placeholder-like found; every screen carried real denominators, honest "Unavailable"/"No segment
+here" states where CRM or sample size was actually missing, and correctly labelled provenance
+("IRIS observed" vs "IRIS calculated" vs "Demo data").
+
+**`pnpm verify`, on the clean tree at this commit.** `format:check` clean; `tsc --noEmit` clean
+across every package; `eslint .` clean, zero warnings; `vitest run`, full repo, run alone: **3357
+passed, 24 skipped, 0 failed** (the three release-packaging "clean tree" tests that failed mid-pass
+did so correctly, against the tree as it stood with this session's fix still uncommitted — the
+documented `requireCleanHead` behaviour working as designed, not a defect; they pass again once the
+tree is clean, which it now is). `build` not re-run standalone — already proven twice over as the
+two E2E `webServer` runs this pass performed.
+
+**Working tree and commits.** `b92d149` "Contain the mobile menu's header leak; drop zero-default
+filter noise" — 4 files, +191/−9 (`apps/web/src/components/iris/Shell.tsx`,
+`e2e/mobile-menu-containment.spec.ts`, `packages/connectors/src/supabase-showroom.ts`, new
+`packages/connectors/test/supabase-showroom.test.ts`). Tree is clean at `b92d149`, aside from
+`apps/web/next-env.d.ts` flipping between `next dev`'s and `next build`'s own generated path and
+left alone (the file's own header: "This file should not be edited"). **No push, no merge, no
+deploy, no hosted mutation, no secret rotation, no write and no fresh live pull against Akhilesh's
+Supabase** — everything ran against the local dev server (port 3310), a locally-built production
+server (port 3210, torn down cleanly by Playwright itself after each run — confirmed no LISTENING
+socket left behind), and this repository's local PGlite control plane.
+
+**Next recommended action.** (1) The `wide` (1920×1080) Playwright project has still never been
+run — a machine/time choice this pass made too, not an oversight. (2) If the layout-integrity
+first-viewport flake recurs, capture a trace on the failing run specifically (`trace: "on"`, not
+the default `retain-on-failure`, for one deliberate rerun) rather than guessing at which cold-start
+cost to budget for. (3) Items (3) and (5) from the prior action list are unchanged and still open.
