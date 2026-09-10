@@ -15,11 +15,14 @@ import { signInAs } from "./sign-in";
  * host and inherited it, so a tap went straight through.
  *
  * A `<details>` is a disclosure, not a dialog; nothing native hides the rest
- * of the page when it opens. `Shell.tsx` now sets `inert` on `<main>` and on
- * the docked composer while the sheet is open. These cases prove the four
- * things that follow from that, from the keyboard and the pointer rather
- * than from the attribute: focus stays in, taps stay out, every way of
- * closing clears it, and Ask IRIS — which renders no sheet — is untouched.
+ * of the page when it opens. `Shell.tsx` now sets `inert` on `<main>`, the
+ * docked composer and `<header>` while the sheet is open — the header joined
+ * the other two once the wordmark's own link turned up reachable through an
+ * open sheet on the real page, the same way the composer once did. These
+ * cases prove the four things that follow from that, from the keyboard and
+ * the pointer rather than from the attribute: focus stays in, taps stay out,
+ * every way of closing clears it, and Ask IRIS — which renders no sheet — is
+ * untouched.
  *
  * Mobile only. The sheet does not exist above 1199px, which the breakpoint
  * case proves rather than assumes.

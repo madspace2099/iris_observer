@@ -65,7 +65,10 @@ import { refusal, refusalForStatus, type FetchContext } from "./http";
  *   applied to every dimension alike because it does not report one per
  *   field. Availability `legacy_available` with that caveat stated on the
  *   field itself would need a new contract field this pass does not add;
- *   recorded here instead.
+ *   recorded here instead. A range struct still sitting on its
+ *   `{Min: 0, Max: 0}` default (confirmed live: every untouched range
+ *   dimension serialises this way, not as an absent field) is left out of
+ *   "active" rather than rendered as a zero-to-zero filter no buyer applied.
  * - **Places** (`ShowroomPlaceInteraction`): NOT populated. `docs/16` §2.6:
  *   POI-level presentation exists only for Amenities in this payload
  *   (already captured as unit-less `HierarchyAnalytics` item entries), and
@@ -233,6 +236,15 @@ function buildFilters(usage: RawSessionData["FilterUsage"]): ShowroomFilterAppli
   const out: ShowroomFilterApplication[] = [];
   const range = (name: string, r: { readonly Min?: number; readonly Max?: number } | undefined) => {
     if (r === undefined || (r.Min === undefined && r.Max === undefined)) return;
+    /*
+     * The source's range struct is default-constructed, not omitted, for a
+     * dimension the buyer never opened: every untouched session carries
+     * `{Min: 0, Max: 0}` rather than an absent field. Zero-to-zero is never
+     * a genuine buyer filter on price or surface, so a struct still sitting
+     * on its default is "inactive", not "applied" — matching this
+     * function's own contract of one row per active dimension.
+     */
+    if ((r.Min ?? 0) === 0 && (r.Max ?? 0) === 0) return;
     out.push({
       field: name,
       value: `${r.Min ?? "?"}–${r.Max ?? "?"}`,

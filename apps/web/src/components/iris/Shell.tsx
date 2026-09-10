@@ -472,6 +472,14 @@ export function Shell({
    * selector. `#main` is queried the same way for symmetry; both are stable,
    * documented anchors (`AskDock.tsx`, this file's own `<main id="main">`).
    *
+   * `<header>` covers a third case the first pass missed: `Brand` always
+   * renders a real `<Link>` there (`href` is always passed from this
+   * component), so the wordmark stayed reachable — by Tab and by tap —
+   * through the whole time the sheet was open. `.irs-mobile-bar`, the
+   * trigger and the sheet itself are a SIBLING of `<header>`, not inside it
+   * (see the block below), so making the header inert cannot reach into the
+   * thing that opened it.
+   *
    * Crossing back above the breakpoint closes the sheet. Left open, it would
    * be `display: none` and still `open`, and `<main>` would stay inert under
    * a desktop header with nothing to explain it.
@@ -481,9 +489,11 @@ export function Shell({
     if (details === null || details === undefined) return;
 
     const covered = () =>
-      [document.getElementById("main"), document.querySelector<HTMLElement>(".ask-dock")].filter(
-        (el): el is HTMLElement => el !== null,
-      );
+      [
+        document.getElementById("main"),
+        document.querySelector<HTMLElement>(".ask-dock"),
+        document.querySelector<HTMLElement>(".irs-header"),
+      ].filter((el): el is HTMLElement => el !== null);
     const setInert = (on: boolean) => {
       for (const el of covered()) el.inert = on;
     };
