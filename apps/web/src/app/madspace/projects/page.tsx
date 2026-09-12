@@ -277,40 +277,13 @@ function ProjectRow({ summary }: { summary: ProjectSummary }) {
       </div>
 
       {/*
-       * The three counts, in ruled cells with their labels above them.
-       *
-       * They are three independent states, not three stages: a source can be
-       * connected and never verified, and nothing here may collapse them into
-       * one dot, one percentage or one bar.
-       *
-       * `mad-facts` alone, and NOT `mad-datapanel`. The panel is a bordered
-       * grid meant to span a card; nested in one cell of a row it drew a box
-       * inside a box and folded three figures into a column, which made the row
-       * four times taller than the thing it describes. A row is ruled, not
-       * boxed, and the reference document draws its own tables the same way.
+       * Sources, Connected and Ingestion verified used to stand here as their
+       * own ruled tally. The founder's call: this row answers whether the
+       * project is there and when it last spoke, not an operational
+       * breakdown — the three counts still live one click away, on the
+       * project's own page, where a reader who wants them is already looking
+       * for exactly that detail.
        */}
-      <dl className="mad-facts mad-facts--inline">
-        <div>
-          <dt>Sources</dt>
-          <dd>{NUMBERS.format(summary.sourceCount)}</dd>
-        </div>
-        <div>
-          <dt>Connected</dt>
-          <dd>
-            {NUMBERS.format(summary.connectedCount)}
-            {/* The denominator may shrink and dim; it may never be dropped. */}
-            <span className="mad-tally-of"> of {NUMBERS.format(summary.sourceCount)}</span>
-          </dd>
-        </div>
-        <div>
-          <dt>Ingestion verified</dt>
-          <dd>
-            {NUMBERS.format(summary.verifiedCount)}
-            <span className="mad-tally-of"> of {NUMBERS.format(summary.sourceCount)}</span>
-          </dd>
-        </div>
-      </dl>
-
       <dl className="mad-facts">
         <div className="mad-meta-item">
           <dt className="mad-meta-label">Last activity</dt>

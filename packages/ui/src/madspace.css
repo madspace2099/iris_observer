@@ -1039,8 +1039,28 @@ a.mad-row:focus-visible {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  /*
+   * Two columns, not three: the ruled Sources/Connected/Ingestion-verified
+   * tally that used to sit here moved to the project's own page, so this row
+   * only ever has the name, Last activity and the action to place now.
+   */
   .mad-row--project {
-    grid-template-columns: minmax(14rem, 2fr) minmax(0, 3fr) minmax(9rem, auto) auto;
+    grid-template-columns: minmax(14rem, 2fr) minmax(9rem, auto) auto;
+  }
+
+  /*
+   * Last activity opts out of the row's own centering. A project last heard
+   * from carries two lines here (the instant, then its age); one that has
+   * never been heard from carries one ("No activity recorded"). Centered on
+   * the row, the two cases put the label itself at two different heights
+   * row to row — the exact thing a reader scanning the column down would
+   * notice first. Top-aligned, the label and the first line always sit on
+   * the row's own baseline, whatever the cell holds beneath it. Scoped to
+   * this one cell rather than the whole row, so the name/status column and
+   * the action stay centered exactly as they did before.
+   */
+  .mad-row--project > .mad-facts {
+    align-self: start;
   }
 
   .mad-row--source {
