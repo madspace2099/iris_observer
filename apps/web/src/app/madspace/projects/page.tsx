@@ -58,25 +58,24 @@ export default async function MadspaceProjectsPage() {
         <div className="mad-head-text">
           <Kicker>MADSPACE operations</Kicker>
           {/*
-           * The scope sits behind the disclosure, and the account and the
-           * control plane are not restated here at all: the shell header names
-           * both on every screen under /madspace, so a sentence saying it again
-           * was the third telling of two facts already on the page.
+           * The verdict IS the heading, per the founder's reference
+           * (Sales Flow, Project, Sales Agents, Ask IRIS): a page opens on the
+           * answer, not on a title repeating what the tab above already says.
+           * "Projects" stayed as the h1's accessible name — a reader using a
+           * screen reader still needs the page named, even though a sighted
+           * reader gets that from the active tab in `OpsNav` — via `aria-label`
+           * rather than visible text, so the two readers arrive at the same
+           * page under two different, equally true names.
            */}
           <div className="mad-idline">
-            <h1 className="mad-title">Projects</h1>
+            <h1 className="mad-verdict" aria-label="Projects">
+              {answer.sentence}
+            </h1>
             <InfoNote label="the scope of these figures">
               <p>Every figure on this screen is scoped to {CONTROL_PLANE_ACCOUNT_NAME}.</p>
+              {answer.note === null ? null : <p>{answer.note}</p>}
             </InfoNote>
           </div>
-          <p className="mad-lede">
-            {answer.sentence}
-            {answer.note === null ? null : (
-              <InfoNote label="what being heard from means">
-                <p>{answer.note}</p>
-              </InfoNote>
-            )}
-          </p>
         </div>
 
         {/*
@@ -162,7 +161,7 @@ function lede(summaries: readonly ProjectSummary[] | null): Lede {
 function Estate({ summaries }: { summaries: readonly ProjectSummary[] }) {
   if (summaries.length === 0) {
     return (
-      <section className="mad-plane" aria-labelledby="estate-heading">
+      <section className="mad-plane mad-plane--flat" aria-labelledby="estate-heading">
         <div className="obs-section-head">
           <h2 id="estate-heading">The estate</h2>
         </div>
@@ -190,7 +189,7 @@ function Estate({ summaries }: { summaries: readonly ProjectSummary[] }) {
   }
 
   return (
-    <section className="mad-plane" aria-labelledby="estate-heading">
+    <section className="mad-plane mad-plane--flat" aria-labelledby="estate-heading">
       <div className="obs-section-head">
         {/*
          * "The estate" rather than "Projects": the h1 already carries that

@@ -3382,6 +3382,72 @@ button.mad-quiet {
   border-radius: 0;
 }
 
+/* ============================================================================
+ * THE FLAGSHIP TREATMENT — a plane that stays a plane
+ *
+ * The founder's decision (2026-09-12): the Projects list reads closer to the
+ * Observer product it administers — a continuous plane on the graphite
+ * ground, no border, no card background, no radius — rather than the boxed
+ * `.mad-plane` card every other MADSPACE screen still uses. Scoped to this
+ * one modifier rather than changed on `.mad-plane` itself, because the rest
+ * of `/madspace` has not been reviewed against the same reference yet and
+ * must keep rendering exactly as it does today.
+ *
+ * The row beneath it stays MADSPACE's own — a project's status and its last
+ * heartbeat are operational facts, not an analytical finding with a sample
+ * size, so this borrows Observer's TYPOGRAPHIC confidence (the verdict
+ * sentence, the plane, the hairline rhythm) rather than its evidence
+ * machinery, which does not describe anything MADSPACE actually has.
+ * ========================================================================= */
+
+.mad-portal .mad-plane--flat {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.mad-portal .mad-plane--flat .mad-rows {
+  margin-inline: 0;
+  border-top: 1px solid var(--border-panel);
+}
+
+.mad-portal .mad-plane--flat .mad-row {
+  padding-inline: 0;
+  border-inline-start: 0;
+}
+
+.mad-portal .mad-plane--flat a.mad-row:hover {
+  border-inline-start-color: transparent;
+  background: var(--surface-inset);
+}
+
+/*
+ * The verdict sentence — `.iris-verdict`'s own computed values
+ * (`packages/ui/src/iris.css`), restated here rather than shared across the
+ * namespace boundary component-namespace rule the design system states:
+ * mixing an `iris-` class into `mad-` markup is a real defect because the two
+ * families' custom properties resolve to different, non-interchangeable
+ * values, even where — as here — the two now happen to agree.
+ */
+.mad-portal .mad-verdict {
+  margin: 0;
+  max-width: 22ch;
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+@media (max-width: 48rem) {
+  .mad-portal .mad-verdict {
+    font-size: 1.625rem;
+    line-height: 2rem;
+  }
+}
+
 /* --- the page head, which is not a card ---------------------------------- */
 
 /*
