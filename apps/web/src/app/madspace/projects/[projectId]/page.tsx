@@ -242,14 +242,23 @@ export default async function MadspaceProjectPage({
 
       <section className="mad-plane" aria-labelledby="integrations-heading">
         <div className="obs-section-head">
-          <h2 id="integrations-heading">CRM and catalogue</h2>
+          <h2 id="integrations-heading">CRM, catalogue and showroom telemetry</h2>
           <ActionLink href={`/madspace/projects/${projectId}/integrations`} emphasis="secondary">
             Integrations
           </ActionLink>
         </div>
+        {/*
+         * The one door into two different panes, and the lede used to name only
+         * one of them. Session sources (Akhilesh's Supabase feed today) live on
+         * this same Integrations screen, in their own "Showroom telemetry"
+         * section — but an operator reading "the CRM this project's catalogue is
+         * pulled from" had no reason to click through looking for a Supabase
+         * connection, because the sentence had already answered a narrower
+         * question than the page underneath it does.
+         */}
         <p className="mad-lede">
-          The CRM this project&rsquo;s unit catalogue is pulled from, its credential, and the
-          changes each sync found.
+          The CRM this project&rsquo;s unit catalogue is pulled from, and what the showroom itself
+          recorded — credentials, last sync, and the changes each pull found.
         </p>
       </section>
     </>
