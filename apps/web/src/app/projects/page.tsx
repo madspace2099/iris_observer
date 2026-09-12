@@ -129,6 +129,25 @@ export default async function Projects() {
                 account.
               </p>
             </div>
+            {/*
+             * Registering a new project, for the role that holds it — same gate
+             * as the "Administration" link above, and the same destination the
+             * Administration landing page itself offers. Not a second form: this
+             * is the chooser a MADSPACE admin already lands on after signing in,
+             * and "create one" belongs beside "open one" rather than a click away
+             * behind a separate surface a reader has to already know exists.
+             */}
+            {viewer.role === "madspace_admin" ? (
+              <div className="ox-head-aside">
+                <Link
+                  className="ox-btn"
+                  data-weight="primary"
+                  href={dynamicRoute("/madspace/projects/new")}
+                >
+                  New project
+                </Link>
+              </div>
+            ) : null}
           </div>
 
           {cards.length === 0 ? (
