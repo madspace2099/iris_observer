@@ -3432,13 +3432,29 @@ button.mad-quiet {
  */
 .mad-portal .mad-verdict {
   margin: 0;
-  max-width: 22ch;
+  /*
+   * Not `.iris-verdict`'s own 22ch. Measured against the real copy rather
+   * than copied from the token: Sales Flow's verdicts are one short clause
+   * ("Meetings are holding up and progressing well"); `lede()` below composes
+   * a longer, number-dense sentence (scale, then a connected/verified
+   * clause), and 22ch broke that across four ragged lines with an orphaned
+   * "an" and a wide dead gap beside it on this page's own, wider column.
+   * 48ch is measured against `lede()`'s actual longest branch so it wraps in
+   * two even lines at the widths this header renders at, not four.
+   */
+  max-width: 48ch;
   font-size: 2.125rem;
   line-height: 2.5rem;
   font-weight: 600;
   letter-spacing: -0.03em;
   text-wrap: balance;
   color: var(--ink);
+}
+
+@media (max-width: 64rem) {
+  .mad-portal .mad-verdict {
+    max-width: 38ch;
+  }
 }
 
 @media (max-width: 48rem) {
