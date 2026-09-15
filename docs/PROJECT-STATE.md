@@ -1568,7 +1568,7 @@ build before spending time on anything else in it — nothing downstream of acti
 working until that succeeds against the live endpoint. (3) The MADSPACE items above (IAS, invites,
 remaining `/madspace` restyle) are still open and independent of this review.
 
-## Continuation, same session — `/madspace/projects` visual verification, then a likely P0 found running `wide`
+## Continuation, same session — `/madspace/projects` visual verification, then chasing `wide`'s 14 failures to ground
 
 **`/madspace/projects` visually verified** against `070416f`, desktop and mobile, signed in as
 MADSPACE Operations on the dev server. The verdict sentence wraps cleanly (three lines, no more
@@ -1579,61 +1579,65 @@ it does. Not touched; it predates this session's redesign work.
 
 **Then ran the `wide` (1920×1080) Playwright project for the first time ever**, against the default
 production `webServer` (`next build && next start`). 255 passed, 14 failed, 256 skipped, 17.5
-minutes. Chased all 14 down rather than reporting a raw count:
+minutes. Chased all 14, corrected course twice along the way — recorded here including the wrong
+turns, because the first write-up of this section overclaimed and was itself corrected before
+anyone acted on it.
 
 - **5 of the 14 (`madspace-screenshots.spec.ts`) are not a bug.** The file's own docblock says
   outright: it needs `OBSERVER_BASE_URL=http://localhost:3310` against a running dev server with
   `OBSERVER_LOCAL_CONTROL_PLANE=1`, because `localControlPlaneEnabled()`
   (`apps/web/src/lib/sources/local-db.ts:147-149`) is hard-gated on `NODE_ENV !== "production"` —
   the default `--project=wide` invocation runs it against the production build instead, where
-  `<BuildEstate />` structurally cannot render, so `ensureEstate()`'s "Build the estate" button never
-  appears. Confirmed by isolating just this file on both `wide` and `desktop` (fails identically on
-  both — not a viewport issue, an invocation issue).
-- **9 of the 14 (`milestone-review.spec.ts` ×5, `observer-review.spec.ts` ×4) exposed something real
-  — and it's not primarily a test bug, though there is one alongside it.** Both spec files gate
-  themselves to run only on `wide` (`test.skip(() => project.name !== "wide", ...)` /
-  per-test `test.skip(info.project.name !== "wide", ...)`), so **today was the first time either
-  file's assertions ever actually executed** — every previous run silently skipped them on
-  `desktop`/`mobile`. Tracing `/alpha/northgate/units` and `/alpha/ister-tower/units` live (both
-  projects, both after a clean dev-server restart, so not session-state or HMR-churn residue):
-  the server renders and returns the page fast (874ms–1642ms per Next's own timing) with fully
-  correct content — confirmed by reading the streamed HTML directly: `<div hidden id="S:0"><div
-  class="ox-page">...<h1>Unit demand register</h1>...` is present, complete, and correct. But the
-  `hidden` attribute is never removed. The page's own `$RC("B:0","S:0")` — React/Next's built-in
-  streaming-Suspense swap call, present verbatim in the response — never completes the swap that
-  would remove `loading.tsx`'s skeleton and reveal it. No JS exception surfaced in the console (only
-  ordinary dev-mode HMR/preload noise). The user is left looking at the loading skeleton forever
-  while the real, correct page sits inert in the DOM. Separately, and independently of whether that
-  swap bug is real in production: both spec files' failing assertions wait on `.iris-matrix-row`
-  after navigating to `/units` and `/meetings` — that class exists only in `UnitMatrix.tsx`
-  (`/project`, `/audience`), never in `units/page.tsx`'s actual component tree
-  (`StackPlan`/`UnitRegister`/`DemandAttention`/`FindingList`) — so even with the swap fixed, these
-  specific assertions still need the selector corrected to match what those pages actually render.
+  `<BuildEstate />` structurally cannot render. Confirmed by isolating the file alone on both `wide`
+  and `desktop` (fails identically — an invocation issue, not a viewport one).
+- **4 of the 14 (`.iris-matrix-row` waits, on `/units` in `milestone-review.spec.ts` and
+  `observer-review.spec.ts`) are a real test-authoring bug, and only that.** That class exists in
+  `UnitMatrix.tsx` (`/project`, `/audience`), never in `units/page.tsx`'s own tree
+  (`StackPlan`/`UnitRegister`/`DemandAttention`/`FindingList`) — confirmed by grep. **`/units` itself
+  renders correctly**: a screenshot on a fresh production `next start` (no rebuild — reused the
+  existing `.next` output) shows the full stacking plan and register, correctly, within a few
+  seconds. An earlier pass through this investigation read a `hidden` attribute lingering on a
+  `getElementById('S:0')` node as proof the page never reveals itself — that reasoning was wrong:
+  the id is reused across unrelated Suspense boundaries per page, `querySelectorAll` finds elements
+  regardless of visibility, and a page that is genuinely fine (`/project` in this same check) shows
+  the identical `hidden` attribute on its own `S:0` while rendering perfectly. The earlier draft of
+  this section called this a possible P0 across "Units and Meetings." Half of that was wrong; struck
+  through in favour of what actually reproduces below.
+- **1 of the 14 (`milestone-review.spec.ts` "14-meeting-detail", `/meetings`) is a real, confirmed,
+  narrower bug — on `/meetings` specifically, not `/units`.** Fetching `/alpha/ister-tower/meetings`
+  directly returns a complete 323,800-byte response in **64ms**, already containing the fully
+  resolved "Meetings" register — so this is not a slow query and not resource pressure (the
+  identical machine, identical memory pressure, rendered `/units` and `/project` correctly and
+  quickly in the same session). But navigating there in a real browser tab never reveals that
+  content: `document.body.innerText` stayed on `loading.tsx`'s fallback text for 95+ continuous
+  seconds, confirmed via screenshot (skeleton bars, not the register), reproduced twice, on a freshly
+  restarted server. No JS console error surfaced. The generic `$RC("B:0","S:0")` swap call — React's
+  own framework boilerplate, byte-identical in shape to the one on the working `/units` response — is
+  present in the HTML but its client-side execution never completes for this page specifically. Root
+  cause not found (would need browser devtools breakpoints inside React's own hydration code, not
+  attempted); what's confirmed is that it's real, it's `/meetings`-specific, and it is not explained
+  by anything ruled out above.
+- **4 of the 14 remain uninvestigated this pass**: `milestone-review.spec.ts` "agency manager context
+  switching" (a `Developer` combobox never found), "12-storytelling" ("Execution context was
+  destroyed, most likely because of a navigation" — reads like an ordinary timing flake, not chased),
+  and `observer-review.spec.ts`'s two `.obs-console-orb` screenshot timeouts. One freshly-discovered,
+  plausible partial explanation for the Ask-Observer-shaped failures among these: this server's own
+  startup log states `Ask Observer is refusing every question: OBSERVER_SUBJECT_PEPPER is not set` —
+  a missing local env var, not an app defect — though this was not traced through to confirm it's the
+  actual cause of any specific one of these four.
 
-**What's confirmed and what isn't.** The hidden-swap failure reproduced twice, on two different
-projects, on a freshly restarted `next dev` (Turbopack) server — not explained by the session's
-earlier HMR churn or by the machine's memory state (both checked and ruled out: free RAM sat at
-~550–660MB/16GB the entire time, roughly constant whether the symptom was present or not, and other
-pages — `/ask`, `/flow`, `/projects` — rendered visibly and fast throughout on the same
-memory-starved machine). **Not yet confirmed against a genuine production build (`next start`)** —
-a second full `next build` was the obvious next check and was deliberately not run: the machine was
-at ~550MB free the whole session (this machine's own multiple parallel dev processes, a known
-standing constraint — not something this session's testing caused, confirmed by checking before
-starting any of it), and spending another multi-minute build to chase certainty risked
-destabilizing whatever else is running on it. If this is dev-mode-only (a Turbopack/Next 16.3.2
-streaming quirk), it's a real but lower-stakes annoyance. If it also reproduces in the production
-build, every visitor to Units and Meetings — two of the product's named primary surfaces — sees a
-skeleton forever. That distinction is the one open question, and it decides the severity.
+**Net effect on `wide`'s real signal: 1 confirmed defect (`/meetings`), 1 confirmed test-selector bug
+(affecting 5 of the 14 lines), 1 confirmed non-bug invocation gap (5 more), 4 still open.** Nothing
+here blocks or is blocked by the Akhilesh report or the MADSPACE items above — independent tracks.
 
-**Next recommended action, in order.** (1) On a machine with headroom, or after confirming this
-one is free: `pnpm --filter @observer/web build && pnpm --filter @observer/web start --port 3210`,
-then load `/alpha/ister-tower/units` directly (no Playwright needed) and check whether `#S:0` still
-carries `hidden` after a few seconds — that single check closes the open question. (2) If it
-reproduces in production, this is the priority over everything else in this file, including hosted
-Preview verification — a broken Units/Meetings page is worse than any of M10's remaining Preview
-acceptance items. (3) Once resolved either way, fix `milestone-review.spec.ts`/
-`observer-review.spec.ts`'s `.iris-matrix-row` selector to match what `/units` and `/meetings`
-actually render, and give `madspace-screenshots.spec.ts` a documented dev-server invocation (or a
-`test.skip` when `NODE_ENV === "production"`, matching what its own docblock already prescribes)
-so `wide` can be re-run clean and its result trusted at a glance. (4) Neither of these blocks or is
-blocked by the Akhilesh report or the MADSPACE items above; independent tracks.
+**Next recommended action, in order.** (1) Root-cause the `/meetings` swap failure — start from
+`meetings/page.tsx`'s single `repository.getMeetings(...)` call and `MeetingRegister`, diff against
+what `units/page.tsx` does differently, and check with real devtools (not this session's
+JS-injection probing) for a swallowed hydration error. This is the one real, reproducible, shipped
+defect out of the 14 and is worth more than anything else in this list. (2) Fix the `.iris-matrix-row`
+selector in both spec files to target `/project` or `/audience` (wherever `UnitMatrix` actually
+renders), or point them at what `/units`/`/meetings` genuinely expose. (3) Give
+`madspace-screenshots.spec.ts` a documented dev-server invocation or a `test.skip` on
+`NODE_ENV === "production"`, matching its own docblock, so `wide` can be re-run clean. (4) Set
+`OBSERVER_SUBJECT_PEPPER` locally (32 bytes hex) and re-check the four uninvestigated failures before
+assuming any of them are real — several may simply disappear.
