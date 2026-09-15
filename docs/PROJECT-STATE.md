@@ -1567,3 +1567,73 @@ rotation and the activation/heartbeat payload fix, re-run this review's §2 chec
 build before spending time on anything else in it — nothing downstream of activation can be proven
 working until that succeeds against the live endpoint. (3) The MADSPACE items above (IAS, invites,
 remaining `/madspace` restyle) are still open and independent of this review.
+
+## Continuation, same session — `/madspace/projects` visual verification, then a likely P0 found running `wide`
+
+**`/madspace/projects` visually verified** against `070416f`, desktop and mobile, signed in as
+MADSPACE Operations on the dev server. The verdict sentence wraps cleanly (three lines, no more
+ragged four-line break), the estate rows are hairline-separated with no card borders, the tally
+columns stay gone. One pre-existing, out-of-scope observation: `obs-nav` (the shared admin tab
+strip) overflows at 375px with no scroll affordance — works via touch swipe, has no visual cue that
+it does. Not touched; it predates this session's redesign work.
+
+**Then ran the `wide` (1920×1080) Playwright project for the first time ever**, against the default
+production `webServer` (`next build && next start`). 255 passed, 14 failed, 256 skipped, 17.5
+minutes. Chased all 14 down rather than reporting a raw count:
+
+- **5 of the 14 (`madspace-screenshots.spec.ts`) are not a bug.** The file's own docblock says
+  outright: it needs `OBSERVER_BASE_URL=http://localhost:3310` against a running dev server with
+  `OBSERVER_LOCAL_CONTROL_PLANE=1`, because `localControlPlaneEnabled()`
+  (`apps/web/src/lib/sources/local-db.ts:147-149`) is hard-gated on `NODE_ENV !== "production"` —
+  the default `--project=wide` invocation runs it against the production build instead, where
+  `<BuildEstate />` structurally cannot render, so `ensureEstate()`'s "Build the estate" button never
+  appears. Confirmed by isolating just this file on both `wide` and `desktop` (fails identically on
+  both — not a viewport issue, an invocation issue).
+- **9 of the 14 (`milestone-review.spec.ts` ×5, `observer-review.spec.ts` ×4) exposed something real
+  — and it's not primarily a test bug, though there is one alongside it.** Both spec files gate
+  themselves to run only on `wide` (`test.skip(() => project.name !== "wide", ...)` /
+  per-test `test.skip(info.project.name !== "wide", ...)`), so **today was the first time either
+  file's assertions ever actually executed** — every previous run silently skipped them on
+  `desktop`/`mobile`. Tracing `/alpha/northgate/units` and `/alpha/ister-tower/units` live (both
+  projects, both after a clean dev-server restart, so not session-state or HMR-churn residue):
+  the server renders and returns the page fast (874ms–1642ms per Next's own timing) with fully
+  correct content — confirmed by reading the streamed HTML directly: `<div hidden id="S:0"><div
+  class="ox-page">...<h1>Unit demand register</h1>...` is present, complete, and correct. But the
+  `hidden` attribute is never removed. The page's own `$RC("B:0","S:0")` — React/Next's built-in
+  streaming-Suspense swap call, present verbatim in the response — never completes the swap that
+  would remove `loading.tsx`'s skeleton and reveal it. No JS exception surfaced in the console (only
+  ordinary dev-mode HMR/preload noise). The user is left looking at the loading skeleton forever
+  while the real, correct page sits inert in the DOM. Separately, and independently of whether that
+  swap bug is real in production: both spec files' failing assertions wait on `.iris-matrix-row`
+  after navigating to `/units` and `/meetings` — that class exists only in `UnitMatrix.tsx`
+  (`/project`, `/audience`), never in `units/page.tsx`'s actual component tree
+  (`StackPlan`/`UnitRegister`/`DemandAttention`/`FindingList`) — so even with the swap fixed, these
+  specific assertions still need the selector corrected to match what those pages actually render.
+
+**What's confirmed and what isn't.** The hidden-swap failure reproduced twice, on two different
+projects, on a freshly restarted `next dev` (Turbopack) server — not explained by the session's
+earlier HMR churn or by the machine's memory state (both checked and ruled out: free RAM sat at
+~550–660MB/16GB the entire time, roughly constant whether the symptom was present or not, and other
+pages — `/ask`, `/flow`, `/projects` — rendered visibly and fast throughout on the same
+memory-starved machine). **Not yet confirmed against a genuine production build (`next start`)** —
+a second full `next build` was the obvious next check and was deliberately not run: the machine was
+at ~550MB free the whole session (this machine's own multiple parallel dev processes, a known
+standing constraint — not something this session's testing caused, confirmed by checking before
+starting any of it), and spending another multi-minute build to chase certainty risked
+destabilizing whatever else is running on it. If this is dev-mode-only (a Turbopack/Next 16.3.2
+streaming quirk), it's a real but lower-stakes annoyance. If it also reproduces in the production
+build, every visitor to Units and Meetings — two of the product's named primary surfaces — sees a
+skeleton forever. That distinction is the one open question, and it decides the severity.
+
+**Next recommended action, in order.** (1) On a machine with headroom, or after confirming this
+one is free: `pnpm --filter @observer/web build && pnpm --filter @observer/web start --port 3210`,
+then load `/alpha/ister-tower/units` directly (no Playwright needed) and check whether `#S:0` still
+carries `hidden` after a few seconds — that single check closes the open question. (2) If it
+reproduces in production, this is the priority over everything else in this file, including hosted
+Preview verification — a broken Units/Meetings page is worse than any of M10's remaining Preview
+acceptance items. (3) Once resolved either way, fix `milestone-review.spec.ts`/
+`observer-review.spec.ts`'s `.iris-matrix-row` selector to match what `/units` and `/meetings`
+actually render, and give `madspace-screenshots.spec.ts` a documented dev-server invocation (or a
+`test.skip` when `NODE_ENV === "production"`, matching what its own docblock already prescribes)
+so `wide` can be re-run clean and its result trusted at a glance. (4) Neither of these blocks or is
+blocked by the Akhilesh report or the MADSPACE items above; independent tracks.
