@@ -3,9 +3,9 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-10 · **Branch:** `feature/observer-reference-parity`, pushed
+**Last updated:** 2026-09-15 · **Branch:** `feature/observer-reference-parity`, pushed
 to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only, latest `b92d149`.
+local only, latest `070416f`.
 
 ---
 
@@ -1500,3 +1500,70 @@ run — a machine/time choice this pass made too, not an oversight. (2) If the l
 first-viewport flake recurs, capture a trace on the failing run specifically (`trace: "on"`, not
 the default `retain-on-failure`, for one deliberate rerun) rather than guessing at which cold-start
 cost to budget for. (3) Items (3) and (5) from the prior action list are unchanged and still open.
+
+## Continuation, 2026-09-10 to 2026-09-15 — MADSPACE flagship redesign, then the Akhilesh build review
+
+**MADSPACE `/projects` redesign, committed through `070416f`.** `New project` moved from
+`/madspace` onto `/projects` itself (`66f0038`), matching where the MADSPACE admin actually lands.
+A live style comparison page was built at `/design-lab/observer-style` so the user could choose
+between the MADSPACE system and Observer's own (`653f1a5`); the user picked the MADSPACE direction
+but asked for the per-source tally columns (Connected/Ingestion verified/Sources) dropped from the
+row and `Last activity` cleaned up (`de30164`). `/madspace/projects` was then rebuilt as a flagship
+screen in the same style as `/ask`, `/flow`, `/project`, `/agents` — a verdict sentence as the `h1`,
+a flat plane instead of a bordered card stack (`a027466`) — and the verdict's measure was widened
+from a 22ch cap (breaking a long sentence into four ragged lines) to 48ch/38ch responsive
+(`070416f`) after the user flagged the design directly. `docs/20-madspace-admin-design-system.md`
+and ADR-0037 govern this surface; `apps/web/src/app/design-lab/observer-style/page.tsx` is a
+dev-only comparison page, not yet asked to be removed.
+
+**Not done this window:** the IRIS-Assisted Sale (IAS) correlation feature (window/sample-size
+decisions proposed, not confirmed by the user); email invitation/roles for new MADSPACE projects
+(blocked on a real-auth decision); restyling the rest of `/madspace` and the project detail page to
+match the flagship direction.
+
+**Akhilesh's `InsightAnalytics.zip` (0.2.0, claimed complete through UE-OBS-010) — full review.**
+Extracted and read in full (all 33 C++/header files, both test files, the Python pre-build
+verifier, the local web dashboard, the `.uplugin`/`.Build.cs`). Compared against
+`docs/ue5-integration-handoff.md`, the `packages/contracts/src/ue5` Zod schemas — confirmed to be
+the same schemas `packages/sources/src/{activate,ingest,heartbeat}.ts` parse live requests with,
+not an aspirational spec — and the prior UE5 telemetry audit. Every wire-format claim was proven by
+actually running the plugin's exact request payloads through those schemas (not just read), and
+every other technical claim was independently re-verified by a 13-agent adversarial workflow, each
+re-opening the cited file fresh; all 13 held up (one line-range off by one line, one property-shape
+claim softened after discovering `DiagnosticTestPropertiesSchema` is published in the OpenAPI doc
+but not yet wired into the live validator).
+
+**Result: `docs/ue5-review-2026-09-15-response-to-akhilesh.md`** — the response report, organized
+critical → wire-contract → outbox/transport → product-decision → minor, each item with exact
+file:line citations and a concrete fix. Headline findings: (1) the changelog's claim that Supabase
+egress was removed is false — a live anon key and direct `user_sessions`/`global_analytics` reads
+are still shipped inside `Resources/AnalyticsWeb/script.js`, staged into the packaged build by
+`InsightAnalytics.Build.cs`, and Akhilesh's own pre-build verifier never scans that folder (dead
+`TEXT_SUFFIXES` config), so the gate passed without ever looking; **the key should be treated as
+compromised and rotated regardless of the code fix.** (2) The V2 telemetry bridge only forwards 6
+event types (session start/end, click, language change, agent rating); roughly 14 legacy tracking
+functions (filters, apartment views, favorites, PDF opens, balcony/floor-cut views, screenshots,
+feature navigation, environment, session outcome) never call into the Observer subsystem at all —
+this is the structural reason the earlier audit's 20 yellow items are still yellow, and the fix in
+most cases is one added call to a `ObserverBlueprintLibrary::Track*` function that already exists
+and is schema-correct. (3) The activation and heartbeat requests are wire-incompatible with the
+live endpoint today (flat fields where the contract requires nested `build`/`queue` objects) —
+activation would fail on first contact, which is also why Akhilesh's own self-tests only exercise
+the mock transport path. (4) Several outbox/transport edge cases (HTTP 400/413/unrecognized-4xx,
+`Retry-After` parsing, one corrupt queue entry, per-event full-queue rewrites) stall delivery
+permanently or degrade badly rather than failing safely. (5) Three of the user's A.9/A.10 decisions
+from the prior round aren't applied yet: screenshot subtypes remain in three places; the agent
+rating flow fabricates a baseline "Good" vote on every session start and has no gate on the Share
+Panel having been sent first; `AgentId` is `MD5(SalesPersonName)` instead of the `SalesPersonID`
+GUID that already exists on the same struct, which does not meet the "privacy-safe opaque
+identifier" bar for a small, named sales team. (6) A `CancelCurrentSession` bug causes the next
+visitor's V2 events to be misattributed to the previous, cancelled visitor until an idle timeout.
+
+No secret value is reproduced in the report or here. Nothing was sent to Akhilesh — no channel to
+him exists from this session; the user relays it, as with the prior round of decisions.
+
+**Next recommended action.** (1) Hand the report to Akhilesh. (2) Once he confirms the credential
+rotation and the activation/heartbeat payload fix, re-run this review's §2 checks against a new
+build before spending time on anything else in it — nothing downstream of activation can be proven
+working until that succeeds against the live endpoint. (3) The MADSPACE items above (IAS, invites,
+remaining `/madspace` restyle) are still open and independent of this review.
