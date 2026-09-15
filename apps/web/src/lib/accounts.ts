@@ -159,23 +159,91 @@ export function demoAccountsEnabled(
  *
  * One shape for every failure a caller may show a reader. `unavailable` is the
  * fail-closed case: no directory is configured, so there is nothing to check a
- * credential against and saying "wrong password" would be a lie.
+ * credential against and saying "wrong password" would be a lie. `rate_limited`
+ * is distinct from `invalid` on purpose — see `admitLoginAttempt` below — and
+ * safe to say plainly: it names a property of the CALLER's attempt history,
+ * not of the address, so it cannot be used to learn which addresses exist.
  */
 export type SignInResult =
   | { readonly ok: true; readonly account: Account }
-  | { readonly ok: false; readonly reason: "unavailable" | "invalid" };
+  | { readonly ok: false; readonly reason: "unavailable" | "invalid" | "rate_limited" };
+
+/* --- login attempt throttling --------------------------------------------- */
+
+/**
+ * How many failed sign-ins one email may absorb before a cool-down, and for
+ * how long.
+ *
+ * Keyed on the normalised email rather than on the caller's address:
+ * `clientFingerprint` in `lib/ai/quota.ts` states this product's reason for
+ * never keying anything on an IP directly — an address identifies a building,
+ * not a person, and is personal data this product has no reason to hold. An
+ * account-keyed ceiling protects each account from credential stuffing
+ * regardless of how many machines an attempt comes from, which is the
+ * property that matters here.
+ *
+ * Only FAILURES count, and a success clears the count rather than merely not
+ * incrementing it. The obvious alternative — counting every attempt — also
+ * throttles a reader who is allowed to sign in correctly a hundred times a
+ * day, which is exactly what this demonstration directory's own accounts do
+ * across the E2E suite. Counting failures is also the more honest threat
+ * model: what this guards against is repeated wrong guesses, not a legitimate
+ * caller's ordinary pace.
+ *
+ * **In-process only, and that is a real limit, not an oversight.** A
+ * serverless deployment spreads requests across many warm instances, so this
+ * is a per-instance brake — real friction against one attacker, no global
+ * ceiling. If this ever has to be authoritative, the pattern to follow is the
+ * one `lib/ai/quota.ts` already uses: an in-process check as a cheap first
+ * line, a shared Postgres counter as the ceiling that actually holds.
+ */
+export const LOGIN_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+export const LOGIN_FAILURE_CEILING = 5;
+
+const loginFailures = new Map<string, { count: number; windowEndsAt: number }>();
+
+/** Whether `email` may attempt another sign-in right now. */
+function isRateLimited(email: string): boolean {
+  const entry = loginFailures.get(email);
+  if (entry === undefined) return false;
+  if (entry.windowEndsAt <= Date.now()) {
+    loginFailures.delete(email);
+    return false;
+  }
+  return entry.count >= LOGIN_FAILURE_CEILING;
+}
+
+/** Records one failed attempt against `email`, starting a fresh window if the previous one lapsed. */
+function recordFailure(email: string): void {
+  const now = Date.now();
+  const entry = loginFailures.get(email);
+  if (entry === undefined || entry.windowEndsAt <= now) {
+    loginFailures.set(email, { count: 1, windowEndsAt: now + LOGIN_FAILURE_WINDOW_MS });
+    return;
+  }
+  entry.count += 1;
+}
+
+/** Clears `email`'s failure count. Called on every successful sign-in. */
+function clearFailures(email: string): void {
+  loginFailures.delete(email);
+}
 
 /**
  * Checks a credential.
  *
  * Constant-time on the password, and identical in shape for an unknown address
  * and a wrong password: a sign-in form that answers those two differently is a
- * sign-in form that enumerates its own users.
+ * sign-in form that enumerates its own users. The rate-limit check runs first
+ * and short-circuits before the password is even hashed — a throttled caller
+ * learns nothing about the credential either, only that they must wait.
  */
 export function authenticate(email: string, password: string): SignInResult {
   if (!demoAccountsEnabled()) return { ok: false, reason: "unavailable" };
 
   const normalised = email.trim().toLowerCase();
+  if (isRateLimited(normalised)) return { ok: false, reason: "rate_limited" };
+
   const account = DIRECTORY.find((a) => a.email === normalised);
 
   const given = createHash("sha256").update(`observer.demo.v1:${password}`).digest("hex");
@@ -187,7 +255,11 @@ export function authenticate(email: string, password: string): SignInResult {
    * Both checks always run, and only their combination decides. Returning early
    * on an unknown address would answer faster for addresses that do not exist.
    */
-  if (account === undefined || !passwordMatches) return { ok: false, reason: "invalid" };
+  if (account === undefined || !passwordMatches) {
+    recordFailure(normalised);
+    return { ok: false, reason: "invalid" };
+  }
+  clearFailures(normalised);
   return { ok: true, account };
 }
 

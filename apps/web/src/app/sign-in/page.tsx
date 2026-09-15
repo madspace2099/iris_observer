@@ -298,4 +298,10 @@ const MESSAGES: Readonly<Record<string, string>> = Object.freeze({
     "No account directory is configured on this server, so there is nothing to sign in to.",
   sso: "Company single sign-on is not connected to this build. Use a password for now.",
   invite: "Invitations are not connected to this build. Ask MADSPACE to set your account up.",
+  /*
+   * Safe to say plainly, unlike `invalid`: this names a property of the
+   * attempt history, not of the address, so stating it outright cannot be
+   * used to learn which addresses exist. See `authenticate` in `lib/accounts.ts`.
+   */
+  rate_limited: "Too many attempts for that address. Wait a few minutes and try again.",
 });

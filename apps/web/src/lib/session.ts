@@ -73,11 +73,14 @@ function sign(payload: string): string {
  * still holds the property that matters: **the browser cannot grant itself a
  * role**, because editing the key invalidates the signature.
  *
- * What it gives up is server-side revocation. Signing out clears the cookie,
- * and the token expires on its own, but a copy taken beforehand stays valid
- * until then. That is a real limitation of a stateless token and is recorded in
- * ADR-0022 rather than glossed over — a scenario selector over synthetic data
- * can carry it; production authentication cannot, and will not be built on this.
+ * Being stateless still means no server-side record of an issued token by
+ * default — `destroySession` below adds a narrow, explicit exception (a
+ * revoked nonce, held only until its token would have expired anyway, only on
+ * the instance that saw the sign-out) rather than reintroducing the session
+ * table this replaced. That exception does not survive a redeploy or reach a
+ * different warm instance; recorded plainly in ADR-0022 rather than glossed
+ * over — a scenario selector over synthetic data can carry that gap,
+ * production authentication cannot, and will not be built on this.
  */
 export function createAccountSession(accountId: string): string {
   const expiresAt = Date.now() + SESSION_TTL_MS;
@@ -87,14 +90,54 @@ export function createAccountSession(accountId: string): string {
 }
 
 /**
+ * Tokens signed out before their own expiry.
+ *
+ * A stateless, self-verifying token has no server-side record to delete, so a
+ * copy taken before sign-out — a shared machine, a proxy log, a browser that
+ * synced history mid-session — stayed valid for the rest of its 8-hour life
+ * even after the legitimate holder signed out. This closes that gap the
+ * cheapest way that is still real: the token's own nonce, held until it would
+ * have expired anyway, so the set can never grow past one entry per
+ * concurrently-live session actually signed out.
+ *
+ * **In-process only, and that is a real limit, not an oversight** — the same
+ * one `lib/accounts.ts`'s login throttle states for the same reason. A
+ * serverless deployment spreads requests across many warm instances, so a
+ * revocation recorded on one instance is invisible to another: real
+ * protection against the common case (the same browser, the same warm lambda,
+ * signing out and the captured copy being tried moments later), no guarantee
+ * against an attacker who reaches a different instance. Replacing this
+ * adapter's statelessness (see the module docblock) is what closes that
+ * properly; until then this is strictly better than not checking at all.
+ */
+const revokedNonces = new Map<string, number>();
+
+/** Drops nonces whose token would have expired anyway — nothing to protect by keeping them. */
+function pruneRevoked(now: number): void {
+  for (const [nonce, expiresAt] of revokedNonces) {
+    if (expiresAt <= now) revokedNonces.delete(nonce);
+  }
+}
+
+/**
  * Sign-out.
  *
- * There is no table to delete from. The caller clears the cookie; this exists
- * so the call site reads the same as it will once real sessions are revocable,
- * and so replacing this adapter stays a change to one file.
+ * Revokes the token's own nonce for the remainder of its natural life, then
+ * clears the cookie as before. Malformed input revokes nothing rather than
+ * throwing: a caller signing out with an already-invalid token has nothing to
+ * revoke, and sign-out must never fail.
  */
-export function destroySession(id: string | undefined): void {
-  void id;
+export function destroySession(token: string | undefined): void {
+  if (token === undefined) return;
+  const parts = token.split(".");
+  if (parts.length !== 4) return;
+  const [, expiresAt, nonce] = parts as [string, string, string, string];
+  const expiry = Number(expiresAt);
+  if (!Number.isFinite(expiry) || nonce.length === 0) return;
+
+  const now = Date.now();
+  pruneRevoked(now);
+  if (expiry > now) revokedNonces.set(nonce, expiry);
 }
 
 /**
@@ -125,6 +168,12 @@ export function resolveSession(token: string | undefined): Account | null {
 
   const expiry = Number(expiresAt);
   if (!Number.isFinite(expiry) || expiry <= Date.now()) return null;
+
+  /*
+   * Signed out before its own expiry. See `destroySession` — the entry is
+   * only ever this token's own nonce, deliberately revoked, on this instance.
+   */
+  if (revokedNonces.has(nonce)) return null;
 
   /*
    * A validly signed token for an account that no longer exists is not a

@@ -104,21 +104,38 @@ describe("session cannot be forged from the browser", () => {
     expect(ids.size).toBe(20);
   });
 
-  it("is stateless, which is why sign-out clears the cookie and nothing else", () => {
+  it("stops resolving a token once it has been signed out", () => {
     /*
-     * The limitation, asserted rather than hidden.
-     *
-     * There is no server record to delete, so a token copied before sign-out
-     * stays valid until it expires. That is the price of a session that works
-     * on a platform where every request may land on a different instance, and
-     * it is acceptable only because the token grants a profile from a screen
-     * where every profile is already freely selectable, over synthetic data.
-     * ADR-0022 records it; the pre-production gate removes it.
+     * The narrow exception to statelessness. `destroySession` revokes the
+     * token's own nonce until it would have expired anyway, so a copy taken
+     * before sign-out (a shared machine, a proxy log) stops working the
+     * moment the legitimate holder signs out — on this instance. It is still
+     * not server-side session storage: nothing is recorded until sign-out
+     * actually happens, and a different warm instance never sees the
+     * revocation. ADR-0022 records that remaining gap; the pre-production
+     * gate removes it.
      */
     const id = createAccountSession(DEVELOPER);
     expect(resolveSession(id)).not.toBeNull();
     destroySession(id);
+    expect(resolveSession(id)).toBeNull();
+  });
+
+  it("does not revoke every session when one token is malformed", () => {
+    const id = createAccountSession(DEVELOPER);
+    destroySession("not.a.real.token");
+    destroySession(undefined);
     expect(resolveSession(id)).not.toBeNull();
+  });
+
+  it("never resolves a stale, already-expired copy as newly revoked", () => {
+    // A token past its own expiry is already refused by the expiry check;
+    // signing it out must not throw or otherwise misbehave.
+    const id = createAccountSession(DEVELOPER);
+    const parts = id.split(".");
+    const past = `${parts[0]}.${Date.now() - 1000}.${parts[2]}.${parts[3]}`;
+    expect(() => destroySession(past)).not.toThrow();
+    expect(resolveSession(past)).toBeNull();
   });
 
   it("resolves nothing at all when no account directory is configured", () => {
