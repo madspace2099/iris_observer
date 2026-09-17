@@ -2053,7 +2053,8 @@ screenshot in `artifacts/qa-shots/`.
   inside that test. One `git log --format='%H %T'` gives the same set (`2846aaa`, checked): the
   test now takes 1.9 s and the whole suite 207 s instead of 260 to 293.
 - **Vitest, whole suite, clean tree, at `2846aaa`: 138 files, 3564 passed, 1 skipped, 0 failed,
-  no unhandled error, exit 0.** The closing run at the final commit is recorded below it.
+  no unhandled error, exit 0.** Repeated at `47fe98a`, the last commit of the day, after the
+  documentation: the same 138 files, 3564 passed, 1 skipped, 0 failed, exit 0, in 290 s.
 - **Playwright against a fresh production build, desktop and mobile, twelve specs** (the nine of
   the 2026-09-17 closing plus `authorization`, `project-switching`, `agent-authorisation`):
   **288 passed, 79 skipped by viewport, 13 failed**, 18 minutes. The thirteen:
