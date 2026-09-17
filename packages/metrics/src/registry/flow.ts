@@ -227,6 +227,47 @@ export const stalledOpportunities = defineMetric({
   roles: ["developer", "agency_manager", "sales_agent"],
 });
 
+/**
+ * IRIS-assisted sales.
+ *
+ * The one question a developer asks of the showroom itself: of the flats that
+ * sold, how many had just been shown in it. An observed sequence and nothing
+ * more — the buyer of the deal is not linked to the visitor in the room
+ * (ADR-0011), so this is not an attributed conversion and carries no
+ * attribution rule. The window and the minimum are `DEFAULT_IRIS_ASSIST_POLICY`.
+ */
+export const irisAssistedSales = defineMetric({
+  id: "flow.iris_assisted_sales",
+  displayName: "IRIS-assisted sales",
+  businessDefinition:
+    "Of the sales the CRM dates, the share whose unit was opened in an IRIS presentation in the 72 hours before the reservation or purchase date.",
+  kind: "ratio",
+  calculation:
+    "Deals at reservation or purchase that name a unit and carry a stage date, whose unit was opened in a showroom meeting that started no more than 72 hours before that date, divided by all such deals. The lag from the last showing to the stage date is reported for every sale, inside the window or not.",
+  numerator: "dated sales whose unit was opened in IRIS within 72 hours before the stage date",
+  denominator: "deals at reservation or purchase that name a unit and carry a stage date",
+  exclusions: [
+    "deals with no stage date, which cannot be placed in time",
+    "deals that name no unit",
+    "showings after the stage date",
+  ],
+  dimensions: ["project", "period"],
+  timeWindow: "all_time",
+  requiredFacts: ["unit.viewed", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit", "deal.stage_date"],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 5,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "The CRM dates no reservation or purchase yet.",
+    insufficient: insufficient(5, "dated sales"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "deals",
+  roles: ["developer", "agency_manager"],
+});
+
 export const FLOW_METRICS = [
   stageCounts,
   stageConversion,
@@ -237,4 +278,5 @@ export const FLOW_METRICS = [
   timeInStage,
   salesCycleDuration,
   stalledOpportunities,
+  irisAssistedSales,
 ] as const;

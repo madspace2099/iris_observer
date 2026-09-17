@@ -606,6 +606,7 @@ export function RankedBars({
   rows,
   valueSuffix = "",
   measured = false,
+  peak: scale,
 }: {
   rows: readonly {
     readonly id: string;
@@ -624,8 +625,14 @@ export function RankedBars({
    * enables.
    */
   measured?: boolean;
+  /**
+   * What a full bar stands for, when that is not the largest row: a list whose
+   * bars are read against a fixed scale (a window of hours) rather than against
+   * each other. Absent, the longest row fills the track as before.
+   */
+  peak?: number;
 }) {
-  const peak = Math.max(1, ...rows.map((r) => r.value));
+  const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
 
   return (
     <ol className={`iris-ranked${measured ? " iris-ranked-measured" : ""}`}>

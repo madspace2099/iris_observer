@@ -43,8 +43,8 @@ import {
   roomCounts,
   roomLabel,
 } from "../pulse";
-import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { buildDealLadder } from "../deals";
+import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
+import { buildAssistedSales, buildDealLadder } from "../deals";
 import { count, dayLabel, evidenceRef, percent } from "../format";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { SYNTHETIC_AGENTS, agentById } from "./sessions";
@@ -420,6 +420,11 @@ export function buildSalesFlow(
   previous: readonly ShowroomSession[],
   /** The CRM's deals, when a connector delivered them; null draws "not connected". */
   deals: DeliveredDeals | null = null,
+  /**
+   * Every meeting of the project, whatever the period. A showing in June belongs
+   * to a reservation in July, so IRIS-assisted sales are never read from a slice.
+   */
+  projectSessions: readonly ShowroomSession[] = sessions,
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -555,6 +560,17 @@ export function buildSalesFlow(
     );
   }
 
+  /*
+   * Only a code the catalogue holds gets a link; a CRM can name a unit the
+   * catalogue never stated, and a link to it would resolve to the product's own
+   * "this isn't here". Encoded, because a CRM's code is free text and a space or
+   * a slash in it is not a path.
+   */
+  const unitHref = (code: string): string | null =>
+    catalogueFor(context.project.id as string).some((u) => u.code === code)
+      ? `${base}/units/${encodeURIComponent(code)}`
+      : null;
+
   return {
     context,
     verdict,
@@ -564,16 +580,15 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
-    ladder: buildDealLadder(deals, locale, context.project.timeZone, (code) =>
-      /*
-       * Only a code the catalogue holds gets a link; a CRM can name a unit the
-       * catalogue never stated, and a link to it would resolve to the
-       * product's own "this isn't here". Encoded, because a CRM's code is free
-       * text and a space or a slash in it is not a path.
-       */
-      catalogueFor(context.project.id as string).some((u) => u.code === code)
-        ? `/${context.tenant.slug}/${context.project.slug}/units/${encodeURIComponent(code)}`
-        : null,
+    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref),
+    assisted: buildAssistedSales(
+      deals,
+      projectSessions,
+      DEFAULT_IRIS_ASSIST_POLICY,
+      locale,
+      context.project.timeZone,
+      unitHref,
+      (meetingId) => `${base}/meetings/${encodeURIComponent(meetingId)}`,
     ),
   };
 }

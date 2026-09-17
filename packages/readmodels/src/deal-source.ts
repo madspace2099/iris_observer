@@ -99,3 +99,74 @@ export type DealLadder =
       readonly source: "not_connected";
       readonly note: string;
     };
+
+/* --- IRIS-assisted sales ----------------------------------------------------- */
+
+/**
+ * Whether a sale followed a showing, by a rule and never by a reading of motive.
+ *
+ *   - `shown_in_window`: a meeting that opened the unit started no more than the
+ *     policy's window before the date the CRM states for the sale. This is an
+ *     IRIS-assisted sale.
+ *   - `shown_earlier`: one did, longer ago than the window. Not counted, and
+ *     the lag is stated so the reader can judge the window against the project.
+ *   - `not_shown`: no meeting opened the unit before that date.
+ *
+ * An observed sequence (ADR-0010, ADR-0039). The buyer of a deal is not linked
+ * to the visitor in the room (ADR-0011), so nothing here says the buyer saw it.
+ */
+export const ASSIST_VERDICTS = ["shown_in_window", "shown_earlier", "not_shown"] as const;
+export type AssistVerdict = (typeof ASSIST_VERDICTS)[number];
+
+export interface AssistedSale {
+  readonly externalId: string;
+  readonly unitCode: string;
+  readonly unitHref: string | null;
+  readonly stage: DealStage;
+  readonly stageLabel: string;
+  readonly stageDateDisplay: string;
+  readonly verdict: AssistVerdict;
+  /** The verdict in a few words, for a list row: "IRIS-assisted sale", "Shown earlier", "Not shown in IRIS". */
+  readonly verdictLabel: string;
+  /** Hours from the start of the last meeting that opened the unit to the stage date. Null when none did. */
+  readonly lagHours: number | null;
+  /** Ready to print: "2 days before", "9 hours before", "not shown in IRIS". */
+  readonly lagDisplay: string;
+  /** The same lag for a narrow column: "2 days", "9 hours", "never". */
+  readonly lagShort: string;
+  /**
+   * How much of the window was still left when the unit was shown, 0 to 1: a
+   * showing an hour before the sale is near 1, one on the edge of the window is
+   * 0, and so is any sale outside it. The length of the row's bar.
+   */
+  readonly windowShare: number;
+  /** The last showing before the stage date, for the drill. */
+  readonly meetingHref: string | null;
+  /** The whole sentence about this sale. */
+  readonly statement: string;
+}
+
+export type AssistedSales =
+  | {
+      readonly source: "crm";
+      readonly windowHours: number;
+      readonly policyVersion: string;
+      /** The denominator: deals at reservation or purchase that name a unit and carry a stage date. */
+      readonly datedSales: number;
+      readonly assisted: number;
+      readonly shownEarlier: number;
+      readonly notShown: number;
+      /** Sales the rule cannot place, for want of a stage date or a unit. Counted beside, never inside. */
+      readonly unplaced: number;
+      readonly minimumSales: number;
+      /** Formatted. Null below the minimum, where a share would be a verdict on too little. */
+      readonly shareDisplay: string | null;
+      readonly headline: string;
+      readonly note: string;
+      /** Soonest after a showing first, never-shown last. At most twelve; the counts above cover all. */
+      readonly sales: readonly AssistedSale[];
+    }
+  | {
+      readonly source: "not_connected";
+      readonly note: string;
+    };

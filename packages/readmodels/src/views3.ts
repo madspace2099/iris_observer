@@ -1,6 +1,6 @@
 import type { InsightSource, MeetingOutcome, PlaceCategory, SectionId } from "@observer/contracts";
 import type { ViewContext } from "./context";
-import type { DealLadder } from "./deal-source";
+import type { AssistedSales, DealLadder } from "./deal-source";
 import type { EvidenceRef } from "./metric-value";
 import type { ShowroomFinding } from "./showroom";
 
@@ -141,6 +141,12 @@ export interface SalesFlowView {
    * at zero.
    */
   readonly ladder: DealLadder;
+  /**
+   * Which of the CRM's dated sales followed a showing of the unit in IRIS, by
+   * the versioned rule in `DEFAULT_IRIS_ASSIST_POLICY`. An observed sequence:
+   * it never says the showing produced the sale (ADR-0039).
+   */
+  readonly assisted: AssistedSales;
 }
 
 /* --- 2. Project -------------------------------------------------------------- */

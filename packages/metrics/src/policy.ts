@@ -156,3 +156,39 @@ export function isMeaningfulDwell(
   if (policy.unreliableMethods.includes(measurementMethod)) return false;
   return rawActiveDurationMs >= meaningfulDwellThresholdMs(channel, policy);
 }
+
+/* --- IRIS-assisted sale --------------------------------------------------- */
+
+/**
+ * When a sale counts as IRIS-assisted.
+ *
+ * A rule, not a reading of anybody's mind: the unit was opened in an IRIS
+ * presentation no more than `windowHours` before the date the CRM states for
+ * the reservation or purchase. It says the showing came first and how long
+ * before. It does not say the showing produced the sale, and no wording built
+ * on it may (ADR-0010, ADR-0039).
+ *
+ * Seventy-two hours is the founder's number, chosen for a decision taken in
+ * the days after a presentation. It is deliberately short, so the lag of every
+ * sale is reported beside the verdict: a project whose sales follow a showing
+ * by a week reads as "shown earlier", with the week stated, and the reader can
+ * see the window is the wrong size for that project rather than be told the
+ * showroom does nothing.
+ *
+ * Like every policy here it is versioned and has no override path yet. The
+ * product default applies to every tenant until policy storage exists.
+ */
+export interface IrisAssistPolicy extends PolicyMeta {
+  /** A showing this many hours or fewer before the CRM's stage date counts. */
+  readonly windowHours: number;
+  /** Below this many dated sales there is a count and no share, rank or verdict. */
+  readonly minimumSales: number;
+}
+
+export const DEFAULT_IRIS_ASSIST_POLICY: IrisAssistPolicy = {
+  version: "1.0.0",
+  effectiveFrom: "2026-09-17T00:00:00.000+00:00",
+  tenantId: null,
+  windowHours: 72,
+  minimumSales: 5,
+};

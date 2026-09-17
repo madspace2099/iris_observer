@@ -437,6 +437,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       today,
       previous,
       dealsFor(context.project.id as string),
+      sessionsForProject(context.project.id as string),
     );
   }
 

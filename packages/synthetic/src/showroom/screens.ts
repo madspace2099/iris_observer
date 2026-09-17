@@ -13,6 +13,7 @@ import {
 } from "@observer/contracts";
 import {
   AGENT_MIN_SAMPLE,
+  DEFAULT_IRIS_ASSIST_POLICY,
   UNIT_MIN_SAMPLE,
   NO_CRM,
   insufficient as shortOfSample,
@@ -59,7 +60,8 @@ import {
   percent,
   unavailable,
 } from "../format";
-import { SYNTHETIC_AGENTS, agentById, sessionsInPeriod } from "./sessions";
+import { assistedSaleOf, dealsFor } from "../deals";
+import { SYNTHETIC_AGENTS, agentById, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView } from "./views3";
 
@@ -910,6 +912,45 @@ export function buildUnitDetail(
       sampleSize: row.meetings,
       sources: WITH_OUTCOME,
       caveat: "Contact made outside the CRM would not appear here.",
+    });
+  }
+
+  /*
+   * IRIS-assisted sale (ADR-0039): whether the CRM's dated sale of THIS unit
+   * followed a showing of it. Placed against every meeting of the project and
+   * not the period's slice, because a showing in June belongs to a reservation
+   * in July whatever period the reader chose.
+   */
+  const sale = assistedSaleOf(
+    unitCode,
+    dealsFor(context.project.id as string),
+    sessionsForProject(context.project.id as string),
+    DEFAULT_IRIS_ASSIST_POLICY,
+    locale,
+    timeZone,
+    (meetingId) => `${root}/meetings/${encodeURIComponent(meetingId)}`,
+  );
+  if (sale !== null) {
+    findings.push({
+      id: `unit-${unitCode}-iris-assisted`,
+      statement: sale.statement,
+      baseline: `the ${sale.stageLabel.toLowerCase()} date the CRM states, ${sale.stageDateDisplay}`,
+      soWhat:
+        "It places the sale against the last time the showroom opened this unit. It is an order of events under a stated rule, the same rule for every sale on Sales Flow.",
+      nextStep:
+        sale.meetingHref === null
+          ? { label: "See every dated sale", href: `${root}/flow` }
+          : { label: "Open that meeting", href: sale.meetingHref },
+      evidence: evidenceRef(
+        `unit-${unitCode}-iris-assisted`,
+        "observed_sequence",
+        sale.meetingHref ?? `${root}/flow`,
+        1,
+      ),
+      sampleSize: 1,
+      sources: WITH_OUTCOME,
+      caveat:
+        "The buyer of the deal is not linked to the visitor in the room, so this says the unit was shown and when, not that the buyer saw it.",
     });
   }
 

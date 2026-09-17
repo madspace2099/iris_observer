@@ -6,7 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { FlowLadder } from "@/components/flow";
+import { AssistedSales, FlowLadder } from "@/components/flow";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import {
@@ -420,6 +420,17 @@ export default async function FlowPage({
                 </>
               )}
             </div>
+          </>
+        ) : null}
+
+        {/*
+         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
+         * for the ladder's reason: no deal, no sale to place against a showing.
+         */}
+        {view.assisted.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <AssistedSales assisted={view.assisted} period={query.period} />
           </>
         ) : null}
 
