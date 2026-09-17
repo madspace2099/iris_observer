@@ -32,8 +32,12 @@ export default defineConfig({
      * Nothing in the source falls back to a default any more, so the suite must
      * provide one. It is set in a setup file rather than in a helper so that it
      * cannot quietly become the thing production also relies on.
+     *
+     * `yield.ts` turns the worker's event loop before every test, so that two
+     * synchronous stretches, each inside the sixty-second RPC deadline described
+     * under `maxWorkers` below, are never one stretch that is outside it.
      */
-    setupFiles: ["test-support/pepper.ts"],
+    setupFiles: ["test-support/pepper.ts", "test-support/yield.ts"],
     // Playwright owns e2e/. Vitest must not try to collect it.
     exclude: ["e2e/**", "**/node_modules/**"],
     passWithNoTests: true,
@@ -149,6 +153,17 @@ export default defineConfig({
      * that did — two `build()` calls back to back in
      * `package-generation.test.ts` — now lets the loop turn between them. The
      * worker count stays, because it was not what this was about.
+     *
+     * ## 2026-09-18: a stretch is everything between two turns of the loop
+     *
+     * It came back at 138 files: 3564 passed, two timeouts, exit 1, twice, the
+     * second time with nothing else running. No hook and no test was over the
+     * deadline. A synchronous hook and the synchronous tests after it are one
+     * stretch, because an await on a settled promise never reaches the poll
+     * phase; a 45-second build and a 40-second history scan in one file are 85
+     * seconds to the RPC. `test-support/yield.ts` turns the loop before every
+     * test, for every file, which is where the rule can be kept without anybody
+     * remembering it.
      */
     maxWorkers: 4,
     minWorkers: 4,
