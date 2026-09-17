@@ -40,6 +40,7 @@ export * from "./errors";
 export * from "./activation";
 export * from "./ingestion";
 export * from "./heartbeat";
+export * from "./agents";
 export * from "./diagnostic";
 export * from "./credential";
 export * from "./privacy";

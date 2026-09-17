@@ -33,13 +33,17 @@ complaint — they are coordination items, each with a test in
 
 ---
 
-## 1. The three endpoints
+## 1. The endpoints
 
 |           | Endpoint                                      | Auth                                   |
 | --------- | --------------------------------------------- | -------------------------------------- |
 | Activate  | `POST {base}/functions/v1/observer-activate`  | none                                   |
 | Ingest    | `POST {base}/functions/v1/observer-ingest`    | `Authorization: Bearer <source_token>` |
 | Heartbeat | `POST {base}/functions/v1/observer-heartbeat` | `Authorization: Bearer <source_token>` |
+| Agents    | `POST {base}/functions/v1/observer-agents`    | `Authorization: Bearer <source_token>` |
+
+The fourth was added on 2026-09-18 (`PD-30`) and is described in §8.4. Nothing about the first
+three changed.
 
 `base`, `ingest_url` and `heartbeat_url` all come back from activation. **Do not hard-code
 them into the build** — store what activation returned, beside the credential. You have
@@ -619,6 +623,68 @@ invent `diagnostic.ping`.
 counts, the oldest pending timestamp, the last error code, and the clock difference from
 `server_time`.
 
+### 8.4 The presenter roster — new, 2026-09-18
+
+**Why it exists.** Every meeting on the customer's screens must show the name of the person who
+presented it. That is a condition of the product, not a preference. An event cannot carry the name:
+events hold no personal data, and `agent_id` stays the opaque identifier you already mint. So the
+name travels **once, beside the events and never inside them**.
+
+`POST {base}/functions/v1/observer-agents` with the credential:
+
+```json
+{
+  "sent_at": "2026-09-18T08:30:00.000Z",
+  "agents": [
+    { "agent_id": "3F6C1F0A7B1E4F629D551C2A4E8B9D10", "display_name": "Jana Horváthová" },
+    { "agent_id": "9A2D7C440E3B4C1F8A675B9E2F1D0C33", "display_name": "Tomáš Kováč" }
+  ]
+}
+```
+
+Answers `{ "status": "ok", "recorded": 2 }`.
+
+- **`agent_id` is exactly the value you send as `agent_id` on your events**, character for
+  character. It is the only join. A different spelling is a different person.
+- **`display_name`** is 1 to 120 characters, with no control characters and no whitespace at either
+  end. It is what a developer reads, so send it as the person writes it.
+- **Nothing else is accepted.** The objects are strict: an `email`, a `phone`, an `employer` or
+  any other key answers `400`. This endpoint asks for a name and refuses everything beyond it.
+- **1 to 100 entries**, in a body of at most 131072 bytes. An entry listed twice is taken once.
+- **The address.** The activation response does not name it, and its shape is not changing for
+  this. Take `heartbeat_url` and replace its last path segment with `observer-agents`.
+- **The project is read from the credential.** There is no project field, so a roster cannot name
+  anybody in another project.
+
+**When to send it.** After a successful activation, whenever the list of sales people changes
+(added, renamed, removed), and once at application start. The whole list each time is simplest and
+is what we expect: sending a name again changes nothing, and sending a corrected spelling replaces
+the earlier one. Removing a person locally needs no call, because meetings they presented keep
+their name.
+
+**`recorded` may be lower than the number you sent, and that is not a failure.** A MADSPACE
+administrator can name or rename a presenter, and that name stands: a roster never overwrites it.
+Those entries are simply not counted.
+
+**Failures** are the request failures you already handle, with the same meanings: `400
+malformed_request` (fix the payload, do not retry unchanged), `401`/`403` (the credential
+path of §5.8), `429` with `retry_after_seconds`, `503` (nothing was stored, send the same
+roster again later). A roster is not an event: it does not go through the outbox, it is never
+quarantined, and a failed report must never block or delay event delivery. Retry it on the next
+natural occasion.
+
+**What happens when it is not sent.** Nothing breaks. The meeting appears with the identifier in
+place of the name, MADSPACE administration flags the presenter as unnamed, and somebody types the
+name there. The roster exists so that nobody has to.
+
+**Privacy.** A sales person's name is personal data about an employee or a contractor. It is kept
+in one table of the ingestion domain, outside the event store, and nothing but the display name is
+held. Do not put the name anywhere else: not in `agent_id`, not in an event property, not in a
+log line.
+
+On the mock: `pnpm ue5:mock` serves the same endpoint and answers with the number of distinct
+identifiers, since it has no administrator who could have named anybody first.
+
 ---
 
 ## 9. What matched, and the one thing that does not
@@ -813,7 +879,7 @@ order they arrived in.
 | ------------------------------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | The meeting, and when it started           | the first event of the session                   | `occurred_at`                                                                                                                                 |
 | When it ended, how long it ran             | `session.ended`                                  | `duration_seconds`; without the event, the last event's time                                                                                  |
-| Who presented                              | the envelope, first event that carries it        | `agent_id`                                                                                                                                    |
+| Who presented                              | the envelope, first event that carries it        | `agent_id`, shown as the name reported for it on `observer-agents` (§8.4)                                                                     |
 | The recorded outcome                       | `meeting.outcome_set`                            | `outcome`: `Presentation only`, `Interested`, `Follow-up needed`, `Reservation`, `Purchase`, `Not interested`. Anything else reads as skipped |
 | The IRIS rating                            | `agent.rating`                                   | `rating_score`, 1 to 5                                                                                                                        |
 | A unit opened, and for how long            | `unit.view.started` and `unit.view.ended`        | `unit_id` (or the `unit` entity id); `duration_seconds` or `duration_ms` on the end event                                                     |

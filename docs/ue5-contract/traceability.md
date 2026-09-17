@@ -15,12 +15,12 @@ document once said it would.
 | `LOCKED_FROM_BRIEF` | 28 |
 | `DERIVED_FROM_LOCKED_RULE` | 17 |
 | `UE_IMPLEMENTATION_CONFIRMED` | 30 |
-| `APPROVED_PRODUCT_DECISION` | 37 |
+| `APPROVED_PRODUCT_DECISION` | 38 |
 | `PROPOSED` | 1 |
 | `OPEN` | 15 |
 | `MOCK_ONLY` | 2 |
 
-**Total:** 130
+**Total:** 131
 
 Every `LOCKED_FROM_BRIEF` row cites the section of the architecture brief it comes from.
 Every `DERIVED_FROM_LOCKED_RULE` row names the locked rules it follows from. Nothing
@@ -150,6 +150,7 @@ table exists to prevent.
 | `PD-25` | CLOSES O-20. app, agent_id, visitor_subject and entity are envelope fields, folded into EventEnvelopeSchema itself rather than into a parallel schema. app is required; the other three are optional and absent rather than null, matching FObserverEvent::ToJsonObject, which omits empty keys. Folding them into the base schema is what makes the decision reach validation.ts, BatchEnvelopeSchema and the published OpenAPI at once — a parallel schema would have left three of those four still refusing every real event. Binding condition: app.environment is reported provenance, never authoritative and never an authorisation input; the stored environment comes from the source record. A reported value outside the published vocabulary is carried and warned about, never a rejection. | — | product | — | `ingestion.ts` |
 | `PD-26` | The published environment vocabulary is production, staging, development and demo. demo was added with PD-25; the set is authoritative for the source record only. normaliseReportedEnvironment folds client case, which resolves the shipped client's capitalised Development without the envelope having to refuse it. | — | product | — | `wire.ts` |
 | `PD-27` | NARROWS the activation failure vocabulary. already_activated is removed, 409 is not an activation outcome, and ActivationFailureSchema.source_id is typed null. The earlier carve-out cited LOCKED §9.1 for indistinguishability and then broke it: a 409 carrying a source_id turned a guessed code into an unauthenticated existence oracle, confirming the code was genuine and handing over the source identifier. It also authorised on installation_nonce, which the architecture defines as operational metadata and never an authorisation input. The installation-clash branch is removed entirely, not merely restatused. | — | product | — | `activation.ts` |
+| `PD-30` | ADDS a fourth endpoint, /functions/v1/observer-agents, on which a showroom reports the display name behind each agent_id it sends. Every showroom session must show who presented it, and an event may not carry a name, so the name travels once beside the events and never inside them. agent_id stays an opaque reference. The report is authorised by the source credential, the project is read from that credential, and it writes to the project's agent record and never to analytics_events. A name an administrator set is never overwritten by a report. | — | product | — | `agents.ts` |
 | `PD-01` | Observer V2 analytics starts as a clean slate. No legacy importer, compatibility projection, blob migration or historical conversion layer is to be built for user_sessions or global_analytics. | — | product | — | `docs` |
 | `PD-02` | The legacy direct-table transport is retired for V2 and is not a supported production path. No V2 code or document may imply otherwise. | — | product | — | `docs` |
 | `PD-03` | V1 client delivery defaults are adopted: 25 events per batch, a 5 second flush, a 64 KiB event cap and a 50 MB outbox ceiling, with a supported batch range of 25-50. | — | product | — | `client-config.ts` |

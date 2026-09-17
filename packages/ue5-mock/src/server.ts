@@ -106,6 +106,9 @@ async function handle(
     case ROUTES.heartbeat:
       outcome = backend.heartbeat(authorization, body);
       break;
+    case ROUTES.agents:
+      outcome = backend.agents(authorization, body);
+      break;
     default:
       response.writeHead(404, { "content-type": "application/json" });
       response.end(JSON.stringify({ code: "malformed_request", message: "No such endpoint" }));

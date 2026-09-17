@@ -352,7 +352,7 @@ describe("sequence — hazard", () => {
 });
 
 describe("endpoint naming — resolved, and ours to decide", () => {
-  it("publishes the three namespaced names the UE side will be given", () => {
+  it("publishes the four namespaced names the UE side will be given", () => {
     /*
      * ANSWERED, 2026-09-02: endpoints are treated as entirely backend-owned, and
      * the UE side enters whatever final URLs we supply into Project Settings.
@@ -368,8 +368,10 @@ describe("endpoint naming — resolved, and ours to decide", () => {
       (buildOpenApiDocument() as { paths: Record<string, unknown> }).paths,
     ).sort();
 
+    /* The fourth, observer-agents, is PD-30: the presenter roster, added 2026-09-18. */
     expect(contractPaths).toEqual([
       "/observer-activate",
+      "/observer-agents",
       "/observer-heartbeat",
       "/observer-ingest",
     ]);

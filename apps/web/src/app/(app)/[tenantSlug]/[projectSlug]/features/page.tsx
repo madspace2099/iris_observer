@@ -252,13 +252,19 @@ export default async function FeaturesPage({
       ? `A feature is newly adopted when it was reached in this period and in none of ${view.context.period.baselineLabel}. Those features carry a chip in the register.`
       : `No feature was reached in this period that went unreached in ${view.context.period.baselineLabel}. Every feature in the register was already in use.`;
 
+  /* A real project's first day is one presentation, and that is when this sentence is read. */
+  const recordedWords =
+    meetingsTotal === 1
+      ? "One presentation was recorded"
+      : `${meetingsTotal} presentations were recorded`;
+
   const answer = !recorded
     ? (nothingReceivedYet(view.context) ??
       "No presentation was recorded in this period, so no feature was opened. That is the period's answer rather than a gap in it.")
     : !ranked
-      ? `${meetingsTotal} presentations were recorded in this period, short of the ${AGENT_MIN_SAMPLE} this product holds to before it will rank or compare features. Every figure below stands as a count, in the order the read model returned it.`
+      ? `${recordedWords} in this period, short of the ${AGENT_MIN_SAMPLE} this product holds to before it will rank or compare features. Every figure below stands as a count, in the order the read model returned it.`
       : leader === undefined
-        ? `${meetingsTotal} presentations were recorded in this period and the showroom reported no feature vocabulary for them.`
+        ? `${recordedWords} in this period and the showroom reported no feature vocabulary for ${meetingsTotal === 1 ? "it" : "them"}.`
         : `${leader.label} was opened in ${leader.meetings} of the ${meetingsTotal} presentations recorded in this period, and nothing else was reached more often.`;
 
   return (

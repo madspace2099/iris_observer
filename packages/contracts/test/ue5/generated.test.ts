@@ -64,19 +64,21 @@ describe("the OpenAPI document says the things it must", () => {
     expect(document["openapi"]).toBe("3.1.0");
   });
 
-  it("describes the three proposed endpoints and nothing more", () => {
+  it("describes the four proposed endpoints and nothing more", () => {
     expect(Object.keys(at<object>("paths")).sort()).toEqual([
       "/observer-activate",
+      "/observer-agents",
       "/observer-heartbeat",
       "/observer-ingest",
     ]);
   });
 
-  it("leaves activation unauthenticated and secures the other two", () => {
+  it("leaves activation unauthenticated and secures the other three", () => {
     const paths = at<Record<string, Record<string, Record<string, unknown>>>>("paths");
     expect(paths["/observer-activate"]?.["post"]?.["security"]).toBeUndefined();
     expect(paths["/observer-ingest"]?.["post"]?.["security"]).toEqual([{ sourceToken: [] }]);
     expect(paths["/observer-heartbeat"]?.["post"]?.["security"]).toEqual([{ sourceToken: [] }]);
+    expect(paths["/observer-agents"]?.["post"]?.["security"]).toEqual([{ sourceToken: [] }]);
   });
 
   it("says plainly that it is a proposal", () => {

@@ -169,11 +169,21 @@ Handoff §13 has the full table. Three things decide whether a showroom's data j
 2. **A view needs its `unit.view.ended`** to have a duration. Nothing is estimated.
 3. **The first segment of a feature path names the section** (`Residences`, `Amenities`, …).
 
-And one for awareness, with nothing to build yet: `agent_id` is a GUID minted on the kiosk when a
-sales person is added (`Private/InsightAnalyticsSubsystem.cpp:120`). That is correct in carrying no
-name. It also means the same person on two showroom PCs is two agents, and the dashboard shows the
-id because Observer has no agent directory yet. How ids are provisioned is ours to propose. Until
-then keep the id stable for a person on a machine, across restarts.
+**And one new thing to build, added 2026-09-18: report who the presenters are.** `agent_id` is a
+GUID minted on the kiosk when a sales person is added (`Private/InsightAnalyticsSubsystem.cpp:120`).
+That is correct in carrying no name, and it stays that way. But every meeting on the customer's
+screens must show the presenter's name, so the name now travels on a fourth endpoint, beside the
+events and never inside them: `POST {base}/functions/v1/observer-agents`, the same credential, a
+body of `sent_at` and a list of `{ agent_id, display_name }`. Handoff §8.4 is the full description:
+the address (derived from `heartbeat_url`), when to send it (after activation, at start, and when
+the list of sales people changes), the failures, and why it never goes through the outbox. It is a
+small piece: one request built from the list your kiosk already keeps.
+
+Until it is sent nothing breaks: the meeting shows the identifier, MADSPACE administration flags
+the presenter as unnamed, and somebody types the name there. Two things stay as they were. The same
+person on two showroom PCs is two agents, because each kiosk mints its own GUID; how ids are
+provisioned across machines is ours to propose. And the id must stay stable for a person on a
+machine, across restarts.
 
 ## 6. Still open from the reviews, none blocking
 

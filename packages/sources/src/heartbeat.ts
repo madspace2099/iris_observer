@@ -271,7 +271,7 @@ function backlogAgeSeconds(oldestPendingAt: string | null, now: Date): number {
  * exists and why it does not say which key: naming it would echo the thing this
  * function is here not to echo.
  */
-function describeSchemaRejection(
+export function describeSchemaRejection(
   issues: readonly { readonly path: readonly PropertyKey[] }[],
 ): string {
   const paths: string[] = [];

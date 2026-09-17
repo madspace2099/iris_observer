@@ -64,6 +64,7 @@ async function main(): Promise<void> {
   console.log(`  POST ${server.url}/functions/v1/observer-activate`);
   console.log(`  POST ${server.url}/functions/v1/observer-ingest      Bearer <source_token>`);
   console.log(`  POST ${server.url}/functions/v1/observer-heartbeat   Bearer <source_token>`);
+  console.log(`  POST ${server.url}/functions/v1/observer-agents      Bearer <source_token>`);
   console.log("");
   console.log(`  activation_code: ${code}`);
   if (directives.length > 0) {

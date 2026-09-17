@@ -102,6 +102,34 @@ describe("the whole flow over the wire", () => {
     expect((beat.body as Record<string, string>)["status"]).toBe("ok");
   });
 
+  it("takes a presenter roster, and refuses one that carries more than a name", async () => {
+    const code = backend.issueActivationCode();
+    const activated = await post("observer-activate", activationRequest({ activation_code: code }));
+    const token = (activated.body as Record<string, string>)["source_token"] as string;
+    const agents = [
+      { agent_id: "3f6c1f0a-7b1e-4f62-9d55-1c2a4e8b9d10", display_name: "Jana Horváthová" },
+      { agent_id: "9a2d7c44-0e3b-4c1f-8a67-5b9e2f1d0c33", display_name: "Tomáš Kováč" },
+    ];
+
+    const taken = await post(
+      "observer-agents",
+      { sent_at: WHEN, agents },
+      { authorization: bearer(token) },
+    );
+    expect(taken.status).toBe(200);
+    expect(taken.body).toEqual({ status: "ok", recorded: 2 });
+
+    const withEmail = await post(
+      "observer-agents",
+      { sent_at: WHEN, agents: [{ ...agents[0], email: "jana@example.invalid" }] },
+      { authorization: bearer(token) },
+    );
+    expect(withEmail.status).toBe(400);
+
+    const stranger = await post("observer-agents", { sent_at: WHEN, agents });
+    expect(stranger.status).toBe(401);
+  });
+
   it("refuses a heartbeat without a credential", async () => {
     const beat = await post("observer-heartbeat", { sent_at: WHEN });
     expect(beat.status).toBe(401);

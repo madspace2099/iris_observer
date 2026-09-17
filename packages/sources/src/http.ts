@@ -238,7 +238,7 @@ export async function bodyWithinCeiling(
 /**
  * Refuse anything that is not a POST.
  *
- * All three routes are POST-only. A GET reaching an ingestion endpoint is a
+ * Every route is POST-only. A GET reaching an ingestion endpoint is a
  * misconfiguration rather than an attack, but answering it with anything other
  * than a refusal invites a proxy to cache a route that must never be cached.
  */

@@ -27,3 +27,4 @@ export * from "./directory";
 export * from "./activate";
 export * from "./ingest";
 export * from "./heartbeat";
+export * from "./agents";

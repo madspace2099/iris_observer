@@ -808,3 +808,24 @@ platform API. See §6.2.
 reopened. What remains is the semantic guarantee — mandatory for session-scoped events, unreachable
 from Blueprint, defined reset behaviour — which implementation evidence does not establish on its own,
 and which stays `P-17`.
+
+### 15.7 The presenter roster: a fourth endpoint. DECIDED, `PD-30`
+
+Every showroom session on the customer's screens must show the name of the person who presented it.
+That is a condition of the self-served dashboard (`docs/21-self-served-projects.md`, D4), and it
+meets a rule this contract will not bend: an event carries no personal data, a sales person's name
+included, and `agent_id` stays an opaque reference (`O-21`).
+
+So the name travels once, beside the events and never inside them, on
+`POST /functions/v1/observer-agents`: the source credential, a strict body of `sent_at` and 1 to
+100 `{ agent_id, display_name }` entries, and `{ status, recorded }` in answer. The project is read
+from the credential. The report writes to the project's agent record and never to
+`analytics_events`. A name an administrator set is never overwritten, which is why `recorded` may
+be lower than the number sent. Nothing but a display name is accepted; an `email` key is a `400`.
+
+The activation response is unchanged. A client derives the address from `heartbeat_url` by
+replacing its last path segment, which keeps a strict, already-shipped response shape strict.
+
+A roster is not an event. It does not pass through the outbox, it is never quarantined, and its
+failure must never delay event delivery. The handler is `packages/sources/src/agents.ts`; the
+implementer's description is `docs/ue5-integration-handoff.md` §8.4.

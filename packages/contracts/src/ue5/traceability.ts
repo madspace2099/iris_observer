@@ -753,6 +753,12 @@ export const CONTRACT_RULES: readonly ContractRule[] = Object.freeze([
     "Matthew, 2026-09-02 — more faithful to §9.1 than the shipped contract was",
     "activation.ts",
   ),
+  decided(
+    "PD-30",
+    "ADDS a fourth endpoint, /functions/v1/observer-agents, on which a showroom reports the display name behind each agent_id it sends. Every showroom session must show who presented it, and an event may not carry a name, so the name travels once beside the events and never inside them. agent_id stays an opaque reference. The report is authorised by the source credential, the project is read from that credential, and it writes to the project's agent record and never to analytics_events. A name an administrator set is never overwritten by a report.",
+    "Matthew, 2026-09-18 — the presenter's name on every showroom session is a condition of the self-served dashboard (docs/21-self-served-projects.md, D4)",
+    "agents.ts",
+  ),
   open(
     "O-21",
     "Whether agent_id may be derived from a person's name. The sample value agent_john carries one, which is the kind of identifier that turns a pseudonymous reference back into personal data.",

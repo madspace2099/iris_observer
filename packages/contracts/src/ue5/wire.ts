@@ -186,12 +186,14 @@ export const OBSERVER_ROUTE_NAMES = Object.freeze({
   activate: "/observer-activate",
   ingest: "/observer-ingest",
   heartbeat: "/observer-heartbeat",
+  agents: "/observer-agents",
 } as const);
 
 export const OBSERVER_ROUTES = Object.freeze({
   activate: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.activate}`,
   ingest: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.ingest}`,
   heartbeat: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.heartbeat}`,
+  agents: `${OBSERVER_ROUTE_PREFIX}${OBSERVER_ROUTE_NAMES.agents}`,
 } as const);
 
 export type ObserverRouteKey = keyof typeof OBSERVER_ROUTES;

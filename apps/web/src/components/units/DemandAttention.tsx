@@ -80,9 +80,9 @@ export function DemandAttention({
       <div className="ox-section-head">
         <h2 className="ox-section-title">High interest, low conversion</h2>
         <p className="ox-section-note">
-          Asked of {meetingCount} meetings in {periodLabel}. A unit opened repeatedly and never
-          kept, and a unit kept with nothing recorded afterwards, are two ends of one question the
-          register cannot show in a column.
+          Asked of {meetingCount === 1 ? "one meeting" : `${meetingCount} meetings`} in{" "}
+          {periodLabel}. A unit opened repeatedly and never kept, and a unit kept with nothing
+          recorded afterwards, are two ends of one question the register cannot show in a column.
         </p>
       </div>
 

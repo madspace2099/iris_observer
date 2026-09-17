@@ -305,8 +305,9 @@ export default async function ProjectDashboardPage({
           <h2 id="presenters-heading">Who presents</h2>
           <InfoNote label="where a presenter's name comes from">
             <p>
-              A showroom sends an identifier with every meeting and never a name. The name is kept
-              here, and every meeting shows it.
+              A showroom sends an identifier with every meeting and never a name. It reports its
+              presenters&apos; names separately, or a name is typed here. Either way the name is
+              kept here, and every meeting shows it.
             </p>
             <p>A name typed here replaces one a showroom reported, and is never replaced by one.</p>
           </InfoNote>

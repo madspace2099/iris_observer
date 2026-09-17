@@ -13,6 +13,7 @@ import {
   RequestFailureBodySchema,
 } from "./ingestion";
 import { HeartbeatRequestSchema, HeartbeatResponseSchema } from "./heartbeat";
+import { AgentRosterRequestSchema, AgentRosterResponseSchema } from "./agents";
 import { DiagnosticTestPropertiesSchema } from "./diagnostic";
 import { LimitsSchema } from "./limits";
 import { EVENT_REJECTIONS, REQUEST_FAILURES } from "./errors";
@@ -75,6 +76,8 @@ export const COMPONENT_SCHEMAS: Readonly<Record<string, z.ZodType>> = Object.fre
   RequestFailureBody: RequestFailureBodySchema,
   HeartbeatRequest: HeartbeatRequestSchema,
   HeartbeatResponse: HeartbeatResponseSchema,
+  AgentRosterRequest: AgentRosterRequestSchema,
+  AgentRosterResponse: AgentRosterResponseSchema,
   DiagnosticTestProperties: DiagnosticTestPropertiesSchema,
 });
 
@@ -218,6 +221,37 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           requestBody: { required: true, ...json("HeartbeatRequest") },
           responses: {
             "200": { description: "Acknowledged.", ...json("HeartbeatResponse") },
+            "401": {
+              description: "The credential is unknown, revoked or superseded.",
+              ...json("RequestFailureBody"),
+            },
+            "403": {
+              description: "The source is suspended or archived.",
+              ...json("RequestFailureBody"),
+            },
+            "429": { description: "Rate limited.", ...json("RequestFailureBody") },
+            "503": { description: "Temporarily unavailable.", ...json("RequestFailureBody") },
+          },
+        },
+      },
+      [OBSERVER_ROUTE_NAMES.agents]: {
+        post: {
+          tags: ["diagnostics"],
+          operationId: "reportAgents",
+          summary: "Report who the agent_id values are",
+          description:
+            "Carries the display name behind each agent_id this showroom sends, so every " +
+            "session can name its presenter. Names travel here and never inside an event. " +
+            "Writes to the source's project record and never to analytics_events. A name an " +
+            "administrator set is kept, so recorded may be lower than the number sent.",
+          security: [{ sourceToken: [] }],
+          requestBody: { required: true, ...json("AgentRosterRequest") },
+          responses: {
+            "200": { description: "Acknowledged.", ...json("AgentRosterResponse") },
+            "400": {
+              description: "The roster could not be read. Nothing was stored.",
+              ...json("RequestFailureBody"),
+            },
             "401": {
               description: "The credential is unknown, revoked or superseded.",
               ...json("RequestFailureBody"),

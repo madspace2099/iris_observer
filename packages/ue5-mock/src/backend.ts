@@ -1,6 +1,7 @@
 import {
   ACTIVATION_HTTP_STATUS,
   ActivationRequestSchema,
+  AgentRosterRequestSchema,
   BatchFrameSchema,
   DEFAULT_CLOCK_POLICY,
   HARNESS_LIMITS,
@@ -11,6 +12,7 @@ import {
   validateEvent,
   type ActivationFailure,
   type ActivationSuccess,
+  type AgentRosterResponse,
   type BatchResponse,
   type BatchWarning,
   type ClockPolicy,
@@ -616,6 +618,30 @@ export class MockObserverBackend {
       status: "ok",
       server_time: this.clock.now().toISOString(),
       config_stale: false,
+    };
+    return json(200, response);
+  }
+
+  /* ================================================================ roster */
+
+  /** Who the agent_id values are. Kept nowhere: the mock has no screen to show a name on. */
+  agents(authorization: string | null, body: unknown): MockOutcome {
+    const directive = this.takeDirective();
+    const forced = this.forcedRequestOutcome(directive, null);
+    if (forced !== null) return forced;
+
+    const authorised = this.authorise(authorization, null);
+    if (authorised.kind === "failed") return authorised.outcome;
+
+    const parsed = AgentRosterRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return this.requestFailure(400, "malformed_request", "The roster is not valid.", null);
+    }
+
+    const response: AgentRosterResponse = {
+      status: "ok",
+      /* No administrator exists here to have named anybody first, so every distinct id counts. */
+      recorded: new Set(parsed.data.agents.map((agent) => agent.agent_id)).size,
     };
     return json(200, response);
   }
