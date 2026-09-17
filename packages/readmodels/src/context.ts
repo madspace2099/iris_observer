@@ -133,6 +133,13 @@ export interface ViewContext {
   readonly period: Period;
   readonly generatedAt: string;
   /**
+   * True when this project's meetings were delivered by its own source — its
+   * showrooms' ingested events, or a telemetry connector — rather than by the
+   * synthetic generator. It decides the clock the periods were resolved on, and
+   * it is how a builder knows that scenario prose does not describe this project.
+   */
+  readonly sessionsDelivered: boolean;
+  /**
    * THE POLICY-VERSION GUARD (docs/10-policies.md §1).
    *
    * Every figure on a screen was computed under one attribution policy, and

@@ -406,6 +406,7 @@ describe("projections", () => {
         baselineClipped: false,
       },
       generatedAt: "2030-01-02T00:00:00.000Z",
+      sessionsDelivered: false,
     } as never;
 
     expect(() => buildShowroomOverview(context, [], [])).not.toThrow();

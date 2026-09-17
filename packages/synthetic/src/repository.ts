@@ -52,6 +52,7 @@ import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from 
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
+import { assistedSalesAnswer, buildDeliveredAskSession } from "./ask-computed";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   presentersIn,
@@ -266,6 +267,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       project,
       period,
       generatedAt: now === null ? TODAY : now.toISOString(),
+      sessionsDelivered: live,
       attribution,
     };
   }
@@ -358,8 +360,25 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
-    const context = await this.context(query);
-    return buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    const { context, current } = await this.slices(query);
+    /*
+     * The prepared answers are the synthetic scenario's own prose. Printed over a
+     * project whose meetings are its own showroom's they are a fabrication, so a
+     * delivered project gets only what can be worked out from what was delivered.
+     */
+    if (context.sessionsDelivered)
+      return buildDeliveredAskSession(context, current, selectionLabel);
+
+    const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    /* Never scripted, so offered here too: the fifth opening, where a CRM is connected. */
+    const assisted = assistedSalesAnswer(context);
+    return assisted === null
+      ? scripted
+      : {
+          ...scripted,
+          suggestions: [...scripted.suggestions, assisted.question],
+          answers: [...scripted.answers, assisted],
+        };
   }
 
   /* --- Showroom Intelligence ---------------------------------------------- */

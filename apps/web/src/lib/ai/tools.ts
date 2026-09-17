@@ -709,6 +709,85 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
   },
 };
 
+/* --- 11. analyze_iris_assisted_sales ------------------------------------------ */
+
+/**
+ * "Did IRIS assist the sale?" is the founder's question of the showroom, and the
+ * one this product may only answer as an order of events (ADR-0039). The tool
+ * returns the read model's own sentences and figures untouched: the headline is
+ * the draft, the rule and its limits are the caveat, and nothing here composes a
+ * claim. A model rewriting the draft still cannot change a figure, and the
+ * causal-language guard runs over what it writes.
+ */
+const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>>> = {
+  name: "analyze_iris_assisted_sales",
+  description:
+    "Which of the CRM's dated sales followed a showing of the unit in IRIS within the policy window, and the lag of each. An order of events under a stated rule, never a cause of the sale.",
+  input: z.object({}),
+  async run(context) {
+    const view = await repository.getSalesFlow(query(context));
+    const assisted = view.assisted;
+    const action = { label: "Open Sales Flow", href: `${root(context)}/flow` };
+
+    if (assisted.source === "not_connected") {
+      return {
+        tool: "analyze_iris_assisted_sales",
+        facts: [],
+        sources: OBSERVED,
+        evidence: null,
+        sampleSize: 0,
+        caveats: [assisted.note],
+        action,
+        draft:
+          "No CRM is connected to this project, so there is no dated sale to place against a showing.",
+      };
+    }
+
+    return {
+      tool: "analyze_iris_assisted_sales",
+      facts: [
+        {
+          label: `Followed a showing within ${String(assisted.windowHours)} hours`,
+          value: `${String(assisted.assisted)} of ${String(assisted.datedSales)} dated sales`,
+          note:
+            assisted.shareDisplay ??
+            `below the ${String(assisted.minimumSales)} dated sales a share needs`,
+        },
+        {
+          label: "Shown earlier than the window",
+          value: String(assisted.shownEarlier),
+          note: null,
+        },
+        {
+          label: "Not opened in IRIS before the date",
+          value: String(assisted.notShown),
+          note: null,
+        },
+        ...(assisted.unplaced === 0
+          ? []
+          : [
+              {
+                label: "Sales that cannot be placed",
+                value: String(assisted.unplaced),
+                note: "no stage date, or no unit named",
+              },
+            ]),
+        ...assisted.sales.slice(0, 3).map((sale) => ({
+          label: `${sale.unitCode} · ${sale.stageLabel} ${sale.stageDateDisplay}`,
+          value: sale.lagShort,
+          note: sale.verdictLabel,
+        })),
+      ],
+      sources: WITH_OUTCOME,
+      evidence: view.evidence,
+      sampleSize: assisted.datedSales,
+      caveats: [assisted.note],
+      action,
+      draft: assisted.headline,
+    };
+  },
+};
+
 /* --- the registry ----------------------------------------------------------- */
 
 export const TOOLS = [
@@ -722,6 +801,7 @@ export const TOOLS = [
   analyzeEnvironmentUsage,
   prepareMeeting,
   getMetricEvidence,
+  analyzeIrisAssistedSales,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ] as readonly ToolDefinition<any>[];
 

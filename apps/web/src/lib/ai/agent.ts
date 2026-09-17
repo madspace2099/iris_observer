@@ -402,6 +402,18 @@ export function routeQuestion(
       { tool: "compare_meeting_cohorts", args: {} },
     ];
   }
+  /*
+   * Before the broad "sold / closed / convert" reading below, which would send
+   * "which sales followed a showing" to the meeting cohorts: a different
+   * question, about meetings rather than about the CRM's dated sales.
+   */
+  if (
+    /assist|followed (a|an|the) (iris )?(showing|presentation)|(shown|showing|presented) .*before .*(sale|sold|reserv|purchase)|(sale|sold|reserv|purchase).* after .*(showing|shown|presentation)/.test(
+      q,
+    )
+  ) {
+    return [{ tool: "analyze_iris_assisted_sales", args: {} }];
+  }
   if (/before .*(shortlist|favourit|favorit)|shortlist before|precede/.test(q)) {
     return [{ tool: "analyze_feature_usage", args: {} }];
   }

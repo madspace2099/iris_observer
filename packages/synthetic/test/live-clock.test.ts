@@ -97,6 +97,58 @@ describe("a project a real source delivers for runs on the real clock", () => {
     expect(detail.sampleSize, "their own page exists, over their one meeting").toBe(1);
   });
 
+  it("answers Ask IRIS from what was delivered, never from the scenario's script", async () => {
+    const session = await repository.getAskSession(
+      {
+        viewer: madspace,
+        tenantSlug: "madspace-integration",
+        projectSlug: "akhilesh-demo-source",
+        period: "last_28_days",
+      },
+      null,
+    );
+    const prose = session.answers.flatMap((x) => [x.question, x.answer, x.caveat ?? ""]).join(" ");
+    /* The scripted answers say "viewings held at 46" about Northgate. Over real meetings that is a fabrication. */
+    expect(prose).not.toMatch(/viewings held at 46|Vikt[oó]ria|Offers fell/);
+    expect(session.suggestions[0]).toBe(
+      "How many presentations were recorded, and how did they end?",
+    );
+    expect(session.answers[0]?.answer).toBe(
+      "1 presentation was recorded on Akhilesh Demo Source in last 28 days, and the agent recorded an outcome at the end of 1 of them.",
+    );
+    expect(session.answers[0]?.figures).toEqual([
+      { label: "Interested", value: "1 of 1", note: null },
+    ]);
+    expect(session.answers[2]?.figures).toEqual([
+      { label: "agent-guid", value: "1 of 1", note: null },
+    ]);
+    expect(prose).not.toMatch(
+      /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i,
+    );
+  });
+
+  it("offers the IRIS-assisted question as a fifth opening where a CRM is connected", async () => {
+    const session = await repository.getAskSession(
+      {
+        viewer: madspace,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "quarter_to_date",
+      },
+      null,
+    );
+    expect(session.suggestions).toHaveLength(5);
+    expect(session.suggestions[0], "the scenario's four openings stay first").toBe(
+      "Why did demand fall this quarter?",
+    );
+    expect(session.suggestions[4]).toBe("Which sales followed a showing in IRIS?");
+    const assisted = session.answers.find((x) => x.question === session.suggestions[4]);
+    expect(assisted?.answer).toMatch(
+      /dated sales .* followed an IRIS showing of the unit within 72 hours/,
+    );
+    expect(assisted?.caveat).toContain("does not say the showing produced the sale");
+  });
+
   it("leaves a synthetic project on the synthetic day", async () => {
     const view = await repository.getMeetings(
       { viewer: madspace, tenantSlug: "alpha", projectSlug: "northgate", period: "last_28_days" },
