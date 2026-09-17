@@ -1718,9 +1718,36 @@ gave no sign that it scrolls at phone width.
 **7. Test health.** `surfaces` and `reference-parity` had been red since the style comparison page
 was left behind; it is removed (`51d3b43`, one `git show 653f1a5` away). The release chain replay
 failed as `spawn ENAMETOOLONG` at 278 commits because `git am` was handed one argument per patch;
-it now replays one mbox (`03289a9`). **Full vitest on a clean tree: 3440 passed, 0 failed.**
+it now replays one mbox (`03289a9`). **Full vitest on a clean tree: 3440 passed, 0 failed**
+(before items 8 and 9; the closing figure is at the end of this section). **Playwright against a
+production build, desktop, the five main surface specs: 101 passed, 1 skipped.**
 
-**8. For Akhilesh.** `docs/ue5-integration-handoff.md` §13 states what the dashboard reads from his
+**8. Reads that PostgREST would have cut short, silently (`1087c4e`, `7fa228b`).** PostgREST caps a
+response at its `max-rows` (1000 on Supabase, lower if an operator says so) and says nothing. PGlite
+has no such cap, so no local proof could show it. Three reads were exposed: the new project event
+read, and the two that were already there, `observer_catalogue_current` and
+`observer_deals_current`, which would have read a project with more than a thousand units or deals
+as exactly the thousand that sorted first. The event read now pages behind an opaque keyset cursor
+over `(ingested_at, source_id, event_id)` with microsecond precision, compared strictly; the two
+connector reads page with PostgREST's own `order`, `limit` and `offset`, no SQL changed. All
+three stop on an EMPTY page, never a short one, so a server that cuts at 300 still yields
+everything. Proven with 2300 rows each, against a real Postgres for the events.
+
+**9. Ask IRIS told a real project about 46 viewings that never happened (`4a53b9d`). Found live.**
+The landing answers from prepared prose, and that prose is the synthetic scenario's. It was printed
+on every project, so ISTER TOWER, holding real ingested meetings under a "Live meetings" marker,
+answered "viewings held at 46, offers fell from 17 to 12". A delivered project now gets only what
+can be worked out from what was delivered (`packages/synthetic/src/ask-computed.ts`): how many
+presentations and how they ended, which apartments were opened, who presented.
+`ViewContext.sessionsDelivered` is how a builder knows the script does not describe the project.
+The founder's question also had no answer anywhere in Ask IRIS: the landing now offers "Which sales
+followed a showing in IRIS?" as a fifth opening wherever a CRM is connected, and the tool layer has
+`analyze_iris_assisted_sales` with its route. A scan of every surface of the delivered project for
+the scenario's own names then found one more leak, the Presentation page comparing the one real
+presenter with a roster agent who has never presented there (`0a42042`). All twelve surfaces are
+clean. The scan is `node artifacts/qa-shots/scripted-leak.mjs`.
+
+**10. For Akhilesh.** `docs/ue5-integration-handoff.md` §13 states what the dashboard reads from his
 events, and the three things that decide whether his data joins anything. The first matters most:
 `unit_id` must be the unit's code exactly as the developer's catalogue states it.
 
