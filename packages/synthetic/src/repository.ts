@@ -46,6 +46,7 @@ import type {
 } from "@observer/readmodels";
 import type { CatalogueSource, DealSource, ShowroomSessionSource } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
+import { periodsAt } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
@@ -162,6 +163,11 @@ export interface SyntheticRepositoryOptions {
    * delivered for is untouched.
    */
   readonly sessionSource?: ShowroomSessionSource;
+  /**
+   * The clock a project with a real session source runs on. Defaults to the
+   * system clock; a test pins it. The synthetic world never reads it.
+   */
+  readonly now?: () => Date;
 }
 
 export class SyntheticObserverRepository implements ObserverRepository {
@@ -197,8 +203,34 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return { tenant, project };
   }
 
-  async resolvePeriod(_projectId: ProjectId, preset: PeriodPreset): Promise<Period> {
-    return { preset, ...PERIODS[preset] };
+  async resolvePeriod(projectId: ProjectId, preset: PeriodPreset): Promise<Period> {
+    const project = PROJECTS.find((p) => p.id === projectId);
+    if (project === undefined) return { preset, ...PERIODS[preset] };
+    const live = await this.overlaySessions(project);
+    return this.periodFor(project, preset, live ? this.clock() : null);
+  }
+
+  /**
+   * TWO CLOCKS, AND WHICH PROJECT IS ON WHICH.
+   *
+   * The synthetic world is generated for one fixed day, and its periods are
+   * constants, or a demo's figures change overnight and no screenshot or
+   * assertion survives it. A project a real source delivers sessions for cannot
+   * live there: its meetings happen now, and against a today pinned in the past
+   * every one of them falls outside every period, so a showroom that ingests
+   * correctly shows an empty quarter for ever.
+   *
+   * So delivery decides. Delivered sessions put the project on the real clock,
+   * in its own zone; anything else stays on the synthetic day.
+   */
+  private clock(): Date {
+    return this.options.now?.() ?? new Date();
+  }
+
+  /** `now` is the real clock's reading for a delivered project, and null for a synthetic one. */
+  private periodFor(project: ProjectSummary, preset: PeriodPreset, now: Date | null): Period {
+    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone);
+    return { preset, ...periods[preset] };
   }
 
   private async context(query: OverviewQuery | BriefQuery): Promise<ViewContext> {
@@ -208,11 +240,12 @@ export class SyntheticObserverRepository implements ObserverRepository {
       query.projectSlug,
     );
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
-    const period = await this.resolvePeriod(project.id, preset);
     await this.overlayCatalogue(project);
     // Before overlayDeals: the demonstration-CRM path reads sessionsForProject.
-    await this.overlaySessions(project);
+    const live = await this.overlaySessions(project);
     await this.overlayDeals(project);
+    const now = live ? this.clock() : null;
+    const period = this.periodFor(project, preset, now);
     /*
      * One policy governs the synthetic world, so the period and its baseline
      * are always comparable; the refusal is computed rather than assumed, so
@@ -227,7 +260,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
         DEFAULT_ATTRIBUTION_POLICY,
       ),
     };
-    return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY, attribution };
+    return {
+      viewer: query.viewer,
+      tenant,
+      project,
+      period,
+      generatedAt: now === null ? TODAY : now.toISOString(),
+      attribution,
+    };
   }
 
   /** The CRM's deals for this project, if a connector delivered them, for the ladder. */
@@ -254,10 +294,11 @@ export class SyntheticObserverRepository implements ObserverRepository {
    * decided on every build. A repository composed without a source, or a
    * project no source delivered for, reads the synthetic world as before.
    */
-  private async overlaySessions(project: ProjectSummary): Promise<void> {
+  private async overlaySessions(project: ProjectSummary): Promise<boolean> {
     const source = this.options.sessionSource;
     const delivered = source === undefined ? null : await source.sessionsFor(project);
     provideSessions(project.id as string, delivered === null ? null : delivered.sessions);
+    return delivered !== null;
   }
 
   /**
@@ -330,17 +371,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
    * cannot disagree about which meetings exist — which is exactly the class of
    * bug the legacy dashboard has between its two feature-time accumulators.
    */
-  /*
-   * "Today" is the synthetic world's today, not the clock's.
-   *
-   * The named buckets — today, this week, last month — resolve against the same
-   * fixed date the dataset was generated for, or a demo's figures change
-   * overnight and no screenshot or assertion survives it.
-   */
-  private readonly today = new Date(TODAY);
-
   private async slices(query: OverviewQuery) {
     const context = await this.context(query);
+    /*
+     * "Today" is the context's, which is the synthetic world's fixed day for a
+     * synthetic project and the clock's for a delivered one (see `periodFor`).
+     * The named buckets — today, this week, last month — resolve against it.
+     */
+    const today = new Date(context.generatedAt);
     /*
      * One slice for the period. Not two.
      *
@@ -362,11 +400,11 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * the last day is still running; anything older is history and does not
      * grow.
      */
-    const endOfToday = new Date(this.today);
+    const endOfToday = new Date(today);
     endOfToday.setUTCHours(23, 59, 59, 999);
 
     const stillRunning =
-      new Date(context.period.to).getTime() >= this.today.getTime() - 24 * 60 * 60 * 1000;
+      new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
     const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
 
     /*
@@ -380,29 +418,30 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
     return {
       context,
+      today,
       current: sessionsInPeriod(project, context.period.from, periodEnd),
       previous: sessionsInPeriod(project, context.period.baselineFrom, context.period.baselineTo),
     };
   }
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
-    const { context, current, previous } = await this.slices(query);
-    return buildHome(context, current, previous, this.today);
+    const { context, current, previous, today } = await this.slices(query);
+    return buildHome(context, current, previous, today);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
-    const { context, current, previous } = await this.slices(query);
+    const { context, current, previous, today } = await this.slices(query);
     return buildSalesFlow(
       context,
       current,
-      this.today,
+      today,
       previous,
       dealsFor(context.project.id as string),
     );
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
-    const { context, current } = await this.slices(query);
+    const { context, current, today } = await this.slices(query);
     /*
      * The KPI window ignores the selected *period*. It does not ignore the
      * project.
@@ -426,18 +465,18 @@ export class SyntheticObserverRepository implements ObserverRepository {
       context,
       current,
       sessionsForProject(context.project.id as string),
-      this.today,
+      today,
       window,
     );
   }
 
   async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
     // `current`, matching getProjectView for the same reason.
-    const { context, current } = await this.slices(query);
+    const { context, current, today } = await this.slices(query);
     return buildProjectCharts(
       context.project.id as string,
       current,
-      this.today,
+      today,
       context.project.locale,
       context.project.timeZone,
       context.project.connectedSources.includes("crm"),

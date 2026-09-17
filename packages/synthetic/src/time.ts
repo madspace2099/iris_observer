@@ -172,3 +172,88 @@ export function monthKeyIn(at: Date | number | string, timeZone: string): string
   const p = zoneParts(at, timeZone);
   return `${String(p.year)}-${String(p.month).padStart(2, "0")}`;
 }
+
+/* --- the period presets, against a real today ------------------------------------ */
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The four period presets, resolved against an actual day in the project's zone.
+ *
+ * The synthetic world's periods are constants, because its today never moves.
+ * A project a real source delivers for runs on the clock, and its periods have
+ * to be derived — with the same shapes those constants have, which is what
+ * `periods.test.ts` holds this to: handed the synthetic today, it returns the
+ * synthetic constants to the millisecond.
+ *
+ * Every bound is a local midnight. "To date" ends at midnight THIS MORNING;
+ * the repository extends a still-running period through the end of today.
+ * A part-period's baseline is clipped to the same number of elapsed days,
+ * because comparing a part-quarter with a whole one is the commonest false
+ * alarm a dashboard raises.
+ */
+export function periodsAt(
+  today: Date,
+  timeZone: string,
+): Record<
+  "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date",
+  {
+    readonly label: string;
+    readonly from: string;
+    readonly to: string;
+    readonly baselineLabel: string;
+    readonly baselineFrom: string;
+    readonly baselineTo: string;
+    readonly baselineClipped: boolean;
+  }
+> {
+  const p = zoneParts(today, timeZone);
+  const midnight = (year: number, month: number, day: number): Date =>
+    zonedInstant(year, month, day, 0, 0, 0, timeZone);
+  const iso = (at: Date): string => at.toISOString();
+
+  const thisMorning = midnight(p.year, p.month, p.day);
+  /* 1, 4, 7 or 10. `zonedInstant` normalises a month below 1 into the year before. */
+  const quarterMonth = Math.floor((p.month - 1) / 3) * 3 + 1;
+  const quarterStart = midnight(p.year, quarterMonth, 1);
+  const elapsedDays = Math.round((thisMorning.getTime() - quarterStart.getTime()) / DAY_MS);
+
+  return {
+    last_28_days: {
+      label: "Last 28 days",
+      from: iso(midnight(p.year, p.month, p.day - 28)),
+      to: iso(thisMorning),
+      baselineLabel: "the previous 28 days",
+      baselineFrom: iso(midnight(p.year, p.month, p.day - 56)),
+      baselineTo: iso(midnight(p.year, p.month, p.day - 28)),
+      baselineClipped: false,
+    },
+    quarter_to_date: {
+      label: "Quarter to date",
+      from: iso(quarterStart),
+      to: iso(thisMorning),
+      baselineLabel: `the same ${String(elapsedDays)} ${elapsedDays === 1 ? "day" : "days"} of the previous quarter`,
+      baselineFrom: iso(midnight(p.year, quarterMonth - 3, 1)),
+      baselineTo: iso(midnight(p.year, quarterMonth - 3, 1 + elapsedDays)),
+      baselineClipped: true,
+    },
+    last_quarter: {
+      label: "Last completed quarter",
+      from: iso(midnight(p.year, quarterMonth - 3, 1)),
+      to: iso(quarterStart),
+      baselineLabel: "the quarter before it",
+      baselineFrom: iso(midnight(p.year, quarterMonth - 6, 1)),
+      baselineTo: iso(midnight(p.year, quarterMonth - 3, 1)),
+      baselineClipped: false,
+    },
+    year_to_date: {
+      label: "Year to date",
+      from: iso(midnight(p.year, 1, 1)),
+      to: iso(thisMorning),
+      baselineLabel: "the same period last year",
+      baselineFrom: iso(midnight(p.year - 1, 1, 1)),
+      baselineTo: iso(midnight(p.year - 1, p.month, p.day)),
+      baselineClipped: true,
+    },
+  };
+}
