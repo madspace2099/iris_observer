@@ -5,10 +5,12 @@ import { ActionLink, Kicker, StateMessage } from "@observer/ui";
 import { isComplete, projectDirectoryAdmin } from "@observer/sources";
 
 import { grantableAccounts } from "@/lib/accounts";
+import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
 import { liveConnectorService } from "@/lib/connectors/live";
+import { liveSessionSource } from "@/lib/connectors/session-source";
 import { revokeViewerAction } from "@/lib/madspace/directory-actions";
 import { count, instant } from "@/lib/madspace/format";
-import { readModelProjectIdForRow } from "@/lib/repository";
+import { readModelProjectIdForRow, repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane, sourceViews } from "@/lib/sources/control-plane";
 import { observerDepsAsync } from "@/lib/sources/deps";
@@ -93,6 +95,35 @@ export default async function ProjectDashboardPage({
   const crm =
     connectorList?.find((c) => c.enabled && dealSyncs?.get(c.kind)?.outcome === "ok") ?? null;
 
+  /*
+   * THE UNIT CODES A SHOWROOM SENT THAT THE CATALOGUE DOES NOT HOLD.
+   *
+   * A unit's code is the one key that joins a showing to the catalogue and to the
+   * CRM's deals, so `A204` for the catalogue's `A-204` is a meeting whose unit
+   * lights nothing and joins nothing, silently. Read through the customer's own
+   * door and the same two sources its screens read, so this is exactly what those
+   * screens could not place.
+   */
+  const summary =
+    complete && row.tenant_slug !== null && row.slug !== null
+      ? await repository
+          .resolveProject(viewer, row.tenant_slug, row.slug)
+          .then((found) => found.project)
+          .catch(() => null)
+      : null;
+  const [delivered, listed] =
+    summary === null
+      ? [null, null]
+      : await Promise.all([
+          liveSessionSource.sessionsFor(summary),
+          liveCatalogueSource.catalogueFor(summary),
+        ]);
+  const sentCodes = [
+    ...new Set((delivered?.sessions ?? []).flatMap((s) => s.units.map((u) => u.unitCode))),
+  ].sort();
+  const listedCodes = new Set((listed?.units ?? []).map((u) => u.code));
+  const strangers = listed === null ? [] : sentCodes.filter((code) => !listedCodes.has(code));
+
   const presenters = agents.ok ? agents.value : [];
   const presented = presenters.filter((a) => Number(a.session_count) > 0);
   const unnamed = presented.filter((a) => a.display_name === null);
@@ -152,6 +183,23 @@ export default async function ProjectDashboardPage({
       met: meetings > 0,
       words: meetings === 0 ? "None yet" : count(meetings).text,
       waiting: "the showroom",
+    },
+    {
+      name: "Unit codes match the catalogue",
+      met: listed !== null && sentCodes.length > 0 && strangers.length === 0,
+      words:
+        summary === null
+          ? "Compared once the project has its address"
+          : listed === null
+            ? "No catalogue to compare with"
+            : sentCodes.length === 0
+              ? "No unit has been opened yet"
+              : strangers.length === 0
+                ? `${String(sentCodes.length)} of ${String(sentCodes.length)} codes found`
+                : `${String(strangers.length)} of ${String(sentCodes.length)} codes not in the catalogue: ${strangers
+                    .slice(0, 5)
+                    .join(", ")}${strangers.length > 5 ? ", and more" : ""}`,
+      waiting: "administration",
     },
     {
       name: "Every presenter named",
