@@ -216,7 +216,8 @@ function Cell({
     `${roomsWord(unit.rooms)}, ${areaWord(unit.areaSqm)}, ${aspectWord(unit.orientation)}`,
     unit.priceDisplay,
     STATUS_WORDS[unit.status],
-    `${unit.meaningfulViews} meaningful views from ${unit.uniqueContacts} people, ${TREND_WORDS[unit.trend]}`,
+    /* A real project's first meeting is one view by one person, and that is when this is read. */
+    `${unit.meaningfulViews} meaningful ${unit.meaningfulViews === 1 ? "view" : "views"} from ${unit.uniqueContacts} ${unit.uniqueContacts === 1 ? "person" : "people"}, ${TREND_WORDS[unit.trend]}`,
     ...(change === null ? [] : [change]),
   ].join(" · ");
 
