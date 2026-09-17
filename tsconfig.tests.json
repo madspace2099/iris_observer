@@ -115,6 +115,14 @@
      * its signature string and a role by its name, and a typo in either makes
      * PostgreSQL answer about nothing while the test goes green.
      */
-    "supabase/test/events-for-project.test.ts"
+    "supabase/test/events-for-project.test.ts",
+
+    /*
+     * THE ARTICLE 50 TRIPWIRE (docs/11-preproduction-gates.md, Gate 1).
+     *
+     * It walks the source tree and matches strings in it. A wrong directory makes
+     * it scan nothing and pass, so the paths it builds are worth a strict check.
+     */
+    "apps/web/test/ai-notice-tripwire.test.ts"
   ]
 }
