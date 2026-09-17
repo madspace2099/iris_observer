@@ -258,7 +258,7 @@ export default async function MadspaceProjectPage({
          */}
         <p className="mad-lede">
           The CRM this project&rsquo;s unit catalogue is pulled from, and what the showroom itself
-          recorded — credentials, last sync, and the changes each pull found.
+          recorded: credentials, last sync, and the changes each pull found.
         </p>
       </section>
     </>
