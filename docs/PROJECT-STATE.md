@@ -3,9 +3,10 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-15 · **Branch:** `feature/observer-reference-parity`, pushed
+**Last updated:** 2026-09-17 · **Branch:** `feature/observer-reference-parity`, pushed
 to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only, latest `070416f`.
+local only, latest `6581e92` (login throttling + session revocation) and the round-2 UE5 review
+that follows it.
 
 ---
 
@@ -1641,3 +1642,29 @@ renders), or point them at what `/units`/`/meetings` genuinely expose. (3) Give
 `NODE_ENV === "production"`, matching its own docblock, so `wide` can be re-run clean. (4) Set
 `OBSERVER_SUBJECT_PEPPER` locally (32 bytes hex) and re-check the four uninvestigated failures before
 assuming any of them are real — several may simply disappear.
+
+## 2026-09-17 — auth review fixes, then Akhilesh's round-2 drop
+
+**Sign-in hardening, `6581e92`.** A security review of `lib/accounts.ts` + `lib/session.ts` found
+two real gaps (no login throttling; a signed-out token stayed valid until expiry) and four
+checklist items that do not apply to a scenario selector (no per-user password store, no JWT, no
+reset flow; CSRF covered by Server Actions' origin check). Both gaps fixed, in-process, with the
+limitation stated in the code the same way `lib/ai/quota.ts` states its own. Only failures count
+toward the throttle — the demo accounts sign in correctly dozens of times across the E2E suite.
+21 unit tests green, `account-login.spec.ts` 19/19 against a production build.
+
+**Akhilesh's second `InsightAnalytics.zip` (2026-09-17), verified item by item →
+`docs/ue5-review-2026-09-17-round-2.md`.** Diffed against the first drop and re-ran the exact
+request shapes through the live Zod contracts. 10 of 14 round-1 items genuinely fixed (Supabase
+egress gone from the web assets, verifier scans `Resources/`, 13 of 14 legacy calls bridged to V2,
+`diagnostic.test` proven accepted, parser/400/413/Retry-After/corrupt-entry handling all real,
+cancel-session and outcome fixed). 3 half-done (local JSON still splits screenshots, still writes
+`MD5(name)` as `agent_id`, still exports environment defaults despite the new `bHasBeenSet`).
+**Still blocking: activation and heartbeat are still rejected by the live endpoint** — the nested
+`build`/`queue`/`last_error` objects are correct, but the old flat keys were kept as
+"backward-compatibility" and both schemas are `strictObject`. Proven: with the flat keys → FAIL, without → PASS. A four-line delete. The 17/17 tests only exercise the mock transport, which never parses a request; running against `pnpm ue5:mock` on loopback would have caught it. Five smaller follow-ups recorded (unknown-4xx stall, batch size never recovers, double emission on view end, empty-string environment facts, event names off the event map). On UE-OBS-011: keep the bridge until each node is replaced, never bridge and replace the same call at once, rename first so nodes are replaced once.
+
+**Next.** (1) Relay round 2; the §A delete is the only thing gating a real end-to-end activation.
+(2) Ask MADSPACE whether the anon key from round 1 was rotated — the drop removes it from the build,
+which is not the same thing. (3) The `/meetings` swap failure and the `wide` follow-ups above are
+unchanged and independent.
