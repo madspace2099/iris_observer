@@ -77,6 +77,26 @@ describe("a project a real source delivers for runs on the real clock", () => {
     expect(period.baselineLabel).toBe("the same 78 days of the previous quarter");
   });
 
+  it("knows the agent its meetings name, though no roster does", async () => {
+    const query = {
+      viewer: madspace,
+      tenantSlug: "madspace-integration",
+      projectSlug: "akhilesh-demo-source",
+      period: "last_28_days",
+    } as const;
+    /* The showroom's own id: shown as the id, because nothing names it yet. */
+    expect(await repository.listAgents(query)).toEqual([
+      {
+        agentId: "agent-guid",
+        name: "agent-guid",
+        organisationName: "Not in the directory",
+        meetingCount: 1,
+      },
+    ]);
+    const detail = await repository.getAgentDetail(query, "agent-guid");
+    expect(detail.sampleSize, "their own page exists, over their one meeting").toBe(1);
+  });
+
   it("leaves a synthetic project on the synthetic day", async () => {
     const view = await repository.getMeetings(
       { viewer: madspace, tenantSlug: "alpha", projectSlug: "northgate", period: "last_28_days" },

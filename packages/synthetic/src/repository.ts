@@ -54,7 +54,7 @@ import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
-  SYNTHETIC_AGENTS,
+  presentersIn,
   provideSessions,
   sessionById,
   sessionsForProject,
@@ -641,12 +641,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {
     const { current } = await this.slices(query);
-    return SYNTHETIC_AGENTS.map((agent) => ({
-      agentId: agent.id,
-      name: agent.name,
-      organisationName: agent.organisationName,
-      meetingCount: current.filter((s) => s.agentId === agent.id).length,
-    })).filter((a) => a.meetingCount > 0);
+    return presentersIn(current)
+      .map((agent) => ({
+        agentId: agent.id,
+        name: agent.name,
+        organisationName: agent.organisationName,
+        meetingCount: current.filter((s) => s.agentId === agent.id).length,
+      }))
+      .filter((a) => a.meetingCount > 0);
   }
 
   async getUnitAttention(

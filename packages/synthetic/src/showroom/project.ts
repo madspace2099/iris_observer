@@ -45,7 +45,7 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { agentById, SYNTHETIC_AGENTS } from "./sessions";
+import { agentById, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -431,10 +431,12 @@ export function buildShowroomOverview(
    * not look alike. This states the largest gap and sends the reader to the
    * comparison rather than drawing a conclusion from it.
    */
-  const perAgent = SYNTHETIC_AGENTS.map((agent) => ({
-    agent,
-    sessions: sessions.filter((s) => s.agentId === agent.id),
-  })).filter((a) => a.sessions.length >= 8);
+  const perAgent = presentersIn(sessions)
+    .map((agent) => ({
+      agent,
+      sessions: sessions.filter((s) => s.agentId === agent.id),
+    }))
+    .filter((a) => a.sessions.length >= 8);
 
   if (perAgent.length >= 2) {
     const spreads = BEHAVIOURS.map((behaviour) => {
@@ -618,13 +620,15 @@ export function buildPresentationIntelligence(
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const locale = context.project.locale;
 
-  const lanes = SYNTHETIC_AGENTS.map((agent) =>
-    buildLane(
-      agent.id,
-      agent.name,
-      sessions.filter((s) => s.agentId === agent.id),
-    ),
-  ).filter((lane) => lane.meetingCount > 0);
+  const lanes = presentersIn(sessions)
+    .map((agent) =>
+      buildLane(
+        agent.id,
+        agent.name,
+        sessions.filter((s) => s.agentId === agent.id),
+      ),
+    )
+    .filter((lane) => lane.meetingCount > 0);
 
   const teamBenchmark = buildLane("team", "Team benchmark", sessions);
 
@@ -669,8 +673,22 @@ export function buildPresentationIntelligence(
       disclaimer: DISCLAIMER,
     };
   } else {
-    const leftAgent = agentById(leftKey ?? "agt_monika") ?? SYNTHETIC_AGENTS[0];
-    const rightAgent = agentById(rightKey ?? "agt_akhilesh") ?? SYNTHETIC_AGENTS[1];
+    /*
+     * Who is compared when the reader has not chosen. On the synthetic roster
+     * that is the scenario's pair, as it always was. A delivered project's
+     * meetings name nobody on the roster, and comparing two people with no
+     * meetings would draw two empty lanes over a project full of them — so
+     * there it is the first two who actually presented.
+     */
+    const presenters = presentersIn(sessions);
+    const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
+    const onRoster = sessions.some((s) => agentById(s.agentId) !== undefined);
+    const pick = (key: string | null, scenario: string, index: number) =>
+      (key === null ? undefined : presenters.find((p) => p.id === key)) ??
+      (onRoster ? agentById(scenario) : presented[index]) ??
+      SYNTHETIC_AGENTS[index];
+    const leftAgent = pick(leftKey, "agt_monika", 0);
+    const rightAgent = pick(rightKey, "agt_akhilesh", 1);
     if (leftAgent !== undefined && rightAgent !== undefined) {
       const l = sessions.filter((s) => s.agentId === leftAgent.id);
       const r = sessions.filter((s) => s.agentId === rightAgent.id);

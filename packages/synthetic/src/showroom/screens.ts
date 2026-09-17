@@ -61,7 +61,7 @@ import {
   unavailable,
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
-import { SYNTHETIC_AGENTS, agentById, sessionsForProject, sessionsInPeriod } from "./sessions";
+import { agentById, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView } from "./views3";
 
@@ -396,7 +396,7 @@ export function buildMeetings(
     options: {
       agents: optionsFrom(
         (id) => agentById(id)?.name ?? id,
-        SYNTHETIC_AGENTS.map((a) => a.id),
+        presentersIn(sessions).map((a) => a.id),
         agentCounts,
       ),
       channels: optionsFrom(
@@ -818,8 +818,8 @@ export function buildUnitDetail(
 
   /* --- who showed it ------------------------------------------------------- */
 
-  const relatedAgents: readonly UnitAgentInterest[] = SYNTHETIC_AGENTS.flatMap<UnitAgentInterest>(
-    (agent) => {
+  const relatedAgents: readonly UnitAgentInterest[] = presentersIn(sessions)
+    .flatMap<UnitAgentInterest>((agent) => {
       const theirs = touchedBy.filter((s) => s.agentId === agent.id);
       if (theirs.length === 0) return [];
       const sampleSize = sessions.filter((s) => s.agentId === agent.id).length;
@@ -837,8 +837,8 @@ export function buildUnitDetail(
           href: `${root}/agents/${agent.id}`,
         },
       ];
-    },
-  ).sort((a, b) => b.meetings - a.meetings);
+    })
+    .sort((a, b) => b.meetings - a.meetings);
 
   /* --- the trend ----------------------------------------------------------- */
 
@@ -1023,7 +1023,8 @@ export function buildAgentDetail(
   const root = base(context);
   const crm = crmConnected(context);
 
-  const agent = agentById(agentId);
+  /* The roster, or whoever this project's meetings name: a delivered project's agents are on no roster. */
+  const agent = presentersIn(sessions).find((a) => a.id === agentId);
   if (agent === undefined) return null;
 
   const mine = sessions.filter((s) => s.agentId === agentId);

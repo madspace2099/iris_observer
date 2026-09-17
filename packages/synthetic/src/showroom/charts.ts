@@ -39,7 +39,7 @@ import {
   signedPercent,
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
-import { SYNTHETIC_AGENTS, agentById } from "./sessions";
+import { agentById, presentersIn } from "./sessions";
 import { meetings } from "./views3";
 
 /**
@@ -422,7 +422,7 @@ export function buildAgentCharts(
   base: string,
   locale: string,
 ): AgentCharts {
-  const raw = SYNTHETIC_AGENTS.flatMap((a) => {
+  const raw = presentersIn(sessions).flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
     return [

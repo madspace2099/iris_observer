@@ -274,6 +274,34 @@ export function agentById(id: string): SyntheticAgent | undefined {
   return SYNTHETIC_AGENTS.find((a) => a.id === id);
 }
 
+/** What a read model needs of somebody who presents: who they are, never how the generator drives them. */
+export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">;
+
+/**
+ * WHO PRESENTS: the roster, and beyond it whoever these sessions name.
+ *
+ * Every per-agent read model used to walk `SYNTHETIC_AGENTS`, which is right
+ * for the synthetic world and silently wrong for a project a real source
+ * delivers for: its meetings carry the showroom's own agent ids, none of them
+ * on the roster, so Sales Agents was empty, the meeting filter offered nobody
+ * who had presented, and an agent's own page was a 404 — over meetings that
+ * were all there.
+ *
+ * An id no directory names yet is shown as the id. That is the truth about it,
+ * and it is what every `agentById(id)?.name ?? id` fallback already printed.
+ * Sorted, so the order never depends on which meeting arrived first.
+ */
+export function presentersIn(sessions: readonly ShowroomSession[]): readonly Presenter[] {
+  const rostered = new Set(SYNTHETIC_AGENTS.map((a) => a.id));
+  const beyond = [...new Set(sessions.map((s) => s.agentId))]
+    .filter((id) => !rostered.has(id))
+    .sort();
+  return [
+    ...SYNTHETIC_AGENTS,
+    ...beyond.map((id) => ({ id, name: id, organisationName: "Not in the directory" })),
+  ];
+}
+
 /** The people who present on one project. Never the whole roster. */
 export function agentsForProject(projectId: string): readonly SyntheticAgent[] {
   const dataset = PROJECT_DATASETS.find((d) => d.projectId === projectId);

@@ -47,7 +47,7 @@ import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics"
 import { buildAssistedSales, buildDealLadder } from "../deals";
 import { count, dayLabel, evidenceRef, percent } from "../format";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
-import { SYNTHETIC_AGENTS, agentById } from "./sessions";
+import { agentById, presentersIn } from "./sessions";
 
 /**
  * The three views, projected.
@@ -435,15 +435,17 @@ export function buildSalesFlow(
     decided.length,
   );
 
-  const rings = SYNTHETIC_AGENTS.map((a) =>
-    buildRing(
-      sessions.filter((s) => s.agentId === a.id),
-      a.id,
-      a.name,
-      base,
-      teamProgressed,
-    ),
-  ).filter((r) => r.meetings > 0);
+  const rings = presentersIn(sessions)
+    .map((a) =>
+      buildRing(
+        sessions.filter((s) => s.agentId === a.id),
+        a.id,
+        a.name,
+        base,
+        teamProgressed,
+      ),
+    )
+    .filter((r) => r.meetings > 0);
 
   const unrecorded = sessions.length - decided.length;
   const findings: ShowroomFinding[] = [];
@@ -1056,7 +1058,7 @@ export function buildAgentsView(
   }
   const teamTotal = [...teamSectionSecs.values()].reduce((a, b) => a + b, 0);
 
-  const agents: AgentProfile[] = SYNTHETIC_AGENTS.flatMap<AgentProfile>((a) => {
+  const agents: AgentProfile[] = presentersIn(sessions).flatMap<AgentProfile>((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
 
@@ -1143,7 +1145,12 @@ export function buildAgentsView(
     .filter((a) => a.signature !== null)
     .sort((x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0))[0];
 
-  if (distinct?.signature != null) {
+  /*
+   * A share of the TEAM's time needs a team. With one presenter the figure is
+   * that person against themselves, 1.0× by construction, and printing it
+   * would be a finding about arithmetic.
+   */
+  if (distinct?.signature != null && agents.length > 1) {
     findings.push({
       id: "agents-signature",
       statement: `${distinct.name} spends ${distinct.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${distinct.signature.label}.`,
@@ -1188,7 +1195,11 @@ export function buildAgentsView(
 
   return {
     context,
-    verdict: `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
+    /* "They do not present alike" is a claim about two people or more; one presenter is a count. */
+    verdict:
+      agents.length === 1
+        ? `One agent presented ${meetings(sessions.length, locale)}.`
+        : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
     agents,
     repeats,
     findings,
@@ -1486,10 +1497,12 @@ export function buildHome(
 
   /* The one thing worth acting on. */
   const teamProgressed = progressed;
-  const flagged = SYNTHETIC_AGENTS.map((a) => {
-    const mine = sessions.filter((s) => s.agentId === a.id);
-    return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
-  }).filter((f) => f.flag?.severity === "concern")[0];
+  const flagged = presentersIn(sessions)
+    .map((a) => {
+      const mine = sessions.filter((s) => s.agentId === a.id);
+      return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
+    })
+    .filter((f) => f.flag?.severity === "concern")[0];
 
   const alert =
     flagged?.flag == null
@@ -1501,7 +1514,7 @@ export function buildHome(
 
   const project = buildProjectView(context, sessions, null);
   const lead = leadSegment(project.segments);
-  const agents = SYNTHETIC_AGENTS.filter((a) => sessions.some((s) => s.agentId === a.id)).length;
+  const agents = new Set(sessions.map((s) => s.agentId)).size;
 
   return {
     context,

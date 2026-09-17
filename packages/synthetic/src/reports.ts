@@ -4,7 +4,7 @@ import type { ReportScopeView, ReportSection, ViewContext } from "@observer/read
 import { catalogueFor } from "./pulse";
 import { buildMeetingList } from "./showroom/project";
 import { count, evidenceRef, percent } from "./format";
-import { SYNTHETIC_AGENTS } from "./showroom/sessions";
+import { presentersIn } from "./showroom/sessions";
 
 /**
  * What a report could contain, project by project.
@@ -50,10 +50,12 @@ export function buildReportScope(
   const webiris = sessions.filter((s) => s.channel === "webiris").length;
   const catalogue = catalogueFor(context.project.id as string);
 
-  const presenting = SYNTHETIC_AGENTS.map((agent) => ({
-    name: agent.name,
-    meetings: sessions.filter((s) => s.agentId === agent.id).length,
-  })).filter((a) => a.meetings > 0);
+  const presenting = presentersIn(sessions)
+    .map((agent) => ({
+      name: agent.name,
+      meetings: sessions.filter((s) => s.agentId === agent.id).length,
+    }))
+    .filter((a) => a.meetings > 0);
   const thin = presenting.filter((a) => a.meetings < AGENT_MIN_SAMPLE);
 
   const evidence = (id: string, observations: number) =>
