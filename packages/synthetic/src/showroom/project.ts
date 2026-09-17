@@ -676,17 +676,19 @@ export function buildPresentationIntelligence(
     /*
      * Who is compared when the reader has not chosen. On the synthetic roster
      * that is the scenario's pair, as it always was. A delivered project's
-     * meetings name nobody on the roster, and comparing two people with no
-     * meetings would draw two empty lanes over a project full of them — so
-     * there it is the first two who actually presented.
+     * meetings name nobody on the roster, so there it is the first two who
+     * actually presented — and where only one person has, there is nobody to
+     * compare them with and no comparison is drawn. Falling back to the roster
+     * there compared a real presenter with a stranger who has no meetings on
+     * the project.
      */
     const presenters = presentersIn(sessions);
     const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
-    const onRoster = sessions.some((s) => agentById(s.agentId) !== undefined);
+    const onRoster =
+      sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined);
     const pick = (key: string | null, scenario: string, index: number) =>
       (key === null ? undefined : presenters.find((p) => p.id === key)) ??
-      (onRoster ? agentById(scenario) : presented[index]) ??
-      SYNTHETIC_AGENTS[index];
+      (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
     const leftAgent = pick(leftKey, "agt_monika", 0);
     const rightAgent = pick(rightKey, "agt_akhilesh", 1);
     if (leftAgent !== undefined && rightAgent !== undefined) {
