@@ -6,6 +6,7 @@ import type {
   EventAppendRow,
   FacadeName,
   ObserverDb,
+  ProjectEventRow,
   SourceOperationsRow,
   SourceStatusRow,
   StoredEventRow,
@@ -289,6 +290,14 @@ export function pgliteDb(query: SqlQuery): ObserverDb {
         input.source,
         input.limit,
       ])) as readonly StoredEventRow[],
+
+    eventsForProject: async (input) =>
+      (await callTable(query, "observer_events_for_project", "$1, $2, $3, $4", [
+        input.account,
+        input.project,
+        input.since,
+        input.limit,
+      ])) as readonly ProjectEventRow[],
 
     /* --- operations ------------------------------------------------------- */
 

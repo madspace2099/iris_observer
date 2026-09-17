@@ -159,6 +159,31 @@ export interface StoredEventRow {
 }
 
 /**
+ * One session-scoped event of a project, with the identity its envelope carried.
+ *
+ * What a read model folds sessions from. `StoredEventRow` above is the
+ * operations view — newest first, one source, no `agent_id` or entity — and
+ * nothing could rebuild a session from it. Never a diagnostic and never an
+ * event without a session: the facade filters both, so `session_id` and
+ * `sequence` are not nullable here.
+ */
+export interface ProjectEventRow {
+  readonly source_id: string;
+  readonly event_id: string;
+  readonly event_name: string;
+  readonly schema_version: number;
+  readonly occurred_at: Instant;
+  readonly ingested_at: Instant;
+  readonly session_id: string;
+  readonly sequence: number;
+  readonly agent_id: string | null;
+  readonly visitor_subject: string | null;
+  readonly entity_type: string | null;
+  readonly entity_id: string | null;
+  readonly properties: Record<string, unknown>;
+}
+
+/**
  * One project an account holds, with the rollups an operations list needs.
  *
  * The counts come from one scan of that account's sources, so they cannot
@@ -352,6 +377,18 @@ export interface ObserverDb {
     readonly limit: number;
   }): Promise<readonly StoredEventRow[]>;
 
+  /**
+   * Every session-scoped event of one project, across all its sources, in
+   * session then sequence order. `since` null means no lower bound. The facade
+   * caps `limit` at 50 000 and excludes `diagnostic.%`.
+   */
+  eventsForProject(input: {
+    readonly account: string;
+    readonly project: string;
+    readonly since: Instant | null;
+    readonly limit: number;
+  }): Promise<readonly ProjectEventRow[]>;
+
   /* --- operations ------------------------------------------------------- */
 
   /** Record a heartbeat's facts against a source. Operational, never a fact. */
@@ -390,6 +427,7 @@ export const FACADE_NAMES = [
   "observer_credential_status",
   "observer_events_append",
   "observer_events_for_source",
+  "observer_events_for_project",
   "observer_heartbeat_record",
   "observer_ingestion_verified",
   "observer_source_operations",

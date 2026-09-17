@@ -259,6 +259,15 @@ const CASES: readonly Case[] = [
     body: { p_account: ACCOUNT, p_source: SOURCE, p_limit: 50 },
   },
   {
+    /* A nullable `p_since`. Sent as null, never omitted, or PostgREST 404s. */
+    method: "eventsForProject",
+    facade: "observer_events_for_project",
+    reply: [],
+    invoke: (db) =>
+      db.eventsForProject({ account: ACCOUNT, project: PROJECT, since: null, limit: 50 }),
+    body: { p_account: ACCOUNT, p_project: PROJECT, p_since: null, p_limit: 50 },
+  },
+  {
     method: "heartbeatRecord",
     facade: "observer_heartbeat_record",
     reply: true,

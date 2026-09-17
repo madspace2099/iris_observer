@@ -51,6 +51,7 @@ import type {
   HeartbeatFacts,
   Instant,
   ObserverDb,
+  ProjectEventRow,
   SourceOperationsRow,
   SourceStatusRow,
   StoredEventRow,
@@ -492,6 +493,20 @@ export function postgrestDb(config: PostgrestConfig): ObserverDb {
       return callRows<StoredEventRow>(config, "observer_events_for_source", {
         p_account: input.account,
         p_source: input.source,
+        p_limit: input.limit,
+      });
+    },
+
+    eventsForProject(input: {
+      readonly account: string;
+      readonly project: string;
+      readonly since: Instant | null;
+      readonly limit: number;
+    }): Promise<readonly ProjectEventRow[]> {
+      return callRows<ProjectEventRow>(config, "observer_events_for_project", {
+        p_account: input.account,
+        p_project: input.project,
+        p_since: input.since,
         p_limit: input.limit,
       });
     },

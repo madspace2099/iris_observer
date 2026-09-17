@@ -21,4 +21,5 @@ export * from "./deals";
 export * from "./db";
 export * from "./deals-db";
 export * from "./supabase-showroom";
+export * from "./ue5-events";
 export * from "./sessions-db";

@@ -56,6 +56,7 @@ const FILES = [
   "20260902093000_observer_activation_and_credentials.sql",
   "20260902100000_observer_analytics_events.sql",
   "20260902110000_observer_source_operations.sql",
+  "20260917100000_observer_events_for_project.sql",
 ];
 
 const ACCOUNT_A = "acct_northgate";
@@ -422,6 +423,74 @@ describe("a batch of events keeps the order it was submitted in", () => {
       "an empty result, not an error",
     ).toHaveLength(0);
   });
+
+  it("reads a project's session events back in session order, with the envelope's identity", async () => {
+    const project = await db.projectCreate({ account: ACCOUNT_A, name: "P fold", slug: null });
+    const source = await db.sourceCreate({
+      account: ACCOUNT_A,
+      project,
+      type: "showroom_ue5",
+      environment: "production",
+      label: "Fold PC",
+    });
+    const session = "7a1c9f6e-2c7a-4a4e-9b31-0000000000aa";
+    const inSession = (sequence: number, name: string, extra: Record<string, unknown> = {}) => ({
+      ...event(),
+      event_name: name,
+      session_id: session,
+      sequence,
+      agent_id: "agent-guid-from-the-plugin",
+      visitor_subject: "vis_07",
+      ...extra,
+    });
+
+    /* Appended out of order, with a diagnostic and a session-less event beside them. */
+    await db.eventsAppend({
+      source,
+      events: [
+        inSession(2, "unit.view.started", {
+          entity: { type: "unit", id: "A-204" },
+          properties: { unit_id: "A-204" },
+        }),
+        inSession(1, "session.started"),
+        inSession(3, "diagnostic.test"),
+        event(),
+      ],
+    });
+
+    const rows = await db.eventsForProject({
+      account: ACCOUNT_A,
+      project,
+      since: null,
+      limit: 100,
+    });
+    expect(
+      rows.map((r) => r.event_name),
+      "sequence order; no diagnostic, nothing without a session",
+    ).toEqual(["session.started", "unit.view.started"]);
+    expect(rows[1]?.session_id).toBe(session);
+    expect(rows[1]?.source_id).toBe(source);
+    expect(rows[1]?.agent_id).toBe("agent-guid-from-the-plugin");
+    expect(rows[1]?.visitor_subject).toBe("vis_07");
+    expect(rows[1]?.entity_type).toBe("unit");
+    expect(rows[1]?.entity_id).toBe("A-204");
+    expect(rows[1]?.properties).toEqual({ unit_id: "A-204" });
+    expect(rows[1]?.occurred_at).toBe("2026-09-01T15:30:00.124Z");
+
+    expect(
+      await db.eventsForProject({
+        account: ACCOUNT_A,
+        project,
+        since: "2026-09-02T00:00:00.000Z",
+        limit: 100,
+      }),
+      "`since` is a lower bound on when it happened",
+    ).toHaveLength(0);
+    expect(
+      await db.eventsForProject({ account: ACCOUNT_B, project, since: null, limit: 100 }),
+      "another account reads nothing, not an error",
+    ).toHaveLength(0);
+  });
 });
 
 describe("a source's operational state is written and read", () => {
@@ -517,6 +586,7 @@ describe("the adapter implements the whole port and nothing else", () => {
     "credentialRevoke",
     "credentialStatus",
     "eventsAppend",
+    "eventsForProject",
     "eventsForSource",
     "heartbeatRecord",
     "ingestionVerified",
@@ -531,7 +601,7 @@ describe("the adapter implements the whole port and nothing else", () => {
   /* No database: this asks what the object has, not what the object can do. */
   const adapter = pgliteDb(() => Promise.resolve({ rows: [] }));
 
-  it("exposes exactly the fifteen methods the port declares", () => {
+  it("exposes exactly the methods the port declares", () => {
     expect(Object.keys(adapter).sort()).toEqual([...PORT_METHODS]);
   });
 

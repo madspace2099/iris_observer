@@ -127,7 +127,7 @@ interface RawSessionData {
 }
 
 /** The source's own section words → Observer's inventory. Unrecognised → null, dropped as a step. */
-const SECTION_WORDS: Readonly<Record<string, SectionId>> = {
+export const SECTION_WORDS: Readonly<Record<string, SectionId>> = {
   home: "home",
   residences: "residences",
   amenities: "amenities",
@@ -139,7 +139,7 @@ const SECTION_WORDS: Readonly<Record<string, SectionId>> = {
   shortlist: "shortlist",
 };
 
-const OUTCOME_WORDS: Readonly<Record<string, MeetingOutcome>> = {
+export const OUTCOME_WORDS: Readonly<Record<string, MeetingOutcome>> = {
   presentation: "presentation_only",
   "presentation only": "presentation_only",
   interested: "interested",
@@ -149,7 +149,7 @@ const OUTCOME_WORDS: Readonly<Record<string, MeetingOutcome>> = {
   "not interested": "not_interested",
 };
 
-const WEATHER_WORDS: Readonly<Record<string, WeatherPreset>> = {
+export const WEATHER_WORDS: Readonly<Record<string, WeatherPreset>> = {
   rain: "rain",
   snow: "snow",
   cloudy: "cloudy",
@@ -157,7 +157,7 @@ const WEATHER_WORDS: Readonly<Record<string, WeatherPreset>> = {
   fog: "fog",
 };
 
-const TIME_OF_DAY_WORDS: Readonly<Record<string, TimeOfDayPreset>> = {
+export const TIME_OF_DAY_WORDS: Readonly<Record<string, TimeOfDayPreset>> = {
   morning: "morning",
   afternoon: "afternoon",
   golden: "golden",
