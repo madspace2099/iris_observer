@@ -1769,6 +1769,15 @@ one harness step that writes something a customer would see.
 events, and the three things that decide whether his data joins anything. The first matters most:
 `unit_id` must be the unit's code exactly as the developer's catalogue states it.
 
+**13. Akhilesh's fourth drop, same evening (`51a3968`).** One file changed against the third drop
+and in it exactly two lines: activation (`ObserverActivationClient.cpp:109`) and heartbeat (`:541`)
+now send `FEngineVersion::Current().ToString(EVersionComponent::Patch)`. Through the live schemas
+`5.6.0` and a worst-case `5.10.12` pass on both; the old full form on a licensee branch (41
+characters) fails on both, which is the defect it removes. Secret scan clean. Compilation and the
+17 tests are his machine's claims. **Next is his:** the loopback run against `pnpm ue5:mock`, the
+first time the C++ HTTP path runs end to end. Addendum 2 of
+`docs/ue5-review-2026-09-17-round-2.md`.
+
 ### Closing verification, 2026-09-17 evening
 
 - `pnpm typecheck` (every package, the strict tests project, the scripts), `pnpm lint` and
