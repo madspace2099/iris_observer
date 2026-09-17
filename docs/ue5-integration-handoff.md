@@ -74,9 +74,9 @@ length and nothing else. The mock mints whichever you ask it for —
 
 **`installation_nonce`** — a UUID generated **once**, the first time the plugin runs, and
 persisted beside the outbox. Never regenerated, never derived from hardware, not a secret.
-Its only job is to let the server say "this installation already has a source" instead of
-silently creating a second one. If UE-OBS-003 currently sends a hardware fingerprint or a
-hostname hint instead, those two fields were removed from the proposal — see §9.
+The schema requires it. Since the `409` of §2.3 was removed, no server answer depends on it.
+If UE-OBS-003 currently sends a hardware fingerprint or a hostname hint instead, those two
+fields were removed from the proposal — see §9.
 
 **`reported_environment`** — what this build believes it is. The server does not trust it;
 it compares against the source record and tells you if they disagree.
@@ -129,15 +129,14 @@ on every request and will **reject** an event that carries any of them.
 
 ### 2.3 Every other answer
 
-| HTTP                | `code`              | What it means                               | What you do                                                              |
-| ------------------- | ------------------- | ------------------------------------------- | ------------------------------------------------------------------------ |
-| 200 `"activated"`   | —                   | New source registered                       | Store the token. Go to `Active`.                                         |
-| 200 `"reactivated"` | —                   | Same source, new credential                 | Replace the stored token. **Keep the outbox.** Go to `Active`.           |
-| 400                 | `malformed_request` | Your request is wrong                       | Do not retry. This is a plugin bug.                                      |
-| 401                 | `activation_failed` | Unknown, expired, consumed **or revoked**   | Do not retry. Ask the operator for a new code.                           |
-| 409                 | `already_activated` | This installation already has a live source | Do not retry. Show `source_id`; ask the operator to rotate or retire it. |
-| 429                 | `rate_limited`      | Too many attempts                           | Wait `Retry-After`, then retry.                                          |
-| 503                 | `unavailable`       | Backend down                                | Retry with backoff.                                                      |
+| HTTP                | `code`              | What it means                             | What you do                                                    |
+| ------------------- | ------------------- | ----------------------------------------- | -------------------------------------------------------------- |
+| 200 `"activated"`   | —                   | New source registered                     | Store the token. Go to `Active`.                               |
+| 200 `"reactivated"` | —                   | Same source, new credential               | Replace the stored token. **Keep the outbox.** Go to `Active`. |
+| 400                 | `malformed_request` | Your request is wrong                     | Do not retry. This is a plugin bug.                            |
+| 401                 | `activation_failed` | Unknown, expired, consumed **or revoked** | Do not retry. Ask the operator for a new code.                 |
+| 429                 | `rate_limited`      | Too many attempts                         | Wait `Retry-After`, then retry.                                |
+| 503                 | `unavailable`       | Backend down                              | Retry with backoff.                                            |
 
 Two things about that table that are easy to get backwards:
 
@@ -146,10 +145,16 @@ consumed and revoked answer the same status, the same body and the same `source_
 Do not try to tell them apart; there is nothing there to read. A response that separated
 them would tell anyone holding a guessed code whether a source exists.
 
-**`409` never happens to an unusable code.** It is reachable only from a _valid_ code
-meeting an installation that already has a live source — at which point the caller has
-already proved possession, so returning `source_id` costs nothing. An unusable code never
-takes that path and never receives a `source_id`.
+**There is no `409`.** Corrected 2026-09-17: this table used to answer a valid code from an
+installation that already had a live source with `409 already_activated` and that source's
+id. The contract removed it (`PD-27`), because the answer confirmed to an unauthenticated
+caller that a source exists and handed over its identifier. The failure codes are exactly the
+four above, and a failure body's `source_id` is always `null`. A code that has been used
+answers `401` like any other unusable code, from whichever installation presents it. The case
+the `409` named, a fresh code typed into a PC that is already connected, is caught on your
+side: your outbox is bound to a source, and an activation that comes back with a different
+`source_id` while events are pending is refused locally and the queue kept. The way to
+reconnect a PC is a reactivation code for the same source, §2.4.
 
 ### 2.4 Recovery
 
@@ -761,10 +766,17 @@ does.
 ```bash
 pnpm ue5:mock            # random port
 pnpm ue5:mock --port 8787
+pnpm ue5:mock --port 8787 --force rate_limit,unavailable
 ```
 
 Prints an activation code on start. Binds `127.0.0.1` only. Nothing is persisted, nothing
 reaches a network, and there is no database behind it.
+
+`--force` refuses the first requests, in the order given, whichever endpoint they reach, and then
+behaves normally: `rate_limit` (a `429` with `Retry-After: 5`), `unavailable` (`503`),
+`malformed_request` (`400`), `drop_before_processing` and `drop_after_processing` (no response
+arrives). It is how an activation screen is seen in its refusal states over real HTTP. A wrong code,
+or the printed code used a second time, answers `401` without any switch.
 
 It reproduces, on demand: first activation, invalid / expired / consumed / revoked codes,
 reactivation, repeat installation, suspension, rate limiting, unavailability, all-accepted,

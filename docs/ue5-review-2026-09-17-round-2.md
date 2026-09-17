@@ -223,8 +223,11 @@ plugin's web assets. None of that is a judgement on the offer, which was made wi
 side's source, as the handoff intends.
 
 **What is his, and would help:** the screen inside IRIS where an operator types the code and sees
-what came back: activated, `already_activated` with the source id, `activation_failed` and "ask
-for a new code", the environment mismatch, and the diagnostics of handoff §8.3.
+what came back: activated or reactivated, `activation_failed` and "ask for a new code", rate
+limiting, no network, the environment mismatch, and the diagnostics of handoff §8.3. It is specified
+in `docs/ue5-remaining-work-2026-09-17.md`. (Corrected later the same evening: this sentence first
+listed `already_activated` with the source id. The contract removed that answer, `PD-27`, and the
+handoff's §2.3 had not caught up; it has now.)
 
 **What actually stands between his build and a real backend is on this side, and is the
 operator's.** By this repository's own records the hosted Preview database holds the August

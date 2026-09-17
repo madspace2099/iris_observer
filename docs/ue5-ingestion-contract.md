@@ -142,10 +142,11 @@ PC, because the hardware is unchanged and the server answers `409` to a perfectl
 hardware-derived persistent identifier that generates support tickets is a poor trade for a check
 that is not a security control in the first place: the code is one-time, so the _code_ cannot be
 replayed regardless. `installation_nonce` is a random value the plugin generates once and keeps
-beside its outbox. It catches the failure the brief actually names — a second fresh code pasted into
-an installation that already holds a working credential — without touching hardware, without an
-OS-specific API to port to every platform in OPEN-7, and without turning a reinstall into an
-escalation.
+beside its outbox, without touching hardware, without an OS-specific API to port to every platform
+in OPEN-7, and without turning a reinstall into an escalation. It was meant to catch a second fresh
+code pasted into an installation that already holds a working credential; since `PD-27` (§3.4) no
+server answer depends on it, and the plugin catches that case itself, by refusing an activation
+whose source differs from the one its pending outbox is bound to.
 
 **There is no `hostname_hint`.** It was Admin display convenience, and it was the only field in the
 protocol capable of carrying a person's name into an operational store — showroom machines are named
@@ -210,12 +211,17 @@ Every `limits` value is `null`, and that is the point rather than an omission �
 them tells anyone holding a guessed code whether a tenant, a project or a source exists (LOCKED
 §9.1). An archived source answers the same way, so archival cannot be probed either.
 
-### 3.4 Already activated — `409`
+### 3.4 Already activated — removed (`PD-27`)
 
-Returned when the installation nonce already belongs to a live source. **No token is issued** — that
-is what prevents a second source per installation. The code is deliberately _not_ consumed: nothing
-was exchanged for it, and burning it would force the operator to issue another to fix a problem they
-have not yet been told about.
+**This answer no longer exists.** An earlier draft returned `409 already_activated` with the existing
+`source_id` when the installation nonce already belonged to a live source. It was removed because it
+was an unauthenticated existence oracle: it confirmed that a code was genuine and that a source
+existed, and handed over the source's identifier, to a caller who had authenticated nothing. It also
+let a client-supplied value, the nonce, decide an outcome. The failure codes are exactly
+`activation_failed`, `malformed_request`, `rate_limited` and `unavailable`, and `source_id` in a
+failure body is always `null` (`ACTIVATION_FAILURE_CODES` in `packages/contracts/src/ue5/activation.ts`).
+A spent code presented again, from any installation, is a `401` like §3.3. Reconnecting an existing
+installation is §3.5, started by an operator and never by the client.
 
 ### 3.5 Reactivation and recovery — `200`
 

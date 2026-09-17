@@ -1900,15 +1900,29 @@ prebuilt package.
 
 - **5** is his loopback run against `pnpm ue5:mock`, then the operator's steps above, the host name
   included.
-- **6** is the screen of Addendum 3 in `docs/ue5-review-2026-09-17-round-2.md`: shown while the
-  source is unconfigured, one field, and the outcomes activated, `already_activated` with the source
-  id, `activation_failed` with "ask for a new code", environment mismatch, and no network. With it, a
-  prebuilt package per engine version, and `unit_id` equal to the catalogue's unit code.
+- **6** is specified in `docs/ue5-remaining-work-2026-09-17.md`, the list written for Akhilesh: shown
+  while the source is unconfigured, one field, and the outcomes activated, reactivated,
+  `activation_failed` with "ask for a new code", rate limiting, no network, and the environment
+  mismatch as a warning. With it, a prebuilt package if IRIS cannot compile a source plugin, and
+  `unit_id` equal to the catalogue's unit code.
 - **7** is the first open item above, plus a catalogue for the new project (connector or file) so
   unit codes resolve, and an agent directory for the plugin's ids. Until it is built, a new
   project's events are accepted and stored and have no screen to appear on.
 - **8** is unchanged: Gate 1 with the EU AI Act, Gate 2, Gate 4.
 
-**Next recommended action.** Send Akhilesh §13 of `docs/ue5-integration-handoff.md` and the
-description of phase 6, then do the operator steps above and watch one real meeting arrive on the
+**A drift found while writing that list, and closed.** The handoff's §2.3 and the contract
+document's §3.4 still described `409 already_activated` with a `source_id`. The contract removed it
+long ago (`PD-27`, an unauthenticated existence oracle); the schema, the real activation and the
+mock all answer a spent code with the same `401` as any other. Both documents now say so, and so do
+Addendum 3 and this file, which had repeated it. The plugin's failure mapping was checked against
+the four codes that exist: `400` shares the `401` sentence, and everything collapses into one
+`Error` state with a sentence, so a screen has nothing to switch on yet. Also found: the plugin reads
+`expires_at` where the contract says `token_expires_at` (always null today), and never reads
+`environment`, `environment_mismatch` or the heartbeat's `server_time`. The mock's command line
+gained `--force rate_limit,unavailable,…`, proven over real HTTP (`429` with `Retry-After: 5`, `503`,
+`401`, `200`, and `401` for the same code again), so the screen's refusal states can be seen
+without a parser test.
+
+**Next recommended action.** Send Akhilesh `docs/ue5-remaining-work-2026-09-17.md` (it points at
+§13 of the handoff), then do the operator steps above and watch one real meeting arrive on the
 Preview. Phase 7 can be built in parallel once the user decides how a customer signs in.
