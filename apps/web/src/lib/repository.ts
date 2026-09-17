@@ -1,6 +1,6 @@
 import type { ObserverRepository } from "@observer/readmodels";
 import { isComplete } from "@observer/sources";
-import { PROJECTS, SyntheticObserverRepository } from "@observer/synthetic";
+import { PROJECTS, SyntheticObserverRepository, TENANTS } from "@observer/synthetic";
 
 import { liveCatalogueSource } from "@/lib/connectors/catalogue-source";
 import { liveDealSource } from "@/lib/connectors/deal-source";
@@ -50,6 +50,15 @@ export function readModelProjectIdFor(twin: {
     PROJECTS.find((p) => normalised(p.name) === normalised(twin.name)) ??
     null;
   return project === null ? null : (project.id as string);
+}
+
+/**
+ * Whether a developer of the synthetic world already lives at this address.
+ * Asked here because only this file may name that world; administration refuses
+ * such a slug so a developer it registers can never be shadowed by a fixture.
+ */
+export function isSyntheticTenantSlug(slug: string): boolean {
+  return TENANTS.some((tenant) => tenant.slug === slug);
 }
 
 /**

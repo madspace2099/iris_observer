@@ -282,6 +282,28 @@ export async function viewerForAccount(account: Account): Promise<Viewer> {
   return withDirectoryGrants(account.accountId, VIEWERS[account.viewerKey]);
 }
 
+/**
+ * The accounts a project made in administration can be given to.
+ *
+ * Everybody this deployment can sign in except its administrators, who hold
+ * every such project already. Empty where the directory is switched off: a grant
+ * to an account nobody can sign in as would be a row that says something false.
+ */
+export function grantableAccounts(): readonly {
+  readonly accountId: string;
+  readonly displayName: string;
+  readonly email: string;
+  readonly role: Viewer["role"];
+}[] {
+  if (!demoAccountsEnabled()) return [];
+  return DIRECTORY.map((account) => ({
+    accountId: account.accountId,
+    displayName: account.displayName,
+    email: account.email,
+    role: VIEWERS[account.viewerKey].role,
+  })).filter((account) => account.role !== "madspace_admin");
+}
+
 /** The addresses the demonstration offers, for the notice on the sign-in page. */
 export function demoDirectory(): readonly { email: string; displayName: string }[] {
   if (!demoAccountsEnabled()) return [];

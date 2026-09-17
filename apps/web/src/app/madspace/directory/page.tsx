@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Kicker, StateMessage } from "@observer/ui";
+import { projectDirectoryAdmin, type TenantRow } from "@observer/sources";
 
 import { directoryView } from "@/lib/accounts";
 import { requireViewer } from "@/lib/session";
+import { CONTROL_PLANE_ACCOUNT } from "@/lib/sources/control-plane";
+import { observerDepsAsync } from "@/lib/sources/deps";
+import { DeveloperForm } from "@/components/madspace/DirectoryForms";
 import { TableWrap } from "@/components/madspace/TableWrap";
 
 export const metadata: Metadata = { title: "Directory" };
@@ -27,8 +31,12 @@ const plural = (n: number, one: string, other: string) => `${String(n)} ${n === 
  * those arrangements (an agency across two developers, an agent on two
  * projects for one). What it cannot do is create, invite, suspend or edit any
  * of them: there is no store to write to, so no control pretends to.
- * Those actions arrive with the tenant, user and agency tables, and this page
- * is the list they will fill.
+ * Those actions arrive with the user and agency tables, and this page is the
+ * list they will fill.
+ *
+ * Developers are the exception since `docs/21-self-served-projects.md`: the
+ * control plane holds them now, so the first plane below is a real table with a
+ * real form, and it says which of the two kinds of developer a row is.
  */
 export default async function DirectoryPage() {
   const viewer = await requireViewer();
@@ -36,6 +44,7 @@ export default async function DirectoryPage() {
   if (viewer.role !== "madspace_admin") redirect("/");
 
   const directory = directoryView();
+  const registered = await registeredDevelopers();
 
   return (
     <>
@@ -47,16 +56,64 @@ export default async function DirectoryPage() {
             {plural(directory.tenants.length, "tenant", "tenants")},{" "}
             {plural(directory.agencies.length, "agency", "agencies")} and{" "}
             {plural(directory.people.length, "person", "people")}, as the demonstration directory
-            holds them. Every one of them is synthetic: there is no tenant, user or agency table
-            behind this screen yet, so nothing here can be created, invited or changed, and no
-            control claims otherwise.
+            holds them, and{" "}
+            {registered === null
+              ? "no control plane to hold a registered developer"
+              : plural(registered.length, "developer", "developers")}{" "}
+            registered here.
           </p>
         </div>
       </header>
 
+      <section className="mad-plane" aria-labelledby="developers-heading">
+        <div className="obs-section-head">
+          <h2 id="developers-heading">Developers registered here</h2>
+          <p className="obs-section-note">
+            Held by the control plane. A project is attached to one on its Customer dashboard
+            screen, and that fixes the project&rsquo;s address.
+          </p>
+        </div>
+        {registered === null ? (
+          <StateMessage
+            title="No control plane on this deployment"
+            detail="A developer is kept by the control plane, so there is nowhere to register one here."
+          />
+        ) : (
+          <>
+            {registered.length === 0 ? (
+              <StateMessage title="No developer registered yet" />
+            ) : (
+              <TableWrap labelledBy="developers-heading">
+                <table className="mad-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Developer</th>
+                      <th scope="col">Address</th>
+                      <th scope="col">Projects</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {registered.map((developer) => (
+                      <tr key={developer.tenant_id}>
+                        <th scope="row">{developer.name}</th>
+                        <td>
+                          <span className="mad-code">/{developer.slug}</span>
+                        </td>
+                        <td>{String(Number(developer.project_count))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableWrap>
+            )}
+            <DeveloperForm />
+          </>
+        )}
+      </section>
+
       <StateMessage
         title="Demonstration directory"
-        detail="The tenants, agencies and people below come from the synthetic world the sign-in offers, not from the control plane; the control plane holds projects and installations only. Creating, inviting and suspending arrive with the tables that will hold them."
+        detail="The tenants, agencies and people below come from the synthetic world the sign-in offers, not from the control plane. Inviting and suspending people arrive with the tables that will hold them."
       />
 
       <section className="mad-plane" aria-labelledby="tenants-heading">
@@ -173,4 +230,17 @@ export default async function DirectoryPage() {
       </section>
     </>
   );
+}
+
+/** The developers the control plane holds, or null where there is no control plane to hold any. */
+async function registeredDevelopers(): Promise<readonly TenantRow[] | null> {
+  const deps = await observerDepsAsync();
+  if (deps === null) return null;
+  try {
+    const read = await projectDirectoryAdmin(deps).tenants({ account: CONTROL_PLANE_ACCOUNT });
+    return read.ok ? read.value : [];
+  } catch {
+    /* A database that stops before the directory migration: the same absence, said the same way. */
+    return null;
+  }
 }

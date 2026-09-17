@@ -211,6 +211,12 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * and the Lomnio webhook are API handlers beside it and are not pages.
    */
   "/madspace/projects/[projectId]/integrations",
+
+  /*
+   * Customer dashboard — a project's developer, address and settings, who may
+   * open it and what its presenters are called (`docs/21-self-served-projects.md`).
+   */
+  "/madspace/projects/[projectId]/dashboard",
 ];
 
 describe("every route the reference served is still served", () => {

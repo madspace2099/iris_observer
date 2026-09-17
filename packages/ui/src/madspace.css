@@ -1066,6 +1066,26 @@ a.mad-row:focus-visible {
   .mad-row--source {
     grid-template-columns: minmax(14rem, 2fr) minmax(0, 2fr) minmax(11rem, auto);
   }
+
+  /*
+   * A readiness line: what it is, its state, and the fact behind the state, read
+   * across. Stacked, eight of them ran to a screen and a half and the states,
+   * which are the point, were never on one vertical line to be scanned.
+   */
+  .mad-row--check {
+    grid-template-columns: minmax(14rem, 2fr) minmax(13rem, 1fr) minmax(0, 2fr);
+  }
+
+  /* Somebody who may open the project: who, since when, and the one thing to do about it. */
+  .mad-row--person {
+    grid-template-columns: minmax(14rem, 2fr) minmax(0, 2fr) auto;
+  }
+
+  /* Somebody who presents: what is known about them beside the field that names them. */
+  .mad-row--presenter {
+    grid-template-columns: minmax(14rem, 1fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
 }
 
 /* ============================================== the lifecycle driver ======== */

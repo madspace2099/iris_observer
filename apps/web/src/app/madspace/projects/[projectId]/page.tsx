@@ -240,6 +240,19 @@ export default async function MadspaceProjectPage({
         </div>
       </section>
 
+      <section className="mad-plane" aria-labelledby="dashboard-heading">
+        <div className="obs-section-head">
+          <h2 id="dashboard-heading">Customer dashboard</h2>
+          <ActionLink href={`/madspace/projects/${projectId}/dashboard`} emphasis="secondary">
+            Address, access and presenters
+          </ActionLink>
+        </div>
+        <p className="mad-lede">
+          Where this project lives on the customer side, what it still waits for, who may open it,
+          and what the people who present on it are called.
+        </p>
+      </section>
+
       <section className="mad-plane" aria-labelledby="integrations-heading">
         <div className="obs-section-head">
           <h2 id="integrations-heading">CRM, catalogue and showroom telemetry</h2>

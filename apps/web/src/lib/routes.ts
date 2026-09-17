@@ -305,6 +305,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },
+  /*
+   * What stands between a project and a customer opening it
+   * (`docs/21-self-served-projects.md`): its developer and address, what it
+   * still waits for, who may open it, and what its presenters are called.
+   */
+  {
+    route: "/madspace/projects/[projectId]/dashboard",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
   { route: "/madspace/sources/[sourceId]", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
   /*

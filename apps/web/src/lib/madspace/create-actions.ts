@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { ENVIRONMENTS } from "@observer/contracts/ue5";
 import type { AdminRefusal, ObserverAdmin } from "@observer/sources";
 
+import { slugFrom } from "@/lib/madspace/slug";
 import { currentViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 
@@ -146,31 +147,12 @@ async function estate(): Promise<Estate> {
 }
 
 /* --- the slug, derived rather than asked for ---------------------------------------- */
-
-/**
- * A URL-safe short name, built from the project's name.
- *
- * `ObserverAdmin.createProject` takes a slug, and the operator is never asked
- * for one. It is display metadata — the schema comment says so, and nothing in
- * this product routes by it — so asking for it would make an operator invent a
- * second name for the same building and then wonder which one is real.
- *
- * NFKD then stripping the combining marks, so a Hungarian name survives:
- * "Óbuda Rakpart" becomes `obuda-rakpart` rather than `-buda-rakpart`. A name
- * with no Latin letters or digits at all yields nothing, and this returns null
- * rather than a placeholder — the column is nullable, and a slug of `project-1`
- * that nobody chose is invented data.
+/*
+ * `ObserverAdmin.createProject` takes a slug, and the operator is not asked for
+ * one here: `slugFrom` builds it from the name. It becomes the project's address
+ * only when the project is completed on its Customer dashboard screen, where it
+ * is shown, can still be changed, and is then fixed.
  */
-function slugFrom(name: string): string | null {
-  const slug = name
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .slice(0, 120)
-    .replace(/^-+|-+$/g, "");
-  return slug.length === 0 ? null : slug;
-}
 
 /* --- translating a refusal ----------------------------------------------------------- */
 
