@@ -1829,11 +1829,30 @@ also drops local connector settings. That is the user's call and was not done.
 
 ### The operator's steps, in order (none of them were done here)
 
+**Corrected the same evening.** "After the earlier ones" hid the larger fact. By
+`supabase/README.md` the hosted Preview database holds the August AI migrations and **none of the
+source spine**: no projects, sources, activation codes, credentials or event store. So on the
+Preview a showroom cannot activate at all yet, whatever the plugin does. The whole source lifecycle
+has been proven on the local control plane only. This is what stands between Akhilesh's build and a
+real backend, and it is the operator's, not his.
+
 1. Push the branch (the Preview follows it).
-2. Apply `supabase/migrations/20260917100000_observer_events_for_project.sql` to
-   `tfcchobwobpadenampyh` through the SQL Editor, after the earlier ones. Until then the Preview
-   behaves exactly as before; nothing breaks.
-3. With a showroom activated against the Preview and sending events, its project's Meetings,
+2. Apply to `tfcchobwobpadenampyh` through the SQL Editor, in this order, every migration the
+   hosted database does not hold yet. Confirm the list against the database first; by the README it
+   is the seven of 2026-09-02 (`090000` identity spine, `093000` activation and credentials,
+   `100000` analytics events, `110000` source operations, `120000` instant precision, `130000`
+   credential resolve precision, `140000` projects for account), then `20260907100000`,
+   `20260907180000`, `20260908230000` if the connectors are wanted, then
+   `20260917100000_observer_events_for_project.sql`. Add each to the `migration repair` list.
+3. Set `OBSERVER_ACTIVATION_CODE_PEPPER` and `OBSERVER_SOURCE_TOKEN_PEPPER` on the Vercel project
+   (Preview scope), each at least 32 bytes of random material, generated in a password manager and
+   pasted, never produced here. Without them no code can be issued and activation answers 503.
+4. **Decide before doing 2 and 3 on a public Preview:** the sign-in there is the scenario selector
+   with demonstration accounts switched on, and the repository is public. Anyone who signs in as the
+   MADSPACE administrator could then issue a real activation code and ingest into a real event
+   store. Gate 2 exists for this. For an integration test it is safer to keep it local, or to
+   switch the demonstration accounts off on the deployment that holds the spine.
+5. With a showroom activated against the Preview and sending events, its project's Meetings,
    Sales Flow, Project and Sales Agents fill from them. The project must have a twin in the
    read-model world by slug or name (today: ISTER TOWER, and the Akhilesh demo source).
 

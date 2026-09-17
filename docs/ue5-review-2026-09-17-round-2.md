@@ -193,6 +193,45 @@ Still open from the first addendum, none blocking: the full-queue rewrite in `En
 screenshot subtypes, the share gate and local rating export, `TrackAnalytics` unbridged, one flag
 for four environment fields.
 
+## Addendum 3 — a proposal to issue activation codes from a separate website (same evening)
+
+**The proposal.** Akhilesh offered to generate the one-time activation code from a website of his
+own, store it in a database, manage the connection with Unreal from his side, and show on that
+website whatever we say is needed. Offered as an optional, separate milestone.
+
+**Answer: not needed, and it should not be built.** It already exists on the Observer side, and it
+is the one part of the system that must have a single owner.
+
+- MADSPACE administration creates the project and the source, and issues the code
+  (`issueActivationCodeAction` → `ObserverAdmin.issueActivationCode`). The operator sees the code
+  once, with a copy button, its purpose (activation or reactivation), when it was issued, when it
+  expires, and one of four statuses: issued, consumed, expired, revoked.
+- The database never holds the code. It holds a selector and an HMAC keyed by a server-side
+  pepper (`observer.activation_codes`), the source the code activates, its purpose, its state and
+  its expiry. A code is single-use and lives fifteen minutes. A dump of the table cannot reproduce
+  one.
+- Activation mints the source credential and returns it once. From then on the source page shows
+  what an operator needs: the three states kept apart (activated, connected, ingestion verified),
+  the credential's lifecycle, last heartbeat and its freshness, the observed app, plugin, build and
+  engine, the reported environment and whether it mismatches, the last verification, the last event
+  accepted, and the outbox figures the heartbeat carries.
+
+A second website with its own table would be a second authority for credentials. The backend could
+not verify a code it did not issue; a code stored where it can be read is a credential at rest; and
+a site that talks to a database from the browser is the shape the first review removed from the
+plugin's web assets. None of that is a judgement on the offer, which was made without sight of this
+side's source, as the handoff intends.
+
+**What is his, and would help:** the screen inside IRIS where an operator types the code and sees
+what came back: activated, `already_activated` with the source id, `activation_failed` and "ask
+for a new code", the environment mismatch, and the diagnostics of handoff §8.3.
+
+**What actually stands between his build and a real backend is on this side, and is the
+operator's.** By this repository's own records the hosted Preview database holds the August
+migrations and none of the source spine, so activation cannot work there yet. See the operator
+steps in `docs/PROJECT-STATE.md`. Until then the full path, MADSPACE screens included, runs on a
+local control plane (`.env.example`, "Local control plane"), which is how it was proven here.
+
 ## C. On UE-OBS-011 — keep the bridge, then replace the nodes, in that order
 
 Agreed with the instinct to end up on the new nodes only. Two things make the order matter:
