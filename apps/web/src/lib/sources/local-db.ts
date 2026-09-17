@@ -125,15 +125,20 @@ function repositoryRoot(): string {
  * credentials, events and operations are self-contained, which is why the
  * migration suites apply exactly this set and nothing else.
  *
- * A prefix rather than a hand-listed set of filenames, so the next control-plane
+ * A date rather than a hand-listed set of filenames, so the next control-plane
  * migration is picked up without an edit here — and a date is the right
  * boundary because that is what actually separates the two groups.
+ *
+ * FROM that month on, not that month only. It was a prefix match, which would
+ * have skipped the first migration written in October without a word.
  */
-const CONTROL_PLANE_PREFIX = "202609";
+const CONTROL_PLANE_FROM = "202609";
 
 function migrationFiles(): readonly string[] {
   return readdirSync(join(repositoryRoot(), "supabase", "migrations"))
-    .filter((f) => f.endsWith(".sql") && f.startsWith(CONTROL_PLANE_PREFIX))
+    .filter(
+      (f) => f.endsWith(".sql") && f.slice(0, CONTROL_PLANE_FROM.length) >= CONTROL_PLANE_FROM,
+    )
     .sort();
 }
 

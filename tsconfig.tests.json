@@ -118,6 +118,16 @@
     "supabase/test/events-for-project.test.ts",
 
     /*
+     * THE PROJECT DIRECTORY (docs/21-self-served-projects.md).
+     *
+     * The same kind of suite, over eleven doors and one table that holds people's
+     * names. A signature string with one wrong type asks PostgreSQL about a
+     * function that does not exist, and `has_function_privilege` raises rather
+     * than answering false, so the strings are worth a strict compile.
+     */
+    "supabase/test/project-directory.test.ts",
+
+    /*
      * THE ARTICLE 50 TRIPWIRE (docs/11-preproduction-gates.md, Gate 1).
      *
      * It walks the source tree and matches strings in it. A wrong directory makes

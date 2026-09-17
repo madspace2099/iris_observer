@@ -23,6 +23,7 @@ export * from "./pglite";
 export * from "./postgrest";
 export * from "./authenticate";
 export * from "./admin";
+export * from "./directory";
 export * from "./activate";
 export * from "./ingest";
 export * from "./heartbeat";

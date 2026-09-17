@@ -40,6 +40,7 @@ const KEY = "NOT-A-REAL-KEY-THIS-IS-A-TEST-FIXTURE-ONLY";
 const ACCOUNT = "acct_northgate";
 const PROJECT = "11111111-1111-4111-8111-111111111111";
 const SOURCE = "22222222-2222-4222-8222-222222222222";
+const TENANT = "33333333-3333-4333-8333-333333333333";
 
 const CODE_SELECTOR = "SYNTHETIC-CODE-SELECTOR";
 const CODE_VERIFIER = "SYNTHETIC-CODE-VERIFIER-NEVER-A-REAL-DIGEST";
@@ -172,6 +173,137 @@ const CASES: readonly Case[] = [
     reply: [],
     invoke: (db) => db.sourceStatus({ account: ACCOUNT, project: PROJECT }),
     body: { p_account: ACCOUNT, p_project: PROJECT },
+  },
+  {
+    method: "tenantCreate",
+    facade: "observer_tenant_create",
+    reply: TENANT,
+    invoke: (db) => db.tenantCreate({ account: ACCOUNT, name: "Alder Homes", slug: "alder-homes" }),
+    body: { p_account: ACCOUNT, p_name: "Alder Homes", p_slug: "alder-homes" },
+  },
+  {
+    method: "tenantsForAccount",
+    facade: "observer_tenants_for_account",
+    reply: [],
+    invoke: (db) => db.tenantsForAccount(ACCOUNT),
+    body: { p_account: ACCOUNT },
+  },
+  {
+    method: "projectSettingsSet",
+    facade: "observer_project_settings_set",
+    reply: true,
+    invoke: (db) =>
+      db.projectSettingsSet({
+        account: ACCOUNT,
+        project: PROJECT,
+        tenant: TENANT,
+        slug: "alder-court",
+        currency: "EUR",
+        locale: "sk-SK",
+        timeZone: "Europe/Bratislava",
+      }),
+    body: {
+      p_account: ACCOUNT,
+      p_project: PROJECT,
+      p_tenant: TENANT,
+      p_slug: "alder-court",
+      p_currency: "EUR",
+      p_locale: "sk-SK",
+      p_time_zone: "Europe/Bratislava",
+    },
+  },
+  {
+    method: "projectDirectory",
+    facade: "observer_project_directory",
+    reply: [],
+    invoke: (db) => db.projectDirectory(ACCOUNT),
+    body: { p_account: ACCOUNT },
+  },
+  {
+    method: "projectViewerGrant",
+    facade: "observer_project_viewer_grant",
+    reply: true,
+    invoke: (db) =>
+      db.projectViewerGrant({
+        account: ACCOUNT,
+        project: PROJECT,
+        viewer: "acct_petra",
+        grantedBy: "acct_admin",
+      }),
+    body: {
+      p_account: ACCOUNT,
+      p_project: PROJECT,
+      p_viewer: "acct_petra",
+      p_granted_by: "acct_admin",
+    },
+  },
+  {
+    method: "projectViewerRevoke",
+    facade: "observer_project_viewer_revoke",
+    reply: true,
+    invoke: (db) =>
+      db.projectViewerRevoke({
+        account: ACCOUNT,
+        project: PROJECT,
+        viewer: "acct_petra",
+        revokedBy: "acct_admin",
+      }),
+    body: {
+      p_account: ACCOUNT,
+      p_project: PROJECT,
+      p_viewer: "acct_petra",
+      p_revoked_by: "acct_admin",
+    },
+  },
+  {
+    method: "projectViewers",
+    facade: "observer_project_viewers",
+    reply: [],
+    invoke: (db) => db.projectViewers({ account: ACCOUNT, project: PROJECT }),
+    body: { p_account: ACCOUNT, p_project: PROJECT },
+  },
+  {
+    method: "projectsForViewer",
+    facade: "observer_projects_for_viewer",
+    reply: [],
+    invoke: (db) => db.projectsForViewer({ account: ACCOUNT, viewer: "acct_petra" }),
+    body: { p_account: ACCOUNT, p_viewer: "acct_petra" },
+  },
+  {
+    method: "projectAgentNameSet",
+    facade: "observer_project_agent_name_set",
+    reply: true,
+    invoke: (db) =>
+      db.projectAgentNameSet({
+        account: ACCOUNT,
+        project: PROJECT,
+        agent: "AG-1",
+        name: "Monika Kováčová",
+      }),
+    body: { p_account: ACCOUNT, p_project: PROJECT, p_agent: "AG-1", p_name: "Monika Kováčová" },
+  },
+  {
+    method: "projectAgents",
+    facade: "observer_project_agents",
+    reply: [],
+    invoke: (db) => db.projectAgents({ account: ACCOUNT, project: PROJECT }),
+    body: { p_account: ACCOUNT, p_project: PROJECT },
+  },
+  {
+    method: "sourceAgentsReport",
+    facade: "observer_source_agents_report",
+    reply: 1,
+    /*
+     * The roster travels as a JSON array, not as a string: PostgREST casts a
+     * JSON value to the parameter's `jsonb` itself, where the SQL adapter has
+     * to serialise and cast in the statement.
+     */
+    invoke: (db) =>
+      db.sourceAgentsReport({
+        source: SOURCE,
+        agents: [{ agent_id: "AG-1", display_name: "Monika" }],
+      }),
+    body: { p_source: SOURCE, p_agents: [{ agent_id: "AG-1", display_name: "Monika" }] },
   },
   {
     method: "activationIssue",

@@ -210,6 +210,64 @@ export interface ProjectSummaryRow {
   readonly last_activity_at: Instant | null;
 }
 
+/** A property developer whose projects the estate administers. */
+export interface TenantRow {
+  readonly tenant_id: string;
+  readonly name: string;
+  /** The first segment of every customer address. Unique across the system. */
+  readonly slug: string;
+  readonly status: string;
+  readonly created_at: Instant;
+  readonly project_count: number;
+}
+
+/**
+ * One active project with what the customer side needs to show it.
+ *
+ * A project is COMPLETE when its developer, its slug and its three settings are
+ * all present, and only a complete project can be a dashboard. The nulls are the
+ * answer to "why is this project not visible yet", so they are reported rather
+ * than filtered out here.
+ */
+export interface ProjectDirectoryRow {
+  readonly project_id: string;
+  readonly name: string;
+  readonly slug: string | null;
+  readonly tenant_id: string | null;
+  readonly tenant_name: string | null;
+  readonly tenant_slug: string | null;
+  /** ISO 4217, three capitals. */
+  readonly currency: string | null;
+  /** BCP 47. */
+  readonly locale: string | null;
+  /** IANA. The database checks the shape only; the application checks the zone. */
+  readonly time_zone: string | null;
+  readonly created_at: Instant;
+}
+
+/** A standing grant. Revoked ones are kept in the table and never returned. */
+export interface ProjectViewerRow {
+  readonly viewer_account: string;
+  readonly granted_by: string;
+  readonly created_at: Instant;
+}
+
+/**
+ * Somebody who presented on a project, or whom administration has named.
+ *
+ * `display_name` null is a presenter nobody has named yet, which is the row an
+ * operator is looking for. `session_count` zero is a name with no meeting yet.
+ */
+export interface ProjectAgentRow {
+  /** Exactly what the showroom sends as `agent_id`. */
+  readonly agent_ref: string;
+  readonly display_name: string | null;
+  /** `administration` | `showroom`, null with no name. */
+  readonly named_by: string | null;
+  readonly session_count: number;
+  readonly last_seen_at: Instant | null;
+}
+
 /**
  * A source's operational state — what a heartbeat writes and Admin reads.
  *
@@ -325,6 +383,88 @@ export interface ObserverDb {
     readonly project: string;
   }): Promise<readonly SourceStatusRow[]>;
 
+  /* --- the project directory -------------------------------------------- */
+
+  /** Returns the new developer's id. A slug already taken raises, like a project's. */
+  tenantCreate(input: {
+    readonly account: string;
+    readonly name: string;
+    readonly slug: string;
+  }): Promise<string>;
+
+  tenantsForAccount(account: string): Promise<readonly TenantRow[]>;
+
+  /**
+   * Attach a project to a developer and give it its address and settings.
+   *
+   * False for a project that is not this account's active project, a developer
+   * of another estate, and any call that would move a project that already has
+   * a developer or change its address. The settings of such a project may still
+   * be changed, by repeating its developer and slug.
+   */
+  projectSettingsSet(input: {
+    readonly account: string;
+    readonly project: string;
+    readonly tenant: string;
+    readonly slug: string;
+    readonly currency: string;
+    readonly locale: string;
+    readonly timeZone: string;
+  }): Promise<boolean>;
+
+  /** Every active project of the account, complete or not. */
+  projectDirectory(account: string): Promise<readonly ProjectDirectoryRow[]>;
+
+  /** True when the grant stands afterwards, whether or not this call made it. */
+  projectViewerGrant(input: {
+    readonly account: string;
+    readonly project: string;
+    readonly viewer: string;
+    readonly grantedBy: string;
+  }): Promise<boolean>;
+
+  /** False when there was no standing grant to revoke. */
+  projectViewerRevoke(input: {
+    readonly account: string;
+    readonly project: string;
+    readonly viewer: string;
+    readonly revokedBy: string;
+  }): Promise<boolean>;
+
+  projectViewers(input: {
+    readonly account: string;
+    readonly project: string;
+  }): Promise<readonly ProjectViewerRow[]>;
+
+  /** The projects a person holds a standing grant on. */
+  projectsForViewer(input: {
+    readonly account: string;
+    readonly viewer: string;
+  }): Promise<readonly { readonly project_id: string }[]>;
+
+  /** Administration names a presenter. Replaces a showroom's name, never the reverse. */
+  projectAgentNameSet(input: {
+    readonly account: string;
+    readonly project: string;
+    readonly agent: string;
+    readonly name: string;
+  }): Promise<boolean>;
+
+  projectAgents(input: {
+    readonly account: string;
+    readonly project: string;
+  }): Promise<readonly ProjectAgentRow[]>;
+
+  /**
+   * A showroom reports the names on its roster. Identity comes from the
+   * resolved source, never from the body. Returns how many names were taken;
+   * a name administration set is left alone and not counted.
+   */
+  sourceAgentsReport(input: {
+    readonly source: string;
+    readonly agents: readonly { readonly agent_id: string; readonly display_name: string }[];
+  }): Promise<number>;
+
   /* --- activation ------------------------------------------------------- */
 
   /**
@@ -428,6 +568,17 @@ export const FACADE_NAMES = [
   "observer_source_create",
   "observer_source_set_state",
   "observer_source_status",
+  "observer_tenant_create",
+  "observer_tenants_for_account",
+  "observer_project_settings_set",
+  "observer_project_directory",
+  "observer_project_viewer_grant",
+  "observer_project_viewer_revoke",
+  "observer_project_viewers",
+  "observer_projects_for_viewer",
+  "observer_project_agent_name_set",
+  "observer_project_agents",
+  "observer_source_agents_report",
   "observer_activation_issue",
   "observer_activation_consume",
   "observer_credential_resolve",

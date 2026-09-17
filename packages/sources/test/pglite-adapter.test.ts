@@ -57,6 +57,7 @@ const FILES = [
   "20260902100000_observer_analytics_events.sql",
   "20260902110000_observer_source_operations.sql",
   "20260917100000_observer_events_for_project.sql",
+  "20260918100000_observer_project_directory.sql",
 ];
 
 const ACCOUNT_A = "acct_northgate";
@@ -156,6 +157,135 @@ async function makeSource(account: string, label: string): Promise<string> {
     label,
   });
 }
+
+describe("the project directory round-trips through the adapter", () => {
+  it("makes a developer, completes a project, and reads both back", async () => {
+    const tenant = await db.tenantCreate({
+      account: ACCOUNT_A,
+      name: "Alder Homes",
+      slug: "alder-homes-adapter",
+    });
+    expect(tenant, "the scalar uuid").toMatch(/^[0-9a-f-]{36}$/);
+
+    const project = await db.projectCreate({ account: ACCOUNT_A, name: "Alder Court", slug: null });
+    expect(
+      await db.projectSettingsSet({
+        account: ACCOUNT_A,
+        project,
+        tenant,
+        slug: "alder-court",
+        currency: "EUR",
+        locale: "sk-SK",
+        timeZone: "Europe/Bratislava",
+      }),
+      "seven arguments in the facade's order",
+    ).toBe(true);
+
+    const row = (await db.projectDirectory(ACCOUNT_A)).find((r) => r.project_id === project);
+    expect(row).toMatchObject({
+      name: "Alder Court",
+      slug: "alder-court",
+      tenant_id: tenant,
+      tenant_name: "Alder Homes",
+      tenant_slug: "alder-homes-adapter",
+      currency: "EUR",
+      locale: "sk-SK",
+      time_zone: "Europe/Bratislava",
+    });
+
+    const listed = (await db.tenantsForAccount(ACCOUNT_A)).find((t) => t.tenant_id === tenant);
+    expect(listed?.slug).toBe("alder-homes-adapter");
+    expect(Number(listed?.project_count)).toBe(1);
+
+    expect(
+      (await db.projectDirectory(ACCOUNT_B)).some((r) => r.project_id === project),
+      "another account's directory does not hold it",
+    ).toBe(false);
+  });
+
+  it("grants, lists, answers for the viewer, and revokes", async () => {
+    const project = await db.projectCreate({ account: ACCOUNT_A, name: "P viewers", slug: null });
+    const grant = { account: ACCOUNT_A, project, viewer: "acct_petra", grantedBy: "acct_admin" };
+
+    expect(await db.projectViewerGrant(grant)).toBe(true);
+    expect(await db.projectViewers({ account: ACCOUNT_A, project })).toMatchObject([
+      { viewer_account: "acct_petra", granted_by: "acct_admin" },
+    ]);
+    expect(await db.projectsForViewer({ account: ACCOUNT_A, viewer: "acct_petra" })).toContainEqual(
+      {
+        project_id: project,
+      },
+    );
+    expect(
+      await db.projectsForViewer({ account: ACCOUNT_B, viewer: "acct_petra" }),
+      "asked of another account, the same person holds nothing",
+    ).toEqual([]);
+
+    expect(
+      await db.projectViewerRevoke({
+        account: ACCOUNT_A,
+        project,
+        viewer: "acct_petra",
+        revokedBy: "acct_admin",
+      }),
+    ).toBe(true);
+    expect(await db.projectViewers({ account: ACCOUNT_A, project })).toEqual([]);
+  });
+
+  it("names a presenter, takes a showroom's roster as one jsonb, and lists both", async () => {
+    const project = await db.projectCreate({ account: ACCOUNT_A, name: "P agents", slug: null });
+    const source = await db.sourceCreate({
+      account: ACCOUNT_A,
+      project,
+      type: "showroom_ue5",
+      environment: "production",
+      label: "Agents PC",
+    });
+
+    issued = [];
+    expect(
+      await db.sourceAgentsReport({
+        source,
+        agents: [
+          { agent_id: "AG-1", display_name: "Monika" },
+          { agent_id: "AG-2", display_name: "Tomas" },
+        ],
+      }),
+      "a count, not a row",
+    ).toBe(2);
+    expect(issued).toHaveLength(1);
+    expect(issued[0]?.params[1], "one jsonb parameter, serialised here").toBe(
+      JSON.stringify([
+        { agent_id: "AG-1", display_name: "Monika" },
+        { agent_id: "AG-2", display_name: "Tomas" },
+      ]),
+    );
+
+    expect(
+      await db.projectAgentNameSet({
+        account: ACCOUNT_A,
+        project,
+        agent: "AG-1",
+        name: "Monika Kováčová",
+      }),
+    ).toBe(true);
+    expect(
+      await db.projectAgentNameSet({
+        account: ACCOUNT_B,
+        project,
+        agent: "AG-1",
+        name: "Somebody else's word",
+      }),
+      "another account cannot name this project's people",
+    ).toBe(false);
+
+    const agents = await db.projectAgents({ account: ACCOUNT_A, project });
+    expect(agents.map((a) => [a.agent_ref, a.display_name, a.named_by]).sort()).toEqual([
+      ["AG-1", "Monika Kováčová", "administration"],
+      ["AG-2", "Tomas", "showroom"],
+    ]);
+  });
+});
 
 describe("the control plane round-trips through the adapter", () => {
   it("creates a project, creates a source under it, and reads the source back", async () => {
@@ -681,12 +811,23 @@ describe("the adapter implements the whole port and nothing else", () => {
     "eventsForSource",
     "heartbeatRecord",
     "ingestionVerified",
+    "projectAgentNameSet",
+    "projectAgents",
     "projectCreate",
+    "projectDirectory",
+    "projectSettingsSet",
+    "projectViewerGrant",
+    "projectViewerRevoke",
+    "projectViewers",
     "projectsForAccount",
+    "projectsForViewer",
+    "sourceAgentsReport",
     "sourceCreate",
     "sourceOperations",
     "sourceSetState",
     "sourceStatus",
+    "tenantCreate",
+    "tenantsForAccount",
   ] as const;
 
   /* No database: this asks what the object has, not what the object can do. */

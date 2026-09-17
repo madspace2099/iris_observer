@@ -1,5 +1,9 @@
 import type {
+  ProjectAgentRow,
+  ProjectDirectoryRow,
   ProjectSummaryRow,
+  ProjectViewerRow,
+  TenantRow,
   ActivationConsumeRow,
   CredentialResolveRow,
   CredentialStatusRow,
@@ -202,6 +206,89 @@ export function pgliteDb(query: SqlQuery): ObserverDb {
         input.account,
         input.project,
       ])) as readonly SourceStatusRow[],
+
+    /* --- the project directory -------------------------------------------- */
+
+    tenantCreate: (input) =>
+      callScalar<string>(query, "observer_tenant_create", "$1, $2, $3", [
+        input.account,
+        input.name,
+        input.slug,
+      ]),
+
+    tenantsForAccount: async (account) =>
+      (await callTable(query, "observer_tenants_for_account", "$1", [
+        account,
+      ])) as readonly TenantRow[],
+
+    /*
+     * Seven positional strings. The order is the facade's: account, project,
+     * developer, slug, then currency, locale, time zone.
+     */
+    projectSettingsSet: (input) =>
+      callScalar<boolean>(query, "observer_project_settings_set", "$1, $2, $3, $4, $5, $6, $7", [
+        input.account,
+        input.project,
+        input.tenant,
+        input.slug,
+        input.currency,
+        input.locale,
+        input.timeZone,
+      ]),
+
+    projectDirectory: async (account) =>
+      (await callTable(query, "observer_project_directory", "$1", [
+        account,
+      ])) as readonly ProjectDirectoryRow[],
+
+    projectViewerGrant: (input) =>
+      callScalar<boolean>(query, "observer_project_viewer_grant", "$1, $2, $3, $4", [
+        input.account,
+        input.project,
+        input.viewer,
+        input.grantedBy,
+      ]),
+
+    projectViewerRevoke: (input) =>
+      callScalar<boolean>(query, "observer_project_viewer_revoke", "$1, $2, $3, $4", [
+        input.account,
+        input.project,
+        input.viewer,
+        input.revokedBy,
+      ]),
+
+    projectViewers: async (input) =>
+      (await callTable(query, "observer_project_viewers", "$1, $2", [
+        input.account,
+        input.project,
+      ])) as readonly ProjectViewerRow[],
+
+    projectsForViewer: async (input) =>
+      (await callTable(query, "observer_projects_for_viewer", "$1, $2", [
+        input.account,
+        input.viewer,
+      ])) as readonly { readonly project_id: string }[],
+
+    projectAgentNameSet: (input) =>
+      callScalar<boolean>(query, "observer_project_agent_name_set", "$1, $2, $3, $4", [
+        input.account,
+        input.project,
+        input.agent,
+        input.name,
+      ]),
+
+    projectAgents: async (input) =>
+      (await callTable(query, "observer_project_agents", "$1, $2", [
+        input.account,
+        input.project,
+      ])) as readonly ProjectAgentRow[],
+
+    /* A jsonb whose cast has to live in the statement, like `eventsAppend`. */
+    sourceAgentsReport: (input) =>
+      callScalar<number>(query, "observer_source_agents_report", "$1, $2::jsonb", [
+        input.source,
+        JSON.stringify(input.agents),
+      ]),
 
     /* --- activation ------------------------------------------------------- */
 

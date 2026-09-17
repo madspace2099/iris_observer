@@ -341,6 +341,7 @@ export const PGLITE_SUITES: readonly string[] = [
   "catalogue-connectors.test.ts",
   "deals-connectors.test.ts",
   "events-for-project.test.ts",
+  "project-directory.test.ts",
   "m10-migration-readiness.test.ts",
   "contract-readiness.test.ts",
   "credential-grants.test.ts",

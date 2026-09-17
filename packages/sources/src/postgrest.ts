@@ -42,7 +42,11 @@
  */
 
 import type {
+  ProjectAgentRow,
+  ProjectDirectoryRow,
   ProjectSummaryRow,
+  ProjectViewerRow,
+  TenantRow,
   ActivationConsumeRow,
   CredentialResolveRow,
   CredentialStatusRow,
@@ -273,6 +277,10 @@ function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
 }
 
+function isNumber(value: unknown): value is number {
+  return typeof value === "number";
+}
+
 /**
  * `https://x.supabase.co///` becomes `https://x.supabase.co`.
  *
@@ -365,6 +373,161 @@ export function postgrestDb(config: PostgrestConfig): ObserverDb {
         p_account: input.account,
         p_project: input.project,
       });
+    },
+
+    /* --- the project directory ------------------------------------------ */
+
+    tenantCreate(input: {
+      readonly account: string;
+      readonly name: string;
+      readonly slug: string;
+    }): Promise<string> {
+      return callScalar(
+        config,
+        "observer_tenant_create",
+        { p_account: input.account, p_name: input.name, p_slug: input.slug },
+        isString,
+        "a developer id",
+      );
+    },
+
+    tenantsForAccount(account: string): Promise<readonly TenantRow[]> {
+      return callRows<TenantRow>(config, "observer_tenants_for_account", { p_account: account });
+    },
+
+    projectSettingsSet(input: {
+      readonly account: string;
+      readonly project: string;
+      readonly tenant: string;
+      readonly slug: string;
+      readonly currency: string;
+      readonly locale: string;
+      readonly timeZone: string;
+    }): Promise<boolean> {
+      return callScalar(
+        config,
+        "observer_project_settings_set",
+        {
+          p_account: input.account,
+          p_project: input.project,
+          p_tenant: input.tenant,
+          p_slug: input.slug,
+          p_currency: input.currency,
+          p_locale: input.locale,
+          p_time_zone: input.timeZone,
+        },
+        isBoolean,
+        "a boolean",
+      );
+    },
+
+    projectDirectory(account: string): Promise<readonly ProjectDirectoryRow[]> {
+      return callRows<ProjectDirectoryRow>(config, "observer_project_directory", {
+        p_account: account,
+      });
+    },
+
+    projectViewerGrant(input: {
+      readonly account: string;
+      readonly project: string;
+      readonly viewer: string;
+      readonly grantedBy: string;
+    }): Promise<boolean> {
+      return callScalar(
+        config,
+        "observer_project_viewer_grant",
+        {
+          p_account: input.account,
+          p_project: input.project,
+          p_viewer: input.viewer,
+          p_granted_by: input.grantedBy,
+        },
+        isBoolean,
+        "a boolean",
+      );
+    },
+
+    projectViewerRevoke(input: {
+      readonly account: string;
+      readonly project: string;
+      readonly viewer: string;
+      readonly revokedBy: string;
+    }): Promise<boolean> {
+      return callScalar(
+        config,
+        "observer_project_viewer_revoke",
+        {
+          p_account: input.account,
+          p_project: input.project,
+          p_viewer: input.viewer,
+          p_revoked_by: input.revokedBy,
+        },
+        isBoolean,
+        "a boolean",
+      );
+    },
+
+    projectViewers(input: {
+      readonly account: string;
+      readonly project: string;
+    }): Promise<readonly ProjectViewerRow[]> {
+      return callRows<ProjectViewerRow>(config, "observer_project_viewers", {
+        p_account: input.account,
+        p_project: input.project,
+      });
+    },
+
+    projectsForViewer(input: {
+      readonly account: string;
+      readonly viewer: string;
+    }): Promise<readonly { readonly project_id: string }[]> {
+      return callRows<{ readonly project_id: string }>(config, "observer_projects_for_viewer", {
+        p_account: input.account,
+        p_viewer: input.viewer,
+      });
+    },
+
+    projectAgentNameSet(input: {
+      readonly account: string;
+      readonly project: string;
+      readonly agent: string;
+      readonly name: string;
+    }): Promise<boolean> {
+      return callScalar(
+        config,
+        "observer_project_agent_name_set",
+        {
+          p_account: input.account,
+          p_project: input.project,
+          p_agent: input.agent,
+          p_name: input.name,
+        },
+        isBoolean,
+        "a boolean",
+      );
+    },
+
+    projectAgents(input: {
+      readonly account: string;
+      readonly project: string;
+    }): Promise<readonly ProjectAgentRow[]> {
+      return callRows<ProjectAgentRow>(config, "observer_project_agents", {
+        p_account: input.account,
+        p_project: input.project,
+      });
+    },
+
+    sourceAgentsReport(input: {
+      readonly source: string;
+      readonly agents: readonly { readonly agent_id: string; readonly display_name: string }[];
+    }): Promise<number> {
+      return callScalar(
+        config,
+        "observer_source_agents_report",
+        { p_source: input.source, p_agents: input.agents },
+        isNumber,
+        "a count",
+      );
     },
 
     /* --- activation ----------------------------------------------------- */
