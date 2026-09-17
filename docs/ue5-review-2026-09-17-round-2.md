@@ -51,9 +51,19 @@ nothing to be compatible with: the flat form never worked against any server. An
 3.  diagnostic.test, as sent                       ok: true
 ```
 
-**Fix:** delete `ObserverActivationClient.cpp:114-119`. In `SendHeartbeat`, delete `:541-543` and
-`:583-589` — the heartbeat body is exactly `{ sent_at, build, queue, last_error }` and nothing else
-(`installation_nonce` is an activation-time field; the heartbeat is authenticated by the bearer token).
+**Fix, exactly:**
+
+- Activation: delete `ObserverActivationClient.cpp:114-118` (the comment and the four flat keys
+  `app_version`, `plugin_version`, `build_id`, `engine_version`). **Keep `:119`
+  `reported_environment`** — it sits inside the "backward-compatibility" block but it is a required
+  top-level field. (An earlier version of this document said `:114-119`; that was wrong by one line
+  and would have traded one rejection for another.) The body is then exactly
+  `{ activation_code, installation_nonce, build, os, reported_environment }`.
+- Heartbeat: delete `:541-543` (`installation_nonce`, `reported_environment`, `os` — these three are
+  *outside* the commented compat block, easy to miss) and `:583-589`. The body is then exactly
+  `{ sent_at, build, queue, last_error }` and nothing else; the heartbeat is authenticated by the
+  bearer token, so it carries no installation identity of its own.
+
 Everything else in both payloads is already right.
 
 **Why the 17 tests did not catch it:** they run the mock transport (`obs_tok_mock_*` / `DEV-` codes),
