@@ -57,11 +57,32 @@ export function SyntheticBadge() {
    * learn that these figures are a demonstration — it is the shortest honest
    * label, not a shorter claim.
    */
+  /*
+   * TWO MARKERS, AND THE PROJECT LAYOUT CHOOSES (`data-sessions`).
+   *
+   * "Every figure is generated" stopped being true the day a project could be
+   * composed with its own showroom's meetings, and a marker that calls real
+   * meetings a demonstration is the same lie told backwards. Both are rendered
+   * and the stylesheet shows one, so the dozen places that mount this marker
+   * cannot disagree with each other about which project they are on.
+   */
   return (
-    <span className="iris-synthetic" title="Synthetic demonstration data">
-      <span className="iris-sr">Synthetic demonstration data</span>
-      <span aria-hidden="true">Demo data</span>
-    </span>
+    <>
+      <span className="iris-synthetic obs-when-synthetic" title="Synthetic demonstration data">
+        <span className="iris-sr">Synthetic demonstration data</span>
+        <span aria-hidden="true">Demo data</span>
+      </span>
+      <span
+        className="iris-synthetic obs-when-delivered"
+        title="Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data."
+      >
+        <span className="iris-sr">
+          Meetings come from this project's own showroom. Whatever a connector has not delivered is
+          demonstration data.
+        </span>
+        <span aria-hidden="true">Live meetings</span>
+      </span>
+    </>
   );
 }
 

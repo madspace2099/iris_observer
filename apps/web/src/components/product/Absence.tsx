@@ -150,10 +150,23 @@ export function Failure({
  * demonstration data" did to the small-desktop layout the first time.
  */
 export function Synthetic() {
+  /* Two markers; the project layout's `data-sessions` shows one. See `SyntheticBadge` for why. */
   return (
-    <span className="ox-synthetic" title="Synthetic demonstration data">
-      <span className="ox-sr">Synthetic demonstration data</span>
-      <span aria-hidden="true">Demo data</span>
-    </span>
+    <>
+      <span className="ox-synthetic obs-when-synthetic" title="Synthetic demonstration data">
+        <span className="ox-sr">Synthetic demonstration data</span>
+        <span aria-hidden="true">Demo data</span>
+      </span>
+      <span
+        className="ox-synthetic obs-when-delivered"
+        title="Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data."
+      >
+        <span className="ox-sr">
+          Meetings come from this project's own showroom. Whatever a connector has not delivered is
+          demonstration data.
+        </span>
+        <span aria-hidden="true">Live meetings</span>
+      </span>
+    </>
   );
 }

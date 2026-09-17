@@ -148,6 +148,28 @@ a {
   font-size: var(--text-kicker);
 }
 
+/* --- the data marker ------------------------------------------------------ */
+
+/*
+ * Two markers are rendered wherever one appears — "Demo data" and "Live
+ * meetings" — and the project layout's `data-sessions` shows one of them, so a
+ * dozen pages cannot disagree about which project they are on. Outside a
+ * project layout nothing is delivered and the synthetic marker shows. The
+ * element in the selector is there to outrank the markers' own one-class
+ * `display` rules without reaching for `!important`.
+ */
+span.obs-when-delivered {
+  display: none;
+}
+
+[data-sessions="delivered"] span.obs-when-synthetic {
+  display: none;
+}
+
+[data-sessions="delivered"] span.obs-when-delivered {
+  display: inline-flex;
+}
+
 /* --- primary navigation --------------------------------------------------- */
 
 .obs-nav {
@@ -839,6 +861,15 @@ a {
   .obs-header,
   .obs-nav {
     padding-inline: var(--space-3);
+  }
+  /*
+   * The strip scrolls sideways with its scrollbar hidden, so at this width
+   * nothing said there was more of it. A fading right edge does, and the end
+   * padding lets the last item scroll clear of the fade.
+   */
+  .obs-nav {
+    padding-inline-end: 2.5rem;
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
   }
   .obs-verdict-headline {
     font-size: var(--text-h6);

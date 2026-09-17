@@ -11,6 +11,7 @@ import { AskDock } from "@/components/ask-iris/AskDock";
 import { SyntheticBadge } from "@/showroom/parts";
 import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
+import { liveSessionSource } from "@/lib/connectors/session-source";
 import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
 
 /**
@@ -260,8 +261,15 @@ export default async function ProjectLayout({
    * fight: the rail floats over the ground exactly as it did, and ASK IRIS in
    * the header is the full-size door to the same entity.
    */
+  /*
+   * Whether this project's meetings are its own showroom's. The one place it is
+   * decided: the markers below and on every page read it off this wrapper.
+   * `display: contents` keeps the wrapper out of the layout it surrounds.
+   */
+  const delivered = (await liveSessionSource.sessionsFor(project)) !== null;
+
   return (
-    <>
+    <div data-sessions={delivered ? "delivered" : "synthetic"} style={{ display: "contents" }}>
       <Shell
         scope={{ tenantSlug: tenant.slug, projectSlug: project.slug }}
         viewer={{ displayName: viewer.displayName, roleLabel: roleLabel(viewer.role) }}
@@ -274,7 +282,7 @@ export default async function ProjectLayout({
       </Shell>
 
       <AskDock root={root} periodParam="" projectLabel={project.name} />
-    </>
+    </div>
   );
 }
 
