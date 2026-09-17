@@ -29,7 +29,7 @@ import { forgetSessionMemo } from "@/lib/connectors/session-source";
 import { repository } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
 
-import { CONTROL_PLANE_ACCOUNT, controlPlane } from "./control-plane";
+import { CONTROL_PLANE_ACCOUNT, controlPlane, runningLocally } from "./control-plane";
 import { observerLocalDirectory } from "./local-db";
 import { DEMONSTRATION_PROJECT_SLUG, DEMONSTRATION_SOURCE_TYPE, demonstrationEstate } from "./seed";
 
@@ -768,6 +768,21 @@ export async function meetingAction(): Promise<
     }
   | Refused
 > {
+  /*
+   * LOCAL ONLY, AND CHECKED HERE RATHER THAN TRUSTED TO WHERE THE BUTTON IS.
+   *
+   * The driver is mounted only on a local control plane, but a server action is
+   * an HTTP endpoint and the mount is not a guard. Every other step writes
+   * operational state a customer never sees. This one writes a MEETING, which a
+   * customer's Sales Flow, Meetings and Sales Agents would draw as their own
+   * showroom's — so on a hosted database it is refused outright.
+   */
+  if (!runningLocally()) {
+    return refuse(
+      "A demonstration meeting can only be sent on a local control plane. On a hosted database it would reach a customer's screens as one of their own.",
+    );
+  }
+
   const estate = await operatorEstate();
   if (isRefused(estate)) return estate;
 

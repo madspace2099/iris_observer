@@ -106,6 +106,15 @@
     "supabase/test/deals-connectors.test.ts",
     "supabase/test/m10-migration-readiness.test.ts",
     "apps/web/test/connectors.test.ts",
-    "apps/web/test/unit-register-sparse.test.ts"
+    "apps/web/test/unit-register-sparse.test.ts",
+
+    /*
+     * WHO MAY READ A PROJECT'S EVENTS (ADR-0038).
+     *
+     * A grants suite like the ones above: every assertion names a function by
+     * its signature string and a role by its name, and a typo in either makes
+     * PostgreSQL answer about nothing while the test goes green.
+     */
+    "supabase/test/events-for-project.test.ts"
   ]
 }
