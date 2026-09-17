@@ -2039,6 +2039,38 @@ plane: the whole road with a typed name, the whole road with a reported roster, 
 import and the lit unit, and the unit code diagnostic. Each screen they end on was looked at as a
 screenshot in `artifacts/qa-shots/`.
 
+### Closing verification, 2026-09-18, and the two things it found in the apparatus
+
+- **The two `onTaskUpdate` timeouts were not load.** They came back with nothing else running.
+  A hook and a test that each block for 35 seconds reproduce them alone: a synchronous hook and the
+  synchronous tests after it are one stretch to the worker's event loop, and the release suites
+  build a package synchronously for 45 seconds and then scan the branch's history for 40.
+  `test-support/yield.ts` (`506f5ba`, `36d2dd3`) turns the loop before every test; five turns
+  were needed on Windows, one was not enough.
+- **Then one test timed out at 30 s:** "finds no token the repository cannot account for", 28.6 s
+  on the first run of the day. `accountableHashes()` asked `git rev-parse` for each commit's tree,
+  a process per commit, 317 today and one more with every commit, inside every `build()` and
+  inside that test. One `git log --format='%H %T'` gives the same set (`2846aaa`, checked): the
+  test now takes 1.9 s and the whole suite 207 s instead of 260 to 293.
+- **Vitest, whole suite, clean tree, at `2846aaa`: 138 files, 3564 passed, 1 skipped, 0 failed,
+  no unhandled error, exit 0.** The closing run at the final commit is recorded below it.
+- **Playwright against a fresh production build, desktop and mobile, twelve specs** (the nine of
+  the 2026-09-17 closing plus `authorization`, `project-switching`, `agent-authorisation`):
+  **288 passed, 79 skipped by viewport, 13 failed**, 18 minutes. The thirteen:
+  - ten are `authorization.spec.ts` on `mobile`: it looks for the desktop header's Period
+    combobox, developer switch and viewer name, which the phone shell keeps in its menu (unchanged
+    since 2026-09-10). Every one passes on `desktop`. Test debt, filed as a task, not a regression.
+  - two are `layout-integrity` on `mobile` at 1366 and 1280, timeouts. Rerun alone, all four
+    wide widths take 31 to 32 s against a 30 s budget on the Pixel 7 profile and the narrow ones 15
+    to 20 s; on `desktop` every width passes, and a timing probe put each surface at 1 to 1.4 s to
+    network idle. The 2026-09-10 notes already call this case a flake on mobile. Whether this day
+    added the missing second or the margin was already gone is not established; the task above
+    covers it.
+  - one is "Units is unharmed" on `desktop`, a 30 s sign-in wait in the long run; alone it passes
+    in 3 s.
+- The build is the `next build` those runs start from. Not run: `wide`, the screenshot
+  generators, `m10-acceptance`, anything against the Preview.
+
 ### Next recommended action
 
 1. **Akhilesh needs three things from this day**, and they reach him only if the branch is pushed,
