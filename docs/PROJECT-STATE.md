@@ -1604,44 +1604,25 @@ anyone acted on it.
   the identical `hidden` attribute on its own `S:0` while rendering perfectly. The earlier draft of
   this section called this a possible P0 across "Units and Meetings." Half of that was wrong; struck
   through in favour of what actually reproduces below.
-- **1 of the 14 (`milestone-review.spec.ts` "14-meeting-detail", `/meetings`) is a real, confirmed,
-  narrower bug — on `/meetings` specifically, not `/units`.** Fetching `/alpha/ister-tower/meetings`
-  directly returns a complete 323,800-byte response in **64ms**, already containing the fully
-  resolved "Meetings" register — so this is not a slow query and not resource pressure (the
-  identical machine, identical memory pressure, rendered `/units` and `/project` correctly and
-  quickly in the same session). But navigating there in a real browser tab never reveals that
-  content: `document.body.innerText` stayed on `loading.tsx`'s fallback text for 95+ continuous
-  seconds, confirmed via screenshot (skeleton bars, not the register), reproduced twice, on a freshly
-  restarted server. No JS console error surfaced. The generic `$RC("B:0","S:0")` swap call — React's
-  own framework boilerplate, byte-identical in shape to the one on the working `/units` response — is
-  present in the HTML but its client-side execution never completes for this page specifically. Root
-  cause not found (would need browser devtools breakpoints inside React's own hydration code, not
-  attempted); what's confirmed is that it's real, it's `/meetings`-specific, and it is not explained
-  by anything ruled out above.
-- **4 of the 14 remain uninvestigated this pass**: `milestone-review.spec.ts` "agency manager context
-  switching" (a `Developer` combobox never found), "12-storytelling" ("Execution context was
-  destroyed, most likely because of a navigation" — reads like an ordinary timing flake, not chased),
-  and `observer-review.spec.ts`'s two `.obs-console-orb` screenshot timeouts. One freshly-discovered,
-  plausible partial explanation for the Ask-Observer-shaped failures among these: this server's own
-  startup log states `Ask Observer is refusing every question: OBSERVER_SUBJECT_PEPPER is not set` —
-  a missing local env var, not an app defect — though this was not traced through to confirm it's the
-  actual cause of any specific one of these four.
+- **RETRACTED 2026-09-17 — there is no `/meetings` defect.** The entry that stood here called it
+  "real, confirmed, reproduced twice". It was the Claude Browser pane: React defers the streamed
+  reveal (`$RC` → `$RV`) to `requestAnimationFrame`, and that pane does not paint unless fronted, so
+  the swap never ran _there_. In real headless Chromium `/alpha/ister-tower/meetings`,
+  `/alpha/northgate/meetings` and `/units` all reveal in 2–6s
+  (`node artifacts/qa-shots/reveal-check.mjs`, which exits non-zero if a page stays on the
+  fallback). A memory note written on 2026-09-09 described this exact artefact and was not applied;
+  it now names the mechanism and the symptoms. The wrong claim was never acted on.
+- **Every remaining failure was in three screenshot generators, not in an assertion spec.**
+  `milestone-review`, `observer-review` and `madspace-screenshots` each say in their own docblock that
+  they produce images for a human and assert nothing; the first two were written against the briefing
+  landing and the Observer console that Ask IRIS has since replaced, and wrote into a dead session's
+  temp directory. They are now opt-in through the env var each already defined
+  (`OBSERVER_MILESTONE_SHOTS`, `OBSERVER_REVIEW_SHOTS`; `madspace-screenshots` needs
+  `OBSERVER_BASE_URL`, as its docblock always required). Verified: 26 of 26 skip on `wide`.
 
-**Net effect on `wide`'s real signal: 1 confirmed defect (`/meetings`), 1 confirmed test-selector bug
-(affecting 5 of the 14 lines), 1 confirmed non-bug invocation gap (5 more), 4 still open.** Nothing
-here blocks or is blocked by the Akhilesh report or the MADSPACE items above — independent tracks.
-
-**Next recommended action, in order.** (1) Root-cause the `/meetings` swap failure — start from
-`meetings/page.tsx`'s single `repository.getMeetings(...)` call and `MeetingRegister`, diff against
-what `units/page.tsx` does differently, and check with real devtools (not this session's
-JS-injection probing) for a swallowed hydration error. This is the one real, reproducible, shipped
-defect out of the 14 and is worth more than anything else in this list. (2) Fix the `.iris-matrix-row`
-selector in both spec files to target `/project` or `/audience` (wherever `UnitMatrix` actually
-renders), or point them at what `/units`/`/meetings` genuinely expose. (3) Give
-`madspace-screenshots.spec.ts` a documented dev-server invocation or a `test.skip` on
-`NODE_ENV === "production"`, matching its own docblock, so `wide` can be re-run clean. (4) Set
-`OBSERVER_SUBJECT_PEPPER` locally (32 bytes hex) and re-check the four uninvestigated failures before
-assuming any of them are real — several may simply disappear.
+**Net effect: every assertion spec that ran passed at 1920×1080 (255 of 255); `wide` has no known
+product defect behind it.** Whoever wants the review image sets again sets the variable and updates
+the selectors to the current UI first.
 
 ## 2026-09-17 — auth review fixes, then Akhilesh's round-2 drop
 

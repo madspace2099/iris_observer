@@ -25,6 +25,16 @@ async function shoot(page: Page, name: string) {
 }
 
 test.describe("Observer review set", () => {
+  /*
+   * Opt-in, for the reason `milestone-review.spec.ts` states: images for a
+   * human, no assertions, and selectors for a console that no longer sits on
+   * the landing page.
+   */
+  test.skip(
+    () => process.env["OBSERVER_REVIEW_SHOTS"] === undefined,
+    "A screenshot generator: set OBSERVER_REVIEW_SHOTS to produce the set.",
+  );
+
   test("briefing at 1920×1080", async ({ page }, info) => {
     test.skip(info.project.name !== "wide", "This shot is the wide viewport.");
     await signInAs(page, "Petra Novák");

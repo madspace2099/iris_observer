@@ -24,6 +24,17 @@ test.describe("milestone review", () => {
   // The conditional form of `test.skip` takes only the fixtures object; the
   // project is read from `test.info()` instead.
   test.skip(() => test.info().project.name !== "wide", "One viewport drives the set.");
+  /*
+   * Opt-in. This file produces images for a human, asserts nothing, and was
+   * written against the briefing landing and the Observer console that Ask IRIS
+   * has since replaced — so run unasked it only turned `wide` red and wrote
+   * screenshots into a dead session's temp directory. Name where the images go
+   * to run it, and expect to update its selectors to the current UI first.
+   */
+  test.skip(
+    () => process.env["OBSERVER_MILESTONE_SHOTS"] === undefined,
+    "A screenshot generator: set OBSERVER_MILESTONE_SHOTS to produce the set.",
+  );
 
   test("sign-in", async ({ page }) => {
     await page.goto("/sign-in");

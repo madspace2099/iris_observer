@@ -155,6 +155,8 @@ async function drive(page: Page, label: string | RegExp): Promise<void> {
 }
 
 test.describe("madspace operations", () => {
+  // Needs `next dev`: the local control plane refuses to open under NODE_ENV=production (see the file docblock).
+  test.skip(() => process.env["OBSERVER_BASE_URL"] === undefined, "Needs a development server: set OBSERVER_BASE_URL.");
   test("projects", async ({ page }, info) => {
     await signInAs(page, "MADSPACE Operations");
     await ensureEstate(page);
@@ -215,6 +217,8 @@ test.describe("madspace operations", () => {
  * whichever state happened to win.
  */
 test.describe("madspace source lifecycle", () => {
+  // Needs `next dev`: the local control plane refuses to open under NODE_ENV=production (see the file docblock).
+  test.skip(() => process.env["OBSERVER_BASE_URL"] === undefined, "Needs a development server: set OBSERVER_BASE_URL.");
   test("walks every state and captures each", async ({ page }, info) => {
     /*
      * ONE viewport, because this is a record of the system moving rather than a
