@@ -1520,14 +1520,23 @@ describe("the transport-safe note reports where the bytes actually are", () => {
         await gitAsync(repo, "config", k, v);
       }
       await gitAsync(repo, "checkout", "--quiet", "--detach", base);
-      await gitAsync(
-        repo,
-        "am",
-        "--quiet",
-        ...readdirSync(patches)
-          .sort()
-          .map((f) => join(patches, f)),
+      /*
+       * ONE MBOX, NOT ONE ARGUMENT PER PATCH. Every `format-patch` file is an
+       * mbox message, so their concatenation is the same chain — and a command
+       * line that grows by a path per commit crossed Windows' 32 767 character
+       * ceiling at 278 commits and failed as `spawn ENAMETOOLONG`, which reads
+       * like a packaging defect and was the length of this repository's history.
+       */
+      const chain = join(work, "chain.mbox");
+      writeFileSync(
+        chain,
+        Buffer.concat(
+          readdirSync(patches)
+            .sort()
+            .map((f) => readFileSync(join(patches, f))),
+        ),
       );
+      await gitAsync(repo, "am", "--quiet", chain);
 
       /*
        * THE TREE, NOT THE COMMIT IDS. `git am` writes new committer metadata,
