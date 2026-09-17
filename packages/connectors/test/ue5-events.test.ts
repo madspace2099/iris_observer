@@ -183,7 +183,8 @@ describe("what the fold refuses to make up", () => {
     expect(session?.irisRating).toBeNull();
     expect(session?.endedAt, "no `session.ended`: the last event").toBe("2026-09-16T09:04:00.000Z");
     expect(session?.durationSeconds).toBe(240);
-    expect(session?.timingUnavailable, "no step was ever reported").toBe(true);
+    expect(session?.steps, "no step was ever reported").toHaveLength(0);
+    expect(session?.timingUnavailable, "an empty journey, not a legacy source").toBe(false);
   });
 
   it("gives a view that never ended no dwell rather than an estimate", () => {

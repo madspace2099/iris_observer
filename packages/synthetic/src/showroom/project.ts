@@ -870,8 +870,15 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
   );
   if (session.filters.length === 0) {
+    /*
+     * Two different absences. The legacy analytics never carried filter state; a
+     * source that times its steps does, so an empty list there means nobody
+     * filtered, and saying the build cannot emit it would be false.
+     */
     gaps.push(
-      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+      session.timingUnavailable
+        ? "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown."
+        : "No filter was applied in this meeting, so there is no search to read.",
     );
   }
   if (!session.units.some((u) => u.comparedWith.length > 0)) {

@@ -10,6 +10,7 @@ import {
   diagnosticAction,
   heartbeatAction,
   issueCodeAction,
+  meetingAction,
   resumeAction,
   seedReviewEstateAction,
   simulateBusyInstallationAction,
@@ -91,6 +92,13 @@ const STEPS: readonly Step[] = [
     label: "Send diagnostic.test",
     detail: "Posts a real event batch through ingestion.",
     run: () => attempt(() => diagnosticAction()),
+  },
+  {
+    key: "meeting",
+    label: "Send a showroom meeting",
+    detail:
+      "Posts one whole session as the plugin sends it, so Sales Flow and Meetings have a real meeting to show.",
+    run: () => attempt(() => meetingAction()),
   },
   {
     key: "seed",
@@ -184,6 +192,11 @@ export function LifecycleDriver() {
             <p>Activation runs as the plugin would: it is what proves ACTIVATED.</p>
             <p>A heartbeat proves CONNECTED and nothing else.</p>
             <p>A diagnostic.test batch is the only thing that proves INGESTION VERIFIED.</p>
+            <p>
+              A showroom meeting proves the other half: that stored events come back as a meeting on
+              the customer&rsquo;s screens. The project it lands in stops showing synthetic
+              sessions.
+            </p>
             <p>
               Nothing here sets a display value, so the states below are read back from the database
               exactly as an installation would have left them.

@@ -20,14 +20,18 @@ import {
   describePepper,
   type ObserverAdmin,
 } from "@observer/sources";
+import type { Viewer } from "@observer/readmodels";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+import { liveConnectorService } from "@/lib/connectors/live";
+import { forgetSessionMemo } from "@/lib/connectors/session-source";
+import { repository } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
 
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "./control-plane";
 import { observerLocalDirectory } from "./local-db";
-import { DEMONSTRATION_SOURCE_TYPE, demonstrationEstate } from "./seed";
+import { DEMONSTRATION_PROJECT_SLUG, DEMONSTRATION_SOURCE_TYPE, demonstrationEstate } from "./seed";
 
 /**
  * WALKING THE SOURCE LIFECYCLE, THROUGH THE REAL PATH AND NOTHING ELSE.
@@ -357,6 +361,7 @@ async function operatorEstate(): Promise<
       readonly sourceId: string;
       /* The project the source sits in, which the review seeder needs to add siblings to it. */
       readonly projectId: string;
+      readonly viewer: Viewer;
     }
   | Refused
 > {
@@ -390,6 +395,7 @@ async function operatorEstate(): Promise<
     admin: plane.admin,
     sourceId: estate.sourceId,
     projectId: estate.projectId,
+    viewer,
   };
 }
 
@@ -727,6 +733,180 @@ export async function diagnosticAction(): Promise<
     detail: result?.detail ?? null,
     warnings: parsed.data.warnings.map((warning) => warning.code),
   };
+}
+
+/* --- 4b. send a showroom meeting -------------------------------------------------------- */
+
+/**
+ * Send one whole meeting through `/functions/v1/observer-ingest`, as the plugin would.
+ *
+ * A diagnostic proves an event can be stored. It proves nothing about the
+ * other half — that stored events come back as a meeting on Sales Flow — because
+ * diagnostics are excluded from every read model by rule. This is the press
+ * that exercises that half: the event names and property shapes the shipped
+ * plugin sends, in one session, through the real endpoint with the real token.
+ *
+ * ## What is and is not invented
+ *
+ * The meeting is this harness's and says so: the agent is
+ * `observer-review-harness`, not a name from a roster. The units are NOT
+ * invented — they are the first available codes of the catalogue this project's
+ * connector delivered, so Unit Attention joins them to real rows; a project
+ * with no catalogue gets a meeting with no unit in it rather than a made-up
+ * code. There is no rating, because nobody rated anything.
+ *
+ * A project that receives this stops showing synthetic sessions (ADR-0036,
+ * ADR-0038). Deleting `.observer-local/` resets that along with everything else.
+ */
+export async function meetingAction(): Promise<
+  | {
+      readonly ok: true;
+      readonly accepted: number;
+      readonly duplicate: number;
+      readonly rejected: number;
+      readonly units: readonly string[];
+    }
+  | Refused
+> {
+  const estate = await operatorEstate();
+  if (isRefused(estate)) return estate;
+
+  const credential = credentialled();
+  if (isRefused(credential)) return credential;
+
+  const units = await catalogueCodes(estate.projectId, estate.viewer, 2);
+
+  const sessionId = randomUUID();
+  const endedAt = Date.now();
+  const startedAt = endedAt - 12 * 60_000;
+  let sequence = 0;
+  const event = (
+    secondsIn: number,
+    name: string,
+    properties: Record<string, unknown> = {},
+    entity: { readonly type: string; readonly id: string } | null = null,
+  ) => {
+    sequence += 1;
+    return {
+      event_id: randomUUID(),
+      event_name: name,
+      schema_version: 1,
+      occurred_at: new Date(startedAt + secondsIn * 1000).toISOString(),
+      session_id: sessionId,
+      sequence,
+      app: {
+        version: HARNESS_BUILD.app_version,
+        plugin: HARNESS_BUILD.plugin_version,
+        build_id: HARNESS_BUILD.build_id,
+        environment: REPORTED_ENVIRONMENT,
+      },
+      agent_id: HARNESS_BUILD.plugin_version,
+      visitor_subject: "vis_review",
+      ...(entity === null ? {} : { entity }),
+      properties,
+    };
+  };
+
+  const residences = { type: "feature", id: "Main|Residences" };
+  const events = [
+    event(0, "session.started", { client_platform: "review-harness" }),
+    event(5, "feature.opened", { category: "Residences" }, residences),
+    ...units.flatMap((code, i) => {
+      const unit = { type: "unit", id: code };
+      const from = 60 + i * 200;
+      return [
+        event(from, "unit.view.started", { unit_id: code }, unit),
+        event(from + 150, "unit.view.ended", { unit_id: code, duration_seconds: 150 }, unit),
+        ...(i === 0
+          ? [
+              event(from + 160, "unit.favourite_added", { unit_id: code }, unit),
+              event(from + 170, "unit.document_opened", { document_type: "floorplan_pdf" }, unit),
+            ]
+          : []),
+      ];
+    }),
+    event(500, "environment.weather_changed", { weather_type: "Clear", time_of_day: "Evening" }),
+    event(560, "feature.closed", { duration_ms: 555_000 }, residences),
+    event(565, "feature.opened", {}, { type: "feature", id: "Main|Surroundings" }),
+    event(700, "meeting.outcome_set", { outcome: "Interested", previous_outcome: "" }),
+    event(720, "session.ended", { duration_seconds: 720, end_reason: "agent" }),
+  ];
+
+  const answer = await postJson(
+    credential.ingestUrl,
+    { batch_id: randomUUID(), sent_at: new Date(endedAt).toISOString(), events },
+    credential.token,
+  );
+  if (isRefused(answer)) return answer;
+
+  const parsed = BatchResponseSchema.safeParse(answer.payload);
+  if (!parsed.success) {
+    return refuse(describeFailure(credential.ingestUrl, answer.status, answer.payload));
+  }
+  if (parsed.data.rejected > 0) {
+    const first = parsed.data.results.find((r) => r.status === "rejected");
+    return refuse(
+      `${String(parsed.data.rejected)} of ${String(events.length)} events were rejected: ` +
+        `${first?.code ?? "no code"}${first?.detail == null ? "" : ` (${first.detail})`}.`,
+    );
+  }
+
+  /* The dashboard memoises a project's sessions for thirty seconds; a press should not wait for it. */
+  forgetSessionMemo();
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    accepted: parsed.data.accepted,
+    duplicate: parsed.data.duplicate,
+    rejected: parsed.data.rejected,
+    units,
+  };
+}
+
+/**
+ * Up to `count` available unit codes: from whichever connector delivered this project's
+ * catalogue, else from the catalogue the customer's own screens draw for its twin — so
+ * whatever the meeting opened is a unit those screens can join it to.
+ */
+async function catalogueCodes(
+  projectUuid: string,
+  viewer: Viewer,
+  count: number,
+): Promise<readonly string[]> {
+  try {
+    const service = await liveConnectorService();
+    if (service === null) return [];
+    for (const connector of await service.list(projectUuid)) {
+      if (!connector.enabled) continue;
+      const delivered = await service.currentUnits(projectUuid, connector.kind);
+      const available = delivered.filter((u) => u.status === "available");
+      if (available.length > 0) return available.slice(0, count).map((u) => u.code);
+    }
+  } catch {
+    /* No catalogue store on this server: fall through to the read model's. */
+  }
+  try {
+    for (const tenant of await repository.listTenants(viewer)) {
+      const projects = await repository.listProjects(viewer, tenant.id);
+      if (!projects.some((p) => p.slug === DEMONSTRATION_PROJECT_SLUG)) continue;
+      const view = await repository.getUnitAttention(
+        {
+          viewer,
+          tenantSlug: tenant.slug,
+          projectSlug: DEMONSTRATION_PROJECT_SLUG,
+          period: "quarter_to_date",
+        },
+        null,
+      );
+      return view.rows
+        .filter((row) => row.status === "available")
+        .slice(0, count)
+        .map((row) => row.unitCode);
+    }
+  } catch {
+    /* The viewer cannot read the twin: the meeting is sent without units. */
+  }
+  return [];
 }
 
 /* --- 5. suspend and resume -------------------------------------------------------------- */

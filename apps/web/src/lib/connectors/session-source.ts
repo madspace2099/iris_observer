@@ -135,7 +135,7 @@ export const liveSessionSource: ShowroomSessionSource = {
   },
 };
 
-/** Test-only. Forgets every memoised answer. */
+/** Forgets every memoised answer: for tests, and for the review harness after it sends a meeting. */
 export function forgetSessionMemo(): void {
   memo.clear();
 }

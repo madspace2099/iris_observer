@@ -323,7 +323,8 @@ function foldOne(
     screenshots,
     irisRating,
     priorMeetings: 0,
-    timingUnavailable: foldedSteps.length === 0,
+    /* This source CAN time a step. A meeting with no step in it is an empty journey, not a legacy one. */
+    timingUnavailable: false,
   };
 }
 
