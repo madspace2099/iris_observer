@@ -1870,5 +1870,45 @@ real backend, and it is the operator's, not his.
 - **IRIS-assist window per tenant**: no policy in the product has storage or an override path yet.
 - Unchanged: the four pre-production gates, M6 domain tables, the rest of the `/madspace` restyle.
 
-**Next recommended action.** Send Akhilesh §13 of `docs/ue5-integration-handoff.md`, then do the
-three operator steps above and watch one real meeting arrive on the Preview.
+### The road to install-and-connect (the user's target, stated 2026-09-17, late evening)
+
+**The target.** Install the plugin in an Unreal project, create a new project in Observer, the
+website generates a code, the plugin asks for it, and the two are connected. Measured against the
+fourth drop and this repository, four phases are done and four remain.
+
+**What the fourth drop does about the code today.** Activation is `ActivateWithCode`, which is
+Blueprint-callable, and the console command `Observer.Activate <code>`
+(`ObserverAnalyticsSubsystem.cpp:222`). The diagnostics HUD prints "UNCONFIGURED (Enter Activation
+Code)" and holds text blocks only: there is no field to type into, and a Shipping build has no
+console. So the plugin does not ask for the code yet. Only the activation endpoint has to be set in
+Project Settings, because activation answers with the ingest and heartbeat addresses; its default
+is `https://observer.madspace.io/functions/v1/observer-activate`, whose path is the one this
+application serves, on a host that has to exist or be replaced. The `.uplugin` says
+`"Installed": false` for engine 5.6.0: a source plugin that a C++ project compiles, not yet a
+prebuilt package.
+
+| Phase                              | State             | Whose              |
+| ---------------------------------- | ----------------- | ------------------ |
+| 1. Contract, handoff, mock backend | done              | Observer           |
+| 2. Plugin core                     | done, his machine | Akhilesh           |
+| 3. Source spine and MADSPACE admin | done, local proof | Observer           |
+| 4. Events to the customer screens  | done, local proof | Observer           |
+| 5. The live connection             | next              | Akhilesh, operator |
+| 6. The code screen inside IRIS     | open              | Akhilesh           |
+| 7. A new project, self-served      | open              | Observer           |
+| 8. The pre-production gates        | open              | MADSPACE, counsel  |
+
+- **5** is his loopback run against `pnpm ue5:mock`, then the operator's steps above, the host name
+  included.
+- **6** is the screen of Addendum 3 in `docs/ue5-review-2026-09-17-round-2.md`: shown while the
+  source is unconfigured, one field, and the outcomes activated, `already_activated` with the source
+  id, `activation_failed` with "ask for a new code", environment mismatch, and no network. With it, a
+  prebuilt package per engine version, and `unit_id` equal to the catalogue's unit code.
+- **7** is the first open item above, plus a catalogue for the new project (connector or file) so
+  unit codes resolve, and an agent directory for the plugin's ids. Until it is built, a new
+  project's events are accepted and stored and have no screen to appear on.
+- **8** is unchanged: Gate 1 with the EU AI Act, Gate 2, Gate 4.
+
+**Next recommended action.** Send Akhilesh §13 of `docs/ue5-integration-handoff.md` and the
+description of phase 6, then do the operator steps above and watch one real meeting arrive on the
+Preview. Phase 7 can be built in parallel once the user decides how a customer signs in.
