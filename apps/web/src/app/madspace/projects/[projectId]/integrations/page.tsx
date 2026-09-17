@@ -9,7 +9,7 @@ import { CONNECTOR_NAMES, CREDENTIAL_WORDS } from "@/lib/connectors/configs";
 import type { ConnectorSummary, LastDealSync } from "@/lib/connectors/service";
 import type { SessionSourceSummary } from "@/lib/connectors/session-source-service";
 import { SESSION_SOURCE_CREDENTIAL_WORDS } from "@/lib/connectors/session-source-configs";
-import { readModelProjectIdFor } from "@/lib/repository";
+import { readModelProjectIdForRow } from "@/lib/repository";
 import { ageSince, instant } from "@/lib/madspace/format";
 import { ConnectorForm } from "@/components/madspace/ConnectorForm";
 import { ConnectorSync } from "@/components/madspace/ConnectorSync";
@@ -64,7 +64,8 @@ export default async function IntegrationsPage({
    * server-side before it will run, surfaced here so the reason a fresh
    * project cannot sync yet is visible before the operator tries.
    */
-  const sessionReadModelProjectId = project === null ? null : readModelProjectIdFor(project);
+  const sessionReadModelProjectId =
+    project === null ? null : await readModelProjectIdForRow(project);
   /*
    * How much of each delivered catalogue Project can draw. Only for a
    * connector whose last sync succeeded: a refused sync has nothing to place.

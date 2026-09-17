@@ -206,7 +206,7 @@ export async function requireAccount(): Promise<Account> {
  */
 export async function currentViewer(): Promise<Viewer | null> {
   const account = await currentAccount();
-  return account === null ? null : viewerForAccount(account);
+  return account === null ? null : await viewerForAccount(account);
 }
 
 export async function requireViewer(): Promise<Viewer> {

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { CatalogueSource, DeliveredCatalogue, ProjectSummary } from "@observer/readmodels";
 
-import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { controlPlaneProjectFor } from "@/lib/directory/rows";
 
 import { CONFIG_SCHEMAS } from "./configs";
 import { liveConnectorService } from "./live";
@@ -32,33 +32,18 @@ const memo = new Map<
   { readonly until: number; readonly value: DeliveredCatalogue | null }
 >();
 
-function normalised(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 async function resolve(project: ProjectSummary): Promise<DeliveredCatalogue | null> {
-  const plane = await controlPlane();
-  if (!plane.ok) return null;
-  const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  if (!projects.ok) return null;
-
-  const twin =
-    projects.value.find((row) => row.slug !== null && row.slug === project.slug) ??
-    projects.value.find((row) => normalised(row.name) === normalised(project.name)) ??
-    null;
-  if (twin === null) return null;
+  const projectUuid = await controlPlaneProjectFor(project);
+  if (projectUuid === null) return null;
 
   const service = await liveConnectorService();
   if (service === null) return null;
 
-  const connectors = await service.list(twin.project_id);
+  const connectors = await service.list(projectUuid);
   const active = connectors.find((c) => c.enabled && c.lastSync?.outcome === "ok") ?? null;
   if (active === null) return null;
 
-  const units = await service.currentUnits(twin.project_id, active.kind);
+  const units = await service.currentUnits(projectUuid, active.kind);
   if (units.length === 0) return null;
 
   const config = CONFIG_SCHEMAS[active.kind].safeParse(active.config);

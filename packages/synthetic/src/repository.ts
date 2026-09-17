@@ -44,7 +44,12 @@ import type {
   ReportScopeView,
   UnitDetailView,
 } from "@observer/readmodels";
-import type { CatalogueSource, DealSource, ShowroomSessionSource } from "@observer/readmodels";
+import type {
+  CatalogueSource,
+  DealSource,
+  ProjectDirectory,
+  ShowroomSessionSource,
+} from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
 import { periodsAt } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
@@ -165,24 +170,70 @@ export interface SyntheticRepositoryOptions {
    */
   readonly sessionSource?: ShowroomSessionSource;
   /**
-   * The clock a project with a real session source runs on. Defaults to the
-   * system clock; a test pins it. The synthetic world never reads it.
+   * The projects that exist outside the synthetic world: the ones created in
+   * administration. Listed and resolved beside the world's own, and never in
+   * place of them — where a slug or an id collides, the world's entry stands,
+   * because a directory row must not be able to shadow a fixture a test or a
+   * demonstration depends on.
+   */
+  readonly projectDirectory?: ProjectDirectory;
+  /**
+   * The clock a project with a real session source runs on, and every project
+   * from the directory. Defaults to the system clock; a test pins it. The
+   * synthetic world never reads it.
    */
   readonly now?: () => Date;
+}
+
+/** Everything that can be resolved: the synthetic world, then the directory's additions. */
+interface ResolvableWorld {
+  readonly tenants: readonly TenantSummary[];
+  readonly projects: readonly ProjectSummary[];
+  /** Ids of the projects that came from the directory. */
+  readonly own: ReadonlySet<string>;
 }
 
 export class SyntheticObserverRepository implements ObserverRepository {
   constructor(private readonly options: SyntheticRepositoryOptions = {}) {}
 
+  /**
+   * The synthetic world and whatever the directory adds to it.
+   *
+   * A directory entry is dropped, never merged, when the world already holds
+   * its id or its address: `/alpha/northgate` is the fixture's for as long as the
+   * fixture exists. Administration refuses such a slug up front, so reaching
+   * this filter means something upstream went wrong, and the safe reading of
+   * that is the one the tests already describe.
+   */
+  private async world(): Promise<ResolvableWorld> {
+    const added = (await this.options.projectDirectory?.entries()) ?? null;
+    if (added === null) return { tenants: TENANTS, projects: PROJECTS, own: new Set() };
+
+    const tenants = added.tenants.filter(
+      (t) => !TENANTS.some((w) => w.id === t.id || w.slug === t.slug),
+    );
+    const held = new Set(tenants.map((t) => t.id as string));
+    const projects = added.projects.filter(
+      (p) => held.has(p.tenantId as string) && !PROJECTS.some((w) => w.id === p.id),
+    );
+    return {
+      tenants: [...TENANTS, ...tenants],
+      projects: [...PROJECTS, ...projects],
+      own: new Set(projects.map((p) => p.id as string)),
+    };
+  }
+
   async listTenants(viewer: Viewer): Promise<readonly TenantSummary[]> {
-    return TENANTS.filter((t) => viewer.tenantIds.includes(t.id));
+    const { tenants } = await this.world();
+    return tenants.filter((t) => viewer.tenantIds.includes(t.id));
   }
 
   async listProjects(viewer: Viewer, tenantId: TenantId): Promise<readonly ProjectSummary[]> {
     if (!viewer.tenantIds.includes(tenantId)) {
       throw new NotPermittedError("this developer");
     }
-    return PROJECTS.filter((p) => p.tenantId === tenantId && viewer.projectIds.includes(p.id));
+    const { projects } = await this.world();
+    return projects.filter((p) => p.tenantId === tenantId && viewer.projectIds.includes(p.id));
   }
 
   async resolveProject(
@@ -190,10 +241,19 @@ export class SyntheticObserverRepository implements ObserverRepository {
     tenantSlug: string,
     projectSlug: string,
   ): Promise<{ tenant: TenantSummary; project: ProjectSummary }> {
-    const tenant = TENANTS.find((t) => t.slug === tenantSlug);
+    return (await this.resolveInWorld(viewer, tenantSlug, projectSlug)).resolved;
+  }
+
+  private async resolveInWorld(
+    viewer: Viewer,
+    tenantSlug: string,
+    projectSlug: string,
+  ): Promise<{ resolved: { tenant: TenantSummary; project: ProjectSummary }; own: boolean }> {
+    const world = await this.world();
+    const tenant = world.tenants.find((t) => t.slug === tenantSlug);
     if (tenant === undefined) throw new NotFoundError(`Developer "${tenantSlug}"`);
 
-    const project = PROJECTS.find((p) => p.slug === projectSlug && p.tenantId === tenant.id);
+    const project = world.projects.find((p) => p.slug === projectSlug && p.tenantId === tenant.id);
     if (project === undefined) throw new NotFoundError(`Project "${projectSlug}"`);
 
     // Both checks, not one. A viewer can hold a tenant grant without holding
@@ -201,14 +261,21 @@ export class SyntheticObserverRepository implements ObserverRepository {
     if (!viewer.tenantIds.includes(tenant.id)) throw new NotPermittedError(tenant.name);
     if (!viewer.projectIds.includes(project.id)) throw new NotPermittedError(project.name);
 
-    return { tenant, project };
+    return { resolved: { tenant, project }, own: world.own.has(project.id as string) };
   }
 
   async resolvePeriod(projectId: ProjectId, preset: PeriodPreset): Promise<Period> {
-    const project = PROJECTS.find((p) => p.id === projectId);
-    if (project === undefined) return { preset, ...PERIODS[preset] };
+    const world = await this.world();
+    const project = world.projects.find((p) => p.id === projectId);
+    /*
+     * It used to answer an unknown project with the synthetic world's frozen
+     * periods, which put a project nobody had heard of in August 2026 without a
+     * word. There is no period for a project that does not exist.
+     */
+    if (project === undefined) throw new NotFoundError("This project");
     const live = await this.overlaySessions(project);
-    return this.periodFor(project, preset, live ? this.clock() : null);
+    const real = live || world.own.has(project.id as string);
+    return this.periodFor(project, preset, real ? this.clock() : null);
   }
 
   /**
@@ -223,6 +290,10 @@ export class SyntheticObserverRepository implements ObserverRepository {
    *
    * So delivery decides. Delivered sessions put the project on the real clock,
    * in its own zone; anything else stays on the synthetic day.
+   *
+   * A project from the directory is on the real clock from the moment it
+   * exists, meetings or none: it has no synthetic day to stay on, and an empty
+   * new project dated August 2026 would be the same defect arriving earlier.
    */
   private clock(): Date {
     return this.options.now?.() ?? new Date();
@@ -235,17 +306,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   private async context(query: OverviewQuery | BriefQuery): Promise<ViewContext> {
-    const { tenant, project } = await this.resolveProject(
-      query.viewer,
-      query.tenantSlug,
-      query.projectSlug,
-    );
+    const {
+      resolved: { tenant, project },
+      own,
+    } = await this.resolveInWorld(query.viewer, query.tenantSlug, query.projectSlug);
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
     await this.overlayCatalogue(project);
     // Before overlayDeals: the demonstration-CRM path reads sessionsForProject.
     const live = await this.overlaySessions(project);
     await this.overlayDeals(project);
-    const now = live ? this.clock() : null;
+    const now = live || own ? this.clock() : null;
     const period = this.periodFor(project, preset, now);
     /*
      * One policy governs the synthetic world, so the period and its baseline
@@ -268,6 +338,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       period,
       generatedAt: now === null ? TODAY : now.toISOString(),
       sessionsDelivered: live,
+      ownDataOnly: own,
       attribution,
     };
   }
@@ -366,7 +437,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * project whose meetings are its own showroom's they are a fabrication, so a
      * delivered project gets only what can be worked out from what was delivered.
      */
-    if (context.sessionsDelivered)
+    if (context.sessionsDelivered || context.ownDataOnly)
       return buildDeliveredAskSession(context, current, selectionLabel);
 
     const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);
@@ -620,7 +691,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * also sells for somebody else — which is a commercial fact about a third
      * party and not theirs to have.
      */
-    const visible = PROJECTS.filter(
+    const visible = (await this.world()).projects.filter(
       (p) => p.tenantId === context.tenant.id && query.viewer.projectIds.includes(p.id),
     );
     const view = buildAgentDetail(context, current, visible, agentId);

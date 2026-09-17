@@ -25,7 +25,7 @@ export default async function Home() {
   const account = await currentAccount();
   redirect(
     dynamicRoute(
-      account === null ? "/sign-in" : await resolveLandingPath(viewerForAccount(account)),
+      account === null ? "/sign-in" : await resolveLandingPath(await viewerForAccount(account)),
     ),
   );
 }

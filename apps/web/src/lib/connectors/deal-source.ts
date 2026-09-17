@@ -2,7 +2,7 @@ import "server-only";
 
 import type { DealSource, DeliveredDeals, ProjectSummary } from "@observer/readmodels";
 
-import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { controlPlaneProjectFor } from "@/lib/directory/rows";
 
 import { liveConnectorService } from "./live";
 
@@ -24,35 +24,21 @@ import { liveConnectorService } from "./live";
 const MEMO_MS = 30_000;
 const memo = new Map<string, { readonly until: number; readonly value: DeliveredDeals | null }>();
 
-function normalised(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 async function resolve(project: ProjectSummary): Promise<DeliveredDeals | null> {
-  const plane = await controlPlane();
-  if (!plane.ok) return null;
-  const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  if (!projects.ok) return null;
-  const twin =
-    projects.value.find((row) => row.slug !== null && row.slug === project.slug) ??
-    projects.value.find((row) => normalised(row.name) === normalised(project.name)) ??
-    null;
-  if (twin === null) return null;
+  const projectUuid = await controlPlaneProjectFor(project);
+  if (projectUuid === null) return null;
 
   const service = await liveConnectorService();
   if (service === null) return null;
 
-  const connectors = await service.list(twin.project_id);
-  const syncs = await service.dealSummary(twin.project_id);
+  const connectors = await service.list(projectUuid);
+  const syncs = await service.dealSummary(projectUuid);
   const active = connectors.find((c) => c.enabled && syncs.get(c.kind)?.outcome === "ok") ?? null;
   if (active === null) return null;
   const last = syncs.get(active.kind);
   if (last === undefined) return null;
 
-  const deals = await service.currentDeals(twin.project_id, active.kind);
+  const deals = await service.currentDeals(projectUuid, active.kind);
 
   /*
    * WHEN OBSERVER SAW A DEAL ARRIVE WHERE IT STANDS, for the deals whose CRM
@@ -70,7 +56,7 @@ async function resolve(project: ProjectSummary): Promise<DeliveredDeals | null> 
    */
   const standing = new Map(deals.map((d) => [d.externalId, d.stage]));
   const stageObservedAt: Record<string, string> = {};
-  for (const change of await service.recentDealChanges(twin.project_id, 1000)) {
+  for (const change of await service.recentDealChanges(projectUuid, 1000)) {
     if (change.connector !== active.kind || change.kind !== "stage_changed") continue;
     if (stageObservedAt[change.external_id] !== undefined) continue;
     if (standing.get(change.external_id) !== change.to_stage) continue;

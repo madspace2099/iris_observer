@@ -9,7 +9,8 @@ import { SHOWROOM_SOURCE_KINDS } from "@observer/contracts";
 import { foldUe5Sessions } from "@observer/connectors";
 import { readProjectEvents } from "@observer/sources";
 
-import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { controlPlaneProjectFor } from "@/lib/directory/rows";
+import { CONTROL_PLANE_ACCOUNT } from "@/lib/sources/control-plane";
 import { observerDepsAsync } from "@/lib/sources/deps";
 
 import { liveSessionSourceService } from "./live";
@@ -31,27 +32,13 @@ const memo = new Map<
   { readonly until: number; readonly value: DeliveredSessions | null }
 >();
 
-function normalised(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 async function resolve(project: ProjectSummary): Promise<DeliveredSessions | null> {
-  const plane = await controlPlane();
-  if (!plane.ok) return null;
-  const projects = await plane.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  if (!projects.ok) return null;
-  const twin =
-    projects.value.find((row) => row.slug !== null && row.slug === project.slug) ??
-    projects.value.find((row) => normalised(row.name) === normalised(project.name)) ??
-    null;
-  if (twin === null) return null;
+  const projectUuid = await controlPlaneProjectFor(project);
+  if (projectUuid === null) return null;
 
   const [ingested, connected] = await Promise.all([
-    ingestedSessions(twin.project_id, project.id as string),
-    connectorSessions(twin.project_id),
+    ingestedSessions(projectUuid, project.id as string),
+    connectorSessions(projectUuid),
   ]);
   if (ingested === null) return connected;
   if (connected === null) return ingested;

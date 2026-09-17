@@ -4,6 +4,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { Viewer } from "@observer/readmodels";
 import { PROJECTS, TENANTS, VIEWERS, type ViewerKey } from "@observer/synthetic";
 
+import { withDirectoryGrants } from "@/lib/directory/live";
+
 /**
  * ACCOUNTS, WHICH ARE NOT PROFILES.
  *
@@ -276,8 +278,8 @@ export function accountById(accountId: string): Account | null {
  * enforces — tenant, project, role — comes from here, so there is exactly one
  * answer to "what may this account see" and it is computed on the server.
  */
-export function viewerForAccount(account: Account): Viewer {
-  return VIEWERS[account.viewerKey];
+export async function viewerForAccount(account: Account): Promise<Viewer> {
+  return withDirectoryGrants(account.accountId, VIEWERS[account.viewerKey]);
 }
 
 /** The addresses the demonstration offers, for the notice on the sign-in page. */

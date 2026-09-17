@@ -140,6 +140,14 @@ export interface ViewContext {
    */
   readonly sessionsDelivered: boolean;
   /**
+   * True for a project that exists outside the synthetic world: one created in
+   * administration (`ProjectDirectory`). Nothing about it is demonstration data,
+   * so what no source delivered is ABSENT, never invented and never borrowed
+   * from a scenario. It runs on the real clock whether or not a meeting has
+   * arrived, and no surface may mark any part of it as a demonstration.
+   */
+  readonly ownDataOnly: boolean;
+  /**
    * THE POLICY-VERSION GUARD (docs/10-policies.md §1).
    *
    * Every figure on a screen was computed under one attribution policy, and

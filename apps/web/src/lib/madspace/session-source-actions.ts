@@ -6,7 +6,7 @@ import { currentViewer } from "@/lib/session";
 import { liveSessionSourceService } from "@/lib/connectors/live";
 import type { SessionSourceService } from "@/lib/connectors/session-source-service";
 import { isShowroomSourceKind } from "@/lib/connectors/session-source-configs";
-import { readModelProjectIdFor } from "@/lib/repository";
+import { readModelProjectIdForRow } from "@/lib/repository";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 
 /**
@@ -67,7 +67,7 @@ async function estate(projectUuid: string): Promise<Estate> {
   if (service === null) {
     return { ok: false, problem: "This server's database predates session-source storage." };
   }
-  return { ok: true, service, readModelProjectId: readModelProjectIdFor(row) };
+  return { ok: true, service, readModelProjectId: await readModelProjectIdForRow(row) };
 }
 
 function text(form: FormData, key: string): string {

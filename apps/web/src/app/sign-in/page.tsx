@@ -62,7 +62,7 @@ export default async function SignIn({
   const already = await currentAccount();
   if (already !== null) {
     const wanted = safeReturnTo(first("returnTo"));
-    redirect(dynamicRoute(wanted ?? (await resolveLandingPath(viewerForAccount(already)))));
+    redirect(dynamicRoute(wanted ?? (await resolveLandingPath(await viewerForAccount(already)))));
   }
 
   const error = first("error");
@@ -96,7 +96,9 @@ export default async function SignIn({
      * held; not true of every sign-in after, and not true at all of an account
      * with exactly one — a picker holding one card is not offering a choice.
      */
-    redirect(dynamicRoute(wanted ?? (await resolveLandingPath(viewerForAccount(result.account)))));
+    redirect(
+      dynamicRoute(wanted ?? (await resolveLandingPath(await viewerForAccount(result.account)))),
+    );
   }
 
   /**
