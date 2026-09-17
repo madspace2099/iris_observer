@@ -102,7 +102,10 @@ export default async function MeetingsPage({
             : view.periodTotal === 0
               ? /* The read model's own sentence: nothing has arrived, or nothing in this period. */
                 view.emptyState
-              : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
+              : view.periodTotal === 1
+                ? /* A project's first real meeting is the day this sentence is read most closely. */
+                  `One presentation was recorded on ${context.project.name} in ${periodLabel}.`
+                : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
         }
         lede="One row is one presentation. A visitor is named by their history with this project and never by a contact detail. The outcome column is what the agent selected in the room at the end of the meeting — it labels the presentation, and it is not a verified sale."
         crumbs={[{ label: "Project", href: `${base}/project` }, { label: "Meetings" }]}

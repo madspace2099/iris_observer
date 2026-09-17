@@ -568,6 +568,7 @@ rejects on gaps or out-of-order arrival.
     "oldest_pending_at": "2026-09-01T08:02:11.000Z",
     "quarantined_events": 0,
     "bytes_used": 1048576,
+    "bytes_ceiling": 52428800,
     "dropped_events": 0
   },
   "last_error": { "code": "rate_limited", "at": "2026-09-01T09:10:00.000Z" }
@@ -575,6 +576,11 @@ rejects on gaps or out-of-order arrival.
 ```
 
 Answers `{ "status": "ok", "server_time": "…", "config_stale": false }`.
+
+**Every key of `queue` is required, `bytes_ceiling` included.** It may be `null` where no ceiling is
+configured, and it may not be left out: the object is strict, so a body without it answers `400`.
+Corrected 2026-09-17: the example above had lost the key, and a device written from this page alone
+was refused on every heartbeat. Your fourth drop already sends it.
 
 **`last_error` is a code and a timestamp — there is no free-text message field,
 deliberately.** An exception string is the likeliest place in this whole protocol for a

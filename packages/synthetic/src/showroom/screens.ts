@@ -355,9 +355,20 @@ export function buildMeetings(
   }
 
   if (!crm && sessions.length > 0) {
+    /*
+     * No CRM does not mean no outcome. The synthetic world's projects without a
+     * CRM record none, and the sentence was written as if that were a law; a real
+     * showroom's agent sets the outcome in the room, so a row read "Interested"
+     * under a finding that said no meeting carried one. What a missing CRM takes
+     * away is the verification, and that is what is said when outcomes exist.
+     */
+    const inRoom = sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length;
     findings.push({
       id: "meetings-no-crm",
-      statement: `None of the ${count(sessions.length, locale)} meetings in this period carries a recorded outcome.`,
+      statement:
+        inRoom === 0
+          ? `None of the ${count(sessions.length, locale)} meetings in this period carries a recorded outcome.`
+          : `${count(inRoom, locale)} of the ${count(sessions.length, locale)} meetings in this period carry the outcome the agent recorded in the room, and none is verified by a CRM.`,
       baseline: "no CRM is connected to this project",
       soWhat:
         "The presentations are fully observed. Everything below the meeting — follow-up, reservation, purchase — has no source on this project and is shown as unavailable rather than as nil.",
