@@ -9,7 +9,8 @@ import type {
   UnitStatus,
   ViewContext,
 } from "@observer/readmodels";
-import { ProjectIdSchema } from "@observer/contracts";
+import { ProjectIdSchema, type ShowroomSession } from "@observer/contracts";
+import { meaningfulDwellThresholdMs } from "@observer/metrics";
 import { evidenceRef, moneyOr } from "./format";
 import { unitsForProject } from "./world";
 
@@ -400,7 +401,62 @@ export function syntheticCatalogueFor(projectId: string): readonly RawUnit[] {
  * lying about with a comment on it.
  */
 
-export function buildProjectPulse(context: ViewContext): ProjectPulse {
+/**
+ * What a project's own meetings did to each unit, for a delivered catalogue.
+ *
+ * `current` and `previous` are the period's slice and its baseline, already
+ * scoped to the project. A MEANINGFUL view is one meeting's look at a unit that
+ * lasted past the showroom's dwell threshold (`docs/10-policies.md`, ADR-0016);
+ * a look with no recorded end has no dwell and is not counted as one. People are
+ * meetings: a showroom session is one visiting party, and no identity link
+ * exists yet to say two of them were the same buyer (ADR-0011).
+ */
+export interface ObservedMeetings {
+  readonly current: readonly ShowroomSession[];
+  readonly previous: readonly ShowroomSession[];
+}
+
+interface UnitReading {
+  readonly meaningfulViews: number;
+  readonly meetings: number;
+  readonly trend: PulseUnit["trend"];
+}
+
+function readingsFrom(observed: ObservedMeetings): {
+  readonly byCode: ReadonlyMap<string, UnitReading>;
+} {
+  const threshold = meaningfulDwellThresholdMs("showroom") / 1000;
+  const meaningful = (sessions: readonly ShowroomSession[]): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (const session of sessions) {
+      for (const unit of session.units) {
+        if (unit.dwellSeconds < threshold) continue;
+        counts.set(unit.unitCode, (counts.get(unit.unitCode) ?? 0) + 1);
+      }
+    }
+    return counts;
+  };
+  const now = meaningful(observed.current);
+  const before = meaningful(observed.previous);
+
+  const byCode = new Map<string, UnitReading>();
+  for (const [code, views] of now) {
+    const earlier = before.get(code) ?? 0;
+    byCode.set(code, {
+      meaningfulViews: views,
+      /* One meaningful view per meeting per unit, so the two counts are the same fact. */
+      meetings: views,
+      /* The same fifteen per cent either side that the unit register uses. */
+      trend: views > earlier * 1.15 ? "rising" : views < earlier * 0.85 ? "falling" : "flat",
+    });
+  }
+  return { byCode };
+}
+
+export function buildProjectPulse(
+  context: ViewContext,
+  meetings: ObservedMeetings | null = null,
+): ProjectPulse {
   const raw = catalogueFor(context.project.id as string);
   const { locale, currency } = {
     locale: context.project.locale,
@@ -415,7 +471,33 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
    */
   const observed = !hasDeliveredCatalogue(context.project.id as string);
 
+  /*
+   * THE BUILDING LIT BY ITS OWN MEETINGS.
+   *
+   * A delivered catalogue used to be dark whatever the showroom sent: the
+   * synthetic scoring was rightly refused, and nothing took its place. Where the
+   * project's meetings are its own, each unit's light is what those meetings did
+   * to it, joined on the unit's code, which is the one key a showing, the
+   * catalogue and the CRM share. A code the catalogue does not hold lights
+   * nothing here: there is no cell to light.
+   */
+  const real =
+    !observed && meetings !== null && (context.sessionsDelivered || context.ownDataOnly)
+      ? readingsFrom(meetings)
+      : null;
+
   const withAttention = raw.map((unit) => {
+    if (real !== null) {
+      const reading = real.byCode.get(unit.code);
+      return {
+        ...unit,
+        /* Rescaled against the busiest unit below; the raw count is what is kept. */
+        attention: 0,
+        meaningfulViews: reading?.meaningfulViews ?? 0,
+        uniqueContacts: reading?.meetings ?? 0,
+        trend: reading?.trend ?? ("flat" as PulseUnit["trend"]),
+      };
+    }
     const attention = observed ? attentionFor(unit) : 0;
     const meaningfulViews = Math.round(attention * 46);
     const r = seed(`${unit.code}:trend`);
@@ -622,12 +704,17 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       soldInPeriod: observed && raw.length > 0 ? 7 : null,
     },
     peakViews,
-    // A delivered catalogue rests on no observed sessions yet; the count says so.
+    /*
+     * What the light rests on: the scenario's count for a synthetic building,
+     * the project's own meaningful views for a delivered one, and nought for a
+     * delivered catalogue no meeting has touched yet. The count says so.
+     */
     evidence: evidenceRef(
       "northgate.pulse",
       "observed_sequence",
       `${root}/project`,
-      observed ? 46 : 0,
+      /* Summed over the catalogue's own units: a view of a code it does not hold lit nothing, so it is not evidence for this picture. */
+      observed ? 46 : withAttention.reduce((sum, unit) => sum + unit.meaningfulViews, 0),
     ),
   };
 }
