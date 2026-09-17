@@ -295,7 +295,7 @@ export function pgliteDb(query: SqlQuery): ObserverDb {
       (await callTable(query, "observer_events_for_project", "$1, $2, $3, $4", [
         input.account,
         input.project,
-        input.since,
+        input.after,
         input.limit,
       ])) as readonly ProjectEventRow[],
 

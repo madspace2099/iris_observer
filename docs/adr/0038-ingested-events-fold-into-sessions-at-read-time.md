@@ -23,16 +23,25 @@ cannot be rebuilt from it.
    `READ_MODEL_EXCLUSION_RULE`) and events with no session. The old facade is not widened: the local
    control plane re-applies every migration on every start, and `create or replace` cannot change a
    return type, so the original definition would fail on the second start.
-2. **It answers one page, and the read pages.** PostgREST cuts a response at its `max-rows` (1000
-   on Supabase) and says nothing, so a facade answering a whole project would work on PGlite and
-   silently lose most of it on the hosted database. It never answers more than a thousand rows, in
-   `ingested_at` order, and `p_since` is an inclusive lower bound on `ingested_at`.
-   `readProjectEvents` passes the last row's instant back as the next page's bound and drops the
-   rows seen twice by `source_id` and `event_id`. Inclusive, because the instant is formatted to
-   the millisecond and the column holds microseconds. Arrival order is what makes paging safe on an
-   append-only store: a row ingested during the read lands after the cursor, never inside a page
-   already taken. A read that stops early says `complete: false`, and the caller logs that the
-   project was read in part.
+2. **It answers one page behind a keyset cursor, and the read pages.** PostgREST cuts a response at
+   its `max-rows` (1000 on Supabase, lower if an operator says so) and says nothing, so a facade
+   answering a whole project would work on PGlite and silently lose most of it on the hosted
+   database, its newest meetings first. The facade never answers more than a thousand rows, ordered
+   by `(ingested_at, source_id, event_id)`, and returns that tuple as one opaque `page_cursor` with
+   microsecond precision. `readProjectEvents` hands the last cursor back verbatim and the facade
+   compares strictly, so no row repeats and none is skipped. Three choices in that sentence were
+   each a bug first:
+   - **not a timestamp.** Every event of a batch carries the same `now()`, so `ingested_at` alone
+     is not unique, and the port's instants are formatted to the millisecond while the column holds
+     microseconds.
+   - **not an offset.** Arrival order is what makes paging safe on an append-only store: a row
+     ingested during the read lands after the cursor, never inside a page already taken.
+   - **stop on an empty page, never a short one.** A server that cuts at 300 returns full pages of
+     300, and a reader that stopped on a short page would call them the whole project.
+     A read that runs out of pages says `complete: false`, and the caller logs that the project was
+     read in part. The migration drops the function before creating it, because its first draft
+     (applied nowhere shared) had no cursor column and `create or replace` cannot change a return
+     type.
 3. **A pure fold, `foldUe5Sessions`** (`packages/connectors/src/ue5-events.ts`), from those rows to
    the `ShowroomSession` the legacy mapper already produces. Every surface downstream is reused
    unchanged. The fold accepts the names the shipped plugin sends and the aliases in

@@ -69,6 +69,7 @@ const started = {
   entity_type: null,
   entity_id: null,
   properties: {},
+  page_cursor: "2026-09-16T10:00:01.000000Z|s|e",
 };
 
 beforeEach(() => {
@@ -80,13 +81,13 @@ beforeEach(() => {
 
 describe("which real sessions a project is composed with", () => {
   it("delivers the sessions folded from ingested events, under the read model's project id", async () => {
-    eventsForProject.mockResolvedValue([started]);
+    eventsForProject.mockResolvedValueOnce([started]).mockResolvedValue([]);
     const delivered = await liveSessionSource.sessionsFor(project);
 
     expect(eventsForProject).toHaveBeenCalledWith({
       account: "acct_test",
       project: TWIN,
-      since: null,
+      after: null,
       limit: 1000,
     });
     expect(delivered?.connector).toBe("ue5_events");
@@ -106,7 +107,7 @@ describe("which real sessions a project is composed with", () => {
   });
 
   it("delivers both when both answer", async () => {
-    eventsForProject.mockResolvedValue([started]);
+    eventsForProject.mockResolvedValueOnce([started]).mockResolvedValue([]);
     connectorDelivers();
 
     const delivered = await liveSessionSource.sessionsFor(project);

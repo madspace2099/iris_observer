@@ -181,6 +181,12 @@ export interface ProjectEventRow {
   readonly entity_type: string | null;
   readonly entity_id: string | null;
   readonly properties: Record<string, unknown>;
+  /**
+   * Where this row sits in the read, to be handed back verbatim as `after`.
+   * Opaque: it carries microseconds the `Instant`s above do not, and a cursor
+   * rebuilt from one of those would sit before rows already returned.
+   */
+  readonly page_cursor: string;
 }
 
 /**
@@ -379,15 +385,15 @@ export interface ObserverDb {
 
   /**
    * ONE PAGE of a project's session-scoped events, across all its sources, in
-   * the order they were ingested. `since` is an INCLUSIVE lower bound on
-   * `ingested_at`, null for the beginning; the facade answers at most 1000 rows
-   * whatever `limit` says, because that is where PostgREST cuts a response
-   * without saying so. Read a whole project with {@link readProjectEvents}.
+   * the order they were ingested. `after` is the previous page's last
+   * `page_cursor`, null for the beginning. The facade answers at most 1000 rows
+   * whatever `limit` says, and PostgREST may cut that shorter without saying so.
+   * Read a whole project with {@link readProjectEvents}.
    */
   eventsForProject(input: {
     readonly account: string;
     readonly project: string;
-    readonly since: Instant | null;
+    readonly after: string | null;
     readonly limit: number;
   }): Promise<readonly ProjectEventRow[]>;
 
@@ -439,47 +445,46 @@ export type FacadeName = (typeof FACADE_NAMES)[number];
 
 /* --- reading a whole project's events ------------------------------------------- */
 
-/** The most one call answers. The facade's own ceiling, and PostgREST's `max-rows` on Supabase. */
+/** The most one call is asked for. The facade's own ceiling, and PostgREST's default `max-rows` on Supabase. */
 export const PROJECT_EVENTS_PAGE = 1000;
 
 /**
  * Every session-scoped event of a project, read a page at a time.
  *
- * The cursor is the last row's `ingested_at`, passed back as the next page's
- * inclusive lower bound. Inclusive, because the instant is formatted to the
- * millisecond while the column holds microseconds, so a strict bound would skip
- * whatever shared the boundary millisecond. The rows seen twice are dropped here
- * by `source_id` and `event_id`, which is what an event's identity is.
+ * Each page is asked for after the last row's `page_cursor`, handed back
+ * verbatim: a keyset over `(ingested_at, source_id, event_id)` that the facade
+ * compares strictly, so no row repeats and none is skipped.
  *
- * It stops when a page comes back short, when `maxPages` is reached, or when a
- * full page failed to move the cursor: a thousand events inside one millisecond,
- * which a two-hundred-event batch ceiling makes a fault rather than a workload.
- * The last two are reported as `complete: false` so a caller can say a project
- * was read in part instead of presenting part of it as the whole.
+ * It stops on an EMPTY page, never on a short one. PostgREST cuts a response at
+ * its `max-rows` without saying so, and an operator may have set that below
+ * what was asked for; a short page is then a full one, and treating it as the
+ * end would present part of a project as the whole. The cost is one request
+ * that answers nothing.
  *
- * ponytail: `maxPages` defaults to fifty, so fifty thousand events per read.
- * Past that, sessions want materialising at ingest, not a larger number here.
+ * `complete` is false only when `maxPages` ran out first, so a caller can say a
+ * project was read in part.
+ *
+ * ponytail: `maxPages` defaults to fifty, so fifty thousand events per read at
+ * the default cap. Past that, sessions want materialising at ingest, not a larger
+ * number here.
  */
 export async function readProjectEvents(
   db: Pick<ObserverDb, "eventsForProject">,
   input: { readonly account: string; readonly project: string; readonly maxPages?: number },
 ): Promise<{ readonly events: readonly ProjectEventRow[]; readonly complete: boolean }> {
-  const seen = new Map<string, ProjectEventRow>();
-  let since: Instant | null = null;
+  const events: ProjectEventRow[] = [];
+  let after: string | null = null;
   for (let page = 0; page < (input.maxPages ?? 50); page += 1) {
     const rows: readonly ProjectEventRow[] = await db.eventsForProject({
       account: input.account,
       project: input.project,
-      since,
+      after,
       limit: PROJECT_EVENTS_PAGE,
     });
-    for (const row of rows) seen.set(`${row.source_id}:${row.event_id}`, row);
     const last = rows[rows.length - 1];
-    if (last === undefined || rows.length < PROJECT_EVENTS_PAGE) {
-      return { events: [...seen.values()], complete: true };
-    }
-    if (last.ingested_at === since) break;
-    since = last.ingested_at;
+    if (last === undefined) return { events, complete: true };
+    events.push(...rows);
+    after = last.page_cursor;
   }
-  return { events: [...seen.values()], complete: false };
+  return { events, complete: false };
 }

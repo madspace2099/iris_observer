@@ -25,32 +25,45 @@
 --   - events with no session — a read model folds sessions, and an event that
 --     belongs to none has nothing to fold into.
 --
--- ## One page at a time, in the order it arrived
+-- ## One page at a time, behind a cursor
 --
--- PostgREST caps a response at its `max-rows` (1000 on Supabase) and says
--- nothing when it cuts one short, so a facade that answered fifty thousand rows
--- would work on PGlite and silently lose most of a project on the hosted
--- database. This one never answers more than a thousand, in `ingested_at` order,
--- and `p_since` is a lower bound on `ingested_at`: the caller pages by passing
--- the last row's instant back (`readProjectEvents` in `packages/sources`).
+-- PostgREST caps a response at its `max-rows` (1000 on Supabase, lower if an
+-- operator says so) and says nothing when it cuts one short. A facade that
+-- answered a whole project would work on PGlite and silently lose most of a busy
+-- project on the hosted database, its newest meetings first. So this answers a
+-- page, and the caller pages until a page comes back empty
+-- (`readProjectEvents` in `packages/sources`), which is right whatever the cap.
 --
--- The bound is INCLUSIVE, because the instant is formatted to the millisecond
--- and the column holds microseconds; the caller drops the rows it has already
--- seen. A page cannot stall unless a thousand events share one millisecond, and
--- a batch is two hundred at most.
+-- The cursor is a KEYSET, not an offset and not a timestamp:
 --
--- Arrival order is also what makes paging safe on an append-only store: a row
--- ingested during the read lands after the cursor, never inside a page already
--- taken. The fold orders each session by `sequence` itself.
+--   - `(ingested_at, source_id, event_id)` is unique, so a strict `>` neither
+--     repeats a row nor skips one. `ingested_at` alone is not: every event of a
+--     batch carries the same `now()`.
+--   - it is returned as one opaque text column with MICROSECOND precision and
+--     handed back verbatim. The port's instants are formatted to the millisecond;
+--     a cursor rebuilt from one would sit before rows it had already returned.
+--   - arrival order is what makes paging safe on an append-only store: a row
+--     ingested during the read lands after the cursor, never inside a page
+--     already taken. The fold orders each session by `sequence` itself.
+--
+-- ## Dropped first, on purpose
+--
+-- The first version of this file (never applied anywhere shared) returned
+-- thirteen columns and no cursor. `create or replace` cannot change a return
+-- type, and a desk that ran that version would fail to start on this one. The
+-- function has no dependants, so dropping it is free, and it makes the file
+-- idempotent against either predecessor.
 --
 -- ponytail: folded in TypeScript at read time. When a project outgrows that,
 -- materialise sessions at ingest — the fold in
 -- `packages/connectors/src/ue5-events.ts` is already pure.
 
-create or replace function public.observer_events_for_project(
+drop function if exists public.observer_events_for_project(text, uuid, text, integer);
+
+create function public.observer_events_for_project(
   p_account text,
   p_project uuid,
-  p_since   text,
+  p_after   text,
   p_limit   integer
 )
 returns table (
@@ -66,7 +79,8 @@ returns table (
   visitor_subject text,
   entity_type     text,
   entity_id       text,
-  properties      jsonb
+  properties      jsonb,
+  page_cursor     text
 )
 language sql
 security definer
@@ -77,13 +91,22 @@ as $$
     pg_catalog.to_char(e.occurred_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
     pg_catalog.to_char(e.ingested_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
     e.session_id, e.sequence, e.agent_id, e.visitor_subject, e.entity_type, e.entity_id,
-    e.properties
+    e.properties,
+    pg_catalog.to_char(e.ingested_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+      || '|' || e.source_id::text || '|' || e.event_id::text
   from observer.analytics_events e
   where e.account_id = p_account
     and e.project_id = p_project
     and e.session_id is not null
     and e.event_name not like 'diagnostic.%'
-    and (p_since is null or e.ingested_at >= p_since::pg_catalog.timestamptz)
+    and (
+      p_after is null
+      or (e.ingested_at, e.source_id, e.event_id) > (
+        pg_catalog.split_part(p_after, '|', 1)::pg_catalog.timestamptz,
+        pg_catalog.split_part(p_after, '|', 2)::pg_catalog.uuid,
+        pg_catalog.split_part(p_after, '|', 3)::pg_catalog.uuid
+      )
+    )
   order by e.ingested_at, e.source_id, e.event_id
   limit least(greatest(p_limit, 1), 1000);
 $$;

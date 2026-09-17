@@ -461,7 +461,7 @@ describe("a batch of events keeps the order it was submitted in", () => {
     const rows = await db.eventsForProject({
       account: ACCOUNT_A,
       project,
-      since: null,
+      after: null,
       limit: 100,
     });
     expect(
@@ -479,22 +479,34 @@ describe("a batch of events keeps the order it was submitted in", () => {
     expect(opened?.properties).toEqual({ unit_id: "A-204" });
     expect(opened?.occurred_at).toBe("2026-09-01T15:30:00.124Z");
 
-    /* `since` bounds when it was INGESTED, inclusively: the cursor a page hands to the next. */
-    const ingestedAt = opened?.ingested_at ?? "";
-    expect(
-      await db.eventsForProject({ account: ACCOUNT_A, project, since: ingestedAt, limit: 100 }),
-      "inclusive, so a row sharing the cursor's millisecond is never skipped",
-    ).toHaveLength(2);
+    /*
+     * THE CURSOR IS STRICT AND UNIQUE. Both rows came in one batch and share an
+     * `ingested_at` to the microsecond, which is exactly the case a timestamp
+     * cursor gets wrong: after the first row there must be one row left, not two
+     * and not none.
+     */
+    const [first, second] = rows;
+    expect(first?.page_cursor, "microseconds, which the instants above do not carry").toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z\|[0-9a-f-]{36}\|[0-9a-f-]{36}$/,
+    );
+    const rest = await db.eventsForProject({
+      account: ACCOUNT_A,
+      project,
+      after: first?.page_cursor ?? null,
+      limit: 100,
+    });
+    expect(rest.map((r) => r.event_id)).toEqual([second?.event_id]);
     expect(
       await db.eventsForProject({
         account: ACCOUNT_A,
         project,
-        since: new Date(Date.parse(ingestedAt) + 60_000).toISOString(),
+        after: second?.page_cursor ?? null,
         limit: 100,
       }),
+      "nothing after the last row",
     ).toHaveLength(0);
     expect(
-      await db.eventsForProject({ account: ACCOUNT_B, project, since: null, limit: 100 }),
+      await db.eventsForProject({ account: ACCOUNT_B, project, after: null, limit: 100 }),
       "another account reads nothing, not an error",
     ).toHaveLength(0);
   });
@@ -504,8 +516,9 @@ describe("a whole project is read a page at a time", () => {
   /*
    * THE CASE THE HOSTED DATABASE WOULD HAVE LOST. PostgREST cuts a response at
    * its `max-rows` and says nothing, so the facade never answers more than a
-   * thousand rows and the read pages. 2300 events is three pages, the last one
-   * short; every event must come back exactly once.
+   * thousand rows and the read pages. 2300 events is three pages and an empty
+   * one; every event must come back exactly once, in order, with no help from a
+   * de-duplication step.
    */
   it("returns every event once across page boundaries", async () => {
     const project = await db.projectCreate({ account: ACCOUNT_A, name: "P paged", slug: null });
@@ -535,7 +548,7 @@ describe("a whole project is read a page at a time", () => {
     const capped = await db.eventsForProject({
       account: ACCOUNT_A,
       project,
-      since: null,
+      after: null,
       limit: 50_000,
     });
     expect(
@@ -543,9 +556,27 @@ describe("a whole project is read a page at a time", () => {
       "one call never answers more than a page, whatever it is asked for",
     ).toHaveLength(1000);
 
+    issued = [];
     const whole = await readProjectEvents(db, { account: ACCOUNT_A, project });
     expect(whole.complete).toBe(true);
+    expect(whole.events, "no row twice: the list is as long as what was sent").toHaveLength(2300);
     expect(whole.events.map((e) => e.event_id).sort()).toEqual([...sent].sort());
+    expect(issued, "three pages of rows and the empty one that ends the read").toHaveLength(4);
+
+    /*
+     * A SERVER THAT CUTS SHORTER THAN IT WAS ASKED. An operator may set
+     * PostgREST's `max-rows` below a thousand; a page of 300 is then a FULL page,
+     * and a reader that stopped on a short page would call 300 events the whole
+     * project.
+     */
+    const cut = await readProjectEvents(
+      {
+        eventsForProject: async (input) => (await db.eventsForProject(input)).slice(0, 300),
+      },
+      { account: ACCOUNT_A, project },
+    );
+    expect(cut.complete).toBe(true);
+    expect(cut.events).toHaveLength(2300);
 
     const part = await readProjectEvents(db, { account: ACCOUNT_A, project, maxPages: 1 });
     expect(part.complete, "a read that stopped early says so").toBe(false);

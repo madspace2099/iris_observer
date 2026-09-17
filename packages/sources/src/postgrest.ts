@@ -500,13 +500,13 @@ export function postgrestDb(config: PostgrestConfig): ObserverDb {
     eventsForProject(input: {
       readonly account: string;
       readonly project: string;
-      readonly since: Instant | null;
+      readonly after: string | null;
       readonly limit: number;
     }): Promise<readonly ProjectEventRow[]> {
       return callRows<ProjectEventRow>(config, "observer_events_for_project", {
         p_account: input.account,
         p_project: input.project,
-        p_since: input.since,
+        p_after: input.after,
         p_limit: input.limit,
       });
     },
