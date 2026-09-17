@@ -1,5 +1,8 @@
 import { beforeEach } from "vitest";
 
+/* Captured before any test runs: a suite that fakes timers replaces the global, and a hook waiting on a faked one would wait for ever. */
+const realSetImmediate = setImmediate;
+
 /**
  * LET THE WORKER READ ITS PARENT'S REPLIES BEFORE EVERY TEST.
  *
@@ -31,6 +34,6 @@ import { beforeEach } from "vitest";
  */
 beforeEach(async () => {
   for (let turn = 0; turn < 5; turn += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    await new Promise<void>((resolve) => realSetImmediate(resolve));
   }
 });
