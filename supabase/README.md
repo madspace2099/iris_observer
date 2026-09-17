@@ -112,6 +112,33 @@ is applied a deployment behaves exactly as before: the application treats a fail
 "no ingested meetings" and keeps delivering a connector's. Add it to the `migration repair` list
 when it is.
 
+## The project directory — executed, not applied
+
+`20260918100000_observer_project_directory.sql` (`docs/21-self-served-projects.md`) is what lets a
+project created in administration become a customer dashboard. Three tables: `observer.tenants`
+(a developer: a name and a globally unique slug, with the application's own route names refused),
+`observer.project_viewers` (who may open a project, kept with its revocations), and
+`observer.project_agents` (the display name behind an `agent_id`, **the only place in this domain
+that holds a person's name**). `observer.projects` gains a developer, a currency, a locale and a
+time zone, and a trigger refuses to move a project or change its slug once it has an address.
+
+Eleven façades in the spine's posture. Ten take `p_account` first and filter on it. The eleventh,
+`observer_source_agents_report(p_source, p_agents)`, is called for a showroom that authenticated
+with its source credential (`POST /functions/v1/observer-agents`, `PD-30`): it reads the project
+from the source, takes names only for an active source, and never overwrites a name an
+administrator set. `service_role` alone may execute any of them, the tables are closed to every
+role with row level security enabled and no policy, and
+`supabase/test/project-directory.test.ts` asks PostgreSQL for each of those facts. Every function
+is dropped before it is created and every constraint is added behind a catalogue check, so the file
+applies over itself, which the local control plane does on every start.
+
+Executed against PGlite on every test run and on every start of the local control plane, applied
+to no hosted project. It depends on the identity spine (`observer.projects`,
+`observer.project_sources`) and the event store (`observer.analytics_events`, for the presenters a
+showroom has been seen to send). Until it is applied a deployment behaves exactly as before: the directory read fails,
+the application falls back to the older project list, no runtime project appears, and
+`observer-agents` answers `503`. Add it to the `migration repair` list when it is.
+
 ## Expand and contract
 
 The audit change ships as two migrations, and the second must wait.

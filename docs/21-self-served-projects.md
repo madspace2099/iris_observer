@@ -1,7 +1,15 @@
 # 21 — A project created in administration becomes a customer dashboard
 
-**Status:** PROPOSED plan, nothing built · **Date:** 2026-09-17 · phase 7 of "The road to
-install-and-connect" in `docs/PROJECT-STATE.md`
+**Status:** BUILT and proven on the local control plane, 2026-09-18 (`1ce436e` onwards). Applied to
+no hosted database. Planned 2026-09-17 as phase 7 of "The road to install-and-connect" in
+`docs/PROJECT-STATE.md`, whose 2026-09-18 section says what became of each package.
+
+**The decisions, as taken.** D1 to D3 as recommended below, when the user said to continue in the
+recommended order. **D4 was decided against the recommendation, by the user, on 2026-09-18: the
+sales agent's name is visible on every showroom session, as a condition.** So names are kept in
+administration now (`observer.project_agents`), a showroom reports its own on
+`POST /functions/v1/observer-agents` (`PD-30`), and the privacy review sees them as a fact rather
+than a proposal. D5: yes.
 
 ## 1. The target, and the one check that proves it
 
@@ -69,7 +77,7 @@ would then fail on the next start. New behaviour needs new function names.
 | D1  | What is a developer in the control plane               | A `tenants` table inside the one operating estate, now. An account per developer is the spine's long-term shape, and it means a registry, a switch audit and 79 call sites. The cost of waiting: projects cannot move between accounts (a trigger forbids it), so re-homing later is one audited migration. Pilots only until Gate 2. |
 | D2  | Who sees a new project before real sign-in exists      | MADSPACE administrators always; anyone else by an explicit grant to an existing account. Invitations and real accounts arrive with Gate 2 and an identity provider, which is a separate decision.                                                                                                                                     |
 | D3  | May a project's address change                         | No. Chosen at creation, shown before saving, immutable afterwards. An editable slug needs a redirect table for every link already sent.                                                                                                                                                                                               |
-| D4  | Sales agents' names for the plugin's ids               | Keep showing the id until the privacy review (Gate 1) has seen it. Names of staff are personal data, and they would live in administration, never in events.                                                                                                                                                                          |
+| D4  | Sales agents' names for the plugin's ids               | Keep showing the id until the privacy review (Gate 1) has seen it. Names of staff are personal data, and they would live in administration, never in events. **Overruled 2026-09-18: the name is shown on every session, a condition.** They still live in administration and never in events.                                        |
 | D5  | Is "the building lights up from real meetings" in this | Yes. Without it a real project's flagship surface stays dark whatever the showroom sends.                                                                                                                                                                                                                                             |
 
 ## 4. The shape
@@ -153,7 +161,9 @@ meetings delivered it is unavailable and not nought. Codes the showroom sent tha
 not list are reported in administration, which is also the diagnostic for the `unit_id` rule in the
 handoff. Anything new is declared in the metric registry, then `pnpm matrix`.
 
-**6. Names for the plugin's agent ids (S, waits for D4).**
+**6. Names for the plugin's agent ids (S, waits for D4).** Built both ways after D4: an
+administrator types a name on the project's dashboard screen, and a showroom reports its roster on
+`observer-agents` so that nobody has to. An administrator's name is never overwritten by a report.
 
 **7. The proof (S).** The lifecycle harness gains "create a fresh project", so the whole road runs
 locally from an empty estate. A Playwright spec on the local control plane for the check in §1.

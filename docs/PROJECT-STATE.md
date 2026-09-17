@@ -3,11 +3,13 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-17 · **Branch:** `feature/observer-reference-parity`, pushed
+**Last updated:** 2026-09-18 · **Branch:** `feature/observer-reference-parity`, pushed
 to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only. Latest: the 2026-09-17 afternoon run that made ingested UE5 events reach the customer's
-screens (ADR-0038), put delivered projects on the real clock, and added IRIS-assisted sales
-(ADR-0039). See the last section of this file.
+local only. Latest: **phase 7 is built** (2026-09-18): a project created in MADSPACE administration
+becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
+delivered, and names the presenter of every meeting, whom a showroom can now report itself
+(`PD-30`). Before it, the 2026-09-17 afternoon run made ingested UE5 events reach the customer's
+screens (ADR-0038). See the last section of this file.
 
 ---
 
@@ -30,7 +32,7 @@ screens (ADR-0038), put delivered projects on the real clock, and added IRIS-ass
 | M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                                                                                                                                                                                                                                                                                                                                  |
 | M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; **since 2026-09-17 ingested events fold into the sessions every surface reads (ADR-0038), proven live on the local control plane**; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                                                                                                                                                               |
 | M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`), **directory** (tenants, agencies, people from the demonstration directory, `c85f469`); no tenant/user/agency tables, no branding, no flags; no tenants, users, agencies, branding, flags                                                                                                                                                                                                                          |
+| M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`), **directory** (tenants, agencies, people from the demonstration directory, `c85f469`); **since 2026-09-18 developers, a project's address and settings, viewer grants and presenter names are real control-plane records with their own screen** (`docs/21-self-served-projects.md`); no user or agency tables, no branding, no flags                                                                             |
 | **M10 CRM connectors**                       | 🟡 **READY FOR PREVIEW ACCEPTANCE** (`4d6fcfb`, ADR-0036) — every adapter built, the REALPAD deals adapter included (`644a79b`); the whole path accepted on the local control plane by `e2e/m10-acceptance.spec.ts` (8 of 8, target `local-pglite`); the two migrations executed on the whole chain (`e580f64`); **nothing on the Preview**: three secrets, two migrations and a push are the operator's, then the same suite with `OBSERVER_ACCEPTANCE_TARGET=preview`. The matrix is at the end of this file |
 
 ## Cloud resources — do not ask for these again
@@ -1858,13 +1860,13 @@ real backend, and it is the operator's, not his.
 
 ### What is still open, and why each one stopped
 
-- **A brand-new MADSPACE project has no customer-facing twin.** The customer app resolves projects
-  from the synthetic world's list. Making control-plane projects appear needs currency, locale and
-  time zone on the control-plane project (it has none) and viewer grants that are not a static
-  list. Both belong to M9 and the authentication decision, which is the user's.
+- ~~A brand-new MADSPACE project has no customer-facing twin.~~ **Closed 2026-09-18** by phase 7:
+  developers, a project's currency, locale and time zone, and viewer grants now live in the control
+  plane, and a complete project joins the repository's world at once.
 - **Buyer-to-visitor identity link** (ADR-0011): the step that would turn IRIS-assisted sales into
   an attributed conversion. Privacy and legal review first.
-- **Agent names for plugin GUIDs**: a directory decision. Shown as the id until then.
+- ~~Agent names for plugin GUIDs~~ **Closed 2026-09-18**: the user made the name a condition (D4);
+  administration names a presenter, and a showroom reports its own on `observer-agents`.
 - **Event registry (M8)**: event names are matched literally in the fold, plugin names and
   event-map aliases both. Ingest still accepts any well-formed name.
 - **IRIS-assist window per tenant**: no policy in the product has storage or an override path yet.
@@ -1895,7 +1897,7 @@ prebuilt package.
 | 4. Events to the customer screens  | done, local proof | Observer           |
 | 5. The live connection             | next              | Akhilesh, operator |
 | 6. The code screen inside IRIS     | open              | Akhilesh           |
-| 7. A new project, self-served      | open              | Observer           |
+| 7. A new project, self-served      | done, local proof | Observer           |
 | 8. The pre-production gates        | open              | MADSPACE, counsel  |
 
 - **5** is his loopback run against `pnpm ue5:mock`, then the operator's steps above, the host name
@@ -1905,9 +1907,9 @@ prebuilt package.
   `activation_failed` with "ask for a new code", rate limiting, no network, and the environment
   mismatch as a warning. With it, a prebuilt package if IRIS cannot compile a source plugin, and
   `unit_id` equal to the catalogue's unit code.
-- **7** is the first open item above, plus a catalogue for the new project (connector or file) so
-  unit codes resolve, and an agent directory for the plugin's ids. Until it is built, a new
-  project's events are accepted and stored and have no screen to appear on.
+- **7** was the first open item above, plus a catalogue for the new project (connector or file) so
+  unit codes resolve, and an agent directory for the plugin's ids. **Built on 2026-09-18**; see the
+  section of that date at the end of this file.
 - **8** is unchanged: Gate 1 with the EU AI Act, Gate 2, Gate 4.
 
 **A drift found while writing that list, and closed.** The handoff's §2.3 and the contract
@@ -1936,6 +1938,111 @@ meetings, agent names, and the proof. **Five decisions are the user's** (§3 the
 recommendation; the first is whether a developer is a table inside the one operating estate now, or
 an account of its own.
 
-**Next recommended action.** Send Akhilesh `docs/ue5-remaining-work-2026-09-17.md` (it points at
-§13 of the handoff), then do the operator steps above and watch one real meeting arrive on the
-Preview. Phase 7 starts with work package 1 as soon as the user has answered D1 to D3.
+**Next recommended action, as it stood that evening.** Send Akhilesh
+`docs/ue5-remaining-work-2026-09-17.md`, then the operator steps above. Phase 7 has since been
+built; the current next action is at the end of the 2026-09-18 section below.
+
+## 2026-09-18 — phase 7 built: a project created in administration serves itself
+
+Commits `1ce436e` → `217954c`, local only. The plan is `docs/21-self-served-projects.md`; this is
+what became of it.
+
+**The decisions.** The user answered on 2026-09-18: **D4, the sales agent's name is visible on every
+showroom session, as a condition**, and D5 yes, the building is lit by real meetings. "Continue in
+the recommended order" was taken as D1 to D3 as recommended: a developer is a row in
+`observer.tenants` inside the one operating estate, MADSPACE administrators see every complete
+project and anyone else needs an explicit grant to an existing account, and a project's address is
+fixed once it is set.
+
+### What was built
+
+| Package                    | What exists now                                                                                                                                                                                                                                                                                                                                                                                                   | Commit                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 1. Control plane           | `supabase/migrations/20260918100000_observer_project_directory.sql`: developers (`observer.tenants`, globally unique slug, reserved route names refused), a project's developer, currency, locale and time zone, a trigger that refuses re-addressing, viewer grants with their revocation history, presenter names. Eleven facades in the spine's posture, on the port, in both adapters.                        | `1ce436e`                       |
+| 3. The directory seam      | `ProjectDirectory` port beside the catalogue, deal and session sources. Complete control-plane projects join the repository's world as `prj_<uuid>` and `tnt_<uuid>`, fixtures win any collision, a runtime project is always on the real clock and marked `ownDataOnly`. Grants merge into the viewer in `viewerForAccount`, so access is still the one rule of ADR-0029. One twin function, id first.           | `43fc8e5`                       |
+| 2. Administration          | `/madspace/directory` registers developers. `/madspace/projects/[id]/dashboard` is new: address and settings (locked once saved), nine readiness checks read from persisted state, who can open it (grant, revoke), who presents (name a presenter).                                                                                                                                                              | `23820c9`                       |
+| 4. An honest empty project | A project with only its own data never borrows the scenario's. One sentence, `NOTHING_RECEIVED_YET`, replaces every verdict that would have been invented, on Meetings, Project, Units, Features, Audience, Sales Flow, Sales Agents and Home. The header's data marker has a third state, `own`, that says neither "Demo data" nor "Live meetings".                                                              | `42131de`                       |
+| 5. The building, lit       | `buildProjectPulse(context, meetings)`: for a delivered catalogue, a unit's light is the project's own meetings, joined on the unit code, counted by the showroom's dwell threshold. People are meetings. A code the catalogue does not hold lights nothing and is not evidence, and administration's readiness list names it: "2 of 3 codes not in the catalogue: B204, Z-999".                                  | `5542ab9`, `db4a97d`, `217954c` |
+| 6. The presenter's name    | Names live only in `observer.project_agents`. Every surface that named an agent goes through `presenterName(projectId, agentId)`. Administration can type a name; **since `463bc6b` a showroom reports its own** on `POST /functions/v1/observer-agents` (`PD-30`): strict `{ agent_id, display_name }` entries, the project read from the credential, never an event, an administrator's name never overwritten. | `42131de`, `463bc6b`            |
+| 7. The proof               | `artifacts/qa-shots/phase7-device.mjs` (gitignored): an administrator's browser, then a device that is not the application, then the customer's browser. See below.                                                                                                                                                                                                                                               | `f0e7ad5`                       |
+
+### The proof, as run on the local control plane
+
+From an empty estate: register a developer, create a project, save its settings (a bad time zone is
+refused in words), grant it to Petra, create a source, generate a code. The device exchanges the
+code over HTTP (`200`), tries it again (`401 activation_failed`, `source_id: null`), beats, sends
+`diagnostic.test`, then one meeting of eight events. With `--roster` it also reports its presenter.
+Petra's Meetings counts the meeting, names **Jana Horváthová** on the list, the replay and Sales
+Agents, shows no demonstration marker, and nobody typed the name. Without `--roster` administration
+flags "1 of 1 without a name" and the name is typed there. A CSV catalogue imported through
+Integrations then lights B-204 on the building: "1 meaningful view from 1 person, rising", and
+Units reads "1 of 10 units were opened". A sweep of the 14 customer routes of an empty project found
+nothing borrowed.
+
+### What the proof found, and what was done
+
+- **React 19 resets a form after its action, and a controlled `<select>` stays reset.** A refused
+  settings save lost the chosen developer. Now `defaultValue` from the returned state and a `key`
+  that remounts it.
+- **The handoff's heartbeat example had lost `queue.bytes_ceiling`**, which is required. A device
+  written from that page was refused on every beat. Fixed in the document; the plugin already sends
+  it.
+- **The local control plane matched migrations by the prefix `202609`**, so an October migration
+  would have been skipped silently. Now a comparison.
+- **The pulse counted a view of a code the catalogue does not hold** as evidence for the picture.
+- **A real project's first day reads in the singular**: one view, one person, one presentation, one
+  meeting. Four sentences said "1 presentations".
+- A finding said "none is verified by a CRM" of meetings whose outcome the agent recorded in the
+  room; it now says so.
+
+### Known, and left
+
+- The **"CRM outcome" chip** sits on the agent's own recorded outcome on a project with no CRM. It is
+  a documented decision in `MeetingOutcomes.tsx`; it reads wrongly there and needs the user's word.
+- A segment finding is stated at n = 1 meeting.
+- Overview for a runtime project says no overview is composed yet. By the plan.
+- The same person on two showroom PCs is two agents, because each kiosk mints its own identifier.
+- **No way to delete a presenter's name exists**, only to replace it. Gate 1 decides what is owed.
+
+### For the operator, one addition
+
+`20260918100000_observer_project_directory.sql` joins the list in "The operator's steps", after
+`20260917100000`. Until it is applied to a hosted database the application behaves as before on
+that database: the directory read fails, the legacy project rows are used, no runtime project
+appears, and `observer-agents` answers `503`.
+
+### For Gate 1
+
+Observer now holds personal data it did not hold before: **the display names of sales people**, who
+are employees or contractors of a developer or an agency. One table, outside the event store, a
+display name and nothing else. The privacy review has to see it: the lawful basis, what the sales
+people are told, how long a name is kept and how one is removed. That is data-protection law, named
+here as a signpost and not assessed.
+
+### On this desk
+
+`.observer-local` holds a dozen proof developers and projects (`Alder Homes …`, `Birch Estates …`).
+Birch Court 215818 (`2e634c71-1081-4ff3-af93-432dec473500`, `/birch-estates-215818/birch-court-215818`)
+has one real meeting and a ten-unit catalogue, and is the one to open. Nothing was pushed and
+nothing hosted was touched.
+
+### Verification
+
+At `463bc6b`: `pnpm format:check`, `pnpm typecheck` (every package, the tests, the scripts) and
+`pnpm lint` clean. `pnpm test` from Git Bash on a clean tree: **138 files, 3564 passed, 1 skipped,
+none failed**, and the process still exited 1 on two `[vitest-worker]: Timeout calling
+"onTaskUpdate"` errors. That is the symptom `vitest.config.ts` documents; the dev server and a
+browser were running beside the suite. The closing run is recorded under it.
+
+The live proofs are the scripts named above, run against the dev server on the local control
+plane: the whole road with a typed name, the whole road with a reported roster, the catalogue
+import and the lit unit, and the unit code diagnostic. Each screen they end on was looked at as a
+screenshot in `artifacts/qa-shots/`.
+
+### Next recommended action
+
+1. **Akhilesh needs three things from this day**, and they reach him only if the branch is pushed,
+   which is the user's word: the roster endpoint (handoff §8.4), the corrected heartbeat example,
+   and `pnpm ue5:mock --force`. `docs/ue5-remaining-work-2026-09-17.md` carries all three.
+2. The operator's steps, with the new migration.
+3. The user's word on the "CRM outcome" chip for a project with no CRM.
