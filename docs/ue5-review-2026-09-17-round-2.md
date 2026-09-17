@@ -149,6 +149,50 @@ activation.
 build completes activate → `diagnostic.test` accepted → heartbeat 200 is only shown by running it
 once against `pnpm ue5:mock` on loopback. The 17 tests still use the mock transport.
 
+## Addendum 2 — fourth drop, same day (17:06): `engine_version` is fixed
+
+**Claim checked:** the engine version string now uses
+`FEngineVersion::Current().ToString(EVersionComponent::Patch)` in both the activation and the
+heartbeat payload.
+
+**Verified.** Diffed against the third drop: one file changed,
+`Private/Observer/ObserverActivationClient.cpp`, and in it exactly two lines, `:109` (activation)
+and `:541` (heartbeat). Both now call `ToString(EVersionComponent::Patch)`. There is no other
+`engine_version` or `FEngineVersion` site in the plugin. Nothing else moved, so nothing the
+third drop fixed was disturbed.
+
+Run through the live Zod schemas with the exact request shapes the plugin builds:
+
+| `engine_version`                                        | length | activation | heartbeat |
+| ------------------------------------------------------- | ------ | ---------- | --------- |
+| `5.6.0` (Patch form, stock 5.6)                         | 5      | PASS       | PASS      |
+| `5.10.12` (Patch form, the longest it can plausibly be) | 7      | PASS       | PASS      |
+| `5.6.1-44394996+++UE5+Release-5.6-Licensee` (old form)  | 41     | FAIL       | FAIL      |
+
+The last row is the defect this drop removes: a licensee engine branch would have failed every
+activation and every heartbeat on that machine.
+
+Secret scan of the drop: no JWT-shaped string, no Supabase host. The three pattern hits are the
+privacy guard's own prefixes (`ObserverEventValidator.cpp:397`), the verifier's regex
+(`Tools/verify_observer_source.py:165`) and a test fixture that feeds the guard a fake bearer
+string to prove it is refused (`Tests/ObserverContractTests.cpp:118`). All three are unchanged
+from the third drop.
+
+**Not verified, and cannot be from here:** that it compiles, and the 17 tests. Both are claims
+about his machine; the change itself is a one-token edit to a call that already compiled.
+
+**Next, agreed:** the loopback run against `pnpm ue5:mock` (activate, `diagnostic.test`
+accepted, heartbeat 200). That is the first time the C++ HTTP path is exercised end to end; the
+17 tests use the mock transport, which never parses a request. After it, one real session against
+the Preview is worth more than another review: since 2026-09-17 ingested events become meetings on
+the customer's screens (ADR-0038), and `docs/ue5-integration-handoff.md` §13 says which events
+and fields are read. The one that decides whether anything joins: `unit_id` must be the unit's
+code exactly as the developer's catalogue states it.
+
+Still open from the first addendum, none blocking: the full-queue rewrite in `Enqueue`, the local
+screenshot subtypes, the share gate and local rating export, `TrackAnalytics` unbridged, one flag
+for four environment fields.
+
 ## C. On UE-OBS-011 — keep the bridge, then replace the nodes, in that order
 
 Agreed with the instinct to end up on the new nodes only. Two things make the order matter:
