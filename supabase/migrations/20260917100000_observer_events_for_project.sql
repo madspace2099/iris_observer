@@ -6,10 +6,9 @@
 -- events back into sessions, so a showroom that activated and ingested
 -- correctly still showed nothing on Sales Flow, Project or Sales Agents.
 --
--- This is that read: every session-scoped event of one PROJECT, across all of
--- its sources, in session order, with `agent_id`, `visitor_subject` and the
--- entity — the columns `analytics_events` has always stored and no facade
--- returned.
+-- This is that read: the session-scoped events of one PROJECT, across all of
+-- its sources, with `agent_id`, `visitor_subject` and the entity — the columns
+-- `analytics_events` has always stored and no facade returned.
 --
 -- ## A new function, not a wider old one
 --
@@ -26,9 +25,27 @@
 --   - events with no session — a read model folds sessions, and an event that
 --     belongs to none has nothing to fold into.
 --
--- ponytail: folded in TypeScript at read time, capped at 50 000 events. When a
--- project outgrows that, materialise sessions at ingest instead of raising the
--- cap — the fold in `packages/connectors/src/ue5-events.ts` is already pure.
+-- ## One page at a time, in the order it arrived
+--
+-- PostgREST caps a response at its `max-rows` (1000 on Supabase) and says
+-- nothing when it cuts one short, so a facade that answered fifty thousand rows
+-- would work on PGlite and silently lose most of a project on the hosted
+-- database. This one never answers more than a thousand, in `ingested_at` order,
+-- and `p_since` is a lower bound on `ingested_at`: the caller pages by passing
+-- the last row's instant back (`readProjectEvents` in `packages/sources`).
+--
+-- The bound is INCLUSIVE, because the instant is formatted to the millisecond
+-- and the column holds microseconds; the caller drops the rows it has already
+-- seen. A page cannot stall unless a thousand events share one millisecond, and
+-- a batch is two hundred at most.
+--
+-- Arrival order is also what makes paging safe on an append-only store: a row
+-- ingested during the read lands after the cursor, never inside a page already
+-- taken. The fold orders each session by `sequence` itself.
+--
+-- ponytail: folded in TypeScript at read time. When a project outgrows that,
+-- materialise sessions at ingest — the fold in
+-- `packages/connectors/src/ue5-events.ts` is already pure.
 
 create or replace function public.observer_events_for_project(
   p_account text,
@@ -66,9 +83,9 @@ as $$
     and e.project_id = p_project
     and e.session_id is not null
     and e.event_name not like 'diagnostic.%'
-    and (p_since is null or e.occurred_at >= p_since::pg_catalog.timestamptz)
-  order by e.session_id, e.sequence, e.occurred_at
-  limit least(greatest(p_limit, 1), 50000);
+    and (p_since is null or e.ingested_at >= p_since::pg_catalog.timestamptz)
+  order by e.ingested_at, e.source_id, e.event_id
+  limit least(greatest(p_limit, 1), 1000);
 $$;
 alter function public.observer_events_for_project(text, uuid, text, integer)
   owner to observer_ingest_owner;

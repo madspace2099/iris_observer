@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { FACADE_NAMES, type ObserverDb } from "../src/db";
+import { FACADE_NAMES, readProjectEvents, type ObserverDb } from "../src/db";
 import { pgliteDb, type SqlQuery } from "../src/pglite";
 import {
   closeSuiteDatabases,
@@ -424,7 +424,7 @@ describe("a batch of events keeps the order it was submitted in", () => {
     ).toHaveLength(0);
   });
 
-  it("reads a project's session events back in session order, with the envelope's identity", async () => {
+  it("reads a project's session events back with the envelope's identity", async () => {
     const project = await db.projectCreate({ account: ACCOUNT_A, name: "P fold", slug: null });
     const source = await db.sourceCreate({
       account: ACCOUNT_A,
@@ -465,31 +465,91 @@ describe("a batch of events keeps the order it was submitted in", () => {
       limit: 100,
     });
     expect(
-      rows.map((r) => r.event_name),
-      "sequence order; no diagnostic, nothing without a session",
+      rows.map((r) => r.event_name).sort(),
+      "no diagnostic, nothing without a session; the fold orders by sequence, not this read",
     ).toEqual(["session.started", "unit.view.started"]);
-    expect(rows[1]?.session_id).toBe(session);
-    expect(rows[1]?.source_id).toBe(source);
-    expect(rows[1]?.agent_id).toBe("agent-guid-from-the-plugin");
-    expect(rows[1]?.visitor_subject).toBe("vis_07");
-    expect(rows[1]?.entity_type).toBe("unit");
-    expect(rows[1]?.entity_id).toBe("A-204");
-    expect(rows[1]?.properties).toEqual({ unit_id: "A-204" });
-    expect(rows[1]?.occurred_at).toBe("2026-09-01T15:30:00.124Z");
+    const opened = rows.find((r) => r.event_name === "unit.view.started");
+    expect(opened?.session_id).toBe(session);
+    expect(opened?.sequence).toBe(2);
+    expect(opened?.source_id).toBe(source);
+    expect(opened?.agent_id).toBe("agent-guid-from-the-plugin");
+    expect(opened?.visitor_subject).toBe("vis_07");
+    expect(opened?.entity_type).toBe("unit");
+    expect(opened?.entity_id).toBe("A-204");
+    expect(opened?.properties).toEqual({ unit_id: "A-204" });
+    expect(opened?.occurred_at).toBe("2026-09-01T15:30:00.124Z");
 
+    /* `since` bounds when it was INGESTED, inclusively: the cursor a page hands to the next. */
+    const ingestedAt = opened?.ingested_at ?? "";
+    expect(
+      await db.eventsForProject({ account: ACCOUNT_A, project, since: ingestedAt, limit: 100 }),
+      "inclusive, so a row sharing the cursor's millisecond is never skipped",
+    ).toHaveLength(2);
     expect(
       await db.eventsForProject({
         account: ACCOUNT_A,
         project,
-        since: "2026-09-02T00:00:00.000Z",
+        since: new Date(Date.parse(ingestedAt) + 60_000).toISOString(),
         limit: 100,
       }),
-      "`since` is a lower bound on when it happened",
     ).toHaveLength(0);
     expect(
       await db.eventsForProject({ account: ACCOUNT_B, project, since: null, limit: 100 }),
       "another account reads nothing, not an error",
     ).toHaveLength(0);
+  });
+});
+
+describe("a whole project is read a page at a time", () => {
+  /*
+   * THE CASE THE HOSTED DATABASE WOULD HAVE LOST. PostgREST cuts a response at
+   * its `max-rows` and says nothing, so the facade never answers more than a
+   * thousand rows and the read pages. 2300 events is three pages, the last one
+   * short; every event must come back exactly once.
+   */
+  it("returns every event once across page boundaries", async () => {
+    const project = await db.projectCreate({ account: ACCOUNT_A, name: "P paged", slug: null });
+    const source = await db.sourceCreate({
+      account: ACCOUNT_A,
+      project,
+      type: "showroom_ue5",
+      environment: "production",
+      label: "Paged PC",
+    });
+    const session = "7a1c9f6e-2c7a-4a4e-9b31-0000000000cc";
+    const sent: string[] = [];
+    let sequence = 0;
+    /* Twelve batches, as a plugin would send them: never more than two hundred at once. */
+    for (let batch = 0; batch < 12; batch += 1) {
+      const size = batch === 11 ? 100 : 200;
+      const events = Array.from({ length: size }, () => {
+        sequence += 1;
+        const id = eventId();
+        sent.push(id);
+        return { ...event(id), event_name: "screenshot.created", session_id: session, sequence };
+      });
+      await db.eventsAppend({ source, events });
+    }
+    expect(sent).toHaveLength(2300);
+
+    const capped = await db.eventsForProject({
+      account: ACCOUNT_A,
+      project,
+      since: null,
+      limit: 50_000,
+    });
+    expect(
+      capped,
+      "one call never answers more than a page, whatever it is asked for",
+    ).toHaveLength(1000);
+
+    const whole = await readProjectEvents(db, { account: ACCOUNT_A, project });
+    expect(whole.complete).toBe(true);
+    expect(whole.events.map((e) => e.event_id).sort()).toEqual([...sent].sort());
+
+    const part = await readProjectEvents(db, { account: ACCOUNT_A, project, maxPages: 1 });
+    expect(part.complete, "a read that stopped early says so").toBe(false);
+    expect(part.events).toHaveLength(1000);
   });
 });
 

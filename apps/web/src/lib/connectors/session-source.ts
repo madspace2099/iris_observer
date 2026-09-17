@@ -7,6 +7,7 @@ import type {
 } from "@observer/readmodels";
 import { SHOWROOM_SOURCE_KINDS } from "@observer/contracts";
 import { foldUe5Sessions } from "@observer/connectors";
+import { readProjectEvents } from "@observer/sources";
 
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
 import { observerDepsAsync } from "@/lib/sources/deps";
@@ -86,8 +87,8 @@ async function connectorSessions(projectUuid: string): Promise<DeliveredSessions
  * `observer_events_for_project`: that must cost this path only, never the
  * connector's sessions beside it.
  *
- * ponytail: folded on read behind the 30 s memo. Materialise at ingest when a
- * project's event count makes this slow.
+ * ponytail: read a page at a time and folded, behind the 30 s memo. Materialise
+ * at ingest when a project's event count makes this slow.
  */
 async function ingestedSessions(
   projectUuid: string,
@@ -96,12 +97,15 @@ async function ingestedSessions(
   try {
     const deps = await observerDepsAsync();
     if (deps === null) return null;
-    const events = await deps.db.eventsForProject({
+    const { events, complete } = await readProjectEvents(deps.db, {
       account: CONTROL_PLANE_ACCOUNT,
       project: projectUuid,
-      since: null,
-      limit: 50_000,
     });
+    if (!complete) {
+      console.error(
+        "[observer.sessions] a project's events were read in part; its newest meetings are missing until sessions are materialised at ingest",
+      );
+    }
     const sessions = foldUe5Sessions(events, readModelProjectId);
     if (sessions.length === 0) return null;
     const fetchedAt = events.reduce((max, e) => (e.ingested_at > max ? e.ingested_at : max), "");

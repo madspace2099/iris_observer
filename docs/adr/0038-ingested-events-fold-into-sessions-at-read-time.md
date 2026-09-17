@@ -18,29 +18,38 @@ cannot be rebuilt from it.
 
 ## Decision
 
-1. **A new facade, `observer_events_for_project`.** Every session-scoped event of one project, all
-   sources, ordered by session then sequence, with the identity the envelope carried. It excludes
-   `diagnostic.%` (the contracts' `READ_MODEL_EXCLUSION_RULE`) and events with no session. The old
-   facade is not widened: the local control plane re-applies every migration on every start, and
-   `create or replace` cannot change a return type, so the original definition would fail on the
-   second start.
-2. **A pure fold, `foldUe5Sessions`** (`packages/connectors/src/ue5-events.ts`), from those rows to
+1. **A new facade, `observer_events_for_project`.** The session-scoped events of one project, all
+   sources, with the identity the envelope carried. It excludes `diagnostic.%` (the contracts'
+   `READ_MODEL_EXCLUSION_RULE`) and events with no session. The old facade is not widened: the local
+   control plane re-applies every migration on every start, and `create or replace` cannot change a
+   return type, so the original definition would fail on the second start.
+2. **It answers one page, and the read pages.** PostgREST cuts a response at its `max-rows` (1000
+   on Supabase) and says nothing, so a facade answering a whole project would work on PGlite and
+   silently lose most of it on the hosted database. It never answers more than a thousand rows, in
+   `ingested_at` order, and `p_since` is an inclusive lower bound on `ingested_at`.
+   `readProjectEvents` passes the last row's instant back as the next page's bound and drops the
+   rows seen twice by `source_id` and `event_id`. Inclusive, because the instant is formatted to
+   the millisecond and the column holds microseconds. Arrival order is what makes paging safe on an
+   append-only store: a row ingested during the read lands after the cursor, never inside a page
+   already taken. A read that stops early says `complete: false`, and the caller logs that the
+   project was read in part.
+3. **A pure fold, `foldUe5Sessions`** (`packages/connectors/src/ue5-events.ts`), from those rows to
    the `ShowroomSession` the legacy mapper already produces. Every surface downstream is reused
    unchanged. The fold accepts the names the shipped plugin sends and the aliases in
    `docs/03-event-map.md`, reads a property whether it arrived as a string or a number, and never
    estimates: a view with no `view.ended` has no dwell, a session nobody signed into is attributed to
    `agt_unattributed`, and `contactId` is always null.
-3. **Read time, not ingest time.** `liveSessionSource` reads and folds behind its existing 30 second
+4. **Read time, not ingest time.** `liveSessionSource` reads and folds behind its existing 30 second
    memo. A failed event read costs the V2 path only; a configured connector's sessions are still
    delivered, which is what keeps a database that has not yet applied the migration working.
-4. **Both sources may answer.** Folded sessions and a connector's sessions are delivered together;
+5. **Both sources may answer.** Folded sessions and a connector's sessions are delivered together;
    on the same session id the showroom's own events win.
 
 ## Consequences
 
 - A project twin with ingested events stops showing synthetic sessions, by ADR-0036's rule.
-- The fold is capped at 50 000 events per project per read. Past that, sessions should be
-  materialised at ingest; the fold is pure so that move does not change what a session means.
+- A read is fifty pages at most, so fifty thousand events per project. Past that, sessions should
+  be materialised at ingest; the fold is pure so that move does not change what a session means.
 - Event names are matched literally until the registry (M8) exists. The plugin's names that differ
   from the event map (`unit.balcony_viewed`, `unit.floor_cut_viewed`, the three `environment.*`
   events) are accepted as aliases rather than rejected.

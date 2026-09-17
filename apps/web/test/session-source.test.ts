@@ -87,7 +87,7 @@ describe("which real sessions a project is composed with", () => {
       account: "acct_test",
       project: TWIN,
       since: null,
-      limit: 50_000,
+      limit: 1000,
     });
     expect(delivered?.connector).toBe("ue5_events");
     expect(delivered?.sessions.map((s) => [s.sessionId, s.projectId])).toEqual([
