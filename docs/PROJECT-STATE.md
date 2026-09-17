@@ -5,8 +5,9 @@ whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-17 · **Branch:** `feature/observer-reference-parity`, pushed
 to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only, latest `6581e92` (login throttling + session revocation) and the round-2 UE5 review
-that follows it.
+local only. Latest: the 2026-09-17 afternoon run that made ingested UE5 events reach the customer's
+screens (ADR-0038), put delivered projects on the real clock, and added IRIS-assisted sales
+(ADR-0039). See the last section of this file.
 
 ---
 
@@ -27,7 +28,7 @@ that follows it.
 | **Demo release candidate**                   | ✅ **on Preview from this branch** — `iris-observer-git-feature-observer-re-698f93-madspaces-projects.vercel.app`, demo accounts switched on by the user                                                                                                                                                                                                                                                                                                                                                       |
 | M3 Remaining intelligence surfaces           | 🟡 **frontend review-ready 2026-09-07 night** — time in stage and the stalled list on the ladder, the attention × conversion matrix, the competition bars, the policy-version guard; contacts/unified timeline and intent distribution are not built (see the overnight section)                                                                                                                                                                                                                               |
 | M6 Physical data layer                       | 🟡 partial — source spine, event store, credentials, **catalogue and connectors** (`7226e07`); no domain tables for meetings, contacts, deals                                                                                                                                                                                                                                                                                                                                                                  |
-| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                                                                                                                                                                                                                                                                                                   |
+| M7 Ingestion                                 | 🟡 partial — activation, heartbeat, ingest endpoints live and proven; **since 2026-09-17 ingested events fold into the sessions every surface reads (ADR-0038), proven live on the local control plane**; no simulator package, no CRM/WEBIRIS adapters into `SourceObservation`                                                                                                                                                                                                                               |
 | M8 Event catalogues                          | ⛔ not started — `EventRegistry` is null; the UE5 spec is a candidate (ADR-0032)                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | M9 MADSPACE administration                   | 🟡 partial — projects, installations, activation, diagnostics, **integrations** (`7226e07`), **directory** (tenants, agencies, people from the demonstration directory, `c85f469`); no tenant/user/agency tables, no branding, no flags; no tenants, users, agencies, branding, flags                                                                                                                                                                                                                          |
 | **M10 CRM connectors**                       | 🟡 **READY FOR PREVIEW ACCEPTANCE** (`4d6fcfb`, ADR-0036) — every adapter built, the REALPAD deals adapter included (`644a79b`); the whole path accepted on the local control plane by `e2e/m10-acceptance.spec.ts` (8 of 8, target `local-pglite`); the two migrations executed on the whole chain (`e580f64`); **nothing on the Preview**: three secrets, two migrations and a push are the operator's, then the same suite with `OBSERVER_ACCEPTANCE_TARGET=preview`. The matrix is at the end of this file |
@@ -1660,5 +1661,102 @@ fields.
 proven, the C++ HTTP path is not. (2) Ask MADSPACE whether the round-1 anon key was rotated.
 (3) Decide on our side whether `engine_version`'s 32-character ceiling should reject at all: the
 contract already declines to reject on `app.environment` for the same reason (a diagnostic nobody
-authorises on), and this one can fail an entire activation. (4) The `/meetings` swap failure and
-the `wide` follow-ups above are unchanged and independent.
+authorises on), and this one can fail an entire activation. (4) The `/meetings` "swap failure" named earlier in this file was retracted in `d65ca7d`: it
+was the Browser pane, not the product.
+
+## 2026-09-17, afternoon — real showroom data reaches the screens, and IRIS-assisted sales
+
+The user's instruction was to build every missing part without stopping. The order followed what
+each step uncovered, and two of the most important findings were on no list: they appeared only
+when a real meeting was pushed through the real endpoint and the screen was looked at.
+
+**1. Ingested UE5 events now become meetings (ADR-0038, `5e10463`).** Nothing read
+`observer.analytics_events` back; real sessions came only from the legacy Supabase connector, which
+the V2 plugin no longer writes. New facade `observer_events_for_project` (migration
+`20260917100000`, a file only), `eventsForProject` on the port in both adapters, a pure fold
+`foldUe5Sessions` (`packages/connectors/src/ue5-events.ts`) to the same `ShowroomSession` the legacy
+mapper produces, and `liveSessionSource` reading both. A failed event read costs the V2 path only,
+so a database that has not applied the migration behaves exactly as before.
+
+**2. Delivered projects run on the real clock (`104e339`). Found live.** The product's today was
+the synthetic world's fixed day, 24 August, for every project, and the four periods were constants
+ending on it. A meeting ingested after that day fell outside every period, so a correctly
+integrated project read "0 presentations were recorded" for ever. Delivery now decides: a project
+a session source delivers for resolves periods with `periodsAt(now, project.timeZone)`; every
+other project stays on the synthetic day. `periodsAt` reproduces the four constants to the
+millisecond when handed the synthetic today.
+
+**3. A project's agents are read from its meetings (`705747a`). Found live.** Every per-agent read
+model walked `SYNTHETIC_AGENTS`, so for a delivered project Sales Agents was empty, the meeting
+filter offered nobody who had presented and an agent's page was a 404. `presentersIn(sessions)` is
+the roster plus whoever the sessions name. An id no directory names is shown as the id.
+
+**4. The lifecycle driver sends a whole meeting (`256ef01`).** "Send a showroom meeting" posts one
+session as the shipped plugin sends it, through the real ingest endpoint with the real token, with
+real unit codes from the catalogue. Development only. Proof script:
+`node artifacts/qa-shots/v2-meeting-proof.mjs` (activate, send, read the meeting back on Meetings
+and open its replay).
+
+**5. IRIS-assisted sales (ADR-0039, `09f9edc`).** The user asked for the system to decide whether
+IRIS assisted the purchase. Built as a rule, not a reading of motive: a sale is IRIS-assisted when a
+meeting that opened the unit started no more than 72 hours before the date the CRM states for its
+reservation or purchase. `DEFAULT_IRIS_ASSIST_POLICY` (72 h, minimum 5 dated sales, v1.0.0),
+metric `flow.iris_assisted_sales` (tier `observed_sequence`), `buildAssistedSales`, a section on
+Sales Flow and a finding on the unit's page. Never drawn without a CRM. The lag is stated for every
+sale, so on Northgate it reads "1 of 6 dated sales (17%) ... 5 more were shown earlier, a median of
+7 days before": the demonstration CRM dates sales 6 and 21 days after the meeting, which is the
+rule showing that 72 hours is short for that cycle. **The buyer is not linked to the visitor**
+(ADR-0011), so this is an observed sequence and cannot become an attributed conversion until a
+deterministic identity link exists.
+
+**6. Smaller things the live data showed.** The data marker said "Demo data" over real meetings;
+a delivered project now reads "Live meetings" (`24ff48e`). An empty "not interested" group drew
+seven bands at nought (`a87fedc`). "1 agents ... do not present alike" and a 1.0x finding for a
+single presenter. A V2 meeting with no step was worded as "legacy analytics". The shared tab strip
+gave no sign that it scrolls at phone width.
+
+**7. Test health.** `surfaces` and `reference-parity` had been red since the style comparison page
+was left behind; it is removed (`51d3b43`, one `git show 653f1a5` away). The release chain replay
+failed as `spawn ENAMETOOLONG` at 278 commits because `git am` was handed one argument per patch;
+it now replays one mbox (`03289a9`). **Full vitest on a clean tree: 3440 passed, 0 failed.**
+
+**8. For Akhilesh.** `docs/ue5-integration-handoff.md` §13 states what the dashboard reads from his
+events, and the three things that decide whether his data joins anything. The first matters most:
+`unit_id` must be the unit's code exactly as the developer's catalogue states it.
+
+### What this changed on this desk, which the user should know
+
+The proof pressed the real harness against the LOCAL control plane. The demonstration source of
+ISTER TOWER was reactivated (its token file rewritten, as every Activate press does) and three
+harness meetings were ingested into `.observer-local`. **ISTER TOWER on the local dev server
+therefore shows those three meetings instead of its synthetic ones**, by ADR-0036's rule, and its
+agent is `observer-review-harness`. Nothing hosted was touched. The event store is append-only by
+design, so the way back to synthetic ISTER TOWER locally is to delete `.observer-local/`, which
+also drops local connector settings. That is the user's call and was not done.
+
+### The operator's steps, in order (none of them were done here)
+
+1. Push the branch (the Preview follows it).
+2. Apply `supabase/migrations/20260917100000_observer_events_for_project.sql` to
+   `tfcchobwobpadenampyh` through the SQL Editor, after the earlier ones. Until then the Preview
+   behaves exactly as before; nothing breaks.
+3. With a showroom activated against the Preview and sending events, its project's Meetings,
+   Sales Flow, Project and Sales Agents fill from them. The project must have a twin in the
+   read-model world by slug or name (today: ISTER TOWER, and the Akhilesh demo source).
+
+### What is still open, and why each one stopped
+
+- **A brand-new MADSPACE project has no customer-facing twin.** The customer app resolves projects
+  from the synthetic world's list. Making control-plane projects appear needs currency, locale and
+  time zone on the control-plane project (it has none) and viewer grants that are not a static
+  list. Both belong to M9 and the authentication decision, which is the user's.
+- **Buyer-to-visitor identity link** (ADR-0011): the step that would turn IRIS-assisted sales into
+  an attributed conversion. Privacy and legal review first.
+- **Agent names for plugin GUIDs**: a directory decision. Shown as the id until then.
+- **Event registry (M8)**: event names are matched literally in the fold, plugin names and
+  event-map aliases both. Ingest still accepts any well-formed name.
+- **IRIS-assist window per tenant**: no policy in the product has storage or an override path yet.
+- Unchanged: the four pre-production gates, M6 domain tables, the rest of the `/madspace` restyle.
+
+**Next recommended action.** Send Akhilesh §13 of `docs/ue5-integration-handoff.md`, then do the
+three operator steps above and watch one real meeting arrive on the Preview.

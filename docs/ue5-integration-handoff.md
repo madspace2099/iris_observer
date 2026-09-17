@@ -779,3 +779,56 @@ scaffolding.
 
 If you drain your outbox against it with no duplicates and no silent loss, the transport is
 done.
+
+---
+
+## 13. What the dashboard reads from your events
+
+Since 2026-09-17 the customer's screens are built from the events you ingest (ADR-0038). Until
+then a showroom could integrate correctly and still be invisible. This section is what is read, so
+you know which of your choices now show up in front of a developer.
+
+One meeting on screen is one `session_id`. Its events are replayed in `sequence` order, whatever
+order they arrived in.
+
+| On screen                                  | Read from                                        | Fields                                                                                                                                        |
+| ------------------------------------------ | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| The meeting, and when it started           | the first event of the session                   | `occurred_at`                                                                                                                                 |
+| When it ended, how long it ran             | `session.ended`                                  | `duration_seconds`; without the event, the last event's time                                                                                  |
+| Who presented                              | the envelope, first event that carries it        | `agent_id`                                                                                                                                    |
+| The recorded outcome                       | `meeting.outcome_set`                            | `outcome`: `Presentation only`, `Interested`, `Follow-up needed`, `Reservation`, `Purchase`, `Not interested`. Anything else reads as skipped |
+| The IRIS rating                            | `agent.rating`                                   | `rating_score`, 1 to 5                                                                                                                        |
+| A unit opened, and for how long            | `unit.view.started` and `unit.view.ended`        | `unit_id` (or the `unit` entity id); `duration_seconds` or `duration_ms` on the end event                                                     |
+| Shortlisted                                | `unit.favourite_added`, `unit.favourite_removed` | the unit                                                                                                                                      |
+| Floor plan opened                          | `unit.document_opened`                           | the unit                                                                                                                                      |
+| Balcony view, floor cut                    | `unit.balcony_viewed`, `unit.floor_cut_viewed`   | the unit                                                                                                                                      |
+| The journey, section by section, with time | `feature.opened` and `feature.closed`            | the `feature` entity id as your hierarchy path, `Main\|Residences\|Floor 3`; `duration_ms` on close                                           |
+| Weather and time of day                    | `environment.weather_changed`                    | `weather_type`, `time_of_day`                                                                                                                 |
+| What the buyer filtered by                 | `filter.applied`                                 | `min_price`, `max_price`, `min_surface`, `max_surface`, `selected_buildings`, `filtered_count`                                                |
+| Screenshots taken                          | `screenshot.created`                             | counted                                                                                                                                       |
+
+A value may arrive as a string or a number; both are read. `diagnostic.*` never reaches a screen.
+
+### Three things that decide whether your data joins anything
+
+1. **`unit_id` must be the unit's code exactly as the developer's catalogue states it.** It is the
+   only key joining a showing to the catalogue, to the CRM's deals, and so to every figure about a
+   unit, including whether a sale followed a showing (ADR-0039). `A-204` and `A204` are two units.
+2. **The first segment of a feature path names the section.** Recognised, case-insensitively:
+   `Home`, `Residences`, `Amenities`, `Surroundings`, `Gallery`, `Maps`, `Weather`, `Compare`,
+   `Shortlist`. A path starting anywhere else (`Main|Settings|Language`) is not a step of the
+   presentation and is left out, which is usually right. A `feature.closed` with no matching
+   `feature.opened` is dropped.
+3. **A view with no `unit.view.ended` has no dwell.** It counts as opened. Nothing is estimated
+   from the next event's timestamp, so an end event lost to a crash costs that unit its time.
+
+### Not read yet
+
+`interaction.clicked`, `language.changed`, `environment.clock_changed`, anything about Compare
+mode, sharing, or named places. They are stored and lose nothing by waiting.
+
+### The names
+
+These are the names your third drop sends, accepted as they are. `docs/03-event-map.md` spells
+some differently (`unit.favourited`, `unit.balcony.entered`, `section.entered`, `scene.changed`);
+both spellings are read, so nothing needs renaming for the dashboard's sake.
