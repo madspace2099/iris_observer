@@ -1923,6 +1923,19 @@ gained `--force rate_limit,unavailable,…`, proven over real HTTP (`429` with `
 `401`, `200`, and `401` for the same code again), so the screen's refusal states can be seen
 without a parser test.
 
+**Phase 7 is planned: `docs/21-self-served-projects.md`.** PROPOSED, nothing built. Three read-only
+surveys found the whole customer side resolves projects through three repository methods over
+constants, the grant list is the `VIEWERS` constant behind `viewerForAccount`, the control plane's
+project has a name, a nullable slug and a status and nothing else, administration operates as one
+constant account (79 uses in 21 files), and no grant exists anywhere. Already there: file import for
+catalogue and deals, a reversible `prj_<uuid>` derivation, and a tested project with no synthetic
+world. Seven work packages: control plane (developers, settings, grants), administration, the
+directory seam with the grant merge and a real clock for every runtime project, an empty project
+that tells the truth (six places the survey found that would not), the building lit by real
+meetings, agent names, and the proof. **Five decisions are the user's** (§3 there), each with a
+recommendation; the first is whether a developer is a table inside the one operating estate now, or
+an account of its own.
+
 **Next recommended action.** Send Akhilesh `docs/ue5-remaining-work-2026-09-17.md` (it points at
 §13 of the handoff), then do the operator steps above and watch one real meeting arrive on the
-Preview. Phase 7 can be built in parallel once the user decides how a customer signs in.
+Preview. Phase 7 starts with work package 1 as soon as the user has answered D1 to D3.
