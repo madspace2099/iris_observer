@@ -141,6 +141,12 @@ note gives the median lag of the sales shown earlier. A project whose sales foll
 reads as "shown earlier, a median of 7 days before" and the reader can see the window is the wrong
 size for that project, rather than be told the showroom does nothing.
 
+**Whose date it is.** The CRM's stage instant where it states one. Where it states none, the sync
+that first saw the deal on the stage, and only for a move Observer witnessed between two syncs; a
+deal first seen already sold is never dated by the day the connector was switched on. That fallback
+is late by up to one sync and never early, so it under-counts. The sentence says whose date it is,
+and the note says how many sales were placed that way.
+
 **What cannot be placed is counted beside, never inside.** A sale with no stage date, or naming no
 unit, is in neither the numerator nor the denominator, and the note says how many there were. A
 showing after the stage date never counts.

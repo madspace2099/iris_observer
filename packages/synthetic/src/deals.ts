@@ -301,6 +301,7 @@ function withoutInstant({ at, ...sale }: PlacedSale): AssistedSale {
 /** Every dated sale that names a unit, placed against the last showing before its date. Unsorted, uncapped. */
 function placeSales(
   sold: readonly CrmDeal[],
+  observed: Readonly<Record<string, string>>,
   sessions: readonly ShowroomSession[],
   policy: IrisAssistPolicy,
   locale: string,
@@ -310,10 +311,15 @@ function placeSales(
 ): PlacedSale[] {
   const window = `${String(policy.windowHours)} hours`;
   return sold.flatMap((d) => {
-    const at = d.stageEnteredAt === null ? Number.NaN : Date.parse(d.stageEnteredAt);
-    if (d.unitCode === null || d.stage === null || d.stageEnteredAt === null || Number.isNaN(at)) {
-      return [];
-    }
+    /* The CRM's own instant where it states one; else the sync that witnessed the move; else unplaced. */
+    const stated = d.stageEnteredAt;
+    const dated = stated ?? observed[d.externalId] ?? null;
+    const at = dated === null ? Number.NaN : Date.parse(dated);
+    if (d.unitCode === null || d.stage === null || dated === null || Number.isNaN(at)) return [];
+    const dateBasis = stated === null ? ("first_observed" as const) : ("crm_stated" as const);
+    /* "its reservation date" is the CRM's word; an observed one is when Observer saw it. */
+    const dateWords = (stageWord: string): string =>
+      dateBasis === "crm_stated" ? `its ${stageWord} date` : `Observer first saw its ${stageWord}`;
     const code = d.unitCode;
     const stageLabel = STAGE_LABELS[d.stage];
     const stageWord = stageLabel.toLowerCase();
@@ -340,7 +346,8 @@ function placeSales(
         unitHref: unitHref(code),
         stage: d.stage,
         stageLabel,
-        stageDateDisplay: dayLabel(d.stageEnteredAt, locale, timeZone),
+        stageDateDisplay: dayLabel(dated, locale, timeZone),
+        dateBasis,
         verdict,
         verdictLabel: VERDICT_LABELS[verdict],
         lagHours,
@@ -350,10 +357,10 @@ function placeSales(
         meetingHref: last === null ? null : meetingHref(last.meetingId),
         statement:
           verdict === "shown_in_window"
-            ? `IRIS-assisted sale. ${code} was opened in an IRIS presentation ${lagDisplay} its ${stageWord} date.`
+            ? `IRIS-assisted sale. ${code} was opened in an IRIS presentation ${lagDisplay} ${dateWords(stageWord)}.`
             : verdict === "shown_earlier"
-              ? `${code} was last opened in an IRIS presentation ${lagDisplay} its ${stageWord} date, outside the ${window} this counts.`
-              : `No IRIS presentation opened ${code} before its ${stageWord} date.`,
+              ? `${code} was last opened in an IRIS presentation ${lagDisplay} ${dateWords(stageWord)}, outside the ${window} this counts.`
+              : `No IRIS presentation opened ${code} before ${dateWords(stageWord)}.`,
       },
     ];
   });
@@ -378,6 +385,7 @@ export function assistedSaleOf(
   );
   const [newest] = placeSales(
     sold,
+    deals.stageObservedAt ?? {},
     sessions,
     policy,
     locale,
@@ -416,13 +424,23 @@ export function buildAssistedSales(
 
   const sold = deals.deals.filter((d) => d.stage !== null && SALE_STAGES.has(d.stage));
   const window = `${String(policy.windowHours)} hours`;
-  const sales = placeSales(sold, sessions, policy, locale, timeZone, unitHref, meetingHref);
+  const sales = placeSales(
+    sold,
+    deals.stageObservedAt ?? {},
+    sessions,
+    policy,
+    locale,
+    timeZone,
+    unitHref,
+    meetingHref,
+  );
 
   const datedSales = sales.length;
   const assisted = sales.filter((s) => s.verdict === "shown_in_window").length;
   const earlier = sales.filter((s) => s.verdict === "shown_earlier");
   const notShown = sales.filter((s) => s.verdict === "not_shown").length;
   const unplaced = sold.length - datedSales;
+  const observedCount = sales.filter((s) => s.dateBasis === "first_observed").length;
   const enough = datedSales >= policy.minimumSales;
 
   const headline =
@@ -443,9 +461,12 @@ export function buildAssistedSales(
     notShown === 0
       ? null
       : `${String(notShown)} ${notShown === 1 ? "was" : "were"} not opened in IRIS before the date at all.`,
+    observedCount === 0
+      ? null
+      : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
     unplaced === 0
       ? null
-      : `${String(unplaced)} sale${unplaced === 1 ? "" : "s"} carry no stage date or name no unit, and cannot be placed.`,
+      : `${String(unplaced)} sale${unplaced === 1 ? "" : "s"} carry no stage date Observer could use or name no unit, and cannot be placed.`,
   ]
     .filter((w): w is string => w !== null)
     .join(" ");

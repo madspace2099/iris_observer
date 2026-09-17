@@ -243,11 +243,12 @@ export const irisAssistedSales = defineMetric({
     "Of the sales the CRM dates, the share whose unit was opened in an IRIS presentation in the 72 hours before the reservation or purchase date.",
   kind: "ratio",
   calculation:
-    "Deals at reservation or purchase that name a unit and carry a stage date, whose unit was opened in a showroom meeting that started no more than 72 hours before that date, divided by all such deals. The lag from the last showing to the stage date is reported for every sale, inside the window or not.",
+    "Deals at reservation or purchase that name a unit and can be dated, whose unit was opened in a showroom meeting that started no more than 72 hours before that date, divided by all such deals. The date is the stage instant the CRM states; where it states none, the sync that first saw the deal on the stage, and only for a move Observer witnessed between two syncs. The lag from the last showing to the date is reported for every sale, inside the window or not.",
   numerator: "dated sales whose unit was opened in IRIS within 72 hours before the stage date",
-  denominator: "deals at reservation or purchase that name a unit and carry a stage date",
+  denominator:
+    "deals at reservation or purchase that name a unit and carry a stage date, stated by the CRM or witnessed by a sync",
   exclusions: [
-    "deals with no stage date, which cannot be placed in time",
+    "deals with no stage instant whose move onto the stage Observer did not witness, which cannot be placed in time",
     "deals that name no unit",
     "showings after the stage date",
   ],

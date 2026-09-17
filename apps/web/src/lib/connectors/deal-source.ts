@@ -53,7 +53,31 @@ async function resolve(project: ProjectSummary): Promise<DeliveredDeals | null> 
   if (last === undefined) return null;
 
   const deals = await service.currentDeals(twin.project_id, active.kind);
-  return { connector: active.kind, deals, fetchedAt: last.at };
+
+  /*
+   * WHEN OBSERVER SAW A DEAL ARRIVE WHERE IT STANDS, for the deals whose CRM
+   * states no stage instant (ADR-0039). Only a move it WITNESSED counts: a
+   * `stage_changed` between two syncs, onto the stage the deal is still on. A
+   * deal first seen already there is `opened`, and its instant is when the
+   * connector was switched on, which would date every historical sale to the day
+   * of the first sync and call a showing last week the reason for a sale last
+   * year.
+   *
+   * The façade answers newest first, so the first row met for a deal is its
+   * latest move. A thousand rows is one PostgREST page and far more recent
+   * moves than the fallback needs; older ones stay unplaced, which is the
+   * honest reading of a sale nobody dated.
+   */
+  const standing = new Map(deals.map((d) => [d.externalId, d.stage]));
+  const stageObservedAt: Record<string, string> = {};
+  for (const change of await service.recentDealChanges(twin.project_id, 1000)) {
+    if (change.connector !== active.kind || change.kind !== "stage_changed") continue;
+    if (stageObservedAt[change.external_id] !== undefined) continue;
+    if (standing.get(change.external_id) !== change.to_stage) continue;
+    stageObservedAt[change.external_id] = change.observed_at;
+  }
+
+  return { connector: active.kind, deals, fetchedAt: last.at, stageObservedAt };
 }
 
 export const liveDealSource: DealSource = {

@@ -180,7 +180,7 @@ describe("which sales followed a showing", () => {
     /* The two early lags are 40 days and 3 days and a minute: median 21.5, printed as 22 days. */
     expect(view.note).toContain("2 more were shown earlier than that, a median of 22 days before");
     expect(view.note).toContain("1 was not opened in IRIS before the date at all.");
-    expect(view.note).toContain("2 sales carry no stage date or name no unit");
+    expect(view.note).toContain("2 sales carry no stage date Observer could use or name no unit");
     expect(view.note).toContain("REALPAD");
   });
 
@@ -194,6 +194,68 @@ describe("which sales followed a showing", () => {
     for (const prose of [view.headline, view.note, ...view.sales.map((s) => s.statement)]) {
       expect(prose, prose).not.toMatch(CAUSAL);
     }
+  });
+});
+
+describe("a CRM that states no stage instant", () => {
+  /*
+   * Most do not: an export gives a date, and a date is not an instant. Where
+   * Observer WITNESSED the move between two syncs, the sync that first saw it is
+   * used instead, and the sentence says whose date it is. Where it did not, the
+   * sale stays unplaced — the first sync of a connector sees every historical
+   * sale at once, and that instant is when Observer arrived.
+   */
+  const view = buildAssistedSales(
+    {
+      connector: "realpad",
+      deals: [
+        deal("W-1", "A-1", "reservation", null),
+        deal("W-2", "B-2", "purchase", null),
+        deal("S-1", "C-3", "reservation", "2026-09-10T12:00:00.000Z"),
+      ],
+      fetchedAt: "2026-09-17T12:00:00.000Z",
+      /* W-1 was seen to move on the 10 Sept sync. W-2 was already sold when the connector was switched on. */
+      stageObservedAt: { "W-1": "2026-09-10T06:00:00.000Z" },
+    },
+    [
+      meeting("m-a", "2026-09-09T06:00:00.000Z", "A-1"),
+      meeting("m-b", "2026-09-09T06:00:00.000Z", "B-2"),
+      meeting("m-c", "2026-09-09T12:00:00.000Z", "C-3"),
+    ],
+    POLICY,
+    "en-GB",
+    "Europe/Bratislava",
+    () => null,
+    (id) => `/alpha/x/meetings/${id}`,
+  );
+  if (view.source !== "crm") throw new Error("expected a connected view");
+  const bySale = new Map(view.sales.map((s) => [s.externalId, s]));
+
+  it("places a witnessed move by the sync that first saw it, and says whose date that is", () => {
+    const sale = bySale.get("W-1");
+    expect(sale?.dateBasis).toBe("first_observed");
+    expect(sale?.lagHours).toBe(24);
+    expect(sale?.verdict).toBe("shown_in_window");
+    expect(sale?.statement).toBe(
+      "IRIS-assisted sale. A-1 was opened in an IRIS presentation 24 hours before Observer first saw its reservation.",
+    );
+  });
+
+  it("leaves a sale it never saw happen unplaced, however recently the unit was shown", () => {
+    expect(bySale.has("W-2")).toBe(false);
+    expect(view.unplaced).toBe(1);
+    expect(view.datedSales).toBe(2);
+  });
+
+  it("keeps the CRM's own instant where it states one", () => {
+    expect(bySale.get("S-1")?.dateBasis).toBe("crm_stated");
+    expect(bySale.get("S-1")?.statement).toContain("before its reservation date");
+  });
+
+  it("tells the reader how many were placed that way, and which way the error runs", () => {
+    expect(view.note).toContain(
+      "1 of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.",
+    );
   });
 });
 

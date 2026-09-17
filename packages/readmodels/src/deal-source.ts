@@ -25,6 +25,18 @@ export interface DeliveredDeals {
   readonly deals: readonly CrmDeal[];
   /** When the connector last pulled them. */
   readonly fetchedAt: string;
+  /**
+   * For a deal whose move onto its CURRENT stage Observer witnessed — the stage
+   * differed between two syncs — the instant of the sync that first saw it
+   * there, by `externalId`. Absent for a deal first seen already on that stage:
+   * the first sync of a connector "sees" every historical sale at once, and that
+   * instant says when Observer arrived, not when anything sold.
+   *
+   * It is the fallback for a CRM that states no stage instant, which is most of
+   * them: an export gives a date, and a date is not an instant. It is late by up
+   * to one sync interval, never early.
+   */
+  readonly stageObservedAt?: Readonly<Record<string, string>>;
 }
 
 export interface DealSource {
@@ -125,6 +137,13 @@ export interface AssistedSale {
   readonly stage: DealStage;
   readonly stageLabel: string;
   readonly stageDateDisplay: string;
+  /**
+   * Where the sale's date came from. `crm_stated` is the CRM's own stage
+   * instant. `first_observed` is the sync that first saw the deal on the stage,
+   * used only where the CRM states none and Observer witnessed the move: up to
+   * one sync interval late, so the lag reads longer than it was, never shorter.
+   */
+  readonly dateBasis: "crm_stated" | "first_observed";
   readonly verdict: AssistVerdict;
   /** The verdict in a few words, for a list row: "IRIS-assisted sale", "Shown earlier", "Not shown in IRIS". */
   readonly verdictLabel: string;
