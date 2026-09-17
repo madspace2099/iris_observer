@@ -4,7 +4,7 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
-import { FindingList, PageHead, StackPlan, Synthetic } from "@/components/product";
+import { FindingList, PageHead, StackPlan, Synthetic, Unavailable } from "@/components/product";
 import {
   DemandAttention,
   UnitRegister,
@@ -136,7 +136,11 @@ export default async function UnitsPage({
       <PageHead
         kicker={`${view.context.project.name} · Units · ${view.context.period.label}`}
         title="Unit demand register"
-        answer={`${opened} of ${view.rows.length} units were opened in front of a buyer in ${periodLabel}.`}
+        answer={
+          view.rows.length === 0
+            ? "No unit catalogue has reached this project yet, so there is no unit to open."
+            : `${opened} of ${view.rows.length} units were opened in front of a buyer in ${periodLabel}.`
+        }
         lede="Every flat in the catalogue, with what the showroom recorded against it. The order is yours and it is carried in the address, so the register you are reading is the register you can send. Open a unit code for what IRIS saw happen to that apartment."
         crumbs={[{ label: view.context.project.name, href: `${root}/project` }, { label: "Units" }]}
         aside={<Synthetic />}
@@ -147,20 +151,31 @@ export default async function UnitsPage({
         <section className="ox-plane">
           <div className="ox-section-head">
             <h2 className="ox-section-title">{pulse.buildingLabel}</h2>
-            <p className="ox-section-note">
-              The same {pulse.totals.units} flats the register below lists, arranged as the building
-              rather than as a list. {pulse.totals.available} available, {pulse.totals.reserved}{" "}
-              reserved, {pulse.totals.sold} sold.
-            </p>
+            {pulse.totals.units === 0 ? null : (
+              <p className="ox-section-note">
+                The same {pulse.totals.units} flats the register below lists, arranged as the
+                building rather than as a list. {pulse.totals.available} available,{" "}
+                {pulse.totals.reserved} reserved, {pulse.totals.sold} sold.
+              </p>
+            )}
           </div>
 
-          <StackPlan
-            floors={pulse.floors}
-            unitHrefs={unitHrefs}
-            period={period}
-            buildingLabel={pulse.buildingLabel}
-            peakViews={pulse.peakViews}
-          />
+          {/* No catalogue is not a building of nought flats: one band, and no plan or legend under it. */}
+          {pulse.totals.units === 0 ? (
+            <Unavailable
+              what="The building and the register"
+              why="no unit catalogue has reached this project yet"
+              period={period}
+            />
+          ) : (
+            <StackPlan
+              floors={pulse.floors}
+              unitHrefs={unitHrefs}
+              period={period}
+              buildingLabel={pulse.buildingLabel}
+              peakViews={pulse.peakViews}
+            />
+          )}
         </section>
 
         <DemandAttention
@@ -179,7 +194,12 @@ export default async function UnitsPage({
          * what we conclude, below it what was measured. Nothing above this
          * point is a reading and nothing inside it is a verdict.
          */}
-        <div className="ox-plate ox-paper">
+        {/*
+         * No catalogue, no register. Drawn anyway it was "0 of 0 units" over "No
+         * unit matches this filter, widen it", which sends a reader to fix a filter
+         * when what is missing is the catalogue. The band above says that once.
+         */}
+        <div className="ox-plate ox-paper" hidden={view.rows.length === 0}>
           <div className="ox-plate-inner">
             <div className="ox-section-head">
               <h2 className="ox-section-title">The register</h2>

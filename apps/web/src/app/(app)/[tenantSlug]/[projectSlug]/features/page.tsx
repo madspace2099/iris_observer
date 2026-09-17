@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CORE_SECTION_IDS, SHOWROOM_SECTIONS } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { nothingReceivedYet } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { repository } from "@/lib/repository";
@@ -252,7 +253,8 @@ export default async function FeaturesPage({
       : `No feature was reached in this period that went unreached in ${view.context.period.baselineLabel}. Every feature in the register was already in use.`;
 
   const answer = !recorded
-    ? "No presentation was recorded in this period, so no feature was opened. That is the period's answer rather than a gap in it."
+    ? (nothingReceivedYet(view.context) ??
+      "No presentation was recorded in this period, so no feature was opened. That is the period's answer rather than a gap in it.")
     : !ranked
       ? `${meetingsTotal} presentations were recorded in this period, short of the ${AGENT_MIN_SAMPLE} this product holds to before it will rank or compare features. Every figure below stands as a count, in the order the read model returned it.`
       : leader === undefined
@@ -304,15 +306,18 @@ export default async function FeaturesPage({
               label="Core to a complete presentation"
               value={<KeyCount n={CORE_SECTION_IDS.length} of={SHOWROOM_SECTIONS.length} />}
             />
-            <TallyItem
-              label="Presentations that moved the light or the weather"
-              value={
-                <KeyCount
-                  n={view.environment.meetingsUsingEnvironment}
-                  of={view.environment.meetingsTotal}
-                />
-              }
-            />
+            {/* A share of no presentations is "0 of 0", which is a denominator of nothing. */}
+            {recorded ? (
+              <TallyItem
+                label="Presentations that moved the light or the weather"
+                value={
+                  <KeyCount
+                    n={view.environment.meetingsUsingEnvironment}
+                    of={view.environment.meetingsTotal}
+                  />
+                }
+              />
+            ) : null}
           </Tally>
 
           {/*
@@ -357,7 +362,12 @@ export default async function FeaturesPage({
 
         {/* --- the measured body, on paper --------------------------------- */}
 
-        <div className="ox-plate ox-paper">
+        {/*
+         * With no presentation there is no register to read: every row was "0 of
+         * 0, not reached", nine times over, which is one fact repeated until it
+         * looks like data. It is stated once, above, as the page's answer.
+         */}
+        <div className="ox-plate ox-paper" hidden={!recorded}>
           <section className="ox-plate-inner">
             <div className="ox-section-head">
               <h2 className="ox-section-title">The feature register</h2>

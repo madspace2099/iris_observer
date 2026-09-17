@@ -13,7 +13,7 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { clockLabel, count, dayLabel, evidenceRef, percent } from "./format";
-import { agentById } from "./showroom/sessions";
+import { presenterName } from "./showroom/sessions";
 
 /**
  * Previous Ask Observer conversations, for a surface that has no history yet.
@@ -250,7 +250,7 @@ function plans(context: ViewContext, sessions: readonly ShowroomSession[]): read
           question: "Who is presenting this project, and how much has each of them done?",
           answer: `${count(roster.length, locale)} people presented ${count(n, locale)} meetings ${period}.`,
           figures: roster.map(([id, meetings]) => ({
-            label: agentById(id)?.name ?? id,
+            label: presenterName(context.project.id as string, id),
             value: count(meetings, locale),
             note: `${percent(share(meetings, n), locale)} of the period`,
           })),

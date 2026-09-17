@@ -45,7 +45,7 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { agentById, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
+import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -684,8 +684,10 @@ export function buildPresentationIntelligence(
      */
     const presenters = presentersIn(sessions);
     const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
+    /* A project that shows only its own data has no roster to fall back on, with meetings or without. */
     const onRoster =
-      sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined);
+      !context.ownDataOnly &&
+      (sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined));
     const pick = (key: string | null, scenario: string, index: number) =>
       (key === null ? undefined : presenters.find((p) => p.id === key)) ??
       (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
@@ -909,8 +911,9 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     context,
     meetingId: session.meetingId,
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
-    agentName: agent?.name ?? session.agentId,
-    agentHref: agent === undefined ? null : `${base}/agents/${agent.id}`,
+    agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
+    /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
+    agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
     startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
     durationDisplay: formatDuration(session.durationSeconds),
     outcome: session.outcome,
@@ -940,7 +943,7 @@ export function buildMeetingList(
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
-      agentName: agentById(s.agentId)?.name ?? s.agentId,
+      agentName: presenterName(s.projectId, s.agentId),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: formatDuration(s.durationSeconds),
       outcome: s.outcome,

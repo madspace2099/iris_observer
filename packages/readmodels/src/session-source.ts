@@ -18,6 +18,15 @@ export interface DeliveredSessions {
   readonly sessions: readonly ShowroomSession[];
   /** When the source last delivered this snapshot. */
   readonly fetchedAt: string;
+  /**
+   * The name each presenter is shown under, by the identifier the sessions carry.
+   *
+   * A showroom sends an identifier with a meeting and never a name: events hold
+   * no personal data. The name is kept by administration beside the project and
+   * joined here, at read time, so every meeting shows who presented it. An
+   * identifier missing from this map has no name yet and is shown as itself.
+   */
+  readonly agentNames?: Readonly<Record<string, string>>;
 }
 
 export interface ShowroomSessionSource {

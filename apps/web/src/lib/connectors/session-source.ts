@@ -7,7 +7,7 @@ import type {
 } from "@observer/readmodels";
 import { SHOWROOM_SOURCE_KINDS } from "@observer/contracts";
 import { foldUe5Sessions } from "@observer/connectors";
-import { readProjectEvents } from "@observer/sources";
+import { projectDirectoryAdmin, readProjectEvents } from "@observer/sources";
 
 import { controlPlaneProjectFor } from "@/lib/directory/rows";
 import { CONTROL_PLANE_ACCOUNT } from "@/lib/sources/control-plane";
@@ -40,6 +40,15 @@ async function resolve(project: ProjectSummary): Promise<DeliveredSessions | nul
     ingestedSessions(projectUuid, project.id as string),
     connectorSessions(projectUuid),
   ]);
+  const delivered = merged(ingested, connected);
+  if (delivered === null) return null;
+  return { ...delivered, agentNames: await agentNames(projectUuid) };
+}
+
+function merged(
+  ingested: DeliveredSessions | null,
+  connected: DeliveredSessions | null,
+): DeliveredSessions | null {
   if (ingested === null) return connected;
   if (connected === null) return ingested;
 
@@ -50,6 +59,34 @@ async function resolve(project: ProjectSummary): Promise<DeliveredSessions | nul
     sessions: [...connected.sessions.filter((s) => !own.has(s.sessionId)), ...ingested.sessions],
     fetchedAt: ingested.fetchedAt > connected.fetchedAt ? ingested.fetchedAt : connected.fetchedAt,
   };
+}
+
+/**
+ * The name each presenter is shown under, from the project's own directory.
+ *
+ * A showroom sends an identifier and never a name; administration keeps the
+ * name, and it is joined here so that every meeting shows who presented it
+ * (MADSPACE's condition of 2026-09-17). A directory that cannot be read, on a
+ * database that stops before it, names nobody: the meetings still arrive, with
+ * identifiers where names would be.
+ */
+async function agentNames(projectUuid: string): Promise<Readonly<Record<string, string>>> {
+  try {
+    const deps = await observerDepsAsync();
+    if (deps === null) return {};
+    const read = await projectDirectoryAdmin(deps).agents({
+      account: CONTROL_PLANE_ACCOUNT,
+      project: projectUuid,
+    });
+    if (!read.ok) return {};
+    return Object.fromEntries(
+      read.value.flatMap((row) =>
+        row.display_name === null ? [] : [[row.agent_ref, row.display_name] as const],
+      ),
+    );
+  } catch {
+    return {};
+  }
 }
 
 /** A configured telemetry connector's last good snapshot, as before V2 ingestion existed. */

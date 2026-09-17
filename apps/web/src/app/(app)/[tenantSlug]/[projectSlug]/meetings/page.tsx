@@ -99,7 +99,10 @@ export default async function MeetingsPage({
         answer={
           narrowed
             ? `${view.total} of ${view.periodTotal} presentations recorded on ${context.project.name} in ${periodLabel} match the filters below.`
-            : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
+            : view.periodTotal === 0
+              ? /* The read model's own sentence: nothing has arrived, or nothing in this period. */
+                view.emptyState
+              : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
         }
         lede="One row is one presentation. A visitor is named by their history with this project and never by a contact detail. The outcome column is what the agent selected in the room at the end of the meeting — it labels the presentation, and it is not a verified sale."
         crumbs={[{ label: "Project", href: `${base}/project` }, { label: "Meetings" }]}
@@ -108,24 +111,32 @@ export default async function MeetingsPage({
       />
 
       <div className="ox-body">
-        <section className="ox-plane">
-          <div className="ox-section-head">
-            <h2 className="ox-section-title">Narrow the register</h2>
-            <p className="ox-section-note">
-              Each option carries how many meetings it would keep, counted over the whole period
-              rather than over what is already on screen. The dates come from the period in the bar
-              above.
-            </p>
-          </div>
+        {/*
+         * With no meeting in the period there is nothing to narrow, and the bar
+         * was three controls that did nothing beside "0 of 0 meetings". A filtered
+         * view that matches nothing keeps it: there the bar is how the reader gets
+         * the meetings back.
+         */}
+        {view.periodTotal === 0 ? null : (
+          <section className="ox-plane">
+            <div className="ox-section-head">
+              <h2 className="ox-section-title">Narrow the register</h2>
+              <p className="ox-section-note">
+                Each option carries how many meetings it would keep, counted over the whole period
+                rather than over what is already on screen. The dates come from the period in the
+                bar above.
+              </p>
+            </div>
 
-          <FilterBar
-            action={`${base}/meetings`}
-            fields={meetingFilterFields(view.options, view.filters)}
-            period={period}
-            resultCount={`${view.total} of ${view.periodTotal} meetings`}
-            label="Narrow the meeting register"
-          />
-        </section>
+            <FilterBar
+              action={`${base}/meetings`}
+              fields={meetingFilterFields(view.options, view.filters)}
+              period={period}
+              resultCount={`${view.total} of ${view.periodTotal} meetings`}
+              label="Narrow the meeting register"
+            />
+          </section>
+        )}
 
         {/*
          * THE PAPER PLATE. Nine columns of readings, one row per presentation.

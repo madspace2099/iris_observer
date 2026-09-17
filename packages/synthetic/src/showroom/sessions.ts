@@ -274,6 +274,28 @@ export function agentById(id: string): SyntheticAgent | undefined {
   return SYNTHETIC_AGENTS.find((a) => a.id === id);
 }
 
+/*
+ * THE NAMES A PROJECT'S OWN DIRECTORY HOLDS, keyed by project and then by the
+ * identifier its sessions carry. Per project, never one map: an identifier is
+ * only unique within the showrooms that mint it, and a name given on one
+ * development must not appear on another's meetings.
+ */
+const providedNames = new Map<string, ReadonlyMap<string, string>>();
+
+/** Set by the repository beside `provideSessions`, on every build. Null forgets. */
+export function provideAgentNames(
+  projectId: string,
+  names: Readonly<Record<string, string>> | null,
+): void {
+  if (names === null) providedNames.delete(projectId);
+  else providedNames.set(projectId, new Map(Object.entries(names)));
+}
+
+/** The name somebody presents under: the roster's, else this project's directory's, else the identifier. */
+export function presenterName(projectId: string, agentId: string): string {
+  return agentById(agentId)?.name ?? providedNames.get(projectId)?.get(agentId) ?? agentId;
+}
+
 /** What a read model needs of somebody who presents: who they are, never how the generator drives them. */
 export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">;
 
@@ -296,9 +318,16 @@ export function presentersIn(sessions: readonly ShowroomSession[]): readonly Pre
   const beyond = [...new Set(sessions.map((s) => s.agentId))]
     .filter((id) => !rostered.has(id))
     .sort();
+  /* Every session in one slice is one project's, so the first names the directory to read. */
+  const names = providedNames.get(sessions[0]?.projectId ?? "");
   return [
     ...SYNTHETIC_AGENTS,
-    ...beyond.map((id) => ({ id, name: id, organisationName: "Not in the directory" })),
+    ...beyond.map((id) => {
+      const name = names?.get(id);
+      return name === undefined
+        ? { id, name: id, organisationName: "Not in the directory" }
+        : { id, name, organisationName: "Agency not stated" };
+    }),
   ];
 }
 

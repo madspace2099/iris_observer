@@ -61,6 +61,7 @@ import { assistedSalesAnswer, buildDeliveredAskSession } from "./ask-computed";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   presentersIn,
+  provideAgentNames,
   provideSessions,
   sessionById,
   sessionsForProject,
@@ -213,9 +214,9 @@ export class SyntheticObserverRepository implements ObserverRepository {
       (t) => !TENANTS.some((w) => w.id === t.id || w.slug === t.slug),
     );
     const held = new Set(tenants.map((t) => t.id as string));
-    const projects = added.projects.filter(
-      (p) => held.has(p.tenantId as string) && !PROJECTS.some((w) => w.id === p.id),
-    );
+    const projects = added.projects
+      .filter((p) => held.has(p.tenantId as string) && !PROJECTS.some((w) => w.id === p.id))
+      .map((p) => ({ ...p, ownDataOnly: true }));
     return {
       tenants: [...TENANTS, ...tenants],
       projects: [...PROJECTS, ...projects],
@@ -371,6 +372,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const source = this.options.sessionSource;
     const delivered = source === undefined ? null : await source.sessionsFor(project);
     provideSessions(project.id as string, delivered === null ? null : delivered.sessions);
+    provideAgentNames(project.id as string, delivered?.agentNames ?? null);
     return delivered !== null;
   }
 

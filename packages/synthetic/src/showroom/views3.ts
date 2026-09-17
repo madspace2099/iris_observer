@@ -36,6 +36,7 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
+import { nothingReceivedYet } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
   catalogueFor,
@@ -47,7 +48,7 @@ import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics"
 import { buildAssistedSales, buildDealLadder } from "../deals";
 import { count, dayLabel, evidenceRef, percent } from "../format";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
-import { agentById, presentersIn } from "./sessions";
+import { agentById, presenterName, presentersIn } from "./sessions";
 
 /**
  * The three views, projected.
@@ -377,8 +378,13 @@ function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: strin
     : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
 
   if (!outcomesRecorded) {
-    // Same fact as the opening screen's equivalent state; same sentence.
-    return "The showroom is running; no outcomes are being recorded.";
+    /*
+     * Same fact as the opening screen's equivalent state; same sentence. And the
+     * same limit on it: a showroom is running only if meetings came.
+     */
+    return current.meetings === 0
+      ? `No presentations were recorded ${current.label.toLowerCase()}.`
+      : "The showroom is running; no outcomes are being recorded.";
   }
   if (!hasBaseline) {
     const currentProgressed = share(current.progressed, current.outcomeRecorded);
@@ -561,6 +567,7 @@ export function buildSalesFlow(
       locale,
     );
   }
+  verdict = nothingReceivedYet(context) ?? verdict;
 
   /*
    * Only a code the catalogue holds gets a link; a CRM can name a unit the
@@ -991,7 +998,7 @@ export function buildProjectView(
     context,
     verdict:
       lead === undefined
-        ? `${meetings(sessions.length, locale)}.`
+        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale)}.`)
         : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
     segments,
     matrixNote: context.project.connectedSources.includes("crm")
@@ -1197,9 +1204,13 @@ export function buildAgentsView(
     context,
     /* "They do not present alike" is a claim about two people or more; one presenter is a count. */
     verdict:
-      agents.length === 1
-        ? `One agent presented ${meetings(sessions.length, locale)}.`
-        : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
+      agents.length === 0
+        ? /* "0 agents presented 0 meetings, and they do not present alike" was a sentence about nobody. */
+          (nothingReceivedYet(context) ??
+          `Nobody presented in ${context.period.label.toLowerCase()}.`)
+        : agents.length === 1
+          ? `One agent presented ${meetings(sessions.length, locale)}.`
+          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
     agents,
     repeats,
     findings,
@@ -1255,7 +1266,7 @@ export function buildAudience(
       return {
         meetingId: s.meetingId,
         startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-        agentName: agent?.name ?? s.agentId,
+        agentName: agent?.name ?? presenterName(s.projectId, s.agentId),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
           places.length === 0
@@ -1390,8 +1401,16 @@ export function buildHome(
         ? "poor"
         : "attention";
 
+  /*
+   * "The showroom is running" is a claim, and with no meeting at all it was made
+   * about a showroom nobody had heard from. It is true only when meetings came
+   * and none carried an outcome.
+   */
   const verdict = !outcomesRecorded
-    ? "The showroom is running; no outcomes are being recorded."
+    ? (nothingReceivedYet(context) ??
+      (sessions.length === 0
+        ? `No presentations were recorded in ${context.period.label.toLowerCase()}.`
+        : "The showroom is running; no outcomes are being recorded."))
     : signal === "good"
       ? "The showroom is on course."
       : signal === "poor"

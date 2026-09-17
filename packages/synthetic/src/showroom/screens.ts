@@ -45,7 +45,7 @@ import type {
   ViewContext,
   VisitorLabelKind,
 } from "@observer/readmodels";
-import { areaWord, roomsWord, visitorLabel } from "@observer/readmodels";
+import { areaWord, nothingReceivedYet, roomsWord, visitorLabel } from "@observer/readmodels";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
 import {
   clockLabel,
@@ -61,7 +61,7 @@ import {
   unavailable,
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
-import { agentById, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
+import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView } from "./views3";
 
@@ -375,14 +375,15 @@ export function buildMeetings(
   }
 
   const active = [
-    filters.agentId === null ? null : (agentById(filters.agentId)?.name ?? filters.agentId),
+    filters.agentId === null ? null : presenterName(context.project.id as string, filters.agentId),
     filters.channel === null ? null : SESSION_CHANNEL_LABELS[filters.channel],
     filters.outcome === null ? null : OUTCOME_LABELS[filters.outcome],
   ].filter((x): x is string => x !== null);
 
   const emptyState =
     sessions.length === 0
-      ? `No presentations were recorded on ${context.project.name} in ${context.period.label.toLowerCase()}.`
+      ? (nothingReceivedYet(context) ??
+        `No presentations were recorded on ${context.project.name} in ${context.period.label.toLowerCase()}.`)
       : active.length === 0
         ? `No meetings to show in ${context.period.label.toLowerCase()}.`
         : `No meetings in ${context.period.label.toLowerCase()} match ${active.join(" · ")}. ${count(sessions.length, locale)} meetings are in the period.`;
@@ -395,7 +396,7 @@ export function buildMeetings(
     filters,
     options: {
       agents: optionsFrom(
-        (id) => agentById(id)?.name ?? id,
+        (id) => presenterName(context.project.id as string, id),
         presentersIn(sessions).map((a) => a.id),
         agentCounts,
       ),
@@ -588,7 +589,7 @@ export function buildUnitDetail(
   )) {
     const touch = session.units.find((u) => u.unitCode === unitCode);
     if (touch === undefined) continue;
-    const agentName = agentById(session.agentId)?.name ?? session.agentId;
+    const agentName = presenterName(session.projectId, session.agentId);
     const meetingHref = `${root}/meetings/${session.meetingId}`;
     const channelLabel = SESSION_CHANNEL_LABELS[session.channel];
     const stamp = `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`;

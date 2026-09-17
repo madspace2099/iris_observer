@@ -39,7 +39,7 @@ import {
   signedPercent,
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
-import { agentById, presentersIn } from "./sessions";
+import { presenterName, presentersIn } from "./sessions";
 import { meetings } from "./views3";
 
 /**
@@ -534,7 +534,7 @@ export function buildLongestMeetings(
     .map((s) => ({
       id: s.meetingId,
       label: dayLabel(s.startedAt, locale, timeZone),
-      sub: `${agentById(s.agentId)?.name ?? s.agentId} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
+      sub: `${presenterName(s.projectId, s.agentId)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds),
       href: `${base}/meetings/${s.meetingId}`,

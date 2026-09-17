@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@observer/contracts";
-import type { PeriodPreset } from "@observer/readmodels";
+import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -83,7 +83,10 @@ export default async function AudiencePage({
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Audience · {view.context.period.label}</p>
         <h1 className="iris-section">
-          {view.total} of {view.ofMeetings} meetings match.
+          {view.ofMeetings === 0
+            ? (nothingReceivedYet(view.context) ??
+              "No meeting in this period to build an audience from.")
+            : `${String(view.total)} of ${String(view.ofMeetings)} meetings match.`}
         </h1>
         <p className="iris-body" style={{ maxWidth: "62ch", color: "var(--ink-2)" }}>
           {view.description}

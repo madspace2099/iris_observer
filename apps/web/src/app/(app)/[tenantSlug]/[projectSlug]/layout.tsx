@@ -267,9 +267,16 @@ export default async function ProjectLayout({
    * `display: contents` keeps the wrapper out of the layout it surrounds.
    */
   const delivered = (await liveSessionSource.sessionsFor(project)) !== null;
+  /*
+   * Three answers, not two. A project made in administration shows only what its
+   * own sources delivered: calling it a demonstration is false, and so is the
+   * delivered marker's promise that whatever is missing is demonstration data.
+   * It wears neither.
+   */
+  const world = project.ownDataOnly === true ? "own" : delivered ? "delivered" : "synthetic";
 
   return (
-    <div data-sessions={delivered ? "delivered" : "synthetic"} style={{ display: "contents" }}>
+    <div data-sessions={world} style={{ display: "contents" }}>
       <Shell
         scope={{ tenantSlug: tenant.slug, projectSlug: project.slug }}
         viewer={{ displayName: viewer.displayName, roleLabel: roleLabel(viewer.role) }}

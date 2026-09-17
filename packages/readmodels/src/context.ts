@@ -93,6 +93,13 @@ export interface ProjectSummary {
    * project's CRM is not wired up yet".
    */
   readonly sources: readonly ProjectSource[];
+  /**
+   * True for a project that came from the directory rather than from the
+   * synthetic world. Stamped by the repository when it resolves one, so it means
+   * exactly that and never what an adapter chose to claim. A shell reads it to
+   * know that no part of this project may be marked as a demonstration.
+   */
+  readonly ownDataOnly?: boolean;
 }
 
 /* --- periods ------------------------------------------------------------- */

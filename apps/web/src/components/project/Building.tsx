@@ -1,7 +1,7 @@
 import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
 import type { PeriodPreset, ProjectPulse } from "@observer/readmodels";
 
-import { Evidence, StackPlan, Tally, TallyItem } from "@/components/product";
+import { Evidence, StackPlan, Tally, TallyItem, Unavailable } from "@/components/product";
 import { Count } from "./Reading";
 import { Plate } from "./Section";
 
@@ -85,6 +85,46 @@ export function Building({
   }
 
   const belowFloor = meetingCount < AGENT_MIN_SAMPLE;
+
+  /*
+   * NO CATALOGUE IS NOT A BUILDING OF NOUGHT APARTMENTS.
+   *
+   * A project made in administration has no stock until a catalogue reaches it.
+   * Drawn as usual, that was "0 in 0 blocks over 0 floors", "0 of 0 still
+   * available, every apartment has been reserved or sold" and a legend under an
+   * empty plan: four sentences, three of them false. One band says what is
+   * missing and why. The presentation count stays, because it does not come from
+   * the catalogue and is true either way.
+   */
+  if (pulse.totals.units === 0) {
+    return (
+      <Plate
+        id="project-building"
+        title="The building, floor by floor"
+        note="Every apartment in the catalogue, in the position it occupies, lit by the views each one had."
+        aside={<Evidence evidence={pulse.evidence} period={period} />}
+      >
+        <Unavailable
+          what="The building and its stock"
+          why="no unit catalogue has reached this project yet"
+          period={period}
+        />
+        <Tally>
+          <TallyItem
+            label="Presentations"
+            value={
+              <Count
+                value={meetingCount}
+                of="in this period"
+                note="in this period — no presentation has been recorded"
+                shortfall={belowFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings") : null}
+              />
+            }
+          />
+        </Tally>
+      </Plate>
+    );
+  }
 
   return (
     <Plate

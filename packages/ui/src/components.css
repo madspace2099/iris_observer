@@ -154,7 +154,9 @@ a {
  * Two markers are rendered wherever one appears — "Demo data" and "Live
  * meetings" — and the project layout's `data-sessions` shows one of them, so a
  * dozen pages cannot disagree about which project they are on. Outside a
- * project layout nothing is delivered and the synthetic marker shows. The
+ * project layout nothing is delivered and the synthetic marker shows. A
+ * project made in administration (`own`) shows neither: nothing on it is a
+ * demonstration, and what it lacks is absent rather than invented. The
  * element in the selector is there to outrank the markers' own one-class
  * `display` rules without reaching for `!important`.
  */
@@ -162,7 +164,8 @@ span.obs-when-delivered {
   display: none;
 }
 
-[data-sessions="delivered"] span.obs-when-synthetic {
+[data-sessions="delivered"] span.obs-when-synthetic,
+[data-sessions="own"] span.obs-when-synthetic {
   display: none;
 }
 
