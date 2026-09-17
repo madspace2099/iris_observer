@@ -1747,16 +1747,49 @@ the scenario's own names then found one more leak, the Presentation page compari
 presenter with a roster agent who has never presented there (`0a42042`). All twelve surfaces are
 clean. The scan is `node artifacts/qa-shots/scripted-leak.mjs`.
 
-**10. For Akhilesh.** `docs/ue5-integration-handoff.md` §13 states what the dashboard reads from his
+**10. A sale the CRM did not date (`c6ffbb1`).** IRIS-assisted sales needs a sale's instant, and
+most CRMs state none: an export gives a date, a date is not an instant, and `readInstant` rightly
+refuses it. On the pilot's own CRM the section would have read "the CRM dates no reservation or
+purchase yet" for ever. Where the CRM states no stage instant, a sale is dated by the sync that
+first saw the deal on the stage, **and only for a move Observer witnessed** between two syncs. A
+deal first seen already sold (`opened`) is never used: the first sync sees every historical sale at
+once, and that instant is when Observer arrived. The fallback is late by up to one sync and never
+early, so it under-counts. Each sale carries `dateBasis`, the sentence says whose date it is, and
+the note says how many were placed that way.
+
+**11. Who may read a project's events (`a47f844`, `c7c530a`).** The new façade returns what a
+showroom recorded about real meetings, from a `security definer` function in the schema PostgREST
+serves. `supabase/test/events-for-project.test.ts` asks PostgreSQL: `anon`, `authenticated` and
+PUBLIC refused, `service_role` admitted only through the function, the table closed, the ingestion
+owner, an empty search path; and the migration re-applies over itself and over its first draft.
+`meetingAction` refuses outright unless it is running on a local control plane, because it is the
+one harness step that writes something a customer would see.
+
+**12. For Akhilesh.** `docs/ue5-integration-handoff.md` §13 states what the dashboard reads from his
 events, and the three things that decide whether his data joins anything. The first matters most:
 `unit_id` must be the unit's code exactly as the developer's catalogue states it.
+
+### Closing verification, 2026-09-17 evening
+
+- `pnpm typecheck` (every package, the strict tests project, the scripts), `pnpm lint` and
+  `prettier --check .`: clean.
+- **Vitest, whole suite, clean tree: 3459 passed, 0 failed, 1 skipped, 779 files.**
+- **Playwright against a fresh production build, desktop and mobile, nine specs
+  (`observer-product`, `showroom`, `units-register`, `layout-integrity`, `nav-reachability`,
+  `mobile-menu-containment`, `ask-iris-scope`, `ask-iris-compare`, `account-login`): 248 passed,
+  0 failed, 78 skipped by viewport.** The build itself is the `next build` that run starts from.
+- Live, on the local control plane: a meeting sent through `/functions/v1/observer-ingest` appears
+  on Meetings with its units, its replay draws timed steps, all eleven customer surfaces of the
+  delivered project render without error and without a word of the synthetic scenario.
+- Not run: the `wide` Playwright project, the screenshot generators (opt-in), `m10-acceptance`
+  (needs CRM credentials), anything against the Preview.
 
 ### What this changed on this desk, which the user should know
 
 The proof pressed the real harness against the LOCAL control plane. The demonstration source of
-ISTER TOWER was reactivated (its token file rewritten, as every Activate press does) and three
-harness meetings were ingested into `.observer-local`. **ISTER TOWER on the local dev server
-therefore shows those three meetings instead of its synthetic ones**, by ADR-0036's rule, and its
+ISTER TOWER was reactivated (its token file rewritten, as every Activate press does) and four
+harness meetings were ingested into `.observer-local`, one per run of the proof. **ISTER TOWER on the
+local dev server therefore shows those meetings instead of its synthetic ones**, by ADR-0036's rule, and its
 agent is `observer-review-harness`. Nothing hosted was touched. The event store is append-only by
 design, so the way back to synthetic ISTER TOWER locally is to delete `.observer-local/`, which
 also drops local connector settings. That is the user's call and was not done.
