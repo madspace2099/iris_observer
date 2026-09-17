@@ -1664,7 +1664,20 @@ cancel-session and outcome fixed). 3 half-done (local JSON still splits screensh
 `build`/`queue`/`last_error` objects are correct, but the old flat keys were kept as
 "backward-compatibility" and both schemas are `strictObject`. Proven: with the flat keys → FAIL, without → PASS. A four-line delete. The 17/17 tests only exercise the mock transport, which never parses a request; running against `pnpm ue5:mock` on loopback would have caught it. Five smaller follow-ups recorded (unknown-4xx stall, batch size never recovers, double emission on view end, empty-string environment facts, event names off the event map). On UE-OBS-011: keep the bridge until each node is replaced, never bridge and replace the same call at once, rename first so nodes are replaced once.
 
-**Next.** (1) Relay round 2; the §A delete is the only thing gating a real end-to-end activation.
-(2) Ask MADSPACE whether the anon key from round 1 was rotated — the drop removes it from the build,
-which is not the same thing. (3) The `/meetings` swap failure and the `wide` follow-ups above are
-unchanged and independent.
+**Third drop, same day — blocker closed.** Activation and heartbeat now build exactly the
+contract's keys; both PASS against the live schemas (addendum in the round-2 doc). The same drop
+also fixed, unannounced: unknown-4xx quarantine, batch-size recovery, the double emission, empty
+environment strings, a 60s heartbeat timer, the local `agent_id`, and the slug filter. New small
+finding: `build.engine_version` is `FEngineVersion::Current().ToString()`, exactly 32 characters on
+a stock 5.6 build against a contract maximum of 32 — a custom engine branch fails activation and
+every heartbeat on that machine. Plugin should send `ToString(EVersionComponent::Patch)`. Open,
+non-blocking: `Enqueue` full rewrite, local screenshot subtypes, share gate and local rating
+export, `TrackAnalytics` unbridged, event names off the event map, one-flag-for-four environment
+fields.
+
+**Next.** (1) Akhilesh runs one real loopback activation against `pnpm ue5:mock` — the shapes are
+proven, the C++ HTTP path is not. (2) Ask MADSPACE whether the round-1 anon key was rotated.
+(3) Decide on our side whether `engine_version`'s 32-character ceiling should reject at all: the
+contract already declines to reject on `app.environment` for the same reason (a diagnostic nobody
+authorises on), and this one can fail an entire activation. (4) The `/meetings` swap failure and
+the `wide` follow-ups above are unchanged and independent.

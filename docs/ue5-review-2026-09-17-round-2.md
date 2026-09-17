@@ -101,6 +101,54 @@ the test that would have failed on this drop, and it takes a minute.
 8. **Was the anon key rotated?** The drop removes it from the build; the round-1 note about the key
    having already shipped stands until MADSPACE confirms rotation on the Supabase side.
 
+## Addendum — third drop, same day (14:34): the blocker is closed
+
+Re-checked by diffing against the second drop and re-running the exact shapes through the live
+schemas. `ObserverActivationClient.cpp` is −15 lines, +0.
+
+```
+PASS  activation   { activation_code, installation_nonce, build, os, reported_environment }
+PASS  heartbeat    { sent_at, build, queue, last_error: null }
+PASS  heartbeat    { sent_at, build, queue, last_error: { code, at } }
+```
+
+Also fixed in this drop, unannounced — all verified in the diff:
+
+| Item | Status |
+| --- | --- |
+| §B.1 unrecognised 4xx | ✅ quarantine-and-continue for any non-retryable 4xx except 401/403/413/429; reason carries the status |
+| §B.2 batch size recovery | ✅ reset to the configured size on a fully clean delivery |
+| §B.3 double emission on view end | ✅ `TrackUnitViewed` call removed; `unit.view.started`/`.ended` is the one pair |
+| §B.4 empty-string environment facts | ✅ `TrackWeatherChanged` omits empty fields (still three event names, see §B.5) |
+| §B.7 heartbeat timer | ✅ every 60s, first at 5s, cleared in `Deinitialize` |
+| 4.3 local `agent_id` | ✅ `SalesPersonID`, same as V2 |
+| 5b slug | ✅ whitelist filter, separators collapsed, 128-char cap |
+| 5a environment defaults | ⚠️ exporter now honours `bHasBeenSet`, but it is one flag for four fields — call only `TrackWeather` and `"Noon"`, `"12:00"`, `"August 16"` still export as observed. Laziest correct fix: make the four defaults in `AnalyticsUserData.h` empty and delete the flag |
+
+**One new finding, small and real: `build.engine_version` passes by zero margin.**
+`FEngineVersion::Current().ToString()` is `5.6.0-43139311+++UE5+Release-5.6` on a stock build —
+exactly 32 characters, and the contract's maximum is 32. A licensee or custom engine branch name
+(37 characters in the check below), or a nine-digit changelist, fails activation *and every
+heartbeat* on that machine only, with nothing in the plugin's log to say why.
+
+```
+FAIL  activation, licensee-branch engine string
+      too_big  build.engine_version  expected string to have <=32 characters
+```
+
+The contract documents the short form (`"engine_version": "5.6"` in the handoff). Send
+`FEngineVersion::Current().ToString(EVersionComponent::Patch)` → `5.6.0`, in both requests.
+
+**Still open, unchanged since round 1 or 2:** 3.7 (`Enqueue` rewrites the whole queue per event),
+4.1 (local struct and JSON still split Normal/Advanced screenshots), 4.2 (no `share.sent` gate; the
+rating is still in the kiosk-local export), 1.3 (`TrackAnalytics` not bridged), §B.5 (event names off
+the event map), §B.8 (was the round-1 anon key rotated). None of them blocks a first real
+activation.
+
+**What is still unproven:** the C++ HTTP path itself. The shapes are right; whether a packaged
+build completes activate → `diagnostic.test` accepted → heartbeat 200 is only shown by running it
+once against `pnpm ue5:mock` on loopback. The 17 tests still use the mock transport.
+
 ## C. On UE-OBS-011 — keep the bridge, then replace the nodes, in that order
 
 Agreed with the instinct to end up on the new nodes only. Two things make the order matter:
