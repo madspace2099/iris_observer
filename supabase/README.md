@@ -92,6 +92,26 @@ Executed against PGlite on every test run (`supabase/test/deals-connectors.test.
 applied to no hosted project. It depends on the catalogue migration above;
 apply them in order, and add both to the `migration repair` list when they are.
 
+## The project event read — executed, not applied
+
+`20260917100000_observer_events_for_project.sql` (ADR-0038) adds one façade and no table:
+`observer_events_for_project`, the read that turns stored showroom events back into the meetings
+the customer's screens draw. It answers one page of a project's session-scoped events behind an
+opaque keyset cursor, never more than a thousand rows, because PostgREST cuts a response at its
+`max-rows` and says nothing; `readProjectEvents` in `packages/sources` pages until a page comes
+back empty. `diagnostic.%` and events with no session are left out in the SQL.
+
+`service_role` alone may execute it; `anon`, `authenticated` and `PUBLIC` are refused, and the
+table stays closed to every role (`supabase/test/events-for-project.test.ts` asks PostgreSQL). It
+drops the function before creating it, so it can be applied over itself and over its first draft,
+which the same test does.
+
+Executed against PGlite on every test run and on every start of the local control plane, applied
+to no hosted project. It depends only on `20260902100000_observer_analytics_events.sql`. Until it
+is applied a deployment behaves exactly as before: the application treats a failed event read as
+"no ingested meetings" and keeps delivering a connector's. Add it to the `migration repair` list
+when it is.
+
 ## Expand and contract
 
 The audit change ships as two migrations, and the second must wait.

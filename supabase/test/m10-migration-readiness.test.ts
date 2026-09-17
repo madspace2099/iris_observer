@@ -301,7 +301,12 @@ describe("the PostgREST port and the migration agree", () => {
   async function recorded(): Promise<ReadonlyMap<string, readonly string[]>> {
     const calls = new Map<string, readonly string[]>();
     const fetch = async (url: string, init: RequestInit): Promise<Response> => {
-      const facade = url.split("/rest/v1/rpc/")[1] ?? "";
+      /*
+       * The façade is the path; a query string is how the two unbounded reads
+       * page past PostgREST's row cap (`rpcEveryRow`) and names no parameter of
+       * the function, so it is not part of what this compares.
+       */
+      const facade = (url.split("/rest/v1/rpc/")[1] ?? "").split("?")[0] ?? "";
       calls.set(facade, Object.keys(JSON.parse(String(init.body)) as Record<string, unknown>));
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     };
