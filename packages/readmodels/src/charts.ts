@@ -110,7 +110,10 @@ export interface BehaviourStep {
 
 export interface BehaviourFunnel {
   readonly cohortLabel: string;
+  /** Empty when the group has no meeting in it: seven bands at nought would draw an absence as a reading. */
   readonly steps: readonly BehaviourStep[];
+  /** What to say instead of the funnel when `steps` is empty; null otherwise. */
+  readonly empty: string | null;
   /** Names the group each `comparisonNote` is measured against. */
   readonly comparisonLabel: string;
   readonly disclaimer: string;

@@ -346,11 +346,17 @@ export default async function FlowPage({
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             {charts.funnel.cohortLabel}
           </h2>
-          <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-            {charts.funnel.disclaimer}
-          </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+          {charts.funnel.empty !== null ? (
+            <p className="iris-meta iris-meta-measured">{charts.funnel.empty}</p>
+          ) : (
+            <>
+              <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {charts.funnel.disclaimer}
+              </p>
+              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          )}
         </div>
 
         <hr className="iris-rule iris-section-rule" />

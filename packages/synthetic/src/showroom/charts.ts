@@ -351,6 +351,24 @@ export function buildBehaviourFunnel(
   const rate = (xs: readonly ShowroomSession[], test: (s: ShowroomSession) => boolean) =>
     xs.length === 0 ? null : percent(share(xs.filter(test).length, xs.length), locale);
 
+  /*
+   * Nobody in the group is not a group that did nothing. Drawn, it was seven
+   * bands at nought under a red "0%", which reads as a finding; it is the
+   * absence of one, and says so.
+   */
+  if (cohort.length === 0) {
+    return {
+      cohortLabel: `Ended "not interested" · ${meetings(0, locale)}`,
+      steps: [],
+      empty:
+        sessions.length === 0
+          ? "No meeting was recorded in this period, so there is no group to describe."
+          : `None of the ${meetings(sessions.length, locale)} in this period ended "not interested", so there is no group to describe.`,
+      comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
+      disclaimer: "",
+    };
+  }
+
   let surviving: readonly ShowroomSession[] = cohort;
   const steps: BehaviourStep[] = [
     {
@@ -376,6 +394,7 @@ export function buildBehaviourFunnel(
   return {
     cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale)}`,
     steps,
+    empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
     disclaimer:
       "Each band is the meetings that did everything above it as well, so the bands narrow. Beside each is that behaviour on its own, in this group and in every other recorded meeting. This describes what the group had in common, at the stated sample sizes. It is not evidence that any of these behaviours produced the outcome — buyers who arrive uninterested are also shown less.",
