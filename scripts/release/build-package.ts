@@ -1409,17 +1409,24 @@ export function accountableHashes(): ReadonlySet<string> {
       allowed.add(fileShaAt(c, path));
     }
   }
-  for (const line of git("rev-list", "1ee5d2d^..HEAD").split("\n")) {
-    const sha = line.trim();
-    if (sha.length === 0) continue;
-    allowed.add(sha);
-    /*
-     * And the TREE each commit points at. REVIEW §1A cites one to show that
-     * rewriting the two local-only commits changed no content: identical trees
-     * either side of the rewrite is a stronger claim than "the diff looked the
-     * same", and a citation nothing can account for should fail the build.
-     */
-    allowed.add(git("rev-parse", `${sha}^{tree}`));
+  /*
+   * Every commit, and the TREE each commit points at. REVIEW §1A cites one to
+   * show that rewriting the two local-only commits changed no content:
+   * identical trees either side of the rewrite is a stronger claim than "the
+   * diff looked the same", and a citation nothing can account for should fail
+   * the build.
+   *
+   * ONE PROCESS FOR ALL OF THEM. This asked `rev-parse` for each commit's tree,
+   * a process per commit: 317 of them by 2026-09-18, thirty seconds on Windows
+   * and one more with every commit. It ran inside every `build()` and inside a
+   * test with a thirty-second budget, so the suite went red on a day nothing
+   * about releases changed. `%H %T` is the same two identifiers from the same
+   * walk.
+   */
+  for (const line of git("log", "--format=%H %T", "1ee5d2d^..HEAD").split("\n")) {
+    for (const sha of line.trim().split(" ")) {
+      if (sha.length > 0) allowed.add(sha);
+    }
   }
   /*
    * The net diff across the authorised rewrite, hashed. COMPUTED, never copied:
