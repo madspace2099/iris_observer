@@ -11,32 +11,32 @@ four-line delete.** The 17/17 test pass is real but proves the mock transport on
 
 ## Scorecard
 
-| # | Round-1 finding | Status | Evidence in the new zip |
-| --- | --- | --- | --- |
-| 1.1 | Supabase key + direct egress in web assets | ✅ fixed | `script.js` −230 lines; zero `supabase`/`eyJ`/`rest/v1` markers left in `Resources/AnalyticsWeb/*` |
-| 1.2 | Verifier never scanned `Resources/` | ✅ fixed | `verify_observer_source.py:16-17,59-61` — `.js/.html/.css` in scope, `Resources/` walked. (Not executed here: no Python on this machine.) |
-| 1.3 | Legacy tracker never bridged to V2 | ✅ mostly | 13 of 14 legacy functions now emit V2 (`InsightAnalyticsSubsystem.cpp:406,446,474,526,562,590,622,657,688,711,789,990,1017,1038,1053,1078`). Still not bridged: `TrackAnalytics` (`:905-961`, the hierarchy click counter). |
-| 2.1 | Activation request shape | ❌ **still rejected** | see §A |
-| 2.2 | Heartbeat request shape | ❌ **still rejected** | see §A |
-| 2.3 | `diagnostic.test` nulls + `{reason, note}` | ✅ fixed, proven | `ObserverEvent.cpp:151-155`, `ObserverAnalyticsSubsystem.cpp:1553-1554`; `validateEvent` → `ok: true` |
-| 3.1 | Known-code retryable disagreement retried forever | ✅ fixed + tested | `ObserverBatchResponseParser.cpp:168-171`; contract test `:218-219` |
-| 3.2 | HTTP 400 stalls the queue | ✅ fixed | `ObserverAnalyticsSubsystem.cpp:1825-1843` quarantines the batch, resets the flush timer, continues |
-| 3.3 | No batch split on 413 | ✅ fixed | `:1845-1869` halves `CurrentDynamicBatchSize`, quarantines a lone oversized event. Gap: it never grows back — see §B |
-| 3.4 | Unrecognised 4xx retried forever | ⚠️ half | transport now marks 4xx non-retryable (`ObserverActivationClient.cpp:500`) — but the dispatcher then falls to `SetActivationState(Error)` (`:1913-1915`), so a 404/422 now stalls delivery instead of looping. See §B |
-| 3.5 | `Retry-After` parsed as float, clamped to 60s | ✅ fixed | `ObserverActivationClient.cpp:39-59` (numeric + HTTP-date); `:1892-1893` floor, no ceiling |
-| 3.6 | One corrupt queue entry discards the queue | ✅ fixed | `ObserverDurableOutbox.cpp:208-241` per-entry quarantine + resave |
-| 3.7 | Every `Enqueue()` rewrites the whole file | ❌ not addressed (not claimed either) | `ObserverDurableOutbox.cpp:73-88` unchanged |
-| 4.1 | Screenshot subtypes (A.9) | ⚠️ half | V2 wire is now always `"standard"` (`:711`). The legacy struct and local JSON still split Normal/Advanced (`AnalyticsUserData.h:238,241`; `:1292-1293`) |
-| 4.2 | Rating: fabricated "Good", no share gate, local dashboard exposure | ⚠️ half | fabricated `Good++` gone ✅ (only `SetExperienceRating` touches `GlobalUserRatings` now). No `share.sent` gate, and `irisRating` still in the local export (`:1277-1287`) — both unchanged |
-| 4.3 | `AgentId = MD5(name)` | ⚠️ half | V2 session uses `SalesPersonID` ✅ (`:267-269`). `ExportAnalyticsToJson` still writes `MD5(name)` as `agent_id` (`:1479`), so the local file and the server disagree about who the agent is |
-| 4.4 | Cancel leaves V2 session open | ✅ fixed | `:167` `EndSession("session_cancelled")` |
-| 4.5 | Session outcome never reaches V2 | ✅ fixed | `:789` `meeting.outcome_set` |
-| 5a | Environment defaults exported as observed | ⚠️ half | `bHasBeenSet` added and set (`AnalyticsUserData.h:154`; `:1032,1047,1060`) but the exporter never reads it — `:1418-1422` still writes `"Noon"/"Clear"/"12:00"/"August 16"` unconditionally |
-| 5b | `entity.id` slug | ✅ (narrow) | `:342` replaces spaces only; `/ ( ) &` and accented characters still fail the plugin's own `IsSafeOpaqueIdentifier` and the click is dropped locally. Use a whitelist filter, not a single `Replace` |
+| #   | Round-1 finding                                                    | Status                                | Evidence in the new zip                                                                                                                                                                                                     |
+| --- | ------------------------------------------------------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | Supabase key + direct egress in web assets                         | ✅ fixed                              | `script.js` −230 lines; zero `supabase`/`eyJ`/`rest/v1` markers left in `Resources/AnalyticsWeb/*`                                                                                                                          |
+| 1.2 | Verifier never scanned `Resources/`                                | ✅ fixed                              | `verify_observer_source.py:16-17,59-61` — `.js/.html/.css` in scope, `Resources/` walked. (Not executed here: no Python on this machine.)                                                                                   |
+| 1.3 | Legacy tracker never bridged to V2                                 | ✅ mostly                             | 13 of 14 legacy functions now emit V2 (`InsightAnalyticsSubsystem.cpp:406,446,474,526,562,590,622,657,688,711,789,990,1017,1038,1053,1078`). Still not bridged: `TrackAnalytics` (`:905-961`, the hierarchy click counter). |
+| 2.1 | Activation request shape                                           | ❌ **still rejected**                 | see §A                                                                                                                                                                                                                      |
+| 2.2 | Heartbeat request shape                                            | ❌ **still rejected**                 | see §A                                                                                                                                                                                                                      |
+| 2.3 | `diagnostic.test` nulls + `{reason, note}`                         | ✅ fixed, proven                      | `ObserverEvent.cpp:151-155`, `ObserverAnalyticsSubsystem.cpp:1553-1554`; `validateEvent` → `ok: true`                                                                                                                       |
+| 3.1 | Known-code retryable disagreement retried forever                  | ✅ fixed + tested                     | `ObserverBatchResponseParser.cpp:168-171`; contract test `:218-219`                                                                                                                                                         |
+| 3.2 | HTTP 400 stalls the queue                                          | ✅ fixed                              | `ObserverAnalyticsSubsystem.cpp:1825-1843` quarantines the batch, resets the flush timer, continues                                                                                                                         |
+| 3.3 | No batch split on 413                                              | ✅ fixed                              | `:1845-1869` halves `CurrentDynamicBatchSize`, quarantines a lone oversized event. Gap: it never grows back — see §B                                                                                                        |
+| 3.4 | Unrecognised 4xx retried forever                                   | ⚠️ half                               | transport now marks 4xx non-retryable (`ObserverActivationClient.cpp:500`) — but the dispatcher then falls to `SetActivationState(Error)` (`:1913-1915`), so a 404/422 now stalls delivery instead of looping. See §B       |
+| 3.5 | `Retry-After` parsed as float, clamped to 60s                      | ✅ fixed                              | `ObserverActivationClient.cpp:39-59` (numeric + HTTP-date); `:1892-1893` floor, no ceiling                                                                                                                                  |
+| 3.6 | One corrupt queue entry discards the queue                         | ✅ fixed                              | `ObserverDurableOutbox.cpp:208-241` per-entry quarantine + resave                                                                                                                                                           |
+| 3.7 | Every `Enqueue()` rewrites the whole file                          | ❌ not addressed (not claimed either) | `ObserverDurableOutbox.cpp:73-88` unchanged                                                                                                                                                                                 |
+| 4.1 | Screenshot subtypes (A.9)                                          | ⚠️ half                               | V2 wire is now always `"standard"` (`:711`). The legacy struct and local JSON still split Normal/Advanced (`AnalyticsUserData.h:238,241`; `:1292-1293`)                                                                     |
+| 4.2 | Rating: fabricated "Good", no share gate, local dashboard exposure | ⚠️ half                               | fabricated `Good++` gone ✅ (only `SetExperienceRating` touches `GlobalUserRatings` now). No `share.sent` gate, and `irisRating` still in the local export (`:1277-1287`) — both unchanged                                  |
+| 4.3 | `AgentId = MD5(name)`                                              | ⚠️ half                               | V2 session uses `SalesPersonID` ✅ (`:267-269`). `ExportAnalyticsToJson` still writes `MD5(name)` as `agent_id` (`:1479`), so the local file and the server disagree about who the agent is                                 |
+| 4.4 | Cancel leaves V2 session open                                      | ✅ fixed                              | `:167` `EndSession("session_cancelled")`                                                                                                                                                                                    |
+| 4.5 | Session outcome never reaches V2                                   | ✅ fixed                              | `:789` `meeting.outcome_set`                                                                                                                                                                                                |
+| 5a  | Environment defaults exported as observed                          | ⚠️ half                               | `bHasBeenSet` added and set (`AnalyticsUserData.h:154`; `:1032,1047,1060`) but the exporter never reads it — `:1418-1422` still writes `"Noon"/"Clear"/"12:00"/"August 16"` unconditionally                                 |
+| 5b  | `entity.id` slug                                                   | ✅ (narrow)                           | `:342` replaces spaces only; `/ ( ) &` and accented characters still fail the plugin's own `IsSafeOpaqueIdentifier` and the click is dropped locally. Use a whitelist filter, not a single `Replace`                        |
 
 ## A. The one that blocks everything: flat "compatibility" keys
 
-Both requests now carry the correct nested objects — and *also* the old flat keys, labelled
+Both requests now carry the correct nested objects — and _also_ the old flat keys, labelled
 "backward-compatibility" (`ObserverActivationClient.cpp:114-119` and `:541-543,583-589`). There is
 nothing to be compatible with: the flat form never worked against any server. And both schemas are
 `z.strictObject`, so any extra key is a rejection. Run today against the live contracts:
@@ -60,7 +60,7 @@ nothing to be compatible with: the flat form never worked against any server. An
   and would have traded one rejection for another.) The body is then exactly
   `{ activation_code, installation_nonce, build, os, reported_environment }`.
 - Heartbeat: delete `:541-543` (`installation_nonce`, `reported_environment`, `os` — these three are
-  *outside* the commented compat block, easy to miss) and `:583-589`. The body is then exactly
+  _outside_ the commented compat block, easy to miss) and `:583-589`. The body is then exactly
   `{ sent_at, build, queue, last_error }` and nothing else; the heartbeat is authenticated by the
   bearer token, so it carries no installation identity of its own.
 
@@ -81,7 +81,7 @@ the test that would have failed on this drop, and it takes a minute.
    to the configured size on a fully successful dispatch, otherwise one bad batch halves throughput
    for the rest of the process's life.
 3. **Double emission on unit view end** (`InsightAnalyticsSubsystem.cpp:562` + `:567`): the bridge
-   sends `unit.view.ended` *and* `TrackUnitViewed` sends `unit.viewed` for the same view. One fact,
+   sends `unit.view.ended` _and_ `TrackUnitViewed` sends `unit.viewed` for the same view. One fact,
    one event — keep `unit.view.started`/`unit.view.ended` (that is the event map's pair) and drop the
    `TrackUnitViewed` call there.
 4. **Empty strings as environment facts** (`:1038`, `:1053`): `TrackWeatherChanged` is called with one
@@ -114,22 +114,22 @@ PASS  heartbeat    { sent_at, build, queue, last_error: { code, at } }
 
 Also fixed in this drop, unannounced — all verified in the diff:
 
-| Item | Status |
-| --- | --- |
-| §B.1 unrecognised 4xx | ✅ quarantine-and-continue for any non-retryable 4xx except 401/403/413/429; reason carries the status |
-| §B.2 batch size recovery | ✅ reset to the configured size on a fully clean delivery |
-| §B.3 double emission on view end | ✅ `TrackUnitViewed` call removed; `unit.view.started`/`.ended` is the one pair |
-| §B.4 empty-string environment facts | ✅ `TrackWeatherChanged` omits empty fields (still three event names, see §B.5) |
-| §B.7 heartbeat timer | ✅ every 60s, first at 5s, cleared in `Deinitialize` |
-| 4.3 local `agent_id` | ✅ `SalesPersonID`, same as V2 |
-| 5b slug | ✅ whitelist filter, separators collapsed, 128-char cap |
-| 5a environment defaults | ⚠️ exporter now honours `bHasBeenSet`, but it is one flag for four fields — call only `TrackWeather` and `"Noon"`, `"12:00"`, `"August 16"` still export as observed. Laziest correct fix: make the four defaults in `AnalyticsUserData.h` empty and delete the flag |
+| Item                                | Status                                                                                                                                                                                                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §B.1 unrecognised 4xx               | ✅ quarantine-and-continue for any non-retryable 4xx except 401/403/413/429; reason carries the status                                                                                                                                                               |
+| §B.2 batch size recovery            | ✅ reset to the configured size on a fully clean delivery                                                                                                                                                                                                            |
+| §B.3 double emission on view end    | ✅ `TrackUnitViewed` call removed; `unit.view.started`/`.ended` is the one pair                                                                                                                                                                                      |
+| §B.4 empty-string environment facts | ✅ `TrackWeatherChanged` omits empty fields (still three event names, see §B.5)                                                                                                                                                                                      |
+| §B.7 heartbeat timer                | ✅ every 60s, first at 5s, cleared in `Deinitialize`                                                                                                                                                                                                                 |
+| 4.3 local `agent_id`                | ✅ `SalesPersonID`, same as V2                                                                                                                                                                                                                                       |
+| 5b slug                             | ✅ whitelist filter, separators collapsed, 128-char cap                                                                                                                                                                                                              |
+| 5a environment defaults             | ⚠️ exporter now honours `bHasBeenSet`, but it is one flag for four fields — call only `TrackWeather` and `"Noon"`, `"12:00"`, `"August 16"` still export as observed. Laziest correct fix: make the four defaults in `AnalyticsUserData.h` empty and delete the flag |
 
 **One new finding, small and real: `build.engine_version` passes by zero margin.**
 `FEngineVersion::Current().ToString()` is `5.6.0-43139311+++UE5+Release-5.6` on a stock build —
 exactly 32 characters, and the contract's maximum is 32. A licensee or custom engine branch name
-(37 characters in the check below), or a nine-digit changelist, fails activation *and every
-heartbeat* on that machine only, with nothing in the plugin's log to say why.
+(37 characters in the check below), or a nine-digit changelist, fails activation _and every
+heartbeat_ on that machine only, with nothing in the plugin's log to say why.
 
 ```
 FAIL  activation, licensee-branch engine string
@@ -155,7 +155,7 @@ Agreed with the instinct to end up on the new nodes only. Two things make the or
 
 - The bridge is the only reason existing Blueprints emit V2 at all today, so it stays until each
   node is actually replaced — not before.
-- A node must never be bridged *and* replaced at the same time; §B.3 is what that looks like. The rule
+- A node must never be bridged _and_ replaced at the same time; §B.3 is what that looks like. The rule
   for the replacement pass: when a legacy call is swapped for the new `UObserverBlueprintLibrary`
   node in a Blueprint, remove that call's bridge line in `InsightAnalyticsSubsystem.cpp` in the same
   change, so every fact has exactly one emitter at every point in the migration.

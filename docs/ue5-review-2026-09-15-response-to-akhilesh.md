@@ -69,17 +69,17 @@ they only touch the legacy `Global*`/`Session*` maps that stay on the kiosk PC. 
 the whole file are inside `StartSession`, `EndSession`, `TrackClick`, `TrackLanguageChange`, and
 `SetExperienceRating`.)
 
-| Legacy function (never bridged)                                       | Matching V2 entry point that already exists |
-| ------------------------------------------------------------------------ | ---------------------------------------------- |
-| `TrackFilterUsage` (`:430-454`)                                        | `UObserverBlueprintLibrary::TrackFilterApplied` (`ObserverBlueprintLibrary.cpp:163`) |
-| `StartApartmentView` / `EndApartmentView` (`:456-489`, `:491-511`)     | `TrackUnitViewed` (`:69`) — but that only gives one `unit.viewed`; needs a `unit.view.started`/`.ended` pair to match `docs/03-event-map.md` row 9-10 |
-| `TrackApartmentPdfOpen` (`:513-525`)                                    | `TrackUnitDocumentOpened` (`:107`)             |
-| `TrackApartmentBalconyView` / `TrackApartment3DFloorCutView` (`:527-544`, `:546-563`) | no V2 entry point exists yet — needs one       |
-| `ToggleFavoriteApartment` (`:565-590`)                                  | `TrackUnitFavoriteChanged` (`:92`)             |
-| `TrackScreenshot` (`:592-609`)                                          | `TrackScreenshotCreated` (`:218`)              |
-| `OnFeatureSelected` / `TrackAnalytics` / `StartAnalyticsNode` / `EndAnalyticsNode` (`:373-428`, `:782-838`, `:840-868`, `:870-897`) | `TrackFeatureOpened` / `TrackFeatureClosed` (`:121`, `:135`) |
-| `TrackTimeOfDay` / `TrackWeather` / `TrackClockTime` (`:899-909`, `:911-921`, `:923-931`) | `TrackWeatherChanged` (`:188`)                 |
-| `SetSessionOutcome` (`:640-673`)                                        | no V2 entry point exists — `meeting.outcome_set` per the event map, needs one |
+| Legacy function (never bridged)                                                                                                     | Matching V2 entry point that already exists                                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TrackFilterUsage` (`:430-454`)                                                                                                     | `UObserverBlueprintLibrary::TrackFilterApplied` (`ObserverBlueprintLibrary.cpp:163`)                                                                  |
+| `StartApartmentView` / `EndApartmentView` (`:456-489`, `:491-511`)                                                                  | `TrackUnitViewed` (`:69`) — but that only gives one `unit.viewed`; needs a `unit.view.started`/`.ended` pair to match `docs/03-event-map.md` row 9-10 |
+| `TrackApartmentPdfOpen` (`:513-525`)                                                                                                | `TrackUnitDocumentOpened` (`:107`)                                                                                                                    |
+| `TrackApartmentBalconyView` / `TrackApartment3DFloorCutView` (`:527-544`, `:546-563`)                                               | no V2 entry point exists yet — needs one                                                                                                              |
+| `ToggleFavoriteApartment` (`:565-590`)                                                                                              | `TrackUnitFavoriteChanged` (`:92`)                                                                                                                    |
+| `TrackScreenshot` (`:592-609`)                                                                                                      | `TrackScreenshotCreated` (`:218`)                                                                                                                     |
+| `OnFeatureSelected` / `TrackAnalytics` / `StartAnalyticsNode` / `EndAnalyticsNode` (`:373-428`, `:782-838`, `:840-868`, `:870-897`) | `TrackFeatureOpened` / `TrackFeatureClosed` (`:121`, `:135`)                                                                                          |
+| `TrackTimeOfDay` / `TrackWeather` / `TrackClockTime` (`:899-909`, `:911-921`, `:923-931`)                                           | `TrackWeatherChanged` (`:188`)                                                                                                                        |
+| `SetSessionOutcome` (`:640-673`)                                                                                                    | no V2 entry point exists — `meeting.outcome_set` per the event map, needs one                                                                         |
 
 Every `ObserverBlueprintLibrary::Track*` function on the right already builds a schema-correct event. The
 fix in every row but the two "no entry point" ones is a single added call from inside the legacy function to
@@ -148,7 +148,7 @@ result, derive retryability from the code alone (known code → the contract's r
 conditions and falls to the terminal branch at `:1846-1848`, which only calls
 `SetActivationState(Error, ...)` — `DurableOutbox->Quarantine(...)` is called exactly once in the whole
 function (`:1737`), and only on the success path. Because `OutboxFlushTimerHandle` was armed as a
-*repeating* timer in `Initialize()` (`:150-160`) and is never cleared on this path, the same malformed batch
+_repeating_ timer in `Initialize()` (`:150-160`) and is never cleared on this path, the same malformed batch
 gets re-sent on every flush interval, forever. **Fix:** on 400, quarantine the whole batch with a
 `batch_rejected_http_400` reason and continue to the next one.
 
@@ -199,7 +199,7 @@ an append-only journal (one JSON line per event) for the hot path, compacting on
 `Public/AnalyticsUserData.h:234-238` still has separate `NormalScreenshotsTaken`/`AdvancedScreenshotsTaken`
 fields, distinct from the general `ScreenshotsTaken`. `TrackScreenshot(bool bIsAdvancedMode)`
 (`InsightAnalyticsSubsystem.cpp:592-609`) still branches on a subtype. `TrackScreenshotCreated(...,
-const FString& ScreenshotType)` (`ObserverBlueprintLibrary.cpp:218-229`) — the function that *does* reach
+const FString& ScreenshotType)` (`ObserverBlueprintLibrary.cpp:218-229`) — the function that _does_ reach
 V2 — still takes a free-text subtype parameter and forwards it as `screenshot_type`. **Fix:** collapse to
 one counter and drop the parameter from all three; a single `screenshot.created` event with no subtype
 property is what A.9 asked for.
@@ -217,7 +217,7 @@ Three separate issues under the same decision:
   confirmed by a repo-wide search, zero matches for anything share-related. Your description was "the popup
   appears after the agent sends the Share Panel"; I found nothing that enforces that precondition. This may
   be unbuilt rather than wrong — flagging as open.
-- The mechanism that *is* built (`SetExperienceRating` → `agent.rating` event, `:675-728`) matches the
+- The mechanism that _is_ built (`SetExperienceRating` → `agent.rating` event, `:675-728`) matches the
   smiley/1-5 shape correctly. But the same session object unconditionally carries `irisRating`/
   `iris_rating`/`irisRatingScore` in the legacy JSON export (`SerializeUserDataToJson:1126-1135`, defaulting
   to `"None"`/`0` when unset), which `SetupBrowserHosting` loads into the in-kiosk browser. Per the brief,
