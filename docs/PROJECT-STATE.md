@@ -1778,6 +1778,30 @@ characters) fails on both, which is the defect it removes. Secret scan clean. Co
 first time the C++ HTTP path runs end to end. Addendum 2 of
 `docs/ue5-review-2026-09-17-round-2.md`.
 
+**14. The EU AI Act enters Gate 1, at the user's instruction.** An educational issue-spotting pass,
+not legal advice and not a compliance claim, was run against the repository. The law was read live
+from the Official Journal text: Regulation (EU) 2024/1689 as amended by Regulation (EU) 2026/1744,
+the Digital Omnibus on AI, in force since 27 July 2026. Article 50 transparency applies from
+2 August 2026, the Annex III high-risk rules from 2 December 2027. The decisive fact in the code:
+**no surface a reader can reach calls a language model.** The live path is complete, gated and
+tested and is mounted on no page, voice always refuses, and every AI-related sentence on screen
+states the negative. So nothing was found that triggers today, and the questions belong to the
+moment the model is connected and to the moment Observer is placed on the market. They are now rows
+of `docs/11-preproduction-gates.md`, Gate 1, "The EU AI Act", with the exact wording of the law,
+the dates, and where each behaviour lives.
+
+The user's answers, recorded there: the **provider is MADSPACE s.r.o.**, established in Slovakia,
+and the **deployer is the client company** under contract; every AI-written answer comes from the
+Ask prompt box, so the notice belongs there, in view before the first question; AI-evaluated content
+anywhere else would be announced where it appears (a pop-up was proposed, and on this date no model
+evaluates anything outside the prompt box, so there is nothing for one to attach to); the showroom's
+own Ask IRIS is not connected. **Open, the user's:** whether evaluating named sales agents falls
+under Annex III point 4(b), which needs a lawyer, and what AI literacy measures MADSPACE takes.
+
+`apps/web/test/ai-notice-tripwire.test.ts` makes the first of those blocks real: any reachable
+file that calls the ask or voice routes, or mounts the Observer panel, must carry an element marked
+`data-ai-notice`. It reads code and not comments, and it was proven to trip with a probe file.
+
 ### Closing verification, 2026-09-17 evening
 
 - `pnpm typecheck` (every package, the strict tests project, the scripts), `pnpm lint` and

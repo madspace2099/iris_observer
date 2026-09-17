@@ -144,4 +144,4 @@ is done and the answer is known, but somebody outside engineering has to sign it
 
 ### Legal basis, consent wording and retention periods are marked for formal review, not asserted in technical documentation.
 
-Pre-production legal and privacy review: privacy notice, lawful basis and consent, retention, deletion and anonymisation, CRM data sharing, sales-agency access, AI processing, forbidden inference categories.
+Pre-production legal and privacy review: privacy notice, lawful basis and consent, retention, deletion and anonymisation, CRM data sharing, sales-agency access, AI processing, forbidden inference categories, and the EU AI Act: telling a person they are dealing with an AI system, marking model-written output, the classification of evaluating named sales agents, and AI literacy.
