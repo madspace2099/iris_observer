@@ -5,7 +5,16 @@ import {
   type DealSnapshot,
   type DealStageChange,
 } from "@observer/contracts";
-import { asNumber, rows, rpc, scalar, table, type PostgrestConfig, type SqlQuery } from "./db";
+import {
+  asNumber,
+  rows,
+  rpc,
+  rpcEveryRow,
+  scalar,
+  table,
+  type PostgrestConfig,
+  type SqlQuery,
+} from "./db";
 import type { DealStore, DealSyncOutcome } from "./deals";
 
 /**
@@ -188,9 +197,12 @@ export function postgrestDealsDb(config: PostgrestConfig): DealsDb {
       return applyRow(list[0]);
     },
     async dealsCurrent(p_account, p_project, p_connector) {
-      return rows(
-        await rpc(config, "observer_deals_current", { p_account, p_project, p_connector }),
-      ) as readonly DealRow[];
+      return (await rpcEveryRow(
+        config,
+        "observer_deals_current",
+        { p_account, p_project, p_connector },
+        "external_id",
+      )) as readonly DealRow[];
     },
     async dealChanges(p_account, p_project, p_limit) {
       return rows(

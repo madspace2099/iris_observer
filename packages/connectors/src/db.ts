@@ -335,14 +335,15 @@ export class CatalogueFacadeError extends Error {
   }
 }
 
-/** One PostgREST RPC to a façade, shared with the deals port. */
+/** One PostgREST RPC to a façade, shared with the deals port. `query` is a ready `?a=b` string or nothing. */
 export async function rpc(
   config: PostgrestConfig,
   facade: string,
   args: Readonly<Record<string, unknown>>,
+  query = "",
 ): Promise<unknown> {
   const base = config.url.replace(/\/+$/, "");
-  const response = await config.fetch(`${base}/rest/v1/rpc/${facade}`, {
+  const response = await config.fetch(`${base}/rest/v1/rpc/${facade}${query}`, {
     method: "POST",
     headers: {
       apikey: config.key,
@@ -360,6 +361,51 @@ export async function rpc(
 }
 
 export const rows = (value: unknown): readonly unknown[] => (Array.isArray(value) ? value : []);
+
+/** What one page asks for. PostgREST's default `max-rows` on Supabase; a server may answer fewer. */
+const EVERY_ROW_PAGE = 1000;
+
+/**
+ * EVERY row of a table façade nobody bounded: a project's whole catalogue, all
+ * of its deals.
+ *
+ * PostgREST cuts a response at its `max-rows` and says nothing, so a project with
+ * more than a thousand units or deals read as exactly a thousand, and the ladder,
+ * the register and every share over them were computed on the part that happened
+ * to sort first. PGlite has no such cap, which is why no local proof showed it.
+ *
+ * So the rows are paged with PostgREST's own `order`, `limit` and `offset` over
+ * the façade's result, no SQL changed. The offset is how many rows have ARRIVED,
+ * never a multiple of what was asked for, and the read stops on an empty page
+ * rather than a short one: a server capped at 300 answers full pages of 300.
+ *
+ * ponytail: offset paging over a snapshot a sync can replace between two pages,
+ * which could repeat or skip one row for the length of a request. Syncs are daily
+ * and a read is milliseconds; a keyset on the façade's own key is the upgrade if
+ * that stops being true.
+ */
+export async function rpcEveryRow(
+  config: PostgrestConfig,
+  facade: string,
+  args: Readonly<Record<string, unknown>>,
+  orderBy: string,
+): Promise<readonly unknown[]> {
+  const all: unknown[] = [];
+  /* Two hundred pages is two hundred thousand rows at the default cap: a ceiling against a server that ignores `offset`, not a size anybody expects. */
+  for (let page = 0; page < 200; page += 1) {
+    const got = rows(
+      await rpc(
+        config,
+        facade,
+        args,
+        `?order=${orderBy}&limit=${String(EVERY_ROW_PAGE)}&offset=${String(all.length)}`,
+      ),
+    );
+    if (got.length === 0) return all;
+    all.push(...got);
+  }
+  return all;
+}
 
 export function postgrestCatalogueDb(config: PostgrestConfig): CatalogueDb {
   return {
@@ -438,9 +484,12 @@ export function postgrestCatalogueDb(config: PostgrestConfig): CatalogueDb {
           };
     },
     async catalogueCurrent(p_account, p_project, p_connector) {
-      return rows(
-        await rpc(config, "observer_catalogue_current", { p_account, p_project, p_connector }),
-      ) as readonly CatalogueUnitRow[];
+      return (await rpcEveryRow(
+        config,
+        "observer_catalogue_current",
+        { p_account, p_project, p_connector },
+        "code",
+      )) as readonly CatalogueUnitRow[];
     },
     async catalogueChanges(p_account, p_project, p_limit) {
       return rows(
