@@ -878,7 +878,14 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     sectionId: null,
     unitCode: null,
     isReturn: false,
-    sources: ["CRM_OUTCOME_CONTEXT"],
+    /*
+     * The step said "Recorded by the agent at the end of the meeting" and wore a
+     * chip reading "CRM outcome", one line apart, on a project with no CRM
+     * connected. `CRM_OUTCOME_CONTEXT` is a fact the CRM holds; this is the
+     * agent selecting on the showroom's own widget, which the showroom then sent
+     * as an event. The caption was right and the chip was wrong.
+     */
+    sources: OBSERVED,
     evidence: null,
   });
 

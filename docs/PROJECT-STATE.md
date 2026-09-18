@@ -2106,7 +2106,14 @@ screenshot in `artifacts/qa-shots/`.
    Flow — now list it only where a CRM is connected, which is what the Project screen already did.
    The two guarded ladder chips on Sales Flow were already correct.
 
-   **And it found the same claim one layer down, which is NOT fixed.** The read model attaches the
+   A screenshot of the fixed replay then showed the same contradiction one line further down: the
+   journey step reading "Recorded by the agent at the end of the meeting" wore a "CRM outcome"
+   chip. The caption was right and the chip was wrong; the step is now `IRIS observed`
+   (`packages/synthetic/src/showroom/project.ts`), and the unit test that had encoded the old
+   classification says what is true instead. The replay of a project with no CRM now names one
+   nowhere at all, which `artifacts/qa-shots/phase7-chips.mjs` asserts.
+
+   **And the same claim survives one layer down, which is NOT fixed.** The read model attaches the
    CRM source to findings through two local `WITH_OUTCOME` constants
    (`packages/synthetic/src/showroom/views3.ts:64`, thrice; `.../screens.ts:88`, nine times). At
    least one is wrong on every project: `flow-unrecorded` states "N of M meetings ended with no

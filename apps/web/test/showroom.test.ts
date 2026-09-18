@@ -298,7 +298,14 @@ describe("source classification", () => {
     }
   });
 
-  it("labels the outcome step of a replay as CRM context", async () => {
+  it("labels the outcome step of a replay as what IRIS observed, not as CRM context", async () => {
+    /*
+     * It asserted `CRM_OUTCOME_CONTEXT` until 2026-09-18, and the step it
+     * describes says "Recorded by the agent at the end of the meeting" one line
+     * above its own chip. The agent selected it on the showroom's widget and the
+     * showroom sent it as an event; the CRM holds no part of it, and on a project
+     * with no CRM connected the old chip was plainly false.
+     */
     const replay = await syntheticRepository.getMeetingReplay({
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",
@@ -306,7 +313,7 @@ describe("source classification", () => {
       meetingId: "mtg_ng0100" as never,
     });
     const outcome = replay.steps.find((s) => s.kind === "outcome");
-    expect(outcome?.sources).toEqual(["CRM_OUTCOME_CONTEXT"]);
+    expect(outcome?.sources).toEqual(["IRIS_SHOWROOM_OBSERVED"]);
   });
 });
 
