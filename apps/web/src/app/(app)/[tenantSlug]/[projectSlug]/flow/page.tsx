@@ -332,8 +332,17 @@ export default async function FlowPage({
             base, not_interested at the top &mdash; so the shares within one bar are comparable to
             the shares within any other, agent to agent and against the team.
           </p>
+          {/*
+            Named where it contributed. A project with no CRM connected has no
+            CRM outcome under these figures, and a chip saying otherwise is the
+            same lie in miniature as a zero standing in for something unmeasured.
+          */}
           <SourceChips
-            sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]}
+            sources={
+              view.context.project.connectedSources.includes("crm")
+                ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+                : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
+            }
             measured
           />
         </div>

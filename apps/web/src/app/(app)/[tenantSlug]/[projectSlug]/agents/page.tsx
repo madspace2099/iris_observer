@@ -209,8 +209,17 @@ export default async function AgentsPage({
           </div>
         </div>
 
+        {/*
+            Named where it contributed. A project with no CRM connected has no
+            CRM outcome under these figures, and a chip saying otherwise is the
+            same lie in miniature as a zero standing in for something unmeasured.
+          */}
         <SourceChips
-          sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]}
+          sources={
+            view.context.project.connectedSources.includes("crm")
+              ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+              : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
+          }
         />
 
         {view.findings.map((finding, index) => (

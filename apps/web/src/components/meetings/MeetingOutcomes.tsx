@@ -41,15 +41,23 @@ import { Sources, Unavailable } from "@/components/product";
  * CRM from here, and a control that offered to would be a control that does
  * nothing.
  *
- * ## Why the provenance says CRM outcome on the agent's own tap
+ * ## Why the provenance no longer says CRM outcome on the agent's own tap
  *
- * `INSIGHT_SOURCE_LABELS` calls `CRM_OUTCOME_CONTEXT` "CRM outcome", and that
- * is the source the replay read model itself attaches to its outcome step. This
- * component repeats the read model's classification rather than substituting a
- * better-sounding one: the source axis says what KIND of fact this is —
- * outcome context, as opposed to something IRIS watched happen — and the words
- * beneath the chip say who entered it and what it does not mean. Two axes,
- * neither doing the other's work.
+ * It used to, on the argument that the source axis says what KIND of fact this
+ * is — outcome context, as opposed to something IRIS watched happen. That
+ * argument was wrong about this fact and the wrongness became visible the day a
+ * project with no CRM at all showed a chip reading "CRM outcome" (decided
+ * 2026-09-18). `CRM_OUTCOME_CONTEXT` is defined in `@observer/contracts` as a
+ * fact the CRM holds. This one is not: the agent selected it on the showroom's
+ * own widget and the showroom sent it as an event, which is `IRIS observed` and
+ * nothing else, whether or not a CRM is connected. The origin of a fact does
+ * not change because something unrelated is wired up elsewhere.
+ *
+ * It also makes this finding showroom-rooted, which ADR-0023 requires of every
+ * primary insight and which the old chip quietly denied.
+ *
+ * The CRM half of the question is the second finding below, and it is empty
+ * until a system of record answers it. That is the separation; a chip is not.
  */
 export function MeetingOutcomes({
   replay,
@@ -109,7 +117,7 @@ export function MeetingOutcomes({
         </p>
 
         <div className="ox-finding-foot">
-          <Sources sources={["CRM_OUTCOME_CONTEXT"]} />
+          <Sources sources={["IRIS_SHOWROOM_OBSERVED"]} />
         </div>
       </article>
 
