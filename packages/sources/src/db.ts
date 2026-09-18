@@ -442,12 +442,17 @@ export interface ObserverDb {
     readonly viewer: string;
   }): Promise<readonly { readonly project_id: string }[]>;
 
-  /** Administration names a presenter. Replaces a showroom's name, never the reverse. */
+  /**
+   * Administration names a presenter, or withdraws the name with `null`.
+   *
+   * Replaces a showroom's name, never the reverse. A withdrawal keeps the row
+   * without a name, so the next roster report cannot refill it.
+   */
   projectAgentNameSet(input: {
     readonly account: string;
     readonly project: string;
     readonly agent: string;
-    readonly name: string;
+    readonly name: string | null;
   }): Promise<boolean>;
 
   projectAgents(input: {

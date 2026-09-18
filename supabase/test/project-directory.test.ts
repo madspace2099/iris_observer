@@ -368,6 +368,68 @@ describe("the names of the people who present", () => {
     ]);
   });
 
+  it("withdraws a name, and no roster may put it back", async () => {
+    const id = await project(ESTATE, "Withdrawn", null);
+    const pc = await source(ESTATE, id);
+    await report(pc, [{ agent_id: "AG-1", display_name: "Monika Kovacova" }]);
+
+    expect(
+      await one<boolean>(
+        `select public.observer_project_agent_name_set($1, $2, 'AG-1', null) as value`,
+        [ESTATE, id],
+      ),
+    ).toBe(true);
+
+    const withdrawn = await db.query<{ display_name: string | null; named_by: string }>(
+      `select display_name, named_by from public.observer_project_agents($1, $2)`,
+      [ESTATE, id],
+    );
+    expect(withdrawn.rows).toEqual([{ display_name: null, named_by: "withdrawn" }]);
+
+    expect(
+      await report(pc, [{ agent_id: "AG-1", display_name: "Monika Kovacova" }]),
+      "a withdrawn name is not a showroom's to refill",
+      /* The row is kept for exactly this: a deleted one would come back on the next report. */
+    ).toBe(0);
+    expect(
+      (
+        await db.query<{ display_name: string | null }>(
+          `select display_name from public.observer_project_agents($1, $2)`,
+          [ESTATE, id],
+        )
+      ).rows,
+    ).toEqual([{ display_name: null }]);
+
+    expect(
+      await one<boolean>(
+        `select public.observer_project_agent_name_set($1, $2, 'AG-1', 'Monika Kováčová') as value`,
+        [ESTATE, id],
+      ),
+      "administration can name again after withdrawing",
+    ).toBe(true);
+    expect(
+      (
+        await db.query<{ display_name: string | null; named_by: string }>(
+          `select display_name, named_by from public.observer_project_agents($1, $2)`,
+          [ESTATE, id],
+        )
+      ).rows,
+    ).toEqual([{ display_name: "Monika Kováčová", named_by: "administration" }]);
+  });
+
+  it("refuses a withdrawn row that holds a name, and a named row that holds none", async () => {
+    const id = await project(ESTATE, "Shapes", null);
+    const insert = (name: string | null, namedBy: string): Promise<unknown> =>
+      db.query(
+        `insert into observer.project_agents (project_id, account_id, agent_ref, display_name, named_by)
+         values ($1, $2, $3, $4, $5)`,
+        [id, ESTATE, `AG-${namedBy}-${String(name)}`, name, namedBy],
+      );
+    await expect(insert("Monika", "withdrawn")).rejects.toThrow(/withdrawn_holds_no_name/);
+    await expect(insert(null, "administration")).rejects.toThrow(/withdrawn_holds_no_name/);
+    await expect(insert("Monika", "nobody")).rejects.toThrow(/named_by_known/);
+  });
+
   it("lists a presenter nobody has named, with a null name and a meeting count", async () => {
     const id = await project(ESTATE, "Unnamed", null);
     const pc = await source(ESTATE, id);

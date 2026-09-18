@@ -201,9 +201,16 @@ create table if not exists observer.project_agents (
   -- Exactly what a showroom sends as `agent_id`. Opaque.
   agent_ref    text        not null,
 
-  display_name text        not null,
+  -- Null exactly when the name was withdrawn: see `named_by`.
+  display_name text,
 
   -- Administration's word wins over a showroom's: see the report function.
+  --
+  -- `withdrawn` is a THIRD state and not the absence of a row. An administrator
+  -- who removes a name is answering for a real person, and a deleted row would
+  -- be refilled by the next roster report within half a minute — a removal that
+  -- undoes itself is not a removal. The row stays, holding no name, and the
+  -- report function's `where named_by = 'showroom'` refuses to write over it.
   named_by     text        not null,
 
   created_at   timestamptz not null default now(),
@@ -213,9 +220,30 @@ create table if not exists observer.project_agents (
   constraint project_agents_project_fkey
     foreign key (project_id) references observer.projects (project_id),
   constraint project_agents_ref_len check (char_length(agent_ref) between 1 and 128),
-  constraint project_agents_name_len check (char_length(display_name) between 1 and 120),
-  constraint project_agents_named_by_known check (named_by in ('administration', 'showroom'))
+  constraint project_agents_name_len
+    check (display_name is null or char_length(display_name) between 1 and 120),
+  constraint project_agents_named_by_known
+    check (named_by in ('administration', 'showroom', 'withdrawn')),
+  constraint project_agents_withdrawn_holds_no_name
+    check ((named_by = 'withdrawn') = (display_name is null))
 );
+
+-- The same three rules for a database that already holds the first shape of this
+-- table, where `create table if not exists` above did nothing. Dropped and added
+-- rather than guarded, because a check constraint cannot be altered and both
+-- statements are idempotent; the re-validation is a few rows.
+alter table observer.project_agents alter column display_name drop not null;
+alter table observer.project_agents
+  drop constraint if exists project_agents_name_len,
+  drop constraint if exists project_agents_named_by_known,
+  drop constraint if exists project_agents_withdrawn_holds_no_name;
+alter table observer.project_agents
+  add constraint project_agents_name_len
+    check (display_name is null or char_length(display_name) between 1 and 120),
+  add constraint project_agents_named_by_known
+    check (named_by in ('administration', 'showroom', 'withdrawn')),
+  add constraint project_agents_withdrawn_holds_no_name
+    check ((named_by = 'withdrawn') = (display_name is null));
 
 alter table observer.project_agents owner to observer_ingest_owner;
 
@@ -478,15 +506,24 @@ as $$
 declare
   moved integer;
 begin
+  -- A null name WITHDRAWS it. One door rather than two, because withdrawing is
+  -- the same decision as naming, taken by the same person, about the same row:
+  -- what a meeting shows for this agent id. The row is kept, holding no name,
+  -- so that a roster report cannot refill it.
   insert into observer.project_agents (project_id, account_id, agent_ref, display_name, named_by)
-  select p.project_id, p.account_id, p_agent, p_name, 'administration'
+  select
+    p.project_id,
+    p.account_id,
+    p_agent,
+    p_name,
+    case when p_name is null then 'withdrawn' else 'administration' end
   from observer.projects p
   where p.project_id = p_project
     and p.account_id = p_account
     and p.status     = 'active'
   on conflict (project_id, agent_ref) do update
     set display_name = excluded.display_name,
-        named_by     = 'administration',
+        named_by     = excluded.named_by,
         updated_at   = pg_catalog.now();
 
   get diagnostics moved = row_count;

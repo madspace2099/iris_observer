@@ -318,6 +318,31 @@ export async function nameAgentAction(_previous: FormState, form: FormData): Pro
   return { problem: null, field: null, values: typed, done: "Saved." };
 }
 
+/**
+ * Take a presenter's name off every meeting that shows it.
+ *
+ * A removal, not a correction: nothing replaces the name, and the meetings go
+ * back to showing the identifier the showroom sends. The row is kept without a
+ * name rather than deleted, because a deleted one would be refilled by the next
+ * roster report within the read memo's half minute, and a removal that undoes
+ * itself is not a removal. A showroom can never write over it again; an
+ * administrator can, by typing a name here.
+ *
+ * Plain rather than a `useActionState` pair, as the grant's revocation is: there
+ * is nothing to say back beyond the row itself, which `changed()` re-renders.
+ */
+export async function withdrawAgentNameAction(form: FormData): Promise<void> {
+  const opened = await operator();
+  if (!opened.ok) return;
+  await opened.admin.nameAgent({
+    account: CONTROL_PLANE_ACCOUNT,
+    project: text(form, "project"),
+    agent: text(form, "agent"),
+    name: null,
+  });
+  changed();
+}
+
 function refusalWords(refusal: AdminRefusal): string {
   if (refusal.code === "invalid_input") {
     return `The ${refusal.field ?? "request"} is not in a form the control plane accepts. Nothing was changed.`;

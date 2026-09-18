@@ -1,6 +1,7 @@
 # Pre-production gates
 
-**Status:** required review · **Date:** 2026-08-24 · **EU AI Act added to Gate 1:** 2026-09-17
+**Status:** required review · **Date:** 2026-08-24 · **EU AI Act added to Gate 1:** 2026-09-17 ·
+**Sales agents' names added to Gate 1:** 2026-09-18
 
 Work that is **finished in the product and blocked before production** until somebody outside
 engineering signs it off. A gate is not a gap: the decision is made, the behaviour is built, and the
@@ -15,22 +16,29 @@ what the system does, so that a reviewer can judge it.
 
 **Blocks:** the first project processing real buyer data.
 
+Since 2026-09-18 Observer also stores something it did not before: **the display names of the
+people who present**, who are employees or contractors of a developer or an agency rather than
+consumers. One table outside the event store, a display name and nothing else, entered by an
+administrator or reported by the showroom itself. It is in the table below as its own item, because
+the questions a reviewer must ask about staff data are not the ones about buyers.
+
 Observer stores identified behavioural profiles of consumers — what a named person looked at, for how
 long, what they shortlisted, and what a model infers from it. That is a materially different thing
 from counting page views, and it needs a decision from somebody qualified to make one.
 
-| Item                               | Question for review                                                                                                                                         | Where the behaviour is described           |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **Privacy notice**                 | What are buyers told, where, and by whom — the developer, the agency, or both?                                                                              | `docs/01-foundation.md` §5                 |
-| **Lawful basis**                   | On what basis is behavioural data linked to an identified buyer, per channel? Consent, legitimate interest, or contract?                                    | `docs/05-identity.md` §2.5                 |
-| **Consent wording**                | The exact text shown at lead submission and at the start of a showroom meeting, and its versioning.                                                         | `Lead.consent.textVersion`                 |
-| **Retention**                      | How long source observations, canonical facts, contacts and intent signals are kept.                                                                        | `docs/09-ingestion.md` §6                  |
-| **Deletion and anonymisation**     | Whether tombstoning satisfies an erasure request, and what counts as sufficient anonymisation of the behavioural record that remains.                       | `docs/05-identity.md` §4                   |
-| **CRM data sharing**               | What flows to REALPAD or Monday, what flows back, and under whose instruction.                                                                              | `docs/06-ownership.md`                     |
-| **Sales-agency access**            | What a contracted agency may see about a buyer, and what happens to that access when the contract ends.                                                     | `docs/01-foundation.md` §2                 |
-| **AI processing**                  | That generated summaries and intent signals are automated processing of personal data, where they run, and whether any decision they inform is significant. | `docs/07-pre-meeting-brief.md`, `ADR-0021` |
-| **The EU AI Act**                  | A separate regulation with its own questions and its own dates. See the section below.                                                                      | below                                      |
-| **Forbidden inference categories** | That the declared prohibitions are the right ones, and complete.                                                                                            | `PROHIBITED_INFERENCE_CATEGORIES`          |
+| Item                               | Question for review                                                                                                                                                                                                                                                                              | Where the behaviour is described              |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| **Privacy notice**                 | What are buyers told, where, and by whom — the developer, the agency, or both?                                                                                                                                                                                                                   | `docs/01-foundation.md` §5                    |
+| **Lawful basis**                   | On what basis is behavioural data linked to an identified buyer, per channel? Consent, legitimate interest, or contract?                                                                                                                                                                         | `docs/05-identity.md` §2.5                    |
+| **Consent wording**                | The exact text shown at lead submission and at the start of a showroom meeting, and its versioning.                                                                                                                                                                                              | `Lead.consent.textVersion`                    |
+| **Retention**                      | How long source observations, canonical facts, contacts and intent signals are kept.                                                                                                                                                                                                             | `docs/09-ingestion.md` §6                     |
+| **Deletion and anonymisation**     | Whether tombstoning satisfies an erasure request, and what counts as sufficient anonymisation of the behavioural record that remains.                                                                                                                                                            | `docs/05-identity.md` §4                      |
+| **CRM data sharing**               | What flows to REALPAD or Monday, what flows back, and under whose instruction.                                                                                                                                                                                                                   | `docs/06-ownership.md`                        |
+| **Sales-agency access**            | What a contracted agency may see about a buyer, and what happens to that access when the contract ends.                                                                                                                                                                                          | `docs/01-foundation.md` §2                    |
+| **AI processing**                  | That generated summaries and intent signals are automated processing of personal data, where they run, and whether any decision they inform is significant.                                                                                                                                      | `docs/07-pre-meeting-brief.md`, `ADR-0021`    |
+| **The EU AI Act**                  | A separate regulation with its own questions and its own dates. See the section below.                                                                                                                                                                                                           | below                                         |
+| **Sales agents' names**            | On what basis is a presenter's name held and shown to the developer who bought the product; what are the sales people told; how long is a name kept after somebody leaves; and is removal in administration sufficient, given that meetings then show the opaque identifier the showroom minted? | `docs/21-self-served-projects.md` D4, `PD-30` |
+| **Forbidden inference categories** | That the declared prohibitions are the right ones, and complete.                                                                                                                                                                                                                                 | `PROHIBITED_INFERENCE_CATEGORIES`             |
 
 ### What is already built to support the review
 
@@ -47,6 +55,13 @@ These are engineering facts the reviewer can rely on, not compliance claims:
 - Ten inference categories are declared as data and enforced by test.
 - Row-level security and application authorisation are both required; the identity hash is a matching
   device and is not an access control.
+- A presenter's name is held in `observer.project_agents` and nowhere else in the ingestion domain.
+  No event carries it, `agent_id` stays the opaque value the showroom minted, and the roster
+  endpoint accepts a display name and refuses every other field.
+- An administrator can **remove** a presenter's name, not only replace it. The row is kept holding
+  no name, so a showroom's roster cannot report that name again; every meeting goes back to showing
+  the identifier. Whether that satisfies an erasure request about a member of staff is a question
+  for the reviewer, not an answer from us.
 
 ### The EU AI Act
 

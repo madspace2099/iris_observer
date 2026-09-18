@@ -126,6 +126,14 @@ describe("a presenter's name", () => {
     expect(db.projectAgentNameSet).toHaveBeenCalledTimes(1);
     expect(db.projectAgentNameSet).toHaveBeenCalledWith({ ...base, name: "Monika Kováčová" });
   });
+
+  it("is withdrawn by a null, which is not a missing name", async () => {
+    const { db, admin } = service();
+    const base = { account: ACCOUNT, project: PROJECT, agent: "AG-1" };
+    expect((await admin.nameAgent({ ...base, name: null })).ok).toBe(true);
+    /* Null reaches the database as null: the facade reads it as the withdrawal. */
+    expect(db.projectAgentNameSet).toHaveBeenCalledWith({ ...base, name: null });
+  });
 });
 
 describe("a complete project", () => {

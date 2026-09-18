@@ -663,8 +663,11 @@ the earlier one. Removing a person locally needs no call, because meetings they 
 their name.
 
 **`recorded` may be lower than the number you sent, and that is not a failure.** A MADSPACE
-administrator can name or rename a presenter, and that name stands: a roster never overwrites it.
-Those entries are simply not counted.
+administrator can name, rename or **remove** a presenter's name, and that decision stands: a roster
+never overwrites it. Those entries are simply not counted. A removed name is the case worth knowing
+about, because it is deliberate and permanent from your side: the meetings go back to showing the
+`agent_id`, reporting the same name again changes nothing, and only an administrator can put it
+back. Keep sending the whole list anyway; there is nothing for you to track.
 
 **Failures** are the request failures you already handle, with the same meanings: `400
 malformed_request` (fix the payload, do not retry unchanged), `401`/`403` (the credential

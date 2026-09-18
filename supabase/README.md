@@ -119,7 +119,8 @@ project created in administration become a customer dashboard. Three tables: `ob
 (a developer: a name and a globally unique slug, with the application's own route names refused),
 `observer.project_viewers` (who may open a project, kept with its revocations), and
 `observer.project_agents` (the display name behind an `agent_id`, **the only place in this domain
-that holds a person's name**). `observer.projects` gains a developer, a currency, a locale and a
+that holds a person's name**; `named_by` is `administration`, `showroom` or `withdrawn`, and a
+withdrawn row holds no name and cannot be refilled by a roster). `observer.projects` gains a developer, a currency, a locale and a
 time zone, and a trigger refuses to move a project or change its slug once it has an address.
 
 Eleven façades in the spine's posture. Ten take `p_account` first and filter on it. The eleventh,

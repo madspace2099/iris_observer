@@ -491,7 +491,7 @@ export function postgrestDb(config: PostgrestConfig): ObserverDb {
       readonly account: string;
       readonly project: string;
       readonly agent: string;
-      readonly name: string;
+      readonly name: string | null;
     }): Promise<boolean> {
       return callScalar(
         config,

@@ -108,7 +108,8 @@ export interface NameAgentInput {
   readonly project: string;
   /** Exactly what the showroom sends as `agent_id`. */
   readonly agent: string;
-  readonly name: string;
+  /** Null withdraws the name: the row is kept, holding none. */
+  readonly name: string | null;
 }
 
 /* --- the service -------------------------------------------------------------------- */
@@ -287,14 +288,15 @@ export function projectDirectoryAdmin(deps: { readonly db: ObserverDb }): Projec
         text(input.account, "account", 200),
         uuid(input.project, "project"),
         text(input.agent, "agent", 128),
-        text(input.name, "name", 120),
+        /* A withdrawal has no name to check, and is not a missing one. */
+        ...(input.name === null ? [] : [text(input.name, "name", 120)]),
       ]);
       if (problem !== null) return no(problem);
       const named = await db.projectAgentNameSet({
         account: input.account,
         project: input.project,
         agent: input.agent,
-        name: input.name.trim(),
+        name: input.name === null ? null : input.name.trim(),
       });
       return named ? ok(null) : no({ code: "unknown_project", field: "project" });
     },

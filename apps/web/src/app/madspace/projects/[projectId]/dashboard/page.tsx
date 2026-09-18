@@ -127,6 +127,8 @@ export default async function ProjectDashboardPage({
   const presenters = agents.ok ? agents.value : [];
   const presented = presenters.filter((a) => Number(a.session_count) > 0);
   const unnamed = presented.filter((a) => a.display_name === null);
+  /* Removed on purpose, and still without a name: two different answers to "why". */
+  const withdrawn = unnamed.filter((a) => a.named_by === "withdrawn");
   const meetings = presented.reduce((sum, a) => sum + Number(a.session_count), 0);
 
   const granted = grants.ok ? grants.value : [];
@@ -209,7 +211,9 @@ export default async function ProjectDashboardPage({
           ? "Nobody has presented yet"
           : unnamed.length === 0
             ? `${String(presented.length)} named`
-            : `${String(unnamed.length)} of ${String(presented.length)} without a name`,
+            : `${String(unnamed.length)} of ${String(presented.length)} without a name${
+                withdrawn.length === 0 ? "" : `, ${String(withdrawn.length)} removed here`
+              }`,
       waiting: "administration",
     },
   ];
@@ -358,6 +362,10 @@ export default async function ProjectDashboardPage({
               kept here, and every meeting shows it.
             </p>
             <p>A name typed here replaces one a showroom reported, and is never replaced by one.</p>
+            <p>
+              Removing a name puts the identifier back on every meeting that showed it, and no
+              showroom can report that name again. Typing one here can.
+            </p>
           </InfoNote>
         </div>
         <div className="mad-rows">
@@ -367,17 +375,22 @@ export default async function ProjectDashboardPage({
             presenters.map((agent) => (
               <div className="mad-row mad-row--presenter" key={agent.agent_ref}>
                 <div className="mad-row-id">
-                  <h3 className="mad-row-name">{agent.display_name ?? "No name yet"}</h3>
+                  <h3 className="mad-row-name">
+                    {agent.display_name ??
+                      (agent.named_by === "withdrawn" ? "Name removed" : "No name yet")}
+                  </h3>
                   <p className="mad-note">
                     <span className="mad-code">{agent.agent_ref}</span>
                   </p>
                   <div className="mad-badges">
                     <StatusChip tone={agent.display_name === null ? "wrong" : "good"}>
-                      {agent.display_name === null
-                        ? "Shown as an identifier"
-                        : agent.named_by === "showroom"
-                          ? "Named by the showroom"
-                          : "Named here"}
+                      {agent.named_by === "withdrawn"
+                        ? "Removed here, and no showroom may refill it"
+                        : agent.display_name === null
+                          ? "Shown as an identifier"
+                          : agent.named_by === "showroom"
+                            ? "Named by the showroom"
+                            : "Named here"}
                     </StatusChip>
                   </div>
                   <p className="mad-note">

@@ -7,6 +7,7 @@ import {
   grantViewerAction,
   nameAgentAction,
   setProjectSettingsAction,
+  withdrawAgentNameAction,
 } from "@/lib/madspace/directory-actions";
 import { slugFrom } from "@/lib/madspace/slug";
 import { InfoNote } from "@/components/madspace/InfoNote";
@@ -435,6 +436,28 @@ export function AgentNameForm({
         <button className="mad-submit mad-button" type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save name"}
         </button>
+        {name === null ? null : (
+          /*
+           * A SECOND VERB ON THE SAME ROW, not a second form.
+           *
+           * `formAction` sends this button's press to the removal instead of the
+           * save, with the project and agent already in the hidden fields above.
+           * Its answer does not come back through `useActionState` — there is
+           * nothing to say that the re-rendered row does not — so the button
+           * offers no "Removed." of its own, and the name simply goes.
+           *
+           * Only where there is a name: a control that would do nothing is the
+           * one this product forbids most plainly.
+           */
+          <button
+            className="mad-button"
+            type="submit"
+            formAction={withdrawAgentNameAction}
+            disabled={pending}
+          >
+            Remove name
+          </button>
+        )}
         <Done state={state} />
       </div>
     </form>
