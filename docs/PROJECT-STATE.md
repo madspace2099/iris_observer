@@ -2106,6 +2106,17 @@ screenshot in `artifacts/qa-shots/`.
    Flow — now list it only where a CRM is connected, which is what the Project screen already did.
    The two guarded ladder chips on Sales Flow were already correct.
 
+   **And it found the same claim one layer down, which is NOT fixed.** The read model attaches the
+   CRM source to findings through two local `WITH_OUTCOME` constants
+   (`packages/synthetic/src/showroom/views3.ts:64`, thrice; `.../screens.ts:88`, nine times). At
+   least one is wrong on every project: `flow-unrecorded` states "N of M meetings ended with no
+   outcome recorded" — the showroom's own widget — and names the CRM. Measured live: a project with
+   no CRM connected still prints "CRM outcome" once on Sales Flow, from that finding
+   (`artifacts/qa-shots/phase7-chips.mjs` counts it). Others are genuinely CRM-adjacent (deal
+   stages, catalogue status) and one is already behind a `crm &&` guard. Twelve call sites, each
+   needing its own judgement about which source contributed; left as its own pass rather than
+   half-audited here.
+
 **Verification of this follow-up.** `pnpm --filter @observer/web exec tsc --noEmit`, the migration
 suite (20 cases, including a withdrawn row that a roster cannot refill and the two constraints that
 refuse a nonsense row), `packages/sources` and `apps/web/test` (654 + 978 passing), and the live
