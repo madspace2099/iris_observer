@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { switcherButton } from "./switcher";
 
 /**
  * ACCOUNT → PROJECTS → OBSERVER, THROUGH THE VISIBLE USER INTERFACE.
@@ -349,7 +350,8 @@ test.describe("leaving", () => {
      * its project switch carries the way back instead, as the last option.
      * Petra is on several projects, so the switch is rendered for her.
      */
-    await page.getByRole("combobox", { name: "Switch project" }).selectOption("__all");
+    await switcherButton(page, "Switch project").click();
+    await page.locator(".ox-menu[open] .ox-menu-foot").click();
     /* The router navigation, not the network's quiet. See the keyboard case. */
     await page.waitForURL(/\/projects/);
     expect(new URL(page.url()).pathname).toBe("/projects");

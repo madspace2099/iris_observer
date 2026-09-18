@@ -217,7 +217,7 @@ describe("the Hybrid Executive token system", () => {
     expect(tooSmall, `font sizes below 12px: ${tooSmall.join(", ")}`).toEqual([]);
   });
 
-  it("spends exactly one elevation, on the dialog panel", () => {
+  it("spends exactly one elevation, and only through its token", () => {
     /*
      * "Nothing is a card. Content sits on planes separated by hairlines"
      * (CLAUDE.md non-negotiable #10). The hairlines themselves ARE box-shadows —
@@ -235,9 +235,16 @@ describe("the Hybrid Executive token system", () => {
        */
       .filter((value) => /(?:^|\s)(?:0|[\d.]+px)\s+[\d.]+px\s+[1-9][\d.]*px/.test(value));
 
-    expect(blurred, `blurred shadows: ${blurred.join(" | ")}`).toEqual([
-      "0 24px 64px rgb(0 0 0 / 55%)",
-    ]);
+    /*
+     * It used to be one LITERAL, on the dialog. A menu floats for the same
+     * reason a dialog does, and the moment a second surface needed the same
+     * lift the rule had to say which it is: one elevation, declared once,
+     * reached only by its name. A literal blurred shadow anywhere is now the
+     * failure — including a second copy of this very value.
+     */
+    expect(blurred, `blurred shadows written as literals: ${blurred.join(" | ")}`).toEqual([]);
+    expect(token(GRAPHITE, "--ox-lift")).toBe("0 24px 64px rgb(0 0 0 / 55%)");
+    expect([...CODE.matchAll(/box-shadow:\s*var\(--ox-lift\)/g)].length).toBeGreaterThan(0);
   });
 
   it("never removes a focus indicator", () => {

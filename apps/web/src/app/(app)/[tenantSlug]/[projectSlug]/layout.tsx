@@ -149,19 +149,32 @@ export default async function ProjectLayout({
    */
   const developers = await Promise.all(
     tenants.map(async (t) => {
-      const first = (await repository.listProjects(viewer, t.id))[0];
+      const held = await repository.listProjects(viewer, t.id);
+      const first = held[0];
       return first === undefined
         ? null
         : {
-            value: t.slug,
-            label: t.name,
-            href: `/${t.slug}/${first.slug}/${HOME_SEGMENT}`,
+            count: held.length,
+            option: {
+              value: t.slug,
+              label: t.name,
+              href: `/${t.slug}/${first.slug}/${HOME_SEGMENT}`,
+            },
           };
     }),
   );
-  const developerOptions: readonly SwitchOption[] = developers.filter(
-    (d): d is NonNullable<typeof d> => d !== null,
-  );
+  const reachable = developers.filter((d): d is NonNullable<typeof d> => d !== null);
+  const developerOptions: readonly SwitchOption[] = reachable.map((d) => d.option);
+
+  /*
+   * How many projects this account can open ALTOGETHER.
+   *
+   * Counted here because the lists were already read: the loop above asks each
+   * developer for its projects and used to keep only the first. The project
+   * switcher names this number to account for its own shorter list, which is
+   * the one thing that screen could not say for itself.
+   */
+  const projectTotal = reachable.reduce((sum, d) => sum + d.count, 0);
 
   const root = `/${tenant.slug}/${project.slug}`;
 
@@ -281,6 +294,8 @@ export default async function ProjectLayout({
         scope={{ tenantSlug: tenant.slug, projectSlug: project.slug }}
         viewer={{ displayName: viewer.displayName, roleLabel: roleLabel(viewer.role) }}
         projects={projectOptions}
+        developerName={tenant.name}
+        projectTotal={projectTotal}
         tenants={developerOptions}
         account={accountControls}
         accountAsk={accountControlsAsk}

@@ -1157,47 +1157,41 @@
 /*
  * THE PROJECT SWITCH, ONLY ON ASK IRIS.
  *
- * `ContextSwitcher` renders `.obs-context > select.obs-action` from the
- * older component sheet, `appearance: none` and no arrow of its own. Restyled
- * here to the export's own pill — same 38px/19px/border/ground as
- * `.irs-signout` beside it — the way `.ox-context .obs-action` already
- * restyles the identical pair for the analytical header; this is that same
- * permitted pattern, scoped to this header instead.
+ * `ContextSwitcher` draws `.ox-menu` — its own panel, since the native select
+ * was retired for opening an operating-system list out of a graphite header
+ * (`observer-product.css` §5 carries the reasoning). Its BUTTON is restyled
+ * here to the export's own pill, the same 38px/19px/border/ground as
+ * `.irs-signout` beside it. The panel it opens is deliberately not restyled:
+ * a menu that changed shape with the header it hangs from would be two menus,
+ * and this is the same list of projects either way.
  */
-.irs-shell[data-variant="ask"] .irs-header-end .obs-context {
-  display: contents;
-}
-
-.irs-shell[data-variant="ask"] .irs-header-end .obs-action {
-  display: flex;
-  align-items: center;
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button {
   height: 38px;
-  min-height: 0;
-  padding: 0 26px 0 14px;
+  padding: 0 12px 0 14px;
   border-radius: 19px;
-  border: 1px solid rgb(150 175 215 / 30%);
-  background:
-    linear-gradient(45deg, transparent 50%, #aab4c4 50%) right 12px center / 6px 6px no-repeat,
-    linear-gradient(135deg, #aab4c4 50%, transparent 50%) right 8px center / 6px 6px no-repeat,
-    rgb(6 14 30 / 55%);
-  font-family: inherit;
+  border-color: rgb(150 175 215 / 30%);
+  background: rgb(6 14 30 / 55%);
   font-size: 13px;
-  font-weight: var(--weight-medium);
   color: #e8eef8;
-  max-width: 16ch;
-  transition:
-    border-color 180ms ease-out,
-    background-color 180ms ease-out;
+  max-width: 17ch;
 }
 
-.irs-shell[data-variant="ask"] .irs-header-end .obs-action:hover {
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button:hover,
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu[open] > .ox-menu-button {
   border-color: rgb(180 205 240 / 48%);
+  background: rgb(8 20 44 / 70%);
+}
+
+/* This header ends at the viewport's edge, so its menu opens back into the page. */
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-panel {
+  left: auto;
+  right: 0;
 }
 
 @media (width <= 1199px) {
   /* `.irs-who` drops here; the switch is the widest thing left and shrinks with it. */
-  .irs-shell[data-variant="ask"] .irs-header-end .obs-action {
-    max-width: 11ch;
+  .irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button {
+    max-width: 12ch;
   }
 }
 

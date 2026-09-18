@@ -1022,26 +1022,12 @@ span.obs-when-delivered {
 }
 
 /*
- * The context selects must look selectable.
- *
- * `appearance: none` removed the native arrow and left two controls that read
- * as buttons — a reader could not tell the project was changeable at all.
+ * The context selects were styled here until 2026-09-18, when both switchers
+ * stopped being selects: a `<select>` opens an operating-system list that no
+ * stylesheet can reach, and this product's header is graphite. `.ox-menu` in
+ * `observer-product.css` draws the control and its panel now, so the rules
+ * that gave a select an arrow it could keep are gone rather than left to rot.
  */
-.obs-context select {
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
-    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
-  background-position:
-    right 1rem center,
-    right 0.7rem center;
-  background-size:
-    0.3rem 0.3rem,
-    0.3rem 0.3rem;
-  background-repeat: no-repeat;
-  padding-right: var(--space-6);
-  max-width: 16rem;
-  text-overflow: ellipsis;
-}
 
 @media (max-width: 48rem) {
   /*
@@ -1069,10 +1055,6 @@ span.obs-when-delivered {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .obs-context select {
-    max-width: 9rem;
   }
 
   .obs-brand span:not(.obs-brand-mark) {

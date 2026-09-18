@@ -37,19 +37,24 @@ test.describe("project switching", () => {
     await signInAs(page, "Petra Novák");
     await page.waitForURL(/\/alpha\/northgate\/ask/);
 
-    const switcher = page.getByRole("combobox", { name: "Switch project" });
+    const switcher = page.locator('summary[aria-label="Switch project"]');
     await expect(switcher).toBeVisible();
-    /* Her three projects, then the way back to the list of all of them
-     * (`ALL_PROJECTS_OPTION` in Shell.tsx; `account-login.spec.ts` walks it). */
-    await expect(switcher.locator("option")).toHaveCount(4);
-    await expect(switcher.locator("option").last()).toHaveText("All projects");
+    await switcher.click();
 
-    await switcher.selectOption({ label: "Riverside Walk" });
+    /* Her three projects in THIS developer, the sentence that says so, and the
+     * way to all of them across every developer (`allProjectsOption`, Shell.tsx;
+     * `account-login.spec.ts` walks it). */
+    const menu = page.locator(".ox-menu[open] .ox-menu-panel");
+    await expect(menu.locator(".ox-menu-row")).toHaveCount(3);
+    await expect(menu.locator(".ox-menu-caption")).toContainText("Alpha Estates");
+    await expect(menu.locator(".ox-menu-foot")).toContainText(/All \d+ projects you can open/);
+
+    await menu.locator(".ox-menu-row", { hasText: "Riverside Walk" }).click();
     await page.waitForURL(/\/alpha\/riverside\/ask/);
     await expect(page.getByText("Ask IRIS about Riverside Walk").first()).toBeVisible();
 
     /* The switch travels: reachable again from the project it just landed on. */
-    await expect(page.getByRole("combobox", { name: "Switch project" })).toHaveValue("riverside");
+    await expect(page.locator('summary[aria-label="Switch project"]')).toContainText("Riverside");
   });
 
   test("switching preserves the current section rather than resetting to Ask IRIS", async ({
@@ -66,15 +71,15 @@ test.describe("project switching", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/flow");
 
-    const switcher = page.getByRole("combobox", { name: "Project" }).first();
-    await switcher.selectOption({ label: "ISTER TOWER" });
+    await page.locator('.ox-context summary[aria-label="Project"]').click();
+    await page.locator(".ox-menu[open] .ox-menu-row", { hasText: "ISTER TOWER" }).click();
     await page.waitForURL(/\/alpha\/ister-tower\/flow/);
   });
 
   test("a single-project account sees no switcher at all", async ({ page }) => {
     await signIn(page, "Martin Kováč");
     await page.waitForURL(/\/alpha\/ister-tower\/ask/);
-    await expect(page.getByRole("combobox", { name: "Switch project" })).toHaveCount(0);
+    await expect(page.locator('summary[aria-label="Switch project"]')).toHaveCount(0);
   });
 
   test("the wordmark returns to the current project's Ask IRIS from any section", async ({

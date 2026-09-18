@@ -302,15 +302,19 @@ describe("accessibility foundations", () => {
      * accessible name — "PeriodQuarter to dateLast 28 days…" — which is both
      * wrong for a screen reader and ambiguous for anything querying by name.
      */
-    for (const file of [
-      "src/components/ContextSwitcher.tsx",
-      "src/components/PeriodSwitcher.tsx",
-    ]) {
-      const switcher = read(file);
-      expect(switcher, `${file} must name its control`).toContain("aria-label");
-      // The closing tag, not the opening one — the comment above each control
-      // explains why a wrapping label is wrong, and says "<label>" doing it.
-      expect(switcher, `${file} must not wrap the select in a label`).not.toContain("</label>");
+    const control = read("src/components/ContextSwitcher.tsx");
+    expect(control, "the switcher must name its control").toContain("aria-label={label}");
+    // The closing tag, not the opening one — the comment above the control
+    // explains why a wrapping label is wrong, and says "<label>" doing it.
+    expect(control, "the switcher must not wrap its button in a label").not.toContain("</label>");
+
+    /*
+     * And every caller must pass a name. `PeriodSwitcher` renders the same
+     * control now rather than a second select of its own, so what it owes is a
+     * `label`, not an `aria-label` of its own.
+     */
+    for (const file of ["src/components/PeriodSwitcher.tsx", "src/components/iris/Shell.tsx"]) {
+      expect(read(file), `${file} must name every switcher it renders`).toContain("label=");
     }
   });
 

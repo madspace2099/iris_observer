@@ -234,23 +234,43 @@ export function withCurrentSection(
 }
 
 /**
- * THE WAY BACK TO THE PROJECTS LIST, FROM ASK IRIS.
+ * THE WAY OUT OF A LIST THAT IS DELIBERATELY NOT ALL OF THEM.
  *
- * The Ask header is the export's: a name and a `Sign out` pill, no Projects
- * link — that lives on every other surface's header. Which left a reader who
- * signed in (every sign-in lands on Ask IRIS) with no way to the list of their
- * projects except the browser's Back button, and an E2E case that had said so
- * for as long as the variant existed. The project switch is the one control
- * the Ask header does carry, and "all of them" is a natural last entry in a
- * list of projects: the same select, one more row, no new chrome on the
- * composition the export fixes. `withCurrentSection` leaves it alone because
- * its href does not end in the home segment.
+ * The project switcher lists ONE DEVELOPER'S projects, because a project's
+ * address sits under a developer's and moving between two developers is moving
+ * between two businesses. A reader has no way to know that from a closed
+ * button showing one project's name — and the account chooser they signed in
+ * through lists every project they hold, flat, across all of them. Seven there,
+ * three here, and nothing on screen accounting for the difference.
+ *
+ * So the menu says what it holds, and ends with the way to the fuller list. The
+ * count is the point: it is the number the reader just saw on `/projects`, so
+ * the two screens stop contradicting each other.
+ *
+ * It is also the Ask header's only way back to that list — that header carries
+ * no Projects link, by the export's own composition, and every sign-in lands
+ * there.
  */
-export const ALL_PROJECTS_OPTION: SwitchOption = {
-  value: "__all",
-  label: "All projects",
-  href: "/projects",
-};
+/**
+ * Why a developer's own list is short, and what choosing one does.
+ *
+ * Both facts surprised a reader on the same screen: the list holds the
+ * developers they hold rather than every developer on the platform, and
+ * choosing one lands on that developer's first project rather than the
+ * equivalent of the screen they were on — because two developers are two
+ * businesses and no screen shows both.
+ */
+const DEVELOPER_CAPTION =
+  "Developers you hold. Opening one shows its first project; two developers never share a screen.";
+
+export function allProjectsOption(total: number | null): SwitchOption {
+  return {
+    value: "__all",
+    label:
+      total === null ? "All projects you can open" : `All ${String(total)} projects you can open`,
+    href: "/projects",
+  };
+}
 
 /**
  * The sub-navigation row, and which item in it is the page.
@@ -391,6 +411,8 @@ export function Shell({
   current: givenCurrent,
   period: givenPeriod,
   projects,
+  developerName,
+  projectTotal = null,
   tenants = null,
   sources = [],
   tabs: givenTabs,
@@ -412,8 +434,17 @@ export function Shell({
   readonly current?: string;
   /** The period. Omit it and the URL decides; see the note above. */
   readonly period?: PeriodPreset;
-  /** Every project this account may open, each carrying its own href. */
+  /** Every project this account may open IN THIS DEVELOPER, each carrying its own href. */
   readonly projects: readonly SwitchOption[];
+  /** Whose portfolio {@link Shell.projects} is. Named in the switcher's own words. */
+  readonly developerName: string;
+  /**
+   * Every project the account may open, across every developer.
+   *
+   * The number the reader just saw on `/projects`, so the switcher can account
+   * for its own shorter list instead of contradicting that screen in silence.
+   */
+  readonly projectTotal?: number | null;
   /** The developer switcher, and only when the account holds more than one. */
   readonly tenants?: readonly SwitchOption[] | null;
   readonly sources?: readonly ShellSource[];
@@ -515,6 +546,9 @@ export function Shell({
   }, []);
 
   const base = `/${scope.tenantSlug}/${scope.projectSlug}`;
+
+  /* Said in the menu rather than beside the button: see `allProjectsOption`. */
+  const projectCaption = `Every project you can open in ${developerName}.`;
 
   /*
    * The three values the URL owns, resolved once and used everywhere below.
@@ -647,8 +681,10 @@ export function Shell({
           {variant === "ask" && projects.length > 1 ? (
             <ContextSwitcher
               label="Switch project"
+              caption={projectCaption}
               value={scope.projectSlug}
-              options={[...withCurrentSection(projects, segment), ALL_PROJECTS_OPTION]}
+              options={withCurrentSection(projects, segment)}
+              footer={allProjectsOption(projectTotal)}
             />
           ) : null}
           <div className="irs-who">
@@ -766,14 +802,17 @@ export function Shell({
                   {tenants !== null && tenants.length > 1 ? (
                     <ContextSwitcher
                       label="Developer"
+                      caption={DEVELOPER_CAPTION}
                       value={scope.tenantSlug}
                       options={withCurrentSection(tenants, segment)}
                     />
                   ) : null}
                   <ContextSwitcher
                     label="Project"
+                    caption={projectCaption}
                     value={scope.projectSlug}
                     options={withCurrentSection(projects, segment)}
+                    footer={allProjectsOption(projectTotal)}
                   />
                   <PeriodSwitcher />
                   {sources.length === 0 ? null : (
@@ -832,14 +871,17 @@ export function Shell({
             {tenants !== null && tenants.length > 1 ? (
               <ContextSwitcher
                 label="Developer"
+                caption={DEVELOPER_CAPTION}
                 value={scope.tenantSlug}
                 options={withCurrentSection(tenants, segment)}
               />
             ) : null}
             <ContextSwitcher
               label="Project"
+              caption={projectCaption}
               value={scope.projectSlug}
               options={withCurrentSection(projects, segment)}
+              footer={allProjectsOption(projectTotal)}
             />
             <PeriodSwitcher />
           </div>

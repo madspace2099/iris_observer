@@ -1,5 +1,6 @@
 import { test, type Page } from "@playwright/test";
 import { signInAs } from "./sign-in";
+import { chooseInSwitcher } from "./switcher";
 
 /**
  * The review set for this remediation milestone.
@@ -55,7 +56,7 @@ test.describe("milestone review", () => {
   test("agency manager context switching", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await shoot(page, "04-manager-alpha");
-    await page.getByRole("combobox", { name: "Developer" }).selectOption("beta");
+    await chooseInSwitcher(page, "Developer", "Beta", ".ox-context");
     await page.waitForURL(/\/beta\//);
     await shoot(page, "05-manager-beta");
   });

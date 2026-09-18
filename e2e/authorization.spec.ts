@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInAs } from "./sign-in";
+import { chooseInSwitcher, expectPeriod, PERIOD_LABEL, switcherButton } from "./switcher";
 
 /**
  * The role matrix, and the period, exercised through the browser.
@@ -83,15 +84,15 @@ test.describe("an agency manager can reach both developers", () => {
      * The grant existed and the navigation did not; the only route was a URL.
      */
     await page.goto("/alpha/northgate/flow");
-    await expect(page.getByRole("combobox", { name: "Developer" })).toBeVisible();
+    await expect(switcherButton(page, "Developer", ".ox-context")).toBeVisible();
   });
 
   test("switching developer opens that developer's project", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await page.goto("/alpha/northgate/flow");
-    await page.getByRole("combobox", { name: "Developer" }).selectOption("beta");
+    await chooseInSwitcher(page, "Developer", "Beta", ".ox-context");
     await page.waitForURL(/\/beta\//);
-    await expect(page.getByRole("combobox", { name: "Project" })).toContainText(/Kingsford/);
+    await expect(switcherButton(page, "Project", ".ox-context")).toContainText(/Kingsford/);
     await expect(page.locator("h1").first()).toContainText(/meeting|presentation|record/i);
   });
 
@@ -122,14 +123,14 @@ test.describe("the period selector tells the truth", () => {
       await signInAs(page, "Petra Novák");
       await page.goto(`/alpha/northgate/showroom?period=${preset}`);
       // The control rendered a constant while the page computed something else.
-      await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue(preset);
+      await expectPeriod(page, preset);
     });
   }
 
   test("changing it stays on the current surface", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
-    await page.getByRole("combobox", { name: "Period" }).selectOption("last_28_days");
+    await chooseInSwitcher(page, "Period", PERIOD_LABEL["last_28_days"] ?? "", ".ox-context");
     await page.waitForURL(/period=last_28_days/);
     // It used to return to the briefing, discarding the surface the reader chose.
     expect(page.url()).toContain("/units");
@@ -141,26 +142,26 @@ test.describe("the period selector tells the truth", () => {
     await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Project" }).click();
     await page.waitForURL(/\/project/);
     expect(page.url()).toContain("period=last_28_days");
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_28_days");
+    await expectPeriod(page, "last_28_days");
   });
 
   test("survives a reload and the back button", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom?period=last_quarter");
     await page.reload();
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_quarter");
+    await expectPeriod(page, "last_quarter");
 
-    await page.getByRole("combobox", { name: "Period" }).selectOption("year_to_date");
+    await chooseInSwitcher(page, "Period", PERIOD_LABEL["year_to_date"] ?? "", ".ox-context");
     await page.waitForURL(/year_to_date/);
     await page.goBack();
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_quarter");
+    await expectPeriod(page, "last_quarter");
   });
 
   test("falls back explicitly on a value it does not know", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom?period=not_a_period");
     // The control must not claim a period the page is not showing.
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("quarter_to_date");
+    await expectPeriod(page, "quarter_to_date");
   });
 });
 
