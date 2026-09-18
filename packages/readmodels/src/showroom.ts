@@ -219,6 +219,13 @@ export interface MeetingReplay {
   readonly meetingId: string;
   readonly headline: string;
   readonly agentName: string;
+  /**
+   * Where this agent's own detail screen is, or `null` when the session's
+   * `agentId` did not resolve to a real roster entry — `agentName` falls back
+   * to the raw id in that case, and a link built from the raw id would open a
+   * route with nobody behind it.
+   */
+  readonly agentHref: string | null;
   readonly startedDisplay: string;
   readonly durationDisplay: string;
   readonly outcome: MeetingOutcome;
@@ -237,10 +244,11 @@ export interface UnitAttentionRow {
   readonly unitId: string;
   readonly unitCode: string;
   readonly status: "available" | "reserved" | "sold";
-  readonly rooms: number;
-  readonly areaSqm: number;
-  readonly orientation: string;
-  readonly floor: number;
+  /** Each `null` when the catalogue did not state it; the row says so in words. */
+  readonly rooms: number | null;
+  readonly areaSqm: number | null;
+  readonly orientation: string | null;
+  readonly floor: number | null;
   readonly priceDisplay: string;
   /** Distinct meetings in which the unit appeared. People, not events. */
   readonly meetings: number;
@@ -289,11 +297,35 @@ export interface UnitAttentionView {
 
 /* --- E. Storytelling and Feature Intelligence ------------------------------ */
 
+/**
+ * Whether a feature is new to this period.
+ *
+ * Three states, and the third is what keeps the first honest. A section that
+ * appears in the current window and not in the baseline is newly adopted **only
+ * if there was a baseline to be absent from** — on a project three weeks old,
+ * or on any surface handed an empty comparison slice, every feature would
+ * otherwise be reported as newly adopted, which is the most flattering possible
+ * reading of having no history.
+ */
+export const FEATURE_ADOPTIONS = ["new_in_period", "established", "no_baseline"] as const;
+export type FeatureAdoption = (typeof FEATURE_ADOPTIONS)[number];
+
 export interface SectionUsage {
   readonly sectionId: SectionId;
   readonly label: string;
   readonly kind: string;
   readonly meetings: number;
+  /**
+   * Times the section was entered, returns included.
+   *
+   * Distinct from `meetings`, which counts the presentations that reached it at
+   * all. One meeting that came back to Residences four times is one meeting and
+   * four opens, and a "most used feature" built on the wrong one of those two
+   * answers a different question than the reader asked.
+   */
+  readonly opens: number;
+  /** Whether this section is new to the period. See `FEATURE_ADOPTIONS`. */
+  readonly adoption: FeatureAdoption;
   readonly reachRate: number;
   readonly medianDwellSeconds: number | null;
   /** Dwell below the meaningful threshold — opened and left. */

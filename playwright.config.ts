@@ -1,4 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import {
+  ASK_PER_INSTANCE_PER_DAY,
+  ASK_PER_MINUTE,
+  ASK_PER_VIEWER_PER_DAY,
+  BREAKER_THRESHOLD,
+} from "./e2e/limits";
 
 /**
  * End-to-end checks.
@@ -68,6 +74,97 @@ export default defineConfig({
     // OBSERVER_REUSE=1 while iterating to skip the rebuild between runs.
           reuseExistingServer: process.env["OBSERVER_REUSE"] === "1",
           timeout: 240_000,
+          /*
+           * The demonstration ceilings, raised for the suite.
+           *
+           * One server process serves all three viewport projects, and the Ask
+           * limiter and breaker are per-instance by design (ADR-0026). A burst
+           * test in one project therefore starved the other two: every project
+           * passed alone and seventeen tests failed together, which looks like
+           * flakiness and is actually the control working.
+           *
+           * Raised rather than disabled — `ask-security.spec.ts` still proves a
+           * burst is stopped and a breaker opens, just with room for four
+           * hundred honest requests alongside them.
+           */
+          env: {
+            /*
+             * A PEPPER THE SUITE CAN USE AND NO DEPLOYMENT CAN.
+             *
+             * Ask Observer refuses every question without a subject pepper, by
+             * design and with no fallback — so a browser suite could not reach
+             * an answer at all, and three cases that assert on one failed for a
+             * missing variable rather than for anything about the product.
+             *
+             * What is passed here is sixty-four identical characters and a flag
+             * saying who is asking. It is not a secret, it is not derived from
+             * one, it is not read from the environment, it is not written to any
+             * file, and it never leaves the server process. Preview and
+             * Production carry neither line, and `describePepper` refuses this
+             * value wherever the flag is absent — so copying this block into a
+             * deployment yields a deployment that answers nothing, not one
+             * running on a published key.
+             */
+            /*
+             * The synthetic account directory, so the suite can pass through
+             * the visible sign-in. Its own switch, not the pepper harness:
+             * one flag that unlocks two unrelated things is a flag nobody can
+             * reason about. Absent on every deployment, where sign-in then has
+             * no directory to check a credential against and refuses.
+             */
+            OBSERVER_DEMO_ACCOUNTS: "1",
+            OBSERVER_SYNTHETIC_HARNESS: "1",
+            OBSERVER_SUBJECT_PEPPER: "a".repeat(64),
+
+            /*
+             * Declared in e2e/limits.ts, beside the burst that has to exceed
+             * them. Raising a ceiling here without raising the burst there is
+             * how the burst test came to fire fifteen requests at a limit of
+             * thirty and pass none of them.
+             */
+            OBSERVER_ASK_PER_MINUTE: String(ASK_PER_MINUTE),
+            OBSERVER_ASK_PER_VIEWER_PER_DAY: String(ASK_PER_VIEWER_PER_DAY),
+            OBSERVER_ASK_PER_INSTANCE_PER_DAY: String(ASK_PER_INSTANCE_PER_DAY),
+            OBSERVER_BREAKER_THRESHOLD: String(BREAKER_THRESHOLD),
+
+            /*
+             * NO PROVIDER CREDENTIAL REACHES THE SERVER THIS SUITE STARTS.
+             *
+             * Blanked rather than merely unset, because `env` here is merged
+             * over the parent process and this workstation has had a live key
+             * exported before — a suite run inherited it and billed real
+             * requests against it. An empty string is not a key, so the model
+             * layer refuses in exactly the way a production deployment does.
+             *
+             * The credential store is left unconfigured too: no master key, no
+             * Supabase, no memory-store flag. That is the fail-closed posture,
+             * and `e2e/settings-ai.spec.ts` asserts what a reader meets on it.
+             * The configured side is covered by the unit suite, against a
+             * synthetic master key and an in-memory store.
+             */
+            OPENAI_API_KEY: "",
+
+            /*
+             * THE CREDENTIAL HARNESS, WITH ALL FOUR OF ITS CONDITIONS.
+             *
+             * The store in `lib/credentials/test-store.ts` needs this exact
+             * flag value, the synthetic harness above, `OBSERVER_ENVIRONMENT`
+             * of exactly "development", and no deployment marker anywhere in
+             * the environment. Copying these four lines into Vercel yields a
+             * deployment with no credential store, because `VERCEL` is set
+             * there and cannot be unset by an .env file.
+             *
+             * It holds only `sk-observer-test-…` values and its probe makes no
+             * network call, so the browser suite exercises connect, test,
+             * replace and remove for real without a credential or a request.
+             *
+             * The master key is thirty-two zero bytes: valid hex, correct
+             * length, and unmistakably not a secret.
+             */
+            OBSERVER_CREDENTIAL_TEST_STORE: "browser-tests-only",
+            OBSERVER_ENVIRONMENT: "development",
+            OBSERVER_CREDENTIAL_KEY: "0".repeat(64),
+          },
         },
       }
     : {}),

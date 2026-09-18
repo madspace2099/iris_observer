@@ -17,3 +17,31 @@ export const PRESETS: readonly PeriodPreset[] = [
 export function presetFrom(value: string | undefined): PeriodPreset {
   return PRESETS.includes(value as PeriodPreset) ? (value as PeriodPreset) : "quarter_to_date";
 }
+
+/**
+ * The presets, with the words the reader sees.
+ *
+ * Beside the presets themselves so a period can never be offered under one
+ * name and computed under another.
+ */
+export const PERIOD_LABELS = [
+  ["quarter_to_date", "Quarter to date"],
+  ["last_28_days", "Last 28 days"],
+  ["last_quarter", "Last completed quarter"],
+  ["year_to_date", "Year to date"],
+] as const satisfies readonly (readonly [PeriodPreset, string])[];
+
+/**
+ * Carries the selected period across a link.
+ *
+ * Navigation dropped it: choosing "Last 28 days" and then opening Project
+ * silently returned to the quarter, so the reader compared two screens that
+ * were measuring different spans without being told.
+ */
+export function withPeriod(href: string, preset: PeriodPreset): string {
+  if (preset === "quarter_to_date") return href;
+  const [path, query] = href.split("?");
+  const params = new URLSearchParams(query ?? "");
+  params.set("period", preset);
+  return `${path}?${params.toString()}`;
+}

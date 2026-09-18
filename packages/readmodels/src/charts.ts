@@ -18,14 +18,24 @@ import type { EvidenceRef } from "./metric-value";
  * "How many presentations" is a different question today and this year, and a
  * dashboard that answers only one of them makes the reader do arithmetic. The
  * window is the reader's choice; the comparison always moves with it.
+ *
+ * **Every label says how long, not which calendar period**, and that is a
+ * correction. These windows are rolling — thirty days back from tonight — and
+ * they were labelled "This month", "This week", "This quarter". The Sales Flow
+ * page carries calendar buckets in the chart beneath them, so one screen had
+ * "This month: 41" in the summary and "This month: 32" in the chart, three
+ * inches apart, both correct and neither reconcilable by the reader.
+ *
+ * A rolling window is a perfectly good thing to offer. Calling it a calendar
+ * month is not.
  */
 export const KPI_WINDOWS = [
   { id: "today", label: "Today", days: 1 },
-  { id: "week", label: "This week", days: 7 },
-  { id: "month", label: "This month", days: 30 },
-  { id: "quarter", label: "This quarter", days: 91 },
-  { id: "half", label: "Half year", days: 182 },
-  { id: "year", label: "This year", days: 365 },
+  { id: "week", label: "Last 7 days", days: 7 },
+  { id: "month", label: "Last 30 days", days: 30 },
+  { id: "quarter", label: "Last 91 days", days: 91 },
+  { id: "half", label: "Last 182 days", days: 182 },
+  { id: "year", label: "Last 365 days", days: 365 },
   { id: "all", label: "All time", days: 3650 },
 ] as const;
 
@@ -66,7 +76,11 @@ export interface ActivityMatrix {
   readonly columns: readonly string[];
   /** Keyed `${weekday}|${hour}`. */
   readonly cells: Readonly<Record<string, number>>;
-  readonly busiest: { readonly weekday: string; readonly hour: string; readonly meetings: number } | null;
+  readonly busiest: {
+    readonly weekday: string;
+    readonly hour: string;
+    readonly meetings: number;
+  } | null;
   readonly quietest: { readonly weekday: string; readonly meetings: number } | null;
   readonly meetingsCounted: number;
 }
@@ -96,7 +110,10 @@ export interface BehaviourStep {
 
 export interface BehaviourFunnel {
   readonly cohortLabel: string;
+  /** Empty when the group has no meeting in it: seven bands at nought would draw an absence as a reading. */
   readonly steps: readonly BehaviourStep[];
+  /** What to say instead of the funnel when `steps` is empty; null otherwise. */
+  readonly empty: string | null;
   /** Names the group each `comparisonNote` is measured against. */
   readonly comparisonLabel: string;
   readonly disclaimer: string;
@@ -137,14 +154,21 @@ export interface RankedRow {
  * Actual, the target, and where the schedule wanted it to be by now. The last
  * is what turns a percentage into a decision: 33% sold is neither good nor bad
  * until you know the plan wanted 41%.
+ *
+ * `actual` is a CRM-outcome fact — a unit's `sold`/`reserved` status is a
+ * closed-deal state, not a catalogue attribute — so it is `null` on a project
+ * whose CRM is not connected. `null` here, not `0`: a project with nothing
+ * sold and a project with no CRM to say so are two different facts, and
+ * writing the second as the first is exactly the fabrication the "unavailable
+ * is never zero" rule exists to prevent.
  */
 export interface SalesTarget {
   readonly id: string;
   readonly label: string;
   readonly total: number;
-  readonly actual: number;
+  readonly actual: number | null;
   readonly target: number;
-  /** Straight-line expectation at today's date. */
+  /** Straight-line expectation at today's date. Schedule-derived, not CRM-derived — known even when `actual` is not. */
   readonly pace: number;
   readonly startedOn: string;
   readonly targetDate: string;
@@ -161,7 +185,11 @@ export interface StackedColumn {
 
 export interface OutcomeComposition {
   readonly columns: readonly StackedColumn[];
-  readonly keys: readonly { readonly id: MeetingOutcome; readonly label: string; readonly colour: string }[];
+  readonly keys: readonly {
+    readonly id: MeetingOutcome;
+    readonly label: string;
+    readonly colour: string;
+  }[];
 }
 
 /* --- a series with its turning point --------------------------------------------- */

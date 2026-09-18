@@ -1,0 +1,161 @@
+import { describe, expect, it } from "vitest";
+
+import type { ShowroomSession } from "@observer/contracts";
+import type { ShowroomSessionSource, Viewer } from "@observer/readmodels";
+
+import { SyntheticObserverRepository } from "../src/repository";
+import { PROJECTS, VIEWERS } from "../src/world";
+
+/**
+ * TWO CLOCKS.
+ *
+ * The defect this holds shut: the product's today was the synthetic world's
+ * fixed day for every project, so a meeting a real showroom ingested after that
+ * day fell outside every period and a correctly integrated project read "0
+ * presentations" for ever. A project a source delivers for runs on the clock;
+ * a synthetic one must not move.
+ */
+
+const madspace = VIEWERS.madspace as Viewer;
+const NOW = new Date("2026-09-17T12:00:00.000Z");
+const NO_FILTERS = { agentId: null, channel: null, outcome: null } as const;
+
+const yesterday: ShowroomSession = {
+  sessionId: "7a1c9f6e-2c7a-4a4e-9b31-0000000000aa",
+  meetingId: "7a1c9f6e-2c7a-4a4e-9b31-0000000000aa",
+  projectId: "prj_akhileshdemo1",
+  agentId: "agent-guid",
+  channel: "showroom",
+  contactId: null,
+  startedAt: "2026-09-16T10:00:00.000Z",
+  endedAt: "2026-09-16T10:12:00.000Z",
+  durationSeconds: 720,
+  outcome: "interested",
+  steps: [],
+  units: [],
+  environment: [],
+  filters: [],
+  places: [],
+  screenshots: 0,
+  irisRating: null,
+  priorMeetings: 0,
+  timingUnavailable: true,
+};
+
+const source: ShowroomSessionSource = {
+  async sessionsFor(project) {
+    if ((project.id as string) !== yesterday.projectId) return null;
+    return { connector: "ue5_events", sessions: [yesterday], fetchedAt: NOW.toISOString() };
+  },
+};
+
+const repository = new SyntheticObserverRepository({ sessionSource: source, now: () => NOW });
+
+describe("a project a real source delivers for runs on the real clock", () => {
+  it("counts a meeting ingested after the synthetic world's fixed day", async () => {
+    const view = await repository.getMeetings(
+      {
+        viewer: madspace,
+        tenantSlug: "madspace-integration",
+        projectSlug: "akhilesh-demo-source",
+        period: "last_28_days",
+      },
+      NO_FILTERS,
+    );
+    expect(view.periodTotal).toBe(1);
+    expect(view.context.generatedAt).toBe(NOW.toISOString());
+    /* Local midnight this morning in Bratislava, not the fixed 24 August. */
+    expect(Date.parse(view.context.period.to)).toBe(Date.parse("2026-09-17T00:00:00.000+02:00"));
+  });
+
+  it("answers the port's own period question from the same clock", async () => {
+    const demo = PROJECTS.find((p) => p.slug === "akhilesh-demo-source");
+    if (demo === undefined) throw new Error("the demo project is missing from the world");
+    const period = await repository.resolvePeriod(demo.id, "quarter_to_date");
+    expect(Date.parse(period.from)).toBe(Date.parse("2026-07-01T00:00:00.000+02:00"));
+    expect(Date.parse(period.to)).toBe(Date.parse("2026-09-17T00:00:00.000+02:00"));
+    expect(period.baselineLabel).toBe("the same 78 days of the previous quarter");
+  });
+
+  it("knows the agent its meetings name, though no roster does", async () => {
+    const query = {
+      viewer: madspace,
+      tenantSlug: "madspace-integration",
+      projectSlug: "akhilesh-demo-source",
+      period: "last_28_days",
+    } as const;
+    /* The showroom's own id: shown as the id, because nothing names it yet. */
+    expect(await repository.listAgents(query)).toEqual([
+      {
+        agentId: "agent-guid",
+        name: "agent-guid",
+        organisationName: "Not in the directory",
+        meetingCount: 1,
+      },
+    ]);
+    const detail = await repository.getAgentDetail(query, "agent-guid");
+    expect(detail.sampleSize, "their own page exists, over their one meeting").toBe(1);
+  });
+
+  it("answers Ask IRIS from what was delivered, never from the scenario's script", async () => {
+    const session = await repository.getAskSession(
+      {
+        viewer: madspace,
+        tenantSlug: "madspace-integration",
+        projectSlug: "akhilesh-demo-source",
+        period: "last_28_days",
+      },
+      null,
+    );
+    const prose = session.answers.flatMap((x) => [x.question, x.answer, x.caveat ?? ""]).join(" ");
+    /* The scripted answers say "viewings held at 46" about Northgate. Over real meetings that is a fabrication. */
+    expect(prose).not.toMatch(/viewings held at 46|Vikt[oó]ria|Offers fell/);
+    expect(session.suggestions[0]).toBe(
+      "How many presentations were recorded, and how did they end?",
+    );
+    expect(session.answers[0]?.answer).toBe(
+      "1 presentation was recorded on Akhilesh Demo Source in last 28 days, and the agent recorded an outcome at the end of 1 of them.",
+    );
+    expect(session.answers[0]?.figures).toEqual([
+      { label: "Interested", value: "1 of 1", note: null },
+    ]);
+    expect(session.answers[2]?.figures).toEqual([
+      { label: "agent-guid", value: "1 of 1", note: null },
+    ]);
+    expect(prose).not.toMatch(
+      /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i,
+    );
+  });
+
+  it("offers the IRIS-assisted question as a fifth opening where a CRM is connected", async () => {
+    const session = await repository.getAskSession(
+      {
+        viewer: madspace,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "quarter_to_date",
+      },
+      null,
+    );
+    expect(session.suggestions).toHaveLength(5);
+    expect(session.suggestions[0], "the scenario's four openings stay first").toBe(
+      "Why did demand fall this quarter?",
+    );
+    expect(session.suggestions[4]).toBe("Which sales followed a showing in IRIS?");
+    const assisted = session.answers.find((x) => x.question === session.suggestions[4]);
+    expect(assisted?.answer).toMatch(
+      /dated sales .* followed an IRIS showing of the unit within 72 hours/,
+    );
+    expect(assisted?.caveat).toContain("does not say the showing produced the sale");
+  });
+
+  it("leaves a synthetic project on the synthetic day", async () => {
+    const view = await repository.getMeetings(
+      { viewer: madspace, tenantSlug: "alpha", projectSlug: "northgate", period: "last_28_days" },
+      NO_FILTERS,
+    );
+    expect(view.context.generatedAt).toBe("2026-08-24T09:00:00.000+02:00");
+    expect(view.context.period.to).toBe("2026-08-24T00:00:00.000+02:00");
+    expect(view.periodTotal).toBeGreaterThan(0);
+  });
+});

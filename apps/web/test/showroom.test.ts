@@ -80,14 +80,22 @@ describe("showroom is the primary source", () => {
     expect(isUngroundedInterpretation(["AI_INTERPRETATION", "IRIS_SHOWROOM_OBSERVED"])).toBe(false);
   });
 
-  it("opens on a verdict and three doors, not on four analytical tabs", async () => {
+  it("opens on a question and three doors, not on four analytical tabs", async () => {
     /*
-     * Review found four analytical tabs beside each other overwhelming. The
-     * navigation is now the opening screen plus the three views it opens onto;
-     * Presentation DNA, Unit Attention and Storytelling moved behind them.
+     * Review found four analytical tabs beside each other overwhelming, and
+     * that finding still holds: the navigation is one opening surface plus the
+     * three views it opens onto, and Presentation DNA, Unit Attention and
+     * Storytelling stay behind them.
+     *
+     * What changed is the opening surface. It was the briefing — a verdict —
+     * and it is now ASK IRIS, a question. The user chose this in conversation
+     * and the `iris-observer-product` source hierarchy (§0) puts that above
+     * this skill, above the ADRs and above the product documents; ADR-0033
+     * records it. The briefing is still served and is named from Ask IRIS, so
+     * this file's own read models are unaffected — only the door is.
      */
     const { PRIMARY_NAV } = await import("../src/lib/routes");
-    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["showroom", "flow", "project", "agents"]);
+    expect(PRIMARY_NAV.map((n) => n.key)).toEqual(["ask", "flow", "project", "agents"]);
   });
 });
 
@@ -166,8 +174,10 @@ describe("the synthetic dataset", () => {
   });
 
   it("holds two comparable periods", () => {
-    const current = sessionsInPeriod("2026-07-01", "2026-08-24");
-    const previous = sessionsInPeriod("2026-04-01", "2026-06-30");
+    // Scoped to a project: a date range alone used to return every project's
+    // meetings at once, which is the defect the isolation suite now guards.
+    const current = sessionsInPeriod("prj_northgate01", "2026-07-01", "2026-08-24");
+    const previous = sessionsInPeriod("prj_northgate01", "2026-04-01", "2026-06-30");
     expect(current.length).toBeGreaterThan(30);
     expect(previous.length).toBeGreaterThan(30);
   });
@@ -268,7 +278,7 @@ describe("unknown is never rendered as zero", () => {
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",
       projectSlug: "northgate",
-      meetingId: "mtg_0001" as never,
+      meetingId: "mtg_ng0001" as never,
     });
     expect(replay.gaps.length).toBeGreaterThan(0);
     for (const gap of replay.gaps) expect(gap.length).toBeGreaterThan(20);
@@ -288,15 +298,22 @@ describe("source classification", () => {
     }
   });
 
-  it("labels the outcome step of a replay as CRM context", async () => {
+  it("labels the outcome step of a replay as what IRIS observed, not as CRM context", async () => {
+    /*
+     * It asserted `CRM_OUTCOME_CONTEXT` until 2026-09-18, and the step it
+     * describes says "Recorded by the agent at the end of the meeting" one line
+     * above its own chip. The agent selected it on the showroom's widget and the
+     * showroom sent it as an event; the CRM holds no part of it, and on a project
+     * with no CRM connected the old chip was plainly false.
+     */
     const replay = await syntheticRepository.getMeetingReplay({
       viewer: VIEWERS.developer,
       tenantSlug: "alpha",
       projectSlug: "northgate",
-      meetingId: "mtg_0100" as never,
+      meetingId: "mtg_ng0100" as never,
     });
     const outcome = replay.steps.find((s) => s.kind === "outcome");
-    expect(outcome?.sources).toEqual(["CRM_OUTCOME_CONTEXT"]);
+    expect(outcome?.sources).toEqual(["IRIS_SHOWROOM_OBSERVED"]);
   });
 });
 
@@ -325,23 +342,33 @@ function walk(dir: string): string[] {
 }
 
 describe("the model never sees a secret or a database", () => {
-  it("never exposes FAL_KEY to the client", () => {
+  it("never exposes the model key to the client", () => {
     const sources = walk(join(webRoot, "src")).filter((f) => /\.tsx?$/.test(f));
     for (const file of sources) {
       const text = readFileSync(file, "utf8");
-      expect(text, file).not.toContain("NEXT_PUBLIC_FAL");
-      if (text.includes("FAL_KEY")) {
+      expect(text, file).not.toContain("NEXT_PUBLIC_OPENAI");
+      if (text.includes("OPENAI_API_KEY")) {
         // Anything reading the key must be server-only, and a client component
         // cannot import a module that declares it.
-        expect(text, `${file} reads FAL_KEY without server-only`).toContain('import "server-only"');
-        expect(text, `${file} reads FAL_KEY in a client component`).not.toContain('"use client"');
+        expect(text, `${file} reads the key without server-only`).toContain('import "server-only"');
+        expect(text, `${file} reads the key in a client component`).not.toContain('"use client"');
       }
     }
   });
 
-  it("disables web search on the model route", () => {
+  it("gives the model no hosted tool that can reach the open web", () => {
+    /*
+     * A model that can search can contradict the figures on the screen with
+     * something it read, and the reader has no way to tell which is which. The
+     * request body names its tools explicitly and they are all this product's
+     * own, so the check is that none of OpenAI's hosted tools appears.
+     */
     const provider = readFileSync(join(webRoot, "src/lib/ai/provider.ts"), "utf8");
-    expect(provider).toContain("enable_web_search: false");
+    for (const hosted of ["web_search", "file_search", "code_interpreter", "computer_use"]) {
+      expect(provider, `provider.ts offers the hosted ${hosted} tool`).not.toContain(`"${hosted}`);
+    }
+    // The only tool type this product ever sends is its own function schema.
+    expect(provider).toContain('type: "function"');
   });
 
   it("gives the model no tool that writes", async () => {
@@ -386,6 +413,7 @@ describe("projections", () => {
         baselineClipped: false,
       },
       generatedAt: "2030-01-02T00:00:00.000Z",
+      sessionsDelivered: false,
     } as never;
 
     expect(() => buildShowroomOverview(context, [], [])).not.toThrow();

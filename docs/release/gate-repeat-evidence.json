@@ -1,0 +1,51 @@
+{
+  "note": "Sanitized bounded gate diagnostic. Counts, verdicts and process metadata only: no stdout, no stderr, no environment value, no command line, no failure message, no path.",
+  "head": "276ea02156d3576bbff49c7253304754d1b31f13",
+  "runs": [
+    {
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "reportSuccess": false,
+      "reportedFailedTests": 0,
+      "countedFailedTests": 0,
+      "reasons": ["exit status 1", "report declares failure"]
+    },
+    {
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "reportSuccess": false,
+      "reportedFailedTests": 0,
+      "countedFailedTests": 0,
+      "reasons": ["exit status 1", "report declares failure"]
+    },
+    {
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "reportSuccess": false,
+      "reportedFailedTests": 0,
+      "countedFailedTests": 0,
+      "reasons": ["exit status 1", "report declares failure"]
+    },
+    {
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "reportSuccess": false,
+      "reportedFailedTests": 0,
+      "countedFailedTests": 0,
+      "reasons": ["exit status 1", "report declares failure"]
+    },
+    {
+      "status": 1,
+      "signal": null,
+      "errorCode": null,
+      "reportSuccess": false,
+      "reportedFailedTests": 0,
+      "countedFailedTests": 0,
+      "reasons": ["exit status 1", "report declares failure"]
+    }
+  ]
+}

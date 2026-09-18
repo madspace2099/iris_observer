@@ -81,7 +81,9 @@ export function Measure({
   return (
     <span className="iris-measure" data-align={align}>
       <MeasureIcon name={definition.icon} />
-      <span className="iris-measure-label">{label ?? definition.columnLabel ?? definition.label}</span>
+      <span className="iris-measure-label">
+        {label ?? definition.columnLabel ?? definition.label}
+      </span>
       <button
         type="button"
         className="iris-measure-info"
@@ -89,7 +91,15 @@ export function Measure({
         aria-label={`What ${definition.label} measures`}
         onClick={() => setOpen(!open)}
       >
-        i
+        {/*
+         * The visible dot is a child, so the button itself can carry the
+         * padding that makes it a real pointer target. An overlay pseudo-
+         * element swallowed its own clicks, and an `outline` is not clickable
+         * at all — both look like a bigger target and are not one.
+         */}
+        <span className="iris-measure-dot" aria-hidden="true">
+          i
+        </span>
       </button>
 
       {open ? (

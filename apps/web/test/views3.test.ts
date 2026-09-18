@@ -81,7 +81,10 @@ describe("sales flow", () => {
     const flow = await syntheticRepository.getSalesFlow(QUERY);
     expect(flow.rings.length).toBeGreaterThan(1);
     for (const ring of flow.rings) {
-      expect(ring.slices.reduce((a, s) => a + s.count, 0), ring.name).toBe(ring.meetings);
+      expect(
+        ring.slices.reduce((a, s) => a + s.count, 0),
+        ring.name,
+      ).toBe(ring.meetings);
       expect(ring.slices.reduce((a, s) => a + s.share, 0)).toBeCloseTo(1, 5);
     }
   });
@@ -92,6 +95,35 @@ describe("sales flow", () => {
       if (ring.flag === null) continue;
       expect(ring.flag.text).not.toMatch(/\b(worst|best|rank|ranked|bottom|last place)\b/i);
       expect(ring.flag.text).toMatch(/\d/);
+    }
+  });
+
+  it("gives the verdict a judgment lead one of five known shapes, never a bare fact", async () => {
+    // Not pinned to today's fixture numbers on purpose — this checks the
+    // sentence's *shape*, so it survives the dataset changing. The exact
+    // numbers for whatever the fixture holds right now are reported
+    // separately, outside the committed suite, precisely because they will
+    // drift.
+    const flow = await syntheticRepository.getSalesFlow(QUERY);
+    const lead =
+      /^(The showroom is running; no outcomes are being recorded\.|Too early to call:|Meetings are holding up and progressing well:|Worth a look:|A mixed signal:)/;
+    expect(flow.verdict).toMatch(lead);
+    // Never a literal direction word next to the figures — the deadband can
+    // make the *signal* "good" even when the raw percentage dipped, so
+    // "up from"/"down from" would sometimes be a false sentence (this is the
+    // bug that shipped once already; the neutral "against" is deliberate).
+    expect(flow.verdict).not.toMatch(/\bup from\b|\bdown from\b/);
+  });
+
+  it("never compares a partial current window to a full prior one", async () => {
+    // Whichever fallback fired for today's fixture, the label on the
+    // comparison period must say so when it is not a complete window —
+    // "Last week"/"Last month" bare, or "..., first N days" when clipped.
+    const flow = await syntheticRepository.getSalesFlow(QUERY);
+    for (const p of flow.periods) {
+      if (p.id === "last_week" || p.id === "last_month") {
+        expect(p.label).toMatch(/^Last (week|month)(, first \d+ days?)?$/);
+      }
     }
   });
 });

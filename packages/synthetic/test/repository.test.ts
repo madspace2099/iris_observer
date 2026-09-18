@@ -7,6 +7,7 @@ const repo = new SyntheticObserverRepository();
 const NORTHGATE = { tenantSlug: "alpha", projectSlug: "northgate" } as const;
 const KINGSFORD = { tenantSlug: "beta", projectSlug: "kingsford" } as const;
 const RIVERSIDE = { tenantSlug: "alpha", projectSlug: "riverside" } as const;
+const ISTER_TOWER = { tenantSlug: "alpha", projectSlug: "ister-tower" } as const;
 
 describe("tenant and project scoping", () => {
   it("lists only the tenants a viewer holds", async () => {
@@ -24,8 +25,11 @@ describe("tenant and project scoping", () => {
       VIEWERS.agencyManager,
       VIEWERS.developer.tenantIds[0]!,
     );
-    // The agency works Northgate for Alpha, but not Riverside.
-    expect(projects.map((p) => p.slug)).toEqual(["northgate"]);
+    // The agency works Northgate and ISTER TOWER for Alpha, but not Riverside.
+    // The absence is the assertion: a tenant grant would have returned all
+    // three, and the agency holds two of them explicitly.
+    expect(projects.map((p) => p.slug)).toEqual(["northgate", "ister-tower"]);
+    expect(projects.map((p) => p.slug)).not.toContain("riverside");
   });
 
   it("refuses a tenant the viewer does not hold", async () => {
@@ -82,6 +86,66 @@ describe("tenant and project scoping", () => {
     expect(first.context.project.slug).toBe("northgate");
     expect(second.context.project.slug).toBe("riverside");
     expect(second.headline.every((m) => m.state === "unavailable")).toBe(true);
+  });
+
+  /*
+   * THE LEAK THE FRONTEND COMPLETION BLOCK CLOSED.
+   *
+   * `buildExecutiveOverview` used to fall through to Kingsford's hand-typed
+   * builder for any project it had no entry for — silently, for ISTER TOWER,
+   * because ISTER TOWER was added to the synthetic world after the three
+   * bespoke builders were written. Opening ISTER TOWER's `/overview` showed
+   * Kingsford Yard's own name, meeting count and GBP figures, mislabelled in
+   * whatever currency the real project uses — a different developer's project,
+   * under a different tenant, presented as this one's own reading.
+   *
+   * The fix does not invent a fourth builder — `/overview` is demoted and
+   * unlinked, and fabricating figures to keep an unreachable screen looking
+   * finished is the one thing doctrine §3 rules out. It refuses honestly
+   * instead, and this is the regression test for that refusal: not merely
+   * that ISTER TOWER doesn't crash, but that it does not, under any
+   * circumstance, return another project's identity.
+   */
+  it("never lets an unmapped project's executive overview fall through to another one's", async () => {
+    const kingsford = await repo.getExecutiveOverview({
+      viewer: VIEWERS.agencyManager,
+      ...KINGSFORD,
+      period: "quarter_to_date",
+    });
+    // Kingsford's own builder is untouched by the fix.
+    expect(kingsford.context.project.slug).toBe("kingsford");
+
+    const isterTower = repo.getExecutiveOverview({
+      viewer: VIEWERS.agencyManager,
+      ...ISTER_TOWER,
+      period: "quarter_to_date",
+    });
+    await expect(isterTower).rejects.toBeInstanceOf(NotFoundError);
+    // The refusal names ISTER TOWER, not the project it used to borrow from.
+    await expect(isterTower).rejects.toThrow(/ister tower/i);
+    await expect(isterTower).rejects.not.toThrow(/kingsford/i);
+  });
+
+  it("never lets the agent overview's scripted narrative travel to another project", async () => {
+    // Northgate keeps the scripted scenario docs/08-scenarios.md describes.
+    const northgate = await repo.getAgentOverview({
+      viewer: VIEWERS.salesAgent,
+      ...NORTHGATE,
+      period: "quarter_to_date",
+    });
+    expect(northgate.upcoming.length).toBeGreaterThan(0);
+
+    // ISTER TOWER's agents get an honest refusal, not Viktória's story with
+    // this project's links stapled onto it. `salesAgentIster` (Martin Kováč)
+    // holds only ISTER TOWER, so the permission gate is satisfied and this
+    // exercises the `NotFoundError` path rather than an unrelated refusal.
+    const isterTower = repo.getAgentOverview({
+      viewer: VIEWERS.salesAgentIster,
+      ...ISTER_TOWER,
+      period: "quarter_to_date",
+    });
+    await expect(isterTower).rejects.toBeInstanceOf(NotFoundError);
+    await expect(isterTower).rejects.toThrow(/ister tower/i);
   });
 
   it("clips the baseline when the current period is still running", async () => {

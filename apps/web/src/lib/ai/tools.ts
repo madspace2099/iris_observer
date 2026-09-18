@@ -9,6 +9,7 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
+import { areaWord, roomsWord } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 
 /**
@@ -114,6 +115,31 @@ function describe(d: PresentationDifferenceLike, side: "left" | "right"): string
 const NO_CAUSATION =
   "This is an association at the stated sample size, not evidence that one way of presenting produces a different outcome.";
 
+/** Every figure in a sentence, as written. `72%` and `72` are different. */
+function figuresIn(sentence: string): readonly string[] {
+  return [...sentence.matchAll(/\d[\d.,]*%?/g)].map((m) => m[0]);
+}
+
+/**
+ * The first finding that says something the lead sentence has not.
+ *
+ * A finding restating a figure already in the verdict adds a second sentence
+ * and no second fact, which reads as two pieces of evidence when it is one —
+ * the same thing `findAnswerDefects` rejects in a model's answer.
+ *
+ * Judged on figures rather than on wording, because the wording is exactly what
+ * differs: "Compare went unopened in 72%" and "Compare was never opened in 72%
+ * of presentations" share one number and almost no vocabulary.
+ */
+function firstNewFinding(lead: string, findings: readonly { statement: string }[]): string {
+  const stated = new Set(figuresIn(lead));
+  for (const finding of findings) {
+    const figures = figuresIn(finding.statement);
+    if (figures.length === 0 || figures.some((f) => !stated.has(f))) return finding.statement;
+  }
+  return "";
+}
+
 /* --- 1. summarize_showroom_period ------------------------------------------ */
 
 const summarizeShowroomPeriod: ToolDefinition<z.ZodObject<Record<string, never>>> = {
@@ -144,7 +170,20 @@ const summarizeShowroomPeriod: ToolDefinition<z.ZodObject<Record<string, never>>
       sampleSize: overview.meetingCount,
       caveats: overview.findings.flatMap((f) => (f.caveat === null ? [] : [f.caveat])),
       action: { label: "Open the Showroom overview", href: `${root(context)}/showroom` },
-      draft: `${overview.verdict} ${overview.findings[0]?.statement ?? ""}`.trim(),
+      /*
+       * The first finding the verdict has not already made.
+       *
+       * The verdict leads with whatever moved most, and `findings[0]` is
+       * usually that same thing in other words, so pinning the draft to index
+       * zero produced "Compare went unopened in 72%. Compare was never opened
+       * in 72% of presentations." — one measurement, twice, in the one line
+       * this tool contributes to a composed answer.
+       *
+       * A finding that introduces no figure the verdict has not already stated
+       * adds nothing to a single line, so the draft takes the first one that
+       * does.
+       */
+      draft: `${overview.verdict} ${firstNewFinding(overview.verdict, overview.findings)}`.trim(),
     };
   },
 };
@@ -162,6 +201,17 @@ const compareAgentFlows: ToolDefinition<
     rightAgentId: z.string().min(1).describe("Agent id, e.g. agt_akhilesh"),
   }),
   async run(context, args) {
+    /*
+     * The same rule as the surface, which is now the project rather than the
+     * role (ADR-0029). A sales agent may ask this about the project they are
+     * looking at, and the project was resolved from their grants before this
+     * tool ran — so there is nothing left for a role check to add.
+     *
+     * The refusal that stood here was removed rather than relaxed: a tool that
+     * answers what its own surface refuses, or refuses what its surface
+     * answers, is the inconsistency this comment used to warn about.
+     */
+
     const view = await repository.getPresentationIntelligence(query(context), {
       mode: "agents",
       left: args.leftAgentId,
@@ -408,7 +458,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
           facts: [
             {
               label: r.unitCode,
-              value: `${r.rooms} rooms · ${r.areaSqm} m² · ${r.priceDisplay}`,
+              value: `${roomsWord(r.rooms)} · ${areaWord(r.areaSqm)} · ${r.priceDisplay}`,
               note: r.status,
             },
             { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
@@ -453,7 +503,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         facts: top.map((r) => ({
           label: r.unitCode,
           value: `${r.meetings} meetings`,
-          note: `${r.rooms} rooms · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
+          note: `${roomsWord(r.rooms)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
         })),
         sources: OBSERVED,
         evidence: view.evidence,
@@ -659,6 +709,85 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
   },
 };
 
+/* --- 11. analyze_iris_assisted_sales ------------------------------------------ */
+
+/**
+ * "Did IRIS assist the sale?" is the founder's question of the showroom, and the
+ * one this product may only answer as an order of events (ADR-0039). The tool
+ * returns the read model's own sentences and figures untouched: the headline is
+ * the draft, the rule and its limits are the caveat, and nothing here composes a
+ * claim. A model rewriting the draft still cannot change a figure, and the
+ * causal-language guard runs over what it writes.
+ */
+const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>>> = {
+  name: "analyze_iris_assisted_sales",
+  description:
+    "Which of the CRM's dated sales followed a showing of the unit in IRIS within the policy window, and the lag of each. An order of events under a stated rule, never a cause of the sale.",
+  input: z.object({}),
+  async run(context) {
+    const view = await repository.getSalesFlow(query(context));
+    const assisted = view.assisted;
+    const action = { label: "Open Sales Flow", href: `${root(context)}/flow` };
+
+    if (assisted.source === "not_connected") {
+      return {
+        tool: "analyze_iris_assisted_sales",
+        facts: [],
+        sources: OBSERVED,
+        evidence: null,
+        sampleSize: 0,
+        caveats: [assisted.note],
+        action,
+        draft:
+          "No CRM is connected to this project, so there is no dated sale to place against a showing.",
+      };
+    }
+
+    return {
+      tool: "analyze_iris_assisted_sales",
+      facts: [
+        {
+          label: `Followed a showing within ${String(assisted.windowHours)} hours`,
+          value: `${String(assisted.assisted)} of ${String(assisted.datedSales)} dated sales`,
+          note:
+            assisted.shareDisplay ??
+            `below the ${String(assisted.minimumSales)} dated sales a share needs`,
+        },
+        {
+          label: "Shown earlier than the window",
+          value: String(assisted.shownEarlier),
+          note: null,
+        },
+        {
+          label: "Not opened in IRIS before the date",
+          value: String(assisted.notShown),
+          note: null,
+        },
+        ...(assisted.unplaced === 0
+          ? []
+          : [
+              {
+                label: "Sales that cannot be placed",
+                value: String(assisted.unplaced),
+                note: "no stage date, or no unit named",
+              },
+            ]),
+        ...assisted.sales.slice(0, 3).map((sale) => ({
+          label: `${sale.unitCode} · ${sale.stageLabel} ${sale.stageDateDisplay}`,
+          value: sale.lagShort,
+          note: sale.verdictLabel,
+        })),
+      ],
+      sources: WITH_OUTCOME,
+      evidence: view.evidence,
+      sampleSize: assisted.datedSales,
+      caveats: [assisted.note],
+      action,
+      draft: assisted.headline,
+    };
+  },
+};
+
 /* --- the registry ----------------------------------------------------------- */
 
 export const TOOLS = [
@@ -672,6 +801,7 @@ export const TOOLS = [
   analyzeEnvironmentUsage,
   prepareMeeting,
   getMetricEvidence,
+  analyzeIrisAssistedSales,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ] as readonly ToolDefinition<any>[];
 

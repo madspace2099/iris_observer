@@ -44,17 +44,24 @@ Never force-push. Never rewrite remote history. If the remote has diverged, push
 
 ### Supabase
 
-|                    |                                                                                               |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| Organization       | `LEGALIZALJUK` (`cjmkiuszyotwjhbcbviq`) — the only organization on the account                |
-| Project name       | `iris-observer-staging`                                                                       |
-| Project ref        | `jtvqecusxzogqubxpoyf`                                                                        |
-| Region             | `eu-central-1` (Frankfurt) — the European region closest to Slovak and Central European users |
-| Created            | 2026-08-24                                                                                    |
-| Status             | `ACTIVE_HEALTHY`                                                                              |
-| Cost               | €0/month                                                                                      |
-| Tables in `public` | **none**                                                                                      |
-| Security advisors  | **none**                                                                                      |
+|                    |                                     |
+| ------------------ | ----------------------------------- |
+| Organization       | `sekhesnlqiutdovgcoqw`              |
+| Project name       | `IRIS OBSERVER`                     |
+| Project ref        | `tfcchobwobpadenampyh`              |
+| Region             | `eu-west-1`                         |
+| Created            | 2026-08-24                          |
+| Status             | `ACTIVE_HEALTHY`                    |
+| Postgres           | 17.6                                |
+| Cost               | €0/month                            |
+| Tables in `public` | **none** — three RPC functions only |
+
+**This is the project the Vercel Preview reaches.** It was not the first choice.
+`iris-observer-staging` (`jtvqecusxzogqubxpoyf`, eu-central-1) was provisioned for this and holds
+the same migrations, but the Supabase–Vercel integration injects `SUPABASE_URL` for the project
+_it_ is linked to, which overrode every hand-set value. Rather than untangle the integration, the
+schema was built in the project the integration already pointed at. Neither other project was
+deleted.
 
 **The old project is deliberately not reused.** `asboth.mate@madspace.co.uk's Project`
 (`vrhrzlvhyxrkxxcjxmaf`, `eu-west-1`, `INACTIVE`) belongs to the obsolete MVP and previously served
@@ -188,6 +195,49 @@ worse than none; it belongs with production hardening, tested against a deployme
 Session cookies are `httpOnly`, `sameSite=lax`, and `secure` whenever `NODE_ENV === "production"` —
 which a Vercel deployment is.
 
+### `X-Observer-Request-Id`
+
+One further response header, and it is a verification aid rather than a control:
+
+```
+X-Observer-Request-Id: 3f5b9c21-8a4d-4e77-9c11-0d2e4a6b8c30
+```
+
+It carries **the same UUID admission wrote to `observer.ai_requests.request_id`**, so an operator who
+has just asked a question can find that exact audit row by primary key instead of guessing at the
+newest one.
+
+|                |                                                                                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| where          | every response produced **after successful admission** — `/api/ask`, `/api/ask/stream`, both voice routes, model-authored and deterministic-fallback outcomes alike |
+| never          | on a request refused **before** admission (401, 429, malformed body, misconfigured pepper). Nothing was written, so there is no row to name                         |
+| value          | a v4 UUID from `randomUUID()`. Not derived from the viewer, the tenant, the pepper or any key; not a session token; grants nothing                                  |
+| caller control | none — admission mints it, so the response tells the caller only which row its own request created                                                                  |
+| body           | unchanged. The id is a header and a test asserts it never appears in the payload                                                                                    |
+
+It is defined once, as `REQUEST_ID_HEADER` in `apps/web/src/lib/ai/gate.ts`, and attached only
+through `admittedHeaders(admitted)` — which takes the whole admission rather than a string, so the
+type refuses to produce the header for a response that has no admission behind it.
+
+**Why it was added.** The deployed `3f298a6` build returns its request id nowhere: not in the body,
+not in a header, not on a log line. Verifying that build therefore has to correlate on a time window
+plus properties the operator controlled, which establishes "exactly one matching row exists and
+nothing else was written in that window" — a weaker claim than identification. Every build from here
+on can be verified exactly. `apps/web/test/request-id-header.test.ts` drives all four handlers and
+proves the header and the database write carry the same id.
+
+**A request id alone is not exactness.** Any valid UUID identifies _some_ row. The verifier therefore
+requires all six of these together, per request, and the controlled properties are required in every
+mode — the id is an additional constraint on top of them, never a replacement:
+
+```
+request id + time floor + tenant + project + viewer role + question length
+```
+
+A row found by the wrong id, or by the sibling request's id, or in the wrong tenant, project or
+viewer role, is not the request that was made — and it is counted as interference rather than
+quietly exempted because its id was supplied.
+
 ---
 
 ## 7. Verification before any deploy
@@ -197,8 +247,393 @@ pnpm verify        # format:check, lint, typecheck, unit tests, production build
 pnpm exec playwright test
 ```
 
-Expected: 194 unit tests, 173 Playwright tests (10 skipped — the desktop-only concepts), zero axe
+Expected: 455 unit tests, 495 Playwright tests across three viewports (77 skipped — the
+desktop-only concepts, the wide-only review sets, and the opt-in live-model file), zero axe
 violations, clean build.
+
+Against a deployment rather than a local server, point the suite at it and switch the
+live-model file on:
+
+```bash
+OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright test
+```
+
+### The rollout order, and why the application comes first
+
+Two orderings here were discovered by audit, not by design, and both would have wasted database
+mutations before anybody noticed the application could not answer.
+
+**`3f298a6` is the commit that made the pepper mandatory.** Its gate returns HTTP 503 for every Ask
+Observer question when `OBSERVER_SUBJECT_PEPPER` is absent or malformed — before admission, before
+an audit row, before any model call.
+
+**Vercel environment-variable changes do not affect previous deployments; they apply only to new
+deployments.** A built deployment keeps the environment snapshot captured when it was built.
+
+#### What is proven, and what is not
+
+That second fact is often over-read, and this document over-read it in a previous edition. The
+precise position:
+
+|                |                                                                                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Proven**     | The existing `3f298a6` deployment retains the environment snapshot captured when it was built. Later project-level changes do not alter that snapshot.                                                  |
+| **Unknown**    | Whether that snapshot contains `OBSERVER_SUBJECT_PEPPER` at all, and whether the value is valid. Nothing in this work has read Vercel's environment metadata.                                           |
+| **Unobserved** | How that deployment currently behaves. No HTTP request has been made to it. It may answer; it may return 503. Neither has been seen.                                                                    |
+| **Required**   | It is nonetheless **ineligible** for the controlled legacy proof, because its configuration snapshot is unverified. A proof whose target's configuration is unknown proves nothing about configuration. |
+
+So the rule is about eligibility, not about a predicted failure. A fresh deployment of exact SHA
+`3f298a6` — built after the pepper state has been settled — is the required controlled target, and
+it is required whether or not the old one happens to work.
+
+#### Deciding the pepper state, without touching a secret
+
+The preflight answers two **separate** questions, and conflating them was a mistake in the previous
+edition: it said project mapping was established "from environment-variable names and scopes only".
+Names and scopes cannot prove which Supabase project a deployment targets. Which project the server
+writes to is in the **value** of the server-side `SUPABASE_URL` — and that particular value is not a
+secret.
+
+**(i) Supabase project mapping — read one non-secret server-side value.**
+
+`SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` **are not interchangeable**. An earlier edition of the
+pepper contract offered them as alternatives joined by "or", as though either would answer the
+question; that wording is described here rather than quoted, because an instruction an operator can
+skim and act on does not belong in the document that replaces it. They are separately named
+variables. They can be absent, stale, or point at **different projects**, and only `SUPABASE_URL` is
+what the durable audit and quota path writes through.
+
+1. **inspect the non-secret value of `SUPABASE_URL`** for every relevant Vercel environment — the
+   standalone server-side variable, not a public one that happens to end with the same characters;
+2. **extract and record only its Supabase project reference**, e.g. `tfcchobwobpadenampyh`. Not the
+   whole URL, not a key. The value must be the **canonical hosted origin**
+   `https://<project-ref>.supabase.co`, with at most a trailing slash — no other domain, no extra
+   label before or after `supabase.co`, no `http`, no userinfo, no port, no path, no query, no
+   fragment. **Reading one label of a hostname is not checking the hostname**: a rule that did so
+   accepted `https://<approved-ref>.example.com` and `https://<approved-ref>.supabase.co.evil.test`
+   as the approved project. The public URL is validated the same way;
+3. **require that reference to equal the approved Observer project.** A different ref is a different
+   database, and every claim in this release about rows, buckets and versions is about the approved
+   one;
+4. **never use `NEXT_PUBLIC_SUPABASE_URL` as a substitute.** When `SUPABASE_URL` is set, the server
+   uses it and ignores the public one, so the public value can be stale or name another project and
+   still tell you nothing about where the route writes;
+5. if `NEXT_PUBLIC_SUPABASE_URL` exists, use it **only as a secondary consistency check**;
+6. **if the public and server URLs name different projects, STOP.** The browser and the server are
+   then talking to two databases;
+7. if the tooling cannot expose the non-secret `SUPABASE_URL` without also exposing a secret,
+   **pause** and let Matthew read it directly in the Vercel dashboard — do not widen the read;
+8. **never** read or print `SUPABASE_SECRET_KEY`, `OBSERVER_SUBJECT_PEPPER`, `OPENAI_API_KEY` or any
+   other secret value.
+
+**What is and is not public.** The Supabase URL and the project reference inside it are **not
+secret**; reading either exposes nothing. The server-side `SUPABASE_URL` is **authoritative** for
+where the Observer route writes. Only the separately named `NEXT_PUBLIC_SUPABASE_URL` is
+**client-exposed** in this repository. And client exposure does not establish the server target —
+what the browser was built to call and what the route handler writes to are two different facts.
+
+An earlier edition said Next.js bundles a variable "if and only if its name begins with
+`NEXT_PUBLIC_`". That overstates the framework: `next.config.*` also honours an explicit `env` map,
+which can bundle **any** name. The claim this repository is entitled to make is narrower and is
+proven rather than assumed — `apps/web/next.config.ts` declares **no** `env` map, no
+`publicRuntimeConfig`, no `serverRuntimeConfig` and no `DefinePlugin`, so nothing here maps
+`SUPABASE_URL` into the client bundle. `supabase/test/project-mapping.test.ts` asserts that against
+the config file, and `pnpm audit:secrets` checks it empirically by scanning the built browser bundle.
+
+**One more state, and it is not a mapping.** `apps/web/src/lib/supabase-env.ts` resolves the
+destination from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]` **in that order**, first
+set-and-usable wins. An **absent or blank** `SUPABASE_URL` therefore does not mean "no destination":
+the server would consult the browser-exposed variable instead. That is `SERVER_URL_ABSENT`, and it
+is a **STOP**.
+
+**What is known, and what is not.** For Production, `SUPABASE_URL` was observed absent and the public
+row was never inspected. So: the server variable is absent; the resolver would consult the public
+fallback; and **whether that fallback supplies any destination at all is UNKNOWN**. Saying the
+fallback "is in effect" or "is resolving" claims the third from the first two, and nobody has looked. (A **malformed** `SUPABASE_URL` does not fall back at all: the resolver stops at the
+first name that is set and reports it unusable.)
+
+Calling it "a finding" was not enough. A finding is not a decision, and the same rule two paragraphs
+above says the public variable must never substitute for the authoritative server mapping — so an
+operator told to record it and continue was being told two incompatible things.
+
+#### Every state, and what it means for the rollout
+
+| State                          | Condition                                                                                                                                                                                          | Verdict   | Then                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TOOLING_CANNOT_ISOLATE`       | the tooling cannot expose the non-secret server URL or project ref at all, or cannot expose it without also exposing a secret                                                                      | **PAUSE** | PAUSE. This says nothing about whether the configuration is correct, so do NOT rotate, replace or edit anything on the strength of it. Matthew reads ONLY the exact non-secret server value in the Vercel dashboard — the COMPLETE `https://<project-ref>.supabase.co` origin, character for character, because a bare ref cannot show the shape of what is configured — and that observation is then carried through the MANUAL CONFIRMATION path below. Step 2 is not reachable from PAUSE itself. |
+| `SERVER_URL_ABSENT`            | SUPABASE_URL is absent, empty or whitespace                                                                                                                                                        | **STOP**  | Set SUPABASE_URL for that environment to the approved project, then RESTART PREFLIGHT STEP 1. The resolver would otherwise fall back to NEXT_PUBLIC_SUPABASE_URL, and a browser-exposed variable is not an authoritative server mapping however good its value looks.                                                                                                                                                                                                                                |
+| `SERVER_URL_MALFORMED`         | SUPABASE_URL is set but is not the canonical hosted origin https://<project-ref>.supabase.co                                                                                                       | **STOP**  | Correct the value to the canonical origin — https, the .supabase.co host, no userinfo, no port, no path beyond a single slash, no query, no fragment — then RESTART PREFLIGHT STEP 1. The resolver does NOT fall back here: it stops at the first name that is set and reports it unusable, so the deployment has no destination at all.                                                                                                                                                             |
+| `SERVER_PROJECT_WRONG`         | SUPABASE_URL is a canonical origin but its project ref is not the approved one                                                                                                                     | **STOP**  | Point the environment at the approved project, then RESTART PREFLIGHT STEP 1. Every claim in this release about rows, buckets and versions is about the approved database.                                                                                                                                                                                                                                                                                                                           |
+| `PUBLIC_URL_MALFORMED`         | NEXT_PUBLIC_SUPABASE_URL is set but is not a canonical hosted origin                                                                                                                               | **STOP**  | Correct or remove it, then RESTART PREFLIGHT STEP 1. A value that cannot be parsed cannot be compared, and an uncomparable public URL is not the same thing as an absent one.                                                                                                                                                                                                                                                                                                                        |
+| `PROJECTS_DISAGREE`            | SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL name different projects                                                                                                                                  | **STOP**  | Reconcile the two, then RESTART PREFLIGHT STEP 1. The browser and the server are otherwise talking to two databases, and nothing downstream is safe to reason about.                                                                                                                                                                                                                                                                                                                                 |
+| `MANUAL_OBSERVATION_ABSENT`    | the manual confirmation path was entered with no dashboard observation recorded                                                                                                                    | **STOP**  | Record the exact non-secret server origin or project ref Matthew read, then re-enter MANUAL CONFIRMATION. NO PUBLIC URL CAN RESCUE A MISSING SERVER OBSERVATION — the public variable is not the authoritative mapping in the manual path either.                                                                                                                                                                                                                                                    |
+| `MANUAL_OBSERVATION_MALFORMED` | the recorded dashboard observation is neither a canonical origin nor a project ref                                                                                                                 | **STOP**  | Record it exactly as the dashboard shows it — the whole https://<project-ref>.supabase.co origin — then re-enter MANUAL CONFIRMATION. A bare project ref is parsed and identifies the project, but it cannot reach a PASS: see `MANUAL_ORIGIN_SHAPE_UNPROVEN`.                                                                                                                                                                                                                                       |
+| `MANUAL_PROJECT_WRONG`         | the manual observation names a project that is not the approved one                                                                                                                                | **STOP**  | This one IS a configuration fault, unlike the PAUSE that preceded it. Point the environment at the approved project, then RESTART PREFLIGHT STEP 1 from the beginning rather than re-entering manual confirmation.                                                                                                                                                                                                                                                                                   |
+| `MANUAL_PUBLIC_UNOBSERVED`     | the manual server observation is canonical and names the approved project, but whether NEXT_PUBLIC_SUPABASE_URL exists was never observed                                                          | **PAUSE** | Have Matthew look for the exact NEXT_PUBLIC_SUPABASE_URL row and record one of two things: that the row is ABSENT, or its exact value. A search box that returns nothing for a typed name is not an observation that the row is absent — prefixed names may be filtered, matched loosely, or paginated, and none of that is documented. Until one of the two is recorded, this is server-ref established and manual confirmation INCOMPLETE, not PASS.                                               |
+| `PUBLIC_UNOBSERVED`            | the server URL names the approved project and NEXT_PUBLIC_SUPABASE_URL was never inspected                                                                                                         | **PAUSE** | PAUSE. Nothing here says the configuration is wrong, so do NOT rotate, replace or edit anything. `MAPPED` requires the public variable to be absent OR to name the same project, and an unasked question satisfies neither. Matthew reads the exact non-secret row — observed absent, or its exact value — and that observation is re-entered into the comparison. Step 2 is not reachable from PAUSE.                                                                                               |
+| `MANUAL_ORIGIN_SHAPE_UNPROVEN` | the manual observation is a bare project ref rather than the complete canonical origin                                                                                                             | **PAUSE** | PAUSE. The ref names the approved project and says nothing about the shape of what is configured: a bare ref is what survives extraction, not what was written down. Matthew reads the whole `https://<project-ref>.supabase.co` origin, character for character, and re-enters MANUAL CONFIRMATION with it. Do not change the variable to make it match.                                                                                                                                            |
+| `MAPPED`                       | the server origin is canonical, names the approved project, and NEXT_PUBLIC_SUPABASE_URL is either absent or names the same project — established by tooling, or by a successful manual comparison | **PASS**  | Record the project ref. Step 2 may be reached.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+**Every non-PASS blocks step 2, and each state has its own remedy.** Earlier editions said that all
+non-PASS states — or all STOPs — require correcting configuration and restarting step 1. That is not
+the rule and it is not safe: it tells a reader to change a variable in states where nothing has been
+shown to be wrong with it. What is actually true is:
+
+- **every** non-PASS blocks step 2, without exception;
+- a **configuration-fault STOP** (`SERVER_URL_MALFORMED`, `SERVER_PROJECT_WRONG`, `PROJECTS_DISAGREE`,
+  `PUBLIC_URL_MALFORMED`, `MANUAL_PROJECT_WRONG`) corrects the configuration and restarts step 1;
+- an **observation-record STOP** (`MANUAL_OBSERVATION_ABSENT`, `MANUAL_OBSERVATION_MALFORMED`)
+  changes nothing: it re-observes and re-enters manual confirmation;
+- a **PAUSE** (`TOOLING_CANNOT_ISOLATE`, `PUBLIC_UNOBSERVED`, `MANUAL_PUBLIC_UNOBSERVED`,
+  `MANUAL_ORIGIN_SHAPE_UNPROVEN`) observes without changing configuration at all.
+
+**A public URL naming the approved project does not convert `SERVER_URL_ABSENT` into a PASS.** It is
+the most tempting way past this gate — the value looks right, so the mapping looks proved — and it is
+exactly the substitution this rule exists to forbid. The server's writes would be resolving through a
+browser-exposed variable, and nothing in the deployed code notices.
+
+**Every STOP state requires an explicit operator decision, a configuration correction, and a restart
+of preflight step 1 from the beginning.** Step 2 is not reachable until step 1 returns PASS for every
+relevant environment.
+
+#### Manual confirmation — the only route from PAUSE to a proved mapping
+
+PAUSE is **not** a STOP and is **not** a configuration fault: it says the tooling could not isolate
+the non-secret value. It has its own path, and step 2 is not reachable from PAUSE itself.
+
+1. Matthew reads **only** the exact non-secret server origin or project ref in the Vercel dashboard —
+   never a key, never anything else on the page;
+2. that observation is recorded and compared with the approved ref through the separately identified
+   manual-confirmation path;
+3. a successful comparison yields `MAPPED`/**PASS**, marked as established **manually** rather than
+   by tooling, so a reader can tell the two apart;
+4. **no public URL can rescue a missing manual server observation** — `MANUAL_OBSERVATION_ABSENT`
+   STOPs, and the browser-exposed variable is not the authoritative mapping in this path either;
+5. an observation that is neither a canonical origin nor a bare project ref STOPs
+   (`MANUAL_OBSERVATION_MALFORMED`), and a **bare project ref alone PAUSEs**
+   (`MANUAL_ORIGIN_SHAPE_UNPROVEN`) — it names the approved project and proves nothing about the
+   shape of what is configured. Record the whole origin. Earlier editions of this runbook told
+   Matthew to record "the origin **or** the ref"; only the origin can reach a PASS;
+6. a **mismatch** STOPs (`MANUAL_PROJECT_WRONG`) — and that one _is_ a configuration fault, so it
+   restarts preflight step 1 from the beginning rather than re-entering manual confirmation;
+7. **the public variable is checked on this path too, and the server observation is evaluated
+   first.** `MAPPED` requires the server origin to name the approved project **and**
+   `NEXT_PUBLIC_SUPABASE_URL` to be absent or name the same one; the manual path used to take a
+   public URL, ignore it, and return PASS from the server observation alone. Matthew records one of
+   three things about the public row — **unobserved**, **absent**, or its **exact value** — because
+   "I did not look" and "I looked and it was not there" are different facts and only the second
+   satisfies the condition. Unobserved is `MANUAL_PUBLIC_UNOBSERVED`/**PAUSE**; a value that is not
+   a canonical origin is `PUBLIC_URL_MALFORMED`/**STOP**; one naming a different project is
+   `PROJECTS_DISAGREE`/**STOP**.
+
+   **A search box returning no rows is not an observed absence.** Vercel's filtering of prefixed
+   names is not documented, so a query for `NEXT_PUBLIC_SUPABASE_URL` that shows nothing does not
+   establish that the row is missing. Record the absence only from looking at the list itself.
+
+   The table is generated from `scripts/release/preflight.ts`, which is the module
+   `supabase/test/supabase-resolver.test.ts` executes, so the rule stated here and the rule under
+   test are one object.
+
+**(ii) Pepper state — metadata only, never a value.**
+
+1. whether `OBSERVER_SUBJECT_PEPPER` **exists** in each relevant scope;
+2. its **type** — is it marked Sensitive/Secret;
+3. its **scope** — Preview, Production, or both;
+4. whether **one** sensitive record covers all relevant scopes;
+5. whether the configuration is therefore **absent**, **uniform** or **ambiguous**.
+
+Nothing in (ii) reads a value. The classification is made entirely from presence, type and scope.
+
+The rollout then branches, and two of the three branches do not create anything:
+
+| State                                                | Action                                                                                                                                           |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Absent everywhere relevant**                       | PAUSE. Matthew creates one ≥32-byte random value through a secure interface and targets every relevant environment with that same value.         |
+| **One sensitive record covers every relevant scope** | **Reuse it.** Do not edit, do not rotate, do not overwrite. Redeploying picks up the approved current configuration.                             |
+| **Partial, separate or ambiguous**                   | **STOP.** Never infer that two separate sensitive variables hold the same value — nothing can read them to check. Never overwrite automatically. |
+
+In the third case Matthew chooses between reconciling the existing configuration securely, or
+**explicitly authorising a coordinated rotation**. A rotation is a real operation with consequences,
+and they are stated before it is chosen: it changes **every pseudonymous identifier**, **restarts
+every subject-scoped quota**, **requires one value across all environments sharing the database**,
+and **requires every deployment carrying the old or unknown snapshot to be made unreachable**.
+
+The pepper is never transported through shell output, terminal history, logs or a generated file. If
+the available tooling cannot inspect names and scopes, the step pauses for Matthew to check them in
+the Vercel dashboard.
+
+#### Every version-1 writer must be retired, and that includes `3f298a6`
+
+The compatibility table proves something easy to miss:
+
+```text
+3f298a6 after Migration 3   resolves and writes pseudonym_version 1
+3f298a6 after Migration 4   resolves and writes pseudonym_version 1
+3f298a6 after the contract  still resolves and writes version 1
+```
+
+Migration 3 deliberately keeps the 13-argument call working through its defaults, and the contract
+migration only drops `consume_ai_quota` and `record_ai_request`. Neither disables the version-1
+compatibility path. So protecting "deployments that can call the old façades" is **too narrow**: it
+leaves both the original and the freshly redeployed `3f298a6` URLs able to keep writing
+cross-tenant-linkable version-1 pseudonyms into the durable audit indefinitely.
+
+The gate before the contract migration is therefore broader, and the two capabilities do **not** get
+the same remedy:
+
+| Capability                                                                                         | Remedy                                      | Why                                                                                                          |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **(a)** can call `consume_ai_quota` or `record_ai_request`                                         | delete **or** protect                       | The contract migration genuinely removes those functions. Their RPC stops existing, whoever reaches the URL. |
+| **(b)** can reach `admit_ai_request` with **thirteen** arguments and write `pseudonym_version = 1` | **DELETE. Protection is not a substitute.** | Nothing removes that path. See below.                                                                        |
+
+**Why (b) must be deleted rather than protected.** "Protected" in the previous edition meant "cannot
+serve an anonymous request", and that is not enough here:
+
+- Vercel Authentication still admits **authorised** users — the team, and anyone they share with;
+- Vercel supports explicit **protection-bypass** mechanisms;
+- the contract migration does **not** disable the thirteen-argument admission path.
+
+So a protected `3f298a6` deployment can still write a cross-tenant-linkable version-1 row after the
+contract migration. The only remedy that ends the capability is deletion.
+
+That is why the original unverified `3f298a6` deployment is **deleted** at step 5, once the fresh one
+has answered — not merely protected — and why the fresh proof deployment is deleted at step 18,
+after it has served the legacy compatibility phase.
+
+If deleting every version-1-capable deployment is operationally unacceptable, **stop and ask
+Matthew.** The requirement is not to be quietly weakened back to protection.
+
+A deployment proven to contain no Observer RPC path at all, such as the `3515402` `main` builds, may
+remain **only with that evidence recorded**. And a build whose admission signature no longer resolves
+is not version-1-capable either: `1ee5d2d` calls `admit_ai_request`, `complete_ai_request` and
+`observer_whoami` — **neither legacy façade** — with **twelve** arguments, which the expand migration
+already took out of resolution. It writes nothing at all, and classifying it as a legacy-façade
+caller for the sake of conservative retirement was simply wrong.
+
+#### Enumerate to pagination exhaustion, then again after deletion
+
+`vercel ls` is paginated: it returns roughly the newest twenty and takes `--next <timestamp>` to
+continue. A single page is not an inventory, and this project already has twenty READY deployments —
+exactly the page size, which is the shape of a list that looks complete and is not.
+
+```bash
+vercel ls iris-observer
+vercel ls iris-observer --next <timestamp printed by the previous page>
+# …until no further page is returned
+```
+
+The retirement gate must:
+
+1. follow pagination **to exhaustion**;
+2. record every **immutable deployment URL**, its state and its source SHA;
+3. classify capability **from that SHA's own source**, never from an alias or a branch name;
+4. include the freshly created proof deployment, which is younger than any earlier listing;
+5. **re-run the complete inventory after deletion**;
+6. prove that **no READY version-1-capable deployment remains**.
+
+`observer-contract-readiness.sql` reports on the database side and still cannot say READY: it sees
+what was written, never what can be written. It remains honestly INCONCLUSIVE, and the external gate
+is a person's enumeration.
+
+#### The sequence
+
+Steps 1–2 are read-only; nothing external is mutated before explicit operator approval.
+
+| #   | Step                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Mutates                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1   | Read-only preflight, in two separable parts: (i) Git, Supabase catalogue and a deployment inventory paginated **to exhaustion**; (ii) environment checks — pepper **presence, type and scope as metadata only**, and Supabase project mapping read from the project ref inside the **non-secret, server-side** `SUPABASE_URL`. Never `NEXT_PUBLIC_SUPABASE_URL`, which is a secondary consistency check only. **Must return `MAPPED`/PASS for every relevant environment**; `SERVER_URL_ABSENT`, `SERVER_URL_MALFORMED`, `SERVER_PROJECT_WRONG` and `PROJECTS_DISAGREE` all STOP, and `TOOLING_CANNOT_ISOLATE` PAUSES | no                                   |
+| 2   | **Unreachable until step 1 returns PASS.** Explicit operator approval, and the pepper-state decision from the table above                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | no                                   |
+| 3   | Reuse, create or explicitly rotate the pepper according to that decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Vercel, only if creating or rotating |
+| 4   | Redeploy exact SHA `3f298a6` as a fresh Preview. Do **not** push the local commits to achieve this                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Vercel                               |
+| 5   | Confirm READY and source SHA exactly `3f298a6`; run the **pre-migration HTTP smoke** and confirm it answers rather than returning 503; **then DELETE the original unverified `3f298a6` deployment** — protection is not enough, see below                                                                                                                                                                                                                                                                                                                                                                             | 1 audit row, Vercel                  |
+| 6   | Enable Supabase Cron (`observer-cron-prerequisite.sql`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Supabase                             |
+| 7   | Verify `pg_cron` is installed and the scheduler process is alive                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | no                                   |
+| 8   | Apply Migration 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Supabase                             |
+| 9   | Apply Migration 4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Supabase                             |
+| 10  | Run **Part A**, then the controlled request through the fresh legacy Preview — in that order, so the step-5 smoke cannot contaminate the proof window                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 1–2 audit rows                       |
+| 11  | Require **legacy 13/13** with `pseudonym_version = 1`, both request ids NULL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | no                                   |
+| 12  | Schema, Cron-health and rollback-protected behavioural verification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | no                                   |
+| 13  | Wait through the scheduled hourly run and require **Cron-health 26/26**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | no                                   |
+| 14  | **Push** the corrected release branch                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Git                                  |
+| 15  | Capture the scoped Preview's exact `X-Observer-Request-Id` from the response                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 1–2 audit rows                       |
+| 16  | Require **scoped 13/13** with `pseudonym_version = 2`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | no                                   |
+| 17  | Separately run the corrected **live-model readiness** proof                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | no                                   |
+| 18  | Record `retirement_floor_ts`; **DELETE every version-1-capable deployment** — the fresh `3f298a6` proof Preview included; delete **or** protect legacy-façade-only builds; then **re-enumerate to exhaustion** and prove no READY version-1-capable deployment remains                                                                                                                                                                                                                                                                                                                                                | Vercel                               |
+| 19  | Run `observer-contract-readiness.sql` with that floor — it must show **0 on both version axes** and read INCONCLUSIVE — then apply the **contract migration** last                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Supabase                             |
+
+**No Production promotion is part of this sequence.**
+
+The fresh `3f298a6` Preview exists only to carry the legacy compatibility phase. It is retired at
+step 18 like every other version-1 writer, before the contract phase.
+
+#### Step 17 is not optional, and it is not the same question as step 16
+
+Observer answers without a model by design: the deterministic composer runs the same tools over the
+same evidence and writes plainer prose. A deployment with no `OPENAI_API_KEY` answers every
+question, renders every figure and reads **13/13** on the compatibility proof — which accepts
+`model`, `deterministic_composer`, `refusal` and `failure`, correctly, because its question is about
+the database path.
+
+So if the controlled request is answered by the deterministic composer, the honest report is:
+
+```text
+Observer application works, but live AI is not yet enabled.
+```
+
+Not "the AI is working". `observer-ai-readiness.sql` proves the audit half through the exact request
+id, and its verdict is the conjunction of **all ten** conditions — exactly one row, `state` complete,
+`response_source = 'model'`, `model_attempted`, `model_authored`, no `fallback_reason`,
+`attempted_provider = 'openai'`, a non-empty attempted model, a non-empty author model, and the two
+models equal. A row labelled `model` that contradicts any of them reads
+
+```text
+Live AI is not proven — see the failed checks
+```
+
+rather than either of the other two sentences. `e2e/observer-live.spec.ts` proves the screen half
+from the rendered answer sheet.
+
+### Database migrations, once the application is proven
+
+The Supabase MCP tools are write-blocked from the authoring session, so every migration is
+applied by hand through the SQL Editor. The audit change ships in two halves and the order
+is the whole point.
+
+**1. Expand — `20260825205000`.** Adds columns, back-fills the rows already there, adds
+constraints, adds the new functions. Removes nothing. Both old façades keep working, so it
+may be applied at any time, before or after the code that uses the new names. A build running
+the old code and a build running the new one are both correct against this schema.
+
+**2. Contract — `20260826090000`.** Drops `public.consume_ai_quota` and
+`public.record_ai_request`. **Not on promotion — on evidence.** Vercel keeps every build it
+has ever made reachable at its own URL, so promoting `main` retires nothing. Run this first:
+
+```sql
+select max(occurred_at) from observer.ai_requests where audit_version = 1;
+```
+
+A timestamp inside the last day means something is still writing through the old door. Wait,
+or delete the deployments that are.
+
+`_sql-to-paste/` holds the generated block and the read-only verification query. It is
+gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
+and those copies are generated from them.
+
+Generated, now, rather than kept in step by hand:
+
+```bash
+pnpm release:wrappers
+```
+
+`pnpm release:wrappers --check` fails instead of writing, which is what the test suite runs.
+Each wrapper's header asserts that everything between `begin;` and `commit;` is
+byte-identical to the migration it names, and prints that file's SHA-256. Nothing used to
+enforce either claim — the wrapper was a copy somebody remembered to update — so a migration
+whose comments changed could ship alongside a wrapper still carrying the old text under a
+header promising they matched. The generator splices the source in verbatim and computes the
+hash, so the promise is mechanical. It reproduced three of the four hand-written wrappers
+byte for byte before any of them was regenerated, which is what establishes it is faithful
+rather than merely self-consistent.
 
 ---
 
@@ -241,8 +676,8 @@ serve `X-Robots-Tag: noindex` to search engines.
    `OBSERVER_DATA_SOURCE=synthetic`.
 2. If the Vercel–Supabase integration was used: Settings → Integrations → Supabase → **Disconnect
    project**. This removes the managed variables and leaves the Supabase project untouched.
-3. Supabase → `iris-observer-staging` → Settings → General → **Pause project** to stop it without
-   losing it.
+3. Supabase → `IRIS OBSERVER` (`tfcchobwobpadenampyh`) → Settings → General → **Pause project** to
+   stop it without losing it.
 
 **Never delete a cloud project to recover from an error.** Pause it, disconnect it, or roll back the
 deployment.
@@ -258,3 +693,195 @@ deployment.
 | Configure Vercel environment variables           | the project                          |
 | Live-model smoke test for ADR-0024               | a `FAL_KEY` being available          |
 | Preview Deployment Protection                    | a Pro plan, if wanted                |
+
+---
+
+## 11. The pseudonym key
+
+`OBSERVER_SUBJECT_PEPPER` is **required**. A deployment without a valid one
+refuses every Ask Observer question at the gate — before the quota is consulted,
+before an audit row is written, before any model is called — and names the
+reason in the boot line.
+
+### The contract
+
+At least **32 bytes of cryptographically random material**.
+
+**There is deliberately no command here.** This section used to carry a one-liner that prints the
+value to stdout, and that contradicted the promise made everywhere else in this release: the pepper
+never travels through shell output, terminal history, a captured log or an assistant's context. A
+command that echoes a secret puts it in all four at once, and a scrollback buffer is not a secret
+store.
+
+The procedure instead:
+
+1. generate the value in a **trusted password manager's secret generator**;
+2. paste it **directly into Vercel's Sensitive/Secret field** for every environment that shares the
+   Supabase project;
+3. never pass it through an assistant, a shell command, a clipboard-logging tool, generated evidence
+   or any file in this repository.
+
+Nothing in this repository, this runbook or any review bundle may print, echo or generate a pepper.
+`supabase/test/no-secret-recipes.test.ts` fails if an operator-facing tracked file starts to.
+
+Rejected, each with its own message: absent, empty or whitespace, shorter than
+32 bytes, wrapped in quotes or brackets, padded with whitespace, an obvious
+placeholder, or repeating too few distinct characters. The last rule is relaxed
+only where `VITEST` or `NODE_ENV=test` is set, so the suite can use an
+unmistakably fake value and a deployment cannot.
+
+**The same value on every environment that shares a database.** Two environments
+with different peppers write subjects that do not match, so the ceilings count
+them as different people and aggregate nothing.
+
+### It is derived from nothing, on purpose
+
+An earlier draft derived it from `SUPABASE_SECRET_KEY` when no pepper was set.
+That coupled two lifecycles that have no business being coupled: rotating the
+database credential — for a leak, a policy, a new project — silently changed
+every subject and client fingerprint, orphaned every rate-limit bucket and
+restarted all four ceilings from zero, mid-day, with nothing in any log.
+
+A key whose value is a function of another key is also a key whose compromise is
+a function of another key's compromise.
+
+### What a deploy of the tenant-scoping branch resets
+
+Not everything, and the difference is worth stating precisely because an earlier
+report said "existing rate-limit buckets orphan" without qualification.
+
+| bucket             | keyed by                   | survives the deploy? |
+| ------------------ | -------------------------- | -------------------- |
+| `client` / hour    | the **global** fingerprint | **yes**              |
+| `project` / day    | `tenant/project`           | **yes**              |
+| `session` / minute | `telemetrySubject`         | no                   |
+| `session` / hour   | `telemetrySubject`         | no                   |
+
+`clientFingerprint` was refactored into a shared helper taking a scope string,
+and with scope `client` the hashed input is character for character what it was
+before: `client` + NUL + address + NUL + agent + NUL + language. A pinned
+regression vector in `apps/web/test/ai-audit.test.ts` asserts the digest, so a
+future change to that derivation fails a test rather than silently resetting a
+ceiling. The project key is two slugs and never depended on the pepper at all.
+
+Only `telemetrySubject` changed, because only it gained the tenant. So the two
+session-scoped ceilings restart and the two that bound cost and abuse do not.
+
+### Rate-bucket retention
+
+Two claims were made here before this one, and both were false. They are worth
+keeping because the second is the more instructive mistake.
+
+The first said the table "is pruned". `prune_ai_rate_buckets` existed and
+nothing called it: not the ceiling, not admission, no `pg_cron` job, no trigger.
+Read-only inspection found 78 buckets with the oldest 37 hours old — inside the
+48 the function would have enforced, but only because the deployment is young.
+Retention was a property of a function nobody invoked.
+
+The second said the table was "bounded" because admission had been made to
+prune. That is **opportunistic garbage collection, not retention**. If no Ask
+Observer request arrives, nothing runs: a global browser fingerprint written on
+Friday afternoon is still there on Monday. "At most once per hour" limits how
+often a delete _may_ execute; it does not limit how old a row can get. It also
+put a `delete` in the interactive path, so an answer's latency and availability
+depended on housekeeping.
+
+Migration `20260826140000` replaces it with a scheduled job, and these five
+lines are the whole claim:
+
+|                          |                                                                               |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| deletion threshold       | 48 hours                                                                      |
+| scheduled frequency      | hourly, on the hour, one `pg_cron` job named `observer-prune-ai-rate-buckets` |
+| expected maximum row age | **~49 hours while the scheduler is healthy**                                  |
+| monitoring               | separate, and required — `observer-cron-health.sql`                           |
+| guarantee                | none                                                                          |
+
+The last row is not modesty. A stopped `pg_cron` worker stops deleting and
+nothing in the database notices on its own, which is why the health verifier
+reports **unhealthy** when the most recent successful run is more than two hours
+old. Legal retention remains a pre-production review gate; a migration cannot
+settle it.
+
+`pg_cron` is **not installed on this project** and this milestone did not
+install it. It is available at 1.6.4. Enabling it is rollout step 1 —
+`supabase/prerequisites/observer-cron-prerequisite.sql`, or Integrations → Cron
+in the dashboard — and the migration refuses to apply without it rather than
+creating a cleanup function with nothing to run it.
+
+#### The migration owns one job name, and only that
+
+`cron.job` belongs to the whole project. An earlier version of this migration
+unscheduled any job whose command mentioned an Observer function, under any
+name; an independent review called that destructive overreach and was right. A
+job somebody else scheduled and manages is not a migration's to delete, however
+much it looks like a duplicate.
+
+So the ownership rule is narrow and the failure is loud:
+
+- the migration creates, replaces and unschedules **only**
+  `observer-prune-ai-rate-buckets`, selected by name and scoped to this database
+  and this owner;
+- a **differently named** job whose command mentions an Observer retention
+  function **stops the migration before it writes anything**, names the job, and
+  asks a person to decide. Nothing foreign is modified;
+- a job holding our name but owned by another role, or registered against
+  another database, is likewise refused rather than deleted;
+- the detector is a substring scan over `cron.command`. It catches the realistic
+  collision — somebody scheduling the same function by hand — and **cannot** see
+  a wrapper function, a quoted identifier, a run-time `EXECUTE` or a longhand
+  `DELETE`. It is a guard, not a proof of uniqueness.
+
+Row 11 of the health verifier reports the same condition read-only, and reports
+is all it does.
+
+### Rotation is a maintenance operation
+
+Rotating the pepper **changes every pseudonymous identifier** and therefore
+**resets subject-scoped quota buckets**. That is not a side effect to be avoided
+— it is what rotation means when identifiers are keyed — but it must be planned
+rather than discovered:
+
+1. do it at a quiet hour, not mid-demonstration;
+2. record the old and new **key id** in the deployment log;
+3. expect the per-minute, per-hour, per-client and per-day counters to start
+   again from zero;
+4. set the same new value on every environment sharing the database, in one
+   pass. A half-rotated pair of environments is two populations of subjects.
+
+The audit is unaffected. `observer.ai_requests` rows keep the subjects they were
+written with and the `key_id` that made them, which is precisely what lets
+somebody see afterwards that a rotation happened rather than infer it from a
+counter that looks wrong.
+
+### The key id
+
+Sixteen hex characters of an HMAC of the key under a fixed label. Preimage
+resistant, useless to an attacker, different the instant the key is different.
+
+It appears in two places, deliberately:
+
+```
+Ask Observer subjects are keyed. Key id 3f9a1c04e7b52d18 — if this changes,
+every rate-limit bucket has reset.
+```
+
+and on **every version-2 audit row**, in `key_id`. The boot line is the fast
+signal; the column is the durable one. A startup log ages out of a platform's
+retention, and the question a rotation raises gets asked afterwards, sometimes
+long afterwards. A column answers it. An expired log line does not.
+
+```sql
+select key_id, pseudonym_version, min(occurred_at), max(occurred_at), count(*)
+  from observer.ai_requests where audit_version = 2
+ group by key_id, pseudonym_version order by 3;
+```
+
+More than one `key_id` is a rotation, with the date it happened. More than one
+`pseudonym_version` is a change of _derivation_ — tenant-scoping was one — and
+matters for the same reason: subjects made under two schemes are unrelated
+strings, not one viewer twice. Either can change without the other, which is why
+both are recorded.
+
+It is a record, not a guard: nothing refuses to start on a changed key id,
+because that would turn a legitimate rotation into an outage.

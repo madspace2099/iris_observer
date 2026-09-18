@@ -269,6 +269,50 @@ UE5 ──batch (25 ev / 5 s)──▶ POST /v2/ingest ──▶ events (append-
 A live stream also enables something worth designing for later: the developer's dashboard can show a
 meeting **in progress**. Low priority, but it is free once ingest is streaming, and it demos extremely well.
 
+> **Amendment, 2026-09-01 — superseded by the UE5 contract candidate.**
+>
+> Three details in this section and in §7 predate the approved UE5 plugin architecture
+> brief and are now wrong:
+>
+> - **The endpoint.** `POST /v2/ingest` is superseded by
+>   `POST /functions/v1/observer-ingest`, with activation at `/observer-activate` and
+>   liveness at `/observer-heartbeat`. See [`ue5-ingestion-contract.md`](ue5-ingestion-contract.md)
+>   and the generated `docs/ue5-contract/openapi.json`.
+> - **The batch figures.** "25 events / 5 s" was a sketch, never an approved limit. Batch
+>   and event ceilings are stated by the server at activation and are deliberately
+>   **unset** in the contract candidate, pending measurement on real showroom hardware
+>   (`OPEN-12`).
+> - **Credential scope.** §7 rule 6 says a device credential is scoped to one _tenant_. The
+>   brief scopes it to one **project source** — narrower, and the difference matters: a
+>   tenant-scoped credential extracted from one showroom binary would reach every project
+>   that tenant owns.
+>
+> Everything else in §7 stands and is now contract rather than advice: no client
+> aggregation, client-generated `event_id` with server-side deduplication, buffer to disk
+> and flush in batches, never block the game thread, and per-device credentials rather than
+> a shared key in the binary.
+>
+> **Update, 2026-09-01 — §7 is done, and the legacy transport is retired.** Akhilesh reports
+> UE-OBS-001 complete: every hard-coded Supabase URL and key is gone from the V2 plugin,
+> configuration arrives through Unreal Project Settings, and V2 no longer depends on the
+> direct-table transport at all. The `SendGlobalAnalyticsToSupabase` path this section asked
+> to delete is deleted.
+>
+> The old shape is **LEGACY** and is not a supported production path for V2:
+>
+> ```
+> LEGACY   interaction → mutable in-memory state → app close → one snapshot blob
+>                      → direct database tables
+>
+> V2       interaction → immutable event with UUID and UTC timestamp
+>                      → durable local outbox → bounded HTTPS batch
+>                      → protected ingestion backend → explicit acknowledgement
+>                      → removed from the outbox only on accepted or duplicate
+> ```
+>
+> The event names in §2 remain **illustrative**. ADR-0013 defers the wire catalogue to the
+> schema registry, and the contract candidate fixes no business event names.
+
 ---
 
 ## 9. Changes this forces in `02-views.md`

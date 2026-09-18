@@ -14,7 +14,12 @@ test.skip(
  * product. Contrast and semantics are checked here, not after the choice.
  */
 const ROUTES = [
-  ["profile picker", "/lab/sign-in"],
+  /*
+   * The profile picker is a laboratory exhibit, not a way in (ADR-0029 and
+   * docs/observer-visual-baseline.md). It is still checked here because an
+   * inaccessible page is an inaccessible page wherever it lives.
+   */
+  ["profile picker, superseded", "/lab/sign-in"],
   ["concept A", "/lab/overview-a"],
   ["concept B", "/lab/overview-b"],
 ] as const;
@@ -59,26 +64,13 @@ test("Ask Observer answers against the current selection", async ({ page }) => {
   await expect(sheet.getByText(/records/).first()).toBeVisible();
 });
 
-test("every figure on the unit list can explain itself", async ({ page }) => {
-  await page.goto("/sign-in");
-  await page.getByRole("listitem").filter({ hasText: "Petra Novák" }).getByRole("button", { name: "Continue" }).click();
-  await page.waitForURL(/\/showroom/);
-  await page.goto("/alpha/northgate/units");
-
-  // No abbreviated headers. A reader should not have to guess what a column is.
-  for (const label of ["Attention", "Meetings", "Typical look", "Shortlisted", "Trend"]) {
-    await expect(page.getByRole("columnheader").or(page.locator(".iris-measure-label")).filter({ hasText: label }).first()).toBeVisible();
-  }
-
-  const info = page.getByRole("button", { name: /What Typical look measures/ });
-  await expect(info).toBeVisible();
-  await info.click();
-
-  const panel = page.getByRole("note");
-  await expect(panel).toBeVisible();
-  // The four things a number has to be able to say about itself.
-  await expect(panel).toContainText("What it measures");
-  await expect(panel).toContainText("How it is computed");
-  await expect(panel).toContainText("What it does not say");
-  await expect(panel).toContainText("IRIS observed");
-});
+/*
+ * "every figure on the unit list can explain itself" moved to
+ * `units-register.spec.ts` (2026-09-08). It tested the shipping Units
+ * register (`/alpha/northgate/units`), not a `/lab/*` composition, so it did
+ * not belong under this file's mobile skip above — the register is not a
+ * desktop-only concept. The interaction it checked (a per-column info button
+ * opening a four-fact popover) was also superseded by the current register's
+ * own always-present "How to read this register" definitions list, which the
+ * new file verifies instead; see that file's docblock for the evidence.
+ */

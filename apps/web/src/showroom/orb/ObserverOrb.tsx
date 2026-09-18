@@ -2,13 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useRef, useState } from "react";
-import {
-  blendProfiles,
-  orbColour,
-  orbProfile,
-  type OrbProfile,
-  type OrbState,
-} from "./profile";
+import { blendProfiles, orbColour, orbProfile, type OrbProfile, type OrbState } from "./profile";
 
 /**
  * Observer, embodied.
@@ -447,13 +441,13 @@ export function ObserverOrb({
   const body = (
     <>
       {/*
-        * The drawn size is a variable, not an inline width.
-        *
-        * The canvas keeps its own backing-store resolution, but how large it is
-        * on the page has to be something a media query can answer: at 330px on
-        * a phone the orb filled the first screen and pushed the prompt below
-        * the fold, which is the one thing this composition must not do.
-        */}
+       * The drawn size is a variable, not an inline width.
+       *
+       * The canvas keeps its own backing-store resolution, but how large it is
+       * on the page has to be something a media query can answer: at 330px on
+       * a phone the orb filled the first screen and pushed the prompt below
+       * the fold, which is the one thing this composition must not do.
+       */}
       <canvas
         ref={canvas}
         className="obs-orb-canvas"

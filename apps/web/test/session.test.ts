@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
   SESSION_COOKIE_OPTIONS,
-  createSession,
+  createAccountSession,
   destroySession,
   isKnownViewerKey,
   resolveSession,
 } from "../src/lib/session";
+
+/*
+ * The directory these tests sign into.
+ *
+ * resolveSession returns an account, and an account only exists while the
+ * synthetic directory is switched on — which is the fail-closed property the
+ * last describe block asserts directly.
+ */
+process.env["OBSERVER_DEMO_ACCOUNTS"] = "1";
+
+const AGENT = "acct_monika";
+const DEVELOPER = "acct_petra";
 
 /**
  * The scenario session adapter's one real security property.
@@ -37,10 +49,14 @@ describe("session cannot be forged from the browser", () => {
   });
 
   it("resolves only an identifier the server issued", () => {
-    const id = createSession("salesAgent");
-    const viewer = resolveSession(id);
-    expect(viewer?.role).toBe("sales_agent");
-    expect(viewer?.agentId).not.toBeNull();
+    const id = createAccountSession(AGENT);
+    const account = resolveSession(id);
+    expect(account?.accountId).toBe(AGENT);
+    /*
+     * An ACCOUNT, not a role. What that account may see is looked up from the
+     * account on the server; the token has nothing in it to promote.
+     */
+    expect(Object.keys(account ?? {})).not.toContain("role");
   });
 
   it("cannot be edited into a different role", () => {
@@ -50,18 +66,25 @@ describe("session cannot be forged from the browser", () => {
      * key instead; hiding it was never the property that mattered, and it cost
      * the ability to work on a platform where no two requests share memory.
      */
-    const id = createSession("salesAgent");
-    expect(resolveSession(id)?.role).toBe("sales_agent");
+    const id = createAccountSession(AGENT);
+    expect(resolveSession(id)?.accountId).toBe(AGENT);
 
-    for (const promoted of ["madspace", "developer", "agencyManager"]) {
-      const tampered = id.replace(/^[^.]+/, promoted);
+    /*
+     * Swapping the subject for another account fails the signature. It is worth
+     * saying that this check is now the second line of defence rather than the
+     * only one: the subject is an account identifier, so even a successful
+     * forgery would buy that account's grants, not a role of the forger's
+     * choosing.
+     */
+    for (const other of ["acct_madspace", "acct_petra", "acct_tomas"]) {
+      const tampered = id.replace(/^[^.]+/, other);
       expect(tampered).not.toBe(id);
-      expect(resolveSession(tampered), promoted).toBeNull();
+      expect(resolveSession(tampered), other).toBeNull();
     }
   });
 
   it("rejects a token whose signature has been altered", () => {
-    const id = createSession("developer");
+    const id = createAccountSession(DEVELOPER);
     const parts = id.split(".");
     const flipped = `${parts[0]}.${parts[1]}.${parts[2]}.${(parts[3] ?? "").split("").reverse().join("")}`;
     expect(resolveSession(flipped)).toBeNull();
@@ -70,31 +93,65 @@ describe("session cannot be forged from the browser", () => {
   it("rejects a token that has expired", () => {
     // The expiry is signed with the rest, so moving it forward breaks the
     // signature and moving it backward expires the token. Both must fail.
-    const id = createSession("developer");
+    const id = createAccountSession(DEVELOPER);
     const parts = id.split(".");
     const past = `${parts[0]}.${Date.now() - 1000}.${parts[2]}.${parts[3]}`;
     expect(resolveSession(past)).toBeNull();
   });
 
   it("issues a different identifier every time", () => {
-    const ids = new Set(Array.from({ length: 20 }, () => createSession("developer")));
+    const ids = new Set(Array.from({ length: 20 }, () => createAccountSession(DEVELOPER)));
     expect(ids.size).toBe(20);
   });
 
-  it("is stateless, which is why sign-out clears the cookie and nothing else", () => {
+  it("stops resolving a token once it has been signed out", () => {
     /*
-     * The limitation, asserted rather than hidden.
-     *
-     * There is no server record to delete, so a token copied before sign-out
-     * stays valid until it expires. That is the price of a session that works
-     * on a platform where every request may land on a different instance, and
-     * it is acceptable only because the token grants a profile from a screen
-     * where every profile is already freely selectable, over synthetic data.
-     * ADR-0022 records it; the pre-production gate removes it.
+     * The narrow exception to statelessness. `destroySession` revokes the
+     * token's own nonce until it would have expired anyway, so a copy taken
+     * before sign-out (a shared machine, a proxy log) stops working the
+     * moment the legitimate holder signs out — on this instance. It is still
+     * not server-side session storage: nothing is recorded until sign-out
+     * actually happens, and a different warm instance never sees the
+     * revocation. ADR-0022 records that remaining gap; the pre-production
+     * gate removes it.
      */
-    const id = createSession("developer");
+    const id = createAccountSession(DEVELOPER);
     expect(resolveSession(id)).not.toBeNull();
     destroySession(id);
+    expect(resolveSession(id)).toBeNull();
+  });
+
+  it("does not revoke every session when one token is malformed", () => {
+    const id = createAccountSession(DEVELOPER);
+    destroySession("not.a.real.token");
+    destroySession(undefined);
+    expect(resolveSession(id)).not.toBeNull();
+  });
+
+  it("never resolves a stale, already-expired copy as newly revoked", () => {
+    // A token past its own expiry is already refused by the expiry check;
+    // signing it out must not throw or otherwise misbehave.
+    const id = createAccountSession(DEVELOPER);
+    const parts = id.split(".");
+    const past = `${parts[0]}.${Date.now() - 1000}.${parts[2]}.${parts[3]}`;
+    expect(() => destroySession(past)).not.toThrow();
+    expect(resolveSession(past)).toBeNull();
+  });
+
+  it("resolves nothing at all when no account directory is configured", () => {
+    /*
+     * The fail-closed posture, at the session layer. A validly signed token for
+     * an account that does not exist is not a session — so a server with the
+     * synthetic directory switched off has no way in, whatever cookie arrives.
+     */
+    const id = createAccountSession(DEVELOPER);
+    const before = process.env["OBSERVER_DEMO_ACCOUNTS"];
+    delete process.env["OBSERVER_DEMO_ACCOUNTS"];
+    try {
+      expect(resolveSession(id)).toBeNull();
+    } finally {
+      if (before !== undefined) process.env["OBSERVER_DEMO_ACCOUNTS"] = before;
+    }
     expect(resolveSession(id)).not.toBeNull();
   });
 });

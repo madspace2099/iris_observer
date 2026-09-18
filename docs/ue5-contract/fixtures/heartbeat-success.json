@@ -1,0 +1,75 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "heartbeat-success",
+    "description": "Liveness plus queue health, on its own endpoint.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-heartbeat",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "queue": {
+          "pending_events": 12,
+          "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+          "quarantined_events": 1,
+          "bytes_used": 40960,
+          "bytes_ceiling": 52428800,
+          "dropped_events": 0
+        },
+        "last_error": {
+          "code": "unavailable",
+          "at": "2026-01-01T09:10:00+01:00"
+        }
+      }
+    },
+    "requestSchema": "HeartbeatRequest",
+    "requestValidates": true,
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "ok",
+        "server_time": "2026-01-01T08:15:31+00:00",
+        "config_stale": false
+      }
+    },
+    "responseSchema": "HeartbeatResponse",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential, which has never been heard from.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "set",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "last_heartbeat_at and last_seen_at advance and the reported build and queue counters land on the source's operational row. ingestion_verified_at stays null and observer.analytics_events gains no row: this is the CONNECTED fact alone. A heartbeat never earns INGESTION VERIFIED, and queue depth is not a fact about a visitor."
+    },
+    "why": "A heartbeat reports on the outbox and never changes it; config_stale is advisory and touches neither identity nor credential.",
+    "notes": [
+      "server_time is what a plugin subtracts from its own clock to show drift on the diagnostic screen.",
+      "A heartbeat is not an empty batch. received: 0 cannot tell a healthy ping from a client bug that sends empty batches."
+    ]
+  }
+}

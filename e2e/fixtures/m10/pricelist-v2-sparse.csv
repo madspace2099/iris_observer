@@ -1,0 +1,9 @@
+Kód;Emelet;Szobák;Státusz;Épület;Terület;Tájolás;Ár (bruttó)
+A-101;1;2;szabad;A;54,5;D;42 000 000
+A-102;1;3;foglalt;A;72;K;58 500 000
+A-201;2;2;eladva;A;55;D;43 000 000
+A-202;2;4;szabad;A;96;DNy;79 000 000
+B-101;1;1;szabad;B;38;Ny;31 000 000
+A-301;3;2;opció;A;56;D;44 000 000
+P-1;;;szabad;A;;Z;
+A-401;4;;szabad;A;61;D;47 000 000

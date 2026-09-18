@@ -156,21 +156,21 @@ dashboard, and none of these is a default shape.
 
 Each exists because a bar could not carry the question:
 
-| Shape | The question it answers | Where |
-|---|---|---|
-| Outcome ring | Parts of one whole, per agent, comparable side by side | Flow, Agents |
-| Paired period columns | Volume against the same days before | Flow |
-| Paired rates | This segment against every other unit | Project |
-| Parity scale | Which side of 1.00× a segment falls on | Project |
-| KPI card + sparkline | A figure, its comparison, and its own recent shape | Flow |
-| Heatmap | Two dimensions at once — weekday against hour | Flow |
-| Annotated line | A series with the moment something changed marked on it | Flow |
-| Stacked columns | Composition, and how the composition itself moved | Flow |
-| Conversion funnel | What survives each step, and what falls out | Flow |
-| Ranked bars | An ordered list where the order is the finding | Flow, Agents |
-| Radar | One presenter across six dimensions, shape as the finding | Agents |
-| Bullet | One value against a target and the pace needed to reach it | Project |
-| Stepped alluvial | Where journeys go, and where they stop | Project |
+| Shape                 | The question it answers                                    | Where        |
+| --------------------- | ---------------------------------------------------------- | ------------ |
+| Outcome ring          | Parts of one whole, per agent, comparable side by side     | Flow, Agents |
+| Paired period columns | Volume against the same days before                        | Flow         |
+| Paired rates          | This segment against every other unit                      | Project      |
+| Parity scale          | Which side of 1.00× a segment falls on                     | Project      |
+| KPI card + sparkline  | A figure, its comparison, and its own recent shape         | Flow         |
+| Heatmap               | Two dimensions at once — weekday against hour              | Flow         |
+| Annotated line        | A series with the moment something changed marked on it    | Flow         |
+| Stacked columns       | Composition, and how the composition itself moved          | Flow         |
+| Conversion funnel     | What survives each step, and what falls out                | Flow         |
+| Ranked bars           | An ordered list where the order is the finding             | Flow, Agents |
+| Radar                 | One presenter across six dimensions, shape as the finding  | Agents       |
+| Bullet                | One value against a target and the pace needed to reach it | Project      |
+| Stepped alluvial      | Where journeys go, and where they stop                     | Project      |
 
 Four rules the shapes are held to, each because one of them was broken first:
 

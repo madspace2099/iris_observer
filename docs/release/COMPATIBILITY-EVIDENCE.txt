@@ -1,0 +1,324 @@
+IRIS OBSERVER — DEPLOYMENT COMPATIBILITY EVIDENCE
+Rendered for commit {{HEAD_SHORT}} from the carried-forward enumeration
+observed at {{OBSERVED_AT}}. NOT re-gathered for this commit: the deployment
+inventory was last enumerated against Vercel for {{LAST_ENUMERATION}}, and
+every figure below describes that observation and nothing later.
+
+Every SHA below was read from the Vercel deployment record. Every RPC call was
+read from that SHA's own source in git. Nothing is inferred from a commit name
+or a branch name.
+
+
+================================================================================
+1. GIT
+================================================================================
+
+  local HEAD                        {{HEAD}}
+  branch                            release/observer-demo-rc1
+  remote release/observer-demo-rc1  {{REMOTE_RELEASE}}
+  remote main                       {{REMOTE_MAIN}}
+  behind / ahead                    {{BEHIND}} / {{AHEAD}}
+  working tree at the start         CLEAN
+
+{{LOCAL_ONLY_SENTENCE}}
+
+A local branch `feature/observer-ingestion-contract` also points at 7e3c00a. It
+holds no commits and no work. This milestone stayed on the release branch.
+
+
+================================================================================
+2. FOUR STATEMENTS ABOUT THE DEPLOYED BUILD, KEPT APART
+================================================================================
+
+The previous bundle said environment configuration is unknown from this session
+and then concluded that the existing `3f298a6` deployment "remains pepper-less",
+"keeps returning 503 permanently", and that "only the fresh deployment has the
+variable". None of that follows from UNKNOWN. Corrected, and held apart:
+
+  PROVEN        The existing deployment retains the environment snapshot
+                captured when it was BUILT. Vercel applies environment-variable
+                changes only to NEW deployments; a later project-level change
+                does not alter an existing snapshot.
+
+  UNKNOWN       Whether that snapshot contains `OBSERVER_SUBJECT_PEPPER`, and
+                whether the value is valid. No tooling in this session exposes
+                Vercel environment-variable names, scopes or values.
+
+  UNOBSERVED    How that deployment behaves now. It may answer; it may return
+                503. No HTTP request has been made to it from any of this work,
+                and neither behaviour has been seen.
+
+  REQUIRED      It is INELIGIBLE for the controlled legacy proof, because its
+                configuration snapshot is UNVERIFIED. A fresh deployment of
+                exact SHA `3f298a6`, built after the pepper state is settled, is
+                the required controlled target — whether or not the old one
+                happens to work.
+
+The rule is about eligibility, not a predicted failure. Five regression tests in
+`supabase/test/rollout-order.test.ts` hold these four apart and fail on each of
+the old phrasings.
+
+WHY IT MATTERS. `3f298a6` IS the commit that made the pepper mandatory. Its gate
+returns 503 for every question when the variable is missing or malformed —
+before admission, before an audit row, before any model call. A deployment of
+that commit without it answers nothing at all.
+
+The four properties "does it work?" used to collapse:
+
+  1. database RPC signature compatibility   PROVEN
+  2. application runtime readiness          NOT PROVEN (depends on the pepper)
+  3. environment configuration              UNKNOWN FROM HERE
+  4. observed HTTP behaviour                NEVER ATTEMPTED
+
+
+================================================================================
+3. ENVIRONMENT VARIABLES — NAMES AND REQUIREMENT ONLY
+================================================================================
+
+Read from the application's own schema (`apps/web/src/lib/env.ts`), NOT from
+Vercel. No value, no scope and no presence claim: presence is item 3 above.
+
+  NAME                                  REQUIRED FOR                  SENSITIVE
+  ------------------------------------  ----------------------------  ---------
+  OBSERVER_SUBJECT_PEPPER               ANY answer at all                 yes
+  SUPABASE_URL                          ceiling and durable audit         no
+                                        FIRST-CHOICE SERVER SOURCE, and
+                                        MANDATORY under the rollout contract
+  SUPABASE_SECRET_KEY                   the same, server-side only        yes
+  OPENAI_API_KEY                        a MODEL-authored answer           yes
+  OBSERVER_AI_ENABLED                   the model path; default true      no
+  OPENAI_TEXT_MODEL                     which model is attempted          no
+  OPENAI_FAST_MODEL                     the planning turn                 no
+  OPENAI_REASONING_EFFORT               depth                             no
+  OPENAI_STORE_RESPONSES                must remain false                 no
+  OBSERVER_VOICE_ENABLED                the voice routes                  no
+  OBSERVER_DATA_SOURCE                  pinned to `synthetic`             no
+  OBSERVER_ENVIRONMENT                  labelling                         no
+  NEXT_PUBLIC_SUPABASE_URL              browser-exposed, AND a current     no
+                                        SERVER FALLBACK — see below
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  optional; browser diagnostics     no
+  DEVICE_CREDENTIAL_PEPPER              OpenAI safety id; optional        yes
+
+  `OBSERVER_ALLOWED_MODELS` is NOT a variable this code reads — the model
+  allowlist is compile-time. Named because it was asked about.
+
+  THE TWO SUPABASE URLS, DESCRIBED SEPARATELY. An earlier edition of this table
+  called `NEXT_PUBLIC_SUPABASE_URL` "optional; browser diagnostics", which
+  contradicts the resolver in the same repository.
+
+    `SUPABASE_URL`             the FIRST-CHOICE SERVER SOURCE, used whenever it
+                              is present and usable, and MANDATORY under the
+                              release rollout contract.
+
+    `NEXT_PUBLIC_SUPABASE_URL` a BROWSER-EXPOSED value, AND — as the code
+                              currently stands — A SERVER FALLBACK: when
+                              `SUPABASE_URL` is absent or blank,
+                              `apps/web/src/lib/supabase-env.ts` resolves the
+                              server's destination from it.
+                              THAT FALLBACK IS REJECTED BY THE ROLLOUT
+                              CONTRACT. Runtime permits it; the preflight does
+                              not, and stops.
+
+  So the honest statement is NOT "only `SUPABASE_URL` can ever be used by the
+  runtime". It is: `SUPABASE_URL` is what the runtime uses WHEN VALID AND
+  PRESENT, and the resolver as written contains the fallback above. The rollout
+  closes the gap by refusing to advance while the fallback is what is in effect.
+
+  The preflight reads the real names and scopes from the Vercel dashboard or
+  CLI, never the values, and classifies the pepper as ABSENT, UNIFORM or
+  AMBIGUOUS. See PEPPER-CONTRACT.txt for the branch each state takes.
+
+
+================================================================================
+4. EVERY VERCEL DEPLOYMENT READY AT THE LAST ENUMERATION, BY SHA
+================================================================================
+
+A HISTORICAL READING, NOT A PRESENT STATE. At the enumeration this table
+records there were twenty deployments, all READY at that moment, over fourteen
+distinct SHAs, and the newest recorded was 3f298a6, built 2026-08-25. Earlier
+editions wrote "all READY" and "the newest is still", which state as current
+something nothing has looked at since.
+
+{{DEPLOYMENT_INVENTORY_LINE}}
+{{INVENTORY_UNCHANGED_SENTENCE}}
+
+  TARGET       SHA       REF                        URL
+  -----------  --------  -------------------------  ----------------------------
+  preview      3f298a6   release/observer-demo-rc1  iris-observer-7gxkg1ys1-…
+  preview      3515402   main                       iris-observer-8iiggb0gi-…
+  production   3515402   main                       iris-observer-p1w0s2uph-…
+  preview      1ee5d2d   release/observer-demo-rc1  iris-observer-e5v4hn8rb-…
+  preview      b33f13d   release/observer-demo-rc1  iris-observer-q8cb1zm14-…
+  preview      d12d7d8   release/observer-demo-rc1  iris-observer-in7ze22je-…
+  preview      b1f9f03   release/observer-demo-rc1  iris-observer-qk9qqphx8-…
+  preview      beeae07   release/observer-demo-rc1  iris-observer-a034iybw2-…
+  preview      79ed148   release/observer-demo-rc1  iris-observer-4uojc5wcp-…
+  preview      c9794f7   release/observer-demo-rc1  iris-observer-aocqqws9g-…
+  preview      3515402   main                       iris-observer-8n4lqwyxx-…
+  preview      3515402   main                       iris-observer-frmtcvi25-…
+  preview      3515402   main                       iris-observer-hrldflqev-…
+  production   3515402   main                       iris-observer-by0vp5t48-…
+  preview      f483043   release/observer-demo-rc1  iris-observer-84ye5iapo-…
+  preview      17ef644   release/observer-demo-rc1  iris-observer-oz3wirfgy-…
+  preview      01615b9   release/observer-demo-rc1  iris-observer-7vlwi7q71-…
+  production   3515402   main                       iris-observer-4qy9yir96-…
+  preview      364a7a7   release/observer-demo-rc1  iris-observer-ibr2cklxr-…
+  preview      f563168   release/observer-demo-rc1  iris-observer-gw9jgo8sz-…
+
+{{NOT_DEPLOYED_BLOCK}}
+
+
+================================================================================
+5. WHAT EACH SHA CALLS, AND WHICH ONES MUST BE RETIRED
+================================================================================
+
+Read from `git show <sha>:apps/web/src/lib/ai/quota.ts`.
+
+  SHA       RPC NAMES CALLED                                admit args  RETIRE?
+  --------  ----------------------------------------------  ----------  -------
+  3515402   (no quota.ts — no Supabase RPC at all)              n/a      may stay
+  f563168   consume_ai_quota                                    n/a      (a)
+  364a7a7   consume_ai_quota, record_ai_request                 n/a      (a)
+  01615b9   consume_ai_quota, record_ai_request                 n/a      (a)
+  17ef644   consume_ai_quota, record_ai_request                 n/a      (a)
+  f483043   consume_ai_quota, record_ai_request                 n/a      (a)
+  c9794f7   consume_ai_quota, record_ai_request                 n/a      (a)
+  79ed148   consume_ai_quota, record_ai_request                 n/a      (a)
+  beeae07   consume_ai_quota, record_ai_request, whoami         n/a      (a)
+  b1f9f03   consume_ai_quota, record_ai_request, whoami         n/a      (a)
+  d12d7d8   consume_ai_quota, record_ai_request, whoami         n/a      (a)
+  b33f13d   consume_ai_quota, record_ai_request, whoami         n/a      (a)
+  1ee5d2d   admit_ai_request, complete_ai_request, whoami        12      none
+  3f298a6   admit_ai_request, complete_ai_request, whoami        13      (b)
+
+  (a) can call a legacy façade — DELETE or PROTECT. The contract migration
+      genuinely removes those functions, so their RPC stops existing.
+  (b) can reach admit_ai_request with THIRTEEN arguments and write
+      pseudonym_version = 1 — MUST BE DELETED. Protection is not a substitute:
+      Vercel Authentication still admits authorised users, protection-bypass
+      mechanisms exist, and the contract migration does not close that path.
+  none  writes nothing at all.
+
+  1ee5d2d IS RECLASSIFIED. It was listed as (a) for conservative retirement,
+  and that was simply wrong: its RPC names are admit_ai_request,
+  complete_ai_request and observer_whoami — NEITHER legacy façade — and its
+  TWELVE-argument admission stopped resolving when the expand migration added
+  p_key_id. It writes nothing, so it is neither (a) nor (b).
+
+THE SECOND CAPABILITY IS THE ONE THE PREVIOUS BUNDLE MISSED. The compatibility
+table proves it:
+
+    3f298a6 after Migration 3     resolves and writes pseudonym_version 1
+    3f298a6 after Migration 4     resolves and writes pseudonym_version 1
+    3f298a6 after the contract    STILL resolves and writes version 1
+
+Migration 3 deliberately keeps the thirteen-argument call working through its
+defaults, and the contract migration drops only `consume_ai_quota` and
+`record_ai_request`. Neither disables the version-1 path. So retiring "every
+deployment that can call the old façades" leaves both `3f298a6` URLs — the
+original and the fresh proof one — writing cross-tenant-linkable version-1
+pseudonyms into the durable audit for as long as anybody can reach them.
+
+The gate before the contract migration therefore covers BOTH capabilities, and
+that explicitly includes EVERY `3f298a6` deployment. The `3515402` `main` builds
+may remain ONLY because they contain no quota module at all — evidence recorded
+here, not assumed.
+
+  Live database — ONE TIMESTAMPED OBSERVATION, not a reading taken now:
+    public.admit_ai_request(13)  complete_ai_request(14)  consume_ai_quota(7)
+    observer_whoami(0)           record_ai_request(13)
+    pg_cron 0 · no cron schema · observer.maintenance absent
+    {{AUDIT_ROWS}} audit rows, {{AUDIT_V2}} at version 2 · {{BUCKETS}} buckets · oldest {{OLDEST_H}} hours
+
+  Every live number in this file comes from the one snapshot recorded in
+  scripts/release/live-snapshot.ts, observed at {{OBSERVED_AT}}, and is
+  reported in full in RETENTION-EVIDENCE.txt section 1. No file in this package
+  carries its own copy of a value that changes every hour.
+
+
+================================================================================
+6. SIGNATURE COMPATIBILITY — PROPERTY 1 ONLY
+================================================================================
+
+This table says whether the call RESOLVES. It says nothing about whether a
+deployment answers, which is property 2 and depends on the pepper.
+
+  SHA        NOW           AFTER MIG 3     AFTER MIG 4     AFTER CONTRACT
+  ---------  ------------  --------------  --------------  --------------
+  3515402    n/a (no RPC)  n/a             n/a             n/a
+  f563168…b33f13d          resolves        resolves        FAILS CLOSED
+  1ee5d2d    FAILS CLOSED  FAILS CLOSED    FAILS CLOSED    FAILS CLOSED
+  3f298a6    resolves      resolves, v1    resolves, v1    resolves, v1
+  {{HEAD_SHORT}}    not deployed  would resolve   would resolve   would resolve, v2
+
+  For every build up to b33f13d the runtime question does not arise: they
+  predate the mandatory pepper. For 3f298a6 and later, a resolving signature is
+  necessary and NOT sufficient.
+
+{{EXECUTABLE_SQL_BLOCK}}
+
+
+================================================================================
+7. THE THREE VERIFIERS, AND WHAT EACH ONE ASKS
+================================================================================
+
+  observer-http-compat-proof.sql   Did the deployed build write the audit row it
+                                   was supposed to write? Four modes; the mode
+                                   decides the expectation. 13 rows.
+
+  observer-ai-readiness.sql        Did a MODEL answer? A different question: the
+                                   compatibility proof accepts
+                                   `deterministic_composer` as a complete pass,
+                                   correctly, so a deployment with no
+                                   `OPENAI_API_KEY` reads 13/13 while never
+                                   calling a model. 11 rows.
+
+  observer-contract-readiness.sql  May the contract migration be applied? It can
+                                   never say READY. Its external gate now covers
+                                   both retirement capabilities above.
+
+ROW 11 OF THE READINESS GATE now reads ONE definition — the conjunction of all
+ten conditions — instead of two of them. It has three sentences:
+
+  live AI is answering
+      exactly one row, state complete, response_source model, model_attempted,
+      model_authored, no fallback_reason, provider openai, non-empty attempted
+      model, non-empty author model, and the two models equal.
+
+  Observer application works, but live AI is not yet enabled
+      a VALID composer row. Report exactly this — never "the AI is working".
+
+  Live AI is not proven — see the failed checks
+      anything else, including a row labelled `model` whose other columns
+      contradict it. "Not live" and "inconsistent" are different findings.
+
+Verified locally: 11/11 and "live AI is answering" on a model row; 5/11 and the
+composer sentence on a composer row; 8/11 and "Live AI is not proven" on a row
+crediting a model it did not attempt.
+
+
+================================================================================
+8. THE AUDITED ARTEFACTS ARE UNTOUCHED
+================================================================================
+
+Every artefact in this package, re-hashed at generation time and compared with
+the same path in the LAST DELIVERED BUNDLE — not the immediate parent, because
+a milestone is several commits and a reviewer is holding the previous ZIP.
+
+An earlier edition of this section was a TYPED LIST of hashes. It named
+444b01d9 for the contract migration after that file had changed, which is
+precisely why this block is rendered now.
+
+{{ARTEFACT_STATE_BLOCK}}
+
+THE ARCHIVES ALREADY DELIVERED, and their outer SHA-256. Declared in
+scripts/release/live-snapshot.ts rather than read back out of the files, so a
+fresh clone can rebuild this package without them:
+
+{{DELIVERED_ARCHIVES_BLOCK}}
+
+  This package's own outer hash is not in that list and cannot be: it is not
+  known until the archive exists, and embedding it would change the bytes it
+  names. The packager prints it and the covering report states it.
+
+

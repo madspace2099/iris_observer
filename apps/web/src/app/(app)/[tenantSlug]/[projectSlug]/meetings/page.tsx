@@ -1,75 +1,182 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import type { PeriodPreset } from "@observer/readmodels";
+
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
-import { dynamicRoute } from "@/lib/href";
+import { FilterBar, FindingList, PageHead, Synthetic } from "@/components/product";
+import {
+  MeetingRegister,
+  meetingFilterFields,
+  parseMeetingFilters,
+  type MeetingSearch,
+} from "@/components/meetings";
 
 export const metadata: Metadata = { title: "Meetings" };
 
 /**
- * Every showroom meeting in the period.
+ * PROJECT · MEETINGS — every showroom presentation in the period.
  *
- * A list, not a dashboard: the point of this page is to get to one meeting. It
- * carries only what distinguishes one row from another — who presented, how
- * long, how far into IRIS they went, and what was recorded at the end.
+ * A register, and the point of a register is to get to one record. Everything
+ * on this screen either narrows the list or distinguishes one row from another:
+ * who presented, which surface it ran on, how long it took, which units came
+ * up, how many were shortlisted, and what was recorded at the end.
+ *
+ * ## One read model, one call
+ *
+ * `getMeetings` returns the rows, the filter options, the findings, the two
+ * denominators and the sentence to show when nothing matches. It replaced a
+ * bare `listMeetings` array precisely so that this page would stop making the
+ * four decisions a component is not allowed to make (ADR-0012): what the period
+ * is called, which agents are worth offering as a filter, what an empty result
+ * means, and whether the register is worth saying anything about. All four now
+ * arrive resolved, and nothing on this page is counted, filtered or formatted.
+ *
+ * ## The filters are a GET form, and that is what makes the screen shareable
+ *
+ * "Every WEB IRIS meeting Martin gave that ended without a follow-up" is a URL.
+ * Submitting the bar replaces the query string with its own fields, which is
+ * why the period rides along as a hidden input — `FilterBar` emits one
+ * unconditionally, and without it every filter would silently return a reader
+ * who chose "Last 28 days" to the quarter.
+ *
+ * There is no date control among the three. The period is the shell's, stated
+ * once in the context band for every surface in the product, and a register
+ * carrying its own date range beside a page that already has one is how two
+ * panels come to measure different spans.
+ *
+ * ## Where the seam falls
+ *
+ * The head, the filters and the findings are on graphite: what we say about the
+ * period, and what a reader may do about it. The register itself is the one
+ * paper plate — nine columns of readings and nothing concluded — which is the
+ * division ADR-0034 defines and the reason the two grounds exist at all.
  */
 export default async function MeetingsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<MeetingSearch & { period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
-  const search = await searchParams;
+  const base = `/${tenantSlug}/${projectSlug}`;
+  // Declared in SURFACES, enforced here — a hidden link is not access control.
+  requireSurface(viewer, "meetings", base);
 
-  const meetings = await repository.listMeetings({
-    viewer,
-    tenantSlug,
-    projectSlug,
-    period: presetFrom(search.period) as PeriodPreset,
-  });
+  const search = await searchParams;
+  const period = presetFrom(search.period);
+  const filters = parseMeetingFilters(search);
+
+  const view = await repository.getMeetings({ viewer, tenantSlug, projectSlug, period }, filters);
+
+  const { context } = view;
+  const periodLabel = context.period.label.toLowerCase();
+  /*
+   * Whether the project has a CRM at all, read from the project's own declared
+   * sources rather than inferred from a row. It decides one thing on this
+   * screen: whether the follow-up column has a source to answer from, which is
+   * stated once above the table instead of forty times inside it.
+   */
+  const crmConnected = context.project.connectedSources.includes("crm");
+  const narrowed = view.total !== view.periodTotal;
 
   return (
-    <div className="iris-one">
-      <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Meetings</p>
-        <h1 className="iris-section">{meetings.length} showroom presentations.</h1>
-        <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Open one to see it reconstructed step by step — the sections in the order they were shown,
-          the units opened inside them, and what the source could not record.
-        </p>
+    <div className="ox-page">
+      <PageHead
+        kicker="Project · Meetings"
+        title="Meetings"
+        /*
+         * A statement of scope rather than a verdict, and deliberately so.
+         *
+         * `MeetingListView` carries findings and no verdict, which is right: a
+         * register does not have an opinion about itself. What the reader needs
+         * in the first ten seconds is how much they are looking at and out of
+         * how much — a figure and its denominator, which is the one thing the
+         * page rules never allow to be separated.
+         */
+        answer={
+          narrowed
+            ? `${view.total} of ${view.periodTotal} presentations recorded on ${context.project.name} in ${periodLabel} match the filters below.`
+            : view.periodTotal === 0
+              ? /* The read model's own sentence: nothing has arrived, or nothing in this period. */
+                view.emptyState
+              : view.periodTotal === 1
+                ? /* A project's first real meeting is the day this sentence is read most closely. */
+                  `One presentation was recorded on ${context.project.name} in ${periodLabel}.`
+                : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
+        }
+        lede="One row is one presentation. A visitor is named by their history with this project and never by a contact detail. The outcome column is what the agent selected in the room at the end of the meeting — it labels the presentation, and it is not a verified sale."
+        crumbs={[{ label: "Project", href: `${base}/project` }, { label: "Meetings" }]}
+        aside={<Synthetic />}
+        period={period}
+      />
 
-        <div className="iris-matrix" style={{ marginTop: ".75rem" }}>
-          <div className="iris-matrix-head">
-            <span>when</span>
-            <span>agent</span>
-            <span style={{ textAlign: "right" }}>length</span>
-            <span style={{ textAlign: "right" }}>sect</span>
-            <span style={{ textAlign: "right" }}>units</span>
-            <span />
-            <span />
-            <span style={{ textAlign: "right" }}>outcome</span>
+      <div className="ox-body">
+        {/*
+         * With no meeting in the period there is nothing to narrow, and the bar
+         * was three controls that did nothing beside "0 of 0 meetings". A filtered
+         * view that matches nothing keeps it: there the bar is how the reader gets
+         * the meetings back.
+         */}
+        {view.periodTotal === 0 ? null : (
+          <section className="ox-plane">
+            <div className="ox-section-head">
+              <h2 className="ox-section-title">Narrow the register</h2>
+              <p className="ox-section-note">
+                Each option carries how many meetings it would keep, counted over the whole period
+                rather than over what is already on screen. The dates come from the period in the
+                bar above.
+              </p>
+            </div>
+
+            <FilterBar
+              action={`${base}/meetings`}
+              fields={meetingFilterFields(view.options, view.filters)}
+              period={period}
+              resultCount={`${view.total} of ${view.periodTotal} meetings`}
+              label="Narrow the meeting register"
+            />
+          </section>
+        )}
+
+        {/*
+         * THE PAPER PLATE. Nine columns of readings, one row per presentation.
+         *
+         * The densest measured body in the product, and the case ADR-0034 wrote
+         * the light ground for. Nothing inside it is concluded; everything
+         * concluded about it is on the graphite above and below.
+         */}
+        <div className="ox-plate ox-paper">
+          <div className="ox-plate-inner">
+            <MeetingRegister
+              rows={view.rows}
+              period={period}
+              caption={`Showroom presentations on ${context.project.name}, newest first. ${view.total} of ${view.periodTotal} in ${periodLabel}.`}
+              emptyState={view.emptyState}
+              crmConnected={crmConnected}
+            />
           </div>
-          {meetings.map((m) => (
-            <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
-              <span className="iris-matrix-code">{m.label}</span>
-              <span className="iris-bar-label">{m.agentName}</span>
-              <span className="iris-matrix-num">{m.durationDisplay}</span>
-              <span className="iris-matrix-num">{m.sectionCount}</span>
-              <span className="iris-matrix-num">{m.unitCount}</span>
-              <span />
-              <span />
-              <span className="iris-matrix-num" style={{ textAlign: "right" }}>
-                {m.outcomeLabel}
-              </span>
-            </Link>
-          ))}
         </div>
-      </section>
+
+        <section className="ox-plane">
+          <div className="ox-section-head">
+            <h2 className="ox-section-title">What the register shows</h2>
+            <p className="ox-section-note">
+              Each statement carries what it rests on, how many meetings stand behind it, and where
+              to look next.
+            </p>
+          </div>
+
+          <FindingList
+            findings={view.findings}
+            period={period}
+            sampleNoun="meetings"
+            emptyNote="Nothing about this period's register was worth stating on its own. That is the read model's answer, not a gap in it."
+          />
+        </section>
+      </div>
     </div>
   );
 }

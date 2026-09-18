@@ -12,3 +12,24 @@ docs/coverage-report.md
 docs/coverage-report.json
 e2e/
 playwright.config.ts
+
+# Screenshots, contact sheets and comparison output. Generated, not authored.
+artifacts/
+
+# Agent tooling that lives beside the code but is not the code: the Impeccable
+# skill's own scripts and vendored browser bundles, and the state directories
+# its live mode writes. Formatting them would only make the next upgrade of the
+# tool an unreadable diff.
+.claude/
+.impeccable/
+**/.impeccable/
+
+# Generated from packages/contracts/src/ue5 by "pnpm contracts:ue5".
+docs/ue5-contract/
+
+# The inbound Ask IRIS design export, served by the development server so the
+# artefact can be rendered and measured against the implementation. Delivered
+# by the user, not authored here, and excluded from git in .git/info/exclude —
+# formatting somebody else's export would only make the diff against the next
+# one unreadable.
+apps/web/public/_ask-reference/

@@ -1,0 +1,2115 @@
+IRIS OBSERVER — INDEPENDENT REVIEW BUNDLE
+Final commit {{HEAD_SHORT}} on release/observer-demo-rc1.
+
+THIS IS NOT A GO. Nothing in it may be applied, pushed or deployed until it has
+been reviewed.
+
+Scope: the control-character gate and the gate contract. The preflight recorded the
+server-variable fallback as a "finding" and gave no verdict; the compatibility
+table still called the browser-exposed variable "browser diagnostics" while the
+resolver uses it as a server fallback; four documents made freshness claims
+about a snapshot nobody re-read; and the intermittent test-gate failure was
+recorded as the single word FAILED, discarding the only evidence that could
+explain it.
+
+NOTHING ELSE MOVED. No application runtime code, no executable migration SQL,
+no migration source, no SQL verifier, no SQL prerequisite. Git state was read
+from the local repository only.
+
+OPERATOR DECLARATION, and labelled as one: no external access of any kind
+occurred in this milestone — no Supabase query, no Vercel read, no HTTP
+request. THIS IS NOT DERIVED FROM ANYTHING. Git history is evidence about
+files; it cannot show whether a network call was made, and an unchanged
+snapshot record is equally consistent with no query and with a query that
+returned the same values. An earlier edition presented the byte comparison as
+establishing that no query was made, which it never could.
+
+Sections 1 to 8 below carry the whole cumulative record for this release
+candidate, not just this round's change; section 1 opens with what this round
+corrected and then keeps the preceding rounds' findings, because a reviewer
+reading one bundle should not have to reconstruct the others.
+
+
+================================================================================
+0. STATE, RECORDED BEFORE ANY CHANGE THIS ROUND
+================================================================================
+
+THE START OF THIS ROUND is the commit of the last archive handed over, which is
+where the audit that opened it was performed. It is derived from the delivery
+list rather than written here: a hard-coded start HEAD named f1dbffd for eight
+further deliveries, describing a finished round as "this round".
+
+  branch                            release/observer-demo-rc1  (never left)
+  local HEAD at the start           {{START_HEAD}}
+  remote release/observer-demo-rc1  {{REMOTE_RELEASE}}
+  remote main                       {{REMOTE_MAIN}}
+  working tree                      CLEAN
+  behind / ahead at the start       {{START_BEHIND}} / {{START_AHEAD}}
+
+  local HEAD now                    {{HEAD}}
+  behind / ahead                    {{BEHIND}} / {{AHEAD}}
+
+  {{LOCAL_ONLY_SENTENCE}}
+
+MIGRATIONS — as recorded by the catalogue query in the carried-forward
+snapshot. NOT re-read at {{HEAD_SHORT}}; see the provenance line in
+RETENTION-EVIDENCE.txt section 1:
+
+  APPLIED
+    20260825121909  observer_ai_rate_limiting
+    20260825121927  observer_ai_rate_bucket_pruning
+    20260825154900  observer_ai_public_facade
+    20260825173000  observer_whoami_diagnostic
+    20260825205000  observer_audit_provenance          (the EXPAND migration)
+
+  UNAPPLIED
+    20260826120000  observer_exact_retry_and_pseudonym_scope   ("migration 3")
+    20260826140000  observer_bucket_retention                  ("migration 4")
+    20260826090000  observer_audit_facade_cleanup   (the CONTRACT migration)
+
+  THE CATALOGUE VALUES, AND WHERE THEY ARE NOT FROM. An earlier edition
+  introduced these as "every field from that one query, at {{OBSERVED_AT}}".
+  The snapshot query selects six columns — an observation time, a bucket count,
+  two bucket ages and two audit-row counts — and none of the five below is one
+  of them. They were carried forward from earlier rounds, and nothing records
+  which query produced them or when, so each renders as unknown beside the value
+  that was carried:
+
+    public.admit_ai_request argument count: {{ADMIT_ARGS}}
+    observer.ai_requests.pseudonym_version columns: {{PSEUDONYM_COL}}
+    observer.run_rate_bucket_retention: {{RETENTION_FN}}
+    public.consume_ai_quota + record_ai_request: {{LEGACY_FACADES}}
+    pg_cron installed: {{PG_CRON}}
+
+  The carried values are consistent with migrations 3 and 4 and the contract
+  migration all being unapplied, which is what the migration catalogue above
+  states directly. That catalogue is the claim this package makes; these five
+  numbers are not evidence for it and are no longer written as though they were.
+
+DEPLOYMENT INVENTORY, AS LAST ENUMERATED — a historical reading, not a present
+state. At that enumeration there were twenty READY deployments over fourteen
+distinct SHAs, and the newest recorded then was 3f298a6, built 2026-08-25.
+Whether that is still true is UNKNOWN; nothing has looked since.
+{{DEPLOYMENT_INVENTORY_LINE}}
+{{INVENTORY_UNCHANGED_SENTENCE}}
+
+{{NOT_DEPLOYED_BLOCK}}
+
+WHAT THIS CANDIDATE IS, AND WHAT ITS PREDECESSORS WERE.
+
+Six different facts were being carried by one list, and the words for them
+were used interchangeably. They are separated here, and every count is read
+from the declaration rather than typed:
+
+{{PROVENANCE_BLOCK}}
+
+ENVIRONMENT METADATA: names and requirement in COMPATIBILITY-EVIDENCE.txt §3.
+PRESENCE, SCOPE AND VALUE REMAIN UNAVAILABLE FROM HERE.
+
+NO EXTERNAL MUTATION OCCURRED IN THIS ROUND. No Vercel environment variable was
+changed. No deployment was created, redeployed, promoted, protected or deleted.
+No Ask Observer HTTP request was made. pg_cron was not enabled. Supabase was not
+written to. No migration was applied. Nothing was pushed, merged or tagged.
+
+THAT IS A CLAIM ABOUT THIS ROUND, NOT ABOUT THE PROJECT. Earlier rounds did read
+Vercel and something did add a variable to the Production scope. The complete
+chronology is in section 3a, and no sentence in this document scopes it more
+broadly than the row it rests on.
+
+HISTORY WAS REWRITTEN IN THIS ROUND, UNDER EXPLICIT AUTHORISATION, AND ONLY
+LOCALLY. What follows is the whole of it, including the two gate results that
+led to it. Neither result is retracted by the repair.
+
+  THE FIRST RED. An authoritative gate ran at {{RED_FIRST}} and the secret
+  audit refused it: a tracked test file carried a forbidden secret-shaped
+  assignment. The fixture was the adversarial list of SHAPES a failed-suite
+  identity may not take, one of which is an environment assignment; the value
+  was an ordinary English word and no credential of any kind was involved. The
+  auditor was right anyway — a tracked file holding that pattern is what it
+  exists to refuse. The record is preserved at
+  {{RED_FIRST_RECORD}}.
+
+  ONE AUTHORISED FIX-FORWARD CANDIDATE. The fixture was changed to assemble the
+  string at run time, and that produced {{RED_SECOND}}.
+
+  THE SECOND RED. The gate ran once at {{RED_SECOND}} and the same audit
+  refused it again — this time because the COMMIT MESSAGE describing the fix
+  reproduced the pattern it had removed. `git show` prints a message above its
+  diff, so one pass covers both. The record is preserved at
+  {{RED_SECOND_RECORD}}.
+
+  NEITHER COMMIT WAS RETRIED. The milestone authorised one fix-forward
+  candidate and it was spent, so that milestone ended with no archive.
+
+  THE OPERATOR THEN AUTHORISED A LOCAL-ONLY HISTORY REPAIR, and rejected the
+  alternative. The alternative was to declare the offending commits exempt from
+  the audit. One entry had already been added for the fixture commit, and the
+  message commit would have needed a second — a control being negotiated away
+  one case at a time. The declaration is removed and no exemption of any kind
+  remains: no allowlist, no path exception, no commit-message exception.
+
+  WHAT THE REPAIR CHANGED. {{HISTORY_REPLACED_COUNT}} local-only commits above
+  {{HISTORY_BASE}} were replaced by {{HISTORY_REPLACEMENT_COUNT}} on the same
+  base: {{HISTORY_REPLACEMENT_LIST}}. The count is DERIVED from the branch, and
+  it had to be: an earlier edition said "replaced by one" while three commits
+  were already there, because the repair needed a second for the evidence and a
+  third for the hash accounting and neither the sentence nor the constant beside
+  it moved. Old range {{HISTORY_OLD_RANGE}} at tree {{HISTORY_OLD_TREE}};
+  new range {{HISTORY_NEW_RANGE}} at tree {{HISTORY_NEW_TREE}}.
+  Nothing at or before that commit was touched. Every commit replaced was local-only and unreachable from any
+  remote-tracking ref, which was proved before anything was rewritten. The
+  superseded commits are no longer reachable from this branch or from any ref;
+  no claim is made here that their objects were physically pruned.
+
+  WHAT THE REPAIR DID NOT CHANGE. It does not retract either gate result. Both
+  red records remain byte-identical and are listed above. Neither {{RED_FIRST}}
+  nor {{RED_SECOND}} was ever delivered as an archive, so neither appears in
+  any delivery count.
+
+NO SECRET WAS GENERATED, DISPLAYED OR HANDLED. The pattern both gates refused
+was a test fixture describing a shape, and it is assembled at run time now so
+that no tracked file and no commit contains it.
+
+
+================================================================================
+1. WHAT THIS ROUND FIXED
+================================================================================
+
+A — A SECRET-SHAPED LITERAL WAS IN REACHABLE HISTORY, IN THIS SUITE'S OWN
+    FIXTURE.
+
+The detector fixture that proves the no-secret-recipe scanner catches an API-key
+assignment contained one, written out in full. Deleting it from the working tree
+made the repository WORSE rather than better: the commit that added it and the
+commit that removed it both remain in history, so a scan over
+`origin/main..HEAD` found the literal twice instead of once, in diffs that
+cannot be edited without rewriting the commits that carry them.
+
+Two corrections, and both were needed:
+
+  * THE FIXTURE ASSEMBLES ITS VALUE AT RUN TIME. Fragments are joined into the
+    shape the auditor refuses; no tracked byte carries the assembled string. A
+    test asserts this directly, with `git grep -F` over tracked text for the
+    assembled value — so the fixture cannot quietly regress into a literal.
+    THIS IS NOT AN ALLOWLIST AND NOT AN OBFUSCATION: the scanner is unchanged,
+    has no exception for these files, and still refuses the assembled value.
+  * THE TWO LOCAL-ONLY COMMITS WERE REWRITTEN, under explicit authorisation and
+    only above `7ac84fa`. Nothing at or before `7ac84fa` was touched, nothing
+    pushed or deployed was touched, and nothing was force-pushed — the rewritten
+    commits had never left this machine. The result is verified by identity, not
+    by assertion: the new commit's TREE hash equals the old one's
+    (`cba383d0e0069df63967bc898f08b477cc50b4bb`), and `git diff` from
+    `7ac84fa` to each of the two heads hashes identically
+    (`b872d6e1afe3618a7b441d0c6987d53b50e7a698c61f501adac6a5a1da63042c`), so
+    the content is provably unchanged and only its packaging into commits
+    differs. The discarded commits are unreachable: reflogs expired, `git gc
+    --prune=now` run, no ref names them. The recovery patch written before the
+    rewrite was itself scanned clean and then removed.
+
+`node scripts/secret-audit.mjs` is now clean across all four of its passes —
+working tree, staged diff, `origin/main..HEAD` history, and the browser bundle.
+
+NO SECRET WAS INVOLVED AT ANY POINT. The fixture value never was a credential;
+it has the SHAPE the auditor looks for, which is the entire reason the fixture
+exists.
+
+B — THE TESTS THAT VERIFY THE PACKAGER WERE GUARDED ON THE PACKAGER'S OWN
+    PRECONDITION.
+
+The packager refuses without a current, green `.release/gate-results.json`, and
+that is right. But the suites that exercise it were guarded on the SAME
+condition — `describe.runIf(gateRecordIsCurrent)` — and one of them additionally
+on `_review/<head>` already existing.
+
+That is circular. The record is written at the END of the gate, so during a
+fresh commit's own authoritative run the guard was false and TWENTY-TWO TESTS
+DID NOT RUN — seven control-character package tests and fifteen
+package-generation tests — in the run whose output is the evidence that the
+package is sound. The staged-package secret scan made twenty-three, guarded on
+`_review/<head>` and therefore skipped everywhere the package had not already
+been built, which is every machine that had not already built it.
+
+The fix is not to relax the precondition, and there is no test-only bypass.
+`packagingProblems()` is now a pure function of its three inputs, and
+`build(out, { gateRecordRoot })` chooses WHERE the record is read — never
+WHETHER it is checked. Each suite writes its own structurally valid synthetic
+record into its own temporary root, and
+`supabase/test/support/synthetic-gate-record.ts` asserts that record satisfies
+the real `gateRecordProblems()` contract before returning it. A fixture that
+could not pass the real contract would make every test built on it meaningless.
+
+No test reads, writes or deletes the developer's real `.release/` directory any
+more, and no test requires an earlier bundle to be on disk.
+
+C — THE SKIPPED COUNT MEASURED THE DEVELOPER'S DISK.
+
+The skipped total moved between two runs of the same commit — 24, then 23 — and
+the record could not say which case had moved, because it stored a number and
+not an identity. The cause was the guards themselves: they were conditioned on
+untracked, gitignored state — whether `.release/gate-results.json` existed,
+whether `_review/` held two delivered archives, whether the working tree
+happened to be dirty — so the count tracked the contents of directories that are
+not in the repository.
+
+THE FOUR GUARDS AND WHAT EACH ONE COST, since a drifting total is only
+explicable once the parts are named:
+
+  7   control-character package tests   `.release/gate-results.json` is current
+  15  package-generation tests          the same record, plus a clean tree
+  1   staged-package secret scan        `_review/<head>` already on disk
+  2   archive-inventory comparisons     two delivered ZIPs in `_review/`
+  1   `spawnSync` signal reporting      the platform — the only legitimate one
+
+Every combination of the untracked ones is reachable, which is why 24 and 23
+were both observed at one commit and why neither could be explained from the
+record: it stored a total and no identities. THIS IS NOT A DIAGNOSIS OF WHICH
+RUN WAS WHICH — that evidence no longer exists — it is the reason no total was
+diagnosable.
+
+Every one of those guards is gone. The dirty-tree refusal is now asserted from a
+literal through `packagingProblems()` rather than by waiting for somebody to
+have uncommitted work; the archive-inventory checks compare each present archive
+against the recorded snapshot instead of pairwise, which needs no second
+archive; and the record-shape check reads the runner's source and a record it
+writes itself.
+
+ONE SKIP REMAINS, and it is inapplicable by PLATFORM rather than by state:
+`spawnSync` signal reporting, which Windows does not have. Its reason is in its
+TITLE — "(POSIX only; skipped on win32)" — because the record stores a suite
+basename and a bounded title and nothing else. Section 7 now prints the skipped
+tests BY IDENTITY, so a count is never reported without saying which case it is.
+
+D — A FAILURE MESSAGE COULD HAVE CARRIED ANYTHING INTO THE RECORD.
+
+`.release/gate-results.json` is staged into the archive. Vitest's JSON report
+carries `failureMessages` — the assertion's `expected` and `received` rendered
+as text — and this repository's own suites assert over environment names,
+resolver inputs and fixture values.
+
+The reduction from report to record was inside `run-gates.ts`, whose module
+executes the whole gate on import, so the claim "no message reaches the record"
+could not be tested at all. `summarizeReport()` now lives in `gate-run.ts`,
+is pure, and names every field of its result explicitly rather than copying an
+object through — so a field the reporter adds later reaches the record only if
+somebody puts it there deliberately.
+
+It is tested by driving a report whose failure message carries a secret-SHAPED
+value, assembled at run time, through `summarizeReport()` and
+`classifyTestGate()`, and asserting the auditor's own rule does not match the
+serialized result. The hostile case includes a NUL, backspaces and four thousand
+characters, and asserts the suite identity is a basename rather than a path.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
+
+A — THE CONTROL-CHARACTER GATE WAS A SENTENCE, NOT A MEASUREMENT.
+
+The gate contract accepted any verdict text for the scan unless it contained the
+uppercase word FAILED. Two strings that permitted packaging:
+
+    "raw-NUL scan": "8 FOUND"
+    "raw-NUL scan": "BROKEN"
+
+Neither contains the word, so neither was rejected. A gate whose result is a
+COUNT cannot be checked by reading prose about it.
+
+The record now carries structured evidence — `scannedFiles`, `foundCharacters`,
+`affectedFiles` — and the contract checks it as data. Every field must be
+present and correctly typed; the count must be exactly zero; the file list must
+be empty; the two halves must agree with each other; the scan must have looked
+at something; and the recorded verdict string must be the one that describes
+THAT scan, so a clean-looking sentence beside a non-zero count is itself a
+refusal. Absent, malformed, negative, fractional and non-zero values all refuse.
+
+B — THE SCAN RAN IN THE WRONG PLACE, AND THE ARCHIVE PROVED IT.
+
+The delivered `1b8b912` archive contained EIGHT literal BACKSPACE bytes — two in
+patch 0034, four in 0035, two in 0036 — under the heading "control-char scan 0".
+Both halves of that are explicable and neither is acceptable:
+
+  * THE PATCHES ARE FAITHFUL. Those bytes are in the repository's history. A
+    diff without them would be a wrong diff. THEY ARE NOT ALL REMOVALS: this
+    document previously called them "the REMOVED lines of the three commits
+    that removed them", and measured, patch 0034 ADDS both of its bytes and
+    removes none. Where each one actually sits is measured per build and
+    printed in `patches/TRANSPORT-SAFE.txt`, never restated here.
+  * THE SCAN NEVER SAW THEM. It ran over tracked files, before `format-patch`
+    had written a single patch. Its number was true about the working tree and
+    silent about everything the packager produces.
+
+There are three scans now, and they are reported as three:
+
+    tracked working tree     the gate, over every tracked file
+    staged package           after staging and rendering, before the manifest
+    written archive          every entry inflated back out of the ZIP
+
+The second and third refuse the build outright, and a failing archive is
+DELETED rather than left on disk. None of them is summarised into the others.
+
+C — HOW THE HISTORICAL PATCHES TRAVEL.
+
+History is not rewritten and the patches are not excluded from the scan. Each
+patch from a DECLARED commit — named by full SHA in
+`scripts/release/transport-safe.ts`, each with a reason and a DECLARED BYTE
+DISTRIBUTION — ships base64-encoded instead of raw, with
+`patches/TRANSPORT-SAFE.txt` beside them.
+
+THE COUNT IS NOT WRITTEN HERE. It was, and it went stale: "three of them" was
+true of the `1b8b912` series and the list has grown to five since, because two
+later commits added and then removed the backspaces a transport-safe test needed
+in order to measure backspaces. `{{PATCH_SUMMARY}}` is rendered from the build
+that produced this archive, and a test regenerates the patches with
+`git format-patch` and refuses any declared distribution that does not match the
+bytes git produces.
+
+THOSE FILES ARE NOT DIRECTLY `git am` APPLICABLE. They decode to bytes identical
+to what `git format-patch` produces, so the recovered patch is applicable and
+its hash is the patch's hash — but the shipped bytes are base64 and the document
+says so rather than implying mail-patch applicability. Every other patch is raw
+and directly applicable, and the manifest lists what is actually present.
+
+The list is keyed on the COMMIT, not on "whatever contains a control character".
+Encoding by content would turn the package scan into a formatting step: an
+accidental byte in a new patch would be quietly encoded away instead of
+refused. A control character in any other patch still fails the build, and the
+tests inject one into a patch, a rendered evidence file, the staged gate record,
+a staged generator and the manifest to prove each refuses.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
+
+A — A FOREIGN ORIGIN COULD PASS AS THE APPROVED PROJECT.
+
+`projectRef()` parsed the URL and returned `hostname.split(".")[0]`. That is
+the first label of ANY host, so both of these resolved to the approved ref and
+produced `MAPPED`/PASS:
+
+    https://<approved-ref>.example.com             — a foreign origin
+    https://<approved-ref>.supabase.co.evil.test   — suffix confusion
+
+Neither is the Observer database, and the failure is silent in the worst way:
+the operator sees exactly the ref they expected and records the mapping as
+proved. A rule that reads one label of a hostname is not checking the hostname.
+
+Only the canonical hosted origin is accepted now —
+`https://<project-ref>.supabase.co`, at most one trailing slash — as an
+anchored whole-string pattern plus an independent URL parse that must agree with
+it. That rejects by construction, not by enumeration: every foreign domain,
+every extra label before or after `supabase.co`, `http`, userinfo, an explicit
+port including the `:443` that WHATWG parsing silently normalises away, any
+path beyond `/`, query strings, fragments and a trailing dot. The public URL is
+validated identically, and an unparseable public value is its own STOP rather
+than being folded into "the two disagree" — one of them names nothing at all,
+which is a different fact. Twenty invalid origins are asserted to reach STOP and
+never PASS, in both positions.
+
+SCOPE, stated rather than assumed: this release targets HOSTED Supabase. A
+self-hosted deployment has a different origin shape and does not get one here,
+because accepting a shape this project does not use is how the hole appeared.
+
+B — PAUSE LED NOWHERE.
+
+`TOOLING_CANNOT_ISOLATE` paused and stopped there. The surrounding prose then
+told the operator — as it told every non-PASS state — to correct the
+configuration and restart, which is wrong advice: PAUSE says the TOOLING could
+not show the value, not that the value is bad. So the operator was left holding
+a dashboard observation with no defined way to turn it into a decision, and an
+instruction to change something on no evidence.
+
+There is a MANUAL CONFIRMATION path now, and it is the only route from PAUSE to
+a proved mapping. PAUSE never permits step 2. Matthew reads only the exact
+non-secret origin or project ref; that observation is compared with the approved
+ref through a separately identified path; only a successful comparison yields
+`MAPPED`/PASS, marked `via: "manual"` so a hand-read mapping is distinguishable
+from a tool-read one. A missing observation STOPs and NO PUBLIC URL CAN RESCUE
+IT. A malformed observation STOPs. A mismatch STOPs — and that one IS a
+configuration fault, so it restarts step 1 rather than re-entering manual
+confirmation. PAUSE's own remedy says explicitly not to rotate or replace
+anything.
+
+C — THE PACKAGER BUILT WITHOUT GATE EVIDENCE.
+
+It rendered section 7 from whatever `.release/gate-results.json` held, and built
+happily when it held nothing: a missing file produced "GATES NOT RECORDED", a
+file from another commit produced a "STALE" banner, and both went into an
+archive that otherwise looked complete. A reviewer then holds a package whose
+verification section says, in small print, that there is none.
+
+The record is a PRECONDITION now. It must exist, name the exact HEAD being
+packaged, and be clean on every required gate — process status, signal, spawn
+error, report verdict, failed tests, failed suites and runtime-error suites,
+each checked independently and each fail-closed on an absent field. The
+sanitized record is STAGED INTO THE ARCHIVE as `gate-results.json`, so the
+claims in section 7 can be checked against the machine-readable evidence they
+were rendered from.
+
+One defect surfaced while testing it, and it is worth naming because it is the
+same class as everything else here: the check for a failed gate used a
+case-INSENSITIVE match on "FAILED", which also matched the "0 failed / 40 files"
+in a perfectly clean test line. It rejected every green record. Case-sensitive
+now, with the reason written down.
+
+D — SUITE-LEVEL EVIDENCE WAS DISCARDED.
+
+The hook-timeout diagnosis depended on `numFailedTestSuites` and the name of the
+failing file, and the persisted record kept neither. It keeps
+`reportedFailedSuites`, a derived `runtimeErrorSuites` count — suites that failed
+while recording NO failed assertion, which is exactly what a hook error, a
+collection error or a timeout looks like — and the BASENAMES of the failing
+suites. Each fails the gate independently, including when `reportSuccess` is
+unexpectedly true. Basenames only: a path is machine-identifying detail and a
+message is unbounded text.
+
+E — PROVENANCE CONFLATED THREE DIFFERENT FACTS.
+
+"Recorded in these bundles", "last actually enumerated against Vercel" and
+"currently accurate" are three things, and the enumeration point was being
+DERIVED from the last entry of the recorded-in list. That is wrong by
+construction: the list grows every milestone while the enumeration stays where
+it was, so the package claimed the inventory had been enumerated for `e18f860`
+when the last enumeration was `f1dbffd`, three deliveries earlier. There is an
+explicit `LAST_VERCEL_ENUMERATION` constant now, never derived, and the count of
+prior bundles is distinguished from the current candidate.
+
+The snapshot comparison was also over-read. Comparing the `LIVE` literal has
+exactly three outcomes — RECORD UNCHANGED, RECORD CHANGED, COMPARISON
+UNAVAILABLE — and all three are about recorded bytes. IT CANNOT ESTABLISH
+WHETHER A QUERY WAS EXECUTED: an unchanged record is equally consistent with no
+query and with a query returning the same values; a changed record is equally
+consistent with a re-read and with somebody editing the constant. The claim that
+the comparison "establishes that no query was made" is gone, and so is its
+inverse. That this milestone made no external access is an OPERATOR DECLARATION,
+labelled as one.
+
+F — THE CONTROL-CHARACTER SCAN LOOKED FOR ONE BYTE.
+
+Twice in this milestone a shell-escaping slip injected literal BACKSPACE bytes
+into a regular expression in this repository. a pattern with a raw backspace byte on either side of FAILED is
+indistinguishable from `/FAILED/` in an editor and matches nothing, so a gate
+check was silently disabled — and the raw-NUL scan, which looked for 0x00 only,
+reported clean. It scans every C0 control character now, tab, newline and
+carriage return excepted, and it found both occurrences.
+
+G — A HEADING NAMED THE WRONG COMMIT.
+
+`PEPPER-CONTRACT.txt` said "Commit f1dbffd" while its contents had changed in
+four later milestones. It renders the current HEAD and labels f1dbffd as the
+introduction commit.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW.
+  ---------------------------------------------------------------------------
+
+THIS ROUND, A — a recorded state with no decision attached.
+
+The preceding round established the fact and stopped there: an absent or blank
+`SUPABASE_URL` activates the resolver's fallback to the browser-exposed
+variable, and the preflight was told to "record that as a fallback in effect
+… and treat it as a finding". A finding is not a decision. The same document
+says three paragraphs earlier that the public variable must never substitute for
+the authoritative server mapping, so the operator was being told the mapping was
+unproved and given no instruction that stopped them.
+
+EVERY STATE NOW CARRIES A VERDICT, and none of them says "note it and continue":
+
+  TOOLING_CANNOT_ISOLATE   PAUSE   Matthew reads it in the dashboard
+  SERVER_URL_ABSENT        STOP    the server variable is absent, so the resolver
+                                   would consult the public one; whether that
+                                   supplies any destination is UNKNOWN
+  SERVER_URL_MALFORMED     STOP    no fallback happens; there is no destination
+  SERVER_PROJECT_WRONG     STOP    a different ref is a different database
+  PROJECTS_DISAGREE        STOP    browser and server are on two databases
+  MAPPED                   PASS    record the ref; step 2 may be reached
+
+A PUBLIC URL NAMING THE APPROVED PROJECT DOES NOT CONVERT THE FALLBACK INTO A
+PASS. It is the most tempting way past this gate and precisely the substitution
+the rule forbids.
+
+PAUSE AND STOP TAKE DIFFERENT REMEDIES, and running them together is the same
+mistake this section opened by describing. Stated separately:
+
+  PAUSE   THE VALUE WAS NOT OBSERVED. The tooling could not isolate it and
+          nobody has read it by hand. Nothing is known to be wrong, so there is
+          NO configuration change and NO restart. The remedy is the manual
+          confirmation path: Matthew reads the exact non-secret origin — the
+          COMPLETE canonical origin, character for character, not merely the
+          project ref extracted from it — and that observation is compared with
+          the approved ref. PAUSE's own remedy says explicitly not to rotate or
+          replace anything.
+
+  STOP    THE VALUE WAS OBSERVED AND IS WRONG, OR IS OBSERVED ABSENT. A server
+          row read and found missing is a finding about the environment, not an
+          incomplete confirmation; so is a malformed origin, a ref that names a
+          different project, and a browser and server pair that disagree. Each
+          takes an explicit operator decision, a CONFIGURATION CORRECTION, and a
+          RESTART OF PREFLIGHT STEP 1.
+
+  The distinction is not cosmetic. "Nobody looked" and "somebody looked and
+  there is nothing there" reach different states and different remedies, and
+  collapsing them is what sent an operator to change configuration on no
+  evidence.
+
+  THE COMPLETE ORIGIN IS WHAT IS RECORDED, not the ref. A bare project ref is
+  what survives extraction, not what was configured, so it cannot by itself show
+  the configured value had the required origin shape. Any instruction to record
+  only the ref is withdrawn: the origin is retained and the ref is reported from
+  it once the shape has been proved.
+
+An earlier edition wrote "every non-PASS state requires ... a configuration
+correction, and a RESTART OF PREFLIGHT STEP 1", which swept PAUSE into the STOP
+remedy and reinstated exactly the wrong advice section B removes. Only a
+MISMATCH found by manual confirmation restarts step 1, and it does so because a
+mismatch IS a configuration fault.
+
+Either way, step 2 is unreachable until step 1 returns PASS for every relevant
+environment.
+
+The table lives in `scripts/release/preflight.ts` and is RENDERED into the
+pepper contract, so the rule the documents state is the rule
+`supabase/test/supabase-resolver.test.ts` executes.
+
+THIS ROUND, B — the compatibility table still contradicted the resolver.
+
+It listed `NEXT_PUBLIC_SUPABASE_URL` as "optional; browser diagnostics", which
+is not what the code does with it. The two are now described separately:
+`SUPABASE_URL` is the first-choice server source and mandatory under the rollout
+contract; `NEXT_PUBLIC_SUPABASE_URL` is browser-exposed AND a current server
+fallback that the rollout contract rejects. The unqualified claim that only the
+server variable can ever be used by the runtime is gone — it is used WHEN VALID
+AND PRESENT, and the resolver as written contains the fallback.
+
+THIS ROUND, C — a framework claim this repository could not make.
+
+"Next.js inlines a variable into the client bundle if and only if its name
+begins with `NEXT_PUBLIC_`" is false as stated: `next.config.*` also honours an
+explicit `env` map that can bundle any name. Replaced with a proven,
+application-specific fact — `apps/web/next.config.ts` declares no `env` map, no
+`publicRuntimeConfig`, no `serverRuntimeConfig` and no `DefinePlugin`, so nothing
+here maps `SUPABASE_URL` into the client bundle. Asserted against the file, and
+checked empirically by `pnpm audit:secrets`, which scans the BUILT bundle. NO
+SUCH MAPPING EXISTS; had one been found this milestone would have stopped and
+reported it.
+
+THIS ROUND, D — the resolver test did not execute the resolver.
+
+It asserted that `URL_NAMES` was a particular array literal. The array could
+have stayed exactly as written while `read()` stopped honouring its order, and
+every document built on "in that order" would still have read as proved.
+`supabase/test/supabase-resolver.test.ts` now drives the exported
+`resolveServerSupabase` and `diagnoseServerSupabase` through seven behaviours —
+server preferred over public, absent falls back, blank falls back, malformed
+refuses rather than falling back, mismatched projects still select the server at
+runtime while the preflight STOPs, server-only, and nothing usable — with
+synthetic URLs and one fixed synthetic credential. No generator, no print.
+
+THIS ROUND, E — four documents claimed a freshness nobody had.
+
+The package asserted "no Supabase query was made this round", "verified by one
+live query, the only external access this milestone made", "Live database,
+re-read this round" and "the oldest bucket is now N hours". Those cannot all be
+true. What is proven is narrower and is now stated that way: a read-only
+snapshot was observed at {{OBSERVED_AT}}, it contained the recorded values, and
+it reached this package unaltered. The current live state is UNKNOWN.
+
+WHAT THE BYTE COMPARISON DERIVES, WHICH IS LESS THAN FRESHNESS. An earlier
+edition of this paragraph said "freshness is now DERIVED". It is not, and cannot
+be: comparing `live-snapshot.ts` against its copy in the last archive handed
+over yields exactly three answers —
+
+  record unchanged        the same values are recorded as before
+  record changed          the recorded values differ from that archive's
+  comparison unavailable  there is no copy there to compare against
+
+— and NONE of them says whether a query was run, when it was run, or whether the
+live state matches. A CHANGED record is equally consistent with somebody editing
+the constant by hand. What the comparison does prevent is the specific lie the
+previous packages told: a document claiming a reading was taken this milestone
+while the file it came from had not moved since the last one. Section 3a is
+rendered from that comparison, so the claim cannot be typed by hand. NO NEW QUERY
+WAS RUN TO MAKE THE OLD WORDING TRUE.
+
+THIS ROUND, F — the intermittent gate failure left no evidence.
+
+The test gate exited non-zero twice in five runs while Vitest's JSON report
+declared every test passing. The runner stored `FAILED`, printed a transient
+tail, and discarded the exit status, the terminating signal and the spawn error
+code — the only three facts that separate a runner-level exit from a suite
+result.
+
+It uses `spawnSync` now and keeps a typed result: `ok`, `status`, `signal`,
+`errorCode`, `reportSuccess`, `reportedFailedTests`, `countedFailedTests`. The
+gate is fail-closed on each independently — non-zero status, missing or
+unparseable report, `success !== true`, and either count of failed tests — and
+there is no retry anywhere in it, because re-running until the answer is green
+is how an intermittent fault becomes an invisible one. Two counts of failed
+tests are kept because a summary field and the assertion results are two claims.
+
+IT NAMED ITSELF ON THE FIRST RUN AFTER THE REFACTOR, AND THEN IT WAS FOUND.
+The keeping of evidence is what found it: the previous runner reported the word
+FAILED, and the word FAILED cannot be investigated.
+
+Two shapes were recorded:
+
+    status=1  signal=null  errorCode=null  reportSuccess=null
+    reasons: exit status 1; no readable JSON report
+
+  seen once, with Vitest printing an unhandled `ERR_IPC_CHANNEL_CLOSED` from a
+  worker-thread MessagePort. No report was written at all, which is why the
+  earlier instrumentation showed a report saying nothing rather than a report
+  saying zero failures.
+
+    status=1  signal=null  errorCode=null  reportSuccess=false
+    reportedFailedTests=0  countedFailedTests=0
+    reasons: exit status 1; report declares failure
+
+  seen seven times. The report IS written, declares failure, and names ZERO
+  failing tests. Reading it rather than only its summary gave the answer:
+  `numFailedTestSuites` was non-zero and the named file was
+  `package-generation.test.ts`.
+
+THE CAUSE IS A HOOK TIMEOUT IN THIS REPOSITORY'S OWN TEST, not a fault in the
+test runner and not a fault in the release tooling.
+
+`package-generation.test.ts` builds the complete package TWICE in `beforeAll` —
+`git format-patch` over the whole chain, every file staged, rendered, checked
+and deflated, twice, because proving determinism needs two. Alone that takes
+about sixteen seconds. Under the full suite, sharing a machine with eleven
+PGlite fixtures, it exceeds the global 30-second `hookTimeout` that was set for
+those fixtures.
+
+A HOOK TIMEOUT FAILS THE SUITE, NOT A TEST. Vitest exits non-zero with
+`numFailedTests: 0` — precisely the shape that made this look like a
+runner-level fault. And it explains the original observation exactly: two
+failures in five runs when the suite was smaller, then every run once the suite
+had grown past 1000 cases. That is a budget being crossed, not a race being
+lost.
+
+THAT ONE IS FIXED, and is stated as fixed only because it was verified: the
+hook now has its own 240-second budget, and consecutive full-suite runs under
+load report `status=0 success=true failedSuites=0 failedTests=0`. It accounted
+for every `reportSuccess=false` observation.
+
+A SECOND FAULT WAS THEN DIAGNOSED AND CORRECTED. It is described here as it
+finally stood, because earlier editions of this file called it open,
+unreproduced and unexplained and that is no longer true.
+
+THE SHAPE. A later gate run recorded a third one:
+
+    status=1  signal=null  errorCode=null  reportSuccess=true
+    reportedFailedTests=0  countedFailedTests=0
+    reasons: exit status 1
+
+  the process exits non-zero while the report declares complete success and
+  names no failing test or suite. NOT the hook timeout, which always produced
+  `reportSuccess=false`.
+
+  THAT RECORD IS NOT IN THIS ARCHIVE. An earlier edition said it was "preserved
+  as `failed-gate-7d941ba.json`", which was a claim about a working directory:
+  `.release/` is untracked, it is not packaged, and the gate writes its record
+  to one path that each later run overwrites. Nothing a reviewer holds can be
+  opened to check the shape above. What CAN be checked is in this repository's
+  history — the patches that follow `7d941ba` quote it — and the fields are
+  reproduced verbatim here rather than summarised.
+
+WHY NOTHING COULD EXPLAIN IT. Vitest 3.2.7's JSON reporter takes the
+unhandled-error list as `_errors` and DISCARDS it, computes `success` from
+failed tests and suites alone, and writes an object with no field for it — while
+Vitest sets `process.exitCode = 1` whenever that list is non-empty. An unhandled
+error is the only condition that produces exit 1 beside a written, green report;
+every other path either implies a failed test or suite, which `success` would
+report, or aborts before a report naming every file could exist. The gate was
+reading the one artefact that structurally cannot express what it needed.
+
+WHAT IT ACTUALLY WAS — AND WHERE. The shape above was observed at `7d941ba`,
+where nothing could name it: the reporter that records what the JSON one
+discards did not exist yet. It was added at `61dad2f`, and the identity below
+comes from a LATER run under that reporter, not from the `7d941ba` record.
+Those are two observations of one fault, and the second is what named it:
+
+    Error   subsystem vitest-worker   operation onTaskUpdate   no machine code
+
+a worker-to-parent RPC response timeout DURING TEST EXECUTION. The absence of a
+machine code is recorded as an absence. THIS IS NOT THE EARLIER
+`ERR_IPC_CHANNEL_CLOSED` OBSERVATION, and that historical capture is not the
+identified cause of this failure — it was a conjecture about a different shape,
+and it is retired rather than promoted.
+
+WHAT WAS CORRECTED, IN TWO PARTS.
+
+  1. PGLITE LIFETIME. The suite created about 145 WASM Postgres instances per
+     run across six files and closed none of them. Dropping the reference does
+     not release the heap — measured: 1,169 MB still retained after four forced
+     collections — and only `close()` does. Ownership is now declared where an
+     instance is created: per-test databases close in `afterEach`, the two
+     suite-scoped ones in `afterAll`, and the accounting refuses unless every
+     instance opened is accounted for. Created and closed balance at 162/162 in
+     every measured run. THIS ALONE DID NOT REMOVE THE FAULT: it recurred
+     afterwards with the same fingerprint.
+
+  2. CONCURRENCY. The forks pool sizes itself from the CPU count, which put
+     thirteen workers to work and eighteen WASM Postgres instances alive at
+     once. A bounded matrix ran the reproducing sequence three times at each of
+     default, 8, 4, 2 and 1, measuring the parent's worst event-loop stall:
+
+         default   527ms, 643ms, 656ms     1 runner-level exit in 3
+         8         251ms, 728ms, 238ms     0 in 3
+         4          75ms,  84ms, 112ms     0 in 3, then 0 in 6 more
+         2          51ms,  37ms,  59ms     0 in 3, 45% slower
+         1         359ms, 127ms,  40ms     0 in 3, 2.5x slower
+
+     Eight is the highest count with no failures and is not the answer: one of
+     its runs stalled 728ms, worse than every default run. Four is the highest
+     bound where every run sits far below every default run, and it is the
+     fastest configuration measured. Measured concurrent instances fall from 18
+     to 12; parent stalls fall about fourfold.
+
+WHAT IS AND IS NOT CLAIMED. The comparative matrix observed ONE default failure
+and 0/9 at four workers. The fault is rare, so 0/9 IS NOT STATISTICAL PROOF THAT
+RECURRENCE IS IMPOSSIBLE, and this package does not say otherwise. What is
+established is the mechanism, the identity, and a measured reduction in the
+conditions that produce it.
+
+AND THE GATE NO LONGER DEPENDS ON THAT. It now measures unhandled errors
+directly and fails closed on any recurrence: a non-zero count refuses, and so
+does an ABSENT count, because "not measured" and "measured as none" are
+different facts. The record also has to prove the run was bounded — phase,
+pool and worker count are acceptance conditions, so a record from an unbounded
+run cannot be packaged as evidence for a bounded one.
+
+EVERY AUTHORITATIVE ATTEMPT SINCE, INCLUDING THE RED ONE AND THE ABORTED ONE.
+
+WHAT THIS TABLE IS. There is no append-only attempt ledger in this repository:
+nothing records an attempt that was started and abandoned before it wrote
+anything. So "GREEN on its first attempt" and "no retry" are OPERATOR
+DECLARATIONS — statements by the person who ran them — and not facts this
+package can demonstrate. They are labelled that way below rather than presented
+as measurements. What IS demonstrable is each recorded result and the commit it
+names.
+
+  aa579a4   GREEN. Four workers, zero unhandled errors. First attempt and no
+            retry are OPERATOR DECLARATIONS. This is the run the four-worker
+            bound was accepted on.
+
+  7b18141   RED. Not a flake, not the runner fault, and not an environment
+            problem: a defect introduced in that same milestone. The atomic
+            gate lifecycle invalidates the canonical record before the first
+            gate, so while the TEST gate runs the file holds the IN_PROGRESS
+            marker — and the test gate is exactly when the suites that render
+            this evidence execute. The reader returned the marker as though it
+            were a result and every rendering threw on its missing `tests`.
+            Four failed assertions, three runtime-error suites.
+
+  c1b80f0   GREEN, with the reader corrected. First attempt: OPERATOR
+            DECLARATION.
+
+  4549f76   ABORTED, OPERATOR-DECLARED. Started, then stopped by hand a few
+            gates in, on noticing that the evidence prose cited the wrong file
+            for its own regression assertions. It produced NO VERDICT: it is
+            not a gate result, green or red, and it appears here because a
+            history that lists only the attempts that finished is a history
+            that hides the ones that did not. The operation lock and marker it
+            left behind were cleared, and that clearing is itself an operator
+            action rather than something the tooling did.
+
+  ab98c7a   GREEN. First attempt and no retry are OPERATOR DECLARATIONS. This
+            archive was then REJECTED by independent audit — not for its
+            measurements, which held, but for the false-accept paths around
+            them that the milestone after it closes.
+
+  3094443   RED, and preserved. The first and only authoritative attempt at
+            that commit. Three suites — control-chars, no-secret-recipes,
+            package-generation — failed at SUITE level with zero failed
+            assertions: 1523 passed, 24 skipped, 0 failed across 47 files, six
+            failed suites, three runtime-error suites, zero unhandled runner
+            errors, pool forks, workers 4..4, observed peak 4 in the
+            diagnostics. Every other gate was clean. No package was produced.
+
+            Preserved in this working directory under a filename naming that
+            commit and the operation that produced it, untracked and NOT
+            packaged. THE DIGEST IS DELIBERATELY NOT QUOTED HERE, and the
+            reason is worth stating: this package refuses to print a
+            hash-shaped token it cannot account for, and a digest of an
+            untracked file is exactly such a token. The control is right, so
+            the prose gives way rather than the control. The digests of both
+            preserved records are in this repository's commit messages, where
+            a reader who has the repository can check them and a reader who has
+            only the archive is not offered a number they cannot verify.
+
+            It was not retried at its own commit, and no later run retracts or
+            replaces it.
+
+  ddefa50   RED, and preserved. The first and only authoritative attempt at
+            that commit, and the second permanent red result. The same three
+            suites failed at SUITE level: 1554 passed, 24 skipped, 0 failed
+            assertions across 47 files, six failed suite results, three
+            runtime-error suites, zero unhandled runner errors, reportSuccess
+            false, exit status 1, pool forks, workers 4..4, OBSERVED PEAK 4 —
+            recorded for the first time, because the milestone that produced
+            this red run is the one that stopped throwing that measurement
+            away. Every other gate was clean. No package was produced.
+
+            Preserved the same way, and its digest likewise lives in the commit
+            message rather than in this document. It was not retried, and no
+            later run retracts or replaces it.
+
+  {{HEAD_SHORT}}   this candidate — see THE GATE, below.
+
+THE RED RUN WAS NOT RETRIED AT ITS OWN COMMIT, and the green run listed after
+it does not replace it. `c1b80f0` is a DIFFERENT COMMIT with the defect
+fixed; it establishes that the fix works and establishes nothing whatever about
+`7b18141`, which remains a red observation at a commit that was never re-run.
+A later green result at a later commit is not a retraction of an earlier red one.
+
+WHAT PRESERVATION MEANS HERE, EXACTLY. The instruction for that milestone was to
+preserve the sanitized record and STOP. The record was preserved only in the
+sense that the file sat in an untracked working directory, and the next gate run
+overwrote it: `.release/gate-results.json` now holds the `c1b80f0` result. THE
+RED RECORD ITSELF NO LONGER EXISTS anywhere a reviewer or the author can read.
+A FAILING RUN NOW COPIES ITS RECORD ASIDE, under the commit and attempt it
+belongs to, so a later run cannot overwrite it the way this one was overwritten.
+That copy still lives in `.release/`, which is untracked and is NOT packaged: it
+preserves the record for whoever holds the working directory, and it is not
+evidence a reviewer can open. It is described that way here rather than as
+"preserved".
+
+What survives is the commit message of `c1b80f0` in this repository's history,
+which states the failure and its cause, and the tracked regression assertions in
+`supabase/test/gate-contract.test.ts` that reproduce the defect on demand: the
+marker, a record with no totals, a file that does not parse, no record at all,
+and a well-formed one still read back, so the guards are not blanket refusal.
+Each writes its shape into a temporary root and reads the answer, rather than
+matching patterns in the reader's source. That is a weaker form of evidence than
+a preserved artefact and it is named as the weaker thing rather than described
+as preservation.
+
+AND WORK CONTINUED PAST THE STOP. The instruction was to stop at the red
+observation. Instead the cause was diagnosed, fixed, committed as `c1b80f0` and
+gated again. The outcome was the right correction; the sequence was not the
+authorised one, and it is recorded here because a milestone that reports its own
+deviations is the only kind whose silence means anything.
+
+THE GATE WAS NEVER WRONG. It refused in both shapes, and a missing report and a
+report declaring failure are each a failure condition in their own right, so
+the fault cost reruns and never produced a false clean result.
+
+ONE RELEASE OPERATION AT A TIME — AND THE PACKAGER TAKES IT TOO.
+
+The lock introduced last milestone was taken by the GATE. The process that
+needed excluding was the PACKAGER, and it held nothing at all: it read the green
+record, read the lock, saw the gate free, and then built. Every one of those
+readings was true when it was taken, and this still produced a wrong archive:
+
+  1. a green record exists at HEAD;
+  2. the packager reads it, and reads the lock as free;
+  3. a gate attempt takes the lock and invalidates the canonical record;
+  4. that attempt fails;
+  5. the packager finishes an archive from the record it captured at step 2.
+
+A second lock read does not close it. Any number of point-in-time readings
+leaves gaps between them, and the gap is where the other operation runs.
+
+  ONE MUTEX.  Gate and package are both RELEASE OPERATIONS and take the same
+              lock, so a gate refuses while packaging owns it and packaging
+              refuses while a gate owns it. Held for the whole lifetime — for
+              the packager that means through staging, rendering, the primary
+              archive, all three time-zone rebuilds and publication.
+
+  OWNERSHIP   The lock is created with `wx`: the filesystem decides the winner,
+  IS A FILE   not a read-then-write that can interleave. Creation captures the
+  OBJECT.     lock file's IDENTITY — device, inode, birth time, size — in memory
+              and never on disk. Every later assertion compares that identity as
+              well as the recorded operation id, so a file forged with this
+              operation's id is still not this operation's lock.
+
+  CHILDREN    The three time-zone rebuilds ADOPT the parent's operation rather
+  ADOPT.      than trying to become owners. A child that took the mutex would
+              refuse — correctly, the parent holds it — and a child never
+              releases what it did not take.
+
+  RELEASE     Never a blind delete. Under the old protocol A read the lock, saw
+  VERIFIES.   its own id and removed whatever was at that path; if a human had
+              replaced A's lock with B's, A removed B's. Release now asserts
+              identity first and leaves anything else alone.
+
+THE RESIDUAL WINDOW, NAMED RATHER THAN DENIED. Between the last identity check
+and the unlink that releases the lock there is a window of microseconds.
+Entering it requires a human to delete this operation's lock and another
+operation to create one inside that window, having not done so earlier. Node
+offers no portable compare-and-unlink, so the window cannot be closed with the
+primitives available here. It is stated because an unstated residual is
+indistinguishable from a claim that there is none.
+
+RECOVERY IS AN OPERATION, NOT AN INSTRUCTION TO DELETE A FILE.
+
+The refusal used to end "if that attempt is really gone, delete the lock". That
+advice is unsafe, and the reason is a gap of milliseconds: an operation takes
+the mutex BEFORE it writes the in-progress marker, so one that dies in between
+leaves the PREVIOUS green record untouched. Deleting only the lock makes a
+superseded record packageable again — at the right commit, with a clean tree,
+passing every check the packager makes.
+
+  pnpm release:recover                  says what holds the mutex
+  pnpm release:recover --operation=<id> recovers that operation, and only it
+
+It validates the exact active operation, TOMBSTONES the canonical result
+atomically, quarantines only that operation's pending file, and releases only
+that lock. Packaging then refuses until a new gate completes, because a
+tombstone is not a result. Naming the operation is load-bearing: a stale
+instruction cannot clear a live one.
+
+EVERY OPERATION WRITES TO ITS OWN PENDING PATH. The single shared
+`gate-results.json.pending` meant an operation that had lost ownership deleted
+the finished-but-unpublished result belonging to the operation that had taken
+it. Publication now validates the operation kind, the operation id, HEAD, the
+tree identity, the pending record's own id and HEAD, and the record's schema and
+verdicts — and an operation that finds it has lost the mutex discards its own
+result rather than renaming it over a newer run's.
+
+A PRESENT-BUT-INVALID EVIDENCE PATH IS HELD, NOT FREE.
+
+`readAttemptLock` returned null for an absent lock AND for a lock whose content
+parsed to JSON `null`: four bytes on disk meant "the gate is free". `existsSync`
+made it worse, because it follows links — a DANGLING symbolic link reads as
+absent, which is the one state that permits proceeding.
+
+There are three states now, not two: absent, present-and-valid, and
+present-but-invalid. Only genuinely absent is free. Every evidence read or write
+inspects with `lstat`, requires `.release` to be a real directory whose real path
+is inside this repository, refuses symbolic links, requires the lock, record and
+pending objects to be regular files, and does not follow a redirected directory
+or file.
+
+THE GATE IS BOUND TO THE BYTES IT MEASURED, NOT TO A COMMIT NAME.
+
+The runner recorded HEAD and never required a clean tree, so this worked: edit
+runtime code without committing, run the gates green at H, restore the tree,
+package at H. The packager saw a clean tree, a matching HEAD and a green record.
+All three were true. The record described different bytes.
+
+HEAD is not an identity for what ran — the gate reads the WORKING TREE, and the
+two coincide only while the tree is clean. Before the first gate and again
+before publication the runner requires the exact branch and HEAD, a clean index
+and working tree, no untracked inputs, the commit's tree hash and a digest over
+every tracked input; it records the last two, and the packager RECOMPUTES and
+compares them. A record produced from uncommitted edits has a different digest
+from the clean tree, and that is the only signal that separates it from an
+honest one.
+
+WHAT THE SAMPLING PROVES, AND WHAT IT DOES NOT. The tree is sampled before the
+first gate, around every gate step, and immediately before publication; a
+breach at ANY sample refuses publication even if the tree is restored
+afterwards. A modification made and undone entirely between two samples is not
+observed — no filesystem watch is involved — and that limit is stated rather
+than described away.
+
+THE GATE ALSO VALIDATES ITS OWN RESULT BEFORE IT EXITS. Both contracts run while
+the operation still owns the mutex: the operational one over the record about to
+be written, and the staged one over the projection that would go into an
+archive. `pnpm release:gates` no longer exits successfully with a record the
+packager will later reject.
+
+A FAILING RUN IS PRESERVED BY ITS OWNER, FROM ITS OWN BYTES. The record is built
+once, in memory. While the operation still owns the mutex it is validated, the
+preserved failure is written from those exact bytes, the canonical result is
+published, and only then is ownership released. The preserved copy is never made
+by re-reading the canonical path — that path belongs to whoever owns the mutex
+next, and reading it after release is how a preserved failure came to hold
+another operation's record.
+
+THE ARCHIVE IS PUBLISHED LAST, AND ALL FOUR HASHES ARE COMPARED.
+
+The verifier rebuilt under three time zones and compared the three CHILD hashes
+with each other. It never compared them with the archive it had actually
+written — the one it reported, and the one a reviewer receives. Three children
+agreeing while the distributed file differs is exactly what that check could not
+see.
+
+The primary archive is now built into an operation-specific staging directory
+and nothing lands at the distributable path until the semantic checks, the
+manifest verification, both control-character scans, all four hashes agreeing,
+`unzip -t` and `sha256sum -c` have passed. On any refusal, exception or child
+failure, every temporary artefact is removed and no same-HEAD archive is left
+behind — a failed determinism check used to leave a complete, plausible,
+unverified ZIP exactly where a person looks for one.
+
+THE STAGED RECORD IS DETERMINISTIC, WHICH IT WAS NOT.
+
+The projection carried the random 16-hex operation id, so two identical green
+runs at one commit produced different archive bytes — while the package
+described itself as reproducible. Ownership needs that id; measurement evidence
+does not. It stays in local operational state, and what the archive carries
+instead is the identity of the bytes that were measured, which is the same for
+every run of the same tree.
+
+  a package is deterministic from tracked inputs plus one exact validated
+  measurement projection;
+
+  a fresh gate run is a NEW measurement, and this package does not claim its
+  bytes would be identical unless that has actually been shown;
+
+  time, duration, random ids, process ids and temporary paths are not in the
+  staged bytes, and a test reads the finished bytes to confirm it.
+
+THE MEASUREMENTS THEMSELVES ARE STRICTER.
+
+  COLLECTED  `0 passed, 0 skipped, 0 failed / 0 files` beside an empty per-file
+  SOMETHING  map satisfied every arithmetic check and packaged. A run must now
+             have collected at least one suite and one test, and the collected
+             suite inventory must equal the inventory derived from the tracked
+             test files — recorded as a digest, so an accidentally filtered run
+             disagrees instead of looking small and clean.
+
+  EMPTY      `reportedUnhandledErrors = 0` now requires both identity arrays to
+  MEANS      be exactly empty. `["(none)"]` is a placeholder somebody wrote
+  EMPTY.     where a measurement belongs, and a count of zero beside a
+             non-empty list is evidence disagreeing with itself.
+
+  OBSERVED   The reporter has measured peak concurrent modules — one per worker,
+  PEAK.      so the real concurrency — all along, and the record discarded it.
+             It is required now, must be positive, and must not exceed four.
+             Configured bounds say what the pool was told; only this says what
+             happened, and a bound honoured is exactly what a bound cannot
+             prove about itself.
+
+  THE SCAN   `scanFiles` caught a read failure and continued, with a comment
+  IS         saying a file deleted between listing and reading was not this
+  COMPLETE.  gate's problem. It is exactly this gate's problem: "I could not
+             read eleven tracked files" and "I read every tracked file and found
+             nothing" were the same number. It now records what it was asked to
+             read, what it read, how many failed and their basenames, and the
+             gate refuses unless requested equals the git inventory, scanned
+             equals requested, and failures are zero.
+
+ONE DEFINITION OF WHAT A CREDENTIAL LOOKS LIKE. The staged-record detector kept
+its own copy of the audit patterns, under a test that asserted the two were
+synchronised and never read the auditor. They had already diverged. Both now
+load `scripts/release/secret-patterns.json`, so "in step" is a property of the
+code rather than a sentence in a comment.
+
+THE SKIP CONTRACT REFUSED THE ONE SKIP IT WAS WRITTEN TO APPROVE.
+
+The first authoritative gate under the new contract went RED, and the cause was
+the contract itself. `APPROVED_SKIP.title` was written from the `it()` string;
+Vitest records a test's COMPLETE name, describe prefix included. Every other
+gate was clean and the record was otherwise green — 1647 passed, 1 skipped, 0
+failed across 47 files, that one skip being exactly the POSIX-only signal case.
+
+It is recorded as a permanent red result at that commit. The commit was not
+retried; the correction went into a NEW commit, which is the one allowance this
+milestone had for a deterministic defect it introduced itself.
+
+The constant now carries the full name, and `gate-runner.test.ts` derives the
+expected name from its own describe and it text — so the two cannot drift apart
+again without that cross-check failing first, in a second rather than in an
+authoritative gate.
+
+WHAT AN INDEPENDENT AUDIT OF THE `20ff3e0` ARCHIVE FOUND.
+
+That archive passed every physical check: outer hash, 113 sorted unique entries,
+112/112 manifest verification, `unzip -t`, zero control characters in every
+stored entry, internally consistent staged totals, unchanged packaged SQL, a
+structurally continuous patch chain. It was rejected anyway, on the release and
+evidence contract — not on anything the application does. Seven defects, and
+each of them was a place where a check believed its own paperwork.
+
+  A GREEN RUN   The contract required the skipped-test IDENTITIES to number the
+  THAT SKIPPED  same as the skipped COUNT, and nothing more. A report in which
+  EVERYTHING.   EVERY test was skipped satisfied it: counts agreed, no assertion
+                failed, the process exited zero, and a package could be built
+                from a run that executed nothing. Vitest reports a suite whose
+                setup threw as SKIPPED — which is exactly how twenty-three tests
+                vanished at `3094443` and again at `ddefa50`.
+
+                The platform is now MEASURED from `process.platform` and
+                recorded. Acceptance requires zero skips where every test
+                applies, or on win32 exactly the one approved signal-test
+                identity and nothing else. A title containing "win32" proves
+                nothing and is never trusted: the claim is cross-checked
+                against the measurement.
+
+  A RECORD      `branch: null` sat in the staged record while this document
+  THAT COULD    named the release branch, because the generic text filter
+  NOT NAME ITS  refuses slash-containing strings and a branch name has a slash
+  BRANCH.       in it. A dedicated branch sanitizer keeps the name whole, and
+                both the source record and the projection must name exactly
+                `release/observer-demo-rc1`. `tests.total` was dropped from the
+                projection entirely, so the archive could not re-check its own
+                arithmetic; it is carried now.
+
+  AN INVENTORY  `suiteInventoryDigest` was computed over file PATHS while the
+  DIGEST        record stored suite NAMES, so nothing could recompute it from
+  NOTHING       the record — and a binding nothing can recompute binds nothing.
+  COULD CHECK.  It is now a function of exactly the list that travels in the
+                evidence, recomputed during source validation, staged
+                validation and packaging.
+
+  AN IDENTITY   The tree identity hashed `git ls-files -s`, which reports the
+  OVER THE      INDEX rather than the bytes on disk — and git offers two
+  INDEX, NOT    supported ways to make an edited tracked file look pristine:
+  THE BYTES.    `assume-unchanged` and `skip-worktree`. Under either, `git
+                status` stays silent, `git diff` stays empty, `ls-files -s`
+                reports the unchanged blob, and every check the release made
+                would pass while the gate measured different bytes.
+
+                The identity now reads the files: path, mode, length and the
+                actual bytes, in canonical order. Both hiding flags are refused
+                outright, whether or not anything was edited.
+
+  A PUBLISHING  `--verify` was OPTIONAL, and ordinary `pnpm release:package`
+  PATH WITH NO  published the canonical archive without it — so the command a
+  VERIFICATION. person is most likely to type produced an unverified
+                deliverable. There is no unverified publishing path now.
+
+                And what `--verify` checked was a one-line checksum of the
+                outer ZIP against a number the same process had just computed:
+                a tautology. It said nothing about `hashes.txt`, which is the
+                manifest a reviewer actually uses. The candidate is now
+                inflated into a private temporary directory and its OWN
+                embedded manifest is verified there — every manifested path
+                present exactly once, every entry accounted for, nothing
+                surplus or missing, every digest checked, and the inflated
+                scan complete and clean — before anything is published.
+
+  A DETECTOR    The archive shipped `gate-contract.ts`, which loads
+  WITHOUT ITS   `secret-patterns.json`, and did not ship the JSON: only `.ts`
+  DEFINITIONS.  was copied from that directory. A reader running the staged
+                detector got a missing-file error, so "one definition, loaded
+                by both systems" was true of the repository and false of the
+                thing handed over. The data file is staged beside its consumer
+                and manifested with it.
+
+  AN            The note beside the encoded patches said all three commits
+  EXPLANATION   REMOVE backspaces and that every byte sits on a removed line.
+  THAT WAS      Decoded and counted: 0034 has two bytes on ADDED lines and none
+  MEASURABLY    removed; 0035 has two added and two removed; 0036 has two
+  FALSE.        removed and none added. The mechanism was always right and the
+                story about it was wrong.
+
+                The note is generated from the measured decoded patches now,
+                and says what is actually true: a patch is encoded because its
+                decoded bytes contain forbidden C0 characters, wherever in the
+                diff they occur.
+
+PROVENANCE, SPLIT BY WHAT ACTUALLY OBSERVED WHAT.
+
+`SNAPSHOT_QUERY` selects six fields: an observation time, a bucket count with
+its oldest and newest ages, an audit-row count and an audit-version-1 count.
+Three documents attributed schema shapes, function arities, a migration
+catalogue and cron state to "that one query". It selects none of them. Those
+fields carry their own provenance or `UNKNOWN`, and no query was invented to
+justify a constant. The historical query text is preserved as it was run,
+duplicate column names included — rewriting it would produce a query that reads
+better and that nobody executed.
+
+The bucket-age series is retained and qualified: eight integers recorded across
+earlier milestones without individual timestamps or sources. They are not
+verifiable as successive measurements and are no longer presented as such.
+
+The deployment inventory has provenance of its own, separate from the database
+clock they were rendered from together: last ENUMERATED for `f1dbffd`, the
+enumeration's own time NOT RECORDED, the newest deployment AT THAT ENUMERATION
+`3f298a6`, and currently accurate UNKNOWN. It is not "the newest deployment".
+
+Byte-comparison states are named for what they compare — `record unchanged`,
+`record changed`, `comparison unavailable`. "Refreshed" was a claim about a
+query having run, which a byte comparison cannot see: a changed constant is
+equally consistent with somebody editing the file.
+
+A RED RECORD IS EVIDENCE, AND THE CONTRACT WAS CALLING IT MALFORMED.
+
+The `ddefa50` gate recorded a genuine failure and the contract reported the
+RECORD as broken. Two defects did that, and both are corrected here without
+touching green acceptance.
+
+  THE RED     The runner wrote `FAILED — ` followed by whatever reasons the
+  VERDICT     classifier had collected: free prose, from a list that grows. The
+  COULD NOT   sanitizer refused it — correctly, by its own rules, since
+  BE          arbitrary text can carry a path, a message or an environment
+  PROJECTED.  value — so the staged projection of a red record lost its test
+              gate entirely. A projection missing a required gate is not
+              structurally valid, so the projection of a red record could NEVER
+              be valid, so structural validation of a red attempt could never
+              pass.
+
+              The fix is the one the green verdict already had: RECOGNITION,
+              NOT PERMISSION. A red verdict now has one canonical shape,
+              rendered from the numbers by the contract itself —
+
+                FAILED — <p> passed, <s> skipped, <f> failed assertions /
+                <n> files; exit status <x>; report <successful|unsuccessful>;
+                <k> failed suites; <r> runtime-error suites
+
+              — every field a number or a fixed word, nothing that can carry
+              text. The reasons still reach the local console; the RECORD
+              carries the measurements. The sanitizer matches the shape rather
+              than trusting prose, and a red projection is now structurally
+              valid and still unpackageable.
+
+  ZERO        Six failed SUITE results beside zero failed ASSERTIONS is exactly
+  FAILED      what a hook timeout, a collection error or a refusal thrown from
+  ASSERTIONS  shared setup produces. The contract cross-checked the assertion
+  READ AS     count against failed suites, `reportSuccess` and the process
+  CLEAN.      status as though all four counted the same thing, so that shape
+              read as a record contradicting itself.
+
+              They are different measurements. Only same-source duplicates are
+              cross-checked now — `tests.failed`, `countedFailedTests` and
+              `reportedFailedTests` all count failed assertions and must agree.
+              Failed suites and runtime-error suites are their own acceptance
+              failures, reported as themselves, and zero failed assertions is
+              never read as global cleanliness.
+
+WHAT DID NOT CHANGE. Green acceptance is exactly as strict as it was: ok, exit
+status, signal, error code, `reportSuccess`, failed assertions, failed suites,
+runtime-error suites, unhandled errors, every required gate, and the worker
+bounds — each still refuses on its own, and a test asserts that each one does.
+A structurally valid red record remains unpackageable.
+
+THE REMAINING CONTROL-CHARACTER ASSERTION DID NOT REPRODUCE.
+
+One assertion in `control-chars.test.ts` failed once at `d39e1b8` and has not
+failed since: not the named test alone, not its complete suite, not the exact
+pair of suites that produced it. Three attempts, all green, at the same commit
+with the same clean tree.
+
+It is therefore recorded as ONE NON-REPRODUCED OBSERVATION and nothing is
+claimed about its cause. No production behaviour was changed on the strength of
+it, and the assertion was not weakened to make it pass — it already passes.
+
+What was added is the evidence a recurrence would need. The failing assertion
+reported "expected 1 to be 0", which names no file, so the single observation
+could not be classified at all. It now reports the complete structured scan of
+the pristine staged copy — which file, how many requested, how many scanned,
+how many unreadable — and additionally requires the scan to be COMPLETE, since
+a scan that read fewer files than it was asked to has not established that
+anything is clean. A second occurrence will say what happened.
+
+WHY THE SECOND AUTHORITATIVE GATE WENT RED, WHICH WAS NOT THE RELEASE PROTOCOL.
+
+The gate at `ddefa50` failed the same three suites in the same shape as the one
+before it, and the cause was entirely different. A count pattern is not a root
+cause, and this is what happened when the pattern was actually chased.
+
+THE MATRIX. Bounded, non-authoritative, one run per case, isolated temporary
+state, starting with the smallest affected suite.
+
+  A   ordinary invocation, no reporters, no outer operation
+      FAILED — 14 passed, 14 skipped, 0 failed assertions, 2 failed suite
+      results. Refusal raised inside `beforeAll`.
+
+  B   the exact gate arguments: JSON reporter, output file, the sanitized
+      runner reporter, controlled diagnostics environment
+      FAILED — identical shape. 14 passed, 14 skipped, 0 failed assertions.
+      Observed peak 1, zero unhandled runner errors, reporter completed.
+
+  B2  the runner reporter beside the default reporter, so the refusal is
+      visible rather than discarded by the JSON reporter
+      FAILED — identical shape, and it names the reason.
+
+A AND B FAILING IDENTICALLY REJECTS THE REPORTER HYPOTHESIS OUTRIGHT. The
+invocation is irrelevant; the cause travels with the commit. Cases C through H —
+sequencing, canonical marker leakage, mutex leakage, inherited operation
+identity, private-context threading — were therefore not run. Each would have
+been asking a question already answered, and inventing work is its own way of
+being wrong.
+
+THE CAUSE. This package refuses to print a hash-shaped token it cannot account
+for: every `[0-9a-f]{8,}` run containing a letter, in every rendered evidence
+file, must be a prefix of something the package can produce — a commit on this
+branch, a tree, a declared archive digest, a computed diff hash. It is a real
+control, and it caught a real problem.
+
+The problem was the evidence prose. The previous milestone recorded the
+preserved failed record by quoting the operation id that produced it and the
+sha256 of the file holding it, WRAPPED ACROSS TWO LINES so it arrived as two
+tokens rather than one. Three unaccountable tokens; three refusals; `build()`
+threw inside the `beforeAll` of all three package-building suites; their tests
+were reported as SKIPPED. Six failed suite results, three runtime-error suites,
+zero failed assertions — the shape a runner-level fault makes, produced by a
+paragraph.
+
+WHY IT SURVIVED VERIFICATION, WHICH IS THE PART WORTH LEARNING. The three
+suites HAD been run on a clean commit and passed, 28/55/131 with no skips. They
+were run at the candidate commit. The prose that broke them landed in the NEXT
+commit — the one that recorded those very results — and nothing re-ran them
+there. DOCUMENTATION IS A BUILD INPUT. Verification at the commit before the
+final one is verification of a different tree.
+
+THE CORRECTION, WHICH DOES NOT TOUCH THE CONTROL. No allowlist, no exception,
+no weakening. The prose gives way instead: the digests of both preserved failed
+records live in this repository's commit messages, where a reader who has the
+repository can check them, and are deliberately absent from an archive that
+cannot account for them. A reader is not offered a number they have no way to
+verify.
+
+AND IT FAILS IN A SECOND NOW, NOT IN A FORTY-SECOND BUILD.
+`supabase/test/artefact-consistency.test.ts` scans every evidence document with
+the packager's OWN exported token scanner and its OWN exported allow-set — one
+implementation, not a copy that drifts into a list of exceptions.
+
+TWO DEFECTS THE FIRST AUTHORITATIVE GATE FOUND, AND WHY ONLY A GATE COULD.
+
+Both were introduced by the milestone that added the release mutex, and both
+were invisible to every check that ran before the gate.
+
+  A PACKAGER  `build()` requires a package operation, and the three suites that
+  WITH NO     exercise it were given none. Each refused at collection with a
+  OPERATION.  `Refusal`, which Vitest reports as a failed SUITE and zero failed
+              tests — the exact shape a runner-level fault produces.
+
+              THE REASON IT HID IS THE INTERESTING PART. On a dirty development
+              tree those suites refuse for a DIFFERENT precondition: the tree is
+              not clean, so no package may be built. That refusal was expected
+              and was read as such, every time. The tree was dirty for the whole
+              of the milestone that broke them, so the ownership refusal
+              underneath was never once seen. It surfaced the first time the
+              suites ran on a clean commit, which is what an authoritative gate
+              is.
+
+              Fixed in the HARNESS, not the invariant. Ownership stays required
+              and there is no test-only bypass. `openPackageOperation` gives
+              each suite a private temporary release root, a synthetic green
+              record verified through the real source, staged and structural
+              contracts, and a genuine package operation taken through the real
+              API; on close it releases only its own operation and removes only
+              its own files. No test reads, writes, deletes or recovers this
+              repository's real `.release` state.
+
+              And every packaging precondition now names itself — CLEAN TREE,
+              OWNERSHIP, RECORD TREE, GATE RECORD — so one refusal can no longer
+              be read as another. All failing preconditions are reported, not
+              only the first.
+
+  A MEASURE-  The reporter counts peak concurrent modules — one per worker, so
+  MENT NEVER  the real concurrency — and the runner carried it into its evidence
+  WRITTEN     object. The persisted `testGate` literal enumerates its fields
+  DOWN.       explicitly, and this one was simply absent. The value was computed
+              on every run and recorded on none.
+
+              IT HID BECAUSE VALIDATION WAS SKIPPED ONCE A GATE HAD FAILED. A
+              red record was expected to fail the contract, so consulting the
+              contract looked pointless — and nobody learned that the record was
+              ALSO structurally incomplete. The first green run would have
+              refused to publish.
+
+              So structure and acceptance are separate contracts now. STRUCTURE
+              — every measurement present, every field typed, every duplicated
+              fact agreeing with its copy — runs on EVERY completed attempt, red
+              ones included. ACCEPTANCE runs when there is something to accept.
+              A red record may fail acceptance; it may not omit a measurement.
+              One failure does not suppress evidence about another.
+
+WHAT WAS RUN BEFORE THIS GATE, ON A CLEAN COMMIT.
+
+The three suites that failed at `3094443` had never been run on one. They were
+run repeatedly on a dirty tree, where they refuse for a different precondition,
+so the workflow below is now the one that precedes an authoritative gate:
+implement, run what does not need a clean repository, COMMIT a candidate, and
+then run the affected suites while that candidate is clean.
+
+Measured at the candidate commit, tree clean, before the gate:
+
+  package-generation.test.ts          28 passed, 0 skipped, 0 failed
+  control-chars.test.ts               55 passed, 0 skipped, 0 failed
+  no-secret-recipes.test.ts          131 passed, 0 skipped, 0 failed
+  all three together, forward        214 passed, 0 skipped, 0 failed
+  all three together, reverse        214 passed, 0 skipped, 0 failed
+  seven release-critical suites      569 passed, 1 skipped, 0 failed
+  the same seven, reverse order      569 passed, 1 skipped, 0 failed
+  the complete ordinary suite       1577 passed, 1 skipped, 0 failed (47 files)
+
+`package-generation` reported 14 passed and 14 SKIPPED before this correction,
+and the skips were the suite refusing to build rather than a decision to skip
+anything. A suite-level failure with zero failed assertions is still a failure,
+and so is a suite that quietly declines to do its work.
+
+THE ONE REMAINING SKIP is `gate-runner.test.ts` recording termination by
+signal, which is POSIX-only and named as such. It is the only conditional skip
+in the repository, and nothing is skipped because the real `.release` directory
+lacks a record, because `_review/<head>` does not exist, because a previous
+archive is present, or because ownership was not arranged.
+
+CONFIGURATION AND OBSERVATION ARE PRINTED SEPARATELY. The bounds are what the
+pool was told; the peak is what happened. They are equal in this release and
+that is a coincidence of this release, not an identity — a record whose peak is
+BELOW its bound is perfectly valid, and one above it is refused.
+
+WHAT THE PREVIOUS ATTEMPT LOCK WAS, AND WHY IT WAS NOT ENOUGH.
+
+The section above describes what replaced it, and this is the shorter history so
+that a reader of an earlier archive can see what changed. The previous milestone
+added `.release/gate-attempt.lock`: created with `wx`, carrying a 16-hex attempt
+id, acquired before the record was invalidated, checked again before publication
+and released only after the rename. Every one of those properties survives.
+
+Three did not survive contact with the audit that followed:
+
+  IT WAS THE GATE'S LOCK. The packager read it and then built while holding
+  nothing, so the reading described a moment that had already passed.
+
+  RELEASE WAS A BLIND DELETE. The attempt confirmed its own id and then removed
+  whatever was at that path, which is not the same file if a human replaced it.
+
+  RECOVERY WAS "DELETE THE LOCK". Which leaves the previous green record
+  packageable, because the marker had not been written yet when the attempt
+  died.
+
+The lock is now a release-operation mutex at `.release/release-operation.lock`,
+ownership is a file identity rather than a name, and recovery is an owner-bound
+operation. `supabase/test/gate-contract.test.ts` drives all of it against real
+temporary directories.
+
+NOTHING THAT COULD CARRY A SECRET IS PERSISTED. A gate runs the whole suite and
+a production build; either could print an environment value some future code
+path logs, and `.release/gate-results.json` is a file somebody zips and hands to
+a reviewer. Only sanitized process metadata reaches disk; a bounded tail reaches
+the local console and nothing else. `supabase/test/gate-runner.test.ts` drives
+real child processes for a clean exit, a known non-zero code, a spawn failure
+and — on POSIX — a signal, and asserts the persisted record has no output field.
+
+{{GATE_REPEAT_BLOCK}}
+
+THIS ROUND — a preflight step could have proved the wrong database.
+
+Step 1 of the rollout exists to establish which Supabase project each Vercel
+environment writes to, because every claim in this package about rows, buckets
+and versions is about ONE database. The rule it gave was:
+
+    read `NEXT_PUBLIC_SUPABASE_URL` or `SUPABASE_URL` … the URL is public —
+    it is compiled into the browser bundle — so reading it exposes nothing
+
+Two separate errors in one instruction, and the second one hides the first.
+
+THEY ARE NOT INTERCHANGEABLE. `SUPABASE_URL` is the server-side variable the
+durable audit and quota path writes through — "Server-only. Never NEXT_PUBLIC_,
+never logged" in both `.env.example` and the environment schema.
+`NEXT_PUBLIC_SUPABASE_URL` is a separately named, optional, browser-exposed
+variable. They can be absent, stale, or name DIFFERENT PROJECTS. An operator
+following the "or" would have been entitled to read the public one, find the
+approved ref, and record the mapping as proved — while the route wrote somewhere
+else entirely.
+
+`SUPABASE_URL` IS NOT IN THE BROWSER BUNDLE. The sentence justified reading
+either variable by a property only one of them has, which is exactly how a
+reader concludes the two are equivalent. (The replacement wording said "if and
+only if its name begins with `NEXT_PUBLIC_`", which overstated the framework;
+see THIS ROUND above for the application-specific fact that replaced it.)
+
+THE RULE IS NOW EXACT: inspect the standalone `SUPABASE_URL` for every relevant
+environment, extract and record ONLY the project reference, require it to equal
+the approved Observer project, never substitute the public variable, use the
+public one only as a secondary consistency check, STOP if the two name different
+projects, PAUSE for Matthew if the tooling cannot show the non-secret value
+without also exposing a secret, and read no secret value.
+
+AND ONE STATE THE REVIEW DID NOT NAME, found by reading the resolver rather than
+the documentation. `apps/web/src/lib/supabase-env.ts` resolves the destination
+from `["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"]` IN THAT ORDER, first
+set-and-usable wins. So `NEXT_PUBLIC_SUPABASE_URL` is not merely browser
+diagnostics: when `SUPABASE_URL` is unset or blank, the SERVER falls back to it.
+That makes the rule tighter rather than looser — an absent `SUPABASE_URL` is not
+"no destination", it is a silent fallback through a browser-exposed variable.
+That round recorded it as a FINDING, which was not enough; see THIS ROUND above
+for the verdict it now carries. (A MALFORMED `SUPABASE_URL` does not fall back
+at all: the resolver stops at the first name that is set, and reports it
+unusable.)
+
+The regression tests reject both orderings of the substitution wording, assert
+against a STANDALONE variable name rather than a loose match — `SUPABASE_URL` is
+a suffix of `NEXT_PUBLIC_SUPABASE_URL`, so a naive check passes on a document
+that never mentions the server variable at all — and require every one of the
+eight rule points to be present in both the runbook and the pepper contract.
+
+WHAT DID NOT CHANGE, and was verified rather than assumed: all eight migration
+sources byte-identical to `6889aa0`, all executable migration SQL unchanged,
+every SQL verifier byte-identical, no application runtime code touched.
+
+  ---------------------------------------------------------------------------
+  THE PRECEDING ROUNDS' FINDINGS FOLLOW, unchanged. They are the record of how
+  this release candidate reached its current state, and a reviewer holding only
+  this bundle needs them.
+  ---------------------------------------------------------------------------
+
+FINDING 1 — the migration that performs the retirement told the operator the
+wrong retirement policy.
+
+`20260826090000_observer_audit_facade_cleanup.sql` is the file somebody opens at
+the moment they are about to close the door. Its comments still said:
+
+  * retire "every deployment carrying a build older than the
+    admission/completion code" — an inventory selected by AGE, when the property
+    that matters is CAPABILITY, and the two do not coincide;
+  * that a protected deployment "cannot reach this database because it cannot
+    reach its own route handler" — which is false for the case that matters;
+  * that `vercel ls iris-observer` enumerates the deployments — with no mention
+    that it is paginated;
+  * that a recent `audit_version = 1` row is THE contradiction test — one axis,
+    and not the one that catches the leak.
+
+Comments only, in both the migration source and its paste wrapper. They now say
+what the corrected rollout says: two capabilities, classified separately;
+version-1-capable admission builds DELETED; legacy-façade-only builds deleted OR
+protected, because this migration genuinely removes the function they call; that
+this migration does NOT disable thirteen-argument admission; that every
+`3f298a6` build including the fresh proof Preview is version-1-capable; that
+`1ee5d2d` is neither; that enumeration follows `--next` to exhaustion and is
+repeated after deletion; and that the database verifier reads both axes from
+`retirement_floor_ts` and can return only NO-GO, UNUSABLE or INCONCLUSIVE.
+
+{{EXECUTABLE_SQL_BLOCK}}
+
+FINDING 2 — the paste wrappers were maintained by hand.
+
+Each wrapper's header asserts "Everything between BEGIN and COMMIT is
+byte-identical to that file" and prints the source's sha256. Nothing enforced
+either claim; the wrapper was a copy somebody kept in step. That is exactly the
+failure mode this milestone exists to close, one level down.
+
+`scripts/release/wrap-migration.ts` now renders every wrapper from its source.
+The proof that it renders faithfully rather than merely plausibly is that,
+BEFORE the contract source was edited, it reproduced three of the four
+hand-written wrappers BYTE FOR BYTE — including migration 4's, whose hash
+`a2ec32264583f5d57b87d0db089d4a707de8b317786624084a4e4a2b61b1eef5` was
+independently verified in the previous review. Only the contract wrapper
+differs, and only because its source changed.
+
+FINDING 3 — four operational artefacts still carried the superseded policy.
+
+  * `supabase/README.md` said a deployment "must be deleted or genuinely
+    protected" if it can call a façade OR write `pseudonym_version = 1`. One
+    remedy for two capabilities. It is now a table, with the reason the remedies
+    differ attached.
+  * `PEPPER-CONTRACT.txt` said the preflight determines project mapping
+    "THROUGH METADATA ONLY". Names and scopes cannot prove which database a
+    deployment talks to — the project is in the VALUE of the server-side
+    `SUPABASE_URL`, and that value is not a secret. Split into part one
+    (mapping, from that non-secret value) and part two (pepper presence, type
+    and scope, from metadata), with neither reading a secret value. The split
+    itself was right; the replacement text was not, and the round after it
+    corrected the substitution and the browser-bundle claim — see the head of
+    this section.
+  * `COMPATIBILITY-EVIDENCE.txt` used `c6fdc73` as the current candidate a
+    commit after it stopped being one, quoted an oldest-bucket age the snapshot
+    contradicted, claimed the inventory was unchanged across "seven
+    consecutive bundles" while a different paragraph implied eight, and omitted
+    the current HEAD from the not-deployed set.
+  * `docs/18-deployment.md` and the verifiers already agreed; a new test now
+    keeps all five in step.
+
+FINDING 4 — the no-secret-recipe guard did not do what its comment claimed.
+
+It required a generator pattern AND a SEPARATE print pattern on the same line,
+while its comment claimed it caught the OpenSSL random generator. It did not. A
+generator whose default destination is standard output needs no print statement
+to leak:
+
+  [removed command that generated random material and wrote it to stdout]
+  [removed command that returned a UUID, printed by the shell]
+  [removed pipeline that read the kernel random device and rendered it as hex]
+
+all pass a check that is looking for `console.log`. The detector now separates
+SELF-PRINTING commands, which are an offence on their own, from PAIRED ones,
+which need a generator plus an emitter — and still permits the runbook to say
+that `randomUUID()` is where the non-secret request id comes from.
+
+IT IMMEDIATELY FOUND ONE. The previous `REVIEW.txt` reproduced the removed
+one-liner as executable text, inside the very section explaining that the
+repository must not ship it. A description of a command is not a command; this
+file now carries the bracketed descriptions above, and the packager refuses to
+build an archive containing a runnable one.
+
+Two exemptions are deliberate and narrow: `patches/` and `*.patch`, because a
+patch that REMOVES a bad line necessarily contains it and rewriting history to
+satisfy a linter is worse than the linter being narrow; and the detector's own
+fixtures, because a test proving a recipe is caught has to contain one.
+
+One pattern was REMOVED from the detector after it fired wrongly: Ruby's `puts`
+is also an ordinary English verb, and it flagged the paragraph explaining that a
+command "puts it in the shell history" — the sentence that removed the recipe. A
+real Ruby one-liner is still caught, by its interpreter invocation.
+
+FINDING 5 — the documented generator sequence could not be run twice.
+
+`REVIEW.txt` §8 told a reviewer to run four scripts in order. The first,
+`bundle.mjs`, began by deleting `_review/f1dbffd` — the directory containing the
+other three, and the three hand-authored evidence files, none of which it
+recreated. The second command in the documented sequence no longer existed.
+
+Alongside that: a hard-coded `C:\Users\42191\AppData\Local\Temp\claude\...`
+path; a requirement that seven earlier review ZIPs be present; a ZIP timestamp
+built from `getHours()`, so the "deterministic" archive had different bytes
+under UTC, Europe/Budapest and America/New_York; a `hashes.txt` whose prose
+header made `sha256sum -c` emit warnings for every non-hash line; and a claim
+that the archive's own hash appeared in `REVIEW.txt`, which it did not and
+cannot.
+
+There is now ONE tracked entry point, `scripts/release/build-package.ts`, which
+lives outside the output directory, stages every input from tracked sources,
+and builds the package from nothing. It refuses to run unless HEAD is clean, and
+derives the package name, the headings and every commit-dependent fact FROM
+HEAD rather than from a constant. Temporary space comes from `os.tmpdir()`. The
+ZIP timestamp uses UTC accessors. `hashes.txt` prefixes every prose line with
+`#`, so a standard checker consumes it silently.
+
+THE OUTER ZIP HASH IS NOT IN THE ZIP. It cannot be: adding it would change the
+bytes it describes. It is printed by the packager and reported alongside the
+archive, and it must be distributed with the archive rather than looked for
+inside it.
+
+
+================================================================================
+2. INDEPENDENTLY REPRODUCIBLE FACTS
+================================================================================
+
+Executed here, reproducible with `pnpm test` and `pnpm release:package`:
+
+  * the contract migration's EXECUTABLE SQL is unchanged by this milestone —
+    comments stripped, whitespace collapsed, hashed either side of the edit;
+  * the same is true of all eight migration sources: no executable change;
+  * the wrapper generator reproduces three of four hand-written wrappers byte
+    for byte, and every wrapper's body equals its source exactly;
+  * every wrapper header's sha256 equals the hash of the file it names;
+  * the contract source and its wrapper both state the corrected policy, and a
+    regression test fails if the protection-substitutes-for-deletion wording or
+    the age-based inventory returns;
+  * README, runbook, pepper contract, contract verifier and contract migration
+    agree on the two capabilities and their two remedies;
+  * the evidence files agree with each other and with the recorded snapshot on
+    HEAD, the remote heads, the local-only commit set, the observation
+    timestamp, the bucket age and the current candidate SHA;
+  * the detector rejects self-printing generators and generator-plus-print
+    commands, and permits descriptive `randomUUID()`, proven by fixtures in both
+    directions;
+  * no tracked operator file and no file in the generated package contains a
+    runnable secret recipe;
+  * package generation from a clean staging state twice produces BYTE-IDENTICAL
+    archives;
+  * `hashes.txt` verifies with a standard checker and emits no warnings;
+  * the three row shapes remain distinct: a façade row is `audit_version 1 /
+    request_id null / pseudonym_version null`; a 13-argument admission is
+    `2 / not null / 1`; a scoped one is `2 / not null / 2`;
+  * the contract gate is NO-GO on either axis after the floor, INCONCLUSIVE
+    otherwise, UNUSABLE on a null or future floor, and never READY;
+  * the rollout table still has nineteen rows in the required order, deleting
+    the original 3f298a6 at step 5 and every version-1-capable deployment at
+    step 18;
+  * all four HTTP-proof modes read 13/13, and twenty-five failure modes produce
+    their exact failed-row sets;
+  * migrations 3 and 4 applied once and twice, in all four combinations, each
+    leaving `observer-verify-2.sql` at 27/27;
+  * `observer-cron-health.sql` reads 25/26 against the stand-in, failing only
+    row 3 — preserved, not mocked;
+  * `observer-behaviour-2.sql` reads 21/21 and rolls back to 0 rows, 0 units.
+
+From the carried-forward observation at {{OBSERVED_AT}} — not re-read here:
+
+  * {{BUCKETS}} buckets, oldest {{OLDEST_H}} hours, newest {{NEWEST_H}};
+  * {{AUDIT_ROWS}} audit rows, all at `audit_version = 1`;
+  * `pseudonym_version` column absent; pg_cron absent; retention function
+    absent; both legacy façades still present.
+
+AT {{OBSERVED_AT}} THE OLDEST BUCKET WAS {{OLDEST_H}} HOURS, PAST THE
+{{THRESHOLD_H}}-HOUR THRESHOLD migration 4 will enforce. Nothing had removed it,
+because nothing prunes. WHETHER THAT IS STILL TRUE IS UNKNOWN — see section 3a.
+
+  EARLIER RECORDED AGES, AND WHAT THEY ARE NOT. The values {{BUCKET_HISTORY}}
+  were {{BUCKET_HISTORY_PROVENANCE}}. They were previously printed as having
+  been "recorded across successive rounds", which invites exactly the reading
+  they cannot support — eight integers in ascending order read as one thing
+  observed rising, and nothing here records when each was read, by which query,
+  or against which database state. Only {{OLDEST_H}}, dated {{OBSERVED_AT}}, is
+  a measurement this package stands behind.
+
+
+================================================================================
+3a. WHAT IS UNKNOWN AT {{HEAD_SHORT}}
+================================================================================
+
+{{SNAPSHOT_PROVENANCE}}
+
+Consequently, and stated plainly rather than left to be inferred:
+
+  * THE CURRENT LIVE DATABASE STATE IS UNKNOWN. Bucket count, oldest bucket age,
+    audit-row count, whether pg_cron has appeared, whether any migration has been
+    applied — all of it describes {{OBSERVED_AT}} and nothing later.
+  * THE CURRENT DEPLOYMENT INVENTORY IS UNKNOWN. Rendered from the declared
+    provenance rather than restated here: {{DEPLOYMENT_INVENTORY_LINE}}
+    It has been carried forward since — an explicit constant, never derived from
+    the tail of the list of bundles that merely record it. No deployment was
+    enumerated, created, redeployed, protected, promoted or deleted in this
+    milestone. The enumeration's clock time is NOT RECORDED and is not invented;
+    it is not the database observation time, which belongs to a different read
+    of a different system.
+  * NO VERCEL ENVIRONMENT VARIABLE WAS READ IN THIS MILESTONE, and none was
+    changed. Presence, scope and value of every one of them remain what section
+    4 says they are, except the two the authorised preflight already settled,
+    which are recorded immediately below and have NOT been re-observed since.
+
+THE PROJECT MAPPING, rendered from the latest recorded observation through the
+same classifier the tests exercise:
+
+{{OBSERVED_MAPPING_BLOCK}}
+
+  BOTH ENVIRONMENTS NOW MAP TO THE APPROVED PROJECT. That is a change since
+  the previous package, and the reading that produced it is dated 2026-08-28.
+
+  WHAT THAT UNBLOCKS, AND WHAT IT DOES NOT. Only the PROJECT-MAPPING SUB-GATE
+  passed. Step 1 is not one check: it is a read-only preflight in two parts —
+  Git, the Supabase catalogue and a deployment inventory paginated to
+  exhaustion, and then pepper metadata and project mapping. The catalogue and
+  the inventory have NOT been read at this commit; both are UNKNOWN, and section
+  3a says so.
+
+  So: PROJECT MAPPING NO LONGER BLOCKS STEP 1. Step 2 becomes reachable only
+  once every remaining step-1 read and check has passed, and none of them has
+  been performed here. An earlier edition wrote "STEP 2 IS NOW REACHABLE", which
+  promoted one passing sub-gate into a completed step.
+
+  THE PEPPER BLOCKS STEP 3. Step 3 reuses, creates or explicitly rotates the
+  pepper per the safe branch, and {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN means
+  no branch is safe to take: two separate unrevealable rows are not two equal
+  values, and step 3 cannot choose between reuse and rotation without knowing
+  which it is.
+
+  THE PRODUCTION RUNTIME CREDENTIALS BLOCK PROMOTION, which is not a step in
+  this sequence at all — section 6 ends by saying no Production promotion is
+  part of it. That STOP therefore constrains what may be done AFTER the
+  sequence, not where inside it the operator may reach.
+
+  WHO READ IT, AND WHAT THAT MEANS FOR "EXTERNAL ACCESS". The complete
+  chronology is rendered from the declared log, so no sentence anywhere in this
+  package can scope it differently:
+
+{{EXTERNAL_ACTIVITY_BLOCK}}
+
+  Read that list before any per-milestone claim, and read what it is: a list of
+  the interactions this repository has evidence of, with its own completeness
+  recorded as UNKNOWN. A previous edition rendered a four-row list under the
+  words "the COMPLETE chronology" — it omitted the Supabase snapshot query that
+  produced the reading every retention document quotes, the Vercel enumeration
+  behind the twenty-deployment table, and every git fetch that established the
+  remote heads section 0 prints. Its type could not represent the third at all.
+
+  AN AGENT HAS READ VERCEL — the read-only project lookup listed above, in an
+  earlier milestone. Previous editions of this document said "NO AGENT HAS EVER
+  READ VERCEL" and that was false. They
+  also said "zero external access" in a way that read as a claim about the
+  project rather than about one milestone. Scoped correctly:
+  {{THIS_MILESTONE_EXTERNAL}}. The exact time of day was not recorded for the
+  dashboard readings and is not invented.
+
+  WHETHER THE OBSERVATIONS CHANGED ANYTHING: {{OBSERVATION_MUTATION_STATUS}}.
+  The screenshots show open variable editors with Save and Cancel controls, and
+  for one round this document said the status was UNKNOWN, because nobody had
+  said which control was clicked. MATTHEW HAS SINCE CONFIRMED HE EXITED WITH
+  CANCEL. That is a statement from the person who performed the act, which is
+  the only source that could settle it, so the earlier "UNKNOWN, not zero"
+  paragraph is itself now out of date and is removed rather than left standing.
+
+  THAT SETTLES THE READINGS, NOT THE TRANSITION. A separate fact, on its own
+  row of the chronology above: {{PRODUCTION_TRANSITION_LINE}} Nothing recorded
+  who performed it or when, and neither is inferred from who took the
+  screenshots.
+
+  WHAT THE SCREENSHOTS ESTABLISH, EXACTLY. For both Preview and Production:
+  `SUPABASE_URL` is the complete canonical origin
+  `https://tfcchobwobpadenampyh` + `.supabase.co`, Type Config, in that scope;
+  the COMPLETE project variable list contains no `NEXT_PUBLIC_SUPABASE_URL`
+  row; and no Shared variable is linked. Reading the list itself is what makes
+  the public row OBSERVED ABSENT rather than merely unobserved — a search box
+  returning nothing never established that, which is why this sat at PAUSE.
+
+  PRODUCTION CHANGED, AND BOTH READINGS ARE KEPT. On 2026-08-27 Production had
+  NO `SUPABASE_URL` at all; on 2026-08-28 it has the canonical origin. The
+  earlier observation is not overwritten. A variable being ADDED between two
+  readings is the more interesting of the two facts, and a log that only ever
+  shows the latest state cannot express it. `preflight.ts` holds an append-only
+  observation log; the current table is derived from its tail.
+
+  THE COMPLETE ORIGIN IS RETAINED, not the bare ref: a bare ref is what
+  survives extraction, not what was configured, so it cannot by itself show the
+  configured value had the required origin shape. The extracted ref is what
+  gets REPORTED once the origin has proved the shape — those are two different
+  jobs and the record does both.
+
+TWO THINGS THE SAME SCREENSHOTS SETTLE AGAINST US, ON THEIR OWN AXES.
+
+Project mapping passing does not make either of these pass. They are separate
+findings about separate facts, and neither converts a mapping PASS back into a
+mapping failure.
+
+  {{PEPPER_STATE_LINE}}
+
+  Preview and Production each carry their own `OBSERVER_SUBJECT_PEPPER` SECRET
+  row, and no Shared variable is linked. Both environments now target the SAME
+  Supabase project — which is exactly what makes this a problem rather than a
+  detail. Pseudonyms written from Preview and pseudonyms written from
+  Production land in one database, and they are only comparable if both were
+  computed from the same pepper.
+
+  TWO SEPARATE UNREVEALABLE ROWS ARE NOT TWO EQUAL VALUES. Nothing in a
+  dashboard listing establishes equality: not the shared name, not the creation
+  date, not who edited them last. The values are secrets; they were not
+  inspected and must not be. Equality is UNPROVEN and this is a STOP in its own
+  right.
+
+  THE TWO WAYS OUT, NEITHER OF WHICH IS PERFORMED HERE.
+
+    1. Securely reconcile both scopes to one known stored value.
+
+    2. Explicitly authorise a coordinated rotation — which is not a small act.
+       A rotation changes every pseudonymous identifier the system computes,
+       restarts subject-scoped quota state, requires one value across EVERY
+       environment sharing the database, and requires old or unknown deployment
+       snapshots to be made unreachable, because a snapshot still holding the
+       previous pepper writes identifiers nothing else can correlate.
+
+  {{PRODUCTION_RUNTIME_LINE}}
+
+  ABSENT, NOT MERELY UNPROVEN. "Unproven" is the right word when nobody looked.
+  Somebody did: the COMPLETE six-row project variable list was read and the
+  Shared tab was read and found empty, so neither credential is in the
+  applicable configuration. That is an observation of absence, which is a
+  finding, and calling it unproven understates evidence that was gathered. It
+  remains a STOP either way; what changes is the remedy, which is to configure
+  the values rather than to go and look again. Preview's runtime credential presence is
+  recorded. PRODUCTION'S COMPLETENESS IS NOT ESTABLISHED, so Production
+  deployment remains {{PRODUCTION_RUNTIME_VERDICT}} until its runtime
+  credentials are established.
+
+  Nothing here configures them. That is a deliberate act with its own
+  authorisation, and it was not performed in this milestone — see the
+  chronology above for what external activity there has actually been.
+
+An earlier edition of this package asserted all of "no Supabase query was made
+this round", "verified by one live query, the only external access this
+milestone made", "re-read this round" and "the oldest bucket is now N hours".
+Those cannot all be true. They are now rendered from one computed provenance
+field rather than written four times, and a generation-time check refuses any
+package whose evidence claims freshness the file history does not support.
+
+
+================================================================================
+3. REMAINING ASSUMPTIONS
+================================================================================
+
+  1. PostgREST's name-based resolution of a 13-key body against a 15-parameter
+     function with two defaults.
+  2. `NOTIFY pgrst` is the reload channel Supabase's PostgREST listens on.
+  3. `cron.schedule` and `cron.unschedule` behave as Supabase documents.
+  4. Advisory-lock behaviour under real concurrency.
+  5. Which Vercel environments share the Observer Supabase project.
+  6. Entropy of the configured pepper, once it exists.
+  7. Cost of retention at scale, and `cron.job_run_details` growth.
+  8. That the `agencyManager` profile can reach both tenants through a
+     deployment.
+  9. That a legacy-mode PASS identifies the right row. It does not, strictly.
+ 10. That `X-Observer-Request-Id` survives Vercel's edge.
+ 11. That Vercel applies environment changes only to new deployments for this
+     project's Preview environment specifically.
+ 12. That `vercel ls --next` enumerates to exhaustion as documented. The
+     requirement is written from the documented flag; no listing has been
+     paginated from here.
+ 13. That the deployment inventory recorded in `scripts/release/live-snapshot.ts`
+     is still current. It has been identical in every delivered bundle, which is
+     consistency, not freshness.
+
+
+================================================================================
+4. CHECKS REQUIRING LIVE EXECUTION
+================================================================================
+
+  a. WHETHER `OBSERVER_SUBJECT_PEPPER` EXISTS, in which scopes, and whether one
+     record covers them all.  PARTLY SETTLED, AGAINST US: separate SECRET rows
+     exist for Preview and Production and no Shared variable is linked, so ONE
+     RECORD DOES NOT COVER BOTH. Whether the two hold the same value is
+     UNPROVEN and unprovable from a listing — the values are secrets and were
+     not inspected. {{PEPPER_STATE_LINE}}. See
+     section 3a.
+  b. WHICH SUPABASE PROJECT EACH ENVIRONMENT TARGETS, from the non-secret URL.
+     SETTLED FOR BOTH, on the 2026-08-28 manual observation: each environment's
+     `SUPABASE_URL` is the complete canonical origin for the approved project,
+     and each environment's complete variable list contains no
+     `NEXT_PUBLIC_SUPABASE_URL`. MAPPED / PASS / via manual, for Preview and
+     Production alike. See section 3a. PROJECT MAPPING NO LONGER BLOCKS STEP 1,
+     but step 1 is INCOMPLETE: its catalogue and inventory reads have not been
+     performed, so step 2 is not yet reachable. The pepper blocks STEP 3, and
+     the Production runtime credentials block PROMOTION — which section 6
+     excludes from this sequence entirely. Four different constraints, stated
+     separately.
+  c. WHETHER ANY DEPLOYMENT OF `3f298a6` CAN ANSWER.  Settled by: step 5.
+  d. THAT THE 13-KEY CALL RESOLVES THROUGH POSTGREST.  Settled by: steps 10-11.
+  e. THAT pg_cron RUNS, and that the first scheduled run succeeds.  Settled by:
+     steps 7, 12 and 13 — the last requiring a real hourly wait.
+  f. THAT ROW AGE FALLS. At the observation it was {{OLDEST_H}} hours and had
+     risen every round; its value now is unknown.
+  g. THAT NO FOREIGN CRON JOB EXISTS. There is no `cron` schema to inspect yet.
+  h. THAT THE RESPONSE HEADER REACHES A BROWSER through Vercel's proxy.
+     Settled by: step 15.
+  i. WHETHER LIVE AI IS AVAILABLE AT ALL.  Settled by: step 17.
+  j. THE COMPLETE DEPLOYMENT INVENTORY, paginated to exhaustion, before and
+     after deletion.  Settled by: steps 1 and 18.
+
+
+================================================================================
+5. COMMITS
+================================================================================
+
+{{LOCAL_ONLY_BLOCK}}
+
+  PUSHED (and therefore built by Vercel)
+    …through 3f298a6, the remote branch head.
+
+  DEPLOYED
+    3f298a6, plus twelve older builds of that branch and seven of `main` at
+    3515402 — twenty in total, thirteen on the release branch and seven on
+    `main`. Counted from the recorded inventory rather than from memory; the
+    summary said five until this round, while the table beneath it listed seven.
+
+
+================================================================================
+6. THE EXACT ROLLOUT SEQUENCE
+================================================================================
+
+Not executed. Steps 1-2 are read-only. Guarded by
+`supabase/test/rollout-order.test.ts`, which parses the table in
+`docs/18-deployment.md`.
+
+   1. Read-only preflight in two separable parts: (i) Git, Supabase catalogue
+      and a deployment inventory paginated TO EXHAUSTION; (ii) pepper presence,
+      type and scope as METADATA ONLY, and Supabase project mapping from the
+      project ref inside the NON-SECRET, SERVER-SIDE `SUPABASE_URL` — never
+      from `NEXT_PUBLIC_SUPABASE_URL`, which is a secondary consistency check
+      only and STOPS the rollout if it names a different project.
+   2. Explicit operator approval, and the pepper-state decision. NOT REACHABLE
+      at {{HEAD_SHORT}}: the project-mapping sub-gate of step 1 passes, and the
+      rest of step 1 — the Supabase catalogue and the deployment inventory — has
+      not been read. Step 1 is INCOMPLETE, not passed.
+   3. Reuse, create or explicitly rotate the pepper per the safe branch. BLOCKED
+      at {{HEAD_SHORT}} by {{PEPPER_VERDICT}} on EQUALITY_UNPROVEN — no branch
+      is safe to take while it is unknown whether the two rows hold one value.
+   4. Redeploy exact SHA `3f298a6` as a fresh Preview, without pushing.
+   5. Confirm READY and exact SHA; run the pre-migration HTTP smoke; then
+      DELETE the original unverified `3f298a6` deployment.
+   6. Enable Supabase Cron.
+   7. Verify pg_cron and the scheduler process.
+   8. Apply Migration 3.
+   9. Apply Migration 4.
+  10. Run Part A, then the controlled request through the fresh legacy Preview.
+  11. Require legacy 13/13 with pseudonym version 1.
+  12. Schema, Cron-health and rollback-protected behavioural verification.
+  13. Wait through the scheduled run; require Cron-health 26/26.
+  14. Push the corrected release branch.
+  15. Capture the scoped Preview's exact `X-Observer-Request-Id`.
+  16. Require scoped 13/13 with pseudonym version 2.
+  17. Separately run the live-model readiness proof.
+  18. Record `retirement_floor_ts`; DELETE every version-1-capable deployment
+      including the fresh proof Preview; delete or protect legacy-façade-only
+      builds; RE-ENUMERATE to exhaustion and prove none remains.
+  19. Run `observer-contract-readiness.sql` with that floor — 0 on both axes,
+      INCONCLUSIVE — then apply the contract migration last.
+
+  NO PRODUCTION PROMOTION IS PART OF THIS SEQUENCE. Separately, promotion is
+  itself {{PRODUCTION_RUNTIME_VERDICT}} until Production's runtime credentials
+  are established — a constraint on what may be done after this sequence, not on
+  any step within it.
+
+
+================================================================================
+7. LOCAL RESULTS AT {{HEAD_SHORT}}
+================================================================================
+
+{{GATE_BLOCK}}
+
+  CONTROL CHARACTERS, all three results, never summarised into one:
+
+{{CONTROL_CHAR_BLOCK}}
+
+  observer-verify-2.sql          27/27 in all four combinations of migration 3
+                                 and migration 4 applied once and twice
+  observer-cron-health.sql       25/26 — row 3 only, preserved, not mocked
+  observer-behaviour-2.sql       21/21, then audit 0->0, buckets 0->0
+  observer-contract-readiness    INCONCLUSIVE, 14 rows, two axes
+  observer-http-compat-proof.sql 13/13 in ALL FOUR MODES
+  observer-ai-readiness.sql      11/11 model · 5/11 composer · 8/11 mismatched
+
+
+================================================================================
+8. HOW THIS PACKAGE WAS GENERATED, AND HOW TO REBUILD IT
+================================================================================
+
+TWO COMMANDS, IN THIS ORDER, and the first is not optional:
+
+  pnpm release:gates
+  pnpm release:package --verify
+
+THE ARCHIVE IS NOT REPRODUCIBLE FROM TRACKED FILES ALONE, and this package does
+not claim it is. `pnpm release:gates` writes `.release/gate-results.json`, which
+is generated rather than tracked, names the commit it was recorded at, and is
+staged into the archive as `gate-results.json`. A clean checkout reproduces the
+same bytes only after running the gates at the same commit — which is the point:
+an archive whose verification evidence could be reproduced without running the
+verification would not be evidence.
+
+The packager REFUSES if that gate record is missing, stale, recorded for
+another commit, or not clean on every required gate. There is no
+"GATES NOT RECORDED" archive any more, and no "STALE" one either.
+
+It stages every input from a tracked source, so it can be run repeatedly from
+nothing:
+
+  scripts/release/live-snapshot.ts   the one recorded observation of the live
+                                     database and the deployment inventory.
+                                     Every artefact renders its live numbers
+                                     from here; none carries its own copy.
+  docs/release/*.txt                 the authored evidence, with doubled-brace
+                                     placeholders for everything that changes.
+  scripts/release/facts.ts           resolves those placeholders from git, the
+                                     snapshot and the files themselves.
+  scripts/release/wrap-migration.ts  renders the paste wrappers from the
+                                     migration sources.
+  scripts/release/secret-recipes.ts  the detector, shared with the test suite.
+  scripts/release/zip.ts             the deterministic writer.
+
+THE CHECKS THAT RUN BEFORE AN ARCHIVE IS WRITTEN, any of which refuses the
+build:
+
+  1. HEAD is the expected commit and the working tree is clean.
+  2. No placeholder is left unresolved, and none is defined but unused.
+  3. SEMANTIC CONSISTENCY. Every evidence file agrees with the snapshot and
+     with git on: the current HEAD, the remote and deployed heads, the
+     local-only commit set, the observation timestamp, the oldest bucket age,
+     and the current candidate SHA in the compatibility table. THIS IS THE
+     CHECK THE LAST PACKAGE NEEDED. Its hash-prefix validation passed on a file
+     that named `c6fdc73` as the current candidate one commit after it stopped
+     being one: the prose was stale and its file hash was perfectly correct.
+  4. HASH ACCOUNTING. Every hexadecimal token of eight or more characters in an
+     evidence file must be a prefix of a hash this package can account for — a
+     packaged file, a computed historical value, or a git commit in this chain.
+     Pure-decimal runs are migration timestamps and are skipped.
+  5. NO RUNNABLE SECRET RECIPE in any packaged file, using the same detector
+     the test suite uses.
+  6. Every wrapper body equals its migration source.
+
+WHAT THESE CHECKS CANNOT DO. They verify that a NUMBER matches its source and
+that a HASH matches its bytes. They cannot verify that a SENTENCE is true.
+"Comment-only", "unchanged", "byte-identical" are claims, which is why the
+evidence prints the comparison rather than asserting the conclusion.
+
+DETERMINISM. Entry names use forward slashes — every archive up to and including
+the ee954b8 bundle stored Windows separators, which APPNOTE 4.4.17.1 forbids and
+`unzip` warns about; the f1dbffd bundle was the first written by a conforming
+writer. Entries are sorted. The timestamp is the commit date read through UTC
+accessors, so the bytes do not depend on the builder's zone; this is asserted by
+building under three different `TZ` settings and comparing.
+
+  Archive          IRIS-Observer-{{HEAD_SHORT}}-review.zip
+  Entries          {{ARCHIVE_ENTRIES}} files, forward-slash separators, deterministic
+  Manifest         hashes.txt — {{MANIFEST_FILES}} files, `#`-prefixed prose, so
+                   `sha256sum -c hashes.txt` runs without warnings
+
+  THE ARCHIVE'S OWN SHA-256 IS NOT INSIDE THE ARCHIVE. Embedding it would change
+  the bytes it describes. The packager prints it and the covering report states
+  it; distribute it alongside the archive, and do not look for it within.

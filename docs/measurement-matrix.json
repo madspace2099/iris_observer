@@ -371,6 +371,29 @@
       ]
     },
     {
+      "id": "flow.iris_assisted_sales",
+      "displayName": "IRIS-assisted sales",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit",
+        "deal.stage_date"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 5,
+      "comparison": "none",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
       "id": "unit.unique_interested_contacts",
       "displayName": "Unique interested contacts",
       "kind": "count",
@@ -1824,6 +1847,7 @@
         "flow.time_in_stage",
         "flow.sales_cycle_duration",
         "flow.stalled_opportunities",
+        "flow.iris_assisted_sales",
         "project.sold_by_segment",
         "people.follow_up_delay",
         "people.share_to_offer",
@@ -2227,6 +2251,7 @@
       "requiredBy": [
         "exec.unrealised_potential",
         "exec.notable_changes",
+        "flow.iris_assisted_sales",
         "unit.unique_interested_contacts",
         "unit.raw_views",
         "unit.meaningful_views",

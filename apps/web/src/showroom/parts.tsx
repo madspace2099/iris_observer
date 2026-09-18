@@ -21,9 +21,16 @@ import Link from "next/link";
 
 /* --- provenance ------------------------------------------------------------ */
 
-export function SourceChips({ sources }: { sources: readonly InsightSource[] }) {
+export function SourceChips({
+  sources,
+  measured = false,
+}: {
+  sources: readonly InsightSource[];
+  /** Opt-in: raises the 10px chip label to the 12px floor. Sales Flow only — see `showroom.css`. */
+  measured?: boolean;
+}) {
   return (
-    <span className="iris-srcs">
+    <span className={`iris-srcs${measured ? " iris-srcs-measured" : ""}`}>
       {sources.map((source) => (
         <span className="iris-src" key={source} data-src={source}>
           {INSIGHT_SOURCE_LABELS[source]}
@@ -41,14 +48,79 @@ export function SourceChips({ sources }: { sources: readonly InsightSource[] }) 
  * would make decisions on them.
  */
 export function SyntheticBadge() {
-  return <span className="iris-synthetic">Synthetic demonstration data</span>;
+  /*
+   * Two words at every width.
+   *
+   * "Synthetic demonstration data" wrapped into a three-line pill on a
+   * small-desktop header and dragged the whole bar down with it. The full
+   * phrase stays as the accessible name, because the reader must be able to
+   * learn that these figures are a demonstration — it is the shortest honest
+   * label, not a shorter claim.
+   */
+  /*
+   * TWO MARKERS, AND THE PROJECT LAYOUT CHOOSES (`data-sessions`).
+   *
+   * "Every figure is generated" stopped being true the day a project could be
+   * composed with its own showroom's meetings, and a marker that calls real
+   * meetings a demonstration is the same lie told backwards. Both are rendered
+   * and the stylesheet shows one, so the dozen places that mount this marker
+   * cannot disagree with each other about which project they are on.
+   */
+  return (
+    <>
+      <span className="iris-synthetic obs-when-synthetic" title="Synthetic demonstration data">
+        <span className="iris-sr">Synthetic demonstration data</span>
+        <span aria-hidden="true">Demo data</span>
+      </span>
+      <span
+        className="iris-synthetic obs-when-delivered"
+        title="Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data."
+      >
+        <span className="iris-sr">
+          Meetings come from this project's own showroom. Whatever a connector has not delivered is
+          demonstration data.
+        </span>
+        <span aria-hidden="true">Live meetings</span>
+      </span>
+    </>
+  );
 }
 
 /* --- findings -------------------------------------------------------------- */
 
-export function Finding({ finding, lead = false }: { finding: ShowroomFinding; lead?: boolean }) {
+export function Finding({
+  finding,
+  lead = false,
+  plane = false,
+  measured = false,
+}: {
+  finding: ShowroomFinding;
+  lead?: boolean;
+  /**
+   * Opt-in only, and only ever read by CSS scoped to `[data-plane="true"]`.
+   *
+   * `Finding` renders on five routes (Project, Flow, Agents, Presentation,
+   * Audience) sharing this one component. Measured on Project: a 2px
+   * `border-left` — the doctrine's own named anti-pattern, "a colored
+   * border-left above 1px on a callout" — was the ONLY thing distinguishing
+   * the lead finding from the rest, and `.iris-finding-foot`'s mono font
+   * leaked into the CTA link, rendering "Open Two-room" in the evidence
+   * typeface instead of the Manrope every other `.iris-action` on the page
+   * uses. Both are real defects, and both are scoped to this flag rather
+   * than fixed on the shared rule, because the other four routes are out of
+   * scope for this change and must render exactly as before it.
+   */
+  plane?: boolean;
+  /** Opt-in: raises the 11px evidence citation, and its `SourceChips`, to the 12px floor. Sales Flow only — see `showroom.css`. */
+  measured?: boolean;
+}) {
   return (
-    <article className="iris-finding" data-lead={lead ? "true" : undefined}>
+    <article
+      className="iris-finding"
+      data-lead={lead ? "true" : undefined}
+      data-plane={plane ? "true" : undefined}
+      data-measured={measured ? "true" : undefined}
+    >
       <p className="iris-finding-statement">{finding.statement}</p>
       {finding.baseline === null ? null : (
         <p className="iris-code" style={{ margin: 0 }}>
@@ -58,7 +130,7 @@ export function Finding({ finding, lead = false }: { finding: ShowroomFinding; l
       <p className="iris-finding-so-what">{finding.soWhat}</p>
       {finding.caveat === null ? null : <p className="iris-finding-caveat">{finding.caveat}</p>}
       <div className="iris-finding-foot">
-        <SourceChips sources={finding.sources} />
+        <SourceChips sources={finding.sources} measured={measured} />
         <a className="iris-evidence" href={finding.evidence.href}>
           <i />
           {finding.evidence.observationCount} records · {finding.evidence.tier.replace(/_/g, " ")}
@@ -138,7 +210,7 @@ export function DnaLane({
   const peakDwell = Math.max(1, ...lane.steps.map((s) => s.medianDwellSeconds ?? 0));
 
   return (
-    <div className="iris-dna-lane">
+    <div className="iris-dna-lane" data-compact={compact ? "true" : undefined}>
       <div className="iris-dna-name">
         <b>{lane.label}</b>
         <span>
@@ -148,7 +220,20 @@ export function DnaLane({
             : ` · ${Math.round(lane.medianDurationSeconds / 60)}m median`}
         </span>
       </div>
-      <div className="iris-dna-track">
+      {/*
+       * A scrollable region needs a keyboard route into it.
+       *
+       * The lane scrolls inside itself when a panel is too narrow for nine
+       * sections, and a region that only a pointer can reach is a region a
+       * keyboard reader cannot read at all. `tabindex` makes it focusable and
+       * the group label says what they have landed on.
+       */}
+      <div
+        className="iris-dna-track"
+        tabIndex={0}
+        role="group"
+        aria-label={`${lane.label}: presentation sequence`}
+      >
         {lane.steps.map((step) => (
           <span
             key={step.sectionId}
@@ -168,11 +253,59 @@ export function DnaLane({
                 : ` · median ${step.medianDwellSeconds}s`
             }${step.returnRate > 0 ? ` · returned to in ${Math.round(step.returnRate * 100)}%` : ""}`}
           >
-            {compact ? step.label.slice(0, 3) : step.label}
+            {/*
+             * Both labels, and the container decides which is shown.
+             *
+             * The step is a flex item sized by how often the section was
+             * reached, so how much room it has is not knowable from the
+             * viewport — at 1366 more than thirty of these were clipped
+             * mid-word, turning "Surroundings" into "Surroundi" and
+             * "Compare" into "Comp". A container query on the step itself
+             * asks the only question that matters: does *this* box fit its
+             * name?
+             *
+             * The short form is a three-letter code, never a truncation: two
+             * letters cannot be told apart, and an ellipsis is not a label.
+             * The full name stays reachable through the code's own title, the
+             * step's tooltip and the key beneath the lane.
+             */}
+            <span className="iris-dna-full">{step.label}</span>
+            <abbr className="iris-dna-code" title={step.label}>
+              {shortCode(step.label)}
+            </abbr>
           </span>
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * A three-letter code for a section, stable and pronounceable.
+ *
+ * Not `slice(0, 3)`: "Time & weather" would become "Tim" and "Shortlist"
+ * "Sho", which are neither memorable nor distinct from one another at a
+ * glance. Consonant-led codes read as abbreviations rather than as damage.
+ */
+const SECTION_CODES: Readonly<Record<string, string>> = {
+  Home: "HOM",
+  Residences: "RES",
+  Amenities: "AMN",
+  Surroundings: "SUR",
+  Gallery: "GAL",
+  Maps: "MAP",
+  "Time & weather": "TWX",
+  Compare: "CMP",
+  Shortlist: "SHL",
+};
+
+export function shortCode(label: string): string {
+  return (
+    SECTION_CODES[label] ??
+    label
+      .replace(/[^A-Za-z]/g, "")
+      .slice(0, 3)
+      .toUpperCase()
   );
 }
 
@@ -338,7 +471,6 @@ export function OutcomeContext({
         ))}
         <span style={{ marginLeft: "auto" }}>of {total} meetings</span>
       </div>
-
     </div>
   );
 }

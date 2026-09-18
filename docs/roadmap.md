@@ -58,7 +58,7 @@ Still no database work. The physical schema follows the read models once every s
 | **M7**  | Ingestion                       | Source-observation endpoint, adapters, OpenAPI, integration simulator                                                          |
 | **M8**  | Event catalogues                | Per-source event vocabularies mapped onto the fact taxonomy; the Unreal instrumentation specification for Akhilesh             |
 | **M9**  | MADSPACE administration         | Tenants, projects, branding, users, agencies, installations, integrations, unit import, feature flags, data health, activation |
-| **M10** | CRM connectors                  | Canonical model with REALPAD, Monday and manual adapters                                                                       |
+| **M10** | CRM connectors                  | Canonical model with REALPAD, Monday, Lomnio and manual adapters — shape and verified API facts in ADR-0036                    |
 | **M11** | AI layer                        | MCP server over the metric registry, deterministic insight detectors, report composer, ask bar                                 |
 
 The ordering rule: **anything that hardens a shape comes after the shape stops moving.** The database

@@ -1,0 +1,2339 @@
+/**
+ * ASK IRIS — the approved artefact, rebuilt. Namespace: `ask-`, scoped under `.ask-root`.
+ *
+ * The user designed this screen in Claude Design and delivered it as an HTML
+ * export ("AI IRIS_OBSERVER PAGE"), stating that the export is the visual
+ * source of truth for `/[tenant]/[project]/ask` and that it is not to be
+ * reinterpreted. Every measurement below is READ OUT of that file rather than
+ * approximated: the 24px hero radius, the 181px card, the 34px text inset, the
+ * 88px textarea, the 41px controls, the 58px suggestion rows, the 16px list
+ * gap, the 46px history rows, the 38px avatar, the panel radii, the border
+ * alphas and the gradient stops are all transcribed.
+ *
+ * ## Three things were deliberately NOT transcribed, and the reasons are rules
+ *
+ * **The typeface.** The export ships `Inter` from `fonts.googleapis.com`.
+ * Manrope is brand-locked by ADR-0020, is already self-hosted, and carries the
+ * tabular figures every number in this product depends on; `docs/12` names
+ * Inter as its own example of a generic choice. So the design's typographic
+ * SCALE is taken exactly — 24/300/0.10em for the prompt, 15.5/400 for a
+ * suggestion, 15/400 for a message, 13.5, 13, 12.5 — and its font is not. The
+ * user's instruction says this in as many words.
+ *
+ * **The accent.** The export uses `#2f97ff` and its deeper partner `#0a6ff0`.
+ * The brand is `#00a3ff`, and ADR-0033 already refused to move it for this same
+ * artefact family: "the brand is not ours to move." What is preserved is the
+ * RELATIONSHIP — a lighter accent over a deeper one of the same hue — so the
+ * gradient is rebuilt from the brand rather than sampled from the mockup. See
+ * `--ask-accent-deep`.
+ *
+ * **The two WebGL canvases.** The export draws its background grid and the
+ * glow around the composer as fragment shaders on `three.js`, loaded from
+ * `unpkg.com`, animated on a permanent `requestAnimationFrame`. Three separate
+ * rules forbid shipping that: no runtime network asset (ADR-0025), no
+ * continuously running animation for a texture (ADR-0033 rejected this exact
+ * canvas on this exact ground — "motion that communicates is allowed, motion
+ * that decorates is forbidden"), and no third-party CDN in the bundle.
+ *
+ * Both are therefore rebuilt as STATIC CSS with the same geometry the shaders
+ * use: a 64px grid offset by the 70px header, faded by a radial centred at
+ * 50%/36% and a soft vignette, in the same blue. What is lost is the drifting
+ * scan-line the shader animates over it; what is kept is every measurable
+ * property of the still image, at zero JavaScript and zero requests.
+ *
+ * ## Why a new stylesheet rather than an extension of `iris-shell.css`
+ *
+ * That sheet owns the FRAME — header, brand, nav, atmosphere, main column —
+ * and this screen keeps all of it. This sheet owns only what lives inside the
+ * frame on one route. Keeping them apart means the Ask composition can be
+ * revised without touching the chrome every other surface wears, which is
+ * exactly the scope the user set.
+ *
+ * `collisions.test.ts` fails the build if any class here is claimed by another
+ * sheet. `ask-` was unused.
+ */
+
+/* ============================================================================
+ * 1. TOKENS — the export's values, translated where the brand requires it.
+ * ========================================================================= */
+
+.ask-root {
+  /*
+   * The brand blue, and a deeper partner derived from it rather than sampled.
+   *
+   * The export's pair is #2f97ff → #0a6ff0: same hue family, the second about
+   * ten points darker and slightly less saturated. Applied to #00a3ff
+   * (H 202°, S 100%, L 50%) the same move gives H 202°, S 100%, L 38% —
+   * #007bc2. So the send control still reads as one lit object with depth,
+   * and every blue on the screen is the brand's.
+   */
+  --ask-accent: var(--iris-accent);
+  --ask-accent-deep: #007bc2;
+  --ask-accent-soft: #2bb4ff;
+
+  --ask-ink: #f4f7fc;
+  --ask-ink-2: rgb(238 244 252 / 94%);
+  --ask-ink-3: rgb(226 234 246 / 90%);
+  --ask-ink-4: rgb(150 166 192 / 88%);
+
+  /* The composer, transcribed. */
+  --ask-hero-h: 181px;
+  --ask-hero-radius: var(--iris-radius-hero, 24px);
+  --ask-hero-inset: 34px;
+  --ask-control: 41px;
+  --ask-control-radius: var(--iris-radius-control, 10px);
+
+  /* The grid, from the shader's own uniforms: 64px cells, offset by the header. */
+  --ask-cell: 64px;
+
+  --ask-grid-line: rgb(77 133 240 / 30%);
+
+  font-variant-numeric: tabular-nums;
+
+  /*
+   * THE SCREEN SITS INSIDE THE PRODUCT SHELL, AND THIS IS THE SEAM.
+   *
+   * `.irs-main` gives every surface a 40px top and a 96px bottom, which is
+   * right for a page of panels and wrong for a composition the design floats
+   * against the top of the viewport. Both are cancelled here rather than made
+   * conditional in the shell, so no other screen is touched by this route's
+   * geometry.
+   *
+   * The width is NOT cancelled. The design's own column is
+   * `--iris-content-width` — 706px at 1440 — and the shell's wide measure is
+   * 1440, so the content lands in exactly the same place either way.
+   */
+}
+
+/**
+ * The page geometry, held apart from the tokens above.
+ *
+ * `.ask-root` is the token carrier and nothing else, because TWO things wear
+ * it: the Ask screen, and the prompt box docked at the foot of every other
+ * surface. The first draft put the page rules on the token class, so the docked
+ * box inherited `min-height: 100vh` while being `position: fixed; bottom: 0` —
+ * and grew a full viewport upward, covering the screen it was supposed to sit
+ * under. A shared class may declare values; it may not declare a layout.
+ */
+.ask-page {
+  position: relative;
+  margin-top: -40px;
+  margin-bottom: -96px;
+  min-height: calc(100vh - var(--iris-header-height, 70px));
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================================
+ * 2. THE GROUND — grid, lift, vignette. Three layers, no canvas, no motion.
+ * ========================================================================= */
+
+/*
+ * FIXED, not absolute.
+ *
+ * The export owns the whole viewport, so its grid can be a layer inside the
+ * page. Here the screen renders inside the product's centred main column, and
+ * an absolutely positioned ground would be a 706-wide strip of grid with dark
+ * either side of it at 1920. Fixed gives the design's full-bleed room back and
+ * costs nothing: the layer is inert, and a long page scrolls THROUGH the light
+ * rather than dragging it along, which is what the shell's own atmosphere
+ * already does one level up.
+ */
+.ask-ground {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/**
+ * The grid.
+ *
+ * `background-position-y: var(--iris-header-height)` reproduces the shader's
+ * `uHeader` term: the horizontal rules start ruling from the bottom edge of the
+ * header rather than from the top of the document, so the first cell below the
+ * chrome is a whole one.
+ *
+ * The mask is the shader's two falloffs multiplied: a radial centred at
+ * 50%/36% — `uCx`, `uCy` exactly — and a soft rectangular vignette. Without
+ * them a flat grid reads as graph paper; with them it reads as a room.
+ */
+.ask-ground::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--ask-grid-line) 0 1px,
+      transparent 1px var(--ask-cell)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--ask-grid-line) 0 1px,
+      transparent 1px var(--ask-cell)
+    );
+  background-position:
+    0 0,
+    0 var(--iris-header-height, 70px);
+  opacity: 0.5;
+  -webkit-mask-image:
+    radial-gradient(ellipse 62% 58% at 50% 36%, #000 0%, rgb(0 0 0 / 42%) 46%, transparent 78%),
+    linear-gradient(180deg, transparent 0, #000 6%, #000 78%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(ellipse 62% 58% at 50% 36%, #000 0%, rgb(0 0 0 / 42%) 46%, transparent 78%),
+    linear-gradient(180deg, transparent 0, #000 6%, #000 78%, transparent 100%);
+  mask-composite: intersect;
+}
+
+/*
+ * The two atmosphere layers, transcribed value for value from the export —
+ * and identical to the ones `iris-shell.css` already carries, because both
+ * came from the same artefact. They are repeated here rather than inherited so
+ * that the grid sits BETWEEN the page ground and the lift, which is the order
+ * the export stacks them in (z-index 0, 1, 2).
+ */
+.ask-ground::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 76% 84% at 50% 50%, transparent 44%, rgb(1 3 9 / 62%) 100%),
+    radial-gradient(
+      ellipse 52% 46% at 50% 40%,
+      rgb(0 73 180 / 13%) 0%,
+      rgb(0 42 105 / 5%) 44%,
+      transparent 74%
+    ),
+    linear-gradient(180deg, rgb(3 7 19 / 55%) 0%, rgb(2 5 13 / 75%) 100%);
+}
+
+/* ============================================================================
+ * 3. THE COLUMN
+ * ========================================================================= */
+
+.ask-main {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 24px;
+  min-width: 0;
+
+  /*
+   * THE GLOW MUST NOT BE ABLE TO SCROLL THE PAGE.
+   *
+   * The composer's two light layers are absolutely positioned and reach 150px
+   * and 130px past the card on each side, which is what gives the rim its
+   * falloff. Absolutely positioned boxes contribute to scrollable overflow, so
+   * at 1440 the 1440-wide column absorbed them and at 390 they pushed the
+   * document out to 526 — 136px of horizontal scroll on a screen whose content
+   * fitted perfectly.
+   *
+   * `clip` rather than `hidden`: hidden would make this a scroll container and
+   * would clip the model menu, which opens UPWARD out of the composer. `clip`
+   * is the value that exists for exactly this — it clips one axis without
+   * forcing the other to scroll.
+   */
+  overflow-x: clip;
+}
+
+/*
+ * The idle spacer, from the export: `min(150px, max(24px, 24vh - 96px))`. It
+ * is what puts the composer a little above the optical centre on a tall screen
+ * and lets it rise on a short one.
+ *
+ * The product's context band did not exist in the artefact — it is a
+ * requirement of the surrounding application, which must always state which
+ * project and which period a screen is showing — so its height is subtracted
+ * here. The composer then lands where the design puts it rather than one band
+ * lower.
+ */
+.ask-lead {
+  /*
+   * The export's formula, verbatim.
+   *
+   * An earlier version subtracted the height of a context band this screen used
+   * to carry. The band is gone — the reference has no second utility row, and
+   * matching it was the point — so the curve is the artefact's again: the
+   * composer sits 140px below the header at 900px tall, which is where the
+   * export puts it, measured rather than assumed.
+   */
+  height: min(150px, max(24px, calc(24vh - 96px)));
+  flex: none;
+}
+
+.ask-lead[data-compact="true"] {
+  height: 33px;
+}
+
+/* ============================================================================
+ * 4. THE COMPOSER
+ * ========================================================================= */
+
+.ask-hero {
+  position: relative;
+  width: var(--iris-content-width);
+  min-width: 0;
+}
+
+/* The wide, very soft field the export paints behind the card. */
+.ask-hero::before {
+  content: "";
+  position: absolute;
+  inset: -150px -160px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgb(8 60 190 / 10%) 0%,
+    rgb(5 32 110 / 3.5%) 48%,
+    transparent 74%
+  );
+}
+
+/**
+ * The glow the export draws with a shader, as one still gradient.
+ *
+ * The shader's visible result is a bright bar riding the card's top edge and
+ * bleeding upward and outward. An ellipse wider than the card, centred on its
+ * top edge, reproduces it: the same colour, the same falloff, no frame loop.
+ */
+.ask-hero::after {
+  content: "";
+  position: absolute;
+  left: -130px;
+  right: -130px;
+  top: -130px;
+  height: 300px;
+  z-index: 1;
+  pointer-events: none;
+  /*
+   * Two ellipses, not one.
+   *
+   * A single soft radial reads as a halo floating above the card; the shader's
+   * result is a BAR riding the top edge with a wider bloom behind it. So one
+   * narrow, bright, very flat ellipse sits exactly on the edge, and one broad
+   * dim one sits behind it — which is what the eye reads as light coming off a
+   * lit rim rather than a lamp hung over it.
+   */
+  /*
+   * REBALANCED WHEN THE TRAVELLING LIGHT ARRIVED.
+   *
+   * This was a bright bar riding the top edge, standing in for a moving light
+   * that had not been built yet. With the real one lapping the perimeter it
+   * became the loudest thing on the card and swallowed the pulse every time it
+   * passed the top — the effect existed and could not be seen.
+   *
+   * So it drops to what the shader actually puts here: the wide, dim outer
+   * bloom of its `mid` and `far` terms. The hot spots at top and bottom centre
+   * are the anchors on the ring, at the shader's own fifth-intensity, and the
+   * head of the pulse is the only bright thing on the edge.
+   */
+  background:
+    radial-gradient(
+      ellipse 30% 5% at 50% 43.4%,
+      rgb(150 215 255 / 20%) 0%,
+      rgb(0 163 255 / 12%) 44%,
+      transparent 80%
+    ),
+    radial-gradient(
+      ellipse 46% 22% at 50% 41%,
+      rgb(0 140 255 / 15%) 0%,
+      rgb(0 95 200 / 7%) 48%,
+      transparent 78%
+    );
+}
+
+.ask-card {
+  position: relative;
+  z-index: 2;
+  height: var(--ask-hero-h);
+  border-radius: var(--ask-hero-radius);
+  border: 1px solid rgb(120 170 240 / 28%);
+  background: linear-gradient(
+    180deg,
+    rgb(13 40 96 / 55%) 0%,
+    rgb(5 15 38 / 90%) 34%,
+    rgb(2 7 18 / 96%) 100%
+  );
+  box-shadow: inset 0 0 34px rgb(12 60 160 / 16%);
+  overflow: hidden;
+}
+
+/* The soft column of light inside the card, under its top edge. */
+.ask-card::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -72%;
+  width: 56%;
+  height: 140%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgb(30 96 215 / 20%), transparent 66%);
+}
+
+.ask-field {
+  position: absolute;
+  left: var(--ask-hero-inset);
+  right: var(--ask-hero-inset);
+  top: 27px;
+  height: 88px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  color: var(--ask-ink);
+  caret-color: var(--ask-accent-soft);
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  line-height: 1.34;
+  overflow: auto;
+}
+
+.ask-field::placeholder {
+  color: rgb(244 247 252 / 50%);
+  opacity: 1;
+}
+
+/*
+ * The textarea's own outline is suppressed because the CARD carries the focus
+ * state instead: a control that fills a panel edge to edge cannot show a ring
+ * without drawing a second rectangle inside the first. The card's ring is
+ * below, and it is the same 2px the rest of the product uses — this is a
+ * relocation of the indicator, never its removal.
+ */
+.ask-field:focus {
+  outline: none;
+}
+
+.ask-card:has(.ask-field:focus-visible) {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: 2px;
+  border-color: rgb(140 195 255 / 45%);
+}
+
+.ask-actions {
+  position: absolute;
+  left: 33px;
+  right: 27px;
+  bottom: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ask-tools {
+  display: flex;
+  align-items: center;
+  gap: 12.5px;
+}
+
+/* --- the model selector -------------------------------------------------- */
+
+.ask-model-wrap {
+  position: relative;
+}
+
+.ask-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 165px;
+  height: var(--ask-control);
+  padding: 0 12px 0 14px;
+  border-radius: var(--ask-control-radius);
+  border: 1px solid rgb(143 163 197 / 30%);
+  background: rgb(4 13 32 / 62%);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: #e9eff8;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.ask-model:hover {
+  border-color: rgb(172 195 232 / 46%);
+  background: rgb(8 22 50 / 70%);
+}
+
+.ask-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * SIZED TO STAY INSIDE `.ask-card`'S OWN CLIP.
+ *
+ * `.ask-card` clips anything that opens past its own rounded edge (§4
+ * above), so a menu that opens upward can grow taller than the card without
+ * ever being told to stop. Measured live against the card's own 181px
+ * height, this menu's `bottom: 50px` anchor leaves 113px of headroom above
+ * the card's top edge before content is cut off mid-row with nothing on
+ * screen to say so — which is exactly what an account with more than one
+ * model connected used to do. `max-height: 112px` — room for the note plus
+ * two option rows — and its own scrollbar keep every state inside that
+ * budget instead of past it.
+ */
+.ask-model-menu {
+  position: absolute;
+  left: 0;
+  bottom: 50px;
+  z-index: 20;
+  width: 214px;
+  max-height: 112px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid rgb(143 163 197 / 26%);
+  background: rgb(3 10 25 / 97%);
+  box-shadow: 0 20px 44px rgb(0 0 0 / 60%);
+}
+
+/*
+ * The sheet header — a title and a close button. Redundant with Escape and
+ * an outside click on a desktop pointer, so it stays out of the way there;
+ * a phone has neither a physical Escape key nor anywhere to click that
+ * plausibly reads as "outside" once the sheet covers the screen's own
+ * bottom edge, so the mobile media query below turns it on.
+ */
+.ask-menu-head {
+  display: none;
+}
+
+.ask-menu-title {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: var(--weight-semibold, 600);
+  color: #eaf1fb;
+}
+
+.ask-menu-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: rgb(219 228 241 / 72%);
+  cursor: pointer;
+  transition:
+    background 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.ask-menu-close:hover {
+  background: rgb(26 64 132 / 38%);
+  color: #ffffff;
+}
+
+.ask-menu-close:focus-visible {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: 1px;
+}
+
+.ask-model-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: #dbe4f1;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.ask-model-option:hover {
+  background: rgb(26 64 132 / 38%);
+  color: #ffffff;
+}
+
+.ask-model-option[aria-disabled="true"] {
+  color: rgb(219 228 241 / 45%);
+  cursor: not-allowed;
+}
+
+.ask-model-option[aria-disabled="true"]:hover {
+  background: transparent;
+  color: rgb(219 228 241 / 45%);
+}
+
+.ask-model-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ask-accent-soft);
+  box-shadow: 0 0 7px rgb(43 180 255 / 80%);
+}
+
+/* --- which project(s) a question is asked against ------------------------ */
+
+/*
+ * Built on the model selector's own classes — `.ask-model`, `.ask-model-menu`,
+ * `.ask-model-option` — because the two controls are the same shape: a
+ * disclosure naming what governs the next answer. What follows is only what
+ * the scope picker adds to that shape.
+ */
+.ask-scope-wrap {
+  position: relative;
+}
+
+/*
+ * `.ask-model-menu` above already carries the safe height and the
+ * scrollbar that keeps a menu inside `.ask-card`'s clip: same card, same
+ * `bottom: 50px` anchor, so the same 113px of headroom applies to both
+ * pickers on this row. Only the width differs — wide enough for a project
+ * name in the Compare checklist, where the model list never needed more
+ * than 214px.
+ */
+.ask-scope-menu {
+  width: 264px;
+}
+
+.ask-model-option[data-selectable="true"] {
+  cursor: pointer;
+  justify-content: flex-start;
+}
+
+.ask-model-option[data-selectable="true"] input[type="radio"] {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ask-accent-deep);
+}
+
+/*
+ * The three scopes as one segmented row rather than three stacked rows —
+ * the difference between the common path (Current, the default) costing one
+ * 28px row and costing three. A real radio group underneath, visually
+ * hidden rather than removed: `appearance: none` keeps it in the tab order
+ * and in the accessibility tree, and `:has()` paints the checked one.
+ */
+.ask-scope-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 9px;
+  background: rgb(4 13 32 / 55%);
+}
+
+.ask-scope-tab {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: var(--weight-medium);
+  color: rgb(219 228 241 / 72%);
+  cursor: pointer;
+  transition:
+    background 140ms ease-out,
+    color 140ms ease-out;
+}
+
+.ask-scope-tab:hover {
+  color: #ffffff;
+}
+
+.ask-scope-tab:has(input:checked) {
+  background: var(--ask-accent-deep);
+  color: #ffffff;
+}
+
+.ask-scope-tab:has(input:focus-visible) {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: 2px;
+}
+
+.ask-scope-tab input[type="radio"] {
+  position: absolute;
+  inset: 0;
+  appearance: none;
+  margin: 0;
+}
+
+/*
+ * `.ask-menu-scroll` wraps whatever a menu's own note-and-options content
+ * is — the model list's note-plus-options, or the scope picker's checklist
+ * and its closing note. On a phone (mobile media query below) this is the
+ * ONLY part of the sheet that scrolls: the head and, for the scope picker,
+ * its three tabs stay pinned above it. A desktop pointer never needs the
+ * distinction — `.ask-model-menu`'s own 112px box already scrolls
+ * everything inside it as one unit — so this stays a plain block there.
+ */
+.ask-menu-scroll {
+  margin-top: 4px;
+}
+
+/*
+ * The compare checklist — every project this account holds, this one
+ * included, each a real checkbox rather than the single `<select>` an
+ * earlier pass used.
+ */
+.ask-scope-compare {
+  display: flex;
+  flex-direction: column;
+}
+
+.ask-scope-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 27px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #dbe4f1;
+  cursor: pointer;
+  transition: background 140ms ease-out;
+}
+
+.ask-scope-check:hover {
+  background: rgb(26 64 132 / 32%);
+}
+
+.ask-scope-check input[type="checkbox"] {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ask-accent-deep);
+}
+
+/*
+ * The checklist and its note stay hidden until Compare is the checked tab —
+ * a `:has()` rule rather than a script, the same technique `.ask-card`
+ * already uses for its own focus state (§4). Checked in, the menu grows
+ * past its usual 112px and scrolls itself instead.
+ */
+.ask-scope-menu:not(:has(input[value="compare"]:checked)) .ask-menu-scroll {
+  display: none;
+}
+
+.ask-menu-note + .ask-menu-note {
+  margin-top: 6px;
+}
+
+/* --- the round controls -------------------------------------------------- */
+
+.ask-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ask-control);
+  height: var(--ask-control);
+  flex: none;
+  border-radius: var(--ask-control-radius);
+  border: 1px solid rgb(143 163 197 / 30%);
+  background: rgb(4 13 32 / 55%);
+  color: #eaf1fb;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.ask-btn:hover {
+  border-color: rgb(172 195 232 / 46%);
+  background: rgb(8 22 50 / 68%);
+}
+
+/*
+ * A control with nothing behind it says so, and is not merely dimmed. The
+ * dashed edge is the same treatment the product surface uses for an
+ * unavailable action, so the two read as one language.
+ */
+.ask-btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: rgb(234 241 251 / 42%);
+  border-style: dashed;
+  border-color: rgb(143 163 197 / 26%);
+  background: transparent;
+}
+
+.ask-btn[aria-disabled="true"]:hover {
+  border-color: rgb(143 163 197 / 26%);
+  background: transparent;
+}
+
+.ask-btn[aria-current="true"]::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 11px;
+  border: 1px solid rgb(0 163 255 / 80%);
+  background: rgb(20 84 206 / 26%);
+  box-shadow:
+    0 0 14px rgb(0 140 255 / 45%),
+    inset 0 0 12px rgb(60 150 255 / 25%);
+}
+
+.ask-send {
+  border-color: rgb(120 190 255 / 42%);
+  background: linear-gradient(180deg, var(--ask-accent) 0%, var(--ask-accent-deep) 100%);
+  color: #ffffff;
+  box-shadow:
+    0 0 18px rgb(0 140 255 / 50%),
+    inset 0 1px 0 rgb(255 255 255 / 30%);
+  transition:
+    filter 170ms ease-out,
+    box-shadow 170ms ease-out,
+    transform 110ms ease-out;
+}
+
+.ask-send:hover {
+  filter: brightness(1.12);
+  border-color: rgb(120 190 255 / 42%);
+  background: linear-gradient(180deg, var(--ask-accent) 0%, var(--ask-accent-deep) 100%);
+  box-shadow:
+    0 0 24px rgb(20 150 255 / 62%),
+    inset 0 1px 0 rgb(255 255 255 / 34%);
+}
+
+.ask-send:active {
+  transform: scale(0.97);
+}
+
+.ask-send[aria-disabled="true"] {
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+}
+
+/* ============================================================================
+ * 5. THE OPENINGS
+ * ========================================================================= */
+
+.ask-openings {
+  width: var(--iris-content-width);
+  margin: min(112px, max(30px, calc(18vh - 76px))) 0 min(44px, max(26px, 4vh));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+}
+
+.ask-opening {
+  width: 100%;
+  flex: none;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 16px;
+  height: 58px;
+  padding: 0 20px;
+  border-radius: 11px;
+  border: 1px solid rgb(140 165 205 / 14%);
+  background: linear-gradient(180deg, rgb(140 175 235 / 3.5%) 0%, rgb(88 124 190 / 1.8%) 100%);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: inset 0 1px 0 rgb(200 224 255 / 6%);
+  font-family: var(--font-sans);
+  font-size: 15.5px;
+  font-weight: 400;
+  /*
+   * The export sets rgba(156,168,188,.9), which measures 5.9:1 on this ground.
+   * It is the row's own text and it is kept; the brightening on hover is the
+   * export's too.
+   */
+  color: rgb(156 168 188 / 90%);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.ask-opening:hover {
+  border-color: rgb(168 194 238 / 26%);
+  background: linear-gradient(180deg, rgb(150 185 240 / 6.5%) 0%, rgb(96 132 198 / 3.2%) 100%);
+  color: rgb(206 216 232 / 95%);
+  transform: translateY(-1px);
+}
+
+.ask-opening-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  justify-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgb(148 172 212 / 16%);
+  background: rgb(150 185 240 / 4.5%);
+  color: rgb(148 161 182 / 82%);
+}
+
+.ask-opening-text {
+  min-width: 0;
+}
+
+/*
+ * The chevron is an affordance rather than decoration, so it is held at the
+ * 3:1 WCAG asks of a graphical object. The export's rgba(136,149,168,.65)
+ * measures 2.6:1 on this ground; the same hue at full alpha measures 4.1:1 and
+ * is indistinguishable at 18px.
+ */
+.ask-opening-go {
+  justify-self: end;
+  color: rgb(136 149 168);
+}
+
+/**
+ * THE THREE NAMED DESTINATIONS.
+ *
+ * Quieter than the openings on purpose — these are places, not questions, and
+ * putting them at the openings' own weight would ask a reader to choose
+ * between asking something and going somewhere as if they were one decision.
+ * Text at `.ask-hint`'s own colour and size, spaced as a row rather than a
+ * list, because three named links read as a row of doors and five ranked
+ * questions read as a list of options — the same distinction the export
+ * itself draws between the composer and everything beneath it.
+ */
+.ask-quicklinks {
+  width: var(--iris-content-width);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 20px 0 0;
+}
+
+.ask-quicklink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: rgb(150 166 192 / 78%);
+  text-decoration: none;
+  transition: color 180ms ease-out;
+}
+
+.ask-quicklink:hover {
+  color: rgb(206 216 232 / 95%);
+}
+
+.ask-quicklink svg {
+  flex: none;
+  opacity: 0.85;
+}
+
+@media (width <= 48rem) {
+  .ask-quicklinks {
+    gap: 10px 18px;
+    margin-top: 16px;
+  }
+}
+
+/* ============================================================================
+ * 6. THE PANELS — history, and the conversation.
+ * ========================================================================= */
+
+.ask-panel {
+  position: relative;
+  width: var(--iris-content-width);
+  border-radius: 20px;
+  border: 1px solid rgb(96 152 232 / 26%);
+  background: linear-gradient(180deg, rgb(9 24 56 / 66%) 0%, rgb(3 10 26 / 80%) 100%);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow:
+    0 0 70px rgb(8 58 175 / 16%),
+    inset 0 1px 0 rgb(170 208 255 / 7%);
+  overflow: hidden;
+}
+
+.ask-panel[data-kind="history"] {
+  margin-top: 44px;
+  min-height: 330px;
+  height: calc(100vh - 384px);
+}
+
+.ask-panel[data-kind="chat"] {
+  margin: min(56px, max(24px, calc(10vh - 36px))) 0 min(40px, max(24px, 4.5vh));
+  min-height: 300px;
+  height: calc(100vh - 372px);
+  border-color: rgb(96 152 232 / 22%);
+  background: linear-gradient(180deg, rgb(9 24 56 / 52%) 0%, rgb(3 10 26 / 72%) 100%);
+  box-shadow:
+    0 0 70px rgb(8 58 175 / 13%),
+    inset 0 1px 0 rgb(170 208 255 / 6%);
+}
+
+.ask-panel-title {
+  margin: 0;
+  padding: 25px 26px 0;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.22em;
+  color: rgb(232 240 252 / 82%);
+}
+
+.ask-scroll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56px;
+  bottom: 0;
+  overflow-y: auto;
+  padding: 0 20px 24px 26px;
+}
+
+.ask-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+.ask-scroll::-webkit-scrollbar-track {
+  background: rgb(150 180 225 / 7%);
+  border-radius: 4px;
+}
+
+.ask-scroll::-webkit-scrollbar-thumb {
+  background: rgb(196 222 255 / 55%);
+  border-radius: 4px;
+}
+
+.ask-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(216 238 255 / 72%);
+}
+
+/* --- history ------------------------------------------------------------- */
+
+.ask-group {
+  margin: 0;
+  padding: 14px 4px 10px;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: rgb(150 168 196 / 92%);
+}
+
+.ask-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 46px;
+  padding: 0 8px 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgb(140 170 215 / 10%);
+  background: linear-gradient(180deg, rgb(140 175 235 / 4.5%) 0%, rgb(88 124 190 / 2.2%) 100%);
+  transition:
+    border-color 160ms ease-out,
+    background 160ms ease-out;
+}
+
+.ask-row:hover,
+.ask-row:focus-within {
+  border-color: rgb(150 190 250 / 42%);
+  background: linear-gradient(180deg, rgb(150 185 240 / 9%) 0%, rgb(96 132 198 / 5%) 100%);
+}
+
+.ask-row[aria-current="true"] {
+  border-color: rgb(0 163 255 / 55%);
+  background: linear-gradient(180deg, rgb(20 84 206 / 24%) 0%, rgb(10 44 118 / 16%) 100%);
+}
+
+.ask-row-mark {
+  flex: none;
+  color: rgb(196 212 236 / 78%);
+}
+
+.ask-row-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 400;
+  color: rgb(238 244 252 / 90%);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ask-row-when {
+  flex: none;
+  font-size: 13px;
+  color: rgb(150 166 192 / 88%);
+  white-space: nowrap;
+}
+
+.ask-row-act {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: rgb(210 224 244 / 88%);
+  cursor: pointer;
+}
+
+.ask-row-act:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+/*
+ * The export reveals the rename control on hover alone. Hover is not available
+ * to a keyboard, so focus reveals it too — otherwise the control is reachable
+ * by Tab and invisible while it is focused, which is worse than not offering
+ * it.
+ */
+.ask-row-act[data-reveal="true"] {
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+
+.ask-row:hover .ask-row-act[data-reveal="true"],
+.ask-row-act[data-reveal="true"]:focus-visible {
+  opacity: 1;
+}
+
+.ask-row-menu {
+  position: absolute;
+  z-index: 30;
+  width: 168px;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgb(126 156 206 / 22%);
+  background: rgb(9 14 28 / 97%);
+  box-shadow: 0 26px 64px rgb(0 0 0 / 60%);
+}
+
+.ask-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  color: rgb(236 242 252 / 94%);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ask-menu-item:hover {
+  background: rgb(255 255 255 / 7%);
+}
+
+.ask-menu-item[aria-disabled="true"] {
+  color: rgb(236 242 252 / 42%);
+  cursor: not-allowed;
+}
+
+.ask-menu-item[aria-disabled="true"]:hover {
+  background: none;
+}
+
+.ask-menu-item[data-tone="destructive"] {
+  color: #ff6b61;
+}
+
+.ask-menu-item[data-tone="destructive"]:hover {
+  background: rgb(255 69 58 / 12%);
+}
+
+.ask-menu-rule {
+  height: 1px;
+  margin: 7px 8px;
+  border: 0;
+  background: rgb(255 255 255 / 10%);
+}
+
+.ask-menu-note {
+  margin: 4px 10px 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgb(180 194 216 / 70%);
+}
+
+/* --- the conversation ---------------------------------------------------- */
+
+.ask-log {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 16px 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  list-style: none;
+}
+
+.ask-msg {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
+.ask-msg[data-who="you"] {
+  border-radius: 12px;
+  border: 1px solid rgb(120 170 240 / 16%);
+  background: linear-gradient(180deg, rgb(20 52 116 / 34%) 0%, rgb(10 28 68 / 26%) 100%);
+}
+
+.ask-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: linear-gradient(180deg, var(--ask-accent) 0%, var(--ask-accent-deep) 100%);
+  box-shadow: 0 0 14px rgb(0 140 255 / 40%);
+}
+
+.ask-avatar[data-who="iris"] {
+  border: 1px solid rgb(96 160 255 / 42%);
+  background: rgb(10 30 70 / 50%);
+  box-shadow: none;
+  color: var(--ask-accent);
+}
+
+.ask-msg-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 2px;
+}
+
+.ask-msg-who {
+  font-size: 13.5px;
+  font-weight: var(--weight-medium);
+  color: var(--ask-accent-soft);
+}
+
+.ask-msg-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.62;
+  color: var(--ask-ink-3);
+  white-space: pre-line;
+  text-wrap: pretty;
+}
+
+.ask-msg[data-who="you"] .ask-msg-text {
+  line-height: 1.5;
+  color: var(--ask-ink-2);
+}
+
+.ask-msg-when {
+  padding-top: 3px;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ask-ink-4);
+  white-space: nowrap;
+}
+
+/* The thinking row, and the one animation this screen keeps. */
+.ask-thinking {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+}
+
+.ask-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ask-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ask-accent-soft);
+  animation: ask-dot 1.25s ease-in-out infinite;
+}
+
+.ask-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.ask-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.ask-thinking-word {
+  margin-left: 6px;
+  font-size: 13.5px;
+  color: rgb(150 166 192 / 85%);
+}
+
+@keyframes ask-dot {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ============================================================================
+ * 7. EVIDENCE, AND THE NOTE THAT SAYS WHO WROTE THE ANSWER
+ * ========================================================================= */
+
+.ask-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1px;
+  margin: 4px 0 0;
+  border-radius: 10px;
+  border: 1px solid rgb(120 170 240 / 16%);
+  background: rgb(8 20 46 / 55%);
+  overflow: hidden;
+}
+
+.ask-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  box-shadow:
+    -1px 0 0 rgb(120 170 240 / 16%),
+    0 -1px 0 rgb(120 170 240 / 16%);
+}
+
+.ask-figure dt {
+  font-size: 12px;
+  color: var(--ask-ink-4);
+}
+
+.ask-figure dd {
+  margin: 0;
+  font-size: 17px;
+  font-weight: var(--weight-semibold);
+  color: var(--ask-ink);
+}
+
+/*
+ * The honesty line, and it is not decoration.
+ *
+ * ADR-0030 and ADR-0033 record that no account on this deployment holds a
+ * model connection and that a prompt which looked ready to answer would be the
+ * screen telling its first lie. These answers are composed by the read models,
+ * deterministically, and the screen says so every time it shows one.
+ */
+.ask-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  width: var(--iris-content-width);
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px dashed rgb(140 170 215 / 30%);
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(178 192 214 / 92%);
+}
+
+.ask-note-mark {
+  flex: none;
+  color: var(--ask-accent-soft);
+  margin-top: 1px;
+}
+
+.ask-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.ask-empty-title {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: var(--weight-medium);
+  color: rgb(226 234 246 / 90%);
+}
+
+.ask-empty-note {
+  margin: 0;
+  max-width: 48ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ask-ink-4);
+}
+
+/* ============================================================================
+ * 8. MOTION — the export's entrances, and nothing that loops.
+ * ========================================================================= */
+
+@keyframes ask-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ask-hero-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ask-fade {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.ask-hero {
+  animation: ask-hero-in 620ms cubic-bezier(0.23, 1, 0.32, 1) 90ms backwards;
+}
+
+.ask-opening {
+  animation: ask-rise 420ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.ask-openings li:nth-child(1) .ask-opening {
+  animation-delay: 200ms;
+}
+
+.ask-openings li:nth-child(2) .ask-opening {
+  animation-delay: 245ms;
+}
+
+.ask-openings li:nth-child(3) .ask-opening {
+  animation-delay: 290ms;
+}
+
+.ask-openings li:nth-child(4) .ask-opening {
+  animation-delay: 335ms;
+}
+
+.ask-openings li:nth-child(5) .ask-opening {
+  animation-delay: 380ms;
+}
+
+.ask-panel {
+  animation: ask-rise 460ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-hero,
+  .ask-opening,
+  .ask-panel {
+    animation-name: ask-fade !important;
+    animation-duration: 220ms !important;
+    animation-delay: 0s !important;
+  }
+
+  .ask-opening:hover {
+    transform: none !important;
+  }
+
+  .ask-dot {
+    animation: none !important;
+    opacity: 0.8;
+  }
+}
+
+/* ============================================================================
+ * 9. RESPONSIVE
+ *
+ * The export gives two breakpoints of its own — the navigation gap steps down
+ * at 1439 and 1199, and the reader's name is dropped at 1199 — and both belong
+ * to the shell. What is here is what the composer needs below them, where the
+ * export has no guidance because its canvas was one width.
+ *
+ * The principle is the brief's: the prompt stays usable, nothing overflows, no
+ * control is clipped, and the phone is not a narrower desktop.
+ * ========================================================================= */
+
+@media (width <= 48rem) {
+  .ask-root {
+    --ask-hero-h: 168px;
+    --ask-hero-inset: 20px;
+  }
+
+  .ask-main {
+    padding: 0 16px;
+  }
+
+  .ask-field {
+    top: 22px;
+    height: 74px;
+    font-size: 20px;
+    letter-spacing: 0.06em;
+  }
+
+  /*
+   * Two pills now share this row (model, then scope) where the export's own
+   * canvas only ever drew one. Side by side at a phone's width they have no
+   * room left for the three round controls this row also carries, so those
+   * drop to a row of their own — `flex-basis: 100%` on a wrapped flex line
+   * is the standard way to force exactly that without a media query per
+   * breakpoint in between.
+   */
+  .ask-actions {
+    left: 18px;
+    right: 16px;
+    bottom: 14px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    gap: 10px;
+  }
+
+  .ask-model-wrap,
+  .ask-scope-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .ask-model {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding: 0 10px 0 12px;
+  }
+
+  /*
+   * A sheet fixed to the bottom of the screen, not a popover over the pill —
+   * for both menus built on this base class. `.ask-card` clips anything
+   * wider than its own remaining height (§ above), and on a phone that
+   * budget is tens of pixels once the two-pill row above has taken its
+   * share — nowhere near enough for a list of connected models, three
+   * scopes, or Compare's checklist. `position: fixed` escapes the card's
+   * own overflow the same way it escapes any ancestor's — `.ask-card` sets
+   * no transform, filter or will-change to stop it — so no coordinate math
+   * is needed, only an edge of the viewport to sit against.
+   */
+  .ask-model-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    width: auto;
+    max-height: min(70vh, calc(100dvh - 96px));
+    display: flex;
+    flex-direction: column;
+    /*
+     * The outer sheet no longer scrolls as one box — `overflow-y: auto` on
+     * the base class would let the whole sheet, close button included, ride
+     * away under a thumb. `.ask-menu-scroll` below is the one child that
+     * grows to fill what is left and scrolls on its own.
+     */
+    overflow-y: hidden;
+    border-radius: 16px;
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 55%);
+  }
+
+  /*
+   * A small grabber bar, the same shorthand a phone's own bottom sheets use
+   * to say "this is a temporary surface, not a page" before a reader reads
+   * a word of it.
+   */
+  .ask-model-menu::before {
+    content: "";
+    align-self: center;
+    flex: none;
+    width: 36px;
+    height: 4px;
+    margin-bottom: 8px;
+    border-radius: 2px;
+    background: rgb(219 228 241 / 28%);
+  }
+
+  .ask-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    margin-bottom: 4px;
+  }
+
+  /*
+   * The head and (for the scope picker) its tabs are `flex: none` — fixed
+   * height, never compressed. `.ask-menu-scroll` is the one sibling that
+   * takes what is left: `flex: 1 1 auto` so it can shrink to fit the sheet's
+   * own capped height, `min-height: 0` because a flex child's default
+   * `min-height: auto` would otherwise refuse to shrink past its own
+   * content and defeat the scroll entirely, and its own `overflow-y: auto`
+   * to be the thing that actually moves under a thumb.
+   */
+  .ask-scope-tabs {
+    flex: none;
+  }
+
+  .ask-menu-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: 8px;
+  }
+
+  /*
+   * Larger rows for a thumb than a pointer needs — close to the 44px a
+   * touch target is generally asked to clear, up from the 26–34px the
+   * same rows are on a desktop popover with room to spare.
+   */
+  .ask-scope-tab {
+    height: 40px;
+    font-size: 13.5px;
+  }
+
+  .ask-scope-check,
+  .ask-model-option {
+    height: 42px;
+    font-size: 14px;
+  }
+
+  .ask-menu-close {
+    width: 34px;
+    height: 34px;
+  }
+
+  /*
+   * THE BACKDROP.
+   *
+   * `<details>` has no backdrop of its own the way `<dialog>` does, so this
+   * paints one: a dimming layer behind the sheet, in front of everything
+   * else, present only while either menu on this row is open. `position:
+   * fixed; inset: 0` covers the full viewport regardless of which element
+   * hosts it — the host only decides where the backdrop falls in the
+   * z-index stacking order, not what it visually covers.
+   *
+   * Hosted on `.ask-card`, not `.ask-root`, and that choice is load-bearing.
+   * `.ask-card` is itself `position: relative; z-index: 2` (§4 above) — a
+   * stacking context of its own — and `position: fixed` lets a descendant
+   * escape its ancestor's OVERFLOW clipping but never its ancestor's STACKING
+   * CONTEXT: `.ask-model-menu`'s `z-index: 20` is only ever compared against
+   * siblings inside that same context. A backdrop hosted on `.ask-root`
+   * competes at `.ask-card`'s own level instead — behind the menu on paper,
+   * in front of it in practice, because it out-ranks the WHOLE card (z-index
+   * 2) rather than losing to the one thing inside it that matters. Hosting it
+   * on `.ask-card` puts both in the same contest, where 20 beats 19 as
+   * written.
+   *
+   * A tap on it is a tap outside the open `<details>` as far as
+   * `ClosableDetails` can tell — pointer events hit-test a pseudo-element's
+   * own painted box and report its HOST as the target, and `.ask-card`,
+   * like `.ask-root`, is not a descendant of the `<details>` it sits beside
+   * — so it already closes the sheet with no separate handler.
+   */
+  .ask-card:has(.ask-model-details[open])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background: rgb(2 5 13 / 55%);
+  }
+
+  .ask-tools {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+
+  .ask-openings {
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .ask-opening {
+    grid-template-columns: 34px minmax(0, 1fr) 16px;
+    gap: 12px;
+    height: auto;
+    min-height: 56px;
+    padding: 10px 14px;
+    font-size: 14.5px;
+  }
+
+  .ask-opening-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ask-panel[data-kind="history"],
+  .ask-panel[data-kind="chat"] {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin-top: 24px;
+  }
+
+  /*
+   * The panels stop being fixed-height viewport wells on a phone and become
+   * ordinary flow content. A `calc(100vh - 384px)` well on a 844px screen is
+   * 460px of scroller inside a scroller, and the inner one is the one a thumb
+   * catches by accident.
+   */
+  .ask-scroll,
+  .ask-log {
+    position: static;
+    padding: 0 14px 18px;
+  }
+
+  .ask-panel-title {
+    padding: 18px 16px 8px;
+  }
+
+  .ask-msg {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .ask-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11.5px;
+  }
+
+  .ask-msg-when {
+    grid-column: 2;
+    padding-top: 0;
+  }
+
+  .ask-row {
+    gap: 10px;
+    padding: 0 4px 0 10px;
+  }
+
+  /* Revealed permanently: there is no hover on a touch screen to reveal it. */
+  .ask-row-act[data-reveal="true"] {
+    opacity: 1;
+  }
+
+  .ask-note {
+    margin-bottom: 14px;
+  }
+}
+
+@media (width <= 30rem) {
+  .ask-field {
+    font-size: 18px;
+  }
+
+  .ask-model-name {
+    max-width: 30vw;
+  }
+}
+
+/* ============================================================================
+ * 10. THE PARTS THE STRUCTURE NEEDED
+ *
+ * Added after the composition was written rather than guessed at in advance:
+ * the disclosure mechanics that let two menus work without a line of script,
+ * the follow-up list the read model returns beneath an answer, and the visually
+ * hidden heading every screen needs and no design ever draws.
+ * ========================================================================= */
+
+/*
+ * The page's real `<h1>`.
+ *
+ * The design has no visible heading — its first words are a placeholder inside
+ * a textarea — and a screen with no `h1` is a screen a reader cannot find the
+ * top of. So the heading exists and is not painted. This is the one place on
+ * this surface where the export is added to rather than followed.
+ */
+.ask-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- disclosures, doing the work a popup script would ---------------------- */
+
+.ask-model-details,
+.ask-row-more {
+  position: relative;
+}
+
+/*
+ * `display: block` on the summary, and no marker. A summary is a `list-item`
+ * by default, which paints a triangle and refuses `display: flex` — so every
+ * flex rule written for `.ask-model` above would be silently dropped.
+ */
+.ask-model-details > summary,
+.ask-row-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.ask-model-details > summary::-webkit-details-marker,
+.ask-row-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ask-model-details > summary.ask-model {
+  display: flex;
+}
+
+.ask-row-more > summary.ask-row-act {
+  display: flex;
+}
+
+.ask-row-menu {
+  right: 0;
+  top: 34px;
+}
+
+/* --- what hangs beneath an answer ----------------------------------------- */
+
+.ask-caveat {
+  margin: 2px 0 0;
+  padding-left: 11px;
+  border-inline-start: 2px solid rgb(140 170 215 / 30%);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ask-ink-4);
+}
+
+.ask-figure-note {
+  font-size: 11.5px;
+  color: rgb(150 166 192 / 76%);
+}
+
+.ask-evidence-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgb(120 170 240 / 24%);
+  background: rgb(10 30 70 / 40%);
+  font-size: 12.5px;
+  color: rgb(206 224 250 / 92%);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ask-evidence-link:hover {
+  border-color: rgb(150 190 250 / 46%);
+  color: #ffffff;
+}
+
+/*
+ * The next questions. Rendered as links rather than as chips a script fills
+ * into the field: a follow-up that is a link is a follow-up somebody can send
+ * to a colleague, and the answer it opens has an address of its own.
+ */
+.ask-follow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-follow-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgb(140 165 205 / 18%);
+  background: linear-gradient(180deg, rgb(140 175 235 / 5%) 0%, rgb(88 124 190 / 2.5%) 100%);
+  font-size: 13.5px;
+  color: rgb(198 210 230 / 92%);
+  text-decoration: none;
+  transition:
+    border-color 170ms ease-out,
+    color 170ms ease-out;
+}
+
+.ask-follow-item:hover {
+  border-color: rgb(168 194 238 / 34%);
+  color: #ffffff;
+}
+
+/**
+ * The keyboard note, which the export does not have and this needs.
+ *
+ * A textarea that sends on Enter is a textarea whose most important behaviour
+ * is invisible, and the placeholder is the wrong place to teach it — it
+ * disappears the moment somebody starts typing. One quiet line under the
+ * composer says it once and stays.
+ */
+/*
+ * 78% rather than the 62% a first pass used: that measured 3.68:1 on this
+ * ground and axe was right to refuse it. At 78% it is 5.30:1 and still reads
+ * as the quietest line on the screen, which was the whole intent.
+ */
+.ask-hint {
+  width: var(--iris-content-width);
+  margin: 13px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  color: rgb(150 166 192 / 78%);
+}
+
+@media (width <= 48rem) {
+  .ask-hint {
+    margin-top: 10px;
+    font-size: 12px;
+  }
+}
+
+/*
+ * A row waiting for its read. No shimmer: motion that decorates is forbidden,
+ * and a pulsing rectangle is the most decorative motion there is. The shape
+ * holds its own height so nothing below it moves when the text arrives, which
+ * is the whole job.
+ */
+.ask-opening[data-loading="true"] {
+  display: block;
+  cursor: default;
+  border-style: dashed;
+  border-color: rgb(140 165 205 / 10%);
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+/**
+ * THE FLOATING ASK RAIL IS NOT DRAWN ON THIS SCREEN.
+ *
+ * The product carries a persistent Observer rail at the foot of every surface —
+ * the "ask from wherever you are" affordance, which knows the unit or the agent
+ * currently on screen. It is right everywhere except here: this screen IS that
+ * control at full size, and two prompts on one page, one of them floating over
+ * the other's suggestions, is a screen asking the reader which of two identical
+ * things to use.
+ *
+ * `display: none` rather than opacity or a transform, so it leaves the tab
+ * order and the accessibility tree with it. A control a reader can still reach
+ * with Tab but cannot see is worse than one that is not there.
+ *
+ * The selector's leftmost compound is `:root`, so this file claims no class it
+ * does not own and `collisions.test.ts` stays green.
+ */
+:root:has(.ask-page) .obs-rail {
+  display: none;
+}
+
+/* ============================================================================
+ * 11. THE DOCK — the compact prompt bar, at the foot of every other surface.
+ *
+ * The user delivered this as its own export and asked for it on Sales Flow,
+ * Project and Sales Agents, replacing the floating "Ask Observer" panel that
+ * used to sit there.
+ *
+ * It is NOT the Ask screen's composer scaled down. The export makes it a
+ * different object: 72px rather than 181, one line of 17px rather than three of
+ * 24, and two controls rather than four — the model picker and the history
+ * button are gone. That is the right reduction for a bar riding under a working
+ * analytical screen: it asks a question and takes the reader to the answer,
+ * and everything else about a conversation belongs on the surface that holds
+ * conversations.
+ * ========================================================================= */
+
+.ask-dock {
+  /*
+   * Fixed rather than in flow, because it replaces a control that was always
+   * within reach. A composer a reader has to scroll a three-screen table to
+   * find is a composer they will not use.
+   */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 0 24px calc(20px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  overflow-x: clip;
+
+  /*
+   * A short fade above it, so a table scrolling underneath does not appear to
+   * be sliced off by a hard edge. It is the one gradient here that is not from
+   * the export, and it makes a seam legible rather than decorating one.
+   */
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgb(2 5 13 / 74%) 46%,
+    rgb(2 5 13 / 95%) 100%
+  );
+}
+
+.ask-dock-inner {
+  display: flex;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.ask-dock .ask-hero {
+  width: var(--iris-content-width);
+  animation: none;
+}
+
+/* The dock is a control, not a stage: no wide atmosphere behind it. */
+.ask-dock .ask-hero::before {
+  content: none;
+}
+
+/*
+ * The rim light stays and is drawn to the bar's own height. On the Ask screen
+ * the glow has 130px of room above a 181px card; here it belongs to a 72px one.
+ */
+.ask-dock .ask-hero::after {
+  left: -70px;
+  right: -70px;
+  top: -54px;
+  height: 130px;
+  background: radial-gradient(
+    ellipse 26% 10% at 50% 41.5%,
+    rgb(150 215 255 / 18%) 0%,
+    rgb(0 163 255 / 10%) 46%,
+    transparent 80%
+  );
+}
+
+/* --- the bar itself, transcribed ----------------------------------------- */
+
+.ask-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 72px;
+  padding: 0 15px 0 26px;
+  border-radius: var(--ask-hero-radius);
+  border: 1px solid rgb(120 170 240 / 28%);
+  background: linear-gradient(
+    180deg,
+    rgb(13 40 96 / 55%) 0%,
+    rgb(5 15 38 / 90%) 34%,
+    rgb(2 7 18 / 96%) 100%
+  );
+  box-shadow: inset 0 0 34px rgb(12 60 160 / 16%);
+}
+
+/*
+ * The column of light inside the bar. `border-radius: inherit` and no
+ * `overflow: hidden` on the parent — both are the export's, and together they
+ * are why the light reaches the rounded corners instead of being clipped to a
+ * rectangle inside them.
+ */
+.ask-bar::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -140%;
+  width: 56%;
+  height: 280%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 50% 50%, rgb(30 96 215 / 20%), transparent 66%);
+}
+
+.ask-bar-field {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  color: var(--ask-ink);
+  caret-color: var(--ask-accent-soft);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  line-height: 26px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ask-bar-field::placeholder {
+  color: rgb(244 247 252 / 50%);
+  opacity: 1;
+}
+
+/* The bar carries the ring, for the reason the tall card does: a field that
+ * fills its container edge to edge cannot draw one inside it. */
+.ask-bar-field:focus {
+  outline: none;
+}
+
+.ask-bar:has(.ask-bar-field:focus-visible) {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: 2px;
+  border-color: rgb(140 195 255 / 45%);
+}
+
+.ask-bar-tools {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+/* 38px here rather than the composer's 41: the export shrinks them with the bar. */
+.ask-dock .ask-btn {
+  width: 38px;
+  height: 38px;
+}
+
+/*
+ * ASK IRIS DOES NOT GET ONE.
+ *
+ * That screen is a prompt at full size, and two prompts on one page — one of
+ * them floating over the other's suggestions — is a screen asking the reader
+ * which of two identical things to use. `display: none` rather than a
+ * visibility or opacity rule, so it leaves the tab order and the accessibility
+ * tree with it: a control reachable by Tab but invisible is worse than absent.
+ */
+:root:has(.ask-page) .ask-dock {
+  display: none;
+}
+
+/**
+ * ROOM FOR THE DOCK, RESERVED BY THE PAGE UNDER IT.
+ *
+ * The shell gives every surface 96px of bottom padding, which cleared the old
+ * 74px rail and does not quite clear this. Without it the last row of a table
+ * sits behind the bar, and the reader's only clue is that the page appears to
+ * end mid-sentence.
+ */
+:root:not(:has(.ask-page)) .irs-main {
+  padding-bottom: 132px;
+}
+
+@media (width <= 48rem) {
+  .ask-dock {
+    padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ask-bar {
+    gap: 10px;
+    padding: 0 10px 0 18px;
+  }
+
+  .ask-bar-field {
+    font-size: 16px;
+    letter-spacing: 0.04em;
+  }
+
+  :root:not(:has(.ask-page)) .irs-main {
+    padding-bottom: 116px;
+  }
+}
+
+/*
+ * THE ROTATING PLACEHOLDER, AND THE ONE CONDITION ON IT.
+ *
+ * The export cycles six questions through the field to teach what can be
+ * asked — the same job the openings do on the Ask screen, in the space a bar
+ * has. It is the only looping motion in this product, and the doctrine's rule
+ * is that motion may communicate and may not decorate; this one carries the
+ * surface's whole affordance, so it stays.
+ *
+ * It stops for a reader who has asked for less motion, for a reader who has
+ * focused the field, and for a reader who has typed anything — and the caret
+ * below is the only part of it that is CSS. The rest is in `AskField`, where it
+ * can be switched off by all three.
+ */
+.ask-bar-field[data-typing="true"]::placeholder {
+  color: rgb(244 247 252 / 62%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-dock .ask-hero {
+    animation: none !important;
+  }
+}
+
+/* ============================================================================
+
+/* ============================================================================
+ * 12. THE TRAVELLING LIGHT
+ *
+ * There is almost nothing here, and that is the point.
+ *
+ * The effect is one fragment shader on one transparent canvas —
+ * `components/ask-iris/prompt-glow.ts`, ported from the delivered
+ * `handoff/prompt-glow.js` constant for constant. The canvas carries its own
+ * geometry as inline style (absolutely positioned, overhanging the card by
+ * 130px on every side, `pointer-events: none`, `z-index: 0`), because the
+ * handoff creates it imperatively and sizing it from two places would be two
+ * places to get it wrong.
+ *
+ * ## What used to be here, and why it is gone
+ *
+ * Two attempts at the same effect in CSS: layered gradients on `offset-path`,
+ * masked to a band, composited with `mix-blend-mode: plus-lighter`. Both were
+ * rejected on sight, and the shader says why.
+ *
+ * It sums FOUR bloom scales — 1.6px, 6px, 16px, 38px — and only then applies
+ * `I = 1 - exp(-1.35 * I)`. The soft knee runs on the ACCUMULATED field, which
+ * is what drives the head to white while leaving the tail blue. CSS composites
+ * pairwise, layer onto layer; there is no step at which the total exists, so
+ * there is nothing to tone-map. `plus-lighter` on four gradients reproduces the
+ * geometry and loses the physics, which is exactly how it read: a dim speck
+ * dragging a smudge.
+ *
+ * `perimT` is the second thing CSS could not do. It measures true arc length
+ * along the rounded outline — straight runs and corner arcs computed
+ * separately — so the head holds one speed through the corners. `offset-path`
+ * approximates it; `atan2` does not attempt it.
+ *
+ * ## The still fallback, and when it appears
+ *
+ * `.ask-hero::before` and `::after` in section 4 are a static halo built from
+ * the same colours. They are the pre-hydration paint and the no-WebGL paint,
+ * and the rule below retires them the moment the canvas exists — otherwise the
+ * two would sum, additively, and the rim would blow out.
+ * ========================================================================= */
+
+/**
+ * THE SHADER REPLACES THE STILL HALO RATHER THAN JOINING IT.
+ *
+ * `content: none` rather than `opacity: 0` or `display: none`: it stops the
+ * pseudo-elements being generated at all, so they cost no paint and no layer,
+ * and the swap is a single style recalculation when `attachPromptGlow` inserts
+ * the canvas.
+ *
+ * `prompt-glow.ts` removes the canvas again if the context is refused, which
+ * makes this selector the whole fallback mechanism — no flag, no state, no
+ * second code path. The presence of the canvas IS the condition.
+ */
+.ask-hero:has(> .ask-glow-canvas)::before,
+.ask-hero:has(> .ask-glow-canvas)::after {
+  content: none;
+}
+
+/**
+ * A canvas is replaced content and defaults to `inline`, which would put it on
+ * a text baseline and leave a descender gap under it. The attach code sets
+ * `display: block` inline; this is the same instruction for anything that
+ * inspects the sheet, and it costs nothing to state twice.
+ *
+ * `contain: strict` keeps the canvas out of layout and paint invalidation for
+ * everything around it: 60 frames a second of drawing inside a box that
+ * overhangs the composer by 130px would otherwise invite the compositor to
+ * re-examine its neighbours on every one of them.
+ */
+.ask-glow-canvas {
+  display: block;
+  contain: strict;
+}
+
+/* PRINT: the dock is a control, and a printed page has none. */
+@media print {
+  .ask-dock {
+    display: none !important;
+  }
+}

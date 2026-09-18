@@ -1,0 +1,88 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "activation-reactivation",
+    "description": "An operator issues a new code for a source that already exists; the installation re-credentials.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-activate",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+        "reported_environment": "development",
+        "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "os": "Windows 11 (build 26100)"
+      }
+    },
+    "requestSchema": "ActivationRequest",
+    "requestValidates": true,
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "reactivated",
+        "source_id": "f1000000-0000-4000-8000-0000000000a1",
+        "display_label": "Fixture Showroom, Bay 1",
+        "environment": "development",
+        "environment_mismatch": false,
+        "source_token": "obs_FIXTURE_selector.FIXTURE_secret_not_real",
+        "token_expires_at": null,
+        "ingest_url": "https://fixture.observer.invalid/functions/v1/observer-ingest",
+        "heartbeat_url": "https://fixture.observer.invalid/functions/v1/observer-heartbeat",
+        "accepted_schema_versions": {
+          "min": 1,
+          "max": 1
+        },
+        "limits": {
+          "max_batch_events": null,
+          "max_batch_bytes": null,
+          "max_event_bytes": null,
+          "max_property_depth": null,
+          "max_property_count": null,
+          "min_send_interval_ms": null
+        },
+        "config_refresh_after": "2026-01-08T08:15:31+00:00"
+      }
+    },
+    "responseSchema": "ActivationSuccess",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source with one live credential, the two events of ingest-all-accepted already stored, and a freshly issued code.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "consumed",
+      "assertion": "The credential row is REPLACED — the previous one superseded, exactly one left active — and nothing else moves. Both analytics_events rows survive, and ingestion_verified_at keeps the instant it already held. A backend that cascaded credential replacement into the source's stored events would answer this exchange correctly and destroy a showroom's history."
+    },
+    "why": "Reactivation replaces the credential and nothing else: the outbox, its queued events and their event_ids all survive untouched.",
+    "notes": [
+      "The only difference from activation-success is status. Everything else is the same shape, deliberately.",
+      "The previous token stops working the moment this one is issued. There is no refresh endpoint; credential material reaches a device through one door.",
+      "A plugin that clears its outbox on reactivation loses every event queued during the outage that caused the reactivation."
+    ]
+  }
+}

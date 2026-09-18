@@ -32,9 +32,20 @@ import type {
   UnitAttentionView,
   ViewContext,
 } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
-import { count, evidenceRef, money, movement, ok, percent, signedPercent } from "../format";
-import { agentById, SYNTHETIC_AGENTS } from "./sessions";
+import { catalogueFor } from "../pulse";
+import { areaWord, roomsWord } from "@observer/readmodels";
+import {
+  clockLabel,
+  count,
+  dayLabel,
+  evidenceRef,
+  moneyOr,
+  movement,
+  ok,
+  percent,
+  signedPercent,
+} from "../format";
+import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -105,14 +116,6 @@ function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
-}
-
-function formatClock(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDay(iso: string, locale: string): string {
-  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 /* --- coverage -------------------------------------------------------------- */
@@ -428,10 +431,12 @@ export function buildShowroomOverview(
    * not look alike. This states the largest gap and sends the reader to the
    * comparison rather than drawing a conclusion from it.
    */
-  const perAgent = SYNTHETIC_AGENTS.map((agent) => ({
-    agent,
-    sessions: sessions.filter((s) => s.agentId === agent.id),
-  })).filter((a) => a.sessions.length >= 8);
+  const perAgent = presentersIn(sessions)
+    .map((agent) => ({
+      agent,
+      sessions: sessions.filter((s) => s.agentId === agent.id),
+    }))
+    .filter((a) => a.sessions.length >= 8);
 
   if (perAgent.length >= 2) {
     const spreads = BEHAVIOURS.map((behaviour) => {
@@ -615,13 +620,15 @@ export function buildPresentationIntelligence(
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const locale = context.project.locale;
 
-  const lanes = SYNTHETIC_AGENTS.map((agent) =>
-    buildLane(
-      agent.id,
-      agent.name,
-      sessions.filter((s) => s.agentId === agent.id),
-    ),
-  ).filter((lane) => lane.meetingCount > 0);
+  const lanes = presentersIn(sessions)
+    .map((agent) =>
+      buildLane(
+        agent.id,
+        agent.name,
+        sessions.filter((s) => s.agentId === agent.id),
+      ),
+    )
+    .filter((lane) => lane.meetingCount > 0);
 
   const teamBenchmark = buildLane("team", "Team benchmark", sessions);
 
@@ -666,8 +673,26 @@ export function buildPresentationIntelligence(
       disclaimer: DISCLAIMER,
     };
   } else {
-    const leftAgent = agentById(leftKey ?? "agt_monika") ?? SYNTHETIC_AGENTS[0];
-    const rightAgent = agentById(rightKey ?? "agt_akhilesh") ?? SYNTHETIC_AGENTS[1];
+    /*
+     * Who is compared when the reader has not chosen. On the synthetic roster
+     * that is the scenario's pair, as it always was. A delivered project's
+     * meetings name nobody on the roster, so there it is the first two who
+     * actually presented — and where only one person has, there is nobody to
+     * compare them with and no comparison is drawn. Falling back to the roster
+     * there compared a real presenter with a stranger who has no meetings on
+     * the project.
+     */
+    const presenters = presentersIn(sessions);
+    const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
+    /* A project that shows only its own data has no roster to fall back on, with meetings or without. */
+    const onRoster =
+      !context.ownDataOnly &&
+      (sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined));
+    const pick = (key: string | null, scenario: string, index: number) =>
+      (key === null ? undefined : presenters.find((p) => p.id === key)) ??
+      (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
+    const leftAgent = pick(leftKey, "agt_monika", 0);
+    const rightAgent = pick(rightKey, "agt_akhilesh", 1);
     if (leftAgent !== undefined && rightAgent !== undefined) {
       const l = sessions.filter((s) => s.agentId === leftAgent.id);
       const r = sessions.filter((s) => s.agentId === rightAgent.id);
@@ -727,6 +752,7 @@ export function buildPresentationIntelligence(
 
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
   const steps: ReplayStep[] = [];
@@ -742,7 +768,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
       kind: "section",
       label: sectionLabel(step.sectionId),
       detail: step.itemLabel,
-      atDisplay: step.enteredAt === null ? null : formatClock(step.enteredAt, locale),
+      atDisplay: step.enteredAt === null ? null : clockLabel(step.enteredAt, locale, timeZone),
       dwellDisplay: step.dwellSeconds === null ? null : formatDuration(step.dwellSeconds),
       sectionId: step.sectionId,
       unitCode: null,
@@ -847,12 +873,19 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     kind: "outcome",
     label: OUTCOME_LABELS[session.outcome],
     detail: "Recorded by the agent at the end of the meeting",
-    atDisplay: formatClock(session.endedAt, locale),
+    atDisplay: clockLabel(session.endedAt, locale, timeZone),
     dwellDisplay: null,
     sectionId: null,
     unitCode: null,
     isReturn: false,
-    sources: ["CRM_OUTCOME_CONTEXT"],
+    /*
+     * The step said "Recorded by the agent at the end of the meeting" and wore a
+     * chip reading "CRM outcome", one line apart, on a project with no CRM
+     * connected. `CRM_OUTCOME_CONTEXT` is a fact the CRM holds; this is the
+     * agent selecting on the showroom's own widget, which the showroom then sent
+     * as an event. The caption was right and the chip was wrong.
+     */
+    sources: OBSERVED,
     evidence: null,
   });
 
@@ -866,8 +899,15 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
   );
   if (session.filters.length === 0) {
+    /*
+     * Two different absences. The legacy analytics never carried filter state; a
+     * source that times its steps does, so an empty list there means nobody
+     * filtered, and saying the build cannot emit it would be false.
+     */
     gaps.push(
-      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+      session.timingUnavailable
+        ? "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown."
+        : "No filter was applied in this meeting, so there is no search to read.",
     );
   }
   if (!session.units.some((u) => u.comparedWith.length > 0)) {
@@ -878,8 +918,10 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     context,
     meetingId: session.meetingId,
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
-    agentName: agent?.name ?? session.agentId,
-    startedDisplay: `${formatDay(session.startedAt, locale)} · ${formatClock(session.startedAt, locale)}`,
+    agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
+    /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
+    agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
+    startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
     durationDisplay: formatDuration(session.durationSeconds),
     outcome: session.outcome,
     outcomeLabel: OUTCOME_LABELS[session.outcome],
@@ -901,14 +943,15 @@ export function buildMeetingList(
   sessions: readonly ShowroomSession[],
 ): readonly MeetingSummary[] {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   return [...sessions]
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
     .map((s) => ({
       meetingId: s.meetingId,
-      label: `${formatDay(s.startedAt, locale)} · ${formatClock(s.startedAt, locale)}`,
-      agentName: agentById(s.agentId)?.name ?? s.agentId,
-      startedDisplay: formatDay(s.startedAt, locale),
+      label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
+      agentName: presenterName(s.projectId, s.agentId),
+      startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: formatDuration(s.durationSeconds),
       outcome: s.outcome,
       outcomeLabel: OUTCOME_LABELS[s.outcome],
@@ -930,7 +973,8 @@ export function buildUnitAttention(
   const currency = context.project.currency;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
 
-  const rows: UnitAttentionRow[] = RAW_CATALOGUE.map((unit) => {
+  // This project's units. See the note in `views3.ts`.
+  const rows: UnitAttentionRow[] = catalogueFor(context.project.id as string).map((unit) => {
     const touches = sessions.flatMap((s) => s.units.filter((u) => u.unitCode === unit.code));
     const previousTouches = previous.flatMap((s) =>
       s.units.filter((u) => u.unitCode === unit.code),
@@ -952,7 +996,7 @@ export function buildUnitAttention(
       areaSqm: unit.areaSqm,
       orientation: unit.orientation,
       floor: unit.floor,
-      priceDisplay: money(unit.price, currency, locale),
+      priceDisplay: moneyOr(unit.price, currency, locale),
       meetings,
       views: touches.reduce((a, t) => a + t.views, 0),
       medianDwellSeconds: Math.round(median(dwells)),
@@ -1051,7 +1095,7 @@ export function buildUnitAttention(
 
     detail = {
       row: selected,
-      headline: `${selected.unitCode} · ${selected.rooms} rooms · ${selected.areaSqm} m² · ${selected.priceDisplay}`,
+      headline: `${selected.unitCode} · ${roomsWord(selected.rooms)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
       findings,
       competitors: [...together.entries()]
         .map(([unitCode, v]) => ({ unitCode, together: v.together, keptOther: v.keptOther }))
@@ -1108,9 +1152,20 @@ export function buildUnitAttention(
 
 /* --- E. Storytelling and Feature Intelligence ------------------------------ */
 
+/**
+ * How the IRIS story itself is being used.
+ *
+ * `previous` is the baseline slice, and it is optional for one reason: a caller
+ * that has no baseline — a project three weeks old, or a test handing this an
+ * empty period — must not be told that every feature is newly adopted. An
+ * absent baseline produces `no_baseline` on every row rather than a page full
+ * of green "new" badges, which is the flattering answer the state exists to
+ * refuse.
+ */
 export function buildStorytelling(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
+  previous: readonly ShowroomSession[] = [],
 ): StorytellingIntelligence {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -1126,11 +1181,29 @@ export function buildStorytelling(
       return order.length <= 1 ? 0 : order.indexOf(section.id) / (order.length - 1);
     });
 
+    /*
+     * Entries, not meetings.
+     *
+     * `steps` already holds every entry into this section across the slice,
+     * returns included, so an agent who came back to Residences three times in
+     * one meeting is one meeting and three opens. "Most used feature" answers a
+     * different question depending on which of those two it counts, and the
+     * screen asks for both.
+     */
+    const opens = steps.length;
+
     return {
       sectionId: section.id,
       label: section.label,
       kind: section.kind,
       meetings: withSection.length,
+      opens,
+      adoption:
+        previous.length === 0
+          ? ("no_baseline" as const)
+          : withSection.length > 0 && !previous.some((s) => reached(s, section.id))
+            ? ("new_in_period" as const)
+            : ("established" as const),
       reachRate: share(withSection.length, n),
       medianDwellSeconds: dwells.length === 0 ? null : Math.round(median(dwells)),
       glanceRate: share(glances, Math.max(1, dwells.length)),
