@@ -2139,3 +2139,53 @@ Two full runs earlier in this follow-up exited 1 on `CLEAN TREE: the working tre
 three release suites. That is the apparatus working: both were launched while an edit was still
 uncommitted, which those suites refuse by design. Recorded rather than quietly re-run, because the
 mistake was mine twice.
+
+### The switcher menu, 2026-09-18 — `605cce6`
+
+The user opened the project switcher after counting seven projects on `/projects`, found three, and
+reported two things at once. Both were the same control.
+
+**The list belonged to the operating system.** Project, developer and period were native
+`<select>` elements, chosen deliberately: a project list is what a select is for, it works on a
+phone with no script, and it is keyboard-correct before anybody writes any. Every word of that held
+except the part a reader sees. Styling reaches a select's closed button and stops; the list it opens
+is drawn by the OS, so a graphite header opened a white panel with a system-blue bar. It was the
+only surface in the product that belonged to no design system, on the control a reader touches most
+often.
+
+`ContextSwitcher` now draws `.ox-menu`: a `<details>` panel on this system's ground with its
+hairline, Manrope, a drawn chevron and tick at one stroke weight, and blue on one row only, which
+here means "a person decided this and a person can change it". The rows are LINKS, which is what
+they always were underneath — every option already carried an href — so a project opens in a new tab
+like anything else, and the browser says where a row goes before it is pressed. `<details>` carries
+the open state, so the control works with no script at all; the effect adds only Escape and a press
+outside. `PeriodSwitcher` renders the same control instead of a second select of its own.
+
+**The list did not say what it listed.** The project switcher holds ONE DEVELOPER'S projects,
+because two developers are two businesses and no screen shows both — and a closed button showing one
+project's name states none of that. Each menu now opens with the sentence its rule needs:
+
+- Project: `Every project you can open in Alpha Estates.`, and a last row, `All 7 projects you can
+open`, which is the number the reader just saw on `/projects`. The count is summed in the project
+  layout from lists it already read.
+- Developer: `Developers you hold. Opening one shows its first project; two developers never share a
+screen.` — the second surprise on the same screen.
+- Period: `Every figure on this page is measured over the period you choose here.`
+
+**Two design-system rules answered rather than bent.** `--ox-lift` is now the one elevation,
+declared once on each ground and spent by the two things that float, a dialog and a menu; its test
+refuses a blurred shadow written as a literal anywhere, including a second copy of that value. And
+the accessible-name rule moved from "each switcher file contains `aria-label`" to "the control names
+itself and every caller passes a label", which is what it always meant.
+
+**Verification.** `pnpm typecheck`, `pnpm lint`, `prettier --check .` clean. Full vitest on a
+clean tree at `605cce6`: 138 files, 3567 passed, 1 skipped, 0 failed, exit 0. `apps/web/test` 646
+passed. Four E2E specs rewritten onto the control a person actually operates — press, read, follow a
+row — through one `e2e/switcher.ts`: **54 passed against a production build**, desktop. Looked at:
+the project, developer and period menus on the analytical header, the Ask header's own, and the
+phone sheet at 393px (`artifacts/qa-shots/menu-shots.mjs`, gitignored).
+
+**One collision the user should know about.** The task spawned earlier for the mobile Playwright
+project edits `e2e/authorization.spec.ts` for a Period **combobox** that no longer exists. Its
+finding stands — at phone width these controls live inside the mobile menu and that spec never opens
+it — but its selectors are stale, and both sessions touch the same file.
