@@ -57,6 +57,8 @@ export async function startMockServer(backend: MockObserverBackend, port = 0): P
   });
 
   const address = server.address() as AddressInfo;
+  /* Now that a port exists, tell the backend the address it should hand out. */
+  backend.serveFrom(`http://127.0.0.1:${String(address.port)}`);
   return {
     url: `http://127.0.0.1:${address.port}`,
     port: address.port,

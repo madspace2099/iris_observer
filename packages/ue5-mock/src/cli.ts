@@ -49,7 +49,8 @@ function forced(): Directive[] {
 
 async function main(): Promise<void> {
   const port = Number.parseInt(argument("port") ?? "0", 10);
-  const backend = new MockObserverBackend({ baseUrl: "http://127.0.0.1" });
+  /* No `baseUrl`: the server sets it from the port it binds. See `serveFrom`. */
+  const backend = new MockObserverBackend();
   const directives = forced();
   backend.push(...directives);
   const server = await startMockServer(backend, Number.isNaN(port) ? 0 : port);

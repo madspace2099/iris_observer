@@ -67,6 +67,58 @@ describe("where it listens", () => {
   });
 });
 
+describe("the addresses activation hands out", () => {
+  /*
+   * THE ONE THING A PLUGIN IS TOLD NEVER TO HARD-CODE.
+   *
+   * A client stores `ingest_url` and `heartbeat_url` from the activation
+   * response and posts there for the rest of its life. Every other case in this
+   * file builds its own path from `server.url`, which is why none of them
+   * noticed that the command line handed the backend a bare `http://127.0.0.1`:
+   * activation answered 200 with two addresses on port 80 with no route prefix,
+   * and every request after it would have 404ed on somebody's kiosk. Found on
+   * 2026-09-18, before the person it would have cost a day.
+   *
+   * So this case uses the answer rather than the knowledge, the way a plugin
+   * does.
+   */
+  it("are absolute, carry this server's port, and actually answer", async () => {
+    const code = backend.issueActivationCode({ displayLabel: "Address test" });
+    const activated = await post("observer-activate", activationRequest({ activation_code: code }));
+    expect(activated.status).toBe(200);
+
+    const body = activated.body as Record<string, string>;
+    const token = body["source_token"] as string;
+    for (const key of ["ingest_url", "heartbeat_url"]) {
+      const url = new URL(body[key] as string);
+      expect(url.origin, `${key} must point at this server`).toBe(server.url);
+      expect(url.pathname.startsWith("/functions/v1/"), `${key} must carry the route prefix`).toBe(
+        true,
+      );
+    }
+
+    /* And they answer, which is the claim the two assertions above only imply. */
+    const beat = await fetch(body["heartbeat_url"] as string, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: bearer(token) },
+      body: JSON.stringify({
+        sent_at: WHEN,
+        build: activationRequest()["build"],
+        queue: {
+          pending_events: 0,
+          oldest_pending_at: null,
+          quarantined_events: 0,
+          bytes_used: 0,
+          bytes_ceiling: 52_428_800,
+          dropped_events: 0,
+        },
+        last_error: null,
+      }),
+    });
+    expect(beat.status).toBe(200);
+  });
+});
+
 describe("the whole flow over the wire", () => {
   it("activates, ingests, and heartbeats", async () => {
     const code = backend.issueActivationCode({ displayLabel: "Wire test" });

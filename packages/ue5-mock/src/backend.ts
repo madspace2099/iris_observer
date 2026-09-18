@@ -6,6 +6,7 @@ import {
   DEFAULT_CLOCK_POLICY,
   HARNESS_LIMITS,
   HeartbeatRequestSchema,
+  OBSERVER_ROUTE_PREFIX,
   UNSTATED_LIMITS,
   resolveLimits,
   serialisedBytes,
@@ -170,7 +171,7 @@ const json = (
 export class MockObserverBackend {
   private readonly ids: Deterministic;
   private readonly clock: FixedClock;
-  private readonly baseUrl: string;
+  private baseUrl: string;
   private readonly statedLimits: Limits;
   private readonly enforced: EffectiveLimits;
   private readonly clockPolicy: ClockPolicy;
@@ -187,6 +188,28 @@ export class MockObserverBackend {
   private readonly directives: Directive[] = [];
 
   private requestIndex = 0;
+
+  /**
+   * WHERE THIS BACKEND IS ACTUALLY REACHABLE, once something is listening.
+   *
+   * `ingest_url` and `heartbeat_url` are the two values a plugin is told never
+   * to hard-code: it stores what activation returned and posts there for the
+   * rest of its life. So a mock that answers activation with an address nothing
+   * is listening on is worse than one that refuses — the exchange succeeds, the
+   * three ticks stay grey, and the operator debugs their HTTP client.
+   *
+   * The port is not known until a socket is bound, which is after this object
+   * exists, so {@link startMockServer} calls this the moment it has one. The
+   * route prefix is added here rather than by the caller, because a caller that
+   * has to remember it is a caller that will one day forget: that is exactly
+   * the defect this method was written to close, found on 2026-09-18 when the
+   * command line passed a bare `http://127.0.0.1` and every request after
+   * activation answered 404 on port 80.
+   */
+  serveFrom(origin: string): void {
+    const trimmed = origin.endsWith("/") ? origin.slice(0, -1) : origin;
+    this.baseUrl = `${trimmed}${OBSERVER_ROUTE_PREFIX}`;
+  }
 
   constructor(options: BackendOptions = {}) {
     this.ids = new Deterministic(options.seed ?? 0x0b5e_2ef1);
