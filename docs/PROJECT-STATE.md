@@ -3,9 +3,8 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-18 · **Branch:** `feature/observer-reference-parity`, pushed
-to `origin` on 2026-09-07 through `d9879e3` · **PR #1 open. Not merged.** Commits since then are
-local only. Latest: **phase 7 is built** (2026-09-18): a project created in MADSPACE administration
+**Last updated:** 2026-09-18 · **Branch:** `feature/observer-reference-parity`, **pushed to
+`origin` through `cc26720` on 2026-09-18** · **PR #1 open. Not merged.** Latest: **phase 7 is built** (2026-09-18): a project created in MADSPACE administration
 becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
 delivered, and names the presenter of every meeting, whom a showroom can now report itself
 (`PD-30`). Before it, the 2026-09-17 afternoon run made ingested UE5 events reach the customer's
@@ -2002,7 +2001,7 @@ nothing borrowed.
 - A segment finding is stated at n = 1 meeting.
 - Overview for a runtime project says no overview is composed yet. By the plan.
 - The same person on two showroom PCs is two agents, because each kiosk mints its own identifier.
-- **No way to delete a presenter's name exists**, only to replace it. Gate 1 decides what is owed.
+- ~~No way to delete a presenter's name exists~~ **Built the same day**, see below.
 
 ### For the operator, one addition
 
@@ -2079,3 +2078,36 @@ screenshot in `artifacts/qa-shots/`.
    and `pnpm ue5:mock --force`. `docs/ue5-remaining-work-2026-09-17.md` carries all three.
 2. The operator's steps, with the new migration.
 3. The user's word on the "CRM outcome" chip for a project with no CRM.
+
+### The four decisions the user took on 2026-09-18, and what each became
+
+1. **Push.** The branch is on `origin` through `cc26720`. The PR stays open and unmerged. The
+   Preview follows the branch and now builds this code without the directory migration, which is
+   the path that was checked: the directory read fails, the older project list answers, no runtime
+   project appears, and `observer-agents` answers `503`. The Preview therefore behaves exactly as
+   it did yesterday.
+2. **The hosted migration stays unapplied**, by the user's decision, until Akhilesh needs a live
+   endpoint. The operator steps and their ordering are unchanged.
+3. **A presenter's name can now be removed, not only replaced** (`observer_project_agent_name_set`
+   with a null name). It is a **withdrawal and not a deletion**: the row is kept holding no name,
+   `named_by = 'withdrawn'`, because a deleted row would be refilled by the next roster report
+   inside the read memo's half minute, and a removal that undoes itself is not a removal. The
+   showroom's report function already refused to write over anything not its own, so it refuses this
+   too. Administration can name again afterwards. Proven live: the name was removed, a real
+   showroom activated and reported that very name back (`200`, `recorded 0`), the screen still
+   said removed, the customer's Meetings showed the identifier again, and naming again restored it
+   (`artifacts/qa-shots/phase7-withdraw.mjs`). Gate 1 has the item and the facts that support it
+   (`docs/11-preproduction-gates.md`); the legal question is named there and not answered here.
+4. **The "CRM outcome" chip is gone from the agent's own recorded outcome.**
+   `CRM_OUTCOME_CONTEXT` is defined in `@observer/contracts` as a fact the CRM holds, and this one
+   is not: the agent selected it on the showroom's widget and the showroom sent it as an event. It
+   now reads `IRIS observed`, which also makes the finding showroom-rooted as ADR-0023 requires.
+   Two aggregate screens that listed the CRM as a source on every project — Sales Agents and Sales
+   Flow — now list it only where a CRM is connected, which is what the Project screen already did.
+   The two guarded ladder chips on Sales Flow were already correct.
+
+**Verification of this follow-up.** `pnpm --filter @observer/web exec tsc --noEmit`, the migration
+suite (20 cases, including a withdrawn row that a roster cannot refill and the two constraints that
+refuse a nonsense row), `packages/sources` and `apps/web/test` (654 + 978 passing), and the live
+proof above. The closing full-suite figure is the one recorded further up; nothing below it changed
+a test that was not re-run.
