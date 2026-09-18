@@ -63,7 +63,7 @@ import {
 import { assistedSaleOf, dealsFor } from "../deals";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
-import { buildAgentsView } from "./views3";
+import { buildAgentsView, meetings as meetingsWord } from "./views3";
 
 /**
  * The drill-down surfaces, projected from the same session stream.
@@ -1307,7 +1307,7 @@ export function buildAgentDetail(
   if (belowMinimum) {
     findings.push({
       id: `agent-${agentId}-sample`,
-      statement: `${agent.name} presented ${count(mine.length, locale)} meetings in ${context.period.label.toLowerCase()}, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} this product requires before it will read a figure as a verdict.`,
+      statement: `${agent.name} presented ${meetingsWord(mine.length, locale)} in ${context.period.label.toLowerCase()}, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} this product requires before it will read a figure as a verdict.`,
       baseline: `${count(sessions.length, locale)} meetings on the project`,
       soWhat:
         "The counts on this page are real and the rates are shown as raw figures. No rank, verdict or trend is drawn from them at this sample size.",
@@ -1379,7 +1379,7 @@ export function buildAgentDetail(
     minimumSampleSize: AGENT_MIN_SAMPLE,
     belowMinimum,
     suppressionNote: belowMinimum
-      ? `${count(mine.length, locale)} meetings in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} needed for a verdict. Figures are shown; no rank or trend is drawn.`
+      ? `${meetingsWord(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} needed for a verdict. Figures are shown; no rank or trend is drawn.`
       : null,
     activity,
     profile,
