@@ -4,10 +4,14 @@
 reports the activation screen built. Every `file:line` below is in that archive, and paths are
 relative to `Source/InsightAnalytics/`.
 
-**The short version.** All four of your points check out. I verified them in your source rather than
+**The short version.** All four of your points check out: I verified them in your source rather than
 from your notes, and then sent your payloads over real HTTP to a real Observer. One item on
 `docs/ue5-remaining-work-2026-09-17.md` is still open, and it is the same first one: §1, the loopback
 run.
+
+**One thing needs you before you start that run: pull the repository.** We found and fixed a defect
+in the mock, in the exact path your loopback run walks. The addendum after §4 says what it was and
+what you should now see.
 
 ---
 
@@ -120,6 +124,41 @@ fails now, it is your HTTP client, not the shape of what it sends.
 Counted: 14 in `Private/Tests/ObserverAutomationTests.cpp` and 3 in `ObserverContractTests.cpp`.
 
 ---
+
+## Addendum, same day: pull before you run the mock
+
+You said you are setting the loopback run up now. **Pull first** — there was a defect in the mock,
+in exactly the path you are about to walk, and it is fixed.
+
+`pnpm ue5:mock` built its backend with a bare `http://127.0.0.1`: no port, no `/functions/v1`. So
+it answered activation `200` and handed back `ingest_url` and `heartbeat_url` pointing at port 80
+with no route prefix. Your client does the right thing — it stores both from the response
+(`ObserverActivationClient.cpp:202-203`) and requires them — so activation would have succeeded,
+the screen would have turned green on the first tick, and every request after it would have answered
+`404`. You would have spent the afternoon looking at your HTTP client, and the fault would have
+been ours.
+
+`startMockServer` now tells the backend the address it actually bound, the moment it has a port, and
+adds the route prefix itself. `http.test.ts` gained the case that would have caught it: it uses the
+two URLs from the activation answer rather than building its own paths, which is what every other
+case in that file did and why none of them noticed.
+
+**Walked end to end after the fix, with the forced failures, and this is exactly what you should
+see:**
+
+```
+attempt 1                       429 rate_limited, Retry-After: 5
+attempt 2                       503 unavailable
+attempt 3                       200 activated
+heartbeat_url                   http://127.0.0.1:8787/functions/v1/observer-heartbeat
+heartbeat                       200 ok
+diagnostic.test                 200, accepted
+observer-agents, two names      200, recorded 2
+observer-agents carrying an email   400 malformed_request
+```
+
+The last two are the fourth endpoint below: the mock serves it, so you can build §8.4 against
+loopback before there is a live host.
 
 ## The one item still open
 
