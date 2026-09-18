@@ -2189,3 +2189,37 @@ phone sheet at 393px (`artifacts/qa-shots/menu-shots.mjs`, gitignored).
 project edits `e2e/authorization.spec.ts` for a Period **combobox** that no longer exists. Its
 finding stands — at phone width these controls live inside the mobile menu and that spec never opens
 it — but its selectors are stale, and both sessions touch the same file.
+
+## 2026-09-18 — Akhilesh's fifth drop, verified rather than taken on its word
+
+`InsightAnalytics (3).zip`, opened in the session scratchpad and never into this tree. His note
+claimed four things. All four are true, and the check was not the note.
+
+**Read in his source.** The activation screen is new (`SObserverActivationScreen.{h,cpp}`, 499
+lines) and carries everything `docs/ue5-remaining-work-2026-09-17.md` §2 asked of it: a viewport
+widget at z-order 2000, so a packaged Shipping kiosk needs no console; the four outcomes with the
+four sentences that document specified, near enough verbatim; a live countdown fed from
+`Retry-After`; and the buyer-privacy rule enforced in three places, not one. Post-activation it
+sends a heartbeat and a `diagnostic.test` by itself, which is the three ticks lighting without a
+click. The three unread response fields are read: `token_expires_at` with a fallback,
+`environment_mismatch`, and `server_time` turned into a clock skew on the HUD. The `expires_at`
+still in the subsystem is his local credential file, not the wire.
+
+**Then over the wire.** His two payloads, built field for field as his code writes them, sent over
+real HTTP to a real Observer (`artifacts/qa-shots/drop5-payloads.mjs`, gitignored): nine checks,
+all green — activation `200 activated`, both heartbeat shapes `200`, `diagnostic.test`
+`accepted`, and the spent code `401 activation_failed` with `source_id: null`. The payload half of
+the loopback question is therefore closed before he runs it.
+
+**What is still open, and it is the same first item.** His seventeen automation tests contain no
+HTTP request at all — no `FHttpModule`, no `CreateRequest` under `Private/Tests/` — so the C++
+transport has still never had a request parsed by a server. That was item §1 before this drop and it
+is item §1 after it. Told to him plainly in the document, with what the payload proof already
+removes from it.
+
+**One note, no action.** He broadcasts `409` for a local outbox-source mismatch
+(`ObserverAnalyticsSubsystem.cpp:733`). Nothing on our wire answers `409` — `PD-27` removed it —
+so a reader of that delegate could take it for a server code. Suggested a local constant.
+
+**Not in this drop, and not expected in it:** the presenter roster endpoint (`PD-30`, handoff
+§8.4), which was specified the same day this build was made.

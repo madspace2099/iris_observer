@@ -11,12 +11,25 @@ one address.
 **Where it stands.** The wire contract is right on your side since the third drop, and
 `engine_version` since the fourth. On ours, creating the project and the source, issuing the code,
 activation, heartbeat, ingest, and turning your events into meetings on screen are built and proven
-end to end on a local Observer. Two things are not true yet, and only the second is yours:
+end to end on a local Observer.
 
-- **A live Observer host does not exist yet.** The hosted database does not hold the source tables
-  and the server secrets are not set. That is our operator's work. Until we send you an HTTPS
-  address and a real code, everything below can be built and proven against the mock.
-- **IRIS does not ask for the code.** §2.
+**Checked against your 2026-09-18 drop: §2 and §3 below are closed.** The activation screen is
+built, and everything this list asked of it is in the source; the three mismatches are corrected. We
+did not take that from the notes: each claim was read in your own files, and then your exact
+payloads were sent over real HTTP to our real endpoints. That run is recorded at the head of §3.
+
+**The first item on this list is still the open one: §1, the loopback run.** Your seventeen
+automation tests carry no HTTP request at all — there is no `FHttpModule` and no `CreateRequest`
+anywhere under `Private/Tests/` — so the C++ transport has still never had a request parsed by a
+server. It is the last unproven link on your side, and it is half an hour's work.
+
+**And one new thing, which post-dates this drop:** a fourth endpoint, for reporting who your
+`agent_id` values are, so every meeting on the customer's screen can name the person who presented
+it. Specified in `docs/ue5-integration-handoff.md` §8.4. Nothing on this list depends on it.
+
+A live Observer host still does not exist: the hosted database does not hold the source tables and
+the server secrets are not set. That is our operator's work, not yours. Until we send you an HTTPS
+address and a real code, everything below can be built and proven against the mock.
 
 In priority order:
 
@@ -51,7 +64,26 @@ and the handoff had not caught up; it has now. Activation can fail in exactly fo
 `401 activation_failed`, `400 malformed_request`, `429 rate_limited`, `503 unavailable`. A failure
 body's `source_id` is always `null`.
 
-## 2. The activation screen inside IRIS — the main missing piece
+## 2. The activation screen inside IRIS — BUILT in the 2026-09-18 drop
+
+> **Verified in your source, 2026-09-18.** `SObserverActivationScreen.{h,cpp}` is new, and every
+> line this section asked for is in it. It is a viewport widget
+> (`ObserverAnalyticsSubsystem.cpp:669`, `AddViewportWidgetContent(..., 2000)`), so a packaged
+> Shipping kiosk needs no console. The four outcomes carry the four sentences
+> (`ObserverAnalyticsSubsystem.cpp:790-812`), the `429` feeds a live countdown
+> (`:822` → `SObserverActivationScreen.cpp:225-272`), and the three ticks light themselves: a
+> heartbeat and a `diagnostic.test` are sent the moment activation succeeds (`:780-781`). The
+> buyer-privacy rule is real and checked in three places — `ShowActivationScreen()` returns
+> immediately while a meeting is running (`:658`, again at `:270` and `:686`).
+>
+> Two things we did not ask for and are glad to see: the endpoint guard refuses plain HTTP outside a
+> development build (`ObserverActivationClient.cpp:22-31`), and the local outbox mismatch has its
+> own sentence naming the bound source.
+>
+> One small note, no action needed: the outbox mismatch broadcasts `409`
+> (`ObserverAnalyticsSubsystem.cpp:733`). Nothing on our wire answers `409` — it was removed from
+> the contract (`PD-27`) — so a reader of that delegate may take it for a server code. Worth a
+> local constant rather than an HTTP status, whenever you next touch it.
 
 **What the fourth drop does today.** Activation is `ActivateWithCode`, Blueprint-callable
 (`Public/Observer/ObserverAnalyticsSubsystem.h:37`), and the console command `Observer.Activate
@@ -131,7 +163,25 @@ The second row of the table is already your behaviour (`EnsureOutboxSourceBindin
 right one: it is what stops a fresh code from quietly turning a connected PC into a second source.
 It only needs to say which source it is holding events for.
 
-## 3. Three small mismatches found while checking this
+## 3. Three small mismatches found while checking this — ALL THREE CORRECTED
+
+> **Verified in your source, and then over the wire, 2026-09-18.** `token_expires_at` is read with
+> a fallback to `expires_at` (`ObserverActivationClient.cpp:219-223`), `environment_mismatch` is
+> read (`:239`), and `server_time` is read and turned into a clock skew shown on the HUD
+> (`:686-692`, `SObserverDiagnosticsHUD.cpp:223`). The `expires_at` still in
+> `ObserverAnalyticsSubsystem.cpp:495,576` is your local credential file, not the wire, and is
+> right where it is.
+>
+> Then we built your two payloads field for field as your code writes them — activation from
+> `ObserverActivationClient.cpp:101-113`, heartbeat from `:576-613` — and sent them over real HTTP
+> to a real Observer. **Nine checks, all green:** activation `200 activated`; the response carried
+> `heartbeat_url`, `token_expires_at` and `environment_mismatch`; a heartbeat with a backlog and a
+> `last_error` answered `200`, and so did one with an empty queue and `last_error: null`; the
+> answer carried `server_time`; your `diagnostic.test` with `session_id` and `sequence` null was
+> `accepted`; and the same code a second time answered `401 activation_failed` with
+> `source_id: null`, which is what your screen maps to its first sentence.
+>
+> So the payload half of §1 is no longer a risk. What §1 still proves is your HTTP client itself.
 
 None of them breaks activation today.
 
