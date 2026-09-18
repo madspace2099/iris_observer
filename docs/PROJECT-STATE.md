@@ -2124,8 +2124,18 @@ screenshot in `artifacts/qa-shots/`.
    needing its own judgement about which source contributed; left as its own pass rather than
    half-audited here.
 
+**A plural, found by looking at the screenshot.** Sales Agents read "1 meetings in this period, 19
+short of the 20 needed for a verdict". The fix was already in the file it belongs to: a
+`meetings()` helper whose own comment calls this the kind of small wrongness that makes a product
+feel unfinished. Three sentences now use it.
+
 **Verification of this follow-up.** `pnpm --filter @observer/web exec tsc --noEmit`, the migration
 suite (20 cases, including a withdrawn row that a roster cannot refill and the two constraints that
 refuse a nonsense row), `packages/sources` and `apps/web/test` (654 + 978 passing), and the live
-proof above. The closing full-suite figure is the one recorded further up; nothing below it changed
-a test that was not re-run.
+proof above. **Closing run at `41d24ae`, the day's last commit, on a clean tree: 138 files, 3567 passed, 1
+skipped, 0 failed, exit 0.**
+
+Two full runs earlier in this follow-up exited 1 on `CLEAN TREE: the working tree is not clean` in
+three release suites. That is the apparatus working: both were launched while an edit was still
+uncommitted, which those suites refuse by design. Recorded rather than quietly re-run, because the
+mistake was mine twice.
