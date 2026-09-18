@@ -13,7 +13,8 @@ one address.
 activation, heartbeat, ingest, and turning your events into meetings on screen are built and proven
 end to end on a local Observer.
 
-**Checked against your 2026-09-18 drop: §2 and §3 below are closed.** The activation screen is
+**Checked against your 2026-09-18 drop: §2 and §3 below are closed.** The full note is
+`docs/ue5-round-3-verification-2026-09-18.md`, with every `file:line` and the wire run. The activation screen is
 built, and everything this list asked of it is in the source; the three mismatches are corrected. We
 did not take that from the notes: each claim was read in your own files, and then your exact
 payloads were sent over real HTTP to our real endpoints. That run is recorded at the head of §3.

@@ -2221,5 +2221,7 @@ removes from it.
 (`ObserverAnalyticsSubsystem.cpp:733`). Nothing on our wire answers `409` — `PD-27` removed it —
 so a reader of that delegate could take it for a server code. Suggested a local constant.
 
+The reply to him is `docs/ue5-round-3-verification-2026-09-18.md`.
+
 **Not in this drop, and not expected in it:** the presenter roster endpoint (`PD-30`, handoff
 §8.4), which was specified the same day this build was made.
