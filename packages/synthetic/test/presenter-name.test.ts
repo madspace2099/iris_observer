@@ -39,7 +39,7 @@ import { VIEWERS } from "../src/world";
  * presenters called the same thing keep two rows, two ids and two pages.
  *
  * And the boundary this file must not cross: none of the above is the BUYER's
- * name. P1-08b is blocked by product decision — ADR-0018, `docs/05-identity.md`
+ * name. P1-08b is reopened and in design — see `docs/22-visitor-name-display.md`
  * and the `visitorLabel` type, which has no parameter a name could be passed
  * through. The last case here is the tripwire for that staying true.
  */
@@ -214,7 +214,7 @@ describe("two presenters with one name stay two presenters", () => {
 describe("the presenter's name is not the buyer's, and cannot become it", () => {
   it("leaves the visitor label free of anything a presenter is called", async () => {
     /*
-     * P1-08b is blocked by decision, not by omission. This is the tripwire:
+     * P1-08b has no data behind it yet, and this is the tripwire that says so:
      * the presenter's name travels on `agentName`, the visitor travels on
      * `VisitorLabel`, and the two must not meet. `visitorLabel` takes a closed
      * enum and an integer and has no parameter a name could be passed through,

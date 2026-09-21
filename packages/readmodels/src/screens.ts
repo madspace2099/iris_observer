@@ -44,13 +44,15 @@ import type { AgentProfile, OutcomeSlice } from "./views3";
 /**
  * How a visitor is named on screen, when they may not be named at all.
  *
- * A meeting list is the surface most likely to grow a name column, and it is
- * the one surface where a name may never appear. `docs/05-identity.md` §2 rule
- * 3 keeps behavioural records free of name, email and phone by making the
- * separation structural rather than a matter of remembering to omit a field;
- * `docs/10-policies.md` §3 keeps the visitor identifier pseudonymous. A label
- * assembled from a `ContactPii` record would defeat both, and it would defeat
- * them quietly, one component at a time.
+ * A meeting list is the surface most likely to grow a name column, and today
+ * no name appears on it. That is the current state rather than a settled rule:
+ * `docs/05-identity.md` §2 rule 3 forbids name, email and phone in an event or
+ * an observation, which is the behavioural pipeline and not a screen, and
+ * ADR-0018 governs which surfaces the internal brief may reach rather than
+ * whether an agent may see who they are meeting. An earlier version of this
+ * comment read both as a prohibition on display. They are not one, and
+ * `docs/22-visitor-name-display.md` settles where a real name would come from
+ * and where it would be joined.
  *
  * So the label is **privacy-safe by construction rather than by review**: the
  * type has no field a name could sit in, and its only inputs are a closed
@@ -58,9 +60,11 @@ import type { AgentProfile, OutcomeSlice } from "./views3";
  * sentence a reader sees is produced by `visitorLabel` from those two values,
  * so a caller cannot pass prose through instead.
  *
- * What it deliberately does *not* say is which contact this is. A meeting row
- * links to the meeting, and identity stays on the surface that already governs
- * it (ADR-0018) — which is the same rule the audience builder follows.
+ * What it does *not* say is which contact this is, because nothing in this
+ * repository can say it yet: `ContactPii.fullName` is declared in the contracts
+ * and has no producer, no store and no consumer. When that changes, the name
+ * arrives as a field beside this label rather than inside its `display`, so the
+ * guarantee above survives the feature that ends the silence.
  */
 export const VISITOR_LABEL_KINDS = [
   /** No contact was ever linked. A walk-in has no history to have. */

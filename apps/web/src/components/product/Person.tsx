@@ -55,10 +55,16 @@ export function Initials({ name }: { readonly name: string }) {
  * ## Privacy
  *
  * This is for AGENTS — the people who operate the showroom — and their names
- * are the organisation's own staff. It is not for buyers. No contact name,
- * email or telephone number appears on any surface of this product, and a
- * visitor is a privacy-safe identifier; a component that rendered a person's
- * name is therefore a component that must never be handed a contact.
+ * are the organisation's own staff. It is not for buyers, and it must never be
+ * handed a contact.
+ *
+ * An earlier version of this comment said no contact name appears on any
+ * surface of this product. That was never true of the whole product — the
+ * pre-meeting brief names its participants, and an e2e test requires it to —
+ * and it is not what makes this component safe. What makes it safe is narrower
+ * and still holds: the visitor label it sits beside is a privacy-safe
+ * identifier built from a closed vocabulary, and nothing routes a contact here.
+ * See `docs/22-visitor-name-display.md`.
  *
  * It renders an `<li>`, because `.ox-people` is the grid that holds them and a
  * roster is a list. The screen writes `<ul className="ox-people">` around the

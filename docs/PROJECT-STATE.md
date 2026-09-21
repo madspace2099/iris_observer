@@ -835,8 +835,9 @@ one developer across three projects (Petra), agency isolation across two develop
 Northgate for Alpha vs Kingsford for Beta, denied on Riverside), agent-level insufficient sample
 (Ister Tower's Lucia Horváth, 9 recorded meetings). Confirmed missing, honestly: a second agency
 on one project, the velocity-drop detector, a single-unit demand-drop warning, the named Viktória
-reference journey, and the identity-join cases — the last blocked by the same VisitorLabel privacy
-contract already recorded against Contacts, not a new blocker.
+reference journey, and the identity-join cases — the last recorded then as blocked by the same
+VisitorLabel privacy contract already recorded against Contacts. That contract governs one label and
+was never a product-wide prohibition; see `docs/22-visitor-name-display.md`.
 
 **M9, unchanged conclusion.** Branding and feature flags remain SPECIFICATION_BLOCKED: no field
 list or contract exists anywhere in the documentation, and a visual decision does not create one.
@@ -2268,7 +2269,8 @@ proves nothing.
 test-support` exit 0; `prettier --check` clean after formatting; vitest over `packages/synthetic/test`
 plus the new file, `ask` and `showroom` — 17 files, **295 passed, 0 failed**. And looked at, which is what found the last defect: the section title. "No contact recorded since the meeting" was 37 characters against a product whose longest other section head is 18, so the limit moved into the head's own `aside` and the title went back into family. Screenshot of the signed-in agent Overview taken and read, scratchpad `p104/agent-overview-desktop.png`.
 
-**Left open, deliberately.** A real visitor name (P1-08b, blocked by product decision); a standalone
+**Left open, deliberately.** A real visitor name (P1-08b — recorded here as blocked by product
+decision, reopened 2026-09-21, see `docs/22-visitor-name-display.md`); a standalone
 IRIS-open-to-Sold metric, which would be a new canonical definition; the premium tier, the tier
 editor and R14/R15, which have no surface and would need a table this phase forbids; and the
 follow-up _deadline_, which no source carries — which is exactly why the copy now states a missing
@@ -2481,7 +2483,9 @@ The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md`
 ## 2026-09-21 — P1-08a: an identifier was standing where a name should be
 
 The presenter's name — who gave the presentation, never the buyer. Split from P1-08b by decision;
-that half stays blocked and nothing here moved toward it.
+that half was recorded as blocked and nothing here moved toward it. It has since been reopened —
+`docs/22-visitor-name-display.md` — and the split itself was right either way: these are two
+different people and the presenter half never depended on the other.
 
 **The defect, and it was live on delivered data.** A showroom mints its own identifier for whoever
 ran a meeting, and the name for that identifier arrives separately: from the roster an
@@ -2508,9 +2512,11 @@ whole name matches rather than the forename.
 
 **The boundary held and is now guarded.** A test asserts that whatever the visitor label says, it is
 one of the three states `visitorLabel` declares, and that no presenter's name appears in it. P1-08b
-is blocked by product decision — ADR-0018, `docs/05-identity.md`, `docs/10-policies.md` — and
-nothing in this round introduced a pseudonymous handle, a stable visitor identifier or anything else
-that would reopen it. No event, contract, connector or read-model type was touched.
+was recorded here as blocked by product decision, citing ADR-0018, `docs/05-identity.md` and
+`docs/10-policies.md`; that reading was wrong about all three and the task was reopened on
+2026-09-21 — see `docs/22-visitor-name-display.md`. What is written above still holds: nothing in
+this round introduced a pseudonymous handle, a stable visitor identifier or anything else, and the
+boundary test still guards the label. No event, contract, connector or read-model type was touched.
 
 **Four tests had encoded the old rule**, including one that printed `name: "agent-guid"` with a
 comment explaining why. They were updated together with their comments rather than just their
@@ -2733,9 +2739,74 @@ stated rather than implied.
 its over 84 cases), tenant/project (`isolation`, 33) — and the shared vocabulary, navigation and
 scope layers are ready for Phase 2 route rebuilds. Five items stay open and are listed separately in
 §18.6: the durable tier store (commercial, BLOCKED), tenant-versus-account plan scope (commercial),
-P1-08b's real buyer name (deliberate, permanent), and P1-11's four refusal inconsistencies (product
+P1-08b's real buyer name (reopened on 2026-09-21 and in design — `docs/22-visitor-name-display.md`;
+this entry originally recorded it as deliberate and permanent, which was wrong), and P1-11's four
+refusal inconsistencies (product
 decision — best taken inside each route's own Phase 2 round). P1-07's second blocker, the read-path
 enforcement point, was resolved by P1-09 and is recorded as closed. The one named exception to
 "shared components are ready": `/overview` is the last `obs-` customer route and is not a precedent.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §18.
+
+## 2026-09-21 — P1-08b-redesign: the record was wrong about its own reason, and about the facts
+
+**P1-08b was never blocked by the documents it cited.** It was recorded as blocked by product
+decision on ADR-0018, `docs/05-identity.md` and `docs/10-policies.md`. Read again, none of the three
+says it. Rule 3 scopes itself twice — "No name, email or phone in **an event or an observation**,
+ever" — and a screen is neither. ADR-0018 governs which _surfaces_ the internal brief may reach and
+names the meeting drill-down as one where it belongs. `10-policies.md` §3 sets the pseudonymous
+identifier for an **anonymous web visitor**, before anybody knows who they are. The over-reach was
+ours: `packages/readmodels/src/screens.ts` read rule 3's behavioural scope as a display scope and
+called the meeting list "the one surface where a name may never appear".
+
+**Two findings then inverted the task.** First, the product has been printing real buyer names the
+whole time: "Viktória Halász" and "Daniel and Eva Bartoš" reach the brief heading
+(`BriefView.tsx:82`), the sales-agent Overview (`overview/page.tsx:224`) and the Ask IRIS answer
+(`lib/ai/tools.ts:634,672`) through read-model fields that are already name-shaped — and
+`e2e/observer.spec.ts:139` **requires** the brief's `h1` to contain one. Second, and this is the one
+that shortens the work: a real visitor name already exists in a source Observer connects to every
+sync. `packages/connectors/src/supabase-showroom.ts:20-30` records as a live confirmation that
+`public.user_sessions` carries `visitor_name` beside `sales_person`, plus `session_data.UserName` —
+"the same fact, twice" — and that the adapter drops both at three points: the query selects only
+three columns (`:369`), `RawSessionData` does not declare `UserName` (`:97-135`), and
+`mapShowroomSession` hard-codes `contactId: null` (`:319`).
+
+**So the blocker is real but it is a different blocker.** The adapter states its own reason, and it
+is not privacy doctrine: **ADR-0005 found that project's session table readable by anyone holding its
+anon key with no row-level filter.** Reading a name across that boundary would pull personal data
+through an interface with no authorisation on it. That is fixable on the source side, and it is now
+step 2 of the Phase 2 plan rather than an unexplained prohibition. It also confirms the decision's
+own premise literally: the name in that table is the one the sales person typed in.
+
+**What the rest of the stack looks like.** Lomnio's `GET /v1/leads` returns `customer.name` with
+consent flags beside it, and the adapter's own type reads `email`, `phone` and `phone_e164` while
+omitting exactly `name` (`connectors/src/deals.ts:256-260`). REALPAD puts names behind
+`list-excel-customers-contacts`, which no code references. `CrmDealSchema` is a `z.strictObject` that
+would _reject_ a name rather than ignore it. `ContactPii.fullName` exists with zero producers and
+zero consumers, and no contact table exists in any of the 22 migrations — the only name-holding
+column in the schema is `observer.project_agents.display_name`, which is also the design: an opaque
+ref plus a nullable name, joined at read time, withdrawal expressed as a null.
+
+**A live defect found and deliberately not fixed.** The unit page tells the reader on screen that
+"No contact name, email or telephone number appears on any surface of this product"
+(`units/[unitCode]/page.tsx:402-403`). That is false, and the e2e test above proves it false. Fixing
+it is a component change, which this round was told not to make, so it is recorded in
+`docs/22-visitor-name-display.md` §3.1 and needs its own decision. The identical false absolute in
+`components/product/Person.tsx` **is** corrected, because a docblock is not a component change. The
+two neighbouring claims on the agents and meetings pages are correctly scoped to the visitor column
+and are true.
+
+**Recommendation: Phase 2, and take the showroom path rather than the CRM path.** Every remaining
+step is one this phase forbids by name — a durable store, a source field, and a consent join needing
+both. The open product question is visibility: the brief is gated to three roles and names people,
+while the register is open to the whole agency and does not, so extending the name to the register
+widens an audience the brief's gate deliberately narrowed. That decision constrains the store, so it
+goes first.
+
+**What this round shipped.** `docs/22-visitor-name-display.md`, and the corrections: `screens.ts`,
+both `MeetingRegister` docblocks, `Person.tsx` and two comments in `presenter-name.test.ts` now say
+the absence is current and under design rather than permanent and decided; five places in this file
+say what was recorded, that it was wrong, and where the correction lives. **No component, no type and
+no assertion changed — the only executable lines touched were comments.**
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §19.

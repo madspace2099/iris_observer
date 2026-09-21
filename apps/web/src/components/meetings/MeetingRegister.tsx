@@ -34,7 +34,7 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * rather than "Outcome" so the qualification survives a reader who scrolled
  * past the sentence.
  *
- * ## The visitor column carries no person
+ * ## The visitor column carries no person today
  *
  * `VisitorLabel` is privacy-safe by construction rather than by review: the
  * type has no field a name, an email or a phone number could sit in, and its
