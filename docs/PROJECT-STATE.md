@@ -2225,3 +2225,53 @@ The reply to him is `docs/ue5-round-3-verification-2026-09-18.md`.
 
 **Not in this drop, and not expected in it:** the presenter roster endpoint (`PD-30`, handoff
 §8.4), which was specified the same day this build was made.
+
+## 2026-09-21 — P1-04: a word the copy had dropped
+
+The UX overhaul's first four tasks are read-only audits; this is the first one that changed the
+product. Ten "mandatory clarifications" from the plan were taken one at a time against the source.
+Seven were already satisfied, two name a surface that does not exist, and **one was a real defect**.
+
+**Nothing needed a new catalogue.** The question was whether a shared definition layer exists. Four
+do, and they already agree with each other: the metric registry (`packages/metrics`, 61 metrics,
+from which the matrix and the UE5 spec are generated), the glossary
+(`packages/readmodels/src/glossary.ts`, 21 measurements, each carrying its own `limitation`), the
+absent-value vocabulary (`words.ts`), and the closed state vocabularies in `screens.ts`. A fifth
+would only be a fifth place for one word to mean two things.
+
+**The defect: a gap in the record, printed as a statement about a person.** The metric was always
+careful — `people.follow_up_delay` measures days to the next _recorded_ contact and demands
+`activity.occurred_at` from a CRM to do it, and `FOLLOW_UP_STATES` says outright that Observer never
+sees the call that came afterwards. Two surfaces had dropped the word. The agent Overview said a
+buyer "has been waiting N days for a reply" and, when the list was empty, that "Every buyer has been
+contacted since their meeting" — a positive claim about an event this product cannot observe. The
+Ask answer said four prospects "have had no contact since their meeting" and labelled a figure
+"Uncontacted after a meeting".
+
+`/attention` and `/showroom` were checked in the same pass and were already right: "Units shortlisted
+with no follow-up recorded", with its denominator. So the fix was the same single word in eleven
+strings across three files, and no field, table, metric, event or threshold moved.
+
+**The test holds the definition, not the wording.** `apps/web/test/follow-up-definition.test.ts`:
+a surface may say a contact is not recorded; it may never say one did not happen, that somebody is
+waiting, or that everybody was reached. Seven banned phrasings, scanned across three source roots
+including comments, plus the structural half — every follow-up reason, the verdict headline and the
+metric's own rule must name the record — plus the two states that must never collapse: the four
+follow-up labels stay four distinct words with only `unavailable` naming a CRM, and an unlinked
+visitor never renders as a missing integration.
+
+**The tripwire was measured, not assumed.** Stashed back to the pre-fix copy it fails two of its four
+cases and names seven hits in `agent.ts`, `pulse.ts` and `overview/page.tsx`. A tripwire born green
+proves nothing.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean after formatting; vitest over `packages/synthetic/test`
+plus the new file, `ask` and `showroom` — 17 files, **295 passed, 0 failed**. And looked at, which is what found the last defect: the section title. "No contact recorded since the meeting" was 37 characters against a product whose longest other section head is 18, so the limit moved into the head's own `aside` and the title went back into family. Screenshot of the signed-in agent Overview taken and read, scratchpad `p104/agent-overview-desktop.png`.
+
+**Left open, deliberately.** A real visitor name (P1-08b, blocked by product decision); a standalone
+IRIS-open-to-Sold metric, which would be a new canonical definition; the premium tier, the tier
+editor and R14/R15, which have no surface and would need a table this phase forbids; and the
+follow-up _deadline_, which no source carries — which is exactly why the copy now states a missing
+record rather than a missed commitment.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §10.

@@ -248,11 +248,14 @@ function AgentView({ overview }: { readonly overview: AgentOverview }) {
       <AiSummary briefing={overview.briefing} />
 
       <Card as="section">
-        <SectionHead title="Waiting on you" />
+        <SectionHead
+          title="No contact recorded"
+          aside="Since their last meeting. Observer sees recorded contact only."
+        />
         {overview.followUps.length === 0 ? (
           <StateMessage
-            title="Nobody is waiting"
-            detail="Every buyer has been contacted since their meeting."
+            title="Nothing outstanding"
+            detail="No meeting in this period is past the follow-up rule with nothing recorded against it."
           />
         ) : (
           <ul className="obs-list">

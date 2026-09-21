@@ -788,15 +788,15 @@ export function buildAskSession(
     {
       question: "Which prospects should the sales team contact this week?",
       answer:
-        "Four buyers shortlisted a unit and have had no contact since their meeting. One of them shortlisted A-505, which has since sold.",
+        "Four buyers shortlisted a unit and have no contact recorded since their meeting. One of them shortlisted A-505, which has since sold.",
       figures: [
-        { label: "Uncontacted after a meeting", value: "4", note: "median wait 11 days" },
+        { label: "No contact recorded after a meeting", value: "4", note: "median gap 11 days" },
         { label: "Affected by a sold unit", value: "1", note: "Viktória Halász, A-505" },
       ],
       evidence: evidenceRef("ask.contact", "observed_sequence", `${root}/people`, 4),
       actionLabel: "Open the follow-up list",
       actionHref: `${root}/people`,
-      followUps: ["Prepare me for Viktória's meeting", "Who has waited longest?"],
+      followUps: ["Prepare me for Viktória's meeting", "Who has the longest gap since a meeting?"],
       caveat: null,
     },
     {

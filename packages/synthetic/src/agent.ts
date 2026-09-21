@@ -449,7 +449,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       displayName: "Daniel and Eva Bartoš",
       lastMeetingLabel: "8 August",
       daysSinceMeeting: danielDaysSinceMeeting,
-      reason: "Shortlisted two units, no contact since the meeting.",
+      reason: "Shortlisted two units. No contact has been recorded since the meeting.",
       href: `${root}/people`,
       urgency: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "overdue" : "due",
     },
@@ -459,16 +459,17 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
     context,
     verdict: {
       state: "attention_needed",
-      headline: `Two meetings this week, and one buyer has been waiting ${String(danielDaysSinceMeeting)} days for a reply.`,
-      supporting: "Your briefs are ready for Thursday. Daniel and Eva are the overdue one.",
+      headline: `Two meetings this week, and one buyer has had no contact recorded for ${String(danielDaysSinceMeeting)} days.`,
+      supporting:
+        "Your briefs are ready for Thursday. Daniel and Eva are the longest gap with nothing recorded against it.",
       evidence: ev("agent.verdict", "observed_sequence", `${root}/people`, 2),
       rulesetVersion: "verdict-1.0.0",
       components: [
         {
           metricId: "people.follow_up_delay",
-          label: "Longest wait",
+          label: "Longest gap since a meeting",
           display: days(danielDaysSinceMeeting),
-          rule: `No buyer waiting longer than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
+          rule: `No buyer left without a recorded contact for more than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
           outcome: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "fail" : "pass",
         },
         {
