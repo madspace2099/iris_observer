@@ -181,13 +181,17 @@ export function requiredPlan(
  * string that arrived in a request. Making the parameter honest forces the
  * check rather than trusting the caller's annotation.
  */
-export function decideAccess(plan: unknown, key: string): AccessDecision {
+export function decideAccess(
+  plan: unknown,
+  key: string,
+  registry: Readonly<Record<string, Plan>> = ACCESS_REGISTRY,
+): AccessDecision {
   const held = asPlan(plan);
   // An unrecognised plan is not a weak plan. It is not an answer at all, so it
   // reaches nothing — including the capabilities FREE reaches.
   if (held === null) return { allowed: false, reason: "forbidden" };
 
-  const required = requiredPlan(key);
+  const required = requiredPlan(key, registry);
   // Nobody priced this. Refusing is the only answer that cannot give something
   // away, and `forbidden` rather than `upgrade_required` because there is no
   // upgrade that would help.
@@ -206,7 +210,11 @@ export function decideAccess(plan: unknown, key: string): AccessDecision {
  * deepest — telling a reader that one figure needs an upgrade, on a screen they
  * were never entitled to open, describes the wrong problem.
  */
-export function decideAll(plan: unknown, keys: readonly string[]): AccessDecision {
+export function decideAll(
+  plan: unknown,
+  keys: readonly string[],
+  registry: Readonly<Record<string, Plan>> = ACCESS_REGISTRY,
+): AccessDecision {
   // An empty list is not a satisfied list. Nothing was asked for, so nothing is
   // granted — otherwise a caller whose keys array came out empty by accident
   // would be handed an allowance, which is the most expensive kind of typo.
@@ -214,11 +222,39 @@ export function decideAll(plan: unknown, keys: readonly string[]): AccessDecisio
 
   let granted: Plan | null = null;
   for (const key of keys) {
-    const decision = decideAccess(plan, key);
+    const decision = decideAccess(plan, key, registry);
     if (!decision.allowed) return decision;
     granted = decision.effectivePlan;
   }
   return granted === null
     ? { allowed: false, reason: "forbidden" }
     : { allowed: true, effectivePlan: granted };
+}
+
+/**
+ * Whether anything at or below `root` costs more than this plan reaches.
+ *
+ * The question a filter asks before it walks anything. If no declared entry
+ * under `metric` exceeds the tenant's plan then no metric can be refused, the
+ * walk would change nothing, and skipping it is not an optimisation that might
+ * be wrong — it is the same answer arrived at without touching the data.
+ *
+ * It reads the REGISTRY rather than the response, so the decision cannot depend
+ * on what the response happened to contain. A caller must still fail closed
+ * when it cannot work out whose plan applies; see `entitled-repository.ts`.
+ */
+export function deniesAnythingUnder(
+  plan: unknown,
+  root: string,
+  registry: Readonly<Record<string, Plan>> = ACCESS_REGISTRY,
+): boolean {
+  const held = asPlan(plan);
+  // An unrecognised plan reaches nothing, so everything under the root is
+  // denied to it — including a root that prices nothing above the base.
+  if (held === null) return true;
+  return Object.keys(registry).some((key) => {
+    if (key !== root && !key.startsWith(`${root}.`)) return false;
+    const required = requiredPlan(key, registry);
+    return required !== null && rank(required) > rank(held);
+  });
 }

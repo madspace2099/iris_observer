@@ -8,6 +8,7 @@ import { liveSessionSource } from "@/lib/connectors/session-source";
 import { projectIdFromUuid } from "@/lib/directory/identity";
 import { liveProjectDirectory } from "@/lib/directory/live";
 import { directoryRows } from "@/lib/directory/rows";
+import { entitled } from "@/lib/entitled-repository";
 
 function normalised(name: string): string {
   return name
@@ -98,13 +99,29 @@ export async function readModelProjectIdForRow(row: {
  *
  * And the project directory: the projects made in administration, listed and
  * resolved beside the synthetic world's own and fed by the same three sources.
+ *
+ * ## And the commercial gate, wrapped round whichever repository that is
+ *
+ * `entitled` takes out any figure the project's plan does not reach, here
+ * rather than inside the implementation, because the port has more than one
+ * implementor and a filter written into one of them is a filter the next one
+ * has to remember. Wrapping at the seam means swapping implementations cannot
+ * lose it. Every screen already imports `repository` and none imports the
+ * class, so there is no way round it that is not a change to this line.
+ *
+ * It refuses nothing today — every capability in `ACCESS_REGISTRY` is FREE —
+ * so this is the gate installed rather than the gate closed. Closing it is a
+ * registry entry, and the runtime activation is still BLOCKED for the two
+ * reasons P1-07 recorded.
  */
-export const repository: ObserverRepository = new SyntheticObserverRepository({
-  catalogueSource: liveCatalogueSource,
-  dealSource: liveDealSource,
-  sessionSource: liveSessionSource,
-  projectDirectory: liveProjectDirectory,
-});
+export const repository: ObserverRepository = entitled(
+  new SyntheticObserverRepository({
+    catalogueSource: liveCatalogueSource,
+    dealSource: liveDealSource,
+    sessionSource: liveSessionSource,
+    projectDirectory: liveProjectDirectory,
+  }),
+);
 
 /*
  * THE MODEL TRANSPORT, INSTALLED ONCE.

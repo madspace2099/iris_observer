@@ -2531,3 +2531,53 @@ passed, 1 skipped**. Stashing only the fix leaves four of the seven new cases fa
 reading `expected 'AG-1' to be 'Name not available · AG-1'`.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §14.
+
+## 2026-09-21 — P1-09: the decision, spent once and above the port
+
+P1-07 built the commercial decision and left it with no caller, on purpose: wiring it into
+twenty-one pages is twenty-one copies of a control, and `gate.ts` already says what that costs —
+"a security control that exists in two places is a security control that exists in one place and a
+copy that will drift". This is the caller.
+
+**Not in the repository, and that is the argued part.** The obvious home knows the tenant already.
+But `ObserverRepository` is a contract with more than one implementor — the synthetic world today,
+a database repository later (ADR-0007) — so a filter written inside one class is a filter the next
+class has to remember, which is the same drift arriving by a different door. `entitled` wraps
+whatever implements the port, in the composition root that is already "the single place in the
+application that knows which repository is in use". Swapping implementations cannot lose the gate,
+because the gate is not in the implementation. A proxy rather than thirty delegating methods: hand
+delegation covers the methods somebody remembered, and forgetting one is silent.
+
+**What it removes.** The figure — display, raw, qualifier, sampleSize, comparison, evidence,
+drillHref — from any metric the plan does not reach, and the formatted value from any verdict
+component quoting the same metric, which is the second door and the easier one to miss because it is
+not a `MetricValue`. The number never reaches the process that renders the page, so it cannot be in
+the payload, in a hidden element, in a chart's data, in a tooltip or in a summary sentence.
+
+**The refusal is one constant**, and that is the disclosure half rather than a convenience. Two
+metrics with entirely different values behind them produce objects identical field for field, and
+the same metric refused on a full project and on a thin one produces the same object. It fails
+closed: a response whose tenant cannot be resolved has an unknown plan, and an unknown plan reaches
+nothing, including what FREE reaches.
+
+**No new component.** A redacted metric is `unavailable` carrying its reason, which is the state this
+product already draws and `Figure` already renders. A second way to draw one state is the
+duplication this round exists to remove. When a family is actually priced, the region-level band in
+`Absence.tsx` is where the reason belongs in full — that wiring is Phase 3, not now.
+
+**Nothing changes today.** Every capability is FREE, and a test asserts the wrapper's output is
+byte-identical in that case rather than assuming it. One test was wrong before the code was: it
+asserted an evidence _href_ never appears, but an href is a route every other figure on the screen
+also links to. The id identifies the record; the href identifies a page.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; `apps/web/test` plus `packages/synthetic/test` — 50
+files, 940 passed; full vitest on a clean tree — 144 files, **3617 passed, 1 skipped**. Four
+mutations applied and reverted: keeping the figure (4 cases fail), letting
+the message vary with the data (1), leaving the verdict's copy alone (2), guessing MAX instead of
+failing closed (1).
+
+Runtime premium activation is still BLOCKED for the two reasons P1-07 recorded — no durable tier
+store, and the registry prices nothing. This is the gate installed, not the gate closed.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §15.
