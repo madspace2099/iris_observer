@@ -14,13 +14,16 @@ database façades, with an HMAC verifier keyed by a pepper the database never se
 default TTL, single use, an audit trail, and one byte-identical refusal for all six failure modes.
 Nothing in §3 needs to be built.
 
-**But the wizard cannot sit on it entirely unchanged.** Four specific things are missing or in the
-way (§4), and none of them is a new table. And three security findings came out of the survey that
-matter more than the wizard does (§6) — one of them is an open oracle the project already closed on
-a sibling endpoint.
+**But the wizard cannot sit on it entirely unchanged.** Three specific things are in the way (§4),
+and none of them is a new table. Separately, §6 records one **pre-existing** condition that this
+wizard does not create but does make material, and which gates shipping rather than designing.
 
-**Correction to an earlier claim of mine in this session:** I said "no backend change needed". That
-was too strong, and §4 is the retraction.
+**Two corrections to earlier claims of mine, both mine to own.** I said "no backend change needed";
+that was too strong, and §4 is the retraction. I also listed a fourth gap — that project creation
+demands currency, locale and time zone — which I took from an agent's report without checking. It is
+false: `CreateProjectInput` is `{ account, name, slug }` (`admin.ts:228-233`) and
+`createProjectAction` reads only `name` from the form (`create-actions.ts:249`). Those three
+fields are a plan in `docs/21-self-served-projects.md`, not code. §4.1 records what follows.
 
 ## 1. Where to read this
 
@@ -87,6 +90,10 @@ And the grant that answers "backend soha nem anon key" structurally rather than 
 revoke all on schema observer from public, anon, authenticated, service_role;
 ```
 
+That line is not in one migration but in **six** — `20260825121909`, `20260829173000`,
+`20260902090000`, `20260902093000`, `20260902100000` and `20260902110000` — so the exclusion is
+re-asserted every time the schema grows rather than being inherited from one early file.
+
 **The `anon` role cannot reach the `observer` schema at all.** The reference wizard's client-side
 `insert`/`select` pattern is not merely forbidden here — it has nothing to address. No BYPASSRLS role
 exists.
@@ -100,16 +107,30 @@ existing tables satisfy that rule's **intent** (deny-all) but not its **letter**
 not drift — but anyone citing ADR-0005 as authority for a policy statement should know it is cited
 against the repository's actual practice.
 
-## 4. What the wizard cannot reuse unchanged — the four real gaps
+## 4. What the wizard cannot reuse unchanged — the three real gaps
 
-None needs a table. All four are application-layer.
+None needs a table. All three are application-layer.
 
 | #   | Gap                                                                                                                                                                                                                                                                                | Evidence                                                                    | Smallest fix                                                                                                                                                                                                                                                                                  |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Both creation actions `redirect()` on success**, navigating away and destroying a modal wizard's step state                                                                                                                                                                      | `create-actions.ts:309,380`                                                 | extract the action bodies; keep the redirecting wrappers for the existing pages, add non-redirecting variants returning the new id                                                                                                                                                            |
 | 2   | **No browser-reachable "was it claimed?" read.** `source-actions.ts` exports exactly five actions and none reads status; the credential-lifecycle read exists on `ObserverAdmin` but is never exposed. The only status refresh reachable from a client today is `router.refresh()` | `source-actions.ts:147,218,236,261,286`; `ActivationCodeDialog.tsx` dismiss | one read-only server action wrapping the existing read. Nothing new anywhere: `observer_credential_status(text, uuid)` is already a granted SECURITY DEFINER function (migration `:492-506`), and `ObserverAdmin` already calls it _"the authoritative answer to 'is this source ACTIVATED'"_ |
 | 3   | **The code cannot be displayed in an `ACT-XXXX-XXXX` box** — see §5                                                                                                                                                                                                                | `secrets.ts:261-283`                                                        | change the wizard's presentation, never the code                                                                                                                                                                                                                                              |
-| 4   | **Nothing binds a project to a client without also demanding currency, locale and time zone**                                                                                                                                                                                      | `create-actions.ts:244`                                                     | a wizard decision: either collect them in step 1.2, or default them explicitly and say so on screen                                                                                                                                                                                           |
+
+### 4.1 What step 1.2 should ask for
+
+Nothing beyond a name, today. `createProjectAction` reads exactly one field
+(`create-actions.ts:249`), and `CreateProjectInput` carries `account`, `name` and an optional
+display `slug` — "Display metadata; never an identifier" (`admin.ts:228-233`). A wizard step that
+asks for a name therefore matches the backend exactly and needs no decision at all.
+
+The currency, locale and time-zone fields belong to `docs/21-self-served-projects.md`'s planned
+project form, which has not shipped. **When it does, the answer is visible fields, never a hidden
+default** — CLAUDE.md non-negotiable 6 names currency by name among the things that must be
+configuration rather than something application logic assumes, and a default nobody was shown is
+exactly an assumption. Defaulting them _visibly_ from the client created in step 1.1 would be fine;
+defaulting them silently would not. That decision belongs to whoever builds that form, not to this
+wizard, and it is recorded here only so it is not rediscovered as a surprise.
 
 Everything else the wizard shows — the stepper, the countdown, copy-to-clipboard with confirmation,
 "Onboard Another Client", a recent-codes panel — is presentation over data that already exists.
@@ -146,9 +167,16 @@ monospace block with a copy button and a "Copied" confirmation, not as a short g
 reads aloud. `ActivationCodeDialog.tsx:233-236` already does exactly this, including the fallback
 sentence for when the clipboard is unavailable.
 
-## 6. Three security findings, in descending order of how much they matter
+## 6. Security findings
 
-### 6.1 The role gate rests on a session that is explicitly not authentication
+One of these gates shipping. The other two do not, and are recorded so they are not mistaken for it.
+
+### 6.1 SHIPPING BLOCKER — and it is not this wizard's, it is the product's
+
+**This condition exists today, on the Phase 1 code, with or without a pairing wizard. It is tracked
+as its own item, not as a sub-task of this feature, because a reader who meets it inside a wizard
+design note will assume it can be deferred alongside the wizard. It cannot.** What the wizard changes
+is not the condition but its cost.
 
 `issueActivationCodeAction` is gated on `viewer.role === "madspace_admin"`. That role comes from a
 signed cookie, and `session.ts` is candid about what it is (`:11-25`, ADR-0022):
@@ -168,42 +196,48 @@ forged token buys changes from "pick a synthetic profile" to "mint ingestion cre
 installation". The reasoning was correct for what was behind the gate when it was written; a pairing
 wizard puts something else behind the same gate.
 
-**Requirement:** before the wizard is used against any real installation, either
-`OBSERVER_SESSION_SECRET` is set to real secret material, or real authentication lands
-(`docs/11-preproduction-gates.md`). This is a gate on _shipping the feature_, not on designing it.
+**Requirement:** before **any** surface that mints credential material is used against a real
+installation, either `OBSERVER_SESSION_SECRET` is set to real secret material, or real
+authentication lands (`docs/11-preproduction-gates.md`). Stated that way deliberately: the
+requirement is about what sits behind the gate, not about which feature happens to put it there.
 
-### 6.2 A timing oracle the project already closed on the sibling endpoint
+### 6.2 NOT a finding — the selector oracle is already closed here, by construction
 
-`activate.ts:421-422` returns immediately when the code fails to parse, with no HMAC and no database
-round trip. A well-formed but unknown code costs a full HMAC plus a `activationConsume` round trip
-before returning **identical bytes**. The difference is readable on the clock.
+An earlier draft of this note claimed `activate.ts` leaves open the timing oracle that
+`authenticate.ts` closed with `DECOY_VERIFIER`. **That was wrong, and the correction is worth
+recording because the wrong version pointed at the wrong thing.**
 
-The file's own comment two lines above shows the author reasoning about exactly this bit — and
-closing it only in the body:
+`DECOY_VERIFIER` defends exactly one bit: _does this selector exist_. It is needed on
+`authenticate.ts` because a lookup that misses has nothing to compare against, so the natural code
+returns early and a miss is measurably cheaper than a hit.
 
-> separating it would tell a caller that their guess had the wrong _shape_, which is the first bit of
-> an enumeration.
+`activate.ts` never has that shape. `activationCodeVerifier(code.selector, code.secret, deps.env)`
+is evaluated **as an argument** to `activationConsume` (`activate.ts:439-441`), unconditionally and
+before the database is reached, and the selector and the verifier travel into one statement together.
+A well-formed unknown selector therefore pays the same two HMACs — `issueSourceToken` is minted
+first as well — and the same single round trip as a real one. There is no lookup-then-compare branch
+for a decoy to fill; the bit is not closed so much as never opened.
 
-**The project has already solved this, on the other endpoint.** `authenticate.ts:76-93` introduces
-`DECOY_VERIFIER` for precisely this reason:
+What remains is only _malformed_ versus _well-formed_: a code that fails `parseToken` returns before
+either HMAC (`:421-422`). That leaks "your guess had the wrong shape" — and the shape is public,
+documented in `secrets.ts:28-40`, and is what an operator copies off the screen. Anyone guessing is
+already guessing well-formed tokens, so the residual asymmetry tells an attacker something they
+already knew.
 
-> an early return is a measurably faster answer than a full HMAC plus a constant-time compare. That
-> difference is precisely the oracle the indistinguishable 401 was built to close: an attacker who
-> cannot read the body can still read the clock.
+**Recorded as closed**, and deliberately kept in the note rather than deleted: the earlier framing
+would have put a scheduled security task beside §6.1, and the cost of that is not the wasted work but
+the attention taken off the one item here that really is a gate.
 
-`activate.ts` has no equivalent. The fix is the pattern already in the repository, applied to the
-other door. The leaked bit is weaker here than on `authenticate.ts` — "your guess had the right
-shape", not "this selector exists" — which is why this is a finding to schedule rather than an
-emergency, but it is the first bit of an enumeration by the file's own definition.
+### 6.3 Failed guesses are unthrottled and invisible
 
-**Also:** the rate limiter on `handleActivate` is optional (`activate.ts:403-410`) and
+The rate limiter on `handleActivate` is optional (`activate.ts:403-410`) and
 `apps/web/src/lib/sources/deps.ts` never supplies it, and a failed guess writes **nothing** to
 `source_audit` (the audit insert is reached only after a successful consume, migration `:333-351`).
 Failed guesses are therefore unthrottled and invisible. The 32-byte secret still makes brute force
 infeasible — the conclusion survives — but it is resting on entropy alone rather than defence in
 depth, and §5's short-code proposal would have removed the only thing holding it up.
 
-### 6.3 The demo path returns the selector to the browser; the production dialog deliberately does not
+### 6.4 The demo path returns the selector to the browser; the production dialog deliberately does not
 
 `ActivationCodeDialog` is careful: its docblock notes the selector _"which `issueActivationCodeAction`
 does not even return"_. But `demo-actions.ts:473-479` returns `{ code, selector, purpose, expiresAt }`
@@ -220,16 +254,15 @@ the selector.
 
 ## 7. What to build, in order
 
-1. **Decide gap 4** — whether step 1.2 collects currency, locale and time zone, or defaults them
-   visibly. A product decision; it sets the form.
-2. **Non-redirecting variants** of the two creation actions (gap 1). Extract the bodies; leave the
+1. **Non-redirecting variants** of the two creation actions (gap 1). Extract the bodies; leave the
    existing pages' behaviour untouched.
-3. **One read-only status action** wrapping the existing credential-lifecycle read (gap 2). This is
-   what the wizard polls. No new query and no new table.
-4. **The wizard UI** — four steps over those actions, `docs/20-madspace-admin-design-system.md` for
-   the visual rules, the code rendered per §5.
-5. **Before any real installation:** §6.1's session-secret requirement, and §6.2's decoy-verifier
-   and rate-limiter work. Neither blocks building the wizard; both block trusting it.
+2. **One read-only status action** wrapping the existing credential read (gap 2). This is what the
+   wizard polls. No new query, no new function, no new table.
+3. **The wizard UI** — four steps over those actions, `docs/20-madspace-admin-design-system.md` for
+   the visual rules, the code rendered per §5, step 1.2 asking for a name per §4.1.
+4. **Independently of all of the above:** §6.1 is tracked as a product-level shipping blocker and
+   does not wait on this feature. §6.3's rate limiter and audit-on-failure are worth scheduling on
+   their own merits.
 
 **Not in scope and not started:** any migration, any schema change, any ingestion change, any change
 to `activate.ts` or the existing MADSPACE screens.
