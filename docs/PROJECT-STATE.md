@@ -2690,3 +2690,52 @@ collapsing them would remove explanations a legitimately-refused reader currentl
 in a round that can take that decision.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §17.
+
+## 2026-09-21 — P1-12: let `pnpm verify` run, and close the Phase 1 gate
+
+**The gate's first requirement could not be met until the gate itself was fixed.** `pnpm verify`
+stopped at step one: `prettier --check .` reads the filesystem rather than git, and two inbound
+directories are present but untracked — `_planning/`, the v3 task package, and `Claude outputs/`,
+the reviewer's progress document. `pnpm lint` failed the same way, 228 problems in a single
+delivered file nobody here may change. P1-02 recorded both as baseline conditions, which was right
+at the time and is not a gate. The repository already answers this exact class and says why, in
+`.prettierignore` and under the eslint config's "THE DELIVERED EXPORT IS EVIDENCE, NOT SOURCE"; the
+two new directories are the same class, excluded from git the same way, and are now excluded from
+both tools for the same stated reason. No product code changed, and `format:check` and `lint` now
+pass on the whole repository instead of a hand-scoped subset.
+
+**The full run, on a clean tree.** `VERIFY EXIT: 0` — prettier clean, eleven package typechecks plus
+the tests and scripts projects clean, eslint clean, **145 test files / 3701 passed / 1 skipped** in
+206s, and `next build` compiling 21/21 static pages. The tree stayed clean afterwards.
+
+**End-to-end, reported split rather than blended.** Desktop: 321 passed, 130 failed, 80 skipped.
+Every one of the 130 is in the three `design-lab-*` specs, and **the product specs are 315 passed,
+0 failed**. The cause is not a regression: the lab route calls `notFound()` unless the local control
+plane is on, which needs a non-production `NODE_ENV`, and the default harness builds and runs `next
+start` — `design-lab.spec.ts`'s own docblock says so and gives the dev-server command. I invoked the
+wrong command for those three specs. Not run, and not claimed: the `wide` and `mobile` projects.
+
+**The frozen baseline holds.** All 124 files from `_review/FROZEN_BASELINE_2026-09-21.txt`
+re-hashed: 124 unchanged, 0 missing, 0 changed. No schema, RLS, policy, RPC, event, contract or
+ingestion byte moved during Phase 1.
+
+**Three contributors, three purposes, not one number.** The 41-file `+3506/−90` total splits as:
+this session's P1-04…P1-11 product and test work, `+3390/−88` across 39 files; `308a3cc` from the
+separate background session, `e2e/ask-iris-compare.spec.ts`, `+47/−2` in 1 file; and this round's
+own gate commit, infrastructure rather than product code, `+69/−0` across 3 files. The lines add up;
+the file counts do not, because `docs/PROJECT-STATE.md` and `e2e/ask-iris-compare.spec.ts` each
+belong to two of the three, so the union is 41 rather than 43. Git author and `Co-Authored-By` are
+identical on all ten commits, so the split rests on commit identity and purpose, not on metadata —
+stated rather than implied.
+
+**Verdict: Phase 1 can close.** All three access gates are built and guarded — role
+(`surface-authorisation`, 14), plan (`entitlements` 14, `entitled-repository` 9, `access-matrix` 13
+its over 84 cases), tenant/project (`isolation`, 33) — and the shared vocabulary, navigation and
+scope layers are ready for Phase 2 route rebuilds. Five items stay open and are listed separately in
+§18.6: the durable tier store (commercial, BLOCKED), tenant-versus-account plan scope (commercial),
+P1-08b's real buyer name (deliberate, permanent), and P1-11's four refusal inconsistencies (product
+decision — best taken inside each route's own Phase 2 round). P1-07's second blocker, the read-path
+enforcement point, was resolved by P1-09 and is recorded as closed. The one named exception to
+"shared components are ready": `/overview` is the last `obs-` customer route and is not a precedent.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §18.

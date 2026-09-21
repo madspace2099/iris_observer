@@ -33,3 +33,11 @@ docs/ue5-contract/
 # formatting somebody else's export would only make the diff against the next
 # one unreadable.
 apps/web/public/_ask-reference/
+
+# The same rule as the Ask export above, for the deliveries that arrived since.
+# `_planning/` is the v3 task package and an onboarding-wizard reference,
+# unpacked as delivered; `Claude outputs/` is the reviewer's own progress
+# document. Both are excluded from git in .git/info/exclude, and reformatting
+# either would only make the diff against the next delivery unreadable.
+_planning/
+Claude outputs/

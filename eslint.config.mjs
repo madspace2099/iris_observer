@@ -29,6 +29,18 @@ export default tseslint.config(
        */
       ".claude/**",
       "**/.impeccable/**",
+      /*
+       * THE SAME RULE, FOR THE DELIVERIES THAT ARRIVED SINCE.
+       *
+       * `_planning/` holds the v3 task package and an onboarding-wizard
+       * reference, both unpacked as delivered; `Claude outputs/` holds the
+       * reviewer's own progress document. Neither is this repository's to lint,
+       * and the wizard reference alone reports 228 errors in a file nobody here
+       * may change — which is the same drowning the `_ask-reference` note above
+       * describes. Both are excluded from git in `.git/info/exclude`.
+       */
+      "_planning/**",
+      "Claude outputs/**",
     ],
   },
   js.configs.recommended,
