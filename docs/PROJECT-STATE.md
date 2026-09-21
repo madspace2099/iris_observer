@@ -2810,3 +2810,45 @@ say what was recorded, that it was wrong, and where the correction lives. **No c
 no assertion changed — the only executable lines touched were comments.**
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §19.
+
+## 2026-09-21 — P2-03: the history register already keeps its promises, and two findings that belong elsewhere
+
+**R03 passes all three DoD clauses, and the mechanisms were checked rather than read.** That
+distinction is the week's lesson: a docblock is reliable about intent and unreliable about state, and
+the ones that name their mechanism are both the strongest claims and the cheapest to verify.
+
+**Pin, rename and delete.** `ThreadList` draws none of them — no button, no click handler, no write
+icon in its imports — and the refusal is stated **once for the whole region** by an `Unavailable`
+with no action, because "the writing is not built, not merely out of this account's reach". That is
+`docs/12-visual-autopsy.md` §9 applied correctly: one statement of what is missing, once, in place of
+the region it affects.
+
+**Absent metadata is not invented.** `selectionLabel === null` renders nothing, consistently in all
+four places that read it. The title is the opening question, and the promise that the list and the
+thread show the same string "by construction" is true: one private `plans()` function feeds both
+`buildAskHistory` and `buildAskThread`.
+
+**Premium cannot take a short cut through the list.** There is no per-method redaction that could
+diverge: `entitled()` is a Proxy over every member, so the summary read and the detail read pass
+through the same walker. Nothing is priced above FREE today either, so nothing redacts at all.
+
+**A guard, because a mechanism verified once is only verified once.** `apps/web/test/history-read-only.test.ts`
+holds the two named mechanisms: no interactive element and no write icon in a row, and exactly one
+`<Unavailable>` on the page. Counted rather than merely found, because a test asserting the sentence
+exists would pass on the screen that repeats it per row — which is the failure the autopsy recorded.
+Proved by three mutations: a pin button, a pencil import, and a second refusal each fail their own
+assertion and nothing else.
+
+**Two findings that are not R03's.** The Ask landing page (R01) renders the same conversations with
+**four disabled controls per row** — an inline rename plus a menu of share, rename, pin and delete —
+where R03 renders none. Its own sibling argues against it in words: the history page records that
+drawing disabled controls per row "would satisfy the letter of that and break its purpose". One
+product, one fact, two opposite answers. It is another route, so it is recorded rather than bundled.
+
+The second is latent: `ask-history.ts:369` falls back to `title: first?.question ?? "Ask Observer"`,
+which is a generated label standing in for a title — the thing the line's own comment argues against
+two lines above. No plan literal has zero answers, so it is unreachable today, and the type is what
+permits it. Named rather than patched, because an unreachable fallback cannot be mutation-proved and
+a guard nobody can break is the shape this week keeps finding.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §25.
