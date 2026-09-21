@@ -99,6 +99,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/**
+ * A PLAIN object — one this filter may safely take apart and put back together.
+ *
+ * A `Date`, a `Map`, a `URL` or any class instance is an object whose meaning
+ * lives in its prototype, and rebuilding one from `Object.entries` throws that
+ * meaning away: a `Date` came back as `{}`. Read models are plain data today,
+ * so this guards a door nothing is walking through — which is the moment to fix
+ * it, rather than after something does.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false;
+  const proto: unknown = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 /** A `MetricValue`: it names a metric and carries a state for it. */
 function isMetricValue(
   value: Record<string, unknown>,
@@ -145,8 +160,16 @@ function holdsMetrics(value: unknown, seen = new Set<unknown>()): boolean {
  *
  * Structural rather than a list of known fields: a read model nests metrics
  * wherever its screen needs them, and a filter that walked a list of paths
- * would miss the next one. Arrays and plain objects are rebuilt; anything else
- * — a string, a date, a class instance — is passed through untouched.
+ * would miss the next one.
+ *
+ * ONLY ARRAYS AND PLAIN OBJECTS ARE REBUILT, and the word plain is doing work.
+ * An earlier version of this comment claimed a date or a class instance passed
+ * through untouched; it did not. `isRecord` accepts anything of type object, so
+ * a `Date` was rebuilt field by field and came out as `{}` — verified by the
+ * P1-10 access matrix, which is what an access matrix is for. Read models carry
+ * strings where they carry instants (`ViewContext.generatedAt`), so nothing
+ * shipped was affected, and a filter that silently empties an object it does
+ * not understand is a defect whether or not anything reaches it today.
  */
 function filtered(
   value: unknown,
@@ -154,7 +177,7 @@ function filtered(
   registry: Readonly<Record<string, Plan>>,
 ): unknown {
   if (Array.isArray(value)) return value.map((item) => filtered(item, plan, registry));
-  if (!isRecord(value)) return value;
+  if (!isPlainObject(value)) return value;
 
   if (isMetricValue(value)) {
     const decision = decideAccess(plan, `metric.${value.metricId}`, registry);

@@ -2581,3 +2581,54 @@ Runtime premium activation is still BLOCKED for the two reasons P1-07 recorded �
 store, and the registry prices nothing. This is the gate installed, not the gate closed.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §15.
+
+## 2026-09-21 — P1-10: the access matrix, and the two defects it found
+
+Observer refuses in three places and each refuses differently: the repository settles tenant and
+project (`NotPermittedError` / `NotFoundError`), `maySeeSurface` settles role and **fails open** on
+an undeclared key, `decideAccess` settles plan and **fails closed** on an unpriced one. Three
+vocabularies, two opposite defaults — and nothing in this repository had crossed them. The role gate
+was tested against real viewers with no plan in sight; the plan gate against literal strings with no
+viewer at all.
+
+**The matrix earned its keep immediately.** `decideAccess("FREE", "toString")` answered
+`{allowed: true}`, and so did `constructor`, `valueOf`, `hasOwnProperty` and `__proto__`:
+`registry["toString"]` is a function on every plain object, so a bare index let five key names walk
+past a gate whose entire purpose is to fail closed. `planForTenant("constructor")` returned a
+function typed as a `Plan`. No caller can reach it, because every key is built dotted under a
+declared root — which is exactly the "safe because of how the callers happen to behave" reasoning
+this product refuses everywhere else. Registry reads are own-property reads now.
+
+**And a second.** `filtered()` rebuilt any object, so a `Date` came back as `{}` — while the
+docblock directly above it claimed a date passed through untouched. Read models carry strings where
+they carry instants, so nothing shipped was affected; a comment that says the opposite of the code
+is worse than no comment. Only plain objects and arrays are rebuilt now.
+
+**The fixture imports nothing**, which is the strongest available form of both constraints. A table
+with no imports cannot reach a repository, cannot construct a viewer and cannot be fallen back to.
+It lives in `test-support/`, which no tsconfig that builds the application includes; the six
+capacities are named as strings and resolved against the real `VIEWERS` by the test. A guard asserts
+no application file mentions it.
+
+**84 cases.** Role × surface including the fail-open row and both last-segment shadowing collisions,
+asserted deliberately rather than excluded. Plan × capability across three plans and thirteen
+not-a-plan shapes. The full role × plan cross-product, which nothing had. Address cells: granted,
+tenant-not-held, project-not-held-under-a-held-tenant, real-project-wrong-tenant (NotFound, not
+Forbidden), two slugs that exist nowhere, and a derived zero-grant viewer. And the three gates
+composed — address allows, role allows, the plan still removes the figure.
+
+Adding both files to `tsconfig.tests.json` — which its own docblock asks for — surfaced three type
+errors the runtime had tolerated, including `getHome` calls missing the period the port requires.
+
+**What the matrix cannot cover is said out loud**, as data a test reads, using the P1-03
+known/partial/unavailable discipline: **trial expiry is not a missing test but a missing feature**.
+There is no trial, no subscription period and no expiry anywhere in the product, and a test would
+have to invent the feature first. The test re-runs the grep rather than quoting it. Two others:
+`MetricValue` state `error` has no producer, and a tenant priced above the base cannot exist while
+`TENANT_PLANS` is empty — which an existing test requires.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; `apps/web/test` plus `packages/synthetic/test` — 51
+files, **1024 passed**. Reverting only the registry fix fails 6 of the 84 cases.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §16.

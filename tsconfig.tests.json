@@ -133,6 +133,19 @@
      * It walks the source tree and matches strings in it. A wrong directory makes
      * it scan nothing and pass, so the paths it builds are worth a strict check.
      */
-    "apps/web/test/ai-notice-tripwire.test.ts"
+    "apps/web/test/ai-notice-tripwire.test.ts",
+
+    /*
+     * THE ACCESS MATRIX AND THE TABLE IT READS.
+     *
+     * Both, because the table's whole value is that its cells are typed against
+     * the functions they describe: a `MatrixRole` that stopped being a role, or
+     * an outcome name the resolver no longer returns, has to fail here rather
+     * than pass as a string. `test-support/access-matrix.ts` imports nothing and
+     * belongs to no workspace package, so this is the only target that checks
+     * it at all.
+     */
+    "apps/web/test/access-matrix.test.ts",
+    "test-support/access-matrix.ts"
   ]
 }

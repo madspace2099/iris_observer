@@ -117,6 +117,25 @@ function rank(plan: Plan): number {
 }
 
 /**
+ * A registry lookup that reads the registry and NOT `Object.prototype`.
+ *
+ * `registry["toString"]` is a function on every plain object, so a bare index
+ * made five key names reach past a deny-by-default gate: `decideAccess("FREE",
+ * "toString")` answered `{allowed: true}`, and so did `constructor`, `valueOf`,
+ * `hasOwnProperty` and `__proto__`. `planForTenant("constructor")` returned a
+ * function typed as a `Plan`. The P1-10 access matrix found it; the P1-07 tests
+ * had probed `billing`, `claude` and `""` and never a prototype name.
+ *
+ * No caller can reach it today, because every key is built dotted under a
+ * declared root — which is precisely the kind of "safe because of how the
+ * callers happen to behave" this product refuses elsewhere. An own-property
+ * read costs nothing and removes the class.
+ */
+function declared<T>(table: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
+}
+
+/**
  * A plan, or null for anything that is not exactly one of the three.
  *
  * No trimming, no case folding, no coercion. A value that needed repairing
@@ -136,7 +155,7 @@ export function asPlan(value: unknown): Plan | null {
  * after the repository has said so.
  */
 export function planForTenant(tenantId: string): Plan {
-  return TENANT_PLANS[tenantId] ?? DEFAULT_PLAN;
+  return declared(TENANT_PLANS, tenantId) ?? DEFAULT_PLAN;
 }
 
 /**
@@ -166,9 +185,9 @@ export function requiredPlan(
   const parts = key.split(".");
   let required: Plan | null = null;
   for (let i = 1; i <= parts.length; i += 1) {
-    const declared = registry[parts.slice(0, i).join(".")];
-    if (declared === undefined) continue;
-    if (required === null || rank(declared) > rank(required)) required = declared;
+    const found = declared(registry, parts.slice(0, i).join("."));
+    if (found === undefined) continue;
+    if (required === null || rank(found) > rank(required)) required = found;
   }
   return required;
 }
