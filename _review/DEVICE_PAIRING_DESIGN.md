@@ -33,20 +33,26 @@ and the activation migration **do not exist on main**. Every citation below is a
 `feature/observer-ux-overhaul-phase1`; a survey of the working tree would have reported almost all of
 this as absent, which is the same false-negative trap that reopened P1-08b.
 
+**Provenance, because this note already failed once on exactly this.** Every claim below was read at
+the line it cites, by hand, unless it carries **`[agent]`**. That marker means a survey agent
+reported it and I did not open the file myself — treat it as unverified and check it before building
+on it. The retracted fourth gap (§0) was an `[agent]` claim that went in unmarked, read as
+first-hand by the next reader, and came back as an instruction. One marker would have stopped it.
+
 ## 2. Does a mechanism exist? Yes — the survey's answer to task 1
 
-| Layer                   | What exists                                                                                                                                                                                     | Where                                                                           |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **Mint**                | `issueActivationCode` — validates, mints, derives expiry from an injected clock, returns plaintext once                                                                                         | `packages/sources/src/admin.ts:447-514`                                         |
-| **Secret construction** | `obs.<22-char selector>.<43-char secret>`, base64url; selector 16 random bytes, secret 32                                                                                                       | `packages/sources/src/secrets.ts:274-283`                                       |
-| **Storage**             | Only an HMAC-SHA256 verifier over `domain‖selector‖secret`, keyed by `OBSERVER_ACTIVATION_CODE_PEPPER`; domain `observer.activation-code.v1`                                                    | `secrets.ts:70-90`                                                              |
-| **TTL**                 | `ACTIVATION_TTL_DEFAULT_SECONDS = 900`, min 60, max 3600, **refused rather than clamped** outside the range                                                                                     | `admin.ts:148-150,455-459`                                                      |
-| **Admin API**           | `ObserverAdmin` — `createProject`, `createSource`, `issueActivationCode`, `suspend/resume/archiveSource`, `revokeCredential`, `projectsForAccount`, `sourceStatus`, a credential-lifecycle read | `admin.ts:315-345`                                                              |
-| **Server actions**      | `createDeveloperAction`, `createProjectAction`, `createSourceAction`, `issueActivationCodeAction` — all `"use server"`                                                                          | `directory-actions.ts:98`, `create-actions.ts:244,327`, `source-actions.ts:147` |
-| **UI**                  | `ActivationCodeDialog` — already does clipboard copy with spoken confirmation, expiry tracking and a relative countdown                                                                         | `apps/web/src/components/madspace/ActivationCodeDialog.tsx:203-241`             |
-| **Claim**               | Unauthenticated `POST /functions/v1/observer-activate` → `handleActivate`                                                                                                                       | `apps/web/src/app/functions/v1/observer-activate/route.ts:30`                   |
-| **Tables**              | `observer.activation_codes`, `observer.source_credentials`, `observer.source_audit` + SECURITY DEFINER functions                                                                                | `supabase/migrations/20260902093000_observer_activation_and_credentials.sql`    |
-| **Tests**               | `packages/sources/test/admin.test.ts:363-405` proves the 15-minute default against a frozen clock, and the min/max refusals                                                                     | —                                                                               |
+| Layer                   | What exists                                                                                                                                                                                                          | Where                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Mint**                | `issueActivationCode` — validates, mints, derives expiry from an injected clock, returns plaintext once                                                                                                              | `packages/sources/src/admin.ts:447-514`                                         |
+| **Secret construction** | `obs.<selector>.<secret>`, base64url, three dot-separated parts; selector 16 random bytes, secret 32. **`[agent]`** the rendered widths of 22 and 43 characters — derived from the byte counts, not read off a value | `packages/sources/src/secrets.ts:274-283`                                       |
+| **Storage**             | Only an HMAC-SHA256 verifier over `domain‖selector‖secret`, keyed by `OBSERVER_ACTIVATION_CODE_PEPPER`; domain `observer.activation-code.v1`                                                                         | `secrets.ts:70-90`                                                              |
+| **TTL**                 | `ACTIVATION_TTL_DEFAULT_SECONDS = 900`, min 60, max 3600, **refused rather than clamped** outside the range                                                                                                          | `admin.ts:148-150,455-459`                                                      |
+| **Admin API**           | `ObserverAdmin` — `createProject`, `createSource`, `issueActivationCode`, `suspend/resume/archiveSource`, `revokeCredential`, `projectsForAccount`, `sourceStatus`, a credential-lifecycle read                      | `admin.ts:315-345`                                                              |
+| **Server actions**      | `createDeveloperAction`, `createProjectAction`, `createSourceAction`, `issueActivationCodeAction` — all `"use server"`                                                                                               | `directory-actions.ts:98`, `create-actions.ts:244,327`, `source-actions.ts:147` |
+| **UI**                  | `ActivationCodeDialog` — already does clipboard copy with spoken confirmation, expiry tracking and a relative countdown                                                                                              | `apps/web/src/components/madspace/ActivationCodeDialog.tsx:203-241`             |
+| **Claim**               | Unauthenticated `POST /functions/v1/observer-activate` → `handleActivate`                                                                                                                                            | `apps/web/src/app/functions/v1/observer-activate/route.ts:30`                   |
+| **Tables**              | `observer.activation_codes`, `observer.source_credentials`, `observer.source_audit` + SECURITY DEFINER functions                                                                                                     | `supabase/migrations/20260902093000_observer_activation_and_credentials.sql`    |
+| **Tests**               | **`[agent]`** `packages/sources/test/admin.test.ts:363-405` is reported to prove the 15-minute default against a frozen clock, and the min/max refusals. I read the constants and the refusal branch, not this test  | —                                                                               |
 
 **So this is task 2's branch, not task 3's.** There is no new concept to invent: Client → Project →
 Source is already tenant → project → source in OBSERVER's own model, with an action for each.
@@ -196,10 +202,22 @@ forged token buys changes from "pick a synthetic profile" to "mint ingestion cre
 installation". The reasoning was correct for what was behind the gate when it was written; a pairing
 wizard puts something else behind the same gate.
 
-**Requirement:** before **any** surface that mints credential material is used against a real
-installation, either `OBSERVER_SESSION_SECRET` is set to real secret material, or real
-authentication lands (`docs/11-preproduction-gates.md`). Stated that way deliberately: the
-requirement is about what sits behind the gate, not about which feature happens to put it there.
+**This is Gate 2, and it is not a new item.** `docs/11-preproduction-gates.md:134` has carried it
+since before any of this work: _"Gate 2 — Production authentication. **Blocks:** any deployment
+reachable by somebody outside MADSPACE."_ It is also larger than an environment variable — the gate
+asks for _"an identity provider, account lifecycle, credential recovery, and session revocation that
+survives a restart"_. Setting `OBSERVER_SESSION_SECRET` is a mitigation, not a discharge.
+
+**So this section adds nothing to the backlog.** What it adds is one fact for whoever schedules Gate
+2: the gate's stated trigger is a deployment reachable from outside MADSPACE, and a credential-minting
+surface reaches the same threshold from a different direction — an internal-only deployment whose
+admin screen issues ingestion credentials is inside the gate even though nobody outside can open it.
+File that against Gate 2, not against this wizard.
+
+**And the companion gate is already satisfied.** Gate 3 (`:144`) asks that _"each installation needs
+its own write-only credential, scoped to one tenant and project, issuable and revocable from
+administration"_ — which §2 shows is built, tested and reachable from a screen today. The wizard is
+ergonomics over a discharged requirement, not the requirement.
 
 ### 6.2 NOT a finding — the selector oracle is already closed here, by construction
 
@@ -231,8 +249,8 @@ the attention taken off the one item here that really is a gate.
 ### 6.3 Failed guesses are unthrottled and invisible
 
 The rate limiter on `handleActivate` is optional (`activate.ts:403-410`) and
-`apps/web/src/lib/sources/deps.ts` never supplies it, and a failed guess writes **nothing** to
-`source_audit` (the audit insert is reached only after a successful consume, migration `:333-351`).
+**`[agent]`** `apps/web/src/lib/sources/deps.ts` is reported never to supply it, and a failed guess writes **nothing** to
+`source_audit` (**`[agent]`** the audit insert is reported to be reached only after a successful consume, migration `:333-351`).
 Failed guesses are therefore unthrottled and invisible. The 32-byte secret still makes brute force
 infeasible — the conclusion survives — but it is resting on entropy alone rather than defence in
 depth, and §5's short-code proposal would have removed the only thing holding it up.
