@@ -2981,3 +2981,47 @@ forty-three declared surfaces carry a narrower role list than the Briefing, so t
 at one of the safe twenty-three by luck rather than by construction.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §28.
+
+## 2026-09-22 — P2-06: the calculator is built and proven; the data it needs is not there
+
+**UI_READY and runtime BLOCKED, which is what the board asked to be told apart.** The shared
+calculator exists, lives in the contract layer so four routes read one formula rather than four, and
+every one of the seven cases the board enumerated has its own test named after the board's own word.
+Nothing on this deployment can feed it.
+
+**Two independent reasons, both checked rather than assumed.** The metric's required facts are
+`meeting.attended`, `online.session.observed` and `deal.stage.changed`. The online half has **no
+producer at all** — `OnlineSession` appears nowhere under `packages/synthetic/src` — so "the buyer's
+first recorded interaction, online or in the showroom" cannot include the online side. And every
+read on the repository port takes an `OverviewQuery`, which carries a period: there is no read that
+spans the full history, and the plan's own capability precondition asks for the _original_ opening
+time from the _full accessible history_.
+
+**What exists and what it answers.** `AssistedSales` already pairs a CRM-stated sale date with a
+showing, and already carries `dateBasis` to say which record the date came from. But it measures the
+**last** opening before the sale, because its question is proximity — did a showing precede this sale
+within seventy-two hours. A cycle measured from the last opening would shrink as a unit drew more
+attention, which is backwards, so the two cannot share an implementation even though they share
+inputs.
+
+**The interval sits on two clocks and the summary says so.** One end is observed by a showroom
+installation, the other is a date a CRM states. Different precision, possibly different time zone,
+and one is somebody else's record of an event rather than an observation of it. `clocks` is carried
+on every summary rather than assumed, because a duration between two clocks is not wrong but is
+uninterpretable unless the reader is told.
+
+**Four of the seven cases describe data no fixture produces** — a sale dated before the showing that
+led to it does not occur in a world written to be plausible — so the cases are built from
+constructed input. That is the point of them: they are the shapes a calculator must not answer with a
+number. A negative interval is not zero and not its absolute value; a sale the CRM has not dated is
+not an instant sale; an opening at the edge of the data is a floor, not a fact.
+
+**No existing figure moved, and by construction rather than by comparison**: no builder was touched.
+The only edits outside the new files are one barrel export.
+
+**What is still needed before the runtime can be unblocked**, in the order it would have to arrive:
+a per-unit first-opening timestamp reachable across the full history rather than one period slice;
+online session observations, or an explicit decision that the cycle starts at the first showroom
+opening and says so; and the CRM's Sold transition timestamp, which the deals path already carries.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §29.
