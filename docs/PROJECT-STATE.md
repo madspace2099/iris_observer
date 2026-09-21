@@ -2275,3 +2275,73 @@ follow-up _deadline_, which no source carries — which is exactly why the copy 
 record rather than a missed commitment.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §10.
+
+## 2026-09-21 — P1-05: a role list that was written down and never read
+
+Six navigation and scope questions, taken against the source. Five were already answered. The sixth
+found the first real authorisation defect this repository has had.
+
+**What was already right, with its evidence.** `PRIMARY_NAV` is the approved four and three separate
+tests pin the exact keys. Project scope lives in the path and record scope in a query parameter, and
+nothing mixes them: the Ask scope row is `Current / All / Compare` and carries no "my meetings".
+Every project page is a server component reading `params` and `searchParams`, so Back, Forward and
+reload are the browser's own and need no state machine. The period survives every hop because
+`PageHead` spends `withPeriod` on each crumb centrally and `PersonCard` does the same for a person's
+link, which is why no call site wraps it and none has drifted. No route segment or query parameter
+is named after a person or a credential, and the AI telemetry hashes its subject and records "no
+prompt, no answer, no question, no tool arguments" by design.
+
+**The defect: `/meetings/[meetingId]` declared three roles and checked none.** `SURFACES` restricts
+it to `sales_agent`, `agency_manager` and `madspace_admin`, and the page quoted that list in its own
+docblock — "is not this file's to move" — beside no call to `requireSurface`. So a developer who
+typed the address got the whole replay. The product disagreed with itself in two places at once: the
+_report_ of the same meeting already refused them through the identical call one file away
+(`report/page.tsx`, written a fortnight after the role list), and the _brief_ half already refused
+them in the repository under ADR-0018. One route, three surfaces, two guarded.
+
+**And it was worse in prose than on screen.** `explain_meeting_journey` reconstructs exactly what the
+replay renders, and had no check at all. The failing test prints what a developer used to get back:
+the presenting agent by name, the section order, the duration, the units opened and how the meeting
+was recorded as ending. `tools.ts` states the rule it was breaking — "a tool that answers what its
+own surface refuses, or refuses what its surface answers, is the inconsistency this comment used to
+warn about" — arriving from the other direction.
+
+**The fix is one predicate, spent twice.** `maySeeSurface(role, key)` lives in `routes.ts`, which is
+data; `requireSurface` is now a redirect wrapped round it, and the tool throws the
+`NotPermittedError` the agent loop already reports as "refused" rather than as "no such analysis".
+It does _not_ live beside `requireSurface`: `authz.ts` imports `next/navigation`, and putting it
+there dragged Next's own `ProcessEnv` declaration into the compilation of every test that reaches
+the tool layer and made `process.env.NODE_ENV` read-only in four unrelated suites. Found by
+typecheck, moved, gone.
+
+**The guard is structural, not anecdotal.** `surface-authorisation.test.ts` states three rules rather
+than pinning today's routes: a restricted project surface enforces the list it declares unless it
+only forwards; no page guards a surface other than its own, which is how the fail-open last-segment
+matcher gets tripped; and the tenant and project in the URL are checked as a pair against the
+viewer's grants, with a granted pair alongside so a refusal cannot pass for the wrong reason.
+Stashed back to the pre-fix code, three of its eleven cases fail.
+
+**Fixtures moved, assertions did not.** Four suites reached the replay as Petra because she is the
+convenient open-anything account, not because anything asserted a developer may read one:
+`ask.test.ts` (which already carried the identical note for the brief one line below), the
+accessibility sweep in `showroom.spec.ts`, its "a replay states its gaps" case, and the preserved-
+screens table in `ask-iris-compare.spec.ts`. Each now signs in as Monika, who runs meetings on that
+project. The replay's accessibility pass is its own test now, with a URL assertion in front of it,
+because a sweep that silently axes the redirect target reports a clean result.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; vitest over `apps/web/test` and
+`packages/synthetic/test` — 46 files, **907 passed**; Playwright `authorization`, `showroom` and
+`ask-iris-compare` on desktop against a production build — **69 passed, 1 failed**.
+
+**That one failure is not this change.** `ask-iris-compare.spec.ts:616` ("Projects is not in the
+reference header") fails identically on `be7a46f` with everything stashed, checked rather than
+assumed. It is unrelated header debt and is filed separately.
+
+**The one decision this leaves MADSPACE.** The fix enforces the declaration, which is the only
+direction that can be taken without a product decision. If developers are _meant_ to see meeting
+replays, the correct fix is the opposite one — widen the `SURFACES` entry to four roles and drop
+`report/page.tsx`'s guard — and the four fixture accounts go back. That is a product call, not an
+implementation one.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §11.

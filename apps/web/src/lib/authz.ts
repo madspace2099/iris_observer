@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import type { Viewer } from "@observer/readmodels";
-import { HOME_SEGMENT, SURFACES } from "./routes";
+import { HOME_SEGMENT, maySeeSurface } from "./routes";
 import { dynamicRoute } from "./href";
 
 /**
@@ -43,8 +43,6 @@ import { dynamicRoute } from "./href";
  * ever passed to this function, and both carry the same role list.
  */
 export function requireSurface(viewer: Viewer, key: string, root: string): void {
-  const surface = SURFACES.find((s) => s.route.endsWith(`/${key}`));
-  if (surface === undefined) return;
   /*
    * Not `/showroom` any more, and not a literal at all.
    *
@@ -52,8 +50,7 @@ export function requireSurface(viewer: Viewer, key: string, root: string): void 
    * lands, and it now has one name. ADR-0033 moved that screen from the
    * briefing to Ask IRIS, and this line did not have to know.
    */
-  if (!surface.requiresRole.includes(viewer.role))
-    redirect(dynamicRoute(`${root}/${HOME_SEGMENT}`));
+  if (!maySeeSurface(viewer.role, key)) redirect(dynamicRoute(`${root}/${HOME_SEGMENT}`));
 }
 
 /*

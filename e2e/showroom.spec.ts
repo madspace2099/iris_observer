@@ -44,7 +44,13 @@ const ROUTES = [
   // route list and this one are meant to name the same surfaces.
   ["features", "/alpha/northgate/features"],
   ["meetings", "/alpha/northgate/meetings"],
-  ["meeting replay", "/alpha/northgate/meetings/mtg_ng0100"],
+  /*
+   * "meeting replay" is NOT a row here, and its own test below says why: that
+   * route declares three roles, the developer is not one of them, and a sweep
+   * that signed in as Petra would axe the screen she is redirected to instead.
+   * An accessibility pass against the wrong page is worse than none, because
+   * it reports a clean result.
+   */
 ] as const;
 
 for (const [name, route] of ROUTES) {
@@ -58,6 +64,21 @@ for (const [name, route] of ROUTES) {
     expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 }
+
+test("meeting replay has no detectable accessibility violations", async ({ page }) => {
+  // The one surface in this sweep with its own role list. Same pass, admitted
+  // account: Monika runs meetings on this project, so she is offered the page
+  // the sweep is meant to be measuring.
+  await signInAs(page, "Monika Kováčová");
+  await page.goto("/alpha/northgate/meetings/mtg_ng0100");
+  await page.evaluate(() => document.fonts.ready);
+  // A redirect would make every assertion below pass against the wrong screen.
+  await expect(page).toHaveURL(/\/meetings\/mtg_ng0100/);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+});
 
 test.describe("the three views", () => {
   test("the briefing offers three doors and nothing to analyse", async ({ page }) => {
@@ -117,7 +138,9 @@ test.describe("the three views", () => {
 
 test.describe("the product rules, at the surface", () => {
   test("a replay states its gaps rather than leaving blanks", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    // Monika rather than Petra: a replay declares three roles and refuses the
+    // developer, so the test would assert against Ask IRIS instead.
+    await signInAs(page, "Monika Kováčová");
     await page.goto("/alpha/northgate/meetings/mtg_ng0002");
     // The legacy import has no per-step timing. It has to say so.
     // Wording moved from "source" to "record" since this was last checked;

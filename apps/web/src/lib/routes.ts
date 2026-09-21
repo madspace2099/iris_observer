@@ -527,3 +527,34 @@ export const SECONDARY_NAV = [
 ] as const;
 
 export type SecondaryNavKey = (typeof SECONDARY_NAV)[number]["key"];
+
+/**
+ * Whether a role may open the surface a key names.
+ *
+ * Here rather than beside `requireSurface`, and it is not a filing decision.
+ * Two things need this answer and only one of them is a page: a page refuses
+ * with `redirect()`, and an Ask Observer tool refuses with a
+ * `NotPermittedError` the agent loop already reports as "refused" rather than
+ * as "no such analysis". `lib/ai/tools.ts` states the rule that makes them one
+ * question — "a tool that answers what its own surface refuses, or refuses
+ * what its surface answers, is the inconsistency this comment used to warn
+ * about" — and two copies of a role list are how that inconsistency arrives.
+ *
+ * `authz.ts` cannot hold it: it imports `next/navigation`, and putting this
+ * there drew Next's own `ProcessEnv` declaration into the compilation of every
+ * test that reaches the tool layer, which turned `process.env.NODE_ENV` into a
+ * read-only property in four unrelated suites. This module is data and imports
+ * a type, so it costs the graph nothing.
+ *
+ * It takes a role rather than a viewer so that nothing about a person has to
+ * be constructed to ask it, and it inherits the last-segment matcher's
+ * fail-OPEN behaviour that `authz.ts` warns about at length. That is
+ * deliberate and the alternative is worse: a key with no declared surface
+ * would otherwise refuse every role, so a page guarding a surface nobody
+ * declared would be unreachable rather than unguarded — and unreachable is the
+ * failure nobody reports.
+ */
+export function maySeeSurface(role: string, key: string): boolean {
+  const surface = SURFACES.find((s) => s.route.endsWith(`/${key}`));
+  return surface === undefined || surface.requiresRole.includes(role as never);
+}

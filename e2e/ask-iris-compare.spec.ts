@@ -682,7 +682,14 @@ test.describe("Ask IRIS against the delivered design", () => {
       });
       page.on("pageerror", (e) => errors.push(String(e)));
 
-      await signInAs(page, "Petra Novák");
+      /*
+       * The account has to be one the screen admits. `/meetings/[meetingId]`
+       * declares three roles and the developer is not among them, so opening a
+       * row as Petra lands on Ask IRIS and this test would then check the
+       * wrong screen. Monika holds this project and every other row here is
+       * open to both, so the table still needs only one account at a time.
+       */
+      await signInAs(page, screen.openFirstRow === true ? "Monika Kováčová" : "Petra Novák");
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto(screen.path);
 

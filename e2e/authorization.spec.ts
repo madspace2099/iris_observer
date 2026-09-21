@@ -115,6 +115,36 @@ test.describe("a developer cannot reach another developer's project", () => {
   });
 });
 
+test.describe("a role list a route declares is a role list the route enforces", () => {
+  /*
+   * `/meetings/[meetingId]` is the one customer-facing route with a restricted
+   * list — `["sales_agent", "agency_manager", "madspace_admin"]` — and it used
+   * to name those three in a docblock and check none of them. A developer who
+   * typed the address, or followed a row from the register she CAN open, got
+   * the whole replay: who presented, in what order, for how long, and how the
+   * meeting was recorded as ending.
+   *
+   * Two accounts, one address. The pair is the test: a refusal nobody can
+   * contrast with a success proves only that the page is broken.
+   */
+  const REPLAY = "/alpha/northgate/meetings/mtg_ng0100";
+
+  test("refuses the developer the meeting declares it is not for", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(REPLAY);
+    // Landed somewhere real rather than on a blank 200, and not on the replay.
+    await expect(page).not.toHaveURL(/\/meetings\/mtg_ng0100/);
+    await expect(page.locator("main")).not.toContainText(/What this record cannot say/i);
+  });
+
+  test("opens the same address for an agent who runs meetings on it", async ({ page }) => {
+    await signInAs(page, "Monika Kováčová");
+    await page.goto(REPLAY);
+    await expect(page).toHaveURL(/\/meetings\/mtg_ng0100/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  });
+});
+
 test.describe("the period selector tells the truth", () => {
   const PERIODS = ["last_28_days", "last_quarter", "year_to_date"] as const;
 

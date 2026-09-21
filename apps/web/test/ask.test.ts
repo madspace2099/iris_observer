@@ -66,7 +66,10 @@ const QUESTIONS: readonly { question: string; tool: string; context?: Partial<ty
     {
       question: "Show me how this meeting developed step by step.",
       tool: "explain_meeting_journey",
-      context: { meetingId: "mtg_ng0100" },
+      // Asked by an agent, for the same reason `prepare_meeting` below is:
+      // `/meetings/[meetingId]` declares three roles and the developer is not
+      // one of them, so the replay is not theirs to read in prose either.
+      context: { meetingId: "mtg_ng0100", viewer: VIEWERS.salesAgent },
     },
     { question: "Why is interest in apartment A-402 changing?", tool: "analyze_unit_attention" },
     {

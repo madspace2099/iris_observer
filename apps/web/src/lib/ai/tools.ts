@@ -9,8 +9,9 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
-import { areaWord, roomsWord } from "@observer/readmodels";
+import { NotPermittedError, areaWord, roomsWord } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
+import { maySeeSurface } from "@/lib/routes";
 
 /**
  * The analysis tools.
@@ -356,6 +357,21 @@ const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString
     "Reconstruct one showroom meeting step by step: sections entered, units opened, interactions and gaps.",
   input: z.object({ meetingId: z.string().min(1).describe("Meeting id, e.g. mtg_0042") }),
   async run(context, args) {
+    /*
+     * The meeting's own surface, and this tool, answer the same question.
+     *
+     * `/meetings/[meetingId]` is one of the two routes in the product with a
+     * restricted role list (`SURFACES`), and this tool reconstructs exactly
+     * what that route renders. Without this line a developer who could not
+     * open the replay could ask for it in prose — which is the inconsistency
+     * the comment in `compareAgents` above warns about, arriving from the
+     * other direction. The redirect is a page's answer and means nothing
+     * here; `NotPermittedError` is the one the agent loop reports as "refused"
+     * rather than as "no such analysis".
+     */
+    if (!maySeeSurface(context.viewer.role, "[meetingId]")) {
+      throw new NotPermittedError("this meeting's replay");
+    }
     const replay = await repository.getMeetingReplay({
       viewer: context.viewer,
       tenantSlug: context.tenantSlug,

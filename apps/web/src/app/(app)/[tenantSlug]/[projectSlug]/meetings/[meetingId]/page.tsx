@@ -4,6 +4,7 @@ import type { MeetingId } from "@observer/contracts";
 
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { BriefView } from "@/showroom/BriefView";
 import { MeetingReplayView } from "@/components/meetings";
@@ -57,6 +58,18 @@ export default async function MeetingPage({
   const { period: periodParam } = await searchParams;
   const period = presetFrom(periodParam);
   const base = `/${tenantSlug}/${projectSlug}`;
+  /*
+   * The role list quoted above, enforced rather than only described.
+   *
+   * This page named the three roles in its own docblock and never checked
+   * them, so a developer who typed the address got the replay — while the
+   * report of the same meeting refused them (`report/page.tsx`, the identical
+   * call) and the brief half refused them in the repository (ADR-0018). The
+   * key is the bracketed segment, which is how every other dynamic route in
+   * this product addresses its own entry; "meetings" would match the register
+   * one level up, whose list is all four roles, and fail open.
+   */
+  requireSurface(viewer, "[meetingId]", base);
 
   try {
     const replay = await repository.getMeetingReplay({
