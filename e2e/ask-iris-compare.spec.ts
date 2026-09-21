@@ -603,7 +603,20 @@ test.describe("Ask IRIS against the delivered design", () => {
         signOut: out === null ? null : Math.round(out.getBoundingClientRect().width),
         context: document.querySelector(".ox-context") !== null,
         tabs: document.querySelector(".ox-tabs") !== null,
-        projects: document.querySelector('a[href="/projects"]') !== null,
+        /*
+         * A HEADER LINK, NOT ANY LINK ANYWHERE ON THE PAGE.
+         *
+         * `.ox-menu-panel` is the project switcher's `<details>` panel, and a
+         * `<details>` renders its contents whether or not it is open — so a
+         * document-wide `querySelector` finds what sits inside a CLOSED menu
+         * and reports it as though it were in the header. Asking only for
+         * links OUTSIDE that panel is what makes this assertion mean what its
+         * own message says it means.
+         */
+        projects: Array.from(document.querySelectorAll('a[href="/projects"]')).some(
+          (a) => a.closest(".ox-menu-panel") === null,
+        ),
+        projectsInMenu: document.querySelector('.ox-menu-panel a[href="/projects"]') !== null,
         settings: document.querySelector('a[href^="/settings/ai"]') !== null,
       };
     });
@@ -614,6 +627,30 @@ test.describe("Ask IRIS against the delivered design", () => {
     expect(ask.context, "the reference has no second utility row").toBe(false);
     expect(ask.tabs, "the reference draws no sub-navigation").toBe(false);
     expect(ask.projects, "Projects is not in the reference header").toBe(false);
+    /*
+     * ...AND THE WAY BACK TO THE FULL LIST IS HERE, INSIDE THE SWITCHER.
+     *
+     * The line above used to read `a[href="/projects"]` across the whole
+     * document, and it was correct the day it was written (a35967d, 4 Sep):
+     * the Ask header's account area is `Sign out` alone — `accountControlsAsk`
+     * in the project layout draws no Projects link, no Settings and no badge —
+     * and nothing else on that screen linked to `/projects`.
+     *
+     * THE SHELL MOVED AFTERWARDS, TWICE AND DELIBERATELY. c57c6a7 (9 Sep) gave
+     * the Ask header a project switcher, because an account authorised for
+     * several projects has to be able to move between them from inside
+     * Observer and every sign-in lands here. 605cce6 (18 Sep) then ended that
+     * switcher's menu with the way out to the fuller list, so that a reader who
+     * counts three projects here and seven on `/projects` is not left holding
+     * two screens that contradict each other.
+     *
+     * Both facts are true at once and the old probe could not hold both: the
+     * export's composition is still honoured — no Projects link in the header —
+     * while a link to `/projects` does exist inside the closed menu. So they are
+     * asserted separately. Pinning the footer here means deleting the way out
+     * fails this test, rather than quietly satisfying the line above it.
+     */
+    expect(ask.projectsInMenu, "the switcher's menu keeps the way to all projects").toBe(true);
     expect(ask.settings, "Settings is not in the reference header").toBe(false);
 
     /*
@@ -634,7 +671,15 @@ test.describe("Ask IRIS against the delivered design", () => {
           navGap: nav === null ? null : getComputedStyle(nav).gap,
           signOutPill: document.querySelector(".irs-signout") !== null,
           context: document.querySelector(".ox-context") !== null,
-          projects: document.querySelector('a[href="/projects"]') !== null,
+          /*
+           * Scoped exactly as on the Ask side, and for the same reason: these
+           * surfaces carry a REAL Projects link in their account row, and the
+           * switcher's menu footer must not be able to stand in for it should
+           * that link ever be dropped.
+           */
+          projects: Array.from(document.querySelectorAll('a[href="/projects"]')).some(
+            (a) => a.closest(".ox-menu-panel") === null,
+          ),
           settings: document.querySelector('a[href^="/settings/ai"]') !== null,
         };
       });
