@@ -2941,3 +2941,43 @@ right thing. It does not follow. The guard now fails on exactly that case: resto
 behaviour breaks it on Riverside with "expected null not to be null".
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §27.
+
+## 2026-09-22 — P2-05: the rule that reached one figure out of four
+
+**The board's example was real and I found it by measuring, not by reading.** Northgate shows
+"Presentations 41" in the summary row and 74 presentations everywhere below it — the board's "41 vs
+74", exactly. Both are correct: the summary answers to a window the reader picks, everything below
+answers to the page period.
+
+**What was missing is why a reader could not tell.** `Progressing` has named its own window since
+somebody worked out that it had to, and left the reasoning in a comment: the chip row that sets the
+window is several lines away, and a reader comparing two figures needs the span on the card rather
+than up the page. That reasoning was right and it reached **one figure out of four**. The other
+three carried a comparison — "36 before" — and never said before what. A rule applied to one of four
+places is not a rule yet.
+
+All four name their window now, and a guard says so: it fails with the offending figure and its
+qualifier printed, because the next figure added to that row will not read the comment.
+
+**No value moved.** Values, deltas and tones for three projects across all three windows, diffed
+before and after: identical. Only the qualifiers changed.
+
+**The other two clauses were checked and hold, with the mechanisms verified rather than read.** Deal
+conversion is not a meeting ratio: the ladder is built from `deals.deals` filtered by stage, drawn
+with `noun="deals"` under the heading "The deal ladder, as the CRM states it" and a CRM source chip,
+and the registry defines it over contacts reaching a stage. The meeting figures are named as
+meetings — "Meetings, and how many progressed". And the 74-vs-39 pair on the same screen is
+explained by the ladder's own note: 60 deals as they stand now, a rung counting deals at that stage
+or further along, where each deal stands rather than the path it took, 21 lost beside it.
+
+**Two figures that used to make this worse are already gone**, and that was verified rather than
+assumed: a page-computed "N of M had an outcome recorded" and a per-agent "X% progressed" over a
+different denominator than the ring above it. The only trace left is the docblock recording their
+removal.
+
+**A guard from the round before this one**: the Briefing's fallback destination is now declared with
+its reason, and a narrowing of `/attention` fails with the excluded role named. Twenty of the
+forty-three declared surfaces carry a narrower role list than the Briefing, so the fallback pointed
+at one of the safe twenty-three by luck rather than by construction.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §28.

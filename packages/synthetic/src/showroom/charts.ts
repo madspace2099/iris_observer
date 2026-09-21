@@ -149,14 +149,34 @@ export function buildKpis(
     return a > b === (better === "up") ? "good" : "bad";
   };
 
+  /*
+   * Spelled once. Every card carries the window it answers to, and three of
+   * them used to leave it to the chip row above — which is the same distance
+   * "Progressing" already decided was too far.
+   */
+  const windowWords = spec.label.toLowerCase();
+
   const figures: KpiFigure[] = [
     {
       id: "presentations",
       label: "Presentations",
       measurementId: "showroom.presentations",
       value: count(now.length, locale),
+      /*
+       * The window, on the card.
+       *
+       * "Progressing" below has named its own window since the round that
+       * noticed why it had to — this figure and the Sales Flow headline are
+       * two different claims over two different spans, and the chip row that
+       * sets this one sits several lines away. The rule was right and was
+       * applied to one figure out of four: a reader meeting "Presentations 41"
+       * above a page whose other counts are quarter-to-date had nothing on the
+       * card to tell them why 41 is not 74.
+       */
       qualifier:
-        before.length === 0 ? "no earlier window" : `${count(before.length, locale)} before`,
+        before.length === 0
+          ? `${windowWords} · no earlier window`
+          : `${windowWords} · ${count(before.length, locale)} before`,
       delta:
         before.length === 0
           ? null
@@ -170,7 +190,10 @@ export function buildKpis(
       measurementId: null,
       // Null, not zero: a window with no timed session has no median to report.
       value: medNow === null ? "—" : duration(medNow),
-      qualifier: medBefore === null ? "no earlier median" : `${duration(medBefore)} before`,
+      qualifier:
+        medBefore === null
+          ? `${windowWords} · no earlier median`
+          : `${windowWords} · ${duration(medBefore)} before`,
       delta:
         medNow === null || medBefore === null || medBefore === 0
           ? null
@@ -219,7 +242,7 @@ export function buildKpis(
       label: "Units opened",
       measurementId: "showroom.units_opened",
       value: count(units, locale),
-      qualifier: `${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
+      qualifier: `${windowWords} · ${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
       delta: unitsBefore === 0 ? null : signedPercent((units - unitsBefore) / unitsBefore, locale),
       // Neutral, same reasoning as Typical length above: which units get
       // opened is decided by buyer interest, not by the showroom, so a
