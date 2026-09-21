@@ -102,7 +102,24 @@ export function ContextSwitcher({
        * the old select ambiguous to every query and every screen reader.
        */}
       <summary className="ox-menu-button" aria-label={label}>
-        <span className="ox-menu-value">{chosen?.label ?? value}</span>
+        {/*
+         * `title` because the value TRUNCATES. `.ox-menu-value` ellipsises at
+         * every width the product ships — "Northgate Residences" reads
+         * "Northgate Resi…" on a 1920px header, where there is no shortage of
+         * room, because the pill is sized to the control and not to the
+         * longest project name anybody might own.
+         *
+         * Truncating is the right call; losing the words is not. This is the
+         * same answer `irs-who-name` and both synthetic markers already give,
+         * and `layout-integrity.spec.ts` states it as a rule: an ellipsis with
+         * a title is a shortened label, an ellipsis without one is a clip. The
+         * accessible name is unaffected — it is the summary's `aria-label`,
+         * and a screen reader was reading the full value all along. The reader
+         * who could not recover it was the one looking at the screen.
+         */}
+        <span className="ox-menu-value" title={chosen?.label ?? value}>
+          {chosen?.label ?? value}
+        </span>
         <Caret />
       </summary>
 

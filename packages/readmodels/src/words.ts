@@ -54,3 +54,36 @@ export function nothingReceivedYet(context: {
 export function aspectWord(orientation: string | null): string {
   return orientation === null ? "Aspect not stated" : `facing ${orientation}`;
 }
+
+/**
+ * The two markers that say where a project's meetings came from.
+ *
+ * WRITTEN OUT TWICE UNTIL NOW, which is the whole reason they are here. The
+ * shell header draws them as a loud amber pill and a page draws them as a quiet
+ * chip — two deliberate treatments in two contexts, and neither is a bug. What
+ * was a bug is that each rendering also carried its own copy of the SENTENCES,
+ * so the two could drift into saying different things about the same project,
+ * and a reader meeting one after the other would have no way to know which was
+ * current.
+ *
+ * `short` is what a header can hold; `full` is the claim, kept as the title and
+ * as the screen-reader text. The short form is never a shorter claim — it is
+ * the same claim at a width that does not wrap a header bar into three lines,
+ * which is what the full phrase did the first time.
+ *
+ * Which of the two a surface shows is not decided here and never in a
+ * component: the project layout sets `data-sessions` and the stylesheet picks
+ * one, so the dozen places that mount a marker cannot disagree about which
+ * project they are on. See `sessionsDelivered` and `ownDataOnly` on
+ * `ViewContext`, and `nothingReceivedYet` above for the third state.
+ */
+export const DATA_SOURCE_MARKERS = {
+  synthetic: {
+    short: "Demo data",
+    full: "Synthetic demonstration data",
+  },
+  delivered: {
+    short: "Live meetings",
+    full: "Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data.",
+  },
+} as const;

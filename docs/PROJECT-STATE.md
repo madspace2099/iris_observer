@@ -2345,3 +2345,70 @@ replays, the correct fix is the opposite one — widen the `SURFACES` entry to f
 implementation one.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §11.
+
+## 2026-09-21 — P1-06: two words that were written twice, and one that was lost
+
+A gap analysis of the shared component layer, not a design system. Four questions, two real
+findings, and one thing that needs a decision rather than a patch.
+
+**The shared layer is real, and it is three families rather than one.** `@/components/product` (the
+`ox-` idiom) on nine customer routes, `@/showroom/parts` (`iris-`) on five, `@observer/ui` (`obs-`)
+on MADSPACE administration and its own loading boundary. That is deliberate: the repository's stated
+rule, written on `components/meetings/vocabulary.ts`, is one vocabulary and several shapes —
+"Nothing here invents a label… What is chosen here is only the SHAPE". A grep for copy strings
+shared between the two customer families returned **exactly two**, and both belonged to one
+component.
+
+**Finding one: the demonstration-data marker said the same thing twice.** `SyntheticBadge`
+(`showroom/parts.tsx`) and `Synthetic` (`components/product/Absence.tsx`) are two treatments of one
+statement — a loud amber pill in the shell, a quiet chip on a page — and each carried its own copy
+of both sentences, the second one's comment even pointing at the first. Nothing had diverged; the
+point is that nothing would have noticed if it had, and the claim at stake is whether a reader is
+looking at real meetings or at a demonstration. `DATA_SOURCE_MARKERS` now lives in
+`packages/readmodels/src/words.ts`, beside `NOTHING_RECEIVED_YET`, which is the third state of the
+same question. Both renderings read it; the CSS was not touched and neither treatment moved.
+
+**Finding two: a control that truncated and never said what it had cut.** `.ox-menu-value`
+ellipsises at every width the product ships, so "Northgate Residences" read "Northgate Resi…" on a
+**1920px** header, where nothing is short of room, with no `title` anywhere. It came in with the
+switcher rewrite (`605cce6`) and `layout-integrity.spec.ts` had been failing on it at all seven
+viewports since: 16 passed, 7 failed, every failure the same clip on `/ask`. The suite's own rule is
+the fix — an ellipsis with a title is a shortened label, an ellipsis without one is a clip — and it
+is the answer `irs-who-name` and both synthetic markers already give. One attribute in
+`ContextSwitcher.tsx`, which is the one component every switcher in the product is built from. The
+accessible name never had the problem: the summary's `aria-label` carried the full value all along,
+so the reader who could not recover it was the one looking at the screen.
+
+**Responsive: nothing else breaks.** `layout-integrity` now runs **28 passed, 0 failed** across
+1920/1440/1366/1280/1024/768/393 — no surface widens the document, nothing is clipped, Unit
+Attention keeps all six columns at every width, and the Ask dock covers no content on any of the
+eight surfaces it is checked against. Screenshots at 390/768/1440/1920 of `/ask`, `/units`,
+`/agents` and `/meetings` were taken before and after and looked at.
+
+**Keyboard: clean, and measured rather than assumed.** Forty-eight tab stops across `/units`,
+`/agents`, `/meetings` and `/presentation`: **every one draws a visible ring**, measured with the
+same predicate `design-lab-a11y.spec.ts` uses, and the order is identical and sensible on all four —
+skip link, brand, the four sections, Projects, Settings, Sign out, project switcher, period
+switcher, first in-page control. No trap, no silent `outline: none`.
+
+**What this leaves MADSPACE, and it is not a patch.** `/overview` is the last customer-facing route
+still built from `@observer/ui` — `Card`, `MetricGrid`, `AlertList`, `VerdictStrip` — which is the
+M2.1 card stack `docs/12-visual-autopsy.md` rejected by name: "Every element on the Overview is a
+`border-radius: 0.875rem` panel with a hairline… eight identical containers stacked vertically",
+and "The card system **is** the failure". It is also reachable from nothing: a search of the whole
+application finds no link to it, while `surfaces.test.ts` exempts it as "reached from within another
+surface", which is not true today. Converting it is a screen redesign and belongs in the phased
+review the doctrine sets out, not in a consistency pass. Three options, all MADSPACE's: convert it,
+link it, or retire it.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; full vitest on a clean tree — **140 files, 3588
+passed, 1 skipped**; Playwright `layout-integrity` on desktop against a production build — **24
+passed, 0 failed** after the fix, against 16/7 before it.
+
+`shared-vocabulary.test.ts` states both rules rather than pinning today's strings: the marker's
+sentences appear in no component in either idiom, every component that draws it reads the shared
+constant, the two states are told apart, and the switcher's truncating value carries a title beside
+its ellipsis. Stashed back to the pre-fix code, all four fail.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §12.

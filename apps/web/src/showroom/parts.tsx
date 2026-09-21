@@ -6,7 +6,7 @@ import type {
   ShowroomFinding,
 } from "@observer/readmodels";
 import { INSIGHT_SOURCE_LABELS, type InsightSource } from "@observer/contracts";
-import { defineMeasurement } from "@observer/readmodels";
+import { DATA_SOURCE_MARKERS, defineMeasurement } from "@observer/readmodels";
 import { Measure } from "./Measure";
 import { dynamicRoute } from "@/lib/href";
 import Link from "next/link";
@@ -49,15 +49,6 @@ export function SourceChips({
  */
 export function SyntheticBadge() {
   /*
-   * Two words at every width.
-   *
-   * "Synthetic demonstration data" wrapped into a three-line pill on a
-   * small-desktop header and dragged the whole bar down with it. The full
-   * phrase stays as the accessible name, because the reader must be able to
-   * learn that these figures are a demonstration — it is the shortest honest
-   * label, not a shorter claim.
-   */
-  /*
    * TWO MARKERS, AND THE PROJECT LAYOUT CHOOSES (`data-sessions`).
    *
    * "Every figure is generated" stopped being true the day a project could be
@@ -65,22 +56,32 @@ export function SyntheticBadge() {
    * meetings a demonstration is the same lie told backwards. Both are rendered
    * and the stylesheet shows one, so the dozen places that mount this marker
    * cannot disagree with each other about which project they are on.
+   *
+   * THE WORDS COME FROM `DATA_SOURCE_MARKERS` and not from here. This marker
+   * and `Synthetic` in `components/product/Absence.tsx` are two treatments of
+   * one statement — a loud amber pill in the shell, a quiet chip on a page —
+   * and each used to carry its own copy of the sentences. Two copies of a claim
+   * about whether a reader is looking at real meetings is the one drift this
+   * product cannot afford. The short form is not a shorter claim: the full
+   * phrase wrapped this pill into three lines on a small-desktop header and
+   * dragged the whole bar down with it, so the short form is on screen and the
+   * whole sentence is the title and the screen-reader text.
    */
   return (
     <>
-      <span className="iris-synthetic obs-when-synthetic" title="Synthetic demonstration data">
-        <span className="iris-sr">Synthetic demonstration data</span>
-        <span aria-hidden="true">Demo data</span>
+      <span
+        className="iris-synthetic obs-when-synthetic"
+        title={DATA_SOURCE_MARKERS.synthetic.full}
+      >
+        <span className="iris-sr">{DATA_SOURCE_MARKERS.synthetic.full}</span>
+        <span aria-hidden="true">{DATA_SOURCE_MARKERS.synthetic.short}</span>
       </span>
       <span
         className="iris-synthetic obs-when-delivered"
-        title="Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data."
+        title={DATA_SOURCE_MARKERS.delivered.full}
       >
-        <span className="iris-sr">
-          Meetings come from this project's own showroom. Whatever a connector has not delivered is
-          demonstration data.
-        </span>
-        <span aria-hidden="true">Live meetings</span>
+        <span className="iris-sr">{DATA_SOURCE_MARKERS.delivered.full}</span>
+        <span aria-hidden="true">{DATA_SOURCE_MARKERS.delivered.short}</span>
       </span>
     </>
   );

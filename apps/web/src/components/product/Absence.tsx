@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { PeriodPreset } from "@observer/readmodels";
+import { DATA_SOURCE_MARKERS, type PeriodPreset } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -150,22 +150,21 @@ export function Failure({
  * demonstration data" did to the small-desktop layout the first time.
  */
 export function Synthetic() {
-  /* Two markers; the project layout's `data-sessions` shows one. See `SyntheticBadge` for why. */
+  /*
+   * Two markers; the project layout's `data-sessions` shows one. `SyntheticBadge`
+   * draws the same two in the shell's own idiom — a loud amber pill against this
+   * quiet chip — and the WORDS now come from one place so the two treatments
+   * cannot end up making two different claims about one project.
+   */
   return (
     <>
-      <span className="ox-synthetic obs-when-synthetic" title="Synthetic demonstration data">
-        <span className="ox-sr">Synthetic demonstration data</span>
-        <span aria-hidden="true">Demo data</span>
+      <span className="ox-synthetic obs-when-synthetic" title={DATA_SOURCE_MARKERS.synthetic.full}>
+        <span className="ox-sr">{DATA_SOURCE_MARKERS.synthetic.full}</span>
+        <span aria-hidden="true">{DATA_SOURCE_MARKERS.synthetic.short}</span>
       </span>
-      <span
-        className="ox-synthetic obs-when-delivered"
-        title="Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data."
-      >
-        <span className="ox-sr">
-          Meetings come from this project's own showroom. Whatever a connector has not delivered is
-          demonstration data.
-        </span>
-        <span aria-hidden="true">Live meetings</span>
+      <span className="ox-synthetic obs-when-delivered" title={DATA_SOURCE_MARKERS.delivered.full}>
+        <span className="ox-sr">{DATA_SOURCE_MARKERS.delivered.full}</span>
+        <span aria-hidden="true">{DATA_SOURCE_MARKERS.delivered.short}</span>
       </span>
     </>
   );
