@@ -44,6 +44,27 @@ const PROJECTS = [
   ["alpha", "riverside"],
 ] as const;
 
+/**
+ * WHAT THIS EXPECTS, STATED SO IT CAN BE DISAGREED WITH.
+ *
+ * The Briefing leads with the rank-1 state's title whenever any state is
+ * raised. Its button is the state's own action when the state has one, and the
+ * register of warnings when it does not. "Clear" only when no check is raised
+ * at all.
+ *
+ * The previous version of this file expected something else, and the difference
+ * is the point. It allowed: *a project with four raised states, one of them a
+ * warning at rank 1, may correctly say that nothing needs a decision, provided
+ * that warning has no link.* Nobody would sign that sentence, and nobody was
+ * asked to — a mutation proved the test could fail, which was read as proof
+ * that it guarded the right thing. It does not follow, and it did not.
+ *
+ * So what this one ALLOWS is written down too: a leading state with no action
+ * of its own may send the reader to `/attention` rather than to itself. That is
+ * a real door — every role that can open the Briefing can open that register,
+ * checked against `SURFACES` and identical on both — and the button says where
+ * it goes rather than repeating "Look at it" over a different destination.
+ */
 describe("the Briefing leads with whatever the attention screen ranked first", () => {
   it.each(PROJECTS)("%s/%s", async (tenantSlug, projectSlug) => {
     const q = query(tenantSlug, projectSlug);
@@ -51,31 +72,26 @@ describe("the Briefing leads with whatever the attention screen ranked first", (
 
     const leading = actionWorthTaking(attention);
 
-    if (leading === null || leading.alert.actionHref === null) {
-      /*
-       * Nothing raised, or nothing openable.
-       *
-       * **A KNOWN GAP IS ASSERTED HERE, AND IT IS NOT A DESIRED STATE.** The
-       * second half of that condition is the one to distrust: when the
-       * highest-ranked state has no `actionHref`, the Briefing falls back to
-       * null and draws "Nothing in this period is waiting on a decision from
-       * you". On Riverside that sentence sits over four raised states, one of
-       * them a warning at rank 1 — the no-CRM branch, which has nowhere to send
-       * a reader and so carries no href.
-       *
-       * P2-02 narrowed the contradiction it set out to close and did not shut
-       * it. This assertion describes what the product does today so the test
-       * stays honest; it does not endorse it. Closing it is a Briefing change —
-       * what to say when the thing worth acting on cannot be opened — and it is
-       * recorded as an open item rather than left for this file to bless.
-       */
+    if (leading === null) {
+      /* Nothing raised. The only condition that earns the word "Clear". */
       expect(home.alert).toBeNull();
       return;
     }
 
     expect(home.alert).not.toBeNull();
     expect(home.alert?.text).toBe(leading.alert.title);
-    expect(home.alert?.href).toBe(leading.alert.actionHref);
+
+    if (leading.alert.actionHref === null) {
+      /*
+       * No action of its own, so the register — and the label has to say so.
+       * A reader told "Look at it" who lands on a list has been misled by one
+       * word, which is cheaper to prevent here than to explain there.
+       */
+      expect(home.alert?.href).toBe(`/${tenantSlug}/${projectSlug}/attention`);
+      expect(home.alert?.actionLabel).not.toBe("Look at it");
+    } else {
+      expect(home.alert?.href).toBe(leading.alert.actionHref);
+    }
   });
 
   it("never leads with a state the attention screen did not raise", async () => {

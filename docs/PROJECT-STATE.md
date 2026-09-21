@@ -2902,3 +2902,42 @@ and making it real is route work rather than naming.
 `BriefView`, `ask/[threadId]`, `report/page.tsx` and `madspace/projects/[projectId]` — none is R04.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §26.
+
+## 2026-09-22 — The Briefing gap is closed: "Clear" is a claim about the checks, not about the links
+
+**Yesterday's open item is closed.** Riverside printed "Nothing in this period is waiting on a
+decision from you" over four raised states because the highest-ranked one carried no route of its
+own. It now leads with that state's title and sends the reader to the register of warnings.
+
+**The rule, and it is the one worth quoting later.** The Briefing leads with the rank-1 state's title
+whenever any state is raised. Its button is the state's own action when the state has one, and
+`/attention` when it does not. "Clear" only when no check is raised at all. A missing route is a fact
+about one state; it was being reported as a fact about the period, and the period is what the
+sentence is about.
+
+**The fallback door was checked before it was offered.** Every role that can open the Briefing can
+open the register: `SURFACES` declares
+`["developer", "agency_manager", "sales_agent", "madspace_admin"]` on both, identically, and that is
+the complete role vocabulary — `ROLE_WORDS` is typed `Record<Viewer["role"], string>`, so the
+compiler requires it to name every member and it names four. Neither surface carries an entitlement
+key either, so both inherit the FREE default. Without that check the fix would have reintroduced one
+level up exactly the locked door P1-11 removed one level down.
+
+**The button names where it goes.** A reader told "Look at it" who lands on a list has been misled by
+one word, so the fallback says "Open what needs attention" and the read model carries the label
+rather than the page assuming it.
+
+**What moved, measured.** The Briefing's full output for three projects, before and after: three of
+thirty-six lines differ, all of them the leading alert. Signal, verdict, because, every figure, every
+door, sources and evidence are byte identical, and the two projects whose leading state already had
+an action kept the same text and the same href.
+
+**What the new expectation allows, written down so it can be argued with.** A leading state with no
+action of its own may send the reader to `/attention` rather than to itself. The previous expectation
+allowed something nobody would sign — that a project with four raised states including a rank-1
+warning may correctly say nothing needs a decision, provided that warning has no link — and it
+survived because a mutation proved the test could fail, which was read as proof that it guarded the
+right thing. It does not follow. The guard now fails on exactly that case: restoring the old
+behaviour breaks it on Riverside with "expected null not to be null".
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §27.

@@ -58,8 +58,26 @@ export interface ShowroomHome {
   readonly because: string;
   /** Three figures. Never more — the registry holds eighty-two. */
   readonly figures: readonly HomeFigure[];
-  /** The one thing worth acting on today, if there is one. */
-  readonly alert: { readonly text: string; readonly href: string } | null;
+  /**
+   * The one thing worth acting on today, if anything is raised at all.
+   *
+   * Null means the checks found nothing, and nothing else. It used to mean
+   * "nothing that can be opened", which let a project with four raised states
+   * print "Nothing in this period is waiting on a decision from you" because
+   * the highest-ranked one happened to have no route of its own — an absent
+   * link rendered as an absent problem, which is the absence-as-zero rule
+   * applied to a sentence rather than a figure.
+   *
+   * `actionLabel` exists because the two cases do not look alike and must not
+   * read alike: the state's own action goes where the state is, and the
+   * fallback goes to the list, and a reader told "Look at it" who lands on a
+   * register has been misled by one word.
+   */
+  readonly alert: {
+    readonly text: string;
+    readonly href: string;
+    readonly actionLabel: string;
+  } | null;
   readonly doors: readonly ShowroomDoor[];
   readonly meetingCount: number;
   readonly sources: readonly InsightSource[];

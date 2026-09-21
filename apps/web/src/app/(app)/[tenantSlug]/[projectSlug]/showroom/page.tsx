@@ -189,7 +189,7 @@ export default async function BriefingPage({
                 href={dynamicRoute(withPeriod(home.alert.href, period))}
                 data-weight="primary"
               >
-                Look at it
+                {home.alert.actionLabel}
               </Link>
             </div>
           )}

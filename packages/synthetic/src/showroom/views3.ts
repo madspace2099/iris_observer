@@ -1534,13 +1534,39 @@ export function buildHome(
    * either. `actionWorthTaking` is now the only place that choice is made.
    */
   const leading = actionWorthTaking(attention);
+
+  /*
+   * LEAD WITH WHAT IS RAISED, WHETHER OR NOT IT CAN BE OPENED.
+   *
+   * The earlier version required the leading state to carry its own route, and
+   * fell back to null when it did not. That is how Riverside came to print
+   * "Nothing in this period is waiting on a decision from you" over four raised
+   * states including a warning: the state with nowhere to send a reader — no
+   * CRM connected, which is an administrator's job rather than this reader's —
+   * silently became no state at all.
+   *
+   * A missing route is a fact about one state. It is not a fact about the
+   * period, and it is the period the sentence is about. So "Clear" now means
+   * the checks raised nothing, which is the only thing that was ever true of
+   * it, and a state without its own action sends the reader to the register
+   * where it sits in full. `StateList` already draws an unopenable subject as
+   * text rather than a dead link; this is the same rule one level up, which is
+   * the level it was missing from.
+   */
   const alert =
-    leading === null || leading.alert.actionHref === null
+    leading === null
       ? null
-      : {
-          text: leading.alert.title,
-          href: leading.alert.actionHref,
-        };
+      : leading.alert.actionHref === null
+        ? {
+            text: leading.alert.title,
+            href: `${base}/attention`,
+            actionLabel: "Open what needs attention",
+          }
+        : {
+            text: leading.alert.title,
+            href: leading.alert.actionHref,
+            actionLabel: "Look at it",
+          };
 
   const project = buildProjectView(context, sessions, null);
   const lead = leadSegment(project.segments);
