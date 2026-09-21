@@ -422,16 +422,31 @@ export function AskFrame({
                           choose. One is added in Settings.
                         </p>
                       ) : (
-                        models.map((model) => (
-                          <span
-                            key={model}
-                            className="ask-model-option"
-                            aria-disabled="true"
-                            title="Connected to this account, but not yet used to answer on this surface"
-                          >
-                            <span>{model}</span>
-                          </span>
-                        ))
+                        <>
+                          {models.map((model) => (
+                            <span key={model} className="ask-model-option" aria-disabled="true">
+                              <span>{model}</span>
+                            </span>
+                          ))}
+                          {/*
+                           * SAYING IT, RATHER THAN HANGING IT ON A TOOLTIP.
+                           *
+                           * These options were inert with their only explanation
+                           * in a `title`. A title is a mouse affordance: a reader
+                           * on a phone never triggers it, a keyboard reader never
+                           * reaches it, and a screen reader takes the visible text
+                           * as the accessible name and drops it — so the one
+                           * sentence that explained the grey was the one nobody
+                           * got. The sibling note above is already the idiom this
+                           * menu uses to say something to everybody, so it says
+                           * this too.
+                           */}
+                          <p className="ask-menu-note">
+                            Connected to this account, and not used here: every answer on this
+                            surface is composed from this project&rsquo;s own figures, so no model
+                            is called for any of them.
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>
