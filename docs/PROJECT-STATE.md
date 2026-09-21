@@ -3034,3 +3034,32 @@ online session observations, or an explicit decision that the cycle starts at th
 opening and says so; and the CRM's Sold transition timestamp, which the deals path already carries.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §29.
+
+## 2026-09-22 — P2-07: reach and time-share, told apart on the figure
+
+**Project Overview's segment figures are three different kinds of measure behind one suffix.**
+`stockShare` divides units by units, `attentionShare` divides seconds by seconds, and
+`favouriteShare` / `compareShare` / `shareShare` divide counts of unit-touches by counts of
+unit-touches — plus `index`, which is the second of those divided by the first. The enumeration is
+the deliverable; the arithmetic was already right.
+
+**The rule was applied in two of the three places that draw it.** The segment panel names the kind
+and the denominator on every figure, and the parity scale says both per row. The quadrant matrix
+drew `1.41× attention` bare, on a line whose conversion half already carried its comparison and its
+sample size. It now reads `1.41× attention for its share of stock`. No figure moved: a before-and-
+after dump of every share, index, count and denominator on R06 came back identical.
+
+**No path exists from the place-of-interest demo to a real recipient list**, established four
+independent ways rather than by reading the page: `AudienceMatch` has no field that could carry a
+recipient, the page has no send or export of any kind, `getAudience` has one non-test consumer, and
+the live showroom connector does not populate place interactions at all.
+
+**The guard's own expectation was wrong, and the mutation is what proved it.** The test enumerates
+R06's figures and asserts each names its denominator. Searching for the denominator's _words_ passed
+a mutation that removed `of` from the one figure the type system does not protect — a `Count`, whose
+`note` carries the same words but is drawn _instead of_ `of`, and only when the value is zero. A
+non-zero count would have rendered bare. The assertion now looks at the `of` prop. Five of the six
+figures are `Ratio`, whose `of` is required, so the compiler already guards them; the guard earns its
+place on the sixth and on the matrix's free text.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §30.

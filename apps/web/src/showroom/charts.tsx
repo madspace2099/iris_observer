@@ -400,8 +400,24 @@ export function QuadrantMatrix({
                   {inCell.map((r) => (
                     <li key={r.id}>
                       <a href={r.href}>{r.label}</a>
+                      {/*
+                       * WHAT THE MULTIPLIER IS A MULTIPLE OF.
+                       *
+                       * The conversion half of this line already carries both
+                       * the thing it is measured against and its denominator —
+                       * "34% converted against 29% · n = 61". The attention
+                       * half carried neither, and it is the half that needs it
+                       * most: the index is a share of LOOKING TIME divided by a
+                       * share of STOCK, two different kinds of measure, and
+                       * "1.41× attention" on its own reads as a comparison with
+                       * other segments rather than with its own supply.
+                       *
+                       * The segment panel says it in full and the parity scale
+                       * says it per row. This was the third place and the only
+                       * one that did not.
+                       */}
                       <span>
-                        {r.index.toFixed(2)}× attention ·{" "}
+                        {r.index.toFixed(2)}× attention for its share of stock ·{" "}
                         {r.share === null ? "—" : pct.format(r.share)} converted
                         {r.projectShare === null ? "" : ` against ${pct.format(r.projectShare)}`} ·
                         n = {r.decided}
@@ -421,8 +437,8 @@ export function QuadrantMatrix({
         <ul className="iris-quad-withheld">
           {withheld.map((r) => (
             <li key={r.id}>
-              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention, not placed.{" "}
-              {r.withheld}
+              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention for its share of
+              stock, not placed. {r.withheld}
             </li>
           ))}
         </ul>
