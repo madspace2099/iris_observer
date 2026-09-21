@@ -2854,3 +2854,51 @@ permits it. Named rather than patched, because an unreachable fallback cannot be
 a guard nobody can break is the shape this week keeps finding.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §25.
+
+## 2026-09-22 — P2-04: a warning nobody can open, and a sentence that outran its own condition
+
+**The numbers did not move, and that is measured rather than asserted.** Every figure, rank,
+severity, sample size, tier and subject count the attention read model produces, for three projects,
+dumped before and after: twenty-nine lines, byte identical. The round changed what is claimed, not
+what is counted.
+
+**The main correction is a sentence that knew more than its branch.** The no-CRM state's detail said
+"None of the N presentations in this period has a recorded outcome, and no CRM is connected to
+supply one." Its branch condition is `!crm`, which establishes only the second half. Outcomes are
+recorded in the room, not by the CRM — Ister Tower has a CRM connected and eleven of eighty-two
+presentations unrecorded — so the two facts are independent, and they coincide on Riverside because
+the fixture happens to pair them. A claim true by coincidence reads exactly like a claim that
+follows. It now says what the branch knows: no CRM is connected, so nothing can confirm what the
+presentations ended in. The title was already right; verification is what is missing.
+
+**And a category error in the affected list.** `subjects` is rendered under the accessible name
+"What this is about", and it held `Connect a CRM` — which is what to do about it. One item, and a
+reader could not tell what it was one of. It names the scope now: every presentation in the period.
+
+**Lateness is not claimed anywhere, and that was checked rather than assumed.** Searched the builder,
+the contract and the component for `overdue`, `late`, `waiting`, `chasing`, `days since`, `deadline`,
+`still not`, `too long`, `should have` and `behind`. No hits outside comment prose. The follow-up
+state says "ended without an outcome that asks for a follow-up" — what was recorded, not what is
+late — and its clear-state question asks whether a meeting ended without a follow-up being recorded.
+
+**OPEN ITEM, and it is mine.** On Riverside the Briefing prints "Nothing in this period is waiting on
+a decision from you" while What needs attention raises four states, one of them a warning at rank 1.
+P2-02 set out to close exactly this contradiction and narrowed it instead: the Briefing leads with
+the highest-ranked state only when that state has an `actionHref`, and the no-CRM branch has nowhere
+to send a reader and so carries none. The parity test asserts the fallback, which means it currently
+describes the gap rather than catching it; the assertion is now marked as a known gap rather than
+left to read as an endorsement. Closing it is a Briefing question — what to say when the thing worth
+acting on cannot be opened — and it belongs to R02's own round.
+
+**Two raised states have no openable affected list**, which is the DoD's first clause unmet and
+recorded rather than papered over: the no-CRM outcome state, and `source_offline`, whose subjects are
+the quiet installations. Neither has anywhere to send this reader that exists and is permitted.
+`StateList` already refuses to draw a dead link — a subject without a route renders as plain text,
+because "a chip that looks identical to its neighbours and does nothing when pressed is the
+control-that-does-nothing the doctrine forbids". So there is no false door; there is an absent one,
+and making it real is route work rather than naming.
+
+**The four refusal inconsistencies deferred by the P1-12 gate were checked against this route.**
+`BriefView`, `ask/[threadId]`, `report/page.tsx` and `madspace/projects/[projectId]` — none is R04.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §26.

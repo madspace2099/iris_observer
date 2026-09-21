@@ -53,9 +53,21 @@ describe("the Briefing leads with whatever the attention screen ranked first", (
 
     if (leading === null || leading.alert.actionHref === null) {
       /*
-       * Nothing raised, or nothing openable. The Briefing says so rather than
-       * inventing something to fill the row — the zero state the screen draws
-       * as "Clear". Asserted as a state, not as the absence of a string.
+       * Nothing raised, or nothing openable.
+       *
+       * **A KNOWN GAP IS ASSERTED HERE, AND IT IS NOT A DESIRED STATE.** The
+       * second half of that condition is the one to distrust: when the
+       * highest-ranked state has no `actionHref`, the Briefing falls back to
+       * null and draws "Nothing in this period is waiting on a decision from
+       * you". On Riverside that sentence sits over four raised states, one of
+       * them a warning at rank 1 — the no-CRM branch, which has nowhere to send
+       * a reader and so carries no href.
+       *
+       * P2-02 narrowed the contradiction it set out to close and did not shut
+       * it. This assertion describes what the product does today so the test
+       * stays honest; it does not endorse it. Closing it is a Briefing change —
+       * what to say when the thing worth acting on cannot be opened — and it is
+       * recorded as an open item rather than left for this file to bless.
        */
       expect(home.alert).toBeNull();
       return;

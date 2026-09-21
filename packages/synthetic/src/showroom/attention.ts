@@ -241,8 +241,27 @@ export function buildAttention(
        */
       severity: "warning",
       title: "No outcome can be verified on this project",
-      detail: `None of the ${count(sessions.length, locale)} presentations in this period has a recorded outcome, and no CRM is connected to supply one.`,
-      subjects: [{ id: "crm", label: "Connect a CRM", href: null }],
+      /*
+       * WHAT THE BRANCH KNOWS, AND NOT MORE.
+       *
+       * The condition here is `!crm`, and it establishes exactly one thing:
+       * nothing can confirm what a presentation ended in. It used to add that
+       * none of them HAS a recorded outcome, which is a different fact and one
+       * this branch never tested — an agent records an outcome in the room, and
+       * a project with a CRM still had eleven of eighty-two unrecorded. The two
+       * coincide on the only fixture that reaches this branch, which is how a
+       * sentence stronger than its condition survives being read.
+       *
+       * The title was already right: verification is what is missing.
+       */
+      detail: `No CRM is connected to this project, so nothing can confirm what the ${count(sessions.length, locale)} presentations in this period ended in.`,
+      /*
+       * The list is labelled "What this is about" and it held "Connect a CRM",
+       * which is what to DO about it. Naming the remedy where the affected
+       * thing belongs leaves a reader with one item and no idea what it is one
+       * OF. The scope is every presentation in the period, so it says that.
+       */
+      subjects: [{ id: "crm", label: "Every presentation in this period", href: null }],
       sampleSize: sessions.length,
       minimumSampleSize: UNIT_MIN_SAMPLE,
       belowMinimum: false,
