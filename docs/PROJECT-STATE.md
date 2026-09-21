@@ -2840,8 +2840,10 @@ Proved by three mutations: a pin button, a pencil import, and a second refusal e
 assertion and nothing else.
 
 **Two findings that are not R03's.** The Ask landing page (R01) renders the same conversations with
-**four disabled controls per row** — an inline rename plus a menu of share, rename, pin and delete —
-where R03 renders none. Its own sibling argues against it in words: the history page records that
+**five disabled controls per row** — an inline rename, then a menu of share, rename, pin and delete,
+so the rename is drawn twice — where R03 renders none. Corrected: this entry first said four, which
+was a miscount of the same markup. The sibling page anticipates three (`history/page.tsx:44`), so
+three numbers were in circulation for one fact, and the committed one was wrong. Its own sibling argues against it in words: the history page records that
 drawing disabled controls per row "would satisfy the letter of that and break its purpose". One
 product, one fact, two opposite answers. It is another route, so it is recorded rather than bundled.
 
