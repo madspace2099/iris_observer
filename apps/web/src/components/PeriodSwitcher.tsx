@@ -1,10 +1,8 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ChangeEvent } from "react";
-import { dynamicRoute } from "@/lib/href";
+import { usePathname, useSearchParams } from "next/navigation";
+import { ContextSwitcher } from "@/components/ContextSwitcher";
 import { PERIOD_LABELS, presetFrom } from "@/lib/period";
-
 /**
  * The period, controlled by the URL rather than by a constant.
  *
@@ -26,46 +24,30 @@ import { PERIOD_LABELS, presetFrom } from "@/lib/period";
  * the address bar never claims a period the page is not showing.
  */
 export function PeriodSwitcher() {
-  const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const raw = params.get("period");
-  const active = presetFrom(raw ?? undefined);
+  const active = presetFrom(params.get("period") ?? undefined);
 
-  function hrefFor(preset: string): string {
+  /*
+   * Every preset as a real link to this same surface.
+   *
+   * It used to navigate on a select's change event; the rows are hrefs now, so
+   * a period can be opened in a second tab and set beside the first, which is
+   * the comparison a reader was making by hand anyway.
+   */
+  const options = PERIOD_LABELS.map(([value, label]) => {
     const next = new URLSearchParams(params.toString());
-    next.set("period", preset);
-    return `${pathname}?${next.toString()}`;
-  }
-
-  function onChange(event: ChangeEvent<HTMLSelectElement>) {
-    router.push(dynamicRoute(hrefFor(event.target.value)));
-  }
+    next.set("period", value);
+    return { value, label, href: `${pathname}?${next.toString()}` };
+  });
 
   return (
-    <div className="obs-context">
-      {/*
-        * Named once, and exactly.
-        *
-        * A wrapping `<label>` folds its own text *and* the option list into the
-        * control's accessible name, which produced "PeriodQuarter to dateLast
-        * 28 days…". `aria-label` alone gives it the name a reader — and an
-        * assistive technology — actually hears.
-        */}
-      <select
-        className="obs-action"
-        value={active}
-        onChange={onChange}
-        aria-label="Period"
-        style={{ appearance: "none", paddingRight: "var(--space-5)" }}
-      >
-        {PERIOD_LABELS.map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <ContextSwitcher
+      label="Period"
+      caption="Every figure on this page is measured over the period you choose here."
+      value={active}
+      options={options}
+    />
   );
 }

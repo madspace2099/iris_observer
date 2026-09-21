@@ -11,7 +11,15 @@
     "./iris.css": "./src/iris.css",
     "./showroom.css": "./src/showroom.css",
     "./charts.css": "./src/charts.css",
-    "./observer.css": "./src/observer.css"
+    "./observer.css": "./src/observer.css",
+    "./madspace.css": "./src/madspace.css",
+    "./iris-shell.css": "./src/iris-shell.css",
+    "./design-lab-a.css": "./src/design-lab-a.css",
+    "./design-lab-b.css": "./src/design-lab-b.css",
+    "./design-lab-c.css": "./src/design-lab-c.css",
+    "./observer-product.css": "./src/observer-product.css",
+    "./ask-iris.css": "./src/ask-iris.css",
+    "./observer-settings.css": "./src/observer-settings.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

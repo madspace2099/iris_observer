@@ -1,3 +1,4 @@
+import { OUTCOME_LABELS, type MeetingOutcome } from "@observer/contracts";
 import type { OutcomeSlice } from "@observer/readmodels";
 
 /**
@@ -19,15 +20,67 @@ import type { OutcomeSlice } from "@observer/readmodels";
 
 /* --- the outcome ring --------------------------------------------------------- */
 
-const OUTCOME_TONE: Record<string, string> = {
-  purchase: "var(--gain)",
-  reservation: "color-mix(in oklab, var(--gain) 70%, var(--accent))",
-  interested: "var(--accent)",
-  follow_up_needed: "color-mix(in oklab, var(--accent) 55%, var(--ink-3))",
-  presentation_only: "var(--ink-3)",
-  not_interested: "var(--loss)",
+/**
+ * Kept identical to `OUTCOME_COLOURS` in `packages/synthetic/src/showroom/charts.ts`
+ * on purpose -- both name the same six `--outcome-*` custom properties
+ * (`packages/ui/src/iris.css`) rather than each declaring their own
+ * `color-mix()`, which is what let the two drift apart before. `skipped`
+ * still resolves to the heatmap's own empty-cell treatment's colour, not a
+ * seventh ladder rung.
+ */
+const OUTCOME_TONE: Record<MeetingOutcome, string> = {
+  purchase: "var(--outcome-purchase)",
+  reservation: "var(--outcome-reservation)",
+  interested: "var(--outcome-interested)",
+  follow_up_needed: "var(--outcome-follow-up)",
+  presentation_only: "var(--outcome-presentation-only)",
+  not_interested: "var(--outcome-not-interested)",
   skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
 };
+
+/**
+ * The commitment ladder, once, purchase to not_interested, `skipped` trailing
+ * rather than ranked -- kept identical to the local `order` inside
+ * `buildComposition` in `packages/synthetic/src/showroom/charts.ts` on
+ * purpose, the same reasoning as `OUTCOME_TONE` above: that function builds
+ * its own composition chart from raw sessions and this one from an
+ * already-aggregated `OutcomeSlice[]`, so the two cannot share one array
+ * without a cross-package import the rest of this file deliberately avoids;
+ * kept in sync by hand instead, same as the colour map already is.
+ */
+const OUTCOME_LADDER: readonly MeetingOutcome[] = [
+  "purchase",
+  "reservation",
+  "interested",
+  "follow_up_needed",
+  "presentation_only",
+  "not_interested",
+  "skipped",
+];
+
+/** `StackedBars`' shared key, ladder-ordered so stacking order is ladder order everywhere it's used. */
+export const OUTCOME_STACK_KEYS: readonly { id: string; label: string; colour: string }[] =
+  OUTCOME_LADDER.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_TONE[o] }));
+
+/**
+ * One `OutcomeSlice[]` (a ring's worth of data) reshaped into one
+ * `StackedBars` column. `total` is taken from the caller rather than summed
+ * from `slices`, because `slices` already omits a category with zero count
+ * (`OutcomeKey` renders exactly what it's given) and the total must still be
+ * the true meeting count, not the sum of only the categories present.
+ */
+export function outcomeStackColumn(
+  label: string,
+  total: number,
+  slices: readonly OutcomeSlice[],
+): { label: string; total: number; parts: Record<string, number> } {
+  const byOutcome = new Map(slices.map((s) => [s.outcome, s.count]));
+  return {
+    label,
+    total,
+    parts: Object.fromEntries(OUTCOME_LADDER.map((o) => [o, byOutcome.get(o) ?? 0])),
+  };
+}
 
 function arc(cx: number, cy: number, r: number, from: number, to: number): string {
   const a0 = from * 2 * Math.PI - Math.PI / 2;
@@ -53,11 +106,14 @@ export function OutcomeRing({
   total,
   size = 132,
   label,
+  measured = false,
 }: {
   slices: readonly OutcomeSlice[];
   total: number;
   size?: number;
   label?: string;
+  /** Opt-in: raises the 9px "meetings" caption to the 12px floor. Sales Flow only — see `charts.css`. */
+  measured?: boolean;
 }) {
   const stroke = size * 0.13;
   const r = (size - stroke) / 2 - 1;
@@ -69,7 +125,7 @@ export function OutcomeRing({
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
-      className="iris-ring"
+      className={`iris-ring${measured ? " iris-ring-measured" : ""}`}
       role="img"
       aria-label={
         label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
@@ -167,10 +223,32 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                   className="iris-step-bar"
                   title={`${p.meetings} meetings · ${p.progressed} progressed`}
                 >
-                  <i style={{ height: `${(p.meetings / peak) * 100}%` }} />
+                  {/*
+                    `--w` alongside `height`: the desktop column reads its
+                    fill from `height`, the narrow-width row reflow (below
+                    30rem) reads the same proportion from `width: var(--w)`.
+                    Without it the bar's width falls back to `var(--w, 0)`'s
+                    own default and the whole visualization renders at zero
+                    width — present in the DOM, invisible on screen.
+                  */}
+                  <i
+                    style={
+                      {
+                        height: `${(p.meetings / peak) * 100}%`,
+                        "--w": `${(p.meetings / peak) * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  />
                   {/* Progressed sits inside the column: part of the same total,
                       not a competing quantity beside it. */}
-                  <b style={{ height: `${(p.progressed / peak) * 100}%` }} />
+                  <b
+                    style={
+                      {
+                        height: `${(p.progressed / peak) * 100}%`,
+                        "--w": `${(p.progressed / peak) * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  />
                 </span>
                 <span className="iris-step-figure">{p.meetings}</span>
                 <span className="iris-step-label">{p.label}</span>
@@ -253,6 +331,106 @@ export function PairedRates({
  * on, and by how far". A bar from zero answers neither; a marker on an axis
  * centred at parity answers both.
  */
+/**
+ * THE ATTENTION × CONVERSION MATRIX — docs/02-views.md §4.2's frame, drawn.
+ *
+ * Four cells, each a marketing instruction, each holding the segments that
+ * fall in it: high attention above parity, high conversion at or above the
+ * project's own share. A segment without a quadrant is listed beneath the
+ * frame with the read model's reason — below the minimum sample, or no CRM —
+ * rather than forced into a cell. Nothing here computes a rate: the index,
+ * the shares and the placement all arrive from the read model.
+ */
+const QUADRANTS = [
+  { id: "hero", title: "Hero", instruction: "Sell more of this; lead the campaign with it." },
+  {
+    id: "mispriced",
+    title: "Mispriced or oversold",
+    instruction: "They look, they don't buy: check the price, check the promise.",
+  },
+  {
+    id: "hidden_gem",
+    title: "Hidden gem",
+    instruction: "Converts when seen; agents aren't showing it. Fixable today.",
+  },
+  {
+    id: "dead_stock",
+    title: "Dead stock",
+    instruction: "Neither seen nor sold: reposition, bundle, or discount.",
+  },
+] as const;
+
+export function QuadrantMatrix({
+  rows,
+  locale,
+}: {
+  rows: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly index: number;
+    readonly share: number | null;
+    readonly projectShare: number | null;
+    readonly decided: number;
+    readonly quadrant: (typeof QUADRANTS)[number]["id"] | null;
+    readonly withheld: string | null;
+    readonly href: string;
+  }[];
+  locale: string;
+}) {
+  const pct = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
+  const placed = rows.filter((r) => r.quadrant !== null);
+  const withheld = rows.filter((r) => r.quadrant === null);
+
+  return (
+    <div className="iris-quad">
+      <p className="iris-code iris-quad-axis" aria-hidden="true">
+        ← lower conversion · higher conversion →
+      </p>
+      <div className="iris-quad-grid" role="list" aria-label="Segments by attention and conversion">
+        {QUADRANTS.map((q) => {
+          const inCell = placed.filter((r) => r.quadrant === q.id);
+          return (
+            <div className="iris-quad-cell" data-quadrant={q.id} key={q.id} role="listitem">
+              <p className="iris-quad-title">{q.title}</p>
+              <p className="iris-quad-instruction">{q.instruction}</p>
+              {inCell.length === 0 ? (
+                <p className="iris-quad-empty">No segment here.</p>
+              ) : (
+                <ul className="iris-quad-segments">
+                  {inCell.map((r) => (
+                    <li key={r.id}>
+                      <a href={r.href}>{r.label}</a>
+                      <span>
+                        {r.index.toFixed(2)}× attention ·{" "}
+                        {r.share === null ? "—" : pct.format(r.share)} converted
+                        {r.projectShare === null ? "" : ` against ${pct.format(r.projectShare)}`} ·
+                        n = {r.decided}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="iris-code iris-quad-axis" aria-hidden="true">
+        ↑ higher attention · lower attention ↓
+      </p>
+      {withheld.length === 0 ? null : (
+        <ul className="iris-quad-withheld">
+          {withheld.map((r) => (
+            <li key={r.id}>
+              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention, not placed.{" "}
+              {r.withheld}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ParityScale({
   rows,
   max = 2,

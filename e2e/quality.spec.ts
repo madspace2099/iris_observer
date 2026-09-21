@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * The checks that keep M2.1's corrections from regressing.
@@ -7,12 +8,6 @@ import { expect, test, type Page } from "@playwright/test";
  * screen. Each of these was wrong once; each is now a test.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  // The front door is the Showroom overview since ADR-0023.
-  await page.waitForURL(/\/showroom/);
-}
 
 test.describe("typography", () => {
   test("actually renders in Manrope, not the system fallback", async ({ page }) => {
@@ -45,15 +40,12 @@ test.describe("typography", () => {
     expect(external).toEqual([]);
   });
 
-  test("does not let the font swap reflow the metric grid", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    const before = await page.locator(".iris-home-figures > div").first().boundingBox();
-    await page.evaluate(() => document.fonts.ready);
-    const after = await page.locator(".iris-home-figures > div").first().boundingBox();
-    // Metric cards carry a min-height precisely so a font arriving mid-render
-    // cannot move the figures under the reader's eye.
-    expect(after?.height).toBe(before?.height);
-  });
+  /*
+   * "does not let the font swap reflow the metric grid" measured the
+   * briefing's figure grid. ADR-0033 made Ask IRIS the landing surface,
+   * which opens with a sentence and a prompt rather than figures, so the
+   * grid the test held still is not on the first screen any more.
+   */
 });
 
 test.describe("session boundary", () => {
@@ -65,9 +57,12 @@ test.describe("session boundary", () => {
     ]);
     await page.goto("/alpha/northgate/showroom");
     await page.waitForURL(/\/sign-in/);
-    // The sign-in surface is the profile picker now; its heading says what the
-    // choice is for rather than naming the mechanism.
-    await expect(page.getByRole("heading", { name: /Each profile sees a different Observer/ })).toBeVisible();
+    // What arrives is the account sign-in — a credential form, not a list of
+    // people to pick from. A forged cookie lands exactly where an anonymous
+    // reader lands, with no shortcut past it and no profile step behind it.
+    await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+    await expect(page.getByLabel("Work email address")).toBeVisible();
+    await expect(page.getByLabel("Password")).toBeVisible();
   });
 
   /*
@@ -128,73 +123,65 @@ test.describe("session boundary", () => {
      * "This is a scenario selector, not production authentication" told a
      * developer in a consultation that they were looking at scaffolding. The
      * demonstration status is still stated — it has to be — in product
-     * language.
+     * language: what the data is, and that the addresses on the screen are not
+     * credentials for anything real.
      */
-    await expect(page.getByText(/demonstration running on synthetic data/i)).toBeVisible();
+    await expect(page.getByText(/synthetic data/i).first()).toBeVisible();
+    await expect(page.getByText(/not credentials for anything real/i)).toBeVisible();
     await expect(page.getByText(/not production authentication/i)).toHaveCount(0);
+    await expect(page.getByText(/scenario selector/i)).toHaveCount(0);
   });
 });
 
 test.describe("the ten-second test", () => {
-  test("answers all four questions above the fold", async ({ page }, testInfo) => {
+  /*
+   * ADR-0033: the first screen is Ask IRIS — a first-person sentence about
+   * the showroom, a prominent prompt and context-aware offers, above the
+   * fold on a laptop. The briefing's figure grid, its measure notes and its
+   * `.obs-*` composition left the landing with it, so the four questions
+   * are answered by the hero and the prompt rather than by six figures, and
+   * the two tests that counted and opened those figures went with them.
+   */
+  test("answers above the fold: the sentence, the prompt and the offers", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "the fold test is a desktop claim");
     await signInAs(page, "Petra Novák");
     await page.evaluate(() => document.fonts.ready);
 
     const fold = page.viewportSize()?.height ?? 0;
-    const within = async (selector: string) => {
-      const box = await page.locator(selector).first().boundingBox();
+    const within = async (locator: ReturnType<typeof page.locator>) => {
+      const box = await locator.first().boundingBox();
       return box !== null && box.y < fold;
     };
 
-    /*
-     * Observer opens the product, so Observer has to be above the fold.
-     *
-     * The presence, the sentence and the prompt are the ten-second answer now,
-     * and the prompt being a primary control rather than a footer field is the
-     * whole point of the direction — so its position is asserted, not assumed.
-     */
-    expect(await within(".obs-orb"), "Observer below the fold").toBe(true);
-    expect(await within(".obs-lede"), "the briefing sentence below the fold").toBe(true);
-    expect(await within(".obs-prompt"), "the prompt below the fold").toBe(true);
-    expect(await within(".obs-suggestions"), "the suggestions below the fold").toBe(true);
-  });
-
-  test("keeps the first screen to at most six figures", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    // The registry holds eighty-two metrics. Rendering the registry would be the
-    // exact failure Stano described in the legacy dashboard, and the one the unit
-    // list was rebuilt to avoid.
-    const figures = await page.locator(".iris-home-figures > div").count();
-    expect(figures).toBeGreaterThan(0);
-    expect(figures).toBeLessThanOrEqual(6);
-  });
-
-  test("every figure on the first screen can say what it measures", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    // A headline number with no stated definition is what the legacy dashboard
-    // did when it graded a single click "High".
-    const info = page.locator(".iris-home-figures .iris-measure-info");
-    await expect(info.first()).toBeVisible();
-    await info.first().click();
-    const panel = page.getByRole("note").first();
-    await expect(panel).toContainText("What it measures");
-    await expect(panel).toContainText("What it does not say");
+    expect(await within(page.locator(".ask-hero")), "the hero below the fold").toBe(true);
+    expect(
+      await within(page.locator(".ask-page").getByPlaceholder("Ask IRIS…")),
+      "the prompt below the fold",
+    ).toBe(true);
+    expect(
+      await within(page.locator(".ask-page").getByRole("link").first()),
+      "the offers below the fold",
+    ).toBe(true);
   });
 
   test("leads with the showroom, not with the CRM", async ({ page }) => {
     await signInAs(page, "Petra Novák");
-    // ADR-0023 at the surface: the opening sentence is about the presentations,
-    // and outcome appears as a rate rather than as the subject.
-    await expect(page.locator(".obs-lede")).toContainText(/showroom/i);
-    await expect(page.getByText(/of recorded meetings progressing/i)).toBeVisible();
+    /*
+     * ADR-0023 at the surface: the briefing, reached from Ask IRIS by name,
+     * opens with a sentence about the presentations rather than the CRM's
+     * figures. The landing itself is a prompt and carries no verdict.
+     */
+    await page.locator(".ask-page").getByRole("link", { name: /Today.s briefing/ }).click();
+    await page.waitForURL(/\/showroom/);
+    /* The heading is the surface's name; the sentence beneath it is the claim. */
+    await expect(page.locator("main").first()).toContainText(/showroom presentation|presentations/i);
   });
 
   test("makes the prompt a primary control, not a footer field", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === "mobile", "A phone has no side-by-side composition.");
     await signInAs(page, "Petra Novák");
 
-    const prompt = await page.locator(".obs-prompt").boundingBox();
+    const prompt = await page.locator(".ask-page").getByPlaceholder("Ask IRIS…").boundingBox();
     const viewport = page.viewportSize();
     expect(prompt).not.toBeNull();
     expect(viewport).not.toBeNull();
@@ -303,5 +290,32 @@ test.describe("the chart vocabulary", () => {
       // surface on it scroll sideways too.
       expect(overflow, `${path} overflows by ${overflow}px`).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+test.describe("one label, one window", () => {
+  /*
+   * The Sales Flow page carries a rolling summary window above calendar
+   * buckets. Both used the same words: "This month: 41" in the summary and
+   * "This month: 32" in the chart, three inches apart, both correct and
+   * neither reconcilable by the reader.
+   *
+   * The rolling windows now say how long they are. This asserts that no
+   * duration word appears twice on the page meaning two different spans.
+   */
+  test("the summary window never borrows a calendar bucket's name", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow");
+
+    const windowLabels = await page.locator(".iris-window .iris-chip").allInnerTexts();
+    const bucketLabels = await page.locator(".iris-step-label").allInnerTexts();
+
+    const normalise = (s: string) => s.trim().toLowerCase();
+    const windows = new Set(windowLabels.map(normalise).filter((s) => s.length > 0));
+    const buckets = new Set(bucketLabels.map(normalise).filter((s) => s.length > 0));
+
+    // "Today" is the one word that means the same thing in both, and does.
+    const shared = [...windows].filter((w) => buckets.has(w) && w !== "today");
+    expect(shared, `both a rolling window and a calendar bucket are called: ${shared.join(", ")}`).toEqual([]);
   });
 });

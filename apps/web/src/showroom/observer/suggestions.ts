@@ -21,9 +21,14 @@ const PROJECT_LEVEL = [
 /**
  * What a sales agent is offered instead.
  *
- * Their own patterns, their own preparation, and the team only in aggregate —
- * never a colleague by name. The product promises them no league table, and an
- * offer is a promise about what the next screen will contain.
+ * Their own patterns and their own preparation, because that is what a person
+ * running meetings comes here to ask about — not because they may not ask
+ * anything else. The comparison of named colleagues was closed to them by role
+ * and is now bounded by the project instead (ADR-0029); an agent who wants it
+ * opens the Sales Agents surface for a project they hold.
+ *
+ * These stay their own list because an offer is a promise about what the next
+ * screen will contain, and a list is a short one by design.
  */
 const AGENT_LEVEL = [
   "What changed in my meetings this month?",

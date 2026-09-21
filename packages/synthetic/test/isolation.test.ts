@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { PROJECTS, TENANTS, VIEWERS } from "../src/world";
-import { syntheticRepository } from "../src/repository";
-import { showroomSessions } from "../src/showroom/sessions";
-import type { PeriodPreset, Viewer } from "@observer/readmodels";
+import { SyntheticObserverRepository, syntheticRepository } from "../src/repository";
+import { sessionsForProject, showroomSessions } from "../src/showroom/sessions";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  type ShowroomSessionSource,
+  type Viewer,
+} from "@observer/readmodels";
+import type { ShowroomSession } from "@observer/contracts";
 
 /**
  * Tenant and project isolation.
@@ -52,10 +59,24 @@ describe("every session belongs to exactly one project", () => {
     for (const s of showroomSessions()) {
       byProject.set(s.projectId, (byProject.get(s.projectId) ?? 0) + 1);
     }
-    // Every project in the world has data of its own. A project with none is a
-    // project whose screens will borrow someone else's.
-    for (const project of PROJECTS) {
-      expect(byProject.get(project.id as string) ?? 0, `${project.slug} has no sessions`).toBeGreaterThan(0);
+    /*
+     * Every STATIC project in the world has data of its own. A project with
+     * none is a project whose screens will borrow someone else's — for every
+     * project this generator is the source of truth for.
+     *
+     * `akhilesh-demo-source` is deliberately not one of those: its sessions
+     * come from a live Supabase connector overlay (`sessionsOfProject` in
+     * `showroom/sessions.ts` checks that override first, and its own
+     * fallback is a `.filter()` — genuinely empty, never a borrowed row),
+     * so a zero count here is the intended state whenever the connector is
+     * disabled or not yet synced, not the silent-borrowing bug this test
+     * exists to catch.
+     */
+    for (const project of PROJECTS.filter((p) => p.slug !== "akhilesh-demo-source")) {
+      expect(
+        byProject.get(project.id as string) ?? 0,
+        `${project.slug} has no sessions`,
+      ).toBeGreaterThan(0);
     }
   });
 
@@ -135,9 +156,7 @@ describe("two developers do not share records", () => {
   it("refuses a project the viewer does not hold", async () => {
     // Petra is Alpha's developer. Beta's project is not hers to read, and the
     // repository must raise rather than return an empty, plausible-looking page.
-    await expect(
-      syntheticRepository.getHome(query(petra, "beta", "kingsford")),
-    ).rejects.toThrow();
+    await expect(syntheticRepository.getHome(query(petra, "beta", "kingsford"))).rejects.toThrow();
   });
 
   it("keeps identical slugs in different tenants apart", async () => {
@@ -178,6 +197,35 @@ describe("missing data is stated, never borrowed and never zero", () => {
     expect(home.because).toMatch(/no progression rate can be computed/i);
   });
 
+  it("shows sold/reserved as unavailable on a project with no CRM, not as a real count", async () => {
+    const project = PROJECTS.find((p) => p.slug === "riverside");
+    expect(project?.connectedSources).not.toContain("crm");
+
+    const charts = await syntheticRepository.getProjectCharts(query(petra, "alpha", "riverside"));
+    expect(charts.targets.length).toBeGreaterThan(0);
+    for (const target of charts.targets) {
+      // Null, not zero — sold/reserved is a CRM outcome and this project has
+      // no CRM to report one. Zero would read as "nothing has sold", which
+      // is a different, unearned claim.
+      expect(target.actual, `${target.id} must be unavailable, not a number`).toBeNull();
+      expect(target.note).toMatch(/unavailable/i);
+      // The schedule itself is still known even though the actual is not.
+      expect(target.pace).toBeGreaterThan(0);
+      expect(target.total).toBeGreaterThan(0);
+    }
+
+    // And a project whose CRM IS connected still gets a real number.
+    const northgateCharts = await syntheticRepository.getProjectCharts(
+      query(petra, "alpha", "northgate"),
+    );
+    for (const target of northgateCharts.targets) {
+      expect(
+        target.actual,
+        `${target.id} should be a real count on a connected project`,
+      ).not.toBeNull();
+    }
+  });
+
   it("does not invent a previous period for a project that has none", async () => {
     const tomas = Object.values(VIEWERS).find((v) => v.role === "agency_manager") as Viewer;
     const home = await syntheticRepository.getHome(query(tomas, "beta", "kingsford"));
@@ -193,5 +241,454 @@ describe("missing data is stated, never borrowed and never zero", () => {
 
     // Three weeks live. A confident verdict on this much data would be a lie.
     expect(home.meetingCount).toBeLessThan(60);
+  });
+});
+
+/* --- one page, one set of meetings ------------------------------------------ */
+
+describe("figures read together count the same meetings", () => {
+  /*
+   * The briefing said "I reviewed 74 showroom presentations quarter to date"
+   * and the Ask Observer answer beneath it said "Measured across 73 meetings",
+   * on the same screen, about the same period. `getHome` read `throughToday`
+   * and `getShowroomOverview` read `current`, and on a to-date period those
+   * differ by whatever happened today.
+   *
+   * The Sales Flow page reads `getSalesFlow` and `getShowroomOverview`
+   * together, so it carried both numbers for the same reason.
+   */
+  for (const [tenantSlug, projectSlug] of [
+    ["alpha", "northgate"],
+    ["alpha", "riverside"],
+  ] as const) {
+    it(`agrees between the briefing and the period summary on ${projectSlug}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug,
+        projectSlug,
+        period: "quarter_to_date" as const,
+      };
+      const home = await syntheticRepository.getHome(query);
+      const overview = await syntheticRepository.getShowroomOverview(query);
+
+      expect(overview.meetingCount).toBe(home.meetingCount);
+    });
+
+    it(`agrees between the sales flow and the period summary on ${projectSlug}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug,
+        projectSlug,
+        period: "quarter_to_date" as const,
+      };
+      const flow = await syntheticRepository.getSalesFlow(query);
+      const overview = await syntheticRepository.getShowroomOverview(query);
+
+      expect(overview.meetingCount).toBe(flow.meetingCount);
+    });
+  }
+});
+
+/* --- a first period is not a bad period ------------------------------------- */
+
+describe("a project with no history claims no comparison", () => {
+  /*
+   * Kingsford has been selling three weeks, so "last month" is a month in
+   * which it did not exist. The briefing read "41 meetings this month against
+   * 0 last month" — arithmetically true, and inviting exactly the comparison
+   * it should not: 41 against nothing is a first period, not growth.
+   *
+   * The progression figure had already been corrected for this. The volume
+   * figure beside it was still making the claim.
+   */
+  const query = {
+    viewer: VIEWERS.agencyManager,
+    tenantSlug: "beta",
+    projectSlug: "kingsford",
+    period: "quarter_to_date" as const,
+  };
+
+  it("does not compare volume against a period that does not exist", async () => {
+    const home = await syntheticRepository.getHome(query);
+    expect(home.because).not.toMatch(/against 0 last (month|week)/i);
+    expect(home.because).toMatch(/no earlier period/i);
+  });
+
+  it("shows no arrow on a figure with nothing to move from", async () => {
+    const home = await syntheticRepository.getHome(query);
+    const volume = home.figures.find((f) => f.id === "meetings");
+
+    expect(volume?.against).toMatch(/no earlier period/i);
+    expect(volume?.direction).toBe("flat");
+    expect(volume?.better).toBe("neither");
+  });
+
+  it("still compares volume where a baseline exists", async () => {
+    const home = await syntheticRepository.getHome({
+      viewer: VIEWERS.developer,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "quarter_to_date" as const,
+    });
+    const volume = home.figures.find((f) => f.id === "meetings");
+
+    expect(volume?.against).toMatch(/last (month|week)/i);
+    expect(volume?.better).toBe("up");
+  });
+});
+
+/* --- one period, one count -------------------------------------------------- */
+
+describe("every surface counts the same period identically", () => {
+  /*
+   * There were two slices: `current`, running to the period's stated end, and
+   * `throughToday`, running to the end of today. Two slices meant two answers
+   * to "how many meetings are in this period", and both reached the screen —
+   * the briefing said 74 quarter-to-date while Presentation DNA said 73.
+   *
+   * `throughToday` also ignored the period's end, so **Last completed quarter
+   * reported every meeting in the dataset** on the three surfaces that read it.
+   * That one was not a rounding difference: 132 against 58.
+   */
+  const PRESETS = ["quarter_to_date", "last_28_days", "last_quarter", "year_to_date"] as const;
+
+  for (const period of PRESETS) {
+    it(`agrees across surfaces on ${period}`, async () => {
+      const query = {
+        viewer: VIEWERS.developer,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period,
+      };
+      const counts = await Promise.all([
+        syntheticRepository.getHome(query).then((v) => v.meetingCount),
+        syntheticRepository.getSalesFlow(query).then((v) => v.meetingCount),
+        syntheticRepository.getShowroomOverview(query).then((v) => v.meetingCount),
+        syntheticRepository.getProjectView(query, null).then((v) => v.meetingCount),
+      ]);
+
+      expect(new Set(counts).size, `counts disagree: ${counts.join(", ")}`).toBe(1);
+      expect(counts[0]).toBeGreaterThan(0);
+    });
+  }
+
+  it("does not let a completed period keep growing", async () => {
+    const query = {
+      viewer: VIEWERS.developer,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "last_quarter" as const,
+    };
+    const completed = await syntheticRepository.getHome(query);
+    const everything = showroomSessions().filter((s) => s.projectId === "prj_northgate01");
+
+    // A finished quarter is history. It cannot contain the whole dataset.
+    expect(completed.meetingCount).toBeLessThan(everything.length);
+  });
+});
+
+/* --- the KPI window is not a back door -------------------------------------- */
+
+describe("the summary window ignores the period, never the project", () => {
+  /*
+   * `getFlowCharts` passed `showroomSessions()` — every meeting in every
+   * project of every tenant — as the set the KPI window reads, because the
+   * window must be able to say "all time" without being clipped to the
+   * selected period.
+   *
+   * So Northgate's Sales Flow reported 98 presentations this month above a
+   * chart reading 32, and the 98 counted Riverside and Beta Development's
+   * Kingsford. A developer was shown a competitor's volume inside their own
+   * headline figure, on a page whose route, read model and tool had all been
+   * scoped correctly. The isolation tests checked the read models; nothing
+   * checked the charts.
+   */
+  const WINDOWS = ["today", "week", "month", "quarter", "half", "year", "all"] as const;
+
+  async function kpis(tenantSlug: string, projectSlug: string, viewer: Viewer, window: string) {
+    const charts = await syntheticRepository.getFlowCharts(
+      { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+      window as never,
+    );
+    return charts.kpis.figures;
+  }
+
+  it("never counts more meetings than the project has", async () => {
+    const northgate = sessionsForProject("prj_northgate01").length;
+
+    for (const window of WINDOWS) {
+      const cards = await kpis("alpha", "northgate", VIEWERS.developer, window);
+      const presentations = cards.find((k) => /presentation/i.test(k.label));
+      const value = Number(String(presentations?.value ?? "0").replace(/[^0-9]/g, ""));
+
+      expect(
+        value,
+        `${window} counts ${value} of ${northgate} Northgate meetings`,
+      ).toBeLessThanOrEqual(northgate);
+    }
+  });
+
+  it("gives two projects different summaries", async () => {
+    const [north, river] = await Promise.all([
+      kpis("alpha", "northgate", VIEWERS.developer, "all"),
+      kpis("alpha", "riverside", VIEWERS.developer, "all"),
+    ]);
+
+    expect(JSON.stringify(north)).not.toBe(JSON.stringify(river));
+  });
+
+  it("never lets one developer's window reach another developer's project", async () => {
+    const kingsford = sessionsForProject("prj_beta0000001").length;
+    const riverside = sessionsForProject("prj_riversidew1").length;
+    const northgate = sessionsForProject("prj_northgate01").length;
+
+    const cards = await kpis("alpha", "northgate", VIEWERS.developer, "all");
+    const presentations = cards.find((k) => /presentation/i.test(k.label));
+    const value = Number(String(presentations?.value ?? "0").replace(/[^0-9]/g, ""));
+
+    expect(kingsford).toBeGreaterThan(0);
+    expect(value).toBe(northgate);
+    expect(value).not.toBe(northgate + riverside + kingsford);
+  });
+});
+
+/* --- a meeting belongs to exactly one project, at the replay and report seams -- */
+
+/**
+ * THE REGRESSION THE HARDEN PASS FIXED, PINNED.
+ *
+ * `getMeetingReplay` and `getReportScope(…, meetingId)` used to look a
+ * meeting up with `sessionById(meetingId)` — no project argument — which
+ * searched every project's sessions at once. A meeting id is exactly as
+ * guessable as `mtg_ng0001`, so the fix is not "check afterwards that the
+ * session's own `projectId` matches" (a second read of data already fetched,
+ * easy to forget on the next call site that is added); it is that the SEARCH
+ * ITSELF never looks outside the resolved project, via `sessionById(id,
+ * projectId)` → `sessionsOfProject(projectId)`. These tests recreate the
+ * shape of the old bug — a real meeting id from one project, asked for under
+ * a different, real, held project — and confirm the six cases the mandate
+ * names: a meeting inside its own project, a meeting id from a different
+ * project, a project the viewer does not hold at all, an id delivered
+ * through the connector overlay (the Akhilesh-demo path), an id that exists
+ * nowhere, and the corresponding report-scope path.
+ */
+describe("a meeting belongs to exactly one project — replay and report-scope", () => {
+  const petra = VIEWERS.developer as Viewer; // holds northgate, riverside, ister-tower
+  const tomas = Object.values(VIEWERS).find((v) => v.role === "agency_manager") as Viewer; // northgate, ister-tower, kingsford — NOT riverside
+  const northgateMeetingId = sessionsForProject("prj_northgate01")[0]?.meetingId;
+  const riversideMeetingId = sessionsForProject("prj_riversidew1")[0]?.meetingId;
+  if (northgateMeetingId === undefined || riversideMeetingId === undefined) {
+    throw new Error("fixtures moved: no meeting id available to seed these tests");
+  }
+
+  function replayQuery(v: Viewer, tenantSlug: string, projectSlug: string, meetingId: string) {
+    return { viewer: v, tenantSlug, projectSlug, meetingId: meetingId as never };
+  }
+
+  it("a valid meeting, inside the project that actually holds it, replays", async () => {
+    const replay = await syntheticRepository.getMeetingReplay(
+      replayQuery(petra, "alpha", "northgate", northgateMeetingId),
+    );
+    expect(replay.meetingId).toBe(northgateMeetingId);
+  });
+
+  it("a real meeting id from a DIFFERENT project is refused as not-found, not replayed under the wrong project", async () => {
+    // The exact shape of the old bug: Riverside's own meeting id, asked for
+    // through Northgate's address. Petra holds both projects, so a leak here
+    // is not even a cross-DEVELOPER leak (isolation.test.ts's other cases
+    // already forbid that) — it is the read model quietly answering the
+    // wrong project's question with the right project's authorisation.
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(petra, "alpha", "northgate", riversideMeetingId),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("the corresponding report-scope path refuses the same cross-project id the same way", async () => {
+    const query = {
+      viewer: petra,
+      tenantSlug: "alpha",
+      projectSlug: "northgate",
+      period: "quarter_to_date" as PeriodPreset,
+    };
+    await expect(
+      syntheticRepository.getReportScope(query, riversideMeetingId),
+    ).rejects.toBeInstanceOf(NotFoundError);
+    // And the meeting's own project reads it back fine, from the same call shape.
+    const riversideQuery = { ...query, projectSlug: "riverside" };
+    const scoped = await syntheticRepository.getReportScope(riversideQuery, riversideMeetingId);
+    expect(scoped).toBeDefined();
+  });
+
+  it("a project the viewer does not hold at all is refused before any meeting lookup happens", async () => {
+    // Tomáš's grant list does not include Riverside (see isolation.test.ts's
+    // own "two projects under one developer" cases for the same fact used
+    // against getHome). The refusal must fire on the PROJECT, whether or not
+    // the meeting id he tried is real.
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(tomas, "alpha", "riverside", riversideMeetingId),
+      ),
+    ).rejects.toBeInstanceOf(NotPermittedError);
+  });
+
+  it("an unknown meeting id, on a project the viewer does hold, is not-found", async () => {
+    await expect(
+      syntheticRepository.getMeetingReplay(
+        replayQuery(petra, "alpha", "northgate", "mtg_does_not_exist_anywhere"),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  describe("an imported (connector-overlay) meeting follows the identical contract", () => {
+    /*
+     * The Akhilesh demo project's real sessions arrive over the network from
+     * the live Supabase source and are not reproduced here (no remote calls
+     * in a unit test, no manufactured records). What IS exercised is the
+     * exact mechanism that delivers them: a `ShowroomSessionSource` plugged
+     * into the repository's own `sessionSource` option — the identical seam
+     * `overlaySessions` reads on every request — answering for the demo
+     * project alone and `null` for everything else, exactly as the real
+     * connector does for a project it was not configured against. This is
+     * deliberately a SEPARATE repository instance: the shared
+     * `syntheticRepository` singleton used everywhere else in this file has
+     * no configured source, so `overlaySessions` calls `provideSessions(id,
+     * null)` for every project on every request by design (`repository.ts`'s
+     * own doc-comment: "what it shows must be what it was told, not what an
+     * earlier instance in the same process was told") — reaching into the
+     * module-private override directly, from a test, would have been
+     * fighting that contract rather than exercising it.
+     */
+    const demoProjectId = "prj_akhileshdemo1";
+    const madspace = VIEWERS.madspace as Viewer;
+    const imported: ShowroomSession = {
+      sessionId: "ses_demo_overlay01",
+      meetingId: "mtg_demo_overlay01",
+      projectId: demoProjectId,
+      agentId: "agt_demo_akhilesh",
+      channel: "showroom",
+      contactId: null,
+      startedAt: "2026-08-24T07:00:00.000Z",
+      endedAt: "2026-08-24T07:20:00.000Z",
+      durationSeconds: 1200,
+      outcome: "reservation",
+      steps: [],
+      units: [],
+      environment: [],
+      filters: [],
+      places: [],
+      screenshots: 0,
+      irisRating: null,
+      priorMeetings: 0,
+      timingUnavailable: false,
+    };
+    const demoOnlySource: ShowroomSessionSource = {
+      async sessionsFor(project) {
+        if ((project.id as string) !== demoProjectId) return null;
+        return {
+          connector: "test-fixture",
+          sessions: [imported],
+          fetchedAt: "2026-08-24T08:00:00.000Z",
+        };
+      },
+    };
+    const repoWithOverlay = new SyntheticObserverRepository({ sessionSource: demoOnlySource });
+
+    it("replays inside its own project once delivered, and is invisible to every other project", async () => {
+      const replay = await repoWithOverlay.getMeetingReplay(
+        replayQuery(madspace, "madspace-integration", "akhilesh-demo-source", imported.meetingId),
+      );
+      expect(replay.meetingId).toBe(imported.meetingId);
+      // Answered from the RESOLVED project's own context, not a bare copy of
+      // the fixture -- proof the read went through the real project
+      // resolution rather than short-circuiting on the meeting id alone.
+      expect(replay.context.project.slug).toBe("akhilesh-demo-source");
+
+      // The same id, asked for under a project the source did not deliver it
+      // for -- Northgate's own static fixtures do not contain this id
+      // either, and `demoOnlySource` answers `null` for Northgate, so the
+      // ordinary synthetic path (which also lacks it) applies.
+      await expect(
+        repoWithOverlay.getMeetingReplay(
+          replayQuery(madspace, "alpha", "northgate", imported.meetingId),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+
+      // And a repository instance with NO configured source -- every other
+      // test in this file, and the production composition root when no
+      // connector is set up for this tenant -- never sees it at all.
+      await expect(
+        syntheticRepository.getMeetingReplay(
+          replayQuery(madspace, "madspace-integration", "akhilesh-demo-source", imported.meetingId),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+  });
+});
+
+/* --- the catalogue belongs to the project ----------------------------------- */
+
+describe("a project shows its own stock", () => {
+  /*
+   * `RAW_CATALOGUE` is a module constant pinned to `prj_northgate01`, and four
+   * builders read it directly: the unit list, the segment breakdown, the
+   * audience filter and the sales-plan bullet chart.
+   *
+   * So Riverside Walk and Kingsford Yard both rendered Northgate's
+   * forty-eight apartments, with Northgate's sold count against Northgate's
+   * target. Beta Development — a different developer — was looking at Alpha's
+   * stock, on a page whose route, session data and read model had all been
+   * scoped correctly in the previous milestone. The catalogue never was.
+   */
+  const CASES = [
+    ["alpha", "northgate", VIEWERS.developer, /^[ABC]-/],
+    ["alpha", "riverside", VIEWERS.developer, /^[RW]-/],
+    ["beta", "kingsford", VIEWERS.agencyManager, /^K-/],
+  ] as const;
+
+  for (const [tenantSlug, projectSlug, viewer, codePattern] of CASES) {
+    it(`${projectSlug} lists only its own units`, async () => {
+      const view = await syntheticRepository.getUnitAttention(
+        { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+        null,
+      );
+
+      expect(view.rows.length).toBeGreaterThan(0);
+      for (const row of view.rows) {
+        expect(row.unitCode, `${projectSlug} shows ${row.unitCode}`).toMatch(codePattern);
+      }
+    });
+  }
+
+  it("gives three projects three different sales plans", async () => {
+    const plans = await Promise.all(
+      CASES.map(([tenantSlug, projectSlug, viewer]) =>
+        syntheticRepository
+          .getProjectCharts({ viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const })
+          .then((c) => c.targets.map((t) => `${t.actual}/${t.total}`).join(" ")),
+      ),
+    );
+
+    expect(new Set(plans).size, `plans: ${plans.join(" | ")}`).toBe(plans.length);
+  });
+
+  it("never puts one developer's unit count on another's plan", async () => {
+    const [alpha, beta] = await Promise.all([
+      syntheticRepository.getProjectCharts({
+        viewer: VIEWERS.developer,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "quarter_to_date" as const,
+      }),
+      syntheticRepository.getProjectCharts({
+        viewer: VIEWERS.agencyManager,
+        tenantSlug: "beta",
+        projectSlug: "kingsford",
+        period: "quarter_to_date" as const,
+      }),
+    ]);
+
+    expect(alpha.targets[0]?.total).not.toBe(beta.targets[0]?.total);
   });
 });

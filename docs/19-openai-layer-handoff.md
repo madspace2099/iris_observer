@@ -1,7 +1,7 @@
 # The OpenAI intelligence layer — handoff
 
 **Written:** 2026-08-25 · **Status:** built, unit-verified, **not committed, not fully verified**
-**Author:** a session that stood down mid-milestone. See *Why this is a handoff* at the end.
+**Author:** a session that stood down mid-milestone. See _Why this is a handoff_ at the end.
 
 This document exists because two Claude sessions were writing to this working tree at
 once. Rather than interleave two half-finished designs into one unreviewable commit,
@@ -19,24 +19,24 @@ components were not touched by the provider change.
 
 ### New files
 
-| File | What it is |
-| ---- | ---------- |
-| `packages/contracts/src/observer-answer.ts` | The strict `ObserverAnswer` contract, evidence bundles, traceability check |
-| `apps/web/src/lib/ai/identity.ts` | Hashed, peppered, tenant-scoped `safety_identifier` |
-| `apps/web/src/lib/ai/fake-provider.ts` | A real implementation of the port that makes no network call |
-| `apps/web/src/lib/ai/streaming.ts` | Incremental JSON field reader, so structured answers still stream |
-| `apps/web/src/lib/ai/telemetry.ts` | Usage and latency, with no prompt and no personal data |
-| `apps/web/src/lib/ai/gate.ts` | One authentication → shape → authorisation → allowance → meter path |
-| `apps/web/src/lib/ai/voice.ts` | Realtime session minting and the non-secret blocker taxonomy |
-| `apps/web/src/app/api/ask/stream/route.ts` | Server-sent events: `stage`, `tool`, `delta`, `final`, `failure` |
-| `apps/web/src/app/api/observer/voice/session/route.ts` | Ephemeral client secret, gated |
-| `apps/web/src/app/api/observer/voice/tool/route.ts` | Where the voice agent's tool calls are actually executed |
-| `apps/web/src/showroom/observer/useObserverVoice.ts` | WebRTC in the browser, with no key in it |
-| `scripts/openai-smoke.mjs` | The one opt-in live check (`pnpm smoke:openai`) |
-| `apps/web/test/ai-intelligence.test.ts` | 24 tests: the agent against a misbehaving model |
-| `apps/web/test/ai-config.test.ts` | 20 tests: configuration, allowlist, voice blockers, identity |
-| `apps/web/test/ai-streaming.test.ts` | 11 tests: chunk-boundary behaviour of the JSON reader |
-| `packages/contracts/test/observer-answer.test.ts` | 13 tests: the answer contract's structural prohibitions |
+| File                                                   | What it is                                                                 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `packages/contracts/src/observer-answer.ts`            | The strict `ObserverAnswer` contract, evidence bundles, traceability check |
+| `apps/web/src/lib/ai/identity.ts`                      | Hashed, peppered, tenant-scoped `safety_identifier`                        |
+| `apps/web/src/lib/ai/fake-provider.ts`                 | A real implementation of the port that makes no network call               |
+| `apps/web/src/lib/ai/streaming.ts`                     | Incremental JSON field reader, so structured answers still stream          |
+| `apps/web/src/lib/ai/telemetry.ts`                     | Usage and latency, with no prompt and no personal data                     |
+| `apps/web/src/lib/ai/gate.ts`                          | One authentication → shape → authorisation → allowance → meter path        |
+| `apps/web/src/lib/ai/voice.ts`                         | Realtime session minting and the non-secret blocker taxonomy               |
+| `apps/web/src/app/api/ask/stream/route.ts`             | Server-sent events: `stage`, `tool`, `delta`, `final`, `failure`           |
+| `apps/web/src/app/api/observer/voice/session/route.ts` | Ephemeral client secret, gated                                             |
+| `apps/web/src/app/api/observer/voice/tool/route.ts`    | Where the voice agent's tool calls are actually executed                   |
+| `apps/web/src/showroom/observer/useObserverVoice.ts`   | WebRTC in the browser, with no key in it                                   |
+| `scripts/openai-smoke.mjs`                             | The one opt-in live check (`pnpm smoke:openai`)                            |
+| `apps/web/test/ai-intelligence.test.ts`                | 24 tests: the agent against a misbehaving model                            |
+| `apps/web/test/ai-config.test.ts`                      | 20 tests: configuration, allowlist, voice blockers, identity               |
+| `apps/web/test/ai-streaming.test.ts`                   | 11 tests: chunk-boundary behaviour of the JSON reader                      |
+| `packages/contracts/test/observer-answer.test.ts`      | 13 tests: the answer contract's structural prohibitions                    |
 
 ### Rewritten
 
@@ -74,7 +74,7 @@ how a deployment ends up believing it runs a model while running a template.
 
 **The breaker suppresses the vendor call, never the request.** Adopted from the other
 session's `limits.ts`, and it is the better design: the tools and read models never
-needed the network, so an open breaker means the *interpretation* is missing, not the
+needed the network, so an open breaker means the _interpretation_ is missing, not the
 evidence.
 
 **Luna plans, Sol composes.** Tool selection is the only Luna path. Its output passes a
@@ -149,10 +149,10 @@ Several hours were lost, and at least one working key was needlessly revoked, to
 diagnosis that was wrong. `GET /v1/models` returned 401 from Node while returning 200
 from PowerShell **with the same key**, because the two read different things:
 
-| Reader | Source | Freshness |
-| ------ | ------ | --------- |
-| `[Environment]::GetEnvironmentVariable(name, "User")` | the registry | current |
-| `$env:NAME`, `process.env.NAME` | the inherited process block | **frozen at parent start** |
+| Reader                                                | Source                      | Freshness                  |
+| ----------------------------------------------------- | --------------------------- | -------------------------- |
+| `[Environment]::GetEnvironmentVariable(name, "User")` | the registry                | current                    |
+| `$env:NAME`, `process.env.NAME`                       | the inherited process block | **frozen at parent start** |
 
 A Windows process inherits its environment from its parent. Changing a User-scope
 variable updates the registry; it does **not** reach any process already running, nor
@@ -186,7 +186,7 @@ compromised regardless of any later care**:
    `-replace` intended to mask it. The lesson is in `scripts/openai-smoke.mjs`: that
    script never reads the key's value at all, not even its length or prefix.
 2. A second key was echoed to a terminal and captured in a screenshot, because it was
-   pasted into the *prompt-string argument* of `Read-Host` rather than at the prompt.
+   pasted into the _prompt-string argument_ of `Read-Host` rather than at the prompt.
    It is also in that shell's history file.
 
 `.env.local` never held a key and still does not; it carries only a comment saying so.
@@ -200,7 +200,7 @@ every secret-shaped name in it stays empty.
 1. Reconcile with the role-authorisation work the other session added to
    `ObserverContext`, `suggestions.ts`, `ObserverRail.tsx` and `tools.ts`.
 2. ADR-0027 (the intelligence layer, superseding ADR-0024) and ADR-0028 (realtime
-   voice). ADR-0026 exists and is sound, but its *No voice* section and its *Blocked*
+   voice). ADR-0026 exists and is sound, but its _No voice_ section and its _Blocked_
    section are both now out of date.
 3. `pnpm build`, Playwright, axe, and desktop plus mobile screenshots of the Observer
    surface — which, per the project's own rule, is the only thing that can approve a

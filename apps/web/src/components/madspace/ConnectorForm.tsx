@@ -1,0 +1,472 @@
+"use client";
+
+import { useActionState, useId } from "react";
+
+import type { ConnectorKind } from "@observer/contracts";
+
+import { InfoNote } from "@/components/madspace/InfoNote";
+import { mapToLines } from "@/lib/connectors/configs";
+import { saveConnectorAction, type SaveConnectorState } from "@/lib/madspace/connector-actions";
+
+/**
+ * One connector's settings and, where it has one, its credential.
+ *
+ * ## The credential fields are empty on purpose
+ *
+ * A stored credential is never shown, not even masked — the screen carries
+ * four characters beside the form so an operator can tell which one is in.
+ * Leaving the fields empty on save keeps what is stored; typing replaces it.
+ * That is the same rule the provider-credential screen follows, and it is why
+ * there is no "reveal" anywhere on this surface.
+ *
+ * ## Why mapping tables are typed as lines
+ *
+ * `raw=canonical` per line is what an operator can paste from a CRM's own
+ * status list and read back a month later. A grid of selects for a vocabulary
+ * nobody has seen yet would have to guess its size.
+ */
+
+export interface ConnectorFormProps {
+  readonly projectId: string;
+  readonly kind: ConnectorKind;
+  readonly name: string;
+  readonly configured: boolean;
+  readonly enabled: boolean;
+  readonly config: Record<string, unknown>;
+  readonly hasCredential: boolean;
+}
+
+const IDLE: SaveConnectorState = { problem: null, field: null, saved: false };
+
+function stringOf(value: unknown): string {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+/**
+ * The form field a refusal belongs to, from the path the service names.
+ *
+ * The service reports the schema's path (`projectId`, `columns.code`), and
+ * the form names its controls after what the operator sees (`realpadProjectId`,
+ * one `columns` textarea). A refusal that can be tied to a control is said
+ * under that control, with the control pointing at it; one that cannot is
+ * said once, for the whole form.
+ */
+const FIELDS: Readonly<Record<ConnectorKind, readonly string[]>> = {
+  realpad: [
+    "developerId",
+    "realpadProjectId",
+    "screenId",
+    "login",
+    "password",
+    "takeoutLogin",
+    "takeoutPassword",
+    "currency",
+    "orientationMap",
+    "dealColumns",
+    "stageMap",
+  ],
+  lomnio: ["token", "signingSecret", "statusMap", "currency", "orientationMap", "stageMap"],
+  monday: [
+    "boardId",
+    "token",
+    "columns",
+    "statusMap",
+    "currency",
+    "orientationMap",
+    "dealsBoardId",
+    "dealColumns",
+    "stageMap",
+  ],
+  csv: ["columns", "statusMap", "currency", "orientationMap", "dealColumns", "stageMap"],
+};
+
+const STAGE_HINT =
+  "One per line, raw=canonical. Canonical: lead, meeting, negotiation, offer, reservation, purchase, lost. A word not mapped is kept raw and counted here.";
+const DEAL_COLUMNS_FIELDS =
+  "Fields: externalId, stage, unitCode, email, phone, stageEnteredAt, openedAt, updatedAt. The email and phone are hashed on the way in and never stored.";
+
+function failingField(kind: ConnectorKind, path: string | null): string | null {
+  if (path === null) return null;
+  const head = path.split(".")[0] ?? path;
+  const field = kind === "realpad" && head === "projectId" ? "realpadProjectId" : head;
+  return FIELDS[kind].includes(field) ? field : null;
+}
+
+export function ConnectorForm({
+  projectId,
+  kind,
+  name,
+  configured,
+  enabled,
+  config,
+  hasCredential,
+}: ConnectorFormProps) {
+  const [state, submit, pending] = useActionState(saveConnectorAction, IDLE);
+  const base = useId();
+  const id = (field: string) => `${base}-${field}`;
+  const failing = failingField(kind, state.field);
+  const invalid = (field: string) => (failing === field ? "true" : undefined);
+  /* The refusal under the control it belongs to, and the control points at it. */
+  const Problem = ({ field }: { field: string }) =>
+    failing === field && state.problem !== null ? (
+      <p className="mad-field-error" id={`${id(field)}-problem`} role="alert">
+        {state.problem}
+      </p>
+    ) : null;
+
+  const Field = ({
+    field,
+    label,
+    type = "text",
+    placeholder,
+    defaultValue,
+    hint,
+    autoComplete = "off",
+  }: {
+    field: string;
+    label: string;
+    type?: "text" | "password";
+    placeholder?: string;
+    defaultValue?: string;
+    hint?: string;
+    autoComplete?: string;
+  }) => (
+    <div className="mad-field" data-invalid={invalid(field)}>
+      <label className="mad-field-label" htmlFor={id(field)}>
+        {label}
+      </label>
+      {hint === undefined ? null : <p className="mad-field-hint">{hint}</p>}
+      <input
+        className="mad-input"
+        id={id(field)}
+        name={field}
+        type={type}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        spellCheck={false}
+        aria-invalid={invalid(field) === undefined ? undefined : true}
+        aria-describedby={invalid(field) === undefined ? undefined : `${id(field)}-problem`}
+      />
+      <Problem field={field} />
+    </div>
+  );
+
+  const Lines = ({
+    field,
+    label,
+    hint,
+    placeholder,
+    defaultValue,
+  }: {
+    field: string;
+    label: string;
+    hint: string;
+    placeholder: string;
+    defaultValue: string;
+  }) => (
+    <div className="mad-field" data-invalid={invalid(field)}>
+      <label className="mad-field-label" htmlFor={id(field)}>
+        {label}
+      </label>
+      <p className="mad-field-hint">{hint}</p>
+      <textarea
+        className="mad-input"
+        id={id(field)}
+        name={field}
+        rows={5}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        spellCheck={false}
+        aria-invalid={invalid(field) === undefined ? undefined : true}
+        aria-describedby={invalid(field) === undefined ? undefined : `${id(field)}-problem`}
+      />
+      <Problem field={field} />
+    </div>
+  );
+
+  const credentialHint = hasCredential
+    ? "A credential is stored. Leave these empty to keep it; type to replace it."
+    : "No credential stored yet.";
+
+  return (
+    <form className="mad-form" action={submit} noValidate>
+      <input type="hidden" name="project" value={projectId} />
+      <input type="hidden" name="connector" value={kind} />
+
+      {kind === "realpad" ? (
+        <>
+          <Field
+            field="developerId"
+            label="Developer id"
+            defaultValue={stringOf(config["developerId"])}
+            placeholder="3230279"
+            hint="Issued with the pricelist credential. Numeric."
+          />
+          <Field
+            field="realpadProjectId"
+            label="Project ID"
+            defaultValue={stringOf(config["projectId"])}
+            placeholder="3356887"
+            hint="From your CRM provider's project list, or from their support team."
+          />
+          <Field
+            field="screenId"
+            label="Screen id"
+            defaultValue={stringOf(config["screenId"])}
+            placeholder="2"
+            hint="A constant supplied together with the credential."
+          />
+          <div className="mad-field">
+            <div className="mad-choice">
+              <input
+                type="checkbox"
+                id={id("includeHidden")}
+                name="includeHidden"
+                defaultChecked={config["includeHidden"] === true}
+              />
+              <label className="mad-choice-name" htmlFor={id("includeHidden")}>
+                Include hidden units
+              </label>
+              <span className="mad-choice-detail">
+                Units your CRM hides from the public pricelist are fetched too.
+              </span>
+            </div>
+          </div>
+          <div className="mad-field">
+            <span className="mad-field-label">
+              Credential
+              <InfoNote label="what your CRM issues and how it is kept">
+                <p>
+                  Your CRM provider issues a login and password per project and per use case. The
+                  pricelist pair is the one this connector needs; it is sealed under this
+                  server&rsquo;s key and never shown again.
+                </p>
+              </InfoNote>
+            </span>
+            <p className="mad-field-hint">{credentialHint}</p>
+          </div>
+          <Field
+            field="login"
+            label="Login"
+            placeholder="project-name-pricelist"
+            autoComplete="username"
+          />
+          <Field field="password" label="Password" type="password" autoComplete="new-password" />
+          <Field
+            field="takeoutLogin"
+            label="Data Takeout login"
+            placeholder="project-name-takeout"
+            autoComplete="off"
+            hint="Only if your CRM issued the deals export under its own pair. Empty, and the pricelist pair is used for deals too. Pasted together with the pair above; a stored credential is replaced whole."
+          />
+          <Field
+            field="takeoutPassword"
+            label="Data Takeout password"
+            type="password"
+            autoComplete="new-password"
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=header id as the business-case export prints it with headermode=ids. ${DEAL_COLUMNS_FIELDS} Also status, the Status column: WON and LOST are read from it. Leave empty and no deals are read.`}
+            placeholder={
+              "externalId=<Deal ID header>\nstatus=<Status ID header>\nstage=<Lifecycle ID header>\nunitCode=<Main Unit ID header>"
+            }
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The Lifecycle ids the export carries, as your CRM numbers them. ${STAGE_HINT} WON and LOST need no line.`}
+            placeholder={"11=lead\n12=meeting\n14=offer\n15=reservation"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
+        </>
+      ) : null}
+
+      {kind === "lomnio" ? (
+        <>
+          <div className="mad-field">
+            <span className="mad-field-label">Credential</span>
+            <p className="mad-field-hint">{credentialHint}</p>
+          </div>
+          <Field
+            field="token"
+            label="API token"
+            type="password"
+            autoComplete="new-password"
+            hint="Project-scoped, with units:read. Never a browser key."
+          />
+          <Field
+            field="signingSecret"
+            label="Webhook signing secret"
+            type="password"
+            autoComplete="new-password"
+            hint="Optional. Only needed when Lomnio pushes unit changes to Observer."
+          />
+          <Lines
+            field="statusMap"
+            label="Status words"
+            hint="One per line, raw=canonical. Canonical: available, pre_reserved, reserved, sold, not_for_sale, delayed."
+            placeholder={"rezervace=reserved\nprodano=sold"}
+            defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The stage codes Lomnio's leads carry. ${STAGE_HINT}`}
+            placeholder={"new=lead\nmeeting=meeting\noffer=offer\nwon=purchase"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
+        </>
+      ) : null}
+
+      {kind === "monday" ? (
+        <>
+          <Field
+            field="boardId"
+            label="Board id"
+            defaultValue={stringOf(config["boardId"])}
+            placeholder="1234567890"
+            hint="The number in the board's URL."
+          />
+          <div className="mad-field">
+            <span className="mad-field-label">Credential</span>
+            <p className="mad-field-hint">{credentialHint}</p>
+          </div>
+          <Field
+            field="token"
+            label="API token"
+            type="password"
+            autoComplete="new-password"
+            hint="A personal or app token. It mirrors that user's own permissions."
+          />
+          <Lines
+            field="columns"
+            label="Columns"
+            hint="One per line, field=column id. Fields: code, building, floor, rooms, layout, unitType, interiorSqm, exteriorSqm, grossSqm, priceWithVat, priceWithoutVat, currency, orientation, status, availableFrom, updatedAt. The item's name is column id name."
+            placeholder={"code=name\nrooms=numbers_1\npriceWithVat=numbers_2\nstatus=status"}
+            defaultValue={mapToLines(config["columns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="statusMap"
+            label="Status words"
+            hint="One per line, raw=canonical."
+            placeholder={"Foglalt=reserved\nEladva=sold"}
+            defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
+          />
+          <Field
+            field="dealsBoardId"
+            label="Deals board id"
+            defaultValue={stringOf(config["dealsBoardId"])}
+            placeholder="2345678901"
+            hint="The board the deals live on, if there is one. Leave empty and no deals are read."
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=column id, for the deals board. ${DEAL_COLUMNS_FIELDS} The item's own id is column id id, its name column id name.`}
+            placeholder={"externalId=id\nstage=status\nunitCode=text_1\nemail=email"}
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The labels the deals board's stage column carries. ${STAGE_HINT}`}
+            placeholder={"Új=lead\nTalálkozó=meeting\nAjánlat=offer\nMegvéve=purchase"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
+        </>
+      ) : null}
+
+      {kind === "csv" ? (
+        <>
+          <Lines
+            field="columns"
+            label="Columns"
+            hint="One per line, field=header as it appears in the sheet. Fields: code, building, floor, rooms, layout, unitType, interiorSqm, exteriorSqm, grossSqm, priceWithVat, priceWithoutVat, currency, orientation, status, availableFrom, updatedAt."
+            placeholder={"code=Kód\nrooms=Szobák\npriceWithVat=Ár (bruttó)\nstatus=Státusz"}
+            defaultValue={mapToLines(config["columns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="statusMap"
+            label="Status words"
+            hint="One per line, raw=canonical."
+            placeholder={"szabad=available\nfoglalt=reserved\neladva=sold"}
+            defaultValue={mapToLines(config["statusMap"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="dealColumns"
+            label="Deal columns"
+            hint={`One per line, field=header as it appears in the deals sheet. ${DEAL_COLUMNS_FIELDS} Leave empty and no deals sheet is expected.`}
+            placeholder={"externalId=Ügylet\nstage=Stádium\nunitCode=Kód\nemail=E-mail"}
+            defaultValue={mapToLines(config["dealColumns"] as Record<string, unknown> | undefined)}
+          />
+          <Lines
+            field="stageMap"
+            label="Stage words"
+            hint={`The words the deals sheet's stage column carries. ${STAGE_HINT}`}
+            placeholder={"érdeklődő=lead\ntalálkozó=meeting\najánlat=offer\nfoglalás=reservation"}
+            defaultValue={mapToLines(config["stageMap"] as Record<string, unknown> | undefined)}
+          />
+        </>
+      ) : null}
+
+      <Field
+        field="currency"
+        label="Currency"
+        defaultValue={stringOf(config["currency"])}
+        placeholder="EUR"
+        hint="ISO 4217, three letters. Applied when the source does not name one."
+      />
+
+      <Lines
+        field="orientationMap"
+        label="Orientation codes"
+        hint="One per line, raw=compass, for the codes this source writes. Compass points: N, NE, E, SE, S, SW, W, NW. A unit whose code is not mapped is kept but not drawn on Project until it is."
+        placeholder={"J=S\nSV=NE\nZ=W\nJZ=SW"}
+        defaultValue={mapToLines(config["orientationMap"] as Record<string, unknown> | undefined)}
+      />
+
+      <div className="mad-field">
+        <div className="mad-choice">
+          <input type="checkbox" id={id("enabled")} name="enabled" defaultChecked={enabled} />
+          <label className="mad-choice-name" htmlFor={id("enabled")}>
+            Enabled
+          </label>
+          <span className="mad-choice-detail">
+            {kind === "csv"
+              ? "An enabled spreadsheet connector is the one the catalogue reads."
+              : "An enabled connector is synced on the daily schedule and by Sync now."}
+          </span>
+        </div>
+      </div>
+
+      {/* A refusal with no control to stand under is said once, for the whole form. */}
+      {state.problem === null || failing !== null ? null : (
+        <p className="mad-form-problem" role="alert">
+          {state.problem}
+        </p>
+      )}
+      {/*
+       * Rendered whenever the form is, empty until there is something to say,
+       * so a screen reader is already watching the region when "Saved." lands.
+       */}
+      <p className="mad-said" role="status" aria-live="polite">
+        {state.saved && state.problem === null ? "Saved." : ""}
+      </p>
+
+      <div className="mad-form-actions">
+        <button
+          className="mad-submit mad-button"
+          data-emphasis="primary"
+          type="submit"
+          disabled={pending}
+        >
+          {pending ? "Saving…" : configured ? `Save ${name} settings` : `Connect ${name}`}
+        </button>
+      </div>
+    </form>
+  );
+}

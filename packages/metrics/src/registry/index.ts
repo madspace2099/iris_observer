@@ -60,6 +60,24 @@ export function validateRegistry(): readonly string[] {
   return problems;
 }
 
+/**
+ * The sample-size floors and the sentences that go with an absent figure.
+ *
+ * Exported from the package root because they are policy, not registry
+ * plumbing: `docs/10-policies.md` §6 sets them, every metric definition in here
+ * already reads them, and a read model that needs to suppress a rank had no way
+ * to reach them without restating the number. A second copy of "20" is a second
+ * policy the day somebody changes one of them.
+ */
+export {
+  AGENT_MIN_SAMPLE,
+  UNIT_MIN_SAMPLE,
+  NO_CRM,
+  NO_MEETINGS,
+  NOT_ENOUGH,
+  insufficient,
+} from "./shared";
+
 export { EXECUTIVE_METRICS } from "./executive";
 export { FLOW_METRICS } from "./flow";
 export { UNIT_METRICS } from "./units";

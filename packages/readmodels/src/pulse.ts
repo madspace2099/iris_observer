@@ -35,15 +35,24 @@ export type UnitChange = (typeof UNIT_CHANGES)[number];
 
 export type DemandTrend = "rising" | "flat" | "falling";
 
+/**
+ * A unit as the catalogue states it, and as the showroom observed it.
+ *
+ * Floor, room count, area, aspect and price are what a catalogue stated —
+ * and a real catalogue does not state all of them for every unit. Each is
+ * `null` when the source gave nothing, and the surfaces say so in words where
+ * the figure would have stood. `priceDisplay` carries that word when `price`
+ * is null, so a cell never has to invent one.
+ */
 export interface PulseUnit {
   readonly unitId: string;
   readonly code: string;
   readonly block: string;
-  readonly floor: number;
-  readonly rooms: number;
-  readonly areaSqm: number;
-  readonly orientation: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW";
-  readonly price: number;
+  readonly floor: number | null;
+  readonly rooms: number | null;
+  readonly areaSqm: number | null;
+  readonly orientation: "N" | "NE" | "E" | "SE" | "S" | "SW" | "W" | "NW" | null;
+  readonly price: number | null;
   readonly priceDisplay: string;
   readonly status: UnitStatus;
 
@@ -61,7 +70,8 @@ export interface PulseUnit {
 }
 
 export interface PulseFloor {
-  readonly floor: number;
+  /** `null` for the one row that holds units whose catalogue states no floor. */
+  readonly floor: number | null;
   readonly label: string;
   readonly units: readonly PulseUnit[];
   /** Floor totals, so a floor can be read without summing cells by eye. */
@@ -98,7 +108,8 @@ export interface ProjectPulse {
     readonly available: number;
     readonly reserved: number;
     readonly sold: number;
-    readonly soldInPeriod: number;
+    /** Null when nothing observed the period — a delivered catalogue with no sessions behind it. */
+    readonly soldInPeriod: number | null;
   };
   /** Meaningful views on the busiest unit; the denominator for luminance. */
   readonly peakViews: number;
@@ -152,4 +163,85 @@ export interface AskSession {
   readonly context: AskContext;
   readonly suggestions: readonly string[];
   readonly answers: readonly AskAnswer[];
+}
+
+/* --- previous conversations ----------------------------------------------- */
+
+/**
+ * Where a stored conversation came from.
+ *
+ * One member, deliberately. Ask Observer answers deterministically behind the
+ * tool interface a model will later call, and **nobody has yet held any of
+ * these conversations** — they are written so the history surface can be built
+ * and reviewed before there is a history to show.
+ *
+ * A boolean would have been a flag a component could forget to read, and a
+ * two-member union would have been an invitation to render "real" and
+ * "demonstration" threads in the same list. A single-member type means there is
+ * no value a surface can compare against to present one of these as somebody's
+ * own past question, and adding a second member later is a type change every
+ * call site has to acknowledge.
+ */
+export const ASK_THREAD_ORIGINS = ["demonstration"] as const;
+export type AskThreadOrigin = (typeof ASK_THREAD_ORIGINS)[number];
+
+/**
+ * One conversation, as the list shows it.
+ *
+ * The title is the question that opened the thread rather than a generated
+ * summary of it: a thread named by a model is a thread whose name nobody can
+ * check, and the opening question is both the most useful label and one that
+ * cannot drift from what is inside.
+ */
+export interface AskThreadSummary {
+  readonly threadId: string;
+  readonly title: string;
+  readonly askedAt: string;
+  readonly askedAtDisplay: string;
+  /** The project and period the thread was answered against, kept with it. */
+  readonly projectLabel: string;
+  readonly periodLabel: string;
+  /** What was selected on the Pulse when it was asked, if anything. */
+  readonly selectionLabel: string | null;
+  readonly pinned: boolean;
+  readonly turnCount: number;
+  readonly origin: AskThreadOrigin;
+  readonly href: string;
+}
+
+/**
+ * One exchange.
+ *
+ * `answer` is the existing `AskAnswer`, unchanged, which already carries the
+ * question, the structured prose, the compact figures, the evidence reference,
+ * the next questions and the caveat. A second answer shape for stored threads
+ * would be the same contract twice, and the two would disagree the first time
+ * one of them gained a field.
+ */
+export interface AskTurn {
+  readonly id: string;
+  readonly askedAtDisplay: string;
+  readonly answer: AskAnswer;
+}
+
+export interface AskThread {
+  readonly context: ViewContext;
+  readonly summary: AskThreadSummary;
+  readonly turns: readonly AskTurn[];
+  readonly origin: AskThreadOrigin;
+  /** Rendered on the thread, not in a footnote. States what these are. */
+  readonly demonstrationNotice: string;
+  readonly evidence: EvidenceRef;
+}
+
+export interface AskHistoryView {
+  readonly context: ViewContext;
+  /** Every thread, newest first. Pinned ones appear here as well as below. */
+  readonly threads: readonly AskThreadSummary[];
+  readonly pinned: readonly AskThreadSummary[];
+  readonly origin: AskThreadOrigin;
+  readonly demonstrationNotice: string;
+  /** What to say when there is nothing. Written here, never by a component. */
+  readonly emptyState: string;
+  readonly evidence: EvidenceRef;
 }

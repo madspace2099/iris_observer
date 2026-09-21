@@ -21,15 +21,37 @@ export function ObserverRail({
   projectLabel,
   root,
   role,
+  models,
+  activeModel,
 }: {
   projectLabel: string;
   root: string;
   role: ObserverContext["role"];
+  /**
+   * The models this ACCOUNT can actually use, resolved on the server.
+   *
+   * Empty when no provider is connected, and the picker is then not rendered:
+   * a menu whose every entry fails is worse than no menu. The server decides
+   * this list — a browser cannot add to it, and naming a model outside it is
+   * refused before a request is made.
+   */
+  models: readonly { id: string; label: string }[];
+  /** What this question will use unless the reader says otherwise. */
+  activeModel: { id: string; label: string } | null;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const field = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
+
+  /*
+   * The model for the next question, when the reader has picked one.
+   *
+   * Null means "whatever the account's settings say", which is what the server
+   * would decide anyway — so the default costs no round trip and the picker
+   * starts on the truth rather than on a guess.
+   */
+  const [chosen, setChosen] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
   const [, tenantSlug = "", projectSlug = ""] = root.split("/");
@@ -147,7 +169,7 @@ export function ObserverRail({
           className="obs-rail-form"
           onSubmit={(e) => {
             e.preventDefault();
-            void observer.ask(value);
+            void observer.ask(value, "standard", chosen);
           }}
         >
           <label className="iris-sr" htmlFor="observer-rail-prompt">
@@ -162,6 +184,42 @@ export function ObserverRail({
           />
           <kbd>⌘K</kbd>
         </form>
+
+        {/*
+         * WHICH MODEL IS ABOUT TO ANSWER, AND A WAY TO CHANGE IT.
+         *
+         * Named rather than implied: a reader who does not know which model
+         * wrote a sentence cannot judge it, and Observer's whole argument is
+         * that the reader should be able to. The select changes THIS question
+         * only; the account's standing choice lives in Settings.
+         *
+         * Absent entirely when the account has connected no provider — the
+         * answer sheet's own notice is the right place to say so, and a
+         * disabled dropdown beside an empty one would say it twice.
+         */}
+        {activeModel !== null && (
+          <div className="obs-model">
+            <label className="iris-sr" htmlFor="observer-model">
+              Model for this question
+            </label>
+            {models.length > 1 ? (
+              <select
+                id="observer-model"
+                className="obs-model-select"
+                value={chosen ?? activeModel.id}
+                onChange={(e) => setChosen(e.target.value)}
+              >
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="obs-model-static">{activeModel.label}</span>
+            )}
+          </div>
+        )}
 
         {/*
          * Talking has to be startable from here too.

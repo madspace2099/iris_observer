@@ -5,6 +5,33 @@ import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/manrope";
 import "@observer/ui/tokens.css";
 import "@observer/ui/components.css";
+// The IRIS shell — the visual language adopted from the approved Claude Design
+// artefact. After the tokens it extends and before the surface sheets, because
+// it is the ground they sit on rather than a layer that overrides them.
+import "@observer/ui/iris-shell.css";
+/*
+ * The Observer product surface — Hybrid Executive.
+ *
+ * Directly after the shell it sits inside, and before the older surface sheets,
+ * because it is a content system rather than an override layer: it claims only
+ * `ox-` names, every one of which is unused elsewhere, so nothing here needs to
+ * win a cascade against `iris-` or `obs-`. Load order is load-bearing in this
+ * file and this is the one position where that stays true.
+ */
+import "@observer/ui/observer-product.css";
+/*
+ * Ask IRIS, rebuilt from the design the user exported and named the visual
+ * source of truth for that one route. Its own namespace and its own sheet, so
+ * the composition can be revised without touching the chrome every other
+ * surface wears. ADR-0035.
+ */
+import "@observer/ui/ask-iris.css";
+/*
+ * Account settings, wearing the product chrome rather than the light portal.
+ * After the product sheet it extends and claims only `os-` names, none of
+ * which any other sheet uses.
+ */
+import "@observer/ui/observer-settings.css";
 // IRIS Spatial Intelligence. Loaded after the M2.1 component sheet so the
 // showroom surfaces win where the two overlap; the surfaces that have not been
 // rebuilt yet keep the older layer until they are.
@@ -12,6 +39,19 @@ import "@observer/ui/iris.css";
 import "@observer/ui/showroom.css";
 import "@observer/ui/charts.css";
 import "@observer/ui/observer.css";
+// The MADSPACE operations surface. Last, because it is the newest layer and
+// because the only rules it needs to win are its own — nothing else in the
+// application uses a `.mad-` class.
+import "@observer/ui/madspace.css";
+/*
+ * The design lab, three directions for one screen. Development-only ROUTES
+ * behind `localControlPlaneEnabled()`; the stylesheets are imported here
+ * because this repository keeps its CSS global and a few kilobytes of unused
+ * rules is a smaller price than a second CSS convention.
+ */
+import "@observer/ui/design-lab-a.css";
+import "@observer/ui/design-lab-b.css";
+import "@observer/ui/design-lab-c.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per

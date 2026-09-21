@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
+import { chooseInSwitcher, expectPeriod, PERIOD_LABEL, switcherButton } from "./switcher";
 
 /**
  * The role matrix, and the period, exercised through the browser.
@@ -10,62 +12,88 @@ import { expect, test, type Page } from "@playwright/test";
  * by a test that only clicks the links it is offered.
  */
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
-test.describe("a sales agent gets no league table", () => {
-  test("is not offered the team comparison", async ({ page }) => {
+test.describe("a sales agent sees the team on their own project", () => {
+  /*
+   * The rule this block asserts was reversed by ADR-0029. It used to read "a
+   * sales agent gets no league table" and enforced a ROLE; the boundary is now
+   * the PROJECT, so the cases changed shape rather than being deleted — the
+   * half that still matters is the half about the project she does not hold.
+   */
+
+  test("is offered the team comparison for a project she holds", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     const nav = page.getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link", { name: "Sales Agents" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Sales Agents" })).toBeVisible();
   });
 
-  test("cannot reach it by typing the URL", async ({ page }) => {
+  test("reads every agent on that project, not only herself", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
     await page.goto("/alpha/northgate/agents");
 
-    /*
-     * Sent back to their briefing, and the comparison never rendered.
-     *
-     * Hiding a nav item is a layout decision. The route was open to anyone who
-     * typed it, and the page showed every colleague's outcome mix side by side.
-     */
-    await page.waitForURL(/\/showroom/);
-    await expect(page.locator(".iris-rings")).toHaveCount(0);
-    await expect(page.getByText("Lucia Bartošová")).toHaveCount(0);
+    /* The surface rendered, rather than redirecting to the briefing. */
+    await expect(page).toHaveURL(/\/agents/);
+    await expect(page.locator(".iris-rings")).toHaveCount(1);
+
+    const named = await page.locator(".iris-ring-card h3").allInnerTexts();
+    expect(named.length, "more than one agent, or it is not a team view").toBeGreaterThan(1);
+    expect(named, "her own results are among them").toContain("Monika Kováčová");
+    expect(
+      named.some((n) => n !== "Monika Kováčová"),
+      "and so are somebody else's",
+    ).toBe(true);
   });
 
-  test("is not offered a question it may not have answered", async ({ page }) => {
+  test("still sees nothing of a project she does not hold", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
-    // Suggesting a comparison and then refusing it reads as a broken product
-    // rather than as a policy.
-    await expect(page.getByRole("button", { name: "Compare the sales agents" })).toHaveCount(0);
+    await page.goto("/beta/kingsford/agents");
+
+    /*
+     * The part of the old rule that did not change, and the one that was
+     * always doing the work. Peer visibility is bounded by the project.
+     */
+    const text = await page.evaluate(() => document.body.innerText);
+    expect(text).toMatch(/not available to your account/i);
+    expect(text).not.toMatch(/Kingsford Yard/);
+    await expect(page.locator(".iris-rings")).toHaveCount(0);
   });
 
   test("still gets their own patterns", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
-    // The promise is "no league table", not "no analysis".
-    const nav = page.getByRole("navigation", { name: "Sections" });
-    await expect(nav.getByRole("link", { name: "Briefing" })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Detail surfaces" })).toBeVisible();
+    /*
+     * The four sections of the approved navigation (ADR-0033: Ask IRIS is
+     * the landing surface; the briefing is a link on it, not a nav item),
+     * and her own presentation patterns behind Sales Agents.
+     */
+    const nav = page.getByRole("navigation", { name: "Sections" }).first();
+    for (const name of ["ASK IRIS", "Sales Flow", "Project", "Sales Agents"]) {
+      await expect(nav.getByRole("link", { name })).toBeVisible();
+    }
+    await nav.getByRole("link", { name: "Sales Agents" }).click();
+    await page.waitForURL(/\/agents/);
+    await expect(page.getByText("Monika Kováčová").first()).toBeVisible();
   });
 });
 
 test.describe("an agency manager can reach both developers", () => {
   test("is offered a developer switch", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
-    // The grant existed and the navigation did not; the only route was a URL.
-    await expect(page.getByRole("combobox", { name: "Developer" })).toBeVisible();
+    /*
+     * The context band with the developer switch is drawn on the analytical
+     * surfaces; Ask IRIS, the landing, carries its own scope control instead.
+     * The grant existed and the navigation did not; the only route was a URL.
+     */
+    await page.goto("/alpha/northgate/flow");
+    await expect(switcherButton(page, "Developer", ".ox-context")).toBeVisible();
   });
 
   test("switching developer opens that developer's project", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
-    await page.getByRole("combobox", { name: "Developer" }).selectOption("beta");
+    await page.goto("/alpha/northgate/flow");
+    await chooseInSwitcher(page, "Developer", "Beta", ".ox-context");
     await page.waitForURL(/\/beta\//);
-    await expect(page.locator(".obs-lede")).toContainText(/presentation/i);
+    await expect(switcherButton(page, "Project", ".ox-context")).toContainText(/Kingsford/);
+    await expect(page.locator("h1").first()).toContainText(/meeting|presentation|record/i);
   });
 
   test("never sees the two developers aggregated", async ({ page }) => {
@@ -87,6 +115,36 @@ test.describe("a developer cannot reach another developer's project", () => {
   });
 });
 
+test.describe("a role list a route declares is a role list the route enforces", () => {
+  /*
+   * `/meetings/[meetingId]` is the one customer-facing route with a restricted
+   * list — `["sales_agent", "agency_manager", "madspace_admin"]` — and it used
+   * to name those three in a docblock and check none of them. A developer who
+   * typed the address, or followed a row from the register she CAN open, got
+   * the whole replay: who presented, in what order, for how long, and how the
+   * meeting was recorded as ending.
+   *
+   * Two accounts, one address. The pair is the test: a refusal nobody can
+   * contrast with a success proves only that the page is broken.
+   */
+  const REPLAY = "/alpha/northgate/meetings/mtg_ng0100";
+
+  test("refuses the developer the meeting declares it is not for", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(REPLAY);
+    // Landed somewhere real rather than on a blank 200, and not on the replay.
+    await expect(page).not.toHaveURL(/\/meetings\/mtg_ng0100/);
+    await expect(page.locator("main")).not.toContainText(/What this record cannot say/i);
+  });
+
+  test("opens the same address for an agent who runs meetings on it", async ({ page }) => {
+    await signInAs(page, "Monika Kováčová");
+    await page.goto(REPLAY);
+    await expect(page).toHaveURL(/\/meetings\/mtg_ng0100/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  });
+});
+
 test.describe("the period selector tells the truth", () => {
   const PERIODS = ["last_28_days", "last_quarter", "year_to_date"] as const;
 
@@ -95,14 +153,14 @@ test.describe("the period selector tells the truth", () => {
       await signInAs(page, "Petra Novák");
       await page.goto(`/alpha/northgate/showroom?period=${preset}`);
       // The control rendered a constant while the page computed something else.
-      await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue(preset);
+      await expectPeriod(page, preset);
     });
   }
 
   test("changing it stays on the current surface", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
-    await page.getByRole("combobox", { name: "Period" }).selectOption("last_28_days");
+    await chooseInSwitcher(page, "Period", PERIOD_LABEL["last_28_days"] ?? "", ".ox-context");
     await page.waitForURL(/period=last_28_days/);
     // It used to return to the briefing, discarding the surface the reader chose.
     expect(page.url()).toContain("/units");
@@ -114,26 +172,26 @@ test.describe("the period selector tells the truth", () => {
     await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Project" }).click();
     await page.waitForURL(/\/project/);
     expect(page.url()).toContain("period=last_28_days");
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_28_days");
+    await expectPeriod(page, "last_28_days");
   });
 
   test("survives a reload and the back button", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom?period=last_quarter");
     await page.reload();
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_quarter");
+    await expectPeriod(page, "last_quarter");
 
-    await page.getByRole("combobox", { name: "Period" }).selectOption("year_to_date");
+    await chooseInSwitcher(page, "Period", PERIOD_LABEL["year_to_date"] ?? "", ".ox-context");
     await page.waitForURL(/year_to_date/);
     await page.goBack();
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("last_quarter");
+    await expectPeriod(page, "last_quarter");
   });
 
   test("falls back explicitly on a value it does not know", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom?period=not_a_period");
     // The control must not claim a period the page is not showing.
-    await expect(page.getByRole("combobox", { name: "Period" })).toHaveValue("quarter_to_date");
+    await expectPeriod(page, "quarter_to_date");
   });
 });
 
@@ -141,11 +199,12 @@ test.describe("projects do not share figures", () => {
   test("two projects under one developer read differently", async ({ page }) => {
     await signInAs(page, "Petra Novák");
 
-    await page.goto("/alpha/northgate/showroom?period=last_28_days");
-    const northgate = await page.locator(".obs-lede").innerText();
+    /* The verdict on Sales Flow is each project's own sentence. */
+    await page.goto("/alpha/northgate/flow?period=last_28_days");
+    const northgate = await page.locator("h1").first().innerText();
 
-    await page.goto("/alpha/riverside/showroom?period=last_28_days");
-    const riverside = await page.locator(".obs-lede").innerText();
+    await page.goto("/alpha/riverside/flow?period=last_28_days");
+    const riverside = await page.locator("h1").first().innerText();
 
     expect(northgate).not.toBe(riverside);
   });

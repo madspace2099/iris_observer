@@ -18,6 +18,26 @@ export interface ObserverStatus {
   readonly live: boolean;
   /** Always null or the one fixed sentence. Redacted before it is sent. */
   readonly reason: string | null;
+  /**
+   * Whether the reader can fix this by connecting their own OpenAI account.
+   *
+   * A boolean, and it survives the redaction that strips `reason` — because it
+   * says nothing about the vendor, the deployment or the request. It is true
+   * for exactly one cause and false for every operator-side one, so the sheet
+   * never sends somebody to Settings for a problem Settings cannot solve.
+   *
+   * Optional on this type because an outcome may be built by a surface that
+   * predates the field; absent reads as false, which is the safe direction.
+   */
+  readonly setupRequired?: boolean;
+  /**
+   * Which refusal happened, when one did. Absent or null means a model answered.
+   *
+   * One word from a closed set, chosen on the server. The sheet uses it to say
+   * what is actually wrong — an exhausted budget is not a missing key, and
+   * telling a reader to add one they already have wastes their afternoon.
+   */
+  readonly blocked?: string | null;
 }
 
 export interface AskOutcome {

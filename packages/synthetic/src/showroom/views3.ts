@@ -20,6 +20,7 @@ import type {
   AgentsView,
   AudienceCriteria,
   AudienceView,
+  DeliveredDeals,
   FlowPeriod,
   HomeFigure,
   OutcomeSlice,
@@ -27,6 +28,7 @@ import type {
   ProjectView,
   RepeatDistribution,
   SalesFlowView,
+  SegmentConversion,
   SegmentInterest,
   ShowroomFinding,
   ShowroomHome,
@@ -34,9 +36,19 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
-import { count, evidenceRef, percent } from "../format";
-import { SYNTHETIC_AGENTS, agentById } from "./sessions";
+import { nothingReceivedYet } from "@observer/readmodels";
+import {
+  UNSTATED_ROOMS_SEGMENT,
+  catalogueFor,
+  hasUnstatedRooms,
+  roomCounts,
+  roomLabel,
+} from "../pulse";
+import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
+import { buildAssistedSales, buildDealLadder } from "../deals";
+import { count, dayLabel, evidenceRef, percent } from "../format";
+import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
+import { agentById, presenterName, presentersIn } from "./sessions";
 
 /**
  * The three views, projected.
@@ -71,6 +83,23 @@ function median(values: readonly number[]): number {
 
 function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
+}
+
+/**
+ * Three states rather than a hard cutoff's two.
+ *
+ * A ratio a hair below `floor` and one a hair above it are not different
+ * facts, but a bare `>=` treats them as opposites — enough to flip a verdict
+ * on one extra meeting. Below `floor - DEADBAND` reads as `"down"`; at or
+ * above `floor` reads as `"up"`; the gap between reads as `"flat"`, which is
+ * not a decline and not yet a confirmed hold either.
+ */
+export type Trend = "down" | "flat" | "up";
+export const DEADBAND = 0.05;
+export function trend(ratio: number, floor: number): Trend {
+  if (ratio < floor - DEADBAND) return "down";
+  if (ratio >= floor) return "up";
+  return "flat";
 }
 
 function duration(seconds: number): string {
@@ -130,18 +159,33 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * The synthetic world's today is 24 August 2026. Deriving the buckets from it
  * rather than from `Date.now()` keeps the dataset deterministic — a demo whose
  * figures change overnight cannot be screenshotted or asserted on.
+ *
+ * The days are the PROJECT'S days. "Today" for a Bratislava sales office
+ * starts at its own midnight, not at UTC midnight two hours later, so the
+ * bounds are cut in `timeZone`. UTC is the default only so a caller that has
+ * no project (the tests hand-place sessions at UTC midnights) keeps its
+ * arithmetic literal.
  */
-function bucketBounds(today: Date) {
+export function bucketBounds(today: Date, timeZone = "UTC") {
   const day = 24 * 60 * 60 * 1000;
-  const startOfDay = (d: Date) =>
-    new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const t0 = startOfDay(today).getTime();
+  const t0 = startOfDayIn(today, timeZone).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
-  const weekday = (startOfDay(today).getUTCDay() + 6) % 7;
-  const thisWeek = t0 - weekday * day;
+  const weekday = zoneParts(today, timeZone).weekday;
+  const thisWeek = startOfWeekIn(today, timeZone).getTime();
   const elapsedDays = weekday + 1;
-  const thisMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1);
-  const lastMonth = Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1);
+  const thisMonth = startOfMonthIn(today, timeZone).getTime();
+  const lastMonth = startOfMonthIn(today, timeZone, -1).getTime();
+  const elapsedDaysInMonth = Math.round((t0 - thisMonth) / day) + 1;
+  /*
+   * A shorter previous month cannot be clipped past its own length.
+   *
+   * "The first 30 days of March" against February only works when February
+   * had 30 days to give — it never does. Clipping to whichever of the two is
+   * shorter means a 31-day month in progress asks February for what it
+   * actually has, not for a day count that does not exist there.
+   */
+  const lastMonthLength = Math.round((thisMonth - lastMonth) / day);
+  const lastMonthElapsed = Math.min(elapsedDaysInMonth, lastMonthLength);
 
   return [
     { id: "today" as const, label: "Today", from: t0, to: t0 + day },
@@ -164,12 +208,31 @@ function bucketBounds(today: Date) {
       to: thisWeek - 7 * day + elapsedDays * day,
     },
     { id: "this_month" as const, label: "This month", from: thisMonth, to: t0 + day },
-    { id: "last_month" as const, label: "Last month", from: lastMonth, to: thisMonth },
+    /*
+     * Last month gets the same clipping last week already has, above.
+     *
+     * 24 days of a month in progress against a complete 31-day prior month is
+     * not a comparison, it is a guaranteed shortfall — the run rate could be
+     * ahead and the raw totals would still say "down".
+     */
+    {
+      id: "last_month" as const,
+      label:
+        lastMonthElapsed === lastMonthLength
+          ? "Last month"
+          : `Last month, first ${lastMonthElapsed} day${lastMonthElapsed === 1 ? "" : "s"}`,
+      from: lastMonth,
+      to: lastMonth + lastMonthElapsed * day,
+    },
   ];
 }
 
-function buildPeriods(sessions: readonly ShowroomSession[], today: Date): FlowPeriod[] {
-  return bucketBounds(today).map((b) => {
+function buildPeriods(
+  sessions: readonly ShowroomSession[],
+  today: Date,
+  timeZone: string,
+): FlowPeriod[] {
+  return bucketBounds(today, timeZone).map((b) => {
     const inside = sessions.filter((s) => {
       const at = Date.parse(s.startedAt);
       return at >= b.from && at < b.to;
@@ -233,6 +296,7 @@ function outcomeFlag(
     return {
       severity: "watch",
       text: `${sessions.length - decided.length} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
+      sampleSize: sessions.length,
     };
   }
   const notInterested = decided.filter((s) => s.outcome === "not_interested").length;
@@ -242,12 +306,14 @@ function outcomeFlag(
     return {
       severity: "concern",
       text: `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
+      sampleSize: decided.length,
     };
   }
   if (progressed < teamProgressed * 0.75) {
     return {
       severity: "watch",
       text: `${percent(progressed, "en-GB")} progressed against ${percent(teamProgressed, "en-GB")} for the team, over ${decided.length} recorded meetings.`,
+      sampleSize: decided.length,
     };
   }
   return null;
@@ -268,8 +334,87 @@ function buildRing(
     slices: outcomeSlices(session),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
     flag: outcomeFlag(session, teamProgressed),
-    href: `${base}/agents?agent=${agentId}`,
+    href: `${base}/agents/${agentId}`,
   };
+}
+
+/**
+ * The two figures a verdict compares, named.
+ *
+ * A subset of `FlowPeriod` -- every `FlowPeriod` already satisfies this
+ * shape, so the recency buckets from `buildPeriods` pass straight in; the
+ * whole-period case below builds one directly, with no bucket and no `id`,
+ * because none of `verdictFrom`'s reasoning ever needs one.
+ */
+interface PeriodSummary {
+  readonly label: string;
+  readonly meetings: number;
+  readonly outcomeRecorded: number;
+  readonly progressed: number;
+}
+
+function summarizePeriod(sessions: readonly ShowroomSession[], label: string): PeriodSummary {
+  return {
+    label,
+    meetings: sessions.length,
+    outcomeRecorded: sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+    progressed: sessions.filter((s) => hasProgressed(s.outcome)).length,
+  };
+}
+
+/**
+ * The verdict's own state machine, factored out so both the "period still
+ * running" path (recency buckets: this week/month against last) and the
+ * "closed period" path (the whole selected period against its own baseline)
+ * produce it the same way, from the same two-summary shape, rather than
+ * duplicating four states and a deadbanded signal twice.
+ */
+function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: string): string {
+  const outcomesRecorded = current.outcomeRecorded > 0;
+  const hasBaseline = prior.meetings > 0;
+
+  const volumeClause = hasBaseline
+    ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
+    : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
+
+  if (!outcomesRecorded) {
+    /*
+     * Same fact as the opening screen's equivalent state; same sentence. And the
+     * same limit on it: a showroom is running only if meetings came.
+     */
+    return current.meetings === 0
+      ? `No presentations were recorded ${current.label.toLowerCase()}.`
+      : "The showroom is running; no outcomes are being recorded.";
+  }
+  if (!hasBaseline) {
+    const currentProgressed = share(current.progressed, current.outcomeRecorded);
+    return `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+  }
+
+  const currentProgressed = share(current.progressed, current.outcomeRecorded);
+  const priorProgressed =
+    prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
+  const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
+  const progressTrend: Trend =
+    prior.outcomeRecorded === 0
+      ? currentProgressed > 0.3
+        ? "up"
+        : "flat"
+      : trend(currentProgressed / priorProgressed, 0.9);
+  const signal =
+    volumeTrend === "up" && progressTrend === "up"
+      ? "good"
+      : volumeTrend === "down" && progressTrend === "down"
+        ? "poor"
+        : "attention";
+
+  // "Against", never "up from" or "down from" -- see the docblock this
+  // reasoning was moved from, immediately below in `buildSalesFlow`.
+  return signal === "good"
+    ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+    : signal === "poor"
+      ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
+      : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
 }
 
 /* --- 1. Sales Flow ----------------------------------------------------------- */
@@ -278,35 +423,49 @@ export function buildSalesFlow(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
   today: Date,
+  previous: readonly ShowroomSession[],
+  /** The CRM's deals, when a connector delivered them; null draws "not connected". */
+  deals: DeliveredDeals | null = null,
+  /**
+   * Every meeting of the project, whatever the period. A showing in June belongs
+   * to a reservation in July, so IRIS-assisted sales are never read from a slice.
+   */
+  projectSessions: readonly ShowroomSession[] = sessions,
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const periods = buildPeriods(sessions, today);
+  const periods = buildPeriods(sessions, today, context.project.timeZone);
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const teamProgressed = share(
     decided.filter((s) => hasProgressed(s.outcome)).length,
     decided.length,
   );
 
-  const rings = SYNTHETIC_AGENTS.map((a) =>
-    buildRing(
-      sessions.filter((s) => s.agentId === a.id),
-      a.id,
-      a.name,
-      base,
-      teamProgressed,
-    ),
-  ).filter((r) => r.meetings > 0);
+  const rings = presentersIn(sessions)
+    .map((a) =>
+      buildRing(
+        sessions.filter((s) => s.agentId === a.id),
+        a.id,
+        a.name,
+        base,
+        teamProgressed,
+      ),
+    )
+    .filter((r) => r.meetings > 0);
 
   const unrecorded = sessions.length - decided.length;
   const findings: ShowroomFinding[] = [];
 
   const flagged = rings.filter((r) => r.flag !== null);
   if (flagged[0]?.flag != null) {
+    // The evidence below cites `flag.sampleSize`, not `flagged[0].meetings` --
+    // the flag's own text is stated over the population that number names
+    // (usually the decided meetings, not every meeting the agent had), and
+    // the evidence has to agree with the sentence it is evidence for.
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: `${percent(teamProgressed, locale)} of the team's recorded meetings progressed`,
+      baseline: `${percent(teamProgressed, locale)} for the team`,
       soWhat:
         "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
       nextStep: { label: `Open ${flagged[0].name.split(" ")[0]}`, href: flagged[0].href },
@@ -314,9 +473,9 @@ export function buildSalesFlow(
         `flow-${flagged[0].agentId}`,
         "statistical_association",
         flagged[0].href,
-        flagged[0].meetings,
+        flagged[0].flag.sampleSize,
       ),
-      sampleSize: flagged[0].meetings,
+      sampleSize: flagged[0].flag.sampleSize,
       sources: [...WITH_OUTCOME],
       caveat: null,
     });
@@ -339,10 +498,87 @@ export function buildSalesFlow(
 
   const week = periods.find((p) => p.id === "this_week");
   const lastWeek = periods.find((p) => p.id === "last_week");
-  const verdict =
-    week === undefined || lastWeek === undefined
-      ? `${count(sessions.length, locale)} meetings this period.`
-      : `${meetings(week.meetings, locale)} this week against ${count(lastWeek.meetings, locale)} last week, and ${percent(teamProgressed, locale)} of recorded meetings are progressing.`;
+  const month = periods.find((p) => p.id === "this_month");
+  const lastMonth = periods.find((p) => p.id === "last_month");
+
+  /*
+   * The verdict says which way things are moving, not only how many -- and
+   * it has to move with whatever window is actually selected, or it drifts
+   * out of sync with the ring and findings below it, which always read the
+   * full selected period.
+   *
+   * `stillRunning` mirrors the repository's own `slices()` (the only other
+   * place this product decides whether a period includes today), computed
+   * locally rather than threaded through because `buildSalesFlow` already
+   * receives both `context` and `today`. When the selected period is still
+   * running, the verdict keeps drilling into week-vs-last-week (or
+   * month-vs-last-month) recency buckets, because that finer window is a
+   * genuinely more current signal than "this quarter so far" would be, and
+   * disturbing that is out of scope here. When the period is closed --
+   * "Last completed quarter" and similar -- those buckets are computed from
+   * `sessions`, which is by then *already* filtered to that period, so
+   * "this week" inside e.g. April-June read against an August `today` finds
+   * nothing: not a quieter signal, an empty one, which the four-state
+   * machine below reads as "no outcomes recorded" even when the ring two
+   * sections down is showing dozens of them from the same `sessions` array.
+   * A closed period instead compares its own whole span against its own
+   * baseline (`previous`, `context.period.baselineFrom/To` -- the same
+   * mechanism "What changed" already uses lower on this page), which needs
+   * no recency bucket and is never empty merely because the period is over.
+   *
+   * Volume and progression share one window here rather than two either
+   * way. The KPI row above answers to its own control (`charts.kpis`, a
+   * separate figure over a separate window on purpose), but gluing a
+   * quarter-scoped progression clause onto a week-scoped volume clause in
+   * the SAME sentence would recreate the exact "two numbers, two scopes,
+   * one claim" confusion that separation exists to avoid. `trend()`'s
+   * deadband is the same one the opening screen uses, so the same
+   * meeting's worth of noise cannot tip one screen's verdict and not the
+   * other's. "Against", never "up from" or "down from": `signal` below is
+   * deadbanded on purpose (a ratio that clears the floor reads as "up" even
+   * when the raw percentage dipped slightly) — right for deciding which of
+   * the three verdicts to print, wrong for a literal direction word next to
+   * the actual figures. "Up from 46%" printed beside a true 42% is not a
+   * rounding quirk, it is a false sentence — see `verdictFrom`, above.
+   */
+  const stillRunning =
+    new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
+  let verdict: string;
+  if (stillRunning) {
+    if (
+      week === undefined ||
+      lastWeek === undefined ||
+      month === undefined ||
+      lastMonth === undefined
+    ) {
+      verdict = `${count(sessions.length, locale)} meetings this period.`;
+    } else {
+      const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
+      verdict = verdictFrom(
+        weekIsReadable ? week : month,
+        weekIsReadable ? lastWeek : lastMonth,
+        locale,
+      );
+    }
+  } else {
+    verdict = verdictFrom(
+      summarizePeriod(sessions, context.period.label),
+      summarizePeriod(previous, context.period.baselineLabel),
+      locale,
+    );
+  }
+  verdict = nothingReceivedYet(context) ?? verdict;
+
+  /*
+   * Only a code the catalogue holds gets a link; a CRM can name a unit the
+   * catalogue never stated, and a link to it would resolve to the product's own
+   * "this isn't here". Encoded, because a CRM's code is free text and a space or
+   * a slash in it is not a path.
+   */
+  const unitHref = (code: string): string | null =>
+    catalogueFor(context.project.id as string).some((u) => u.code === code)
+      ? `${base}/units/${encodeURIComponent(code)}`
+      : null;
 
   return {
     context,
@@ -353,25 +589,89 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
+    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref),
+    assisted: buildAssistedSales(
+      deals,
+      projectSessions,
+      DEFAULT_IRIS_ASSIST_POLICY,
+      locale,
+      context.project.timeZone,
+      unitHref,
+      (meetingId) => `${base}/meetings/${encodeURIComponent(meetingId)}`,
+    ),
   };
 }
 
 /* --- 2. Project -------------------------------------------------------------- */
 
-const SEGMENTS = [
-  { id: "rooms-2", label: "Two-room", rooms: 2 },
-  { id: "rooms-3", label: "Three-room", rooms: 3 },
-] as const;
+interface RoomSegmentSpec {
+  readonly id: string;
+  readonly label: string;
+  /** `null` for the row that holds units whose room count is not stated. */
+  readonly rooms: number | null;
+}
+
+/**
+ * One segment per room count the catalogue contains, smallest first.
+ *
+ * There used to be a two-entry constant here — two-room and three-room — and
+ * the parity scale built from it said "X% of looking time on Y% of stock"
+ * while leaving every one-room and four-room flat out of both numbers. The
+ * segments now follow the stock, so a catalogue that arrives from a CRM with
+ * five counts gets five rows, and one with two still gets two.
+ */
+/*
+ * One segment per stated count, and one more for the units whose count the
+ * catalogue did not state — its own row, never folded into a guess, so the
+ * scale still covers the stock (ADR-0036).
+ */
+function roomSegments(
+  catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
+): RoomSegmentSpec[] {
+  const stated = roomCounts(catalogue).map((rooms) => ({
+    id: `rooms-${rooms}`,
+    label: roomLabel(rooms),
+    rooms,
+  }));
+  return hasUnstatedRooms(catalogue)
+    ? [
+        ...stated,
+        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_SEGMENT.label, rooms: null },
+      ]
+    : stated;
+}
+
+/**
+ * The segment a sentence may be built on: enough meetings behind it to say
+ * something, and the furthest from parity among those. Below the floor the
+ * page still shows every figure; it just does not lead with one.
+ */
+const SEGMENT_SENTENCE_FLOOR = 5;
+
+function leadSegment(segments: readonly SegmentInterest[]): SegmentInterest | undefined {
+  return [...segments]
+    .filter((s) => s.meetings > SEGMENT_SENTENCE_FLOOR)
+    .sort((a, b) => Math.abs(b.index - 1) - Math.abs(a.index - 1))[0];
+}
 
 function buildSegment(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
-  spec: (typeof SEGMENTS)[number],
+  spec: RoomSegmentSpec,
 ): SegmentInterest {
   const locale = context.project.locale;
-  const inSegment = new Set(RAW_CATALOGUE.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
-  const available = RAW_CATALOGUE.filter((u) => u.rooms === spec.rooms && u.status === "available");
-  const allAvailable = RAW_CATALOGUE.filter((u) => u.status === "available");
+  /*
+   * This project's units, not Northgate's.
+   *
+   * `RAW_CATALOGUE` is a module constant pinned to `prj_northgate01`, so every
+   * project rendered Northgate's forty-eight apartments — including Beta
+   * Development's Kingsford, which is a different developer's stock on a
+   * competitor's screen.
+   */
+  const catalogue = catalogueFor(context.project.id as string);
+  const inSegment = new Set(catalogue.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
+  const available = catalogue.filter((u) => u.rooms === spec.rooms && u.status === "available");
+  const allAvailable = catalogue.filter((u) => u.status === "available");
 
   const touches = sessions.flatMap((s) => s.units);
   const mine = touches.filter((t) => inSegment.has(t.unitCode));
@@ -413,6 +713,51 @@ function buildSegment(
 
   const topPlace = [...placeSeconds.values()].sort((a, b) => b.secs - a.secs)[0];
 
+  /*
+   * THE ATTENTION × CONVERSION READING.
+   *
+   * Conversion is the share of decided meetings (an outcome recorded) that
+   * progressed, among the meetings that opened a unit of this segment,
+   * against the same share over every decided meeting. The documented
+   * minimum (docs/02-views.md §3: n = 20) gates the quadrant, and a project
+   * with no CRM has no outcome to read, so the quadrant is withheld with
+   * the reason rather than drawn from nothing. High attention is above
+   * parity; high conversion is at or above the project's own share.
+   */
+  const decidedMeetings = meetings.filter((s) => !outcomeIsUnknown(s.outcome));
+  const decidedAll = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
+  const progressed = decidedMeetings.filter((s) => hasProgressed(s.outcome)).length;
+  const crm = context.project.connectedSources.includes("crm");
+  const conversionShare =
+    decidedMeetings.length === 0 ? null : share(progressed, decidedMeetings.length);
+  const projectShare =
+    decidedAll.length === 0
+      ? null
+      : share(decidedAll.filter((s) => hasProgressed(s.outcome)).length, decidedAll.length);
+  const withheld = !crm
+    ? "No CRM is connected, so no outcome is recorded and conversion cannot be read."
+    : decidedMeetings.length < AGENT_MIN_SAMPLE
+      ? `Not enough decided meetings yet (${String(decidedMeetings.length)} of ${String(AGENT_MIN_SAMPLE)}).`
+      : null;
+  const conversion: SegmentConversion = {
+    decided: decidedMeetings.length,
+    progressed,
+    share: conversionShare,
+    projectShare,
+    minimum: AGENT_MIN_SAMPLE,
+    quadrant:
+      withheld !== null || conversionShare === null || projectShare === null
+        ? null
+        : index >= 1
+          ? conversionShare >= projectShare
+            ? "hero"
+            : "mispriced"
+          : conversionShare >= projectShare
+            ? "hidden_gem"
+            : "dead_stock",
+    withheld,
+  };
+
   /* How they examined these units, against how they examined everything else. */
   const others = touches.filter((t) => !inSegment.has(t.unitCode));
   const rate = (xs: typeof touches, f: (t: (typeof touches)[number]) => boolean) =>
@@ -443,6 +788,7 @@ function buildSegment(
   return {
     id: spec.id,
     label: spec.label,
+    rooms: spec.rooms,
     availableUnits: available.length,
     stockShare,
     attentionShare,
@@ -468,6 +814,7 @@ function buildSegment(
      * "what should the next campaign show".
      */
     examinedHow,
+    conversion,
     soWhat:
       topPlace === undefined
         ? `${spec.label} units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`
@@ -482,8 +829,19 @@ export function buildProjectView(
 ): ProjectView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const segments = SEGMENTS.map((spec) => buildSegment(context, sessions, spec));
-  const selected = segments.find((s) => s.id === selectedSegmentId) ?? null;
+  const segments = roomSegments(catalogueFor(context.project.id as string)).map((spec) =>
+    buildSegment(context, sessions, spec),
+  );
+  /*
+   * No segment asked for opens the first one — the band below the tabs is
+   * the point of the page, and "first" is the smallest count, the same
+   * order the tab strip reads in. A segment asked for by name that the
+   * catalogue does not have selects nothing, which the tabs show honestly.
+   */
+  const selected =
+    selectedSegmentId === null
+      ? (segments[0] ?? null)
+      : (segments.find((s) => s.id === selectedSegmentId) ?? null);
 
   /* Stated demand. */
   const demandMap = new Map<string, StatedDemand>();
@@ -568,21 +926,21 @@ export function buildProjectView(
 
   const findings: ShowroomFinding[] = [];
 
-  const twoRoom = segments.find((s) => s.id === "rooms-2");
-  if (twoRoom !== undefined && twoRoom.meetings > 5) {
+  const lead = leadSegment(segments);
+  if (lead !== undefined) {
     findings.push({
       id: "project-segment",
-      statement: `${twoRoom.label} units draw ${twoRoom.index.toFixed(2)}× their share of looking time, and ${percent(twoRoom.favouriteShare, locale)} of every shortlisting in the period.`,
-      baseline: `${percent(twoRoom.stockShare, locale)} of available stock`,
-      soWhat: twoRoom.soWhat,
-      nextStep: { label: `Open ${twoRoom.label}`, href: `${base}/project?segment=${twoRoom.id}` },
+      statement: `${lead.label} units draw ${lead.index.toFixed(2)}× their share of looking time, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
+      baseline: `${percent(lead.stockShare, locale)} of available stock`,
+      soWhat: lead.soWhat,
+      nextStep: { label: `Open ${lead.label}`, href: `${base}/project?segment=${lead.id}` },
       evidence: evidenceRef(
         "project-segment",
         "statistical_association",
         `${base}/project`,
-        twoRoom.meetings,
+        lead.meetings,
       ),
-      sampleSize: twoRoom.meetings,
+      sampleSize: lead.meetings,
       sources: [...DERIVED],
       caveat: null,
     });
@@ -639,10 +997,19 @@ export function buildProjectView(
   return {
     context,
     verdict:
-      twoRoom === undefined
-        ? `${meetings(sessions.length, locale)}.`
-        : `Two-room units are ${percent(twoRoom.stockShare, locale)} of the stock and take ${percent(twoRoom.attentionShare, locale)} of the attention.`,
+      lead === undefined
+        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale)}.`)
+        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
     segments,
+    matrixNote: context.project.connectedSources.includes("crm")
+      ? `Attention is the segment's share of looking time against its share of available stock; conversion is the share of decided meetings that progressed, against ${percent(
+          share(
+            sessions.filter((s) => !outcomeIsUnknown(s.outcome) && hasProgressed(s.outcome)).length,
+            sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+          ),
+          locale,
+        )} for the project. A segment is placed only with ${String(AGENT_MIN_SAMPLE)} or more decided meetings; the pattern is an association, never a cause.`
+      : "No CRM is connected to this project, so no meeting carries an outcome and nothing can be placed on the conversion axis. Attention alone is on the scale above.",
     selectedSegment: selected,
     demand,
     places: places.slice(0, 18),
@@ -698,9 +1065,11 @@ export function buildAgentsView(
   }
   const teamTotal = [...teamSectionSecs.values()].reduce((a, b) => a + b, 0);
 
-  const agents: AgentProfile[] = SYNTHETIC_AGENTS.flatMap<AgentProfile>((a) => {
+  const agents: AgentProfile[] = presentersIn(sessions).flatMap<AgentProfile>((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
+
+    const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
 
     const myTotal = mine.reduce((acc, s) => acc + totalSeconds(s), 0);
     /*
@@ -753,7 +1122,12 @@ export function buildAgentsView(
     return {
       agentId: a.id,
       name: a.name,
+      organisationName: a.organisationName,
       meetings: mine.length,
+      belowMinimum,
+      suppressionNote: belowMinimum
+        ? `${meetings(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`
+        : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
       repeats: repeatDistribution(mine),
@@ -769,7 +1143,7 @@ export function buildAgentsView(
               responses: rated.length,
             }
           : null,
-      href: `${base}/agents?agent=${a.id}`,
+      href: `${base}/agents/${a.id}`,
     } satisfies AgentProfile;
   });
 
@@ -778,7 +1152,12 @@ export function buildAgentsView(
     .filter((a) => a.signature !== null)
     .sort((x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0))[0];
 
-  if (distinct?.signature != null) {
+  /*
+   * A share of the TEAM's time needs a team. With one presenter the figure is
+   * that person against themselves, 1.0× by construction, and printing it
+   * would be a finding about arithmetic.
+   */
+  if (distinct?.signature != null && agents.length > 1) {
     findings.push({
       id: "agents-signature",
       statement: `${distinct.name} spends ${distinct.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${distinct.signature.label}.`,
@@ -823,7 +1202,15 @@ export function buildAgentsView(
 
   return {
     context,
-    verdict: `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
+    /* "They do not present alike" is a claim about two people or more; one presenter is a count. */
+    verdict:
+      agents.length === 0
+        ? /* "0 agents presented 0 meetings, and they do not present alike" was a sentence about nobody. */
+          (nothingReceivedYet(context) ??
+          `Nobody presented in ${context.period.label.toLowerCase()}.`)
+        : agents.length === 1
+          ? `One agent presented ${meetings(sessions.length, locale)}.`
+          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
     agents,
     repeats,
     findings,
@@ -841,11 +1228,16 @@ export function buildAudience(
   criteria: AudienceCriteria,
 ): AudienceView {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const roomCodes =
     criteria.rooms === null
       ? null
-      : new Set(RAW_CATALOGUE.filter((u) => u.rooms === criteria.rooms).map((u) => u.code));
+      : new Set(
+          catalogueFor(context.project.id as string)
+            .filter((u) => u.rooms === criteria.rooms)
+            .map((u) => u.code),
+        );
 
   const matches = sessions
     .filter((s) => {
@@ -873,11 +1265,8 @@ export function buildAudience(
 
       return {
         meetingId: s.meetingId,
-        startedDisplay: new Date(s.startedAt).toLocaleDateString(locale, {
-          day: "numeric",
-          month: "short",
-        }),
-        agentName: agent?.name ?? s.agentId,
+        startedDisplay: dayLabel(s.startedAt, locale, timeZone),
+        agentName: agent?.name ?? presenterName(s.projectId, s.agentId),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
           places.length === 0
@@ -887,8 +1276,13 @@ export function buildAudience(
       };
     });
 
-  const roomText = criteria.rooms === null ? "any unit" : `a ${criteria.rooms}-room unit`;
+  const roomText =
+    criteria.rooms === null ? "any unit" : `a ${roomLabel(criteria.rooms).toLowerCase()} unit`;
   const favText = criteria.favouritedOnly ? "shortlisted" : "opened";
+  const roomChoices = roomCounts(catalogueFor(context.project.id as string)).map((rooms) => ({
+    rooms,
+    label: roomLabel(rooms),
+  }));
   const placeText =
     criteria.placeCategory === null
       ? ""
@@ -897,6 +1291,7 @@ export function buildAudience(
   return {
     context,
     criteria,
+    roomChoices,
     description: `Meetings where the buyer ${favText} ${roomText}${placeText}.`,
     matches,
     total: matches.length,
@@ -939,7 +1334,7 @@ export function buildHome(
     previousDecided.length,
   );
 
-  const periods = buildPeriods(sessions, today);
+  const periods = buildPeriods(sessions, today, context.project.timeZone);
   const week = periods.find((p) => p.id === "this_week")?.meetings ?? 0;
   const lastWeek = periods.find((p) => p.id === "last_week")?.meetings ?? 0;
 
@@ -969,13 +1364,28 @@ export function buildHome(
   const outcomesRecorded = decided.length > 0;
   const hasBaseline = previous.length > 0;
 
-  const volumeOk = weekIsReadable
-    ? week >= lastWeek * 0.8
+  /*
+   * Down, flat, or up — not a boolean.
+   *
+   * `trend()`'s deadband is what keeps one extra meeting from flipping the
+   * whole verdict: a ratio that lands in the gap around the floor reads as
+   * `"flat"`, which — like a genuine mix of one axis up and one down — can
+   * only ever produce `"attention"` below, never tip the signal to `"good"`
+   * or `"poor"` on its own.
+   */
+  const volumeTrend: Trend = weekIsReadable
+    ? trend(week / lastWeek, 0.8)
     : lastMonth === 0
       ? month > 0
-      : month >= lastMonth * 0.8;
-  const progressOk =
-    previousProgressed === 0 ? progressed > 0.3 : progressed >= previousProgressed * 0.9;
+        ? "up"
+        : "flat"
+      : trend(month / lastMonth, 0.8);
+  const progressTrend: Trend =
+    previousProgressed === 0
+      ? progressed > 0.3
+        ? "up"
+        : "flat"
+      : trend(progressed / previousProgressed, 0.9);
 
   /*
    * Without outcomes the signal rests on volume alone, and says so.
@@ -985,14 +1395,22 @@ export function buildHome(
    */
   const signal: ShowroomSignal = !outcomesRecorded
     ? "attention"
-    : volumeOk && progressOk
+    : volumeTrend === "up" && progressTrend === "up"
       ? "good"
-      : !volumeOk && !progressOk
+      : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
 
+  /*
+   * "The showroom is running" is a claim, and with no meeting at all it was made
+   * about a showroom nobody had heard from. It is true only when meetings came
+   * and none carried an outcome.
+   */
   const verdict = !outcomesRecorded
-    ? "The showroom is running; no outcomes are being recorded."
+    ? (nothingReceivedYet(context) ??
+      (sessions.length === 0
+        ? `No presentations were recorded in ${context.period.label.toLowerCase()}.`
+        : "The showroom is running; no outcomes are being recorded."))
     : signal === "good"
       ? "The showroom is on course."
       : signal === "poor"
@@ -1007,36 +1425,60 @@ export function buildHome(
    * glued on with one fixed separator without producing ". and 40%".
    */
   const progressClause = !outcomesRecorded
-    ? ". No meeting outcome has been recorded on this project, so no progression rate can be computed."
+    ? `. No meeting outcome has been recorded on this project, so no progression rate can be computed.${
+        hasBaseline ? "" : " There is no earlier period to compare against either."
+      }`
     : hasBaseline
       ? `, and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
       : `, and ${percent(progressed, locale)} of recorded meetings progressing. There is no earlier period to compare against.`;
 
+  /*
+   * A project with no history is not a project that did badly.
+   *
+   * Kingsford has been selling three weeks, so "last month" is a month in which
+   * it did not exist. The sentence read "41 meetings this month against 0 last
+   * month", which is arithmetically true and invites exactly the comparison it
+   * should not: 41 against nothing is not growth, it is a first period. The
+   * progression figure was already corrected for this; the volume figure beside
+   * it was still making the claim.
+   */
+  const volumeClause = hasBaseline
+    ? weekIsReadable
+      ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week`
+      : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month`
+    : `${meetings(weekIsReadable ? week : month, locale)} ${weekIsReadable ? "this week" : "this month"}`;
+
   const because = weekIsReadable
-    ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week${progressClause}`
-    : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month${progressClause}` +
-      " This week is too early to read on its own.";
+    ? `${volumeClause}${progressClause}`
+    : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
 
   const figures: HomeFigure[] = [
     {
       id: "meetings",
       label: weekIsReadable ? "Meetings this week" : "Meetings this month",
       value: count(weekIsReadable ? week : month, locale),
-      against: weekIsReadable
-        ? `${count(lastWeek, locale)} last week`
-        : `${count(lastMonth, locale)} last month`,
-      direction: weekIsReadable
-        ? week > lastWeek
-          ? "up"
-          : week < lastWeek
-            ? "down"
-            : "flat"
-        : month > lastMonth
-          ? "up"
-          : month < lastMonth
-            ? "down"
-            : "flat",
-      better: "up",
+      // Same rule as the sentence above: no baseline, no comparison, and no
+      // arrow — an arrow is a claim about a direction there is nothing to move
+      // from.
+      against: !hasBaseline
+        ? "no earlier period to compare"
+        : weekIsReadable
+          ? `${count(lastWeek, locale)} last week`
+          : `${count(lastMonth, locale)} last month`,
+      direction: !hasBaseline
+        ? "flat"
+        : weekIsReadable
+          ? week > lastWeek
+            ? "up"
+            : week < lastWeek
+              ? "down"
+              : "flat"
+          : month > lastMonth
+            ? "up"
+            : month < lastMonth
+              ? "down"
+              : "flat",
+      better: !hasBaseline ? "neither" : "up",
       measurementId: "showroom.presentations",
     },
     {
@@ -1074,22 +1516,24 @@ export function buildHome(
 
   /* The one thing worth acting on. */
   const teamProgressed = progressed;
-  const flagged = SYNTHETIC_AGENTS.map((a) => {
-    const mine = sessions.filter((s) => s.agentId === a.id);
-    return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
-  }).filter((f) => f.flag?.severity === "concern")[0];
+  const flagged = presentersIn(sessions)
+    .map((a) => {
+      const mine = sessions.filter((s) => s.agentId === a.id);
+      return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
+    })
+    .filter((f) => f.flag?.severity === "concern")[0];
 
   const alert =
     flagged?.flag == null
       ? null
       : {
           text: `${flagged.agent.name}: ${flagged.flag.text}`,
-          href: `${base}/agents?agent=${flagged.agent.id}`,
+          href: `${base}/agents/${flagged.agent.id}`,
         };
 
-  const project = buildProjectView(context, sessions, "rooms-2");
-  const twoRoom = project.segments.find((s) => s.id === "rooms-2");
-  const agents = SYNTHETIC_AGENTS.filter((a) => sessions.some((s) => s.agentId === a.id)).length;
+  const project = buildProjectView(context, sessions, null);
+  const lead = leadSegment(project.segments);
+  const agents = new Set(sessions.map((s) => s.agentId)).size;
 
   return {
     context,
@@ -1111,9 +1555,9 @@ export function buildHome(
         label: "Project",
         question: "What do buyers want, and what do they linger on?",
         headline:
-          twoRoom === undefined
+          lead === undefined
             ? "Segments, filters and places"
-            : `Two-room units draw ${twoRoom.index.toFixed(1)}× their share of attention`,
+            : `${lead.label} units draw ${lead.index.toFixed(1)}× their share of attention`,
         href: `${base}/project`,
       },
       {

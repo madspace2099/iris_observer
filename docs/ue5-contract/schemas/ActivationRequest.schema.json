@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://observer.madspace.dev/ue5/1.0.0-candidate.1/ActivationRequest.schema.json",
+  "title": "ActivationRequest",
+  "type": "object",
+  "properties": {
+    "activation_code": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64
+    },
+    "reported_environment": {
+      "type": "string",
+      "enum": [
+        "production",
+        "staging",
+        "development",
+        "demo"
+      ]
+    },
+    "installation_nonce": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "app_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "plugin_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "build_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "engine_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        }
+      },
+      "required": [
+        "app_version",
+        "plugin_version",
+        "build_id",
+        "engine_version"
+      ],
+      "additionalProperties": false
+    },
+    "os": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96
+    }
+  },
+  "required": [
+    "activation_code",
+    "reported_environment",
+    "installation_nonce",
+    "build",
+    "os"
+  ],
+  "additionalProperties": false
+}

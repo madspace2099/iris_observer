@@ -50,7 +50,13 @@ measure.
 `SURFACES` declared which roles may open which screen and **nothing read it
 except the navigation builder**. A sales agent who typed
 `/alpha/northgate/agents` was shown every colleague's outcome mix side by side —
-the league table the sign-in screen promises they will not get.
+the league table the sign-in screen promised they would not get.
+
+> **Superseded in part by ADR-0029.** The enforcement described below stands and
+> is what makes the rest of this work; the _rule_ it enforced does not. A sales
+> agent now reads the Sales Agents surface for a project they hold. The boundary
+> is the project, not the role, and it is still enforced at the route, the read
+> model and the tool.
 
 `requireSurface` now runs on every project surface before anything is read. The
 read model refuses too, and so does the comparison tool, because a route is one
@@ -90,7 +96,7 @@ navigation link carries the selection.
 
 ### Failure keeps the evidence
 
-A model that cannot be reached lost the reader their *figures*: a configuration
+A model that cannot be reached lost the reader their _figures_: a configuration
 fault ended the request before a single tool had run. Every figure on the page
 is computed by read models that never needed the network. The fault is recorded,
 the status says the prose is not a model's, and the analysis still runs.

@@ -46,6 +46,15 @@ const CAUSAL =
 const QUESTIONS: readonly { question: string; tool: string; context?: Partial<typeof CONTEXT> }[] =
   [
     { question: "Compare Monika and Akhilesh's presentation flows.", tool: "compare_agent_flows" },
+    /* The founder's question, 2026-09-17. Answered as an order of events, never as a cause (ADR-0039). */
+    {
+      question: "Did IRIS assist the sales on this project?",
+      tool: "analyze_iris_assisted_sales",
+    },
+    {
+      question: "Which apartments were sold after a showing in IRIS?",
+      tool: "analyze_iris_assisted_sales",
+    },
     {
       question: "What do the more successful showroom meetings have in common?",
       tool: "compare_meeting_cohorts",
@@ -57,7 +66,10 @@ const QUESTIONS: readonly { question: string; tool: string; context?: Partial<ty
     {
       question: "Show me how this meeting developed step by step.",
       tool: "explain_meeting_journey",
-      context: { meetingId: "mtg_ng0100" },
+      // Asked by an agent, for the same reason `prepare_meeting` below is:
+      // `/meetings/[meetingId]` declares three roles and the developer is not
+      // one of them, so the replay is not theirs to read in prose either.
+      context: { meetingId: "mtg_ng0100", viewer: VIEWERS.salesAgent },
     },
     { question: "Why is interest in apartment A-402 changing?", tool: "analyze_unit_attention" },
     {
@@ -195,6 +207,7 @@ describe("the boundary holds", () => {
       [
         "analyze_environment_usage",
         "analyze_feature_usage",
+        "analyze_iris_assisted_sales",
         "analyze_unit_attention",
         "compare_agent_flows",
         "compare_meeting_cohorts",

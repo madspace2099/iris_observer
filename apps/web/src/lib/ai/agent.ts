@@ -7,17 +7,20 @@ import {
   isShowroomRooted,
   isUngroundedInterpretation,
   isProducibleTier,
+  isCausalQuestion,
   type EvidenceBundle,
   type InsightSource,
   type ObserverAnswer,
 } from "@observer/contracts";
 import { NotPermittedError } from "@observer/readmodels";
 
+import { classifyProviderFailure } from "@/lib/credentials/failure";
 import { environment } from "@/lib/env";
 import { LIMITS, breakerIsOpen, recordUpstreamFailure, recordUpstreamSuccess } from "./limits";
 import {
   ModelConfigurationError,
   resolveModel,
+  type ModelGrant,
   type ModelMessage,
   type ModelStatus,
   type ModelToolSpec,
@@ -74,8 +77,74 @@ export interface ObserverOutcome {
     readonly schemaRejected: boolean;
     readonly truncated: boolean;
     readonly reasoningEffort: string;
+    /**
+     * Why the deterministic composer wrote the prose, or null if a model did.
+     *
+     * The audit records this, so it is a fixed code and never a provider
+     * message: an upstream error can quote the request back, and the request
+     * carries project evidence. The operator-facing detail stays in the log
+     * line `reportUpstreamFailure` writes.
+     */
+    readonly fallbackReason: FallbackReason | null;
+    /** Whether a model call was made at all. False means none was configured. */
+    readonly modelAttempted: boolean;
+    /**
+     * Whether the provider said this account cannot reach the chosen model.
+     *
+     * Distinct from every other upstream failure, because it is the only one
+     * that says something durable about the account rather than about the
+     * moment: a rate limit clears, an outage ends, an entitlement does not.
+     * The route records it against the account so the settings page can show
+     * the model as unreachable instead of letting a reader pick it again and
+     * wait for the same refusal.
+     *
+     * Server-side only — it is not in `publicOutcome`, and the browser learns
+     * the same fact through `status.blocked` on the next question.
+     */
+    readonly modelUnavailable: boolean;
   };
 }
+
+/**
+ * WHETHER A FAILURE MEANS "NOT THIS MODEL, ON THIS ACCOUNT".
+ *
+ * The transports throw a status and a short vendor code and nothing else — no
+ * message, because an upstream message can quote the request back and the
+ * request carries project evidence. `classifyProviderFailure` maps that pair
+ * to one of seven conditions, and exactly one of them is durable: a model this
+ * account is not entitled to will be refused again tomorrow, where a rate limit
+ * or an outage will not.
+ *
+ * Duck-typed rather than `instanceof`, so this module does not have to import
+ * the transport layer that imports its own types back.
+ */
+function saysModelUnreachable(error: unknown): boolean {
+  if (!(error instanceof Error) || error.name !== "TransportFailure") return false;
+  const failure = error as Error & { status?: unknown; code?: unknown };
+  if (typeof failure.status !== "number") return false;
+  const code = typeof failure.code === "string" ? failure.code : null;
+  return classifyProviderFailure(failure.status, code) === "model_unavailable";
+}
+
+/**
+ * The five ways an answer ends up in Observer's own words.
+ *
+ * Each names a different failure and a different fix, which is the point:
+ * "the model did not write this" was one undifferentiated fact for as long as
+ * the audit existed, and an operator reading it could not tell a missing key
+ * from prose the output guard rejected.
+ */
+export type FallbackReason =
+  /** No model resolved — the feature is off, or no key is configured. */
+  | "model_unavailable"
+  /** A key or model the deployment cannot use. An operator's problem. */
+  | "provider_misconfigured"
+  /** The composing turn threw: timeout, upstream error, aborted request. */
+  | "composition_failed"
+  /** Prose came back and failed schema validation. */
+  | "schema_rejected"
+  /** Prose validated and broke a product rule — a causal claim, or a citation that does not resolve. */
+  | "output_guard";
 
 export interface AskContextInput extends ToolContext {
   readonly agentIds: readonly string[];
@@ -113,6 +182,26 @@ export interface AskContextInput extends ToolContext {
  */
 export const CAUSAL_PATTERNS =
   /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves|proving|responsible for)\b/i;
+
+/**
+ * Says out loud that the model call failed, and why.
+ *
+ * Both upstream catch blocks swallowed their error. The reader is meant to
+ * lose nothing — the figures never needed the network — and that part was
+ * right. What was wrong is that *nobody* was told: a deployment whose
+ * composition turn failed on every request looked identical to one with no key
+ * configured, and the only visible difference was `live: false` on an answer
+ * sheet nobody reads for diagnostics.
+ *
+ * Name and message only, never the request body or the response. A provider's
+ * error message is written for an operator; a provider's payload may carry the
+ * prompt back.
+ */
+function reportUpstreamFailure(stage: "planning" | "composition", error: unknown): void {
+  const name = error instanceof Error ? error.constructor.name : typeof error;
+  const message = error instanceof Error ? error.message : "no message";
+  console.warn(`[observer.ai] ${stage} turn failed — ${name}: ${message.slice(0, 300)}`);
+}
 
 export function containsCausalClaim(answer: ObserverAnswer): boolean {
   const prose = [
@@ -313,6 +402,18 @@ export function routeQuestion(
       { tool: "compare_meeting_cohorts", args: {} },
     ];
   }
+  /*
+   * Before the broad "sold / closed / convert" reading below, which would send
+   * "which sales followed a showing" to the meeting cohorts: a different
+   * question, about meetings rather than about the CRM's dated sales.
+   */
+  if (
+    /assist|followed (a|an|the) (iris )?(showing|presentation)|(shown|showing|presented) .*before .*(sale|sold|reserv|purchase)|(sale|sold|reserv|purchase).* after .*(showing|shown|presentation)/.test(
+      q,
+    )
+  ) {
+    return [{ tool: "analyze_iris_assisted_sales", args: {} }];
+  }
   if (/before .*(shortlist|favourit|favorit)|shortlist before|precede/.test(q)) {
     return [{ tool: "analyze_feature_usage", args: {} }];
   }
@@ -372,6 +473,18 @@ export interface ToolRun {
   readonly results: readonly ToolResult[];
   readonly forbidden: boolean;
   readonly rejected: readonly string[];
+  /**
+   * One output for every call the *model* made, keyed by the id it used.
+   *
+   * The Responses API rejects an input that replays a `function_call` without
+   * the `function_call_output` that answers it — "No tool output found for
+   * function call call_…" — and it rejects the whole request, not the item. So
+   * a rejected tool still gets an output saying it was rejected.
+   *
+   * Calls the deterministic router chose have no id and appear here not at all:
+   * the model never asked for them, so there is nothing to answer.
+   */
+  readonly outputs: readonly { readonly callId: string; readonly output: string }[];
 }
 
 /**
@@ -382,12 +495,25 @@ export interface ToolRun {
  * and the voice agent does not is a control that does not exist.
  */
 export async function runTools(
-  calls: readonly { tool: string; args: Record<string, unknown> }[],
+  calls: readonly { tool: string; args: Record<string, unknown>; callId?: string }[],
   context: AskContextInput,
 ): Promise<ToolRun> {
   const results: ToolResult[] = [];
   const rejected: string[] = [];
+  const outputs: { callId: string; output: string }[] = [];
   let forbidden = false;
+
+  /*
+   * Every model-made call leaves an output, whatever happened to it.
+   *
+   * Silence is not an option the API allows, and it is not one the model
+   * deserves either: told that a tool was refused, it words the answer around
+   * what did run.
+   */
+  const answer = (call: { callId?: string }, output: Record<string, unknown>) => {
+    if (call.callId !== undefined)
+      outputs.push({ callId: call.callId, output: JSON.stringify(output) });
+  };
 
   for (const call of calls.slice(0, LIMITS.maxToolCalls)) {
     /*
@@ -399,30 +525,45 @@ export async function runTools(
      */
     if (!TOOL_NAMES.includes(call.tool)) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "no such analysis on this deployment" });
       continue;
     }
     const tool = toolByName(call.tool);
     if (tool === undefined) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "no such analysis on this deployment" });
       continue;
     }
     const args = tool.input.safeParse(call.args);
     if (!args.success) {
       rejected.push(call.tool);
+      answer(call, { status: "rejected", reason: "the arguments did not match the tool's schema" });
       continue;
     }
     try {
-      results.push(await tool.run(context, args.data));
+      const result = await tool.run(context, args.data);
+      results.push(result);
+      answer(call, {
+        tool: result.tool,
+        sampleSize: result.sampleSize,
+        facts: result.facts,
+        caveats: result.caveats,
+      });
     } catch (error) {
       // A tool the viewer may not run is a different answer from no such tool,
       // and telling a sales agent that no analysis exists when the real reason
       // is that the brief is not theirs to read would be a lie of convenience.
-      if (error instanceof NotPermittedError) forbidden = true;
-      // Anything else contributes nothing rather than a guess.
+      if (error instanceof NotPermittedError) {
+        forbidden = true;
+        answer(call, { status: "refused", reason: "this viewer's grants do not include it" });
+      } else {
+        // Anything else contributes nothing rather than a guess.
+        answer(call, { status: "unavailable", reason: "the analysis could not be computed" });
+      }
     }
   }
 
-  return { results, forbidden, rejected };
+  return { results, forbidden, rejected, outputs };
 }
 
 /* --- deterministic composition ------------------------------------------------------ */
@@ -438,10 +579,53 @@ export function composeDeterministic(
   results: readonly ToolResult[],
   bundles: readonly EvidenceBundle[],
   context: AskContextInput,
+  question = "",
 ): ObserverAnswer {
+  /*
+   * A "why" asked of this path is still a "why".
+   *
+   * The live path has the four moves in its system prompt and `findAnswerDefects`
+   * rejecting an answer that makes neither the causal step nor the refusal of
+   * it. This path had neither: `Explain why Compare mode fell` returned three
+   * descriptive figures and stopped, which reads as an answer to the question
+   * that was asked and is not one. The figures are the same; what is added is
+   * the sentence saying what they can and cannot settle, and the comparison
+   * that would narrow it.
+   */
+  const causal = isCausalQuestion(question);
+
+  /*
+   * Two tools that measured the same thing said it twice.
+   *
+   * The drafts were concatenated as they arrived, so a router that picked two
+   * overlapping tools produced the same sentence twice. Sentences are compared
+   * on their content words and their figures, so an identical restatement is
+   * dropped.
+   *
+   * **What this does not catch, stated rather than implied:** a *paraphrase*.
+   * "Compare went unopened in 71%" and "Compare was never opened in 71% of
+   * presentations" share three words out of six and survive as two sentences.
+   * Separating that from two genuinely different findings — "Gallery opened in
+   * 56% of meetings" beside "Compare opened in 56% of meetings" — needs to know
+   * which word is the subject, and guessing at it drops real content. The
+   * equivalent guard on a model's answer, `findAnswerDefects`, works on terse
+   * finding labels where the whole label is the subject; prose is not that.
+   */
+  const seenSentences = new Set<string>();
   const facts = results
-    .map((r) => r.draft)
-    .filter((d) => d.length > 0)
+    .flatMap((r) => (r.draft.length === 0 ? [] : r.draft.split(/(?<=[.!?])\s+/)))
+    .filter((sentence) => {
+      const shape = sentence
+        .toLowerCase()
+        .replace(/[^a-z0-9% ]/g, "")
+        .split(/\s+/)
+        .filter((w) => w.length > 3 || /\d/.test(w))
+        .sort()
+        .join(" ");
+      if (shape.length === 0 || seenSentences.has(shape)) return false;
+      seenSentences.add(shape);
+      return true;
+    })
     .join(" ");
 
   const findings = results.flatMap((result, index) => {
@@ -479,11 +663,19 @@ export function composeDeterministic(
            * of it failed — which is the guard doing its job on the one piece of
            * prose in this file that a model did not write.
            */
-          `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}, reported without interpretation. No language model is configured on this deployment.`,
-    limitations:
-      caveats.length > 0
+          causal
+          ? `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}. They show what changed. They cannot establish why: nothing measured here varies one thing at a time, so what you have is an association between a period and a set of numbers. The comparison that would narrow it is this same period split by presenter and by buyer cohort — a change present in both narrows to the presentation itself, a change present in one narrows to that group.`
+          : `These are the measured figures for ${context.projectLabel} over ${context.periodLabel}, reported without interpretation.`,
+    limitations: [
+      ...(causal
+        ? [
+            "This is an association between a period and a set of measurements. No comparison here isolates a cause.",
+          ]
+        : []),
+      ...(caveats.length > 0
         ? caveats
-        : ["No language model is configured, so this answer is the tools' own wording."],
+        : ["This wording is Observer's own composition, not a language model's."]),
+    ].slice(0, 6),
     recommendedActions:
       action === null
         ? []
@@ -541,6 +733,7 @@ function outcomeShell(
   status: ModelStatus,
   refusal: string,
   effort: string,
+  fallback: FallbackReason | null = null,
 ): ObserverOutcome {
   return {
     question,
@@ -553,9 +746,21 @@ function outcomeShell(
     diagnostics: {
       turns: 0,
       usage: null,
+      modelUnavailable: false,
       schemaRejected: false,
       truncated: false,
       reasoningEffort: effort,
+      /*
+       * Usually null: a refusal is not a fallback.
+       *
+       * Nothing was composed and nothing fell back to anything — the pipeline
+       * declined, and inventing a reason would be worse than having none. The
+       * exception is a deployment whose model is misconfigured, which produces
+       * a refusal too and is the one case an operator must be able to find.
+       * That is what separates `refusal` from `failure` in the audit.
+       */
+      fallbackReason: fallback,
+      modelAttempted: false,
     },
   };
 }
@@ -571,12 +776,28 @@ function outcomeShell(
 export async function* askStream(
   question: string,
   context: AskContextInput,
+  /**
+   * THE ASKING ACCOUNT'S OWN OPENAI KEY, OR NULL.
+   *
+   * A separate parameter rather than a field on `context`, and deliberately so.
+   * The context is handed to every tool, is shaped for logging, and is the
+   * object a future contributor will reach for when adding a field to a trace.
+   * A credential on it is one `JSON.stringify` away from an evidence record.
+   * Here it is a local, consumed once by `resolveModel` and closed over by a
+   * client that lives as long as the request.
+   *
+   * Null means evidence-only: no connection, no storage, a stored credential
+   * that would not decrypt, or a monthly budget with no room left. It never
+   * means "use the deployment's key" — there is no deployment key to use — and
+   * it never means "spend anyway".
+   */
+  access: ModelGrant,
   signal?: AbortSignal,
 ): AsyncGenerator<AskEvent> {
   const trimmed = question.trim();
   const env = environment();
   const effort = context.depth === "deep" ? "high" : env.ai.reasoningEffort;
-  const resolution = resolveModel();
+  const resolution = resolveModel(access);
 
   if (trimmed.length === 0) {
     yield {
@@ -605,6 +826,8 @@ export async function* askStream(
    * is shown, and it must never stop the tools running.
    */
   let configurationFault = false;
+  /* Set by either model turn. See `AskDiagnostics.modelUnavailable`. */
+  let modelUnavailable = false;
 
   if (!resolution.ok && resolution.configurationFault) {
     yield {
@@ -614,6 +837,7 @@ export async function* askStream(
         resolution.status,
         "AI explanation is temporarily unavailable. Showing computed Observer evidence instead.",
         effort,
+        "provider_misconfigured",
       ),
     };
     return;
@@ -641,7 +865,14 @@ export async function* askStream(
 
   let usage: ModelUsage | null = null;
   let turns = 0;
-  let calls: { tool: string; args: Record<string, unknown> }[] = [];
+  /*
+   * `callId` is present only when the *model* asked for this tool.
+   *
+   * Calls the deterministic router chose have none, and must have none: an
+   * output answering a call the model never made is as invalid to the API as a
+   * call with no output.
+   */
+  let calls: { tool: string; args: Record<string, unknown>; callId?: string }[] = [];
   const transcript: ModelMessage[] = [
     { role: "user", content: `${contextBlock(context)}\n\nQUESTION: ${trimmed}` },
   ];
@@ -687,7 +918,9 @@ export async function* askStream(
             // Malformed arguments are dropped, not repaired. The schema check
             // below would reject them anyway; this just avoids a throw.
           }
-          calls.push({ tool: call.name, args });
+          // The model's own id travels with the call, so the composition turn
+          // can answer it by the name the model used.
+          calls.push({ tool: call.name, args, callId: call.callId });
         }
       }
 
@@ -707,7 +940,9 @@ export async function* askStream(
       if (error instanceof ModelConfigurationError) {
         configurationFault = true;
       }
+      if (saysModelUnreachable(error)) modelUnavailable = true;
       recordUpstreamFailure();
+      reportUpstreamFailure("planning", error);
       calls = routeQuestion(trimmed, context).map((c) => ({ ...c }));
     }
   }
@@ -774,7 +1009,7 @@ export async function* askStream(
   }
 
   const bundles = bundlesFor(run.results, context);
-  const deterministic = composeDeterministic(run.results, bundles, context);
+  const deterministic = composeDeterministic(run.results, bundles, context, trimmed);
   const toolsUsed = run.results.map((r) => r.tool);
 
   const finish = (
@@ -782,26 +1017,55 @@ export async function* askStream(
     schemaRejected: boolean,
     truncated: boolean,
     live: boolean,
+    fallback: FallbackReason | null = null,
   ): ObserverOutcome => ({
     question: trimmed,
     answer,
     refusal: null,
     toolsUsed,
     /*
-     * The status carries the fault; the answer carries the figures.
+     * `live` describes the answer, not the deployment.
      *
-     * A misconfigured model means the prose is Observer's own composition
-     * rather than a model's, which the reader is entitled to know — and which
-     * the answer sheet already shows. It does not mean there is no answer.
+     * It used to describe the deployment: a correctly configured model that
+     * then timed out, or returned prose the schema rejected, still reported
+     * `live: true` beside an answer the deterministic composer had written.
+     * The reader was told they were reading a model's words when they were
+     * not — the one claim ADR-0024 exists to keep honest.
+     *
+     * So the flag is the fourth argument here, set by whichever branch reached
+     * this point, and a configuration fault forces it down as well. A missing
+     * model means the prose is Observer's own composition, which the reader is
+     * entitled to know and which the answer sheet already shows. It does not
+     * mean there is no answer: the figures never came from the model.
      */
-    status: configurationFault ? { ...status, live: false } : status,
+    status: live && !configurationFault ? status : { ...status, live: false },
     sources: live ? [...sources, "AI_INTERPRETATION" as const] : sources,
     demoData: true,
-    diagnostics: { turns, usage, schemaRejected, truncated, reasoningEffort: effort },
+    diagnostics: {
+      turns,
+      usage,
+      schemaRejected,
+      truncated,
+      reasoningEffort: effort,
+      /*
+       * A configuration fault outranks whatever the branch reported.
+       *
+       * A bad key surfaces as a composition failure at the branch that catches
+       * it, and "the composing turn threw" sends an operator to look at
+       * timeouts. `ModelConfigurationError` already knows better, and it is the
+       * one reason a person can act on directly.
+       */
+      fallbackReason: live ? null : configurationFault ? "provider_misconfigured" : fallback,
+      modelAttempted: model !== null,
+      modelUnavailable,
+    },
   });
 
   if (model === null) {
-    yield { type: "final", outcome: finish(deterministic, false, false, false) };
+    yield {
+      type: "final",
+      outcome: finish(deterministic, false, false, false, "model_unavailable"),
+    };
     return;
   }
 
@@ -809,17 +1073,18 @@ export async function* askStream(
 
   yield { type: "stage", label: "Checking the evidence behind it" };
 
-  for (const result of run.results) {
-    transcript.push({
-      role: "tool_result",
-      callId: `tool_${result.tool}`,
-      output: JSON.stringify({
-        tool: result.tool,
-        sampleSize: result.sampleSize,
-        facts: result.facts,
-        caveats: result.caveats,
-      }),
-    });
+  /*
+   * Answer every call the model made, by the id it used.
+   *
+   * This loop used to invent an id — `tool_${result.tool}` — while the replayed
+   * `function_call` carried the model's real `call_id`. The two never matched,
+   * so the API rejected every composition turn with "No tool output found for
+   * function call call_…", on every question, for as long as the code existed.
+   * Nothing caught it: the fake provider does not validate the body, and until
+   * a working key existed the turn was never reached.
+   */
+  for (const output of run.outputs) {
+    transcript.push({ role: "tool_result", callId: output.callId, output: output.output });
   }
 
   transcript.push({
@@ -836,11 +1101,31 @@ Answer the question using only the figures above. Cite bundle ids in every findi
   try {
     for await (const event of model.streamRespond({
       instructions: SYSTEM,
-      // The tool transcript is replayed, but no tools are offered on this turn:
-      // the analysis is finished and the only remaining job is wording.
+      /*
+       * The tools are declared and forbidden, which is not the same as absent.
+       *
+       * The analysis is finished and the only remaining job is wording, so the
+       * model must not call anything — hence `toolChoice: "none"`. But the
+       * transcript replays the calls the planning turn made, and the Responses
+       * API rejects a `function_call` item whose definition is not in the
+       * request. Sending `tools: []` here made every composition turn fail with
+       * "the request was rejected on input", on every question, against the
+       * real API. Nothing caught it: the fake provider does not validate the
+       * body, and until a working key existed the turn was never reached.
+       */
       messages: transcript,
-      tools: [],
-      reasoningEffort: effort,
+      tools: toolSpecs(),
+      toolChoice: "none",
+      /*
+       * Wording needs less deliberation than choosing what to measure.
+       *
+       * The analysis is finished by this point; what remains is putting
+       * computed figures into sentences. Spending a planning-grade reasoning
+       * budget on that is slow and costs money for nothing — 15 seconds a
+       * question, most of it invisible. A reader who asked for a deep report
+       * still gets one.
+       */
+      reasoningEffort: context.depth === "deep" ? effort : "low",
       maxOutputTokens: LIMITS.maxOutputTokens,
       safetyIdentifier: context.safetyIdentifier,
       responseSchema: { name: "observer_answer", schema: answerJsonSchema() },
@@ -862,8 +1147,13 @@ Answer the question using only the figures above. Cite bundle ids in every findi
   } catch (error) {
     // Same rule as the planning turn: the prose is lost, the figures are not.
     if (error instanceof ModelConfigurationError) configurationFault = true;
+    if (saysModelUnreachable(error)) modelUnavailable = true;
     recordUpstreamFailure();
-    yield { type: "final", outcome: finish(deterministic, false, false, false) };
+    reportUpstreamFailure("composition", error);
+    yield {
+      type: "final",
+      outcome: finish(deterministic, false, false, false, "composition_failed"),
+    };
     return;
   }
 
@@ -874,12 +1164,15 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     // Streamed text is discarded rather than salvaged. Half a sentence that
     // failed validation is not an answer, and repairing it would produce prose
     // nobody can trace afterwards.
-    yield { type: "final", outcome: finish(deterministic, true, truncated, false) };
+    yield {
+      type: "final",
+      outcome: finish(deterministic, true, truncated, false, "schema_rejected"),
+    };
     return;
   }
 
   if (containsCausalClaim(parsed) || !isTraceableAnswer(parsed, question)) {
-    yield { type: "final", outcome: finish(deterministic, true, truncated, false) };
+    yield { type: "final", outcome: finish(deterministic, true, truncated, false, "output_guard") };
     return;
   }
 
@@ -941,10 +1234,11 @@ export function safeParseAnswer(
 export async function ask(
   question: string,
   context: AskContextInput,
+  access: ModelGrant,
   signal?: AbortSignal,
 ): Promise<ObserverOutcome> {
   let outcome: ObserverOutcome | null = null;
-  for await (const event of askStream(question, context, signal)) {
+  for await (const event of askStream(question, context, access, signal)) {
     if (event.type === "final") outcome = event.outcome;
   }
   /*

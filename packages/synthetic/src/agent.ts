@@ -7,17 +7,19 @@ import {
   type PreMeetingBrief,
   type UnitId,
 } from "@observer/contracts";
-import type {
-  AgentOverview,
-  EvidenceRef,
-  FollowUpItem,
-  PreMeetingBriefView,
-  UnitLabel,
-  UpcomingMeeting,
-  ViewContext,
+import {
+  NotFoundError,
+  type AgentOverview,
+  type EvidenceRef,
+  type FollowUpItem,
+  type PreMeetingBriefView,
+  type UnitLabel,
+  type UpcomingMeeting,
+  type ViewContext,
 } from "@observer/readmodels";
+import { daysBetween } from "./deals";
 import { comparison, count, days, evidenceRef, money, ok, percent, unavailable } from "./format";
-import { UNITS, unitById } from "./world";
+import { TODAY, UNITS, unitById } from "./world";
 
 /**
  * The sales agent's surfaces: their Overview, and the pre-meeting brief.
@@ -34,6 +36,16 @@ import { UNITS, unitById } from "./world";
 
 export const VIKTORIA_MEETING_ID: MeetingId = MeetingIdSchema.parse("mtg_viktoria0827");
 export const COUPLE_MEETING_ID: MeetingId = MeetingIdSchema.parse("mtg_bartos00829");
+
+/**
+ * Daniel and Eva Bartoš's last meeting, and the one instant `daysSinceMeeting`
+ * is computed from — not a separately hand-typed day count. `metrics.people.
+ * follow_up_delay`'s own contract is a duration derived from two timestamps;
+ * a literal `16` beside it was exactly the fabricated figure the product
+ * doctrine's own rule forbids, and it would have gone stale the moment
+ * `TODAY` ever moved without anyone noticing, since nothing recomputed it.
+ */
+const DANIEL_LAST_MEETING_AT = "2026-08-08T11:00:00.000+02:00";
 
 /** Fixture identifiers are parsed, so a typo fails at module load. */
 const unit = (value: string): UnitId => UnitIdSchema.parse(value);
@@ -367,7 +379,30 @@ export function buildPreMeetingBrief(
 
 /* --- the agent's overview -------------------------------------------------- */
 
+/**
+ * THE SAME LEAK `buildExecutiveOverview` HAD, ONE FUNCTION OVER.
+ *
+ * This is not a per-project dispatch table — it is one function, and it
+ * always names Viktória Halász and Daniel & Eva Bartoš, always cites
+ * `VIKTORIA_MEETING_ID`/`COUPLE_MEETING_ID`, regardless of which project the
+ * viewer actually opened. `root` is built from the real `context`, so the
+ * links point at THIS project's own `/meetings/mtg_viktoria0827` — a meeting
+ * that exists only inside Northgate's fixtures. On any other project that
+ * link either 404s or, if a fixture ever reused the id, could open a meeting
+ * that is not the one the headline describes.
+ *
+ * `docs/08-scenarios.md`'s scripted narrative — the finding that justifies
+ * the whole product, Viktória's favourite unit selling three days before her
+ * follow-up — is Northgate's own scenario and was never meant to travel.
+ * Gated the same way `buildExecutiveOverview` now is: honest absence for
+ * every project this was not written for, rather than someone else's story
+ * with this project's own links stapled to it.
+ */
 export function buildAgentOverview(context: ViewContext): AgentOverview {
+  if (context.project.id !== "prj_northgate01") {
+    throw new NotFoundError(`an agent overview for ${context.project.name}`);
+  }
+
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const hasShowroom = context.project.connectedSources.includes("showroom");
 
@@ -400,15 +435,23 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       ]
     : [];
 
+  /*
+   * The follow-up threshold `metrics.people.follow_up_delay` states
+   * (7 days) is a rule, kept as a literal because it is one; the day count
+   * measured against it is derived, not typed twice.
+   */
+  const FOLLOW_UP_THRESHOLD_DAYS = 7;
+  const danielDaysSinceMeeting = daysBetween(DANIEL_LAST_MEETING_AT, TODAY) ?? 0;
+
   const followUps: readonly FollowUpItem[] = [
     {
       contactId: "cnt_danielpair1",
       displayName: "Daniel and Eva Bartoš",
       lastMeetingLabel: "8 August",
-      daysSinceMeeting: 16,
-      reason: "Shortlisted two units, no contact since the meeting.",
+      daysSinceMeeting: danielDaysSinceMeeting,
+      reason: "Shortlisted two units. No contact has been recorded since the meeting.",
       href: `${root}/people`,
-      urgency: "overdue",
+      urgency: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "overdue" : "due",
     },
   ];
 
@@ -416,17 +459,18 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
     context,
     verdict: {
       state: "attention_needed",
-      headline: "Two meetings this week, and one buyer has been waiting 16 days for a reply.",
-      supporting: "Your briefs are ready for Thursday. Daniel and Eva are the overdue one.",
+      headline: `Two meetings this week, and one buyer has had no contact recorded for ${String(danielDaysSinceMeeting)} days.`,
+      supporting:
+        "Your briefs are ready for Thursday. Daniel and Eva are the longest gap with nothing recorded against it.",
       evidence: ev("agent.verdict", "observed_sequence", `${root}/people`, 2),
       rulesetVersion: "verdict-1.0.0",
       components: [
         {
           metricId: "people.follow_up_delay",
-          label: "Longest wait",
-          display: "16 days",
-          rule: "No buyer waiting longer than 7 days after a meeting",
-          outcome: "fail",
+          label: "Longest gap since a meeting",
+          display: days(danielDaysSinceMeeting),
+          rule: `No buyer left without a recorded contact for more than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
+          outcome: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "fail" : "pass",
         },
         {
           metricId: "unit.shares",

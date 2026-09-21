@@ -2,7 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ask, runTools } from "@/lib/ai/agent";
-import { AskBodySchema, gate } from "@/lib/ai/gate";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
+import { admittedHeaders, AskBodySchema, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { TOOL_NAMES } from "@/lib/ai/tools";
 import { DELEGATE_TOOL_NAME } from "@/lib/ai/voice";
@@ -48,11 +56,14 @@ export async function POST(request: Request) {
    * the gate takes a question at all here: the delegation path needs one, and
    * the ordinary path supplies a placeholder that is never sent anywhere.
    */
-  const admitted = await gate({
-    ...parsed.data,
-    question: parsed.data.question ?? "voice tool call",
-    depth: "standard",
-  });
+  const admitted = await gate(
+    {
+      ...parsed.data,
+      question: parsed.data.question ?? "voice tool call",
+      depth: "standard",
+    },
+    request,
+  );
 
   if (!admitted.ok) {
     return NextResponse.json({ error: admitted.message }, { status: admitted.httpStatus });
@@ -61,13 +72,43 @@ export async function POST(request: Request) {
   /* The delegation path: hand the question to the server-side Sol pipeline. */
   if (parsed.data.tool === DELEGATE_TOOL_NAME) {
     if (parsed.data.question === null) {
-      return NextResponse.json({ error: "No question supplied." }, { status: 400 });
+      // Post-admission: a row already exists, so this response names it too.
+      return NextResponse.json(
+        { error: "No question supplied." },
+        { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
+      );
     }
-    const outcome = await ask(
-      parsed.data.question,
-      admitted.context,
-      AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+    /* Model, credential and budget, on the server, at the last moment. */
+    const admission = await admitModelRequest(
+      admitted.accountId,
+      admitted.question,
+      admitted.context.depth,
+      parseOverride(admitted.modelOverride),
     );
+
+    /* Non-refundable from here. See the same block in the POST route. */
+    const dispatched = admission.ok ? await dispatchAdmission(admission.reservation) : false;
+
+    let outcome;
+    try {
+      outcome = await ask(
+        parsed.data.question,
+        admitted.context,
+        admission.ok && dispatched
+          ? admission.access
+          : admission.ok
+            ? { blocked: "unavailable" as const }
+            : blockFor(admission.refusal),
+        AbortSignal.timeout(LIMITS.requestTimeoutMs * 2),
+      );
+    } catch (error) {
+      if (admission.ok) await abandonAdmission(admission.reservation, dispatched);
+      throw error;
+    }
+
+    if (admission.ok) {
+      await settleAdmission(admission.reservation, outcome.diagnostics.usage ?? null);
+    }
     return NextResponse.json(
       {
         /*
@@ -85,7 +126,7 @@ export async function POST(request: Request) {
         orbState: outcome.answer?.orbState ?? "error",
         tools: outcome.toolsUsed,
       },
-      { headers: { "Cache-Control": "no-store" } },
+      { headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -95,7 +136,7 @@ export async function POST(request: Request) {
     // rephrasing the same request in a loop.
     return NextResponse.json(
       { error: `No such analysis: ${parsed.data.tool}.` },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { status: 400, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -111,7 +152,7 @@ export async function POST(request: Request) {
           ? "This account is not permitted to read that analysis."
           : "That analysis returned nothing for this project and period.",
       },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
+      { status: 200, headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
     );
   }
 
@@ -125,6 +166,6 @@ export async function POST(request: Request) {
         spoken: result.draft,
       })),
     },
-    { headers: { "Cache-Control": "no-store" } },
+    { headers: { "Cache-Control": "no-store", ...admittedHeaders(admitted) } },
   );
 }

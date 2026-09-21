@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@observer/contracts";
-import type { PeriodPreset } from "@observer/readmodels";
+import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -28,12 +28,6 @@ export const metadata: Metadata = { title: "Audience" };
  * behaviour. "Probably has children" is a reading a human may make from it;
  * Observer states the behaviour and lets them make it.
  */
-const ROOM_OPTIONS = [
-  { value: "", label: "Any unit" },
-  { value: "2", label: "Two-room" },
-  { value: "3", label: "Three-room" },
-] as const;
-
 export default async function AudiencePage({
   params,
   searchParams,
@@ -53,7 +47,12 @@ export default async function AudiencePage({
   requireSurface(viewer, "audience", `/${tenantSlug}/${projectSlug}`);
   const search = await searchParams;
 
-  const rooms = search.rooms === "2" || search.rooms === "3" ? Number(search.rooms) : null;
+  // Any positive whole number is a legitimate question to ask of the
+  // catalogue; one it does not contain simply matches nothing, which the
+  // page already says honestly. The tab strip below offers only the counts
+  // the project actually has.
+  const requestedRooms = Number(search.rooms);
+  const rooms = Number.isInteger(requestedRooms) && requestedRooms > 0 ? requestedRooms : null;
   const category = (PLACE_CATEGORIES as readonly string[]).includes(search.category ?? "")
     ? (search.category as PlaceCategory)
     : null;
@@ -84,7 +83,10 @@ export default async function AudiencePage({
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Audience · {view.context.period.label}</p>
         <h1 className="iris-section">
-          {view.total} of {view.ofMeetings} meetings match.
+          {view.ofMeetings === 0
+            ? (nothingReceivedYet(view.context) ??
+              "No meeting in this period to build an audience from.")
+            : `${String(view.total)} of ${String(view.ofMeetings)} meetings match.`}
         </h1>
         <p className="iris-body" style={{ maxWidth: "62ch", color: "var(--ink-2)" }}>
           {view.description}
@@ -94,12 +96,19 @@ export default async function AudiencePage({
           <div>
             <p className="iris-kicker">Unit</p>
             <div className="iris-segmented" role="tablist" aria-label="Unit type">
-              {ROOM_OPTIONS.map((o) => (
+              <Link
+                role="tab"
+                aria-selected={rooms === null}
+                href={dynamicRoute(qs({ rooms: null }))}
+              >
+                Any unit
+              </Link>
+              {view.roomChoices.map((o) => (
                 <Link
-                  key={o.value || "any"}
+                  key={o.rooms}
                   role="tab"
-                  aria-selected={(rooms === null ? "" : String(rooms)) === o.value}
-                  href={dynamicRoute(qs({ rooms: o.value === "" ? null : o.value }))}
+                  aria-selected={rooms === o.rooms}
+                  href={dynamicRoute(qs({ rooms: String(o.rooms) }))}
                 >
                   {o.label}
                 </Link>
@@ -171,7 +180,9 @@ export default async function AudiencePage({
             {view.matches.map((m) => (
               <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
                 <span className="iris-matrix-code">{m.startedDisplay}</span>
-                <span className="iris-bar-label" title={m.agentName}>{m.agentName}</span>
+                <span className="iris-bar-label" title={m.agentName}>
+                  {m.agentName}
+                </span>
                 <span className="iris-bar-label" title={m.because}>
                   {m.because}
                 </span>

@@ -148,6 +148,31 @@ a {
   font-size: var(--text-kicker);
 }
 
+/* --- the data marker ------------------------------------------------------ */
+
+/*
+ * Two markers are rendered wherever one appears — "Demo data" and "Live
+ * meetings" — and the project layout's `data-sessions` shows one of them, so a
+ * dozen pages cannot disagree about which project they are on. Outside a
+ * project layout nothing is delivered and the synthetic marker shows. A
+ * project made in administration (`own`) shows neither: nothing on it is a
+ * demonstration, and what it lacks is absent rather than invented. The
+ * element in the selector is there to outrank the markers' own one-class
+ * `display` rules without reaching for `!important`.
+ */
+span.obs-when-delivered {
+  display: none;
+}
+
+[data-sessions="delivered"] span.obs-when-synthetic,
+[data-sessions="own"] span.obs-when-synthetic {
+  display: none;
+}
+
+[data-sessions="delivered"] span.obs-when-delivered {
+  display: inline-flex;
+}
+
 /* --- primary navigation --------------------------------------------------- */
 
 .obs-nav {
@@ -840,6 +865,15 @@ a {
   .obs-nav {
     padding-inline: var(--space-3);
   }
+  /*
+   * The strip scrolls sideways with its scrollbar hidden, so at this width
+   * nothing said there was more of it. A fading right edge does, and the end
+   * padding lets the last item scroll clear of the fade.
+   */
+  .obs-nav {
+    padding-inline-end: 2.5rem;
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  }
   .obs-verdict-headline {
     font-size: var(--text-h6);
     line-height: var(--text-h6-lh);
@@ -988,26 +1022,12 @@ a {
 }
 
 /*
- * The context selects must look selectable.
- *
- * `appearance: none` removed the native arrow and left two controls that read
- * as buttons — a reader could not tell the project was changeable at all.
+ * The context selects were styled here until 2026-09-18, when both switchers
+ * stopped being selects: a `<select>` opens an operating-system list that no
+ * stylesheet can reach, and this product's header is graphite. `.ox-menu` in
+ * `observer-product.css` draws the control and its panel now, so the rules
+ * that gave a select an arrow it could keep are gone rather than left to rot.
  */
-.obs-context select {
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
-    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
-  background-position:
-    right 1rem center,
-    right 0.7rem center;
-  background-size:
-    0.3rem 0.3rem,
-    0.3rem 0.3rem;
-  background-repeat: no-repeat;
-  padding-right: var(--space-6);
-  max-width: 16rem;
-  text-overflow: ellipsis;
-}
 
 @media (max-width: 48rem) {
   /*
@@ -1037,10 +1057,6 @@ a {
     white-space: nowrap;
   }
 
-  .obs-context select {
-    max-width: 9rem;
-  }
-
   .obs-brand span:not(.obs-brand-mark) {
     display: none;
   }
@@ -1062,7 +1078,8 @@ a {
  * structure — the sections are real, bounded objects — and drops the card
  * chrome that was doing the separating.
  *
- * A card is reserved for a genuine collection: the profile picker's people, a
+ * A card is reserved for a genuine collection: the project selector's
+ * developments, a
  * unit's own object. A fact is not a collection, and wrapping every fact in a
  * container is how density turns into a scrapbook.
  */

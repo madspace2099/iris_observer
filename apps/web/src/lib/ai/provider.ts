@@ -3,6 +3,8 @@ import "server-only";
 import OpenAI from "openai";
 
 import { environment, type ReasoningEffort } from "@/lib/env";
+import { NO_ACCOUNT_CONNECTION } from "@/lib/credentials/failure";
+import type { ModelId } from "@/lib/models/catalogue";
 import { LIMITS, modelIsAllowed } from "./limits";
 
 /**
@@ -15,9 +17,10 @@ import { LIMITS, modelIsAllowed } from "./limits";
  * file imports the vendor SDK, and the types below are this product's, not
  * OpenAI's.
  *
- * **This module is server-only.** `OPENAI_API_KEY` is read from the process
- * environment, never prefixed `NEXT_PUBLIC_`, and a test asserts that no client
- * bundle can reach it.
+ * **This module is server-only.** It reads no credential from the environment
+ * at all: a key is handed in per request, resolved from the asking account
+ * (ADR-0030). Nothing here is prefixed `NEXT_PUBLIC_` and a test asserts that
+ * no client bundle can reach any of it.
  *
  * ## What this layer refuses to do
  *
@@ -78,6 +81,17 @@ export interface ModelTurn {
   readonly signal?: AbortSignal;
   /** Overrides the configured text model. Used for the fast background path. */
   readonly model?: string;
+  /**
+   * Whether the model may call a tool this turn.
+   *
+   * `"none"` declares the tools without permitting a call, which is not the
+   * same as declaring no tools. The composition turn replays the function calls
+   * the planning turn made, and the Responses API rejects a `function_call`
+   * item whose definition is absent from the request — so a turn that says
+   * "here is what you asked for, now write it up" must still carry the tool
+   * list, and must forbid using it.
+   */
+  readonly toolChoice?: "auto" | "none";
 }
 
 export interface ModelUsage {
@@ -175,11 +189,20 @@ export function describeOpenAiFailure(
       return new ModelConfigurationError("openai: the key was rejected");
     }
     if (status === 400) {
-      // A rejected parameter is a code or configuration fault, not an outage.
-      // Naming the parameter is safe; it is a field name, never a value.
-      return new ModelConfigurationError(
-        `openai: the request was rejected${error.param === null || error.param === undefined ? "" : ` on "${String(error.param)}"`}`,
-      );
+      /*
+       * A rejected parameter is a code or configuration fault, not an outage.
+       *
+       * The parameter name alone was not enough to fix one: every composition
+       * turn failed with `on "input"`, which narrows the problem to a field
+       * containing the entire conversation. The provider's own sentence says
+       * *which part* of it, and is written for an operator — it names types and
+       * indices, not content. Carried through, and capped, because the one
+       * thing it must never become is a channel for the payload.
+       */
+      const where =
+        error.param === null || error.param === undefined ? "" : ` on "${String(error.param)}"`;
+      const why = typeof error.message === "string" ? `: ${error.message.slice(0, 240)}` : "";
+      return new ModelConfigurationError(`openai: the request was rejected${where}${why}`);
     }
     if (status === 429) return new ModelUnavailableError("openai: rate limited");
     return new ModelUnavailableError(`openai: request failed with status ${status}`);
@@ -331,7 +354,14 @@ function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
       parameters: tool.parameters,
       strict: false,
     }));
-    body["tool_choice"] = "auto";
+    /*
+     * `none` still declares the tools. That distinction is the whole point:
+     * the composition turn replays the calls the planning turn made, and the
+     * API rejects a `function_call` in `input` with no matching definition —
+     * "the request was rejected on input", which is what it did on every
+     * composition turn until this was passed.
+     */
+    body["tool_choice"] = turn.toolChoice ?? "auto";
     body["parallel_tool_calls"] = false;
   }
 
@@ -349,13 +379,25 @@ function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
   return body;
 }
 
-function client(): OpenAI {
-  const key = process.env["OPENAI_API_KEY"];
-  if (key === undefined || key.length === 0) {
-    throw new ModelConfigurationError("openai: OPENAI_API_KEY is not set on the server");
+/**
+ * A client for ONE credential, built where the credential is known.
+ *
+ * It used to read `process.env["OPENAI_API_KEY"]` and return a client for
+ * whatever the deployment held. That is exactly the wrong shape once keys
+ * belong to accounts: a single ambient credential, resolved implicitly, shared
+ * by every caller, and impossible to attribute. The key is now a parameter, so
+ * a client cannot be constructed without saying whose it is.
+ *
+ * Not cached, and not module-level. A cached client is a cached credential, and
+ * a cached credential keyed by anything other than the account is how one
+ * reader's question gets billed to another reader's project.
+ */
+function client(apiKey: string): OpenAI {
+  if (apiKey.length === 0) {
+    throw new ModelConfigurationError("openai: no API key was supplied for this request");
   }
   return new OpenAI({
-    apiKey: key,
+    apiKey,
     // One attempt. The breaker in limits.ts handles the repeated case; an
     // automatic retry in front of a per-token vendor is an uncapped bill.
     maxRetries: 0,
@@ -363,7 +405,14 @@ function client(): OpenAI {
   });
 }
 
-export function openAiModel(model: string): ObserverModel {
+/**
+ * Binds a model to one account's credential.
+ *
+ * The returned object closes over `apiKey` and nothing else reads it. It is
+ * built per request, used, and dropped — there is no registry of models to
+ * accidentally look one up in, and no default instance to fall back to.
+ */
+export function openAiModel(model: string, apiKey: string): ObserverModel {
   if (!modelIsAllowed(model)) {
     throw new ModelConfigurationError(
       `openai: model "${model}" is not on this deployment's allowlist (OBSERVER_ALLOWED_MODELS)`,
@@ -381,7 +430,7 @@ export function openAiModel(model: string): ObserverModel {
         throw new ModelConfigurationError(`openai: model "${chosen}" is not on the allowlist`);
       }
       try {
-        const response = await client().responses.create(
+        const response = await client(apiKey).responses.create(
           buildBody(turn, chosen) as never,
           turn.signal === undefined ? undefined : { signal: turn.signal },
         );
@@ -413,7 +462,7 @@ export function openAiModel(model: string): ObserverModel {
 
       let stream;
       try {
-        stream = await client().responses.create(
+        stream = await client(apiKey).responses.create(
           { ...buildBody(turn, chosen), stream: true } as never,
           turn.signal === undefined ? undefined : { signal: turn.signal },
         );
@@ -463,12 +512,87 @@ export function openAiModel(model: string): ObserverModel {
 
 /* --- resolution ---------------------------------------------------------------- */
 
+/**
+ * WHY NO MODEL MAY BE CALLED, WHEN NONE MAY.
+ *
+ * Six causes, and a reader can act on four of them — but only if they are told
+ * which one happened. They used to be one boolean: every refusal reached the
+ * answer sheet as "your account has no OpenAI connection", so an account that
+ * had spent its monthly budget was sent to Settings to add a key it already
+ * had. A correct enforcement decision, reported as the wrong problem.
+ *
+ * Safe to serialise: a fixed word from a closed set. It names no vendor, quotes
+ * no message and carries nothing about the deployment.
+ */
+export type ModelBlock =
+  /** No credential stored for the chosen model's provider. */
+  | "no_connection"
+  /** A credential exists, but nothing may be spent: no ceiling is set. */
+  | "no_budget"
+  /** This month's ceiling is reached. Enforced BEFORE any request is made. */
+  | "budget_exhausted"
+  /** The provider told this account it cannot reach this model. */
+  | "model_unavailable"
+  /** A stored credential that will not decrypt. */
+  | "unreadable"
+  /** The question is larger than Observer will send. See the catalogue. */
+  | "too_large"
+  /** Storage or the ledger did not answer. Fail closed. */
+  | "unavailable";
+
+/** Passed in place of access when admission refused, so the refusal is named. */
+export interface ModelBlocked {
+  readonly blocked: ModelBlock;
+}
+
+/** What a caller hands the resolver: a key to use, a refusal, or nothing. */
+export type ModelGrant = ModelAccess | ModelBlocked | null;
+
+function isBlocked(grant: ModelGrant): grant is ModelBlocked {
+  return grant !== null && "blocked" in grant;
+}
+
+/** The operator-facing sentence for each. Redacted before it leaves. */
+const BLOCK_REASON: Readonly<Record<ModelBlock, string>> = Object.freeze({
+  no_connection: NO_ACCOUNT_CONNECTION,
+  no_budget: "no monthly Observer budget is set for this account",
+  budget_exhausted: "the monthly Observer budget for this account is used up",
+  model_unavailable: "the chosen model is not available to the key on this account",
+  unreadable: "the stored credential for this account could not be read",
+  too_large: "the question is larger than Observer will send in one request",
+  unavailable: "credential storage or the usage ledger did not answer",
+});
+
 export interface ModelStatus {
   readonly provider: string;
   readonly model: string;
   readonly live: boolean;
   /** Operator-facing. Redacted before it leaves the server. */
   readonly reason: string | null;
+  /**
+   * WHETHER THE READER CAN FIX THIS THEMSELVES, AND SURVIVES REDACTION.
+   *
+   * `reason` is stripped on its way out because it names the vendor and can
+   * quote a request back. This is a boolean and says one thing only: the
+   * account asking has no OpenAI connection. It carries no vendor detail, no
+   * message and no configuration, so it is safe to serialise — and it is what
+   * lets the answer sheet offer a link instead of an unexplained silence.
+   *
+   * False for every operator-side reason. Being told to visit Settings when
+   * the problem is `OBSERVER_AI_ENABLED` would send a reader somewhere that
+   * cannot help them — and false, now, for a reader who has a key and has run
+   * out of budget, whose problem Settings solves through a different door.
+   */
+  readonly setupRequired: boolean;
+  /**
+   * WHICH REFUSAL HAPPENED. Null when a model answered.
+   *
+   * Survives redaction for the same reason `setupRequired` does: a word from
+   * a closed set, carrying nothing about the vendor or the request. It is what
+   * lets the sheet say the monthly budget is used up instead of sending
+   * somebody to add a key they already added.
+   */
+  readonly blocked: ModelBlock | null;
 }
 
 export type ModelResolution =
@@ -489,7 +613,50 @@ export type ModelResolution =
  *   become the evidence-only path, because a deployment that believes it is
  *   running a model should never be quietly running a template.
  */
-export function resolveModel(): ModelResolution {
+/**
+ * Resolves the model for ONE account's credential.
+ *
+ * `apiKey` is null when the account that is asking has no connection, when the
+ * server cannot store credentials at all, or when a stored credential would not
+ * decrypt. Every one of those ends the same way — evidence-only — because the
+ * alternative is answering on somebody else's key.
+ *
+ * There is deliberately no branch that reads `process.env["OPENAI_API_KEY"]`.
+ * A deployment-wide key was the whole previous design; keeping it as a fallback
+ * would mean an account that declined to connect still spends MADSPACE's money,
+ * and no test could tell the two paths apart from the outside.
+ */
+/**
+ * What the asking account may use for this question.
+ *
+ * A model identifier from the catalogue and the credential for its provider.
+ * Null when the account has no connection, when the chosen model's provider is
+ * not connected, or when the ledger refused the spend — all of which end the
+ * same way, evidence-only, because none of them may quietly become "use
+ * somebody else's key" or "spend past the ceiling".
+ */
+export interface ModelAccess {
+  readonly model: ModelId;
+  readonly apiKey: string;
+}
+
+/**
+ * How a catalogue model becomes something callable.
+ *
+ * Injected rather than imported. `providers/transport.ts` needs this module's
+ * types, so this module importing it back would be a cycle; a setter called
+ * once by the composition root keeps the dependency in one direction and makes
+ * the seam something a reader can see rather than infer.
+ */
+type ModelBuilder = (model: ModelId, apiKey: string) => ObserverModel;
+
+let buildModel: ModelBuilder | null = null;
+
+export function useModelBuilder(builder: ModelBuilder): void {
+  buildModel = builder;
+}
+
+export function resolveModel(grant: ModelGrant): ModelResolution {
   const env = environment();
 
   if (!env.ai.enabled) {
@@ -501,11 +668,19 @@ export function resolveModel(): ModelResolution {
         model: "none",
         live: false,
         reason: "OBSERVER_AI_ENABLED is false",
+        setupRequired: false,
+        blocked: null,
       },
     };
   }
 
-  if (!env.ai.keyConfigured) {
+  /*
+   * A named refusal, reported as itself.
+   *
+   * `setupRequired` is true for exactly one of them, because adding a key is
+   * the fix for exactly one of them.
+   */
+  if (isBlocked(grant)) {
     return {
       ok: false,
       configurationFault: false,
@@ -513,27 +688,62 @@ export function resolveModel(): ModelResolution {
         provider: "evidence-only",
         model: "none",
         live: false,
-        reason: "no model key is configured",
+        reason: BLOCK_REASON[grant.blocked],
+        setupRequired: grant.blocked === "no_connection",
+        blocked: grant.blocked,
+      },
+    };
+  }
+
+  const access = grant;
+  if (access === null || access.apiKey.length === 0) {
+    return {
+      ok: false,
+      configurationFault: false,
+      status: {
+        provider: "evidence-only",
+        model: "none",
+        live: false,
+        reason: NO_ACCOUNT_CONNECTION,
+        setupRequired: true,
+        blocked: "no_connection",
       },
     };
   }
 
   try {
-    const model = openAiModel(env.ai.textModel);
+    /*
+     * The catalogue decides which vendor and which transport; the account
+     * decided which model. `env.ai.textModel` no longer chooses anything — it
+     * survives only as a deployment-wide fallback for a request that arrives
+     * with no preference at all, and the settings page is where a preference
+     * comes from.
+     */
+    if (buildModel === null) throw new ModelConfigurationError("no model transport is installed");
+    const model = buildModel(access.model, access.apiKey);
     return {
       ok: true,
       model,
-      status: { provider: model.id, model: model.model, live: true, reason: null },
+      status: {
+        provider: model.id,
+        model: model.model,
+        live: true,
+        reason: null,
+        setupRequired: false,
+        blocked: null,
+      },
     };
   } catch (error) {
     return {
       ok: false,
       configurationFault: true,
       status: {
-        provider: "openai",
-        model: env.ai.textModel,
+        provider: "provider",
+        model: access.model,
         live: false,
         reason: error instanceof Error ? error.message : "the model provider is misconfigured",
+        setupRequired: false,
+        blocked: "unavailable",
       },
     };
   }

@@ -1,0 +1,80 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "heartbeat-oversized",
+    "description": "A heartbeat body past the four-kibibyte ceiling, refused before the parser is asked to read it.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-heartbeat",
+      "headers": {
+        "content-type": "application/json",
+        "authorization": "Bearer obs_FIXTURE_selector.FIXTURE_secret_not_real"
+      },
+      "body": {
+        "sent_at": "2026-01-01T09:15:30+01:00",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "queue": {
+          "pending_events": 12,
+          "oldest_pending_at": "2026-01-01T09:02:11+01:00",
+          "quarantined_events": 1,
+          "bytes_used": 40960,
+          "bytes_ceiling": 52428800,
+          "dropped_events": 0
+        },
+        "last_error": {
+          "code": "unavailable",
+          "at": "2026-01-01T09:10:00+01:00"
+        },
+        "diagnostic_dump": "heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. heartbeat filler that cannot satisfy the schema. "
+      }
+    },
+    "requestSchema": "HeartbeatRequest",
+    "requestValidates": false,
+    "response": {
+      "status": 400,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "code": "malformed_request",
+        "message": "A heartbeat may not exceed 4096 bytes.",
+        "batch_id": null,
+        "retry_after_seconds": null
+      }
+    },
+    "responseSchema": "RequestFailureBody",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "An active source holding one live credential.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Nothing is written and nothing is parsed. The ceiling is applied to the body before JSON.parse is called, so a five-kilobyte payload never reaches the parser and never reaches the credential check either. last_heartbeat_at does not move."
+    },
+    "why": "malformed_request and NOT batch_too_large: a heartbeat has no batch, so answering 413 would tell a client to split and resend something that cannot be divided.",
+    "notes": [
+      "The code was chosen for what it means rather than for the status it carries. batch_too_large is a 413 whose published policy is retain_and_split; a plugin obeying it here would either loop trying to halve a liveness ping or quarantine one.",
+      "malformed_request is the honest answer because a heartbeat this large is not a large heartbeat. Every string in HeartbeatRequestSchema is bounded, so a schema-valid body comes to roughly 750 bytes — a body five times that cannot satisfy the schema, and the ceiling has merely discovered it early.",
+      "Its policy is also the one a client should follow: continue. The plugin has a defect worth surfacing locally, and stopping ingestion over a diagnostic payload would turn a reporting bug into an outage.",
+      "The ceiling is enforced as HEARTBEAT_MAX_BODY_BYTES in packages/sources/src/heartbeat.ts. HEARTBEAT_BODY_CEILING_BYTES restates it here because a contract package must not depend on a service package; the test asserts this body genuinely exceeds it.",
+      "The padding is a repeated English sentence rather than random bytes, so the generated document stays diffable and so the repository's own secret sweep does not see an opaque run of credential alphabet."
+    ]
+  }
+}

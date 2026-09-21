@@ -1,11 +1,16 @@
 import "server-only";
 
-import OpenAI from "openai";
-
-import { environment } from "@/lib/env";
-import { LIMITS, modelIsAllowed } from "./limits";
-import { ModelConfigurationError, describeOpenAiFailure } from "./provider";
-import { toolSpecs } from "./agent";
+/*
+ * NO VENDOR SDK IS IMPORTED HERE, AND THAT IS THE POINT.
+ *
+ * This module used to construct an OpenAI client. It was the only AI path that
+ * bypassed the injectable transport, which meant the synthetic harness — whose
+ * entire guarantee is that nothing leaves the machine — could still have sent a
+ * fake key to api.openai.com the moment somebody pressed a microphone. The
+ * import is gone rather than guarded: a guard is something a later edit can
+ * step around, and a missing dependency is not.
+ */
+import { ModelConfigurationError } from "./provider";
 
 /**
  * The realtime voice session.
@@ -79,11 +84,50 @@ const DELEGATE_TOOL = {
 
 export const DELEGATE_TOOL_NAME = DELEGATE_TOOL.name;
 
-/** Why the voice layer is not available, in words an operator can act on. */
-export type VoiceBlocker =
-  | { readonly kind: "disabled"; readonly detail: string }
-  | { readonly kind: "not_configured"; readonly detail: string }
-  | { readonly kind: "model_not_allowed"; readonly detail: string };
+/**
+ * Why the voice layer is not available.
+ *
+ * Two audiences, two sentences, and they must not be interchanged. `detail` is
+ * an operator's diagnosis and names the variable to go and set; it belongs in a
+ * server log. `reader` is what appears on screen.
+ *
+ * They were one field, and the screen showed the operator's: every visitor to
+ * the demonstration was told which environment variable was unset on the
+ * server. That is a configuration detail handed to an audience who cannot act
+ * on it and should not be shown it.
+ */
+export type VoiceBlockerKind =
+  | "disabled"
+  | "not_configured"
+  | "model_not_allowed"
+  /** Realtime voice has not been built. The only answer this milestone gives. */
+  | "not_built";
+
+export interface VoiceBlocker {
+  readonly kind: VoiceBlockerKind;
+  /** For the server log. Names variables. Never rendered. */
+  readonly detail: string;
+  /** For the person in front of the screen. Names nothing. */
+  readonly reader: string;
+}
+
+/**
+ * The half of a blocker the browser is allowed to receive.
+ *
+ * `kind` so the interface can decide what to render, `reader` so it has
+ * something to render. `detail` stays on the server: it is written for whoever
+ * can act on it, and nobody holding a browser on a public demonstration can.
+ */
+export interface PublicVoiceBlocker {
+  readonly kind: VoiceBlockerKind;
+  readonly reader: string;
+}
+
+export function publicBlocker(blocker: VoiceBlocker | null): PublicVoiceBlocker | null {
+  // Built by naming fields, never by deleting them — a payload assembled by
+  // removal grows a leak the first time somebody adds a field upstream.
+  return blocker === null ? null : { kind: blocker.kind, reader: blocker.reader };
+}
 
 /**
  * Whether voice can be offered at all, before any network call.
@@ -93,23 +137,29 @@ export type VoiceBlocker =
  * and a single `false` would send somebody looking in the wrong place.
  */
 export function voiceBlocker(): VoiceBlocker | null {
-  const env = environment();
-  if (!env.ai.voiceEnabled) {
-    return { kind: "disabled", detail: "OBSERVER_VOICE_ENABLED is false." };
-  }
-  if (!env.ai.keyConfigured) {
-    return {
-      kind: "not_configured",
-      detail: "No OPENAI_API_KEY is set on the server, so no client secret can be minted.",
-    };
-  }
-  if (!modelIsAllowed(env.ai.voiceModel)) {
-    return {
-      kind: "model_not_allowed",
-      detail: `The configured voice model "${env.ai.voiceModel}" is not in OBSERVER_ALLOWED_MODELS.`,
-    };
-  }
-  return null;
+  /*
+   * ONE ANSWER, AND NO FLAG CAN CHANGE IT.
+   *
+   * Realtime voice is M0.5. There is no transport for it, and no pricing:
+   * realtime audio is not billed at the text-token rates this catalogue
+   * carries, so metering a spoken session against a reader's monthly budget
+   * would put a number on their screen that bears no relation to their bill.
+   *
+   * The earlier version consulted `OBSERVER_VOICE_ENABLED` and the model
+   * allowlist and, finding both satisfactory, returned null — at which point
+   * the route minted a realtime secret by talking to OpenAI directly, outside
+   * the injectable transport every other AI path goes through. That is the hole
+   * this closes: not by adding a check, but by removing the destination.
+   *
+   * `OBSERVER_VOICE_ENABLED` is deliberately not consulted. A refusal a
+   * deployment can switch off is not a refusal.
+   */
+  return {
+    kind: "not_built",
+    detail: "Realtime voice is not implemented in this milestone. See ADR-0031.",
+    reader:
+      "Spoken questions are not enabled yet. Observer answers in text, and the spoken interface is coming in a later milestone.",
+  };
 }
 
 export interface VoiceSession {
@@ -133,48 +183,29 @@ export interface VoiceSession {
  * pipeline, which sends it. What is lost is vendor-side correlation of the
  * spoken turns themselves, and that is recorded rather than papered over.
  */
-export async function createVoiceSession(): Promise<VoiceSession> {
-  const env = environment();
-  const blocker = voiceBlocker();
-  if (blocker !== null) throw new ModelConfigurationError(`voice: ${blocker.detail}`);
+/**
+ * SPOKEN QUESTIONS ARE NOT BUILT YET, AND THIS SAYS SO RATHER THAN TRYING.
+ *
+ * This function used to construct an OpenAI client and mint a realtime client
+ * secret. That made it the one AI path in the codebase that did NOT go through
+ * the injectable transport — so the synthetic browser harness, whose whole
+ * guarantee is that no request can leave, would have made a real HTTPS request
+ * to api.openai.com carrying a fake `sk-observer-test-…` key the moment
+ * anybody pressed a microphone. A DNS lookup, a TLS handshake and a 401 in
+ * somebody's logs, from a suite that promises silence.
+ *
+ * Realtime voice is M0.5. Until the transport, the pricing and the metering for
+ * it exist — realtime audio is not priced with the text-token rates in this
+ * catalogue, and pretending otherwise would put a wrong number in a reader's
+ * budget — this refuses locally and tells the truth about why.
+ *
+ * The refusal is deliberate and permanent for as long as this line stands: not
+ * a feature flag somebody can turn on to reach the vendor, but a function with
+ * no code path to the network at all.
+ */
+export const VOICE_NOT_ENABLED =
+  "Spoken questions are not enabled yet. Observer answers in text, and the spoken interface is coming in a later milestone.";
 
-  const key = process.env["OPENAI_API_KEY"];
-  if (key === undefined || key.length === 0) {
-    throw new ModelConfigurationError("voice: OPENAI_API_KEY is not set on the server");
-  }
-
-  const client = new OpenAI({ apiKey: key, maxRetries: 0, timeout: LIMITS.requestTimeoutMs });
-
-  try {
-    const secret = await client.realtime.clientSecrets.create({
-      expires_after: { anchor: "created_at", seconds: 600 },
-      session: {
-        type: "realtime",
-        model: env.ai.voiceModel,
-        instructions: VOICE_INSTRUCTIONS,
-        // The read-only analyses, plus the delegation tool. Identical schemas
-        // to the text agent's, generated from the same Zod definitions.
-        tools: [
-          ...toolSpecs().map((tool) => ({
-            type: "function" as const,
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters,
-          })),
-          DELEGATE_TOOL,
-        ],
-        tool_choice: "auto",
-        // A spoken answer that runs for four minutes is not an answer.
-        max_output_tokens: 1200,
-      } as never,
-    });
-
-    return {
-      clientSecret: secret.value,
-      expiresAt: secret.expires_at,
-      model: env.ai.voiceModel,
-    };
-  } catch (error) {
-    throw describeOpenAiFailure(error);
-  }
+export function createVoiceSession(_apiKey: string): Promise<VoiceSession> {
+  return Promise.reject(new ModelConfigurationError(`voice: ${VOICE_NOT_ENABLED}`));
 }

@@ -1,4 +1,6 @@
 import { test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
+import { chooseInSwitcher } from "./switcher";
 
 /**
  * The review set for this remediation milestone.
@@ -11,12 +13,6 @@ const OUT =
   process.env["OBSERVER_MILESTONE_SHOTS"] ??
   "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/milestone";
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-  await page.evaluate(() => document.fonts.ready);
-}
 
 async function shoot(page: Page, name: string) {
   await page.evaluate(() => document.fonts.ready);
@@ -29,6 +25,17 @@ test.describe("milestone review", () => {
   // The conditional form of `test.skip` takes only the fixtures object; the
   // project is read from `test.info()` instead.
   test.skip(() => test.info().project.name !== "wide", "One viewport drives the set.");
+  /*
+   * Opt-in. This file produces images for a human, asserts nothing, and was
+   * written against the briefing landing and the Observer console that Ask IRIS
+   * has since replaced — so run unasked it only turned `wide` red and wrote
+   * screenshots into a dead session's temp directory. Name where the images go
+   * to run it, and expect to update its selectors to the current UI first.
+   */
+  test.skip(
+    () => process.env["OBSERVER_MILESTONE_SHOTS"] === undefined,
+    "A screenshot generator: set OBSERVER_MILESTONE_SHOTS to produce the set.",
+  );
 
   test("sign-in", async ({ page }) => {
     await page.goto("/sign-in");
@@ -49,7 +56,7 @@ test.describe("milestone review", () => {
   test("agency manager context switching", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await shoot(page, "04-manager-alpha");
-    await page.getByRole("combobox", { name: "Developer" }).selectOption("beta");
+    await chooseInSwitcher(page, "Developer", "Beta", ".ox-context");
     await page.waitForURL(/\/beta\//);
     await shoot(page, "05-manager-beta");
   });

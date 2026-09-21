@@ -121,12 +121,14 @@ This produces a clean division of responsibility, and it should be stated as a p
 
 1. Observer keeps a **canonical internal model** (`Unit`, `Contact`, `Deal`, `Stage`). Connectors map into it.
    Nothing in the core may reference REALPAD directly.
-2. Connectors: `realpad`, `monday`, `csv/manual`. The manual path must always work — a client without a
-   supported CRM must still be able to use the product, degraded.
+2. Connectors: `realpad`, `monday`, `lomnio`, `csv/manual`. The manual path must always work — a client
+   without a supported CRM must still be able to use the product, degraded. What each exposes and how
+   a connector is shaped is ADR-0036.
 3. **Matching key** between systems: email first, phone second. Both are available (see §5).
-4. **Open risk — must be verified before committing to the design:** does REALPAD expose a usable API, and
-   under what terms? If it does not, the deal-stage data has to be entered by the agent, which pushes the
-   burden back onto the person whose goodwill we depend on. That would change the product.
+4. **Verified 2026-09-07 (ADR-0036):** REALPAD exposes an API. The catalogue is a form-encoded, XML,
+   login-and-password v10 web service fetched hourly; deals and customers are reachable only as Excel
+   exports under a five-minute cooldown; there is no push and no token until their announced REST API
+   ships. Usable, on those terms. The agent-entered fallback this risk described is not needed.
 
 ---
 
@@ -236,12 +238,29 @@ the MVP made: a metric not counted at the time was lost forever.
    `TrackClick` — a full savegame serialisation per interaction, during a live client presentation).
 5. **Idempotent ingest.** The server dedupes on `event_id`, so replaying a buffer after a crash is safe.
 
-### Migrating today's data
+### Migrating today's data — WITHDRAWN
 
-An adapter can synthesise events from the existing `Analytics.json` / `user_sessions` rows. Be honest about
-what survives: **ordering yes, timing no.** The journey sequence and the counters are recoverable; per-step
-timestamps never existed and cannot be invented. Historical sessions will therefore appear on the timeline
-as a single block with a start and an end. That is acceptable for two test sessions.
+> **Amendment, 2026-09-01 — there is no migration, and none is to be built.**
+>
+> This section proposed an adapter that would synthesise events from the existing
+> `Analytics.json` / `user_sessions` rows. That proposal is withdrawn.
+>
+> Akhilesh confirmed on 2026-09-01 that the legacy database holds **no live client
+> analytics**: only prototype snapshot blobs written into `user_sessions` and
+> `global_analytics` during Job 1 proof-of-concept testing and demo showroom sessions.
+> Those blobs do not conform to the versioned, multi-tenant `FObserverEvent` fact schema.
+>
+> **Approved product decision:** Observer V2 analytics starts as a clean slate. No legacy
+> importer, compatibility projection, blob migration or historical conversion layer is to be
+> built for those records. The old system is kept as historical prototype evidence only.
+>
+> Recorded as `PD-01` in `packages/contracts/src/ue5/traceability.ts`, on the evidence in
+> `U-12`. The paragraph below is preserved because it describes what the prototype was, not
+> because any of it is planned.
+
+_Superseded, kept for context:_ an adapter could have synthesised events from the existing
+`Analytics.json` / `user_sessions` rows, recovering **ordering but not timing** — the journey
+sequence and the counters survive, per-step timestamps never existed and cannot be invented.
 
 ---
 

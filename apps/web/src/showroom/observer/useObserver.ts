@@ -37,7 +37,14 @@ export interface ObserverSession {
   readonly draft: { readonly answer: string; readonly interpretation: string } | null;
   /** The last question asked, so Retry does not need it typed again. */
   readonly lastQuestion: string | null;
-  ask: (question: string, depth?: "standard" | "deep") => Promise<void>;
+  /**
+   * Asks one question.
+   *
+   * `model` overrides the account's standing choice for this question only,
+   * and is a request rather than a permission: the server checks it against the
+   * catalogue and against what the account holds before anything is spent.
+   */
+  ask: (question: string, depth?: "standard" | "deep", model?: string | null) => Promise<void>;
   retry: () => Promise<void>;
   cancel: () => void;
   dismiss: () => void;
@@ -98,7 +105,11 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
   }, []);
 
   const ask = useCallback(
-    async (question: string, depth: "standard" | "deep" = "standard") => {
+    async (
+      question: string,
+      depth: "standard" | "deep" = "standard",
+      model: string | null = null,
+    ) => {
       if (question.trim().length === 0 || abort.current !== null) return;
 
       const controller = new AbortController();
@@ -123,6 +134,15 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
             unitCode: context.unitCode,
             meetingId: context.meetingId,
             depth,
+            /*
+             * The model for THIS question, when the reader picked one.
+             *
+             * A request, not a permission: the server validates it against the
+             * catalogue and then against what this account actually holds, so
+             * naming a model here cannot reach a provider the account has not
+             * connected.
+             */
+            model,
           }),
         });
 

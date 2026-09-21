@@ -116,12 +116,15 @@ export function TrendLine({
   annotation,
   height = 150,
   valueLabel,
+  measured = false,
 }: {
   points: readonly { readonly label: string; readonly value: number }[];
   /** The moment worth pointing at, by index. */
   annotation?: { readonly index: number; readonly text: string } | null;
   height?: number;
   valueLabel: string;
+  /** Opt-in: raises the 9px axis ticks to the 12px floor. Sales Flow only — see `charts.css`. */
+  measured?: boolean;
 }) {
   if (points.length < 2) return null;
   const width = 720;
@@ -140,7 +143,7 @@ export function TrendLine({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      className="iris-trend"
+      className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
       role="img"
       aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
     >
@@ -218,6 +221,7 @@ export function TrendLine({
 export function StackedBars({
   columns,
   keys,
+  keyTotals,
 }: {
   columns: readonly {
     readonly label: string;
@@ -225,6 +229,15 @@ export function StackedBars({
     readonly total: number;
   }[];
   keys: readonly { readonly id: string; readonly label: string; readonly colour: string }[];
+  /**
+   * Overrides the key's own per-category counts, which otherwise sum every
+   * column's `parts` together. That sum is only correct when columns are
+   * disjoint (the month-composition case this component was built for); a
+   * column that is an aggregate of the others (Sales Flow's "Team", beside
+   * each agent) would otherwise be counted twice. Pass the aggregate
+   * column's own `parts` here when one is present among `columns`.
+   */
+  keyTotals?: Readonly<Record<string, number>>;
 }) {
   const peak = Math.max(1, ...columns.map((c) => c.total));
 
@@ -256,7 +269,7 @@ export function StackedBars({
           <li key={k.id}>
             <i style={{ background: k.colour }} />
             {k.label}
-            <b>{columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
+            <b>{keyTotals?.[k.id] ?? columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
           </li>
         ))}
       </ul>
@@ -279,7 +292,8 @@ export function BulletChart({
   rows: readonly {
     readonly id: string;
     readonly label: string;
-    readonly actual: number;
+    /** Null when the source this counts from is not connected on this project. */
+    readonly actual: number | null;
     readonly target: number;
     readonly pace: number;
     readonly total: number;
@@ -290,11 +304,16 @@ export function BulletChart({
     <div className="iris-bullets">
       {rows.map((row) => {
         const pct = (v: number) => `${Math.min(100, Math.max(0, (v / row.total) * 100))}%`;
-        const behind = row.actual < row.pace;
+        const unavailable = row.actual === null;
+        const behind = !unavailable && row.actual < row.pace;
         return (
           <div className="iris-bullet" key={row.id}>
             <span className="iris-bullet-label">{row.label}</span>
-            <span className="iris-bullet-track" title={row.note}>
+            <span
+              className="iris-bullet-track"
+              title={row.note}
+              data-unavailable={unavailable ? "true" : undefined}
+            >
               {/* The qualitative bands: behind, on pace, ahead. */}
               <em
                 className="iris-bullet-band"
@@ -306,12 +325,30 @@ export function BulletChart({
                 style={{ width: pct(row.pace * 1.1) }}
                 data-band="near"
               />
-              <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
-              <b style={{ left: pct(row.pace) }} title={`Needed by now: ${Math.round(row.pace)}`} />
-              <u style={{ left: pct(row.target) }} title={`Target: ${row.target}`} />
+              {/*
+                No fill drawn when the source is not connected — an
+                unmeasured actual gets no track at all, the same rule Unit
+                Detail's evidence ladder applies, rather than a bar reading
+                as a real, measured zero.
+              */}
+              {unavailable ? null : (
+                <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
+              )}
+              <b
+                style={{ "--pos": pct(row.pace) } as React.CSSProperties}
+                title={`Needed by now: ${Math.round(row.pace)}`}
+              />
+              <u
+                style={{ "--pos": pct(row.target) } as React.CSSProperties}
+                title={`Target: ${row.target}`}
+              />
             </span>
-            <span className="iris-bullet-value" data-behind={behind ? "true" : undefined}>
-              {row.actual} / {row.target}
+            <span
+              className="iris-bullet-value"
+              data-behind={behind ? "true" : undefined}
+              data-unavailable={unavailable ? "true" : undefined}
+            >
+              {unavailable ? "Unavailable" : `${row.actual} / ${row.target}`}
             </span>
           </div>
         );
@@ -396,7 +433,7 @@ export function Heatmap({
           </React.Fragment>
         ))}
       </div>
-      <figcaption className="iris-meta" style={{ marginTop: ".625rem" }}>
+      <figcaption className="iris-meta iris-meta-measured" style={{ marginTop: ".625rem" }}>
         {caption}
       </figcaption>
     </figure>
@@ -419,7 +456,13 @@ export function Funnel({
   /** Names the group the comparison figures are measured against. */
   totalLabel: string;
 }) {
-  const first = steps[0]?.count ?? 1;
+  /*
+   * The denominator, guarded. A cohort of zero meetings is a real answer
+   * (Riverside records no outcomes), and 0 / 0 printed "NaN%" at the top of
+   * its funnel. The floor of one leaves every bar at zero width and the
+   * first step at 0%, which is what a group with nothing in it looks like.
+   */
+  const first = Math.max(1, steps[0]?.count ?? 1);
 
   return (
     <div className="iris-funnel">
@@ -562,6 +605,8 @@ export function Radar({
 export function RankedBars({
   rows,
   valueSuffix = "",
+  measured = false,
+  peak: scale,
 }: {
   rows: readonly {
     readonly id: string;
@@ -572,11 +617,25 @@ export function RankedBars({
     readonly href?: string | null;
   }[];
   valueSuffix?: string;
+  /**
+   * Opt-in only: Sales Flow's two lists pass this, Sales Agents' does not.
+   * `.iris-ranked-name em` is a shared rule (`charts.css`) with one consumer
+   * per route; this keeps a Flow-scoped size correction from silently
+   * changing Agents' own list too. See `charts.css` for the rule this class
+   * enables.
+   */
+  measured?: boolean;
+  /**
+   * What a full bar stands for, when that is not the largest row: a list whose
+   * bars are read against a fixed scale (a window of hours) rather than against
+   * each other. Absent, the longest row fills the track as before.
+   */
+  peak?: number;
 }) {
-  const peak = Math.max(1, ...rows.map((r) => r.value));
+  const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
 
   return (
-    <ol className="iris-ranked">
+    <ol className={`iris-ranked${measured ? " iris-ranked-measured" : ""}`}>
       {rows.map((row, i) => (
         <li key={row.id}>
           <span className="iris-ranked-place">{i + 1}</span>
@@ -774,34 +833,42 @@ export function JourneyFlow({
         );
       })}
 
-      {placed.map((node) => (
-        <g key={node.id}>
-          <rect
-            x={node.x}
-            y={pad.top}
-            width={nodeW}
-            height={node.h}
-            rx="2"
-            className="iris-flow-node"
-          />
-          <text
-            x={node.x + nodeW / 2}
-            y={pad.top - 18}
-            textAnchor="middle"
-            className="iris-flow-label"
-          >
-            {node.label}
-          </text>
-          <text
-            x={node.x + nodeW / 2}
-            y={pad.top - 6}
-            textAnchor="middle"
-            className="iris-flow-count"
-          >
-            {node.count}
-          </text>
-        </g>
-      ))}
+      {placed.map((node, i) => {
+        /*
+         * The first and last labels hang off their node's OUTER edge rather
+         * than its centre. Centred on a 22px node at x=0 or x=738, "Presented"
+         * and "Progressed" ran 13-15px past the viewBox on both sides and the
+         * SVG clipped them — measured at every width, "esented" / "Progres".
+         * Anchoring the ends keeps every label inside the drawing without
+         * shrinking, shortening or hiding any of them.
+         */
+        const anchor = i === 0 ? "start" : i === placed.length - 1 ? "end" : "middle";
+        const labelX =
+          i === 0 ? node.x : i === placed.length - 1 ? node.x + nodeW : node.x + nodeW / 2;
+        return (
+          <g key={node.id}>
+            <rect
+              x={node.x}
+              y={pad.top}
+              width={nodeW}
+              height={node.h}
+              rx="2"
+              className="iris-flow-node"
+            />
+            <text x={labelX} y={pad.top - 18} textAnchor={anchor} className="iris-flow-label">
+              {node.label}
+            </text>
+            <text
+              x={node.x + nodeW / 2}
+              y={pad.top - 6}
+              textAnchor="middle"
+              className="iris-flow-count"
+            >
+              {node.count}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

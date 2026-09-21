@@ -4,11 +4,18 @@ import { KPI_WINDOWS, type KpiWindowId, type PeriodPreset } from "@observer/read
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { AssistedSales, FlowLadder } from "@/components/flow";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
-import { OutcomeKey, OutcomeRing, PeriodSteps } from "@/showroom/charts";
+import {
+  OUTCOME_STACK_KEYS,
+  OutcomeKey,
+  OutcomeRing,
+  PeriodSteps,
+  outcomeStackColumn,
+} from "@/showroom/charts";
 import { Funnel, Heatmap, KpiCard, RankedBars, StackedBars, TrendLine } from "@/showroom/charts2";
 
 export const metadata: Metadata = { title: "Sales Flow" };
@@ -25,16 +32,36 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * how many meetings today, yesterday, this week, last week, this month, last
  * month; how long they ran; and how many of them realised into something.
  *
- * The outcome mix is a ring per agent, side by side. That is the right form and
- * the requested one — outcome is parts of one whole, and six bars per agent
- * would invite the reader to compare heights across people, which is the league
- * table this product refuses to be. A flag is raised where a pattern is worth a
- * conversation, and it is written as a fact an agent can answer, never a rank.
+ * The per-agent outcome mix is one `StackedBars` call — Team beside every
+ * agent, one shared key, ladder order in every column — not a ring per
+ * agent. A ring reads its own mix at a glance but has no way to carry the
+ * *ordinal* fact that purchase and not_interested are opposite ends of one
+ * ladder, not six unrelated slices; same-band pairs in the current palette
+ * are close to indistinguishable by colour precisely because that
+ * distinction was handed to position instead, and a ring has no position to
+ * hand it to. A bar does: purchase at the base, not_interested at the top,
+ * in every column, so the same rung reads at the same height everywhere on
+ * the chart. Team is drawn to its own true count, same as any agent, so it
+ * reads as a baseline rather than a rank. A flag is raised where a pattern
+ * is worth a conversation, and it is written as a fact an agent can answer,
+ * never a rank.
  *
  * The summary figures at the top answer to their own control rather than to the
  * page period. How many presentations is a different question today and this
  * year, and making the reader move the whole page to ask the second one is how a
  * dashboard stops being read.
+ *
+ * Two figures that used to live here were computed by this component rather
+ * than by a read model — "N of M had an outcome recorded" (filtering
+ * `view.outcomes` and summing in the page) and a per-agent "X% progressed"
+ * (rounding `ring.progressedShare`, which the read model states over a
+ * DIFFERENT denominator than the "Every outcome" ring above it). ADR-0012
+ * forbids the first kind on principle, and the second put two figures that
+ * sound like the same claim, computed two different ways, on one screen.
+ * Both are dropped rather than replaced: `OutcomeRing` already draws the
+ * true total in its centre, `OutcomeKey` already states every slice's own
+ * count, and the per-agent bars below state every column's own total the
+ * same way, so nothing the reader could learn from either sentence is lost.
  */
 export default async function FlowPage({
   params,
@@ -72,9 +99,10 @@ export default async function FlowPage({
     repository.getShowroomOverview(query),
   ]);
 
-  const recorded = view.outcomes
-    .filter((o) => o.outcome !== "skipped")
-    .reduce((a, o) => a + o.count, 0);
+  // Shared between the team-vs-agent bars and their key, so the key's totals
+  // come from Team's own count rather than summing every column together --
+  // Team is an aggregate of the agent columns beside it, not a disjoint one.
+  const teamOutcomeColumn = outcomeStackColumn("Team", view.meetingCount, view.outcomes);
 
   const base = `/${tenantSlug}/${projectSlug}/flow`;
   const windowHref = (id: KpiWindowId) => {
@@ -88,14 +116,14 @@ export default async function FlowPage({
   return (
     <div className="iris-one">
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Sales flow · {view.context.period.label}</p>
+        <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
         <h1 className="iris-section">{view.verdict}</h1>
 
         {/* --- the figures, over a window the reader picks ---------------- */}
 
         <div>
           <div className="iris-window">
-            <p className="iris-kicker" style={{ margin: 0 }}>
+            <p className="iris-kicker iris-kicker-measured" style={{ margin: 0 }}>
               Summary over
             </p>
             <div className="iris-mode-strip">
@@ -134,21 +162,21 @@ export default async function FlowPage({
           </div>
 
           {charts.kpis.caveat === null ? null : (
-            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
               {charts.kpis.caveat}
             </p>
           )}
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
-            </p>
+            </h2>
             <PeriodSteps periods={view.periods} />
-            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
               The lighter column is every meeting; the solid part is those that reached a follow-up
               or better. Beneath each is the median length — a part-week is compared against the
               same days of the week before, never against a whole one.
@@ -156,61 +184,77 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".75rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               Every outcome
-            </p>
-            <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} />
+            </h2>
+            <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} measured />
             <OutcomeKey slices={view.outcomes} />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-              {recorded} of {view.meetingCount} meetings had an outcome recorded.
-            </p>
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- what changed in how meetings are run ----------------------- */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             What changed since {view.context.period.baselineLabel}
+          </h2>
+          {/*
+           * THE POLICY-VERSION GUARD (docs/10-policies.md §1): a comparison
+           * across two attribution policies is refused with its reason, never
+           * silently drawn. Under one policy the figures are drawn and the
+           * version is stated beneath them, so a reader of a printed page
+           * knows what "comparable" rested on.
+           */}
+          {view.context.attribution.comparisonRefusal !== null ? (
+            <p className="iris-meta iris-meta-measured">
+              This comparison is refused: {view.context.attribution.comparisonRefusal} Both periods
+              have to be measured under a compatible attribution policy before their figures can be
+              set against each other.
+            </p>
+          ) : (
+            <div className="iris-changes">
+              {summary.changes.map((change) => (
+                <article className="iris-change" key={change.id}>
+                  <p className="iris-change-label">{change.label}</p>
+                  <p className="iris-change-delta" data-direction={change.direction}>
+                    {change.deltaDisplay}
+                  </p>
+                  <p className="iris-change-detail">{change.detail}</p>
+                  <Link className="iris-action" href={dynamicRoute(change.href)}>
+                    Look at it
+                  </Link>
+                </article>
+              ))}
+            </div>
+          )}
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+            Both periods measured under attribution policy {view.context.attribution.version},
+            effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
           </p>
-          <div className="iris-changes">
-            {summary.changes.map((change) => (
-              <article className="iris-change" key={change.id}>
-                <p className="iris-change-label">{change.label}</p>
-                <p className="iris-change-delta" data-direction={change.direction}>
-                  {change.deltaDisplay}
-                </p>
-                <p className="iris-change-detail">{change.detail}</p>
-                <Link className="iris-action" href={dynamicRoute(change.href)}>
-                  Look at it
-                </Link>
-              </article>
-            ))}
-          </div>
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             How the presentations were run, not how many there were. A direction compares two
             periods at the stated sample size — it is not a trend, and not a cause.
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- when meetings actually happen ------------------------------ */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             When showroom meetings happen
-          </p>
+          </h2>
           <Heatmap
             rows={charts.activity.rows}
             columns={charts.activity.columns}
             cells={charts.activity.cells}
             caption={`Meetings by weekday and hour, across ${charts.activity.meetingsCounted} presentations.`}
           />
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             {charts.activity.busiest === null
               ? "Too few meetings to name a busiest slot."
               : `Busiest: ${charts.activity.busiest.weekday} at ${charts.activity.busiest.hour}, ${charts.activity.busiest.meetings} meetings.`}
@@ -220,57 +264,58 @@ export default async function FlowPage({
             An empty square is drawn empty rather than faint — a heatmap whose zero looks like a
             small value invents activity that never happened.
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- volume over time, and its composition ---------------------- */}
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations week by week
-            </p>
+            </h2>
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
+              measured
             />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               The marked week is the largest single change in the series. What moved it is not in
               this data.
             </p>
           </div>
 
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               What those meetings became
-            </p>
+            </h2>
             <StackedBars columns={charts.composition.columns} keys={charts.composition.keys} />
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: "1.25rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
-          </p>
-          <div className="iris-rings">
+          </h2>
+          <StackedBars
+            columns={[
+              teamOutcomeColumn,
+              ...view.rings.map((ring) =>
+                outcomeStackColumn(ring.name, ring.meetings, ring.slices),
+              ),
+            ]}
+            keys={OUTCOME_STACK_KEYS}
+            keyTotals={teamOutcomeColumn.parts}
+          />
+          <div className="iris-changes" style={{ marginTop: "1rem" }}>
             {view.rings.map((ring) => (
-              <article className="iris-ring-card" key={ring.agentId}>
-                <h3>{ring.name}</h3>
-                <OutcomeRing
-                  slices={ring.slices}
-                  total={ring.meetings}
-                  size={124}
-                  label={`${ring.name}: ${ring.meetings} meetings`}
-                />
-                <p className="iris-code" style={{ margin: 0 }}>
-                  {Math.round(ring.progressedShare * 100)}% progressed
-                </p>
-                <OutcomeKey slices={ring.slices} />
+              <article className="iris-change" key={ring.agentId}>
+                <p className="iris-change-label">{ring.name}</p>
                 {ring.flag === null ? null : (
                   <p className="iris-ring-flag" data-severity={ring.flag.severity}>
                     {ring.flag.text}
@@ -282,55 +327,152 @@ export default async function FlowPage({
               </article>
             ))}
           </div>
-          <p className="iris-meta" style={{ marginTop: "1rem" }}>
-            Rings are drawn to the same scale of shares, not of counts, so a busy agent and a quiet
-            one are comparable in shape. The count is in the middle of each ring, because a share
-            with no denominator is not a figure.
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: "1rem" }}>
+            Each bar is drawn to its own true count, stacked in ladder order &mdash; purchase at the
+            base, not_interested at the top &mdash; so the shares within one bar are comparable to
+            the shares within any other, agent to agent and against the team.
           </p>
+          {/*
+            Named where it contributed. A project with no CRM connected has no
+            CRM outcome under these figures, and a chip saying otherwise is the
+            same lie in miniature as a zero standing in for something unmeasured.
+          */}
           <SourceChips
-            sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]}
+            sources={
+              view.context.project.connectedSources.includes("crm")
+                ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+                : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
+            }
+            measured
           />
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {/* --- what the quietest meetings had in common ------------------- */}
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             {charts.funnel.cohortLabel}
-          </p>
-          <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            {charts.funnel.disclaimer}
-          </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} />
+          </h2>
+          {charts.funnel.empty !== null ? (
+            <p className="iris-meta iris-meta-measured">{charts.funnel.empty}</p>
+          ) : (
+            <>
+              <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {charts.funnel.disclaimer}
+              </p>
+              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          )}
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
+
+        {/*
+         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
+         * connector delivered, every rung verified because the CRM stated it,
+         * and where none did the sentence says so rather than six rungs at zero.
+         */}
+        <div>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+            The deal ladder, as the CRM states it
+          </h2>
+          {view.ladder.source === "crm" ? (
+            <>
+              <FlowLadder
+                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
+                noun="deals"
+              />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {view.ladder.note}
+              </p>
+              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          ) : (
+            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
+          )}
+        </div>
+
+        {/*
+         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
+         * by stage, sorted by time stuck). Time in stage sits on the ladder's
+         * own rungs above; this is the same deals one by one, longest on
+         * their rung first, each opening the unit it is about. The list is
+         * ordered by time and never by outcome, and an undated deal is
+         * counted beside it rather than drawn at zero days.
+         */}
+        {view.ladder.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <div>
+              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+                Stalled deals, longest on their rung first
+              </h2>
+              {view.ladder.stalled.length === 0 ? (
+                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
+              ) : (
+                <>
+                  <RankedBars
+                    rows={view.ladder.stalled.map((deal) => ({
+                      id: deal.externalId,
+                      label:
+                        deal.unitCode === null
+                          ? deal.externalId
+                          : `${deal.unitCode} · ${deal.externalId}`,
+                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
+                      value: deal.daysInStage,
+                      display: deal.daysDisplay,
+                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
+                    }))}
+                    measured
+                  />
+                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                    {view.ladder.stalledNote}
+                  </p>
+                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+                </>
+              )}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
+         * for the ladder's reason: no deal, no sale to place against a showing.
+         */}
+        {view.assisted.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <AssistedSales assisted={view.assisted} period={query.period} />
+          </>
+        ) : null}
+
+        <hr className="iris-rule iris-section-rule" />
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
-            </p>
-            <RankedBars rows={charts.longestMeetings} />
+            </h2>
+            <RankedBars rows={charts.longestMeetings} measured />
           </div>
           <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
-            </p>
-            <RankedBars rows={charts.rankedAgents} />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+            </h2>
+            <RankedBars rows={charts.rankedAgents} measured />
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>
           </div>
         </div>
 
-        <hr className="iris-rule" />
+        <hr className="iris-rule iris-section-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} />
+          <Finding key={finding.id} finding={finding} lead={index === 0} measured />
         ))}
 
         <Gaps

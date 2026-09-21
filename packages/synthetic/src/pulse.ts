@@ -9,7 +9,10 @@ import type {
   UnitStatus,
   ViewContext,
 } from "@observer/readmodels";
-import { evidenceRef, money } from "./format";
+import { ProjectIdSchema, type ShowroomSession } from "@observer/contracts";
+import { meaningfulDwellThresholdMs } from "@observer/metrics";
+import { evidenceRef, moneyOr } from "./format";
+import { unitsForProject } from "./world";
 
 /**
  * The Northgate building, generated deterministically.
@@ -116,16 +119,77 @@ function unitCode(block: string, floor: number, index: number): string {
   return `${block}-${floor}${String(index).padStart(2, "0")}`;
 }
 
+/**
+ * A unit as a catalogue states it.
+ *
+ * The synthetic world states everything; a delivered catalogue does not, and
+ * each of the five attributes is `null` where the source gave nothing. Every
+ * builder that reads one must say the absence in words rather than compute
+ * through it, which is why the type refuses to let a null add or compare.
+ */
 export interface RawUnit {
   code: string;
   block: string;
-  floor: number;
-  rooms: number;
-  areaSqm: number;
+  floor: number | null;
+  rooms: number | null;
+  areaSqm: number | null;
   orientation: PulseUnit["orientation"];
-  price: number;
+  price: number | null;
   status: UnitStatus;
 }
+
+/**
+ * The room counts a catalogue actually contains, ascending.
+ *
+ * Room segments are derived from the stock rather than declared: a segment
+ * list written by hand names the two counts the first scenario had and drops
+ * every one-room and four-room flat from a scale that claims to cover the
+ * stock. A real catalogue arrives from the CRM with whatever counts the
+ * developer built, and the segments have to follow it. A unit whose count
+ * the catalogue does not state is not in this list; it gets its own row
+ * (`hasUnstatedRooms`), never a guessed count.
+ */
+export function roomCounts(
+  units: ReadonlyArray<{ readonly rooms: number | null }>,
+): readonly number[] {
+  const counts = new Set<number>();
+  for (const unit of units) if (unit.rooms !== null) counts.add(unit.rooms);
+  return [...counts].sort((a, b) => a - b);
+}
+
+/** Whether any unit's room count is unstated, so the stock needs the extra row. */
+export function hasUnstatedRooms(units: ReadonlyArray<{ readonly rooms: number | null }>): boolean {
+  return units.some((u) => u.rooms === null);
+}
+
+/** The segment id and label for the units whose room count is not stated. */
+export const UNSTATED_ROOMS_SEGMENT = { id: "rooms-unstated", label: "Rooms not stated" } as const;
+
+/** The label for the floor row that holds units whose floor is not stated. */
+export const UNSTATED_FLOOR_LABEL = "Floor not stated";
+
+const ROOM_WORDS: Readonly<Record<number, string>> = {
+  1: "One",
+  2: "Two",
+  3: "Three",
+  4: "Four",
+  5: "Five",
+  6: "Six",
+};
+
+export function roomLabel(rooms: number): string {
+  const word = ROOM_WORDS[rooms];
+  return word === undefined ? `${rooms}-room` : `${word}-room`;
+}
+
+/**
+ * Conversion against the project average, per room count.
+ *
+ * These two are the first scenario's pinned narrative figures. A count with
+ * no pinned figure gets `null` — unknown, never a guess — which every reader
+ * of `PulseSegment` already handles for the floor bands.
+ */
+const ROOM_CONVERSION: Readonly<Record<number, number | null>> = { 2: 0.5, 3: 1.3 };
 
 function buildCatalogue(spec: BuildingSpec): RawUnit[] {
   const units: RawUnit[] = [];
@@ -140,7 +204,8 @@ function buildCatalogue(spec: BuildingSpec): RawUnit[] {
         // Two- and three-room units alternate by position; the top two floors
         // carry the larger plans, as a real stacking plan does.
         const top = spec.floors[spec.floors.length - 1] ?? 8;
-        const rooms = pinned?.rooms ?? (floor >= top - 1 ? 3 : index === 2 && block !== "B" ? 3 : 2);
+        const rooms =
+          pinned?.rooms ?? (floor >= top - 1 ? 3 : index === 2 && block !== "B" ? 3 : 2);
         const areaSqm =
           pinned?.areaSqm ?? (rooms === 2 ? 58 + Math.round(r * 9) : 84 + Math.round(r * 12));
         const orientation = pinned?.orientation ?? spec.orientation[block] ?? "S";
@@ -194,7 +259,7 @@ function attentionFor(unit: RawUnit): number {
   if (unit.rooms === 2) score += 0.34; // the segment the verdict is about
   if (unit.orientation === "S") score += 0.2;
   if (unit.orientation === "SW") score += 0.08;
-  if (unit.floor >= 4 && unit.floor <= 6) score += 0.14;
+  if (unit.floor !== null && unit.floor >= 4 && unit.floor <= 6) score += 0.14;
   if (unit.floor === 1) score -= 0.1;
   if (unit.status === "sold") score -= 0.08;
 
@@ -205,6 +270,12 @@ const CHANGE_FOR: Record<string, UnitChange> = {
   "A-505": "sold",
   "A-402": "new_interest",
   "B-604": "price_cut",
+  // ISTER TOWER's two south-facing compact flats, in the order the reader meets
+  // them: one went during the period, and the one left is the flat everybody
+  // keeps opening. Neither label is a verdict — `sold` and `new_interest` are
+  // both observations, and the unit surface says what to do about them.
+  "IT-A-11-07": "sold",
+  "IT-A-12-07": "new_interest",
 };
 
 /**
@@ -217,9 +288,90 @@ const CHANGE_FOR: Record<string, UnitChange> = {
  */
 const catalogues = new Map<string, readonly RawUnit[]>();
 
+/**
+ * Projects whose catalogue a connector delivered, replacing the synthetic one.
+ *
+ * Set by the repository before it builds a view, from the `CatalogueSource`
+ * it was composed with. What it changes is the stock and nothing else: a
+ * delivered unit has no synthetic attention, no pinned change and no
+ * narrative figure, because those are observations and the catalogue is not
+ * one (ADR-0036). `null` restores the synthetic catalogue.
+ */
+const delivered = new Map<string, readonly RawUnit[]>();
+
+export function provideCatalogue(projectId: string, units: readonly RawUnit[] | null): void {
+  if (units === null) delivered.delete(projectId);
+  else delivered.set(projectId, units);
+}
+
+/** True while a connector's catalogue stands in for the synthetic one. */
+export function hasDeliveredCatalogue(projectId: string): boolean {
+  return delivered.has(projectId);
+}
+
+/**
+ * Schemes whose stacking plan is written out rather than derived.
+ *
+ * A `BuildingSpec` describes a building as a rule — blocks times floors times
+ * units per level — and for a scheme nobody names a flat in, a rule is exactly
+ * right. ISTER TOWER is not that scheme: the brief sends a reviewer to
+ * `IT-A-12-07` by code and expects the two-room south-facing flat on level
+ * twelve, and a rule can promise the code but not the flat.
+ *
+ * So its units live beside the rest of the world in `world.ts`, in the same
+ * `SyntheticUnit` shape as the scenario document's hand-written five, and are
+ * adapted to `RawUnit` here. One list, two readers: the Pulse and the session
+ * generator cannot disagree about which apartments exist, which is the whole
+ * reason `catalogueFor` exists at all.
+ */
+const ENUMERATED_CATALOGUES: readonly string[] = ["prj_istertower1"];
+
+function enumeratedCatalogue(projectId: string): readonly RawUnit[] {
+  /*
+   * Parsed rather than cast, for the same reason `world.ts` parses its
+   * identifiers: this function is reached with a raw string that came off a
+   * route, and the branded type is the only thing standing between a typo and a
+   * catalogue silently belonging to nothing.
+   */
+  return unitsForProject(ProjectIdSchema.parse(projectId)).map((unit) => ({
+    code: unit.code,
+    block: unit.block,
+    floor: unit.floor,
+    rooms: unit.rooms,
+    areaSqm: unit.areaSqm,
+    orientation: unit.orientation,
+    price: unit.price,
+    status: unit.status,
+  }));
+}
+
+/**
+ * The stock a surface describes: a connector's catalogue when one was
+ * delivered for the project, the synthetic one otherwise.
+ */
 export function catalogueFor(projectId: string): readonly RawUnit[] {
+  return delivered.get(projectId) ?? syntheticCatalogueFor(projectId);
+}
+
+/**
+ * The synthetic building, whatever a connector delivered.
+ *
+ * The one reader that must never see a delivered catalogue is the session
+ * generator: it invents showroom behaviour, and inventing it against a real
+ * developer's unit codes would put fabricated meetings on real flats. Its
+ * sessions keep touching the synthetic units, which a delivered stock does not
+ * contain — so a delivered unit shows exactly the attention it has earned,
+ * which is none until ingestion delivers sessions of its own.
+ */
+export function syntheticCatalogueFor(projectId: string): readonly RawUnit[] {
   const cached = catalogues.get(projectId);
   if (cached !== undefined) return cached;
+
+  if (ENUMERATED_CATALOGUES.includes(projectId)) {
+    const listed = enumeratedCatalogue(projectId);
+    catalogues.set(projectId, listed);
+    return listed;
+  }
 
   const spec = BUILDINGS[projectId];
   if (spec === undefined) {
@@ -239,38 +391,156 @@ export function catalogueFor(projectId: string): readonly RawUnit[] {
   return built;
 }
 
-/** Northgate's catalogue. Retained for the surfaces that are still single-project. */
-export const RAW_CATALOGUE: readonly RawUnit[] = catalogueFor("prj_northgate01");
+/*
+ * There was a `RAW_CATALOGUE` here — Northgate's units, as a module constant,
+ * "retained for the surfaces that are still single-project". Four builders
+ * read it, and every project rendered Northgate's stock as a result.
+ *
+ * It is gone rather than deprecated. A constant that is correct for one
+ * project and silently wrong for every other one is not a thing to leave
+ * lying about with a comment on it.
+ */
 
-export function buildProjectPulse(context: ViewContext): ProjectPulse {
+/**
+ * What a project's own meetings did to each unit, for a delivered catalogue.
+ *
+ * `current` and `previous` are the period's slice and its baseline, already
+ * scoped to the project. A MEANINGFUL view is one meeting's look at a unit that
+ * lasted past the showroom's dwell threshold (`docs/10-policies.md`, ADR-0016);
+ * a look with no recorded end has no dwell and is not counted as one. People are
+ * meetings: a showroom session is one visiting party, and no identity link
+ * exists yet to say two of them were the same buyer (ADR-0011).
+ */
+export interface ObservedMeetings {
+  readonly current: readonly ShowroomSession[];
+  readonly previous: readonly ShowroomSession[];
+}
+
+interface UnitReading {
+  readonly meaningfulViews: number;
+  readonly meetings: number;
+  readonly trend: PulseUnit["trend"];
+}
+
+function readingsFrom(observed: ObservedMeetings): {
+  readonly byCode: ReadonlyMap<string, UnitReading>;
+} {
+  const threshold = meaningfulDwellThresholdMs("showroom") / 1000;
+  const meaningful = (sessions: readonly ShowroomSession[]): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (const session of sessions) {
+      for (const unit of session.units) {
+        if (unit.dwellSeconds < threshold) continue;
+        counts.set(unit.unitCode, (counts.get(unit.unitCode) ?? 0) + 1);
+      }
+    }
+    return counts;
+  };
+  const now = meaningful(observed.current);
+  const before = meaningful(observed.previous);
+
+  const byCode = new Map<string, UnitReading>();
+  for (const [code, views] of now) {
+    const earlier = before.get(code) ?? 0;
+    byCode.set(code, {
+      meaningfulViews: views,
+      /* One meaningful view per meeting per unit, so the two counts are the same fact. */
+      meetings: views,
+      /* The same fifteen per cent either side that the unit register uses. */
+      trend: views > earlier * 1.15 ? "rising" : views < earlier * 0.85 ? "falling" : "flat",
+    });
+  }
+  return { byCode };
+}
+
+export function buildProjectPulse(
+  context: ViewContext,
+  meetings: ObservedMeetings | null = null,
+): ProjectPulse {
   const raw = catalogueFor(context.project.id as string);
   const { locale, currency } = {
     locale: context.project.locale,
     currency: context.project.currency,
   };
 
+  /*
+   * A delivered catalogue carries no observed attention. The synthetic
+   * scoring below is a stand-in for sessions that never happened, and
+   * applying it to a real developer's flats would put invented interest on
+   * screen against real codes. Zero is the true figure until sessions arrive.
+   */
+  const observed = !hasDeliveredCatalogue(context.project.id as string);
+
+  /*
+   * THE BUILDING LIT BY ITS OWN MEETINGS.
+   *
+   * A delivered catalogue used to be dark whatever the showroom sent: the
+   * synthetic scoring was rightly refused, and nothing took its place. Where the
+   * project's meetings are its own, each unit's light is what those meetings did
+   * to it, joined on the unit's code, which is the one key a showing, the
+   * catalogue and the CRM share. A code the catalogue does not hold lights
+   * nothing here: there is no cell to light.
+   */
+  const real =
+    !observed && meetings !== null && (context.sessionsDelivered || context.ownDataOnly)
+      ? readingsFrom(meetings)
+      : null;
+
   const withAttention = raw.map((unit) => {
-    const attention = attentionFor(unit);
+    if (real !== null) {
+      const reading = real.byCode.get(unit.code);
+      return {
+        ...unit,
+        /* Rescaled against the busiest unit below; the raw count is what is kept. */
+        attention: 0,
+        meaningfulViews: reading?.meaningfulViews ?? 0,
+        uniqueContacts: reading?.meetings ?? 0,
+        trend: reading?.trend ?? ("flat" as PulseUnit["trend"]),
+      };
+    }
+    const attention = observed ? attentionFor(unit) : 0;
     const meaningfulViews = Math.round(attention * 46);
     const r = seed(`${unit.code}:trend`);
     return {
       ...unit,
       attention,
       meaningfulViews,
-      uniqueContacts: Math.max(0, Math.round(meaningfulViews * (0.45 + r * 0.2))),
-      trend: (attention > 0.62
-        ? "rising"
-        : attention < 0.25
-          ? "falling"
-          : "flat") as PulseUnit["trend"],
+      uniqueContacts: observed ? Math.max(0, Math.round(meaningfulViews * (0.45 + r * 0.2))) : 0,
+      trend: (!observed
+        ? "flat"
+        : attention > 0.62
+          ? "rising"
+          : attention < 0.25
+            ? "falling"
+            : "flat") as PulseUnit["trend"],
     };
   });
 
-  const peakViews = Math.max(...withAttention.map((u) => u.meaningfulViews));
+  /*
+   * `Math.max()` over zero arguments is `-Infinity`, not `0` — a project with
+   * no units (no catalogue delivered yet) would otherwise carry that straight
+   * into `ProjectPulse.peakViews` and, from there, into Ask Observer's own
+   * "strongest verified interest" sentence. The `=== 0` guard at every reader
+   * of `peakViews` already expects zero for an unmeasured project; this is
+   * what makes that guard reachable.
+   */
+  const peakViews =
+    withAttention.length === 0 ? 0 : Math.max(...withAttention.map((u) => u.meaningfulViews));
 
   const units: PulseUnit[] = withAttention.map((unit) => {
     return {
-      unitId: `unt_${unit.code.toLowerCase().replace("-", "")}`,
+      /*
+       * Every separator goes, not the first one.
+       *
+       * `replace` with a string argument replaces one occurrence, which was
+       * invisible while every code held a single hyphen. ISTER TOWER spells a
+       * unit `IT-A-12-07`, and one-shot replacement turned that into
+       * `unt_ita-12-07` — an identifier with hyphens in it, which is not the
+       * shape `UnitIdSchema` describes and which would have travelled straight
+       * into a route. Codes with one hyphen produce exactly the same string as
+       * before, so nothing that already existed moves.
+       */
+      unitId: `unt_${unit.code.toLowerCase().replaceAll("-", "")}`,
       code: unit.code,
       block: unit.block,
       floor: unit.floor,
@@ -278,15 +548,15 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       areaSqm: unit.areaSqm,
       orientation: unit.orientation,
       price: unit.price,
-      priceDisplay: money(unit.price, currency, locale),
+      priceDisplay: moneyOr(unit.price, currency, locale),
       status: unit.status,
       meaningfulViews: unit.meaningfulViews,
       uniqueContacts: unit.uniqueContacts,
       attention: peakViews === 0 ? 0 : unit.meaningfulViews / peakViews,
       trend: unit.trend,
-      change: CHANGE_FOR[unit.code] ?? null,
+      change: observed ? (CHANGE_FOR[unit.code] ?? null) : null,
       intent:
-        unit.status !== "available"
+        unit.status !== "available" || !observed
           ? null
           : unit.attention > 0.72
             ? "high"
@@ -298,7 +568,14 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     };
   });
 
-  const byFloor = new Map<number, PulseUnit[]>();
+  /*
+   * Floors, top first, and one more row at the bottom for the units whose
+   * catalogue states no floor. They are stock; a building that left them out
+   * would claim fewer units than it sells. The row is labelled in words and
+   * sorts last, below the ground floor, because "below everything" is the
+   * only place that does not imply a level.
+   */
+  const byFloor = new Map<number | null, PulseUnit[]>();
   for (const unit of units) {
     const list = byFloor.get(unit.floor) ?? [];
     list.push(unit);
@@ -306,10 +583,10 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
   }
 
   const floors: PulseFloor[] = [...byFloor.entries()]
-    .sort((a, b) => b[0] - a[0]) // top floor first: the building as it stands
+    .sort((a, b) => (b[0] ?? -Infinity) - (a[0] ?? -Infinity))
     .map(([floor, floorUnits]) => ({
       floor,
-      label: `L${floor}`,
+      label: floor === null ? UNSTATED_FLOOR_LABEL : `L${floor}`,
       units: floorUnits.sort((a, b) => a.code.localeCompare(b.code)),
       available: floorUnits.filter((u) => u.status === "available").length,
       attention:
@@ -340,14 +617,68 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
     };
   }
 
+  /*
+   * A unit whose room count is not stated is its own row, never folded into
+   * a guessed count and never dropped: the scale claims to cover the stock.
+   * A unit whose floor is not stated belongs to no band, and one whose aspect
+   * is not stated faces neither south nor west; both stay in the totals.
+   */
   const segments: PulseSegment[] = [
-    segment("rooms-2", "rooms", "Two-room", (u) => u.rooms === 2, 0.5),
-    segment("rooms-3", "rooms", "Three-room", (u) => u.rooms === 3, 1.3),
-    segment("aspect-s", "orientation", "South-facing", (u) => u.orientation === "S", 1.1),
-    segment("aspect-w", "orientation", "West-facing", (u) => u.orientation === "W", 0.8),
-    segment("floors-low", "floor_band", "Floors 1–3", (u) => u.floor <= 3, null),
-    segment("floors-mid", "floor_band", "Floors 4–6", (u) => u.floor >= 4 && u.floor <= 6, 1.2),
-    segment("floors-high", "floor_band", "Floors 7–8", (u) => u.floor >= 7, null),
+    ...roomCounts(units).map((rooms) =>
+      segment(
+        `rooms-${rooms}`,
+        "rooms",
+        roomLabel(rooms),
+        (u) => u.rooms === rooms,
+        observed ? (ROOM_CONVERSION[rooms] ?? null) : null,
+      ),
+    ),
+    ...(hasUnstatedRooms(units)
+      ? [
+          segment(
+            UNSTATED_ROOMS_SEGMENT.id,
+            "rooms",
+            UNSTATED_ROOMS_SEGMENT.label,
+            (u) => u.rooms === null,
+            null,
+          ),
+        ]
+      : []),
+    segment(
+      "aspect-s",
+      "orientation",
+      "South-facing",
+      (u) => u.orientation === "S",
+      observed ? 1.1 : null,
+    ),
+    segment(
+      "aspect-w",
+      "orientation",
+      "West-facing",
+      (u) => u.orientation === "W",
+      observed ? 0.8 : null,
+    ),
+    segment(
+      "floors-low",
+      "floor_band",
+      "Floors 1–3",
+      (u) => u.floor !== null && u.floor <= 3,
+      null,
+    ),
+    segment(
+      "floors-mid",
+      "floor_band",
+      "Floors 4–6",
+      (u) => u.floor !== null && u.floor >= 4 && u.floor <= 6,
+      observed ? 1.2 : null,
+    ),
+    segment(
+      "floors-high",
+      "floor_band",
+      "Floors 7–8",
+      (u) => u.floor !== null && u.floor >= 7,
+      null,
+    ),
   ];
 
   const root = `/${context.tenant.slug}/${context.project.slug}`;
@@ -363,10 +694,28 @@ export function buildProjectPulse(context: ViewContext): ProjectPulse {
       available: units.filter((u) => u.status === "available").length,
       reserved: units.filter((u) => u.status === "reserved").length,
       sold: units.filter((u) => u.status === "sold").length,
-      soldInPeriod: 7,
+      /*
+       * Seven is the scenario's figure; a delivered catalogue has no observed
+       * period yet. Neither answer is honest for a project with no units at
+       * all — there is no scenario to hold a figure for, sold or otherwise —
+       * so an empty catalogue keeps the same "not observed" `null` rather
+       * than inheriting Northgate's number by default.
+       */
+      soldInPeriod: observed && raw.length > 0 ? 7 : null,
     },
     peakViews,
-    evidence: evidenceRef("northgate.pulse", "observed_sequence", `${root}/project`, 46),
+    /*
+     * What the light rests on: the scenario's count for a synthetic building,
+     * the project's own meaningful views for a delivered one, and nought for a
+     * delivered catalogue no meeting has touched yet. The count says so.
+     */
+    evidence: evidenceRef(
+      "northgate.pulse",
+      "observed_sequence",
+      `${root}/project`,
+      /* Summed over the catalogue's own units: a view of a code it does not hold lit nothing, so it is not evidence for this picture. */
+      observed ? 46 : withAttention.reduce((sum, unit) => sum + unit.meaningfulViews, 0),
+    ),
   };
 }
 
@@ -439,15 +788,15 @@ export function buildAskSession(
     {
       question: "Which prospects should the sales team contact this week?",
       answer:
-        "Four buyers shortlisted a unit and have had no contact since their meeting. One of them shortlisted A-505, which has since sold.",
+        "Four buyers shortlisted a unit and have no contact recorded since their meeting. One of them shortlisted A-505, which has since sold.",
       figures: [
-        { label: "Uncontacted after a meeting", value: "4", note: "median wait 11 days" },
+        { label: "No contact recorded after a meeting", value: "4", note: "median gap 11 days" },
         { label: "Affected by a sold unit", value: "1", note: "Viktória Halász, A-505" },
       ],
       evidence: evidenceRef("ask.contact", "observed_sequence", `${root}/people`, 4),
       actionLabel: "Open the follow-up list",
       actionHref: `${root}/people`,
-      followUps: ["Prepare me for Viktória's meeting", "Who has waited longest?"],
+      followUps: ["Prepare me for Viktória's meeting", "Who has the longest gap since a meeting?"],
       caveat: null,
     },
     {
@@ -499,10 +848,27 @@ export function buildAskSession(
         { label: "Available units", value: String(available), note: `of ${pulse.totals.units}` },
       ],
       evidence: evidenceRef("ask.report", "observed_sequence", `${root}/flow`, 46),
-      actionLabel: "Reports arrive in M4",
-      actionHref: `${root}/overview`,
+      /*
+       * THE ACTION POINTED AT THE WRONG SCREEN AND NAMED A MILESTONE THAT HAS
+       * SHIPPED.
+       *
+       * It read "Reports arrive in M4" and opened `/overview` — the CRM-led
+       * surface ADR-0023 demoted, which has nothing to do with reports. M4 has
+       * since landed: `/report` is a declared surface with a real page, linked
+       * from Project and from the export dialog. So a reader who asked for a
+       * report was told the thing they can already open does not exist, and
+       * sent somewhere else.
+       *
+       * The caveat stays, because the half of it that is true is still true:
+       * the page COMPOSES the report and no file is generated from it —
+       * `ReportGeneration.state` is typed to the single member `preview_only`,
+       * which is what the export dialog says on screen.
+       */
+      actionLabel: "Open the report page",
+      actionHref: `${root}/report`,
       followUps: ["Include the buyer list", "Compare with last quarter"],
-      caveat: "Report generation is not built yet; this answer describes what it would contain.",
+      caveat:
+        "The report page composes this on screen. Generating a file from it is not built yet.",
     },
   ];
 

@@ -112,7 +112,48 @@ would lose the argument with the agency permanently, and deservedly.
 
 ---
 
-## 7. Marked for formal review
+## 7. IRIS-assisted sale
+
+| Setting             | Value                                                                       |
+| ------------------- | --------------------------------------------------------------------------- |
+| Window              | **72 hours** before the date the CRM states for the reservation or purchase |
+| What counts         | a showroom meeting that opened the unit, started inside that window         |
+| Measured from       | the **last** such meeting before the date, never the first                  |
+| Minimum dated sales | **5** before a share is stated                                              |
+| Evidence tier       | observed sequence, never attributed and never causal                        |
+| Configurable by     | **MADSPACE administrators only**; no override path exists yet, as for §1    |
+| Versioning          | semantic version plus `effectiveFrom` (`DEFAULT_IRIS_ASSIST_POLICY`, 1.0.0) |
+
+A rule about order and elapsed time, not a reading of why somebody bought. A sale is IRIS-assisted
+when the unit was opened in a presentation no more than the window before the CRM's own date for the
+sale. It says the showing came first and how long before. It does not say the showing produced the
+sale, and no wording built on it may (ADR-0010, ADR-0039).
+
+**The buyer is not linked.** A deal's buyer and a meeting's visitor are not joined anywhere in the
+product (ADR-0011), so every sentence says the unit was shown, not that the buyer saw it. When a
+deterministic link exists, the same rule restricted to the buyer's own meetings becomes an attributed
+conversion and needs an attribution rule of its own; it is not built.
+
+**The lag is always stated.** Seventy-two hours is short against a sales cycle measured in weeks, and
+that is deliberate: it is the founder's definition of a decision taken in the days after a
+presentation. So every sale carries the lag from its last showing, inside the window or not, and the
+note gives the median lag of the sales shown earlier. A project whose sales follow a showing by a week
+reads as "shown earlier, a median of 7 days before" and the reader can see the window is the wrong
+size for that project, rather than be told the showroom does nothing.
+
+**Whose date it is.** The CRM's stage instant where it states one. Where it states none, the sync
+that first saw the deal on the stage, and only for a move Observer witnessed between two syncs; a
+deal first seen already sold is never dated by the day the connector was switched on. That fallback
+is late by up to one sync and never early, so it under-counts. The sentence says whose date it is,
+and the note says how many sales were placed that way.
+
+**What cannot be placed is counted beside, never inside.** A sale with no stage date, or naming no
+unit, is in neither the numerator nor the denominator, and the note says how many there were. A
+showing after the stage date never counts.
+
+---
+
+## 8. Marked for formal review
 
 | Item                        | Question                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------- |

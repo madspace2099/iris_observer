@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { signInAs } from "./sign-in";
 
 /**
  * Layout integrity, measured rather than looked at.
@@ -22,37 +23,50 @@ const VIEWPORTS = [
   { name: "393", width: 393, height: 852 },
 ] as const;
 
+/*
+ * Every surface a reader can open under a project today, by the segment the
+ * shell navigates to. `storytelling` is gone from the list because it is a
+ * permanent redirect to `features` (ADR-0033): navigating to it mid-check
+ * destroyed the evaluation context and failed every viewport for the wrong
+ * reason. The report and the meeting summary joined the product on the
+ * night of 2026-09-07 and are checked like the rest.
+ */
 const SURFACES = [
+  "ask",
   "showroom",
   "flow",
   "project",
   "agents",
   "presentation",
   "units",
-  "storytelling",
+  "features",
   "meetings",
+  "audience",
+  "attention",
+  "report",
 ] as const;
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/(showroom|overview)/);
-}
 
 /**
  * Elements whose own box is narrower than their content.
  *
- * `.iris-sr` is excluded by design: the visually-hidden pattern is a 1px box
- * with `overflow: hidden`, so it reports as clipped and is doing exactly what
- * it should. Anything that scrolls on purpose is excluded too — a contained
- * scroller is a decision, not a defect.
+ * The visually-hidden pattern (a 1px box with `overflow: hidden`) is excluded
+ * by design: it reports as clipped and is doing exactly what it should.
+ * `.iris-sr`/`.obs-sr` are the legacy namespace's own name for it; `.ox-sr`
+ * (`observer-product.css`) and `.ask-sr` (`ask-iris.css`) are the same
+ * technique under the two current namespaces and were missing here, which is
+ * why this check found "clipped" text on every ox-/ask- surface that uses
+ * one — a gap in this test, not a defect in those surfaces. Anything that
+ * scrolls on purpose is excluded too — a contained scroller is a decision,
+ * not a defect.
  */
 async function clippedText(page: Page): Promise<string[]> {
   return page.evaluate(() => {
+    const SR_ONLY = ["iris-sr", "obs-sr", "ox-sr", "ask-sr"];
     const bad: string[] = [];
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("*"))) {
-      if (el.closest(".iris-sr, .obs-sr")) continue;
-      if (el.classList.contains("iris-sr") || el.classList.contains("obs-sr")) continue;
+      if (el.closest(SR_ONLY.map((c) => `.${c}`).join(", "))) continue;
+      if (SR_ONLY.some((c) => el.classList.contains(c))) continue;
       /*
        * HTML only.
        *
@@ -105,7 +119,7 @@ test.describe("no surface clips its own text or widens the page", () => {
       await signInAs(page, "Petra Novák");
 
       for (const surface of SURFACES) {
-        await page.goto(`/alpha/northgate/${surface}`);
+        await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
         await page.waitForTimeout(200);
 
         const overflow = await page.evaluate(
@@ -127,21 +141,24 @@ test.describe("every metric stays reachable", () => {
       await signInAs(page, "Petra Novák");
       await page.goto("/alpha/northgate/units");
 
-      const row = page.locator(".iris-matrix-row").first();
+      const row = page.locator(".ox-table tbody tr").first();
       await expect(row).toBeVisible();
 
       /*
-       * Six cells, always.
+       * Every column, always.
        *
-       * The narrow layout used to drop Shortlisted and Trend with an
-       * `nth-child(n + 5) { display: none }`, taking two measurements away from
-       * the reader most likely to be on a laptop and offering no way back to
-       * them.
+       * The register is a real table now (`DataTable`), and the rule it
+       * replaced a matrix to keep is the same: a narrow width may stack the
+       * cells or scroll the table inside its own wrapper, but it never drops
+       * a measurement. Nothing in the row may be `display: none`, and the
+       * header's column count is the row's.
        */
+      const header = await page.locator(".ox-table thead th").count();
       const cells = await row.evaluate((el) =>
         Array.from(el.children).filter((c) => getComputedStyle(c).display !== "none").length,
       );
-      expect(cells, `only ${cells} cells visible at ${vp.name}`).toBe(6);
+      expect(header).toBeGreaterThanOrEqual(6);
+      expect(cells, `only ${cells} of ${header} cells visible at ${vp.name}`).toBe(header);
     });
   }
 
@@ -150,26 +167,35 @@ test.describe("every metric stays reachable", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
     // A stack of bare numbers is unreadable without the header it lost.
-    for (const label of ["Meetings", "Typical look", "Shortlisted", "Trend"]) {
-      await expect(page.locator(`.iris-matrix-row [data-label="${label}"]`).first()).toBeAttached();
+    for (const label of ["Meetings", "Views", "Shortlisted", "Unit"]) {
+      await expect(page.locator(`.ox-table tbody td[data-label="${label}"]`).first()).toBeAttached();
     }
   });
 });
 
-test.describe("the Observer rail covers nothing", () => {
-  for (const surface of ["project", "agents", "presentation", "units", "storytelling", "meetings"]) {
+test.describe("the Ask dock covers nothing", () => {
+  /*
+   * The Observer rail became the docked Ask IRIS composer (`.ask-dock`,
+   * ADR-0033), fixed at the bottom of every project page but Ask IRIS
+   * itself. The claim is the one the rail had: at the true end of the page
+   * it covers no text. `storytelling` is a redirect to `features` and is
+   * checked under that name; the report joined the list tonight.
+   */
+  for (const surface of ["project", "agents", "presentation", "units", "features", "meetings", "flow", "report"]) {
     test(`clears the content on ${surface}`, async ({ page }) => {
       await signInAs(page, "Petra Novák");
-      await page.goto(`/alpha/northgate/${surface}`);
+      await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(250);
 
       const overlaps = await page.evaluate(() => {
-        const rail = document.querySelector(".obs-rail");
+        const rail = document.querySelector(".ask-dock");
         if (rail === null) return 0;
         const r = rail.getBoundingClientRect();
         let hits = 0;
-        for (const el of Array.from(document.querySelectorAll<HTMLElement>(".iris-plane *, .iris-doors *"))) {
+        for (const el of Array.from(
+          document.querySelectorAll<HTMLElement>(".iris-plane *, .iris-doors *, .ox-plane *"),
+        )) {
           if (el.children.length > 0) continue;
           if ((el.textContent ?? "").trim().length === 0) continue;
           const b = el.getBoundingClientRect();
@@ -184,43 +210,10 @@ test.describe("the Observer rail covers nothing", () => {
   }
 });
 
-test.describe("Observer holds still while it answers", () => {
-  test("the orb does not move when an answer arrives", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    await page.waitForTimeout(700);
-
-    const orb = page.locator(".obs-console-orb");
-    const before = await orb.boundingBox();
-
-    await page.getByPlaceholder(/^Ask Observer about/).fill("What changed this month?");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await page.waitForTimeout(6000);
-
-    const after = await orb.boundingBox();
-    const moved = Math.abs((after?.y ?? 0) - (before?.y ?? 0));
-
-    /*
-     * A few pixels, not half a screen.
-     *
-     * The console centred its two columns, so expanding the answer re-centred
-     * the grid and slid the orb down the page — a presence that lurches when it
-     * starts speaking does not read as one.
-     */
-    expect(moved, `the orb moved ${moved}px`).toBeLessThanOrEqual(4);
-  });
-
-  test("the prompt does not move either", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
-    await page.waitForTimeout(700);
-
-    const prompt = page.locator(".obs-prompt");
-    const before = await prompt.boundingBox();
-
-    await page.getByPlaceholder(/^Ask Observer about/).fill("Compare the sales agents");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
-    await page.waitForTimeout(6000);
-
-    const after = await prompt.boundingBox();
-    expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThanOrEqual(4);
-  });
-});
+/*
+ * "Observer holds still while it answers" measured the briefing's orb and
+ * prompt (`.obs-console-orb`, `.obs-prompt`). ADR-0033 made Ask IRIS the
+ * landing surface and the briefing a link on it; that composition and its
+ * class names are gone, so the two tests could only wait out their budget.
+ * The answer sheet's own layout is exercised by `ask-iris-compare.spec.ts`.
+ */

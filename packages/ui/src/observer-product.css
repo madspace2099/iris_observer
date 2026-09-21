@@ -1,0 +1,2907 @@
+/**
+ * THE OBSERVER PRODUCT SURFACE — Hybrid Executive. Namespace: `ox-`.
+ *
+ * This is the content system the customer-facing product wears inside the
+ * approved shell (`iris-shell.css`, `.irs-*`). The shell owns the frame: the
+ * brand, the four-item navigation, the atmosphere, the sticky header. This owns
+ * everything below it — every plane, figure, row, table, finding and control.
+ *
+ * ## The one idea: two grounds, one vocabulary, divided by CONTENT
+ *
+ * There is no second palette here and no theme switch. There is ONE set of
+ * token names declared TWICE and applied BY REGION:
+ *
+ *   `.ox-graphite`  what we CONCLUDE, and what a reader may DO about it.
+ *                   Identity, scope, the verdict sentence, navigation,
+ *                   controls, the attention list, an AI interpretation.
+ *
+ *   `.ox-paper`     what was MEASURED. Every reading, every figure, every
+ *                   date, every row of a table, every timeline step.
+ *
+ * Every rule below is written against the NAMES rather than against a colour,
+ * so one component renders correctly on both grounds with no variant code.
+ * Applying a ground is `className="ox-paper"` and nothing else.
+ *
+ * The mechanism is the one `docs/20-madspace-admin-design-system.md` §8
+ * specifies and `design-lab-c.css` proves: a token swap on a class, NEVER a
+ * filter on `body`. A filter makes `body` the containing block for every
+ * `position: fixed` element and breaks the sticky header and every dialog.
+ *
+ * ## Why the paper ground exists at all, given the MADSPACE boundary
+ *
+ * `docs/20` §0 made warm paper the MADSPACE operations identity precisely so
+ * that the operations surface and the product could be told apart, and
+ * `PROJECT-STATE.md` recorded "Observer stays dark; the boundary is one class".
+ * This file narrows that boundary, on the user's explicit instruction to adopt
+ * a Hybrid Executive language for the product, and it protects what is left of
+ * the boundary in three ways:
+ *
+ *   1. Observer's frame stays dark. Paper never touches the header, the
+ *      navigation, the page title or the verdict — a reader always arrives on
+ *      graphite and always returns to it.
+ *   2. Paper is earned, not decorative. It appears only where a dense measured
+ *      body genuinely reads better on it: tables, rows of readings, timelines,
+ *      the unit register. A paragraph does not get a plate.
+ *   3. The typefaces still differ. MADSPACE is Inter by its own specification;
+ *      Observer is Manrope, brand-locked by ADR-0020, on both grounds.
+ *
+ * And critically: NONE of the token names below is one MADSPACE redeclares.
+ * `madspace.css` owns `--ink`, `--ink-2`, `--ink-3`, `--surface-card` and the
+ * `--border-*` family on `.mad-portal`. Every name here is `--ox-`. The two
+ * systems cannot bleed into one another at any shared import, in either
+ * direction, whatever the load order turns out to be.
+ *
+ * ## What is locked and is not this file's to move
+ *
+ * Manrope (ADR-0020). `#00a3ff` (ADR-0020, and ADR-0033 rejected the approved
+ * artefact's own `#2f97ff` on the ground that "the brand is not ours to move").
+ * The accent measures 2.6:1 on white, so on paper it is never text, never a
+ * border and never a focus ring — the dim step `--iris-accent-dim` at 5.3:1
+ * carries those, exactly as `design-lab-c.css` established.
+ *
+ * ## Rules this file enforces structurally, so a screen cannot forget them
+ *
+ * - A missing value changes FOUR things at once (size, weight, colour, and a
+ *   bar mark in front). Three of the four is the failure the treatment exists
+ *   to prevent. See `.ox-value[data-missing="true"]`.
+ * - A proportion is never coloured. `--ox-ink-3` fills every track, and a
+ *   track is not drawn at all when the value is absent.
+ * - A denominator may dim but may never be dropped: `.ox-figure` + `.ox-of`
+ *   are one figure, not two.
+ * - A state never reaches the screen as a colour alone. Every status carries
+ *   its word.
+ * - Cells are divided by 1px hairlines drawn with `box-shadow` and clipped by
+ *   the container's `overflow: hidden`, never by `gap` over a coloured ground —
+ *   a gap paints its ground wherever a row does not divide evenly and turns a
+ *   short last row into a block of border colour.
+ * - Exactly ONE elevation exists in the whole system, on the dialog panel.
+ *   Nothing else floats. `docs/12-visual-autopsy.md` rejected the card stack.
+ * - 12px is the type floor and there are no exceptions.
+ * - Rhythm is 8 / 12 / 20 / 28, plus the 40px gutter. No other number.
+ */
+
+/* ============================================================================
+ * 1. SHARED — type, rhythm, geometry. These do not change across the seam.
+ * ========================================================================= */
+
+.ox-root {
+  /*
+   * Manrope with tabular figures, so a column of numbers is a column rather
+   * than a ragged edge, and so a figure does not resize as it counts.
+   */
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+
+  /* Fluid above 22px, so one token serves 1920 and 390 without an override. */
+  --ox-display: clamp(2rem, 1.35rem + 2.2vw, 3rem); /* 32 → 48 */
+  --ox-display-2: clamp(1.625rem, 1.2rem + 1.4vw, 2.25rem); /* 26 → 36 */
+  --ox-heading-2: 1.5rem; /* 24 */
+  --ox-heading-3: 1.25rem; /* 20 */
+  --ox-value: 1.1875rem; /* 19 */
+  --ox-lead: 1rem; /* 16 */
+  --ox-body: 0.875rem; /* 14 */
+  --ox-caption: 0.8125rem; /* 13 */
+  --ox-micro: 0.75rem; /* 12 — the floor */
+
+  --ox-track-display: -0.025em;
+  --ox-track-display-2: -0.02em;
+  --ox-track-heading: -0.012em;
+  --ox-track-micro: 0.09em;
+  --ox-lh-display: 1.06;
+  --ox-lh-body: 1.55;
+
+  /* Rhythm. Nothing in this file uses another number. */
+  --ox-tight: 0.5rem; /* 8 */
+  --ox-inner: 0.75rem; /* 12 */
+  --ox-section: 1.25rem; /* 20 */
+  --ox-major: 1.75rem; /* 28 */
+  --ox-break: 3.5rem; /* 56 — two majors, for editorial separation only */
+
+  --ox-gutter: 2.5rem; /* 40 */
+
+  /*
+   * THE SEAM, IN TWO NUMBERS.
+   *
+   * `--ox-inset` is how far a paper plate is held off the graphite; `--ox-pad`
+   * is the plate's own padding. Graphite copy is padded by their SUM, so dark
+   * text and light text stand on one left edge while the plate and the bands
+   * above it share one outer edge. That single alignment is what stops the
+   * frame reading as a header pasted above a page: nothing steps in or out as
+   * the ground changes.
+   */
+  --ox-inset: 1.25rem; /* 20 */
+  --ox-pad: 1.75rem; /* 28 */
+
+  --ox-radius: 12px;
+  --ox-radius-sm: 8px;
+  --ox-round: 999px;
+
+  color-scheme: dark;
+}
+
+/* ============================================================================
+ * 2. THE GRAPHITE GROUND — conclusions, identity, controls.
+ *
+ * The values are the shell's own atmosphere rather than a second dark palette:
+ * `--iris-ground` is the page the shell already paints, and the surfaces below
+ * are lifts off it, so a plane inside this system and the header above it
+ * belong to one room.
+ * ========================================================================= */
+
+.ox-graphite {
+  --ox-ink: #f4f7fc;
+  --ox-ink-2: rgb(244 247 252 / 74%);
+  --ox-ink-3: #98a4b8;
+  --ox-ink-4: #8592a8; /* 6.17:1 on the panel ground, measured */
+  --ox-ink-disabled: #4c5568;
+
+  --ox-page: transparent; /* the shell paints the ground; do not repaint it */
+  --ox-panel: rgb(140 165 205 / 5%);
+  --ox-panel-2: rgb(140 165 205 / 8%);
+  --ox-inset-fill: rgb(140 165 205 / 4%);
+
+  /* One ink, six alphas. Every division in the system comes from this ramp. */
+  --ox-line-hair: rgb(130 150 185 / 9%);
+  --ox-line-panel: rgb(130 150 185 / 13%);
+  --ox-line: rgb(130 150 185 / 18%);
+  --ox-line-field: rgb(130 150 185 / 24%);
+  --ox-line-dashed: rgb(130 150 185 / 32%);
+  --ox-line-hover: rgb(130 150 185 / 46%);
+
+  /*
+   * Status. Each state is a PAIR: the saturated value carries the mark and the
+   * 1px edge, the lighter value carries the label. On this ground the hues are
+   * lifted to hold contrast, which is what `docs/20` §8 requires of the
+   * inverse theme.
+   *
+   * The blue is the brand accent and it carries a STATE rather than decorating
+   * one: in this system blue means "a person decided this, and a person can
+   * change it". That plus the focus ring is the whole of the accent on a
+   * product screen.
+   */
+  --ox-good: #8ad9b0;
+  --ox-good-mark: #4fbf88;
+  --ox-good-tint: rgb(79 191 136 / 12%);
+
+  --ox-watch: #e6c07a;
+  --ox-watch-mark: #d9a441;
+  --ox-watch-tint: rgb(217 164 65 / 12%);
+
+  --ox-human: #7cc9ff;
+  --ox-human-mark: var(--iris-accent);
+  --ox-human-tint: rgb(0 163 255 / 12%);
+
+  --ox-poor: #f0a49e;
+  --ox-poor-mark: #e07a72;
+  --ox-poor-tint: rgb(224 122 114 / 12%);
+
+  --ox-quiet: var(--ox-ink-4);
+  --ox-quiet-tint: var(--ox-inset-fill);
+
+  --ox-focus: var(--iris-accent); /* 7.10:1 on the panel ground, measured */
+
+  /*
+   * THE ONE ELEVATION.
+   *
+   * "Nothing is a card. Content sits on planes separated by hairlines" — so a
+   * product screen's content never floats, and the only things that lift off it
+   * are the two that are not content: a dialog, and a menu opened from a
+   * control. They spend the SAME lift, from here, because two surfaces floating
+   * at two heights is a depth system nobody designed. A blurred shadow written
+   * as a literal anywhere in this sheet is a defect, and a test says so.
+   */
+  --ox-lift: 0 24px 64px rgb(0 0 0 / 55%);
+}
+
+/* ============================================================================
+ * 3. THE PAPER GROUND — measurements.
+ *
+ * Warm off-white rather than pure white: a dense table on #ffffff inside a
+ * near-black frame is a rectangle of glare, and the two grounds have to be
+ * lookable-between for a whole working session.
+ * ========================================================================= */
+
+.ox-paper {
+  --ox-ink: #14161a;
+  --ox-ink-2: #45494f;
+  --ox-ink-3: #575c63;
+  --ox-ink-4: #676c74; /* 4.80:1 on the plate, the tightest value in the system */
+  --ox-ink-disabled: #adb1b6;
+
+  --ox-page: #f5f4f1;
+  --ox-panel: #ffffff;
+  --ox-panel-2: #edece8;
+  --ox-inset-fill: rgb(20 22 26 / 4%);
+
+  --ox-line-hair: rgb(20 22 26 / 7%);
+  --ox-line-panel: rgb(20 22 26 / 10%);
+  --ox-line: rgb(20 22 26 / 13%);
+  --ox-line-field: rgb(20 22 26 / 18%);
+  --ox-line-dashed: rgb(20 22 26 / 26%);
+  --ox-line-hover: rgb(20 22 26 / 38%);
+
+  --ox-good: #0f5c39;
+  --ox-good-mark: #1f8a5b;
+  --ox-good-tint: #f2f8f5;
+
+  --ox-watch: #7d4a00;
+  --ox-watch-mark: #b9791a;
+  --ox-watch-tint: #faf6f0;
+
+  --ox-human: #0b6fae;
+  --ox-human-mark: #2c81d6;
+  --ox-human-tint: #f4f9fd;
+
+  --ox-poor: #a92019;
+  --ox-poor-mark: #c65d57;
+  --ox-poor-tint: #fbf2f2;
+
+  --ox-quiet: var(--ox-ink-4);
+  --ox-quiet-tint: var(--ox-inset-fill);
+
+  /*
+   * The same lift the graphite ground spends, and deliberately unchanged from
+   * what this ground already wore: the dialog's shadow was a literal until the
+   * menu needed the same height, so naming it here preserves exactly what
+   * shipped. A shadow this heavy is a dark-ground value on a light one, which
+   * is worth a look the next time this ground is designed rather than a guess
+   * made while moving a token.
+   */
+  --ox-lift: 0 24px 64px rgb(0 0 0 / 55%);
+
+  /*
+   * The brand blue measures 2.73:1 on this ground and would fail as a focus
+   * indicator, so paper takes the dim step of the same hue at 5.39:1.
+   */
+  --ox-focus: var(--iris-accent-dim);
+
+  /*
+   * `.ox-root` sets `color-scheme: dark` for the frame. Without this line the
+   * user agent paints every native control, scrollbar and date picker inside a
+   * paper plate as though the plate were dark — which is exactly what happened
+   * in the lab, where no plate had ever contained an input.
+   */
+  color-scheme: light;
+  background: var(--ox-page);
+  color: var(--ox-ink);
+}
+
+/* ============================================================================
+ * 3b. THE CHART BRIDGE
+ *
+ * Every chart in this product is hand-drawn SVG or CSS in
+ * `apps/web/src/showroom/charts.tsx` and `charts2.tsx`, and every one of them
+ * is styled by `charts.css`, which is written entirely against the token family
+ * `iris.css` declares on the class `.iris` — `--plane`, `--rule`, `--ink`,
+ * `--accent`, `--gain`, `--watch`, `--loss`, `--mono`.
+ *
+ * Those tokens are CLASS-scoped, not `:root`-scoped, so a chart rendered inside
+ * this system with no `.iris` ancestor draws with undefined custom properties:
+ * borders fall back to `currentColor` and fills disappear. Wrapping the product
+ * in `.iris` is not the answer — that class also paints an opaque near-black
+ * ground and claims `min-height: 100dvh`, which would cover the shell's
+ * atmosphere with a rectangle and force every page to a full viewport.
+ *
+ * So the family is re-declared here, ONCE PER GROUND, pointed at the values
+ * this system already has. The consequence is the same one the rest of the file
+ * argues for: an unmodified chart component renders correctly on graphite and
+ * on paper, because it reads names rather than colours.
+ *
+ * The one thing that does NOT cross the seam is `--viz-1..8`, the categorical
+ * series ramp on `:root`. It was validated against a dark ground, so a
+ * multi-series chart belongs on graphite; a chart on paper should carry one
+ * series, which is what the paper regions of this product actually show.
+ * ========================================================================= */
+
+.ox-graphite,
+.ox-paper {
+  --plane: var(--ox-panel);
+  --plane-2: var(--ox-panel-2);
+  --rail: var(--ox-panel-2);
+  --rule: var(--ox-line-hair);
+  --rule-firm: var(--ox-line);
+  --ink: var(--ox-ink);
+  --ink-2: var(--ox-ink-2);
+  --ink-3: var(--ox-ink-3);
+  --accent: var(--iris-accent);
+  --gain: var(--ox-good-mark);
+  --watch: var(--ox-watch-mark);
+  --loss: var(--ox-poor-mark);
+  --sans: var(--font-sans);
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 160ms;
+  --base: 320ms;
+
+  /*
+   * TWO VARIABLES `showroom.css` READS AND THIS BRIDGE DID NOT CARRY.
+   *
+   * `.iris` declares both (`iris.css`); `showroom.css` uses them unscoped,
+   * which this bridge exists precisely to cover for every OTHER name it
+   * redeclares. These two were missed, and `var(--void)` on an undeclared
+   * custom property resolves to its guaranteed initial value — transparent,
+   * for a `background` — not to black. The concrete, visible consequence:
+   * `.iris-paired-track b[data-side="right"]` (`showroom.css:1660`) is
+   * `PairedRates`' right-hand bar, and on every `ox-graphite` page that renders
+   * it — `/project`, `/agents/[agentId]` — that bar has been invisible.
+   *
+   * Carried as the literal values `.iris` declares, not re-derived from an
+   * `ox-` token: this is a bridge repair, restoring what the component was
+   * already drawn to expect, not a fresh design choice.
+   */
+  --void: #060709;
+  --sheet-w: min(34rem, 38vw);
+
+  /*
+   * The same bridge gap the comment above already found once, for the same
+   * reason: `.iris` (iris.css) declares these six, `showroom.css`'s
+   * `OutcomeRing`/`OutcomeKey`/`StackedBars` read them unscoped, and Sales
+   * Flow's actual rendered ancestor chain is `.ox-root.ox-graphite`, not
+   * `.iris` -- confirmed by walking it on the live page, not assumed from
+   * the source. Without this, every `--outcome-*` reference silently
+   * resolves to nothing on the page that is the entire point of having them.
+   * Carried as the same literal values `.iris` declares, not re-derived.
+   */
+  --outcome-purchase: #8cfab5;
+  --outcome-reservation: #65f0cf;
+  --outcome-interested: #3378b7;
+  --outcome-follow-up: #286eac;
+  --outcome-presentation-only: #88735f;
+  --outcome-not-interested: #806559;
+}
+
+/* On paper the brand accent measures 2.73:1, so a chart's own accent takes the
+ * dim step there — the same correction the focus ring makes above. */
+.ox-paper {
+  --accent: var(--iris-accent-dim);
+}
+
+/* ============================================================================
+ * 4. FOCUS, MOTION, SKIP
+ * ========================================================================= */
+
+.ox-root :focus-visible {
+  outline: 2px solid var(--ox-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/*
+ * Motion has four jobs in this product — period change, selection,
+ * cross-highlight, evidence reveal — and no others. Nothing loops and nothing
+ * animates on idle.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ox-root *,
+  .ox-root *::before,
+  .ox-root *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+.ox-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================================
+ * 5. THE CONTEXT BAR — which project, which period, which sources.
+ *
+ * It lives once, here, directly under the shell header, and never inside a
+ * chart. Every analytical surface depends on both values, and a chart carrying
+ * its own period control is a screen where two panels can silently measure
+ * different spans. That defect has been fixed twice in this codebase already.
+ * ========================================================================= */
+
+.ox-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-inner) var(--ox-section);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ox-inner) var(--ox-gutter);
+  border-bottom: 1px solid var(--ox-line-hair);
+  background: rgb(2 5 13 / 40%);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: var(--iris-header-height);
+  z-index: 3;
+}
+
+.ox-context-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-section);
+  align-items: center;
+  min-width: 0;
+}
+
+.ox-context-label {
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+}
+
+/* ============================================================================
+ * THE SWITCHER MENU — ours, including the part that opens.
+ *
+ * These were native `<select>` elements, chosen because a project list is
+ * exactly what a select is for and it works on a phone with no script. Every
+ * word of that held except the one a reader sees: the OPEN list belongs to the
+ * operating system. Styling reaches the closed button and stops, so a graphite
+ * header opened a white panel with a system-blue highlight bar — the one
+ * surface in this product that belonged to no design system at all, on the
+ * control a reader touches more often than any other.
+ *
+ * So the list is drawn here, and the rows are links, which is what they were
+ * underneath (`ContextSwitcher.tsx`). Three states carry meaning and each has
+ * its own treatment: the ROW YOU ARE ON takes the blue and a drawn tick, which
+ * is this system's "a person decided this and a person can change it"; HOVER
+ * and FOCUS lift the ground; everything else is quiet ink on the panel.
+ * ========================================================================= */
+
+.ox-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.ox-menu-button {
+  display: flex;
+  align-items: center;
+  gap: var(--ox-tight);
+  min-width: 0;
+  max-width: 22rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--ox-line-field);
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-panel);
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+  cursor: pointer;
+  list-style: none;
+  transition:
+    border-color 170ms ease-out,
+    background-color 170ms ease-out;
+}
+
+/* Safari draws its own disclosure triangle from a pseudo-element, not a marker. */
+.ox-menu-button::-webkit-details-marker {
+  display: none;
+}
+
+.ox-menu-button:hover {
+  border-color: var(--ox-line-hover);
+  background: var(--ox-panel-2);
+}
+
+.ox-menu[open] > .ox-menu-button {
+  border-color: var(--ox-line-hover);
+  background: var(--ox-panel-2);
+}
+
+.ox-menu-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ox-menu-caret {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+  margin-left: auto;
+  color: var(--ox-ink-3);
+  transition: transform 170ms ease-out;
+}
+
+.ox-menu[open] .ox-menu-caret {
+  transform: rotate(180deg);
+}
+
+/*
+ * The panel. Wider than its button when the names are long, never narrower,
+ * and never past the viewport on a phone where the button sits in a sheet.
+ */
+.ox-menu-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  /*
+   * Never narrower than the sentence at its head needs. Matched to the button
+   * alone, the caption broke into four lines under a three-word control and
+   * the list read as a column of fragments.
+   */
+  min-width: max(100%, 17rem);
+  max-width: min(24rem, calc(100vw - 2rem));
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--ox-tight);
+  border: 1px solid var(--ox-line-panel);
+  border-radius: var(--ox-radius);
+  background: #0b111b;
+  box-shadow: var(--ox-lift);
+  animation: ox-menu-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The panel's own scrollbar, so a long list does not open a grey system bar. */
+.ox-menu-panel {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ox-line-hover) transparent;
+}
+
+@keyframes ox-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ox-menu-panel {
+    animation: none;
+  }
+}
+
+/*
+ * What this list is, said where the question is asked.
+ *
+ * Each of these controls lists a subset with a rule behind it — this
+ * developer's projects, the developers you hold, the period every figure on
+ * the page is measured over — and a closed button showing one value states
+ * none of it. A reader who had counted seven projects on `/projects` opened
+ * this and found three.
+ */
+.ox-menu-caption {
+  margin: 0;
+  padding: 0.375rem 0.5rem 0.5rem;
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-medium);
+  line-height: 1.45;
+  color: var(--ox-ink-4);
+}
+
+.ox-menu-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-menu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ox-tight);
+  padding: 0.4375rem 0.5rem;
+  border-radius: var(--ox-radius-sm);
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+  text-decoration: none;
+  transition: background-color 140ms ease-out;
+}
+
+.ox-menu-row:hover {
+  background: var(--ox-panel-2);
+  color: var(--ox-ink);
+}
+
+.ox-menu-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ox-menu-row[aria-current="true"] {
+  color: var(--ox-human);
+}
+
+.ox-menu-tick {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex: none;
+  margin-left: auto;
+  color: var(--ox-human-mark);
+}
+
+/*
+ * The way to the fuller list. A hairline above it rather than a heavier
+ * treatment: it is the same kind of thing as the rows, reached from the same
+ * menu, and a second visual weight would read as a different control.
+ */
+.ox-menu-foot {
+  display: block;
+  margin-top: var(--ox-tight);
+  padding: 0.5rem;
+  border-top: 1px solid var(--ox-line-hair);
+  font-size: var(--ox-caption);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink-3);
+  text-decoration: none;
+  transition: color 140ms ease-out;
+}
+
+.ox-menu-foot:hover {
+  color: var(--ox-ink);
+}
+
+/*
+ * The ring is stated here rather than inherited.
+ *
+ * `.ox-root :focus-visible` covers the analytical page, and this control also
+ * hangs from the Ask header, which is outside it. A switcher that showed no
+ * focus in one of the two headers would be exactly the kind of difference
+ * nobody notices until they are navigating by keyboard.
+ */
+.ox-menu-button:focus-visible,
+.ox-menu-row:focus-visible,
+.ox-menu-foot:focus-visible {
+  outline: 2px solid var(--ox-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+ * 6. THE PAGE — head, sub-navigation, body.
+ * ========================================================================= */
+
+.ox-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  padding-bottom: var(--ox-break);
+}
+
+.ox-head {
+  display: grid;
+  gap: var(--ox-major);
+  padding: var(--ox-major) calc(var(--ox-inset) + var(--ox-pad)) 0;
+}
+
+@media (width >= 64rem) {
+  .ox-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.ox-head-text {
+  min-width: 0;
+}
+
+.ox-kicker {
+  margin: 0;
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-3);
+}
+
+.ox-title {
+  margin: var(--ox-inner) 0 0;
+  font-size: var(--ox-display);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ox-track-display);
+  line-height: var(--ox-lh-display);
+  color: var(--ox-ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * THE ANSWER, AND THE REASON THE FRAME IS DARK.
+ *
+ * This sentence is a conclusion drawn from the readings on the paper beneath
+ * it. Putting it on graphite says which is which without a label: above the
+ * seam what we conclude, below it what we measured.
+ */
+.ox-answer {
+  max-width: 62ch;
+  margin: var(--ox-section) 0 0;
+  font-size: var(--ox-heading-3);
+  letter-spacing: var(--ox-track-heading);
+  line-height: 1.4;
+  color: var(--ox-ink);
+}
+
+.ox-lede {
+  max-width: 68ch;
+  margin: var(--ox-inner) 0 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+/*
+ * AN INLINE LINK, INSIDE RUNNING PROSE.
+ *
+ * The system's other links are whole controls — `.ox-btn`, a table row, a
+ * card — with their own box to signal "this moves you". A name inside a
+ * sentence has no box, so colour alone is not an affordance here the way it
+ * would be argued to be on a dedicated link: underlined, at the accent, is
+ * what marks it as a link rather than emphasis.
+ */
+.ox-link {
+  color: var(--iris-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ox-link:hover {
+  color: var(--iris-accent-strong);
+}
+
+.ox-head-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  align-items: flex-start;
+}
+
+@media (width >= 64rem) {
+  .ox-head-aside {
+    align-items: flex-end;
+  }
+}
+
+/* --- breadcrumbs: only where a reader arrived from somewhere ------------- */
+
+.ox-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4375rem;
+  align-items: center;
+  margin: 0 0 var(--ox-inner);
+  padding: 0;
+  list-style: none;
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+.ox-crumbs a {
+  color: var(--ox-ink-3);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ox-line);
+}
+
+.ox-crumbs a:hover {
+  color: var(--ox-ink);
+  border-bottom-color: var(--ox-line-hover);
+}
+
+.ox-crumbs li + li::before {
+  content: "/";
+  margin-right: 0.4375rem;
+  color: var(--ox-ink-disabled);
+}
+
+/* --- sub-navigation: Project > Overview | Units | Meetings | Features ---- */
+
+.ox-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-section);
+  margin: 0 0 calc(var(--ox-major) * -1);
+  /*
+   * Above the main column. The negative margin tucks the column's top
+   * padding under this row, and `.irs-shell > *` gives every child
+   * `z-index: 1`, so the column, painted later, sat on top of the tabs:
+   * visible, focusable, and unclickable by mouse at their own centre
+   * (`elementFromPoint` answered `.irs-main`). One step up restores the
+   * pointer without moving a pixel.
+   */
+  z-index: 2;
+  padding: 0 calc(var(--ox-inset) + var(--ox-pad));
+  border-bottom: 1px solid var(--ox-line-hair);
+}
+
+.ox-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ox-tight);
+  padding: 0.6875rem 0;
+  font-size: var(--ox-body);
+  color: var(--ox-ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 170ms ease-out;
+}
+
+.ox-tab:hover {
+  color: var(--ox-ink);
+}
+
+.ox-tab[aria-current="page"] {
+  color: var(--ox-ink);
+  font-weight: var(--weight-medium);
+}
+
+.ox-tab[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--iris-accent);
+}
+
+.ox-tab-count {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * 7. PLANES AND PLATES
+ *
+ * Nothing is a card. Content sits on planes divided by hairlines; the only
+ * thing that ever floats is the dialog. A "plate" is the paper region: it is
+ * held off the graphite by `--ox-inset` and pads itself by `--ox-pad`, which is
+ * what makes the two grounds share one left edge.
+ * ========================================================================= */
+
+.ox-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  padding: 0 var(--ox-inset);
+}
+
+.ox-plate {
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-page);
+  overflow: hidden;
+}
+
+.ox-plate-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  padding: var(--ox-pad);
+}
+
+/* A plane on graphite: no plate, no border, just a region with a head. */
+.ox-plane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-section);
+  padding: 0 var(--ox-pad);
+}
+
+.ox-panel {
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-panel-pad {
+  padding: var(--ox-section);
+}
+
+.ox-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-section);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ox-section-title {
+  margin: 0;
+  font-size: var(--ox-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ox-track-heading);
+  color: var(--ox-ink);
+}
+
+.ox-section-note {
+  max-width: 58ch;
+  margin: 0;
+  font-size: var(--ox-caption);
+  line-height: 1.5;
+  color: var(--ox-ink-4);
+}
+
+.ox-subhead {
+  margin: 0;
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+}
+
+.ox-rule {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--ox-line-hair);
+}
+
+/* --- column arrangements ------------------------------------------------- */
+
+.ox-cols {
+  display: grid;
+  gap: var(--ox-major);
+}
+
+@media (width >= 64rem) {
+  .ox-cols[data-cols="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ox-cols[data-cols="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  /* The master-detail split: a list and the thing it selects. */
+  .ox-cols[data-cols="split"] {
+    grid-template-columns: minmax(0, 1.5fr) minmax(20rem, 0.85fr);
+  }
+}
+
+/* ============================================================================
+ * 8. FIGURES — the tally, the value, the denominator, the delta.
+ * ========================================================================= */
+
+.ox-tally {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+/*
+ * The divisions are box-shadows clipped by the container, not gaps and not
+ * per-cell borders. A gap paints its ground wherever the row does not divide
+ * evenly, which turns a short last row into a block of border colour.
+ */
+.ox-tally-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: var(--ox-section);
+  min-width: 0;
+  box-shadow:
+    -1px 0 0 var(--ox-line-panel),
+    0 -1px 0 var(--ox-line-panel);
+}
+
+.ox-tally-item dt {
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+  /* Two-line reservation, so figures across a row sit on one baseline. It is
+   * released below at every width where the group becomes one column. */
+  min-height: calc(2 * 1.35em);
+  line-height: 1.35;
+}
+
+/* Browsers indent every `dd` by 40px by default, which silently pushed every
+ * figure in this system out of alignment with its own label. */
+.ox-tally-item dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4375rem;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.ox-figure {
+  font-size: var(--ox-value);
+  font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  color: var(--ox-ink);
+}
+
+/* A denominator may dim, and may never be dropped. This and the figure above
+ * are ONE figure — "128 of 420", not "128" beside a footnote. */
+.ox-of {
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+}
+
+/*
+ * THE MISSING TREATMENT — four changes at once, and it is never a dash, never a
+ * blank cell and never a zero.
+ *
+ * Size drops 19 → 14, weight drops semibold → 400, the ink drops to the
+ * quietest step, and a bar mark stands in front of it. Getting three of the
+ * four is precisely the failure this exists to prevent: at three, a reader
+ * scanning a column reads the absence as a small number.
+ */
+.ox-value {
+  display: inline-flex;
+  gap: 0.4375rem;
+  align-items: baseline;
+  font-size: var(--ox-value);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+  min-width: 0;
+}
+
+.ox-value[data-missing="true"] {
+  font-size: var(--ox-body);
+  font-weight: 400;
+  color: var(--ox-ink-4);
+}
+
+.ox-value[data-missing="true"]::before {
+  content: "";
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ox-ink-disabled);
+  flex: none;
+  align-self: center;
+}
+
+.ox-delta {
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+.ox-delta[data-direction="up"] {
+  color: var(--ox-good);
+}
+
+.ox-delta[data-direction="down"] {
+  color: var(--ox-poor);
+}
+
+/* The direction is carried by a glyph as well as a colour, because roughly one
+ * man in twelve cannot separate the two hues and greyscale print loses both. */
+.ox-delta[data-direction="up"]::before {
+  content: "▲ ";
+  font-size: 0.7em;
+}
+
+.ox-delta[data-direction="down"]::before {
+  content: "▼ ";
+  font-size: 0.7em;
+}
+
+/* --- the uncoloured proportion ------------------------------------------- */
+
+.ox-track {
+  height: 8px;
+  border-radius: var(--ox-round);
+  background: var(--ox-inset-fill);
+  overflow: hidden;
+}
+
+/*
+ * Deliberately not coloured. A proportion is a quantity, not a verdict, and a
+ * green bar tells a reader the number is good before they have read it. The
+ * verdict is carried by the chip beside it, in a word.
+ */
+.ox-track-fill {
+  height: 100%;
+  background: var(--ox-ink-3);
+  border-radius: inherit;
+}
+
+/* ============================================================================
+ * 9. STATUS — a mark and its word, never a colour alone.
+ * ========================================================================= */
+
+.ox-chip {
+  display: inline-flex;
+  gap: 0.4375rem;
+  align-items: center;
+  padding: 0.1875rem 0.5rem 0.1875rem 0.4375rem;
+  border-radius: var(--ox-round);
+  border: 1px solid;
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.ox-chip-mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+/*
+ * Six tones, six SHAPES. The shape is what survives a greyscale print and a
+ * colour-blind reader; the colour is a second, faster channel for everybody
+ * else. A circle is settled-good, a ring is waiting, a diamond is a human
+ * decision, a triangle is wrong, a square is closed, a bar is unmeasured.
+ */
+.ox-chip[data-tone="good"] {
+  color: var(--ox-good);
+  border-color: color-mix(in srgb, var(--ox-good-mark) 45%, transparent);
+  background: var(--ox-good-tint);
+}
+
+.ox-chip[data-tone="good"] .ox-chip-mark {
+  background: var(--ox-good-mark);
+  border-radius: var(--ox-round);
+}
+
+.ox-chip[data-tone="watch"] {
+  color: var(--ox-watch);
+  border-color: color-mix(in srgb, var(--ox-watch-mark) 45%, transparent);
+  background: var(--ox-watch-tint);
+}
+
+.ox-chip[data-tone="watch"] .ox-chip-mark {
+  border: 2px solid var(--ox-watch-mark);
+  border-radius: var(--ox-round);
+}
+
+.ox-chip[data-tone="human"] {
+  color: var(--ox-human);
+  border-color: color-mix(in srgb, var(--ox-human-mark) 45%, transparent);
+  background: var(--ox-human-tint);
+}
+
+.ox-chip[data-tone="human"] .ox-chip-mark {
+  background: var(--ox-human-mark);
+  transform: rotate(45deg);
+  width: 7px;
+  height: 7px;
+}
+
+.ox-chip[data-tone="poor"] {
+  color: var(--ox-poor);
+  border-color: color-mix(in srgb, var(--ox-poor-mark) 45%, transparent);
+  background: var(--ox-poor-tint);
+}
+
+.ox-chip[data-tone="poor"] .ox-chip-mark {
+  width: 0;
+  height: 0;
+  background: none;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--ox-poor-mark);
+}
+
+.ox-chip[data-tone="settled"] {
+  color: var(--ox-ink-2);
+  border-color: var(--ox-line-field);
+  background: var(--ox-inset-fill);
+}
+
+.ox-chip[data-tone="settled"] .ox-chip-mark {
+  background: var(--ox-ink-3);
+  border-radius: 2px;
+}
+
+.ox-chip[data-tone="none"] {
+  color: var(--ox-ink-4);
+  border-color: var(--ox-line);
+  background: transparent;
+}
+
+.ox-chip[data-tone="none"] .ox-chip-mark {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ox-ink-disabled);
+}
+
+/* ============================================================================
+ * 10. PROVENANCE — the two axes, kept apart.
+ *
+ * `docs/04-journey.md` and `packages/contracts/src/provenance.ts` separate two
+ * things that a single badge would collapse:
+ *
+ *   TIER    how strong the claim is.  Observed · Attributed · Pattern.
+ *   SOURCE  what kind of fact it rests on.  IRIS observed · IRIS calculated ·
+ *           CRM outcome · WEBIRIS · AI interpretation.
+ *
+ * A screen may show one, the other, or both, but it may never merge them: a UE
+ * event proving a legal purchase is exactly the confusion the separation
+ * exists to prevent. Observer produces no causal claim, so there is no fourth
+ * tier to style.
+ * ========================================================================= */
+
+.ox-prov {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-tier,
+.ox-src {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--ox-radius-sm);
+  font-size: var(--ox-micro);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* The tier is a claim about strength, so it is drawn as a rule of two, three
+ * or four ticks — readable before the word is. */
+.ox-tier {
+  border: 1px solid var(--ox-line);
+  color: var(--ox-ink-2);
+  font-weight: var(--weight-medium);
+}
+
+/*
+ * NOT `--ox-good`. Evidence tier and status are the doctrine's own named
+ * orthogonal axes — "Observed" is a claim about HOW SURE the product is,
+ * "good" is a claim about WHAT THE FIGURE SAYS — and this tier's border and
+ * ink used the literal status-good token, which made "Observed" read as a
+ * positive-status signal on sight rather than purely a confidence
+ * classification. The tier now carries its own identity by BORDER WEIGHT
+ * (solid, full-strength ink) rather than a colour also spent on status
+ * elsewhere: the strongest claim this axis makes, drawn as the strongest
+ * line on it, with `attributed_conversion`'s existing blue (the product's
+ * separate "a person decided this" mark, not a status colour) left as the
+ * one tier that is deliberately not neutral.
+ */
+.ox-tier[data-tier="observed_sequence"] {
+  border-color: var(--ox-ink-3);
+  color: var(--ox-ink-2);
+}
+
+.ox-tier[data-tier="attributed_conversion"] {
+  border-color: color-mix(in srgb, var(--ox-human-mark) 40%, transparent);
+  color: var(--ox-human);
+}
+
+.ox-tier[data-tier="statistical_association"] {
+  border-style: dashed;
+  border-color: var(--ox-line-dashed);
+  color: var(--ox-ink-3);
+}
+
+.ox-src {
+  background: var(--ox-inset-fill);
+  color: var(--ox-ink-3);
+}
+
+/*
+ * An AI interpretation is the only source that is not a measurement, so it is
+ * the only one that changes shape: dashed, in the reader's quietest ink, and
+ * it may never sit alone beside a figure without the measurement it read.
+ */
+.ox-src[data-source="ai_interpretation"] {
+  background: none;
+  border: 1px dashed var(--ox-line-dashed);
+  color: var(--ox-ink-4);
+  font-style: italic;
+}
+
+.ox-src[data-source="crm_outcome"] {
+  color: var(--ox-human);
+  background: var(--ox-human-tint);
+}
+
+.ox-evidence {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: baseline;
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-3);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ox-line);
+}
+
+.ox-evidence:hover {
+  color: var(--ox-ink);
+  border-bottom-color: var(--ox-line-hover);
+}
+
+/* The sample size, printed rather than implied. No verdict without one. */
+.ox-n {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * 11. FINDINGS — one stated thing, with what it rests on.
+ * ========================================================================= */
+
+.ox-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  padding: var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+}
+
+.ox-finding-statement {
+  margin: 0;
+  font-size: var(--ox-lead);
+  line-height: 1.45;
+  color: var(--ox-ink);
+  max-width: 68ch;
+}
+
+.ox-finding-baseline,
+.ox-finding-so-what {
+  margin: 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+  max-width: 68ch;
+}
+
+.ox-finding-caveat {
+  margin: 0;
+  padding-left: var(--ox-inner);
+  border-inline-start: 2px solid var(--ox-line-dashed);
+  font-size: var(--ox-caption);
+  line-height: 1.5;
+  color: var(--ox-ink-4);
+  max-width: 66ch;
+}
+
+.ox-finding-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  align-items: center;
+}
+
+/* ============================================================================
+ * 12. ATTENTION — info, attention, critical. Red is reserved.
+ *
+ * `docs/12` §9 records the failure this shape exists to avoid: four cards in
+ * one viewport each repeating "The CRM is not connected". An unavailable
+ * source is stated ONCE for a region, with one action, not once per figure.
+ * ========================================================================= */
+
+.ox-attention {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ox-alert {
+  display: grid;
+  gap: var(--ox-tight) var(--ox-section);
+  padding: var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+  /* The severity rail is an inline border rather than an inset shadow, so it
+   * survives a background change and does not double at a rounded corner. */
+  border-inline-start: 3px solid var(--ox-line);
+}
+
+@media (width >= 48rem) {
+  .ox-alert {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+/*
+ * Measured against the alert's real composited background: `--ox-ink-disabled`
+ * (`#4c5568`) contrasts at 2.60:1, below the 3:1 WCAG 1.4.11 floor for a
+ * non-text boundary — and "disabled" was the wrong word for a real, current
+ * reading in any case. `--ox-ink-4` is the token this system already uses
+ * everywhere else for "the quietest ink that still has to read" (6.17:1,
+ * documented as the floor), which is exactly info's job here.
+ */
+.ox-alert[data-severity="info"] {
+  border-inline-start-color: var(--ox-ink-4);
+}
+
+.ox-alert[data-severity="attention"] {
+  border-inline-start-color: var(--ox-watch-mark);
+}
+
+/*
+ * Critical is the only red in the system and it is reserved for a state that
+ * is losing data right now. "Demand is falling" is attention; "the showroom
+ * has not reported in four days" is critical, because every figure below it is
+ * quietly ageing.
+ */
+.ox-alert[data-severity="critical"] {
+  border-inline-start-color: var(--ox-poor-mark);
+  background: var(--ox-poor-tint);
+}
+
+/*
+ * THE RAIL'S SECOND CHANNEL.
+ *
+ * Measured on the real rendered Attention view: `info` and `attention` differ
+ * from each other in exactly one property, the rail colour, and nothing else
+ * — no icon, no shape, no word. `.ox-chip` two sections up solves the same
+ * problem for outcome/follow-up with six tones drawn as six SHAPES so a
+ * greyscale print or a reader who cannot separate the hues still gets the
+ * state; this reuses that exact drawing technique (a triangle, a ring, a
+ * dot — the same shapes `.ox-chip-mark` already draws for `poor`/`watch`/a
+ * plain fill) rather than a new icon, and the same colour tokens the rail
+ * itself already uses, so nothing here is a new value.
+ */
+.ox-alert-mark {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.ox-alert[data-severity="critical"] .ox-alert-mark {
+  width: 0;
+  height: 0;
+  background: none;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--ox-poor-mark);
+}
+
+.ox-alert[data-severity="attention"] .ox-alert-mark {
+  border: 2px solid var(--ox-watch-mark);
+  border-radius: var(--ox-round);
+}
+
+.ox-alert[data-severity="info"] .ox-alert-mark {
+  background: var(--ox-ink-4);
+  border-radius: var(--ox-round);
+}
+
+.ox-alert-title {
+  margin: 0;
+  font-size: var(--ox-lead);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+  display: flex;
+  align-items: center;
+  gap: var(--ox-tight);
+}
+
+.ox-alert-detail {
+  margin: 0.375rem 0 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+  max-width: 68ch;
+}
+
+.ox-alert-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  align-items: center;
+  margin-top: var(--ox-tight);
+}
+
+/* ============================================================================
+ * 13. LISTS AND ROWS
+ * ========================================================================= */
+
+.ox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-row {
+  display: grid;
+  gap: var(--ox-tight) var(--ox-section);
+  padding: var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+  align-items: center;
+}
+
+@media (width >= 48rem) {
+  .ox-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/*
+ * A row does not light up on hover. A row-wide highlight promises a click the
+ * row cannot honour — only the link inside it navigates — so the affordance
+ * belongs to the link and the row answers to focus.
+ */
+.ox-row:focus-within {
+  background: var(--ox-inset-fill);
+}
+
+.ox-row-name {
+  margin: 0;
+  font-size: var(--ox-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ox-track-heading);
+  color: var(--ox-ink);
+}
+
+.ox-row-name a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.ox-row-name a:hover {
+  border-bottom-color: var(--ox-line-hover);
+}
+
+.ox-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  align-items: baseline;
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+  margin: 0.375rem 0 0;
+}
+
+.ox-row-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  align-items: center;
+}
+
+/* ============================================================================
+ * 14. THE TABLE — a real `<table>`, because a register of units is tabular.
+ *
+ * The lab argued a five-column table looks broken with one row and does not
+ * survive 390px. Both are true of a table that pretends to be a grid. This one
+ * answers each: it is only used where there are many rows, and below 48rem
+ * every cell promotes its own column label from `data-label` and the row
+ * becomes a stacked record.
+ * ========================================================================= */
+
+.ox-table-wrap {
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-table-scroll {
+  overflow-x: auto;
+}
+
+.ox-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ox-body);
+}
+
+.ox-table caption {
+  text-align: left;
+  padding: var(--ox-section) var(--ox-section) 0;
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+}
+
+.ox-table th,
+.ox-table td {
+  padding: 0.6875rem var(--ox-inner);
+  text-align: left;
+  vertical-align: baseline;
+  box-shadow: 0 -1px 0 var(--ox-line-hair);
+}
+
+.ox-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ox-panel);
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+  box-shadow: 0 1px 0 var(--ox-line-panel);
+}
+
+.ox-table td[data-numeric="true"],
+.ox-table th[data-numeric="true"] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ox-table tbody tr:focus-within {
+  background: var(--ox-inset-fill);
+}
+
+.ox-table-code {
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+  white-space: nowrap;
+}
+
+.ox-table-code a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--ox-line);
+}
+
+.ox-table-code a:hover {
+  border-bottom-color: var(--ox-line-hover);
+}
+
+/*
+ * A per-column width floor, for a column whose CONTENT is a wrapped list of
+ * fixed-width items rather than a line of text.
+ *
+ * `table-layout: auto` (the default, unset here) prices every column against
+ * every other, and a column of unit-code chips is one of the few that CAN
+ * shrink — each item just wraps to its own line — so the browser gives it the
+ * least room whenever a wide chip column elsewhere needs more. Measured on
+ * the Meetings register at 1280px: 122px, room for exactly one 62px code per
+ * line, so a row with 5 codes stood 163px tall almost entirely from that one
+ * column. `data-label="Units opened"` also exists on the agent-detail
+ * register's own meeting table, so the fix is this opt-in class
+ * (`DataColumn.className`, set only by `components/meetings/MeetingRegister`)
+ * rather than the shared label text, which that other table would have
+ * matched too.
+ */
+.ox-col-units {
+  min-width: 10.5rem;
+}
+
+/* A sortable header is a button, so it is reachable and announces its state. */
+.ox-sort {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ox-sort[aria-sort="ascending"]::after {
+  content: "▲";
+  font-size: 0.65em;
+}
+
+.ox-sort[aria-sort="descending"]::after {
+  content: "▼";
+  font-size: 0.65em;
+}
+
+/* ============================================================================
+ * 15. THE FUNNEL — stages, and what the product refuses to say about them.
+ *
+ * Presentation → Engagement → Follow-up → Offer → Reservation → Purchase.
+ * The width of a stage is its count against the first stage, and the drop
+ * between two stages is printed as a number rather than left to be read off an
+ * angle. Nothing here claims that one stage CAUSED the next: the label under
+ * each pair says "moved on", which is a sequence, and the caveat line says so
+ * again in words.
+ * ========================================================================= */
+
+.ox-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-stage {
+  display: grid;
+  gap: var(--ox-tight) var(--ox-section);
+  padding: var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (width >= 48rem) {
+  .ox-stage {
+    grid-template-columns: 12rem minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+.ox-stage-label {
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+}
+
+.ox-stage-bar {
+  height: 22px;
+  border-radius: var(--ox-radius-sm);
+  background: var(--ox-inset-fill);
+  overflow: hidden;
+}
+
+.ox-stage-fill {
+  height: 100%;
+  background: var(--ox-ink-3);
+  border-radius: inherit;
+}
+
+/* A stage the CRM verified is the only one allowed to look verified, and it is
+ * marked with the human diamond rather than with a colour of its own. */
+.ox-stage[data-verified="true"] .ox-stage-fill {
+  background: var(--ox-human-mark);
+}
+
+.ox-stage-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  align-items: baseline;
+}
+
+.ox-stage-drop {
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+/* ============================================================================
+ * 16. THE TIMELINE — a visitor journey, step by step.
+ * ========================================================================= */
+
+.ox-time {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-time-step {
+  display: grid;
+  grid-template-columns: 5.5rem 1px minmax(0, 1fr);
+  gap: 0 var(--ox-section);
+  min-height: 2.75rem;
+}
+
+.ox-time-when {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  font-variant-numeric: tabular-nums;
+  padding-top: 0.1875rem;
+  text-align: right;
+}
+
+/* The spine is one continuous rule with a mark on it, drawn as a background so
+ * it cannot break between steps the way a per-step border does. */
+.ox-time-spine {
+  position: relative;
+  background: var(--ox-line);
+}
+
+.ox-time-spine::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0.4375rem;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: var(--ox-round);
+  background: var(--ox-ink-3);
+  box-shadow: 0 0 0 3px var(--ox-panel);
+}
+
+.ox-time-step[data-channel="webiris"] .ox-time-spine::before {
+  background: none;
+  border: 2px solid var(--ox-ink-3);
+}
+
+.ox-time-step:first-child .ox-time-spine {
+  background: linear-gradient(to bottom, transparent 0.4375rem, var(--ox-line) 0.4375rem);
+}
+
+.ox-time-step:last-child .ox-time-spine {
+  background: linear-gradient(to bottom, var(--ox-line) 1rem, transparent 1rem);
+}
+
+.ox-time-body {
+  padding: 0 0 var(--ox-section);
+  min-width: 0;
+}
+
+.ox-time-label {
+  margin: 0;
+  font-size: var(--ox-body);
+  color: var(--ox-ink);
+}
+
+.ox-time-detail {
+  margin: 0.25rem 0 0;
+  font-size: var(--ox-caption);
+  line-height: 1.5;
+  color: var(--ox-ink-4);
+}
+
+.ox-time-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+  margin-top: var(--ox-tight);
+}
+
+/* ============================================================================
+ * 17. CHART FRAME — every chart states what it measures and over what period.
+ *
+ * A chart with no denominator and no period is a picture. The frame carries
+ * the title, the definition, the span and the accessible summary, so the chart
+ * component itself only has to draw.
+ * ========================================================================= */
+
+.ox-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  min-width: 0;
+}
+
+.ox-chart-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ox-chart-title {
+  margin: 0;
+  font-size: var(--ox-body);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+}
+
+.ox-chart-period {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+.ox-chart-note {
+  margin: 0;
+  font-size: var(--ox-micro);
+  line-height: 1.5;
+  color: var(--ox-ink-4);
+  max-width: 58ch;
+}
+
+.ox-chart-plot {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.ox-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-3);
+}
+
+.ox-legend-item {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.ox-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ============================================================================
+ * 18. CONTROLS — one button treatment, one field treatment.
+ *
+ * Five stylesheets in this repository had five different buttons. This is the
+ * product's single answer, and a control that does nothing must say so rather
+ * than look ready.
+ * ========================================================================= */
+
+.ox-btn {
+  display: inline-flex;
+  gap: var(--ox-tight);
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--ox-radius-sm);
+  border: 1px solid var(--ox-line-field);
+  background: var(--ox-panel);
+  color: var(--ox-ink);
+  font-family: inherit;
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 170ms ease-out,
+    background 170ms ease-out;
+}
+
+.ox-btn:hover {
+  border-color: var(--ox-line-hover);
+}
+
+.ox-btn[data-weight="primary"] {
+  background: var(--iris-accent);
+  border-color: var(--iris-accent);
+  /* Near-black on the accent, which measures well past 4.5:1 both ways and
+   * keeps the accent readable on either ground without a second value. */
+  color: #04121c;
+  font-weight: var(--weight-semibold);
+}
+
+.ox-btn[data-weight="primary"]:hover {
+  background: var(--iris-accent-strong);
+  border-color: var(--iris-accent-strong);
+}
+
+.ox-btn[data-weight="quiet"] {
+  background: none;
+  border-color: transparent;
+  color: var(--ox-ink-3);
+  padding-inline: 0.25rem;
+}
+
+.ox-btn[data-weight="quiet"]:hover {
+  color: var(--ox-ink);
+}
+
+/*
+ * A control with nothing behind it is disabled and explains itself. It is
+ * never merely styled down: `aria-disabled` and a `title` carry the reason to
+ * a reader who cannot see the note beside it.
+ */
+.ox-btn[aria-disabled="true"],
+.ox-btn:disabled {
+  cursor: not-allowed;
+  color: var(--ox-ink-disabled);
+  background: none;
+  border-color: var(--ox-line);
+  border-style: dashed;
+}
+
+.ox-btn[aria-disabled="true"]:hover,
+.ox-btn:disabled:hover {
+  border-color: var(--ox-line);
+}
+
+.ox-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  align-items: center;
+}
+
+.ox-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.ox-field-label {
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--ox-track-micro);
+  text-transform: uppercase;
+  color: var(--ox-ink-4);
+}
+
+.ox-input,
+.ox-select {
+  font-family: inherit;
+  font-size: var(--ox-body);
+  color: var(--ox-ink);
+  background: var(--ox-panel);
+  border: 1px solid var(--ox-line-field);
+  border-radius: var(--ox-radius-sm);
+  padding: 0.4375rem 0.625rem;
+  min-width: 0;
+}
+
+.ox-input::placeholder {
+  color: var(--ox-ink-disabled);
+}
+
+.ox-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-inner);
+  align-items: flex-end;
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+}
+
+.ox-filters-count {
+  margin-inline-start: auto;
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+  padding-bottom: 0.5rem;
+}
+
+/* A set of one-tap filters. Selected state is `aria-pressed`, not a colour. */
+.ox-chipset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-toggle {
+  padding: 0.3125rem 0.6875rem;
+  border-radius: var(--ox-round);
+  border: 1px solid var(--ox-line-field);
+  background: none;
+  color: var(--ox-ink-3);
+  font-family: inherit;
+  font-size: var(--ox-caption);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.ox-toggle:hover {
+  color: var(--ox-ink);
+  border-color: var(--ox-line-hover);
+}
+
+.ox-toggle[aria-pressed="true"],
+.ox-toggle[aria-current="true"] {
+  color: var(--ox-ink);
+  border-color: var(--ox-ink-3);
+  background: var(--ox-inset-fill);
+  font-weight: var(--weight-medium);
+}
+
+/* ============================================================================
+ * 19. ASK IRIS — the composer, the thread and the answer.
+ *
+ * The prompt card itself belongs to `iris-shell.css`, which the design was
+ * approved with. What is here is everything a CONVERSATION needs that a single
+ * prompt did not: turns, an answer body, its evidence, and the history list.
+ * ========================================================================= */
+
+.ox-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  min-width: 0;
+}
+
+.ox-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  min-width: 0;
+}
+
+/*
+ * A question is set as a question: quieter, smaller, and set off by a rail
+ * rather than by a bubble. Chat bubbles would make this a chat product; it is
+ * an analytical surface where the answer is the subject.
+ */
+.ox-turn-question {
+  margin: 0;
+  padding-inline-start: var(--ox-inner);
+  border-inline-start: 2px solid var(--ox-line-field);
+  font-size: var(--ox-lead);
+  line-height: 1.45;
+  color: var(--ox-ink-2);
+  max-width: 62ch;
+}
+
+.ox-turn-when {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+.ox-answer-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  max-width: 68ch;
+  min-width: 0;
+}
+
+.ox-answer-body p {
+  margin: 0;
+  font-size: var(--ox-lead);
+  line-height: 1.6;
+  color: var(--ox-ink);
+}
+
+.ox-answer-body ul {
+  margin: 0;
+  padding-inline-start: var(--ox-section);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-2);
+}
+
+/* The figures an answer cites, laid out so they can be checked against the
+ * screen the reader can open, not merely read past inside a sentence. */
+.ox-answer-figures {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.ox-answer-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: var(--ox-inner);
+  box-shadow:
+    -1px 0 0 var(--ox-line-panel),
+    0 -1px 0 var(--ox-line-panel);
+}
+
+.ox-answer-figure dt {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+.ox-answer-figure dd {
+  margin: 0;
+  font-size: var(--ox-value);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+}
+
+.ox-follow-ups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* --- the history list ---------------------------------------------------- */
+
+.ox-threads {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  overflow: hidden;
+}
+
+.ox-thread-row {
+  display: grid;
+  gap: 0.25rem var(--ox-inner);
+  padding: var(--ox-inner) var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+}
+
+.ox-thread-row:focus-within {
+  background: var(--ox-inset-fill);
+}
+
+.ox-thread-title {
+  margin: 0;
+  font-size: var(--ox-body);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+  min-width: 0;
+}
+
+.ox-thread-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ox-thread-title a:hover {
+  border-bottom: 1px solid var(--ox-line-hover);
+}
+
+.ox-thread-when {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+.ox-thread-context {
+  grid-column: 1 / -1;
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+/* ============================================================================
+ * 20. THE DIALOG — the one thing in this system that floats.
+ * ========================================================================= */
+
+.ox-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: var(--ox-section);
+  background: rgb(1 3 9 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.ox-dialog-panel {
+  width: min(38rem, 100%);
+  max-height: min(85vh, 48rem);
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  box-shadow: var(--ox-lift);
+  overflow: hidden;
+}
+
+.ox-dialog-head {
+  display: flex;
+  gap: var(--ox-inner);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--ox-section);
+  box-shadow: 0 1px 0 var(--ox-line-panel);
+}
+
+.ox-dialog-title {
+  margin: 0;
+  font-size: var(--ox-heading-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ox-track-heading);
+  color: var(--ox-ink);
+}
+
+.ox-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-section);
+  padding: var(--ox-section);
+  overflow-y: auto;
+}
+
+.ox-dialog-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight);
+  align-items: center;
+  justify-content: flex-end;
+  padding: var(--ox-section);
+  box-shadow: 0 -1px 0 var(--ox-line-panel);
+}
+
+.ox-dialog-note {
+  margin: 0;
+  margin-inline-end: auto;
+  font-size: var(--ox-caption);
+  color: var(--ox-ink-4);
+  max-width: 40ch;
+}
+
+/* A list of what a report would contain, each line saying whether it can. */
+.ox-scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-scope-item {
+  display: flex;
+  gap: var(--ox-inner);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--ox-tight) 0;
+  box-shadow: 0 -1px 0 var(--ox-line-hair);
+  font-size: var(--ox-body);
+  color: var(--ox-ink-2);
+}
+
+/* ============================================================================
+ * 21. ABSENCE — four states, and they must not look alike.
+ *
+ * EMPTY        genuinely zero. A real answer, stated as one.
+ * INSUFFICIENT the number exists but must not be read as a verdict. Shown at
+ *              full size in secondary ink with the shortfall beside it and no
+ *              trend.
+ * UNAVAILABLE  a source is missing. Hairline outline, the reason, and ONE
+ *              action, stated once for the region.
+ * ERROR        a failure to load, stated as a failure and never as data.
+ *
+ * And separately: an empty section that is a FINDING ("nothing needs
+ * attention") must not look like a section that failed to load. The first is a
+ * solid panel with a chip and a sentence; the second is a dashed slot.
+ * ========================================================================= */
+
+.ox-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-inner);
+  align-items: center;
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  font-size: var(--ox-body);
+  color: var(--ox-ink-2);
+}
+
+.ox-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  padding: var(--ox-major);
+  border-radius: var(--ox-radius);
+  border: 1px dashed var(--ox-line-dashed);
+  text-align: center;
+  align-items: center;
+}
+
+.ox-empty-title {
+  margin: 0;
+  font-size: var(--ox-lead);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink-2);
+}
+
+.ox-empty-note {
+  margin: 0;
+  font-size: var(--ox-body);
+  line-height: var(--ox-lh-body);
+  color: var(--ox-ink-4);
+  max-width: 52ch;
+}
+
+/*
+ * UNAVAILABLE, stated once for a region. Not a card, not repeated per figure:
+ * four panels each saying "the CRM is not connected" is the exact defect
+ * recorded in the visual autopsy.
+ */
+.ox-unavailable {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-inner);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ox-inner) var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line);
+  border-style: dashed;
+  font-size: var(--ox-body);
+  color: var(--ox-ink-3);
+}
+
+/* Below the minimum sample: the raw figure stands, and the shortfall stands
+ * beside it. No verdict, no rank, no trend. */
+.ox-insufficient {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4375rem;
+  align-items: baseline;
+}
+
+.ox-insufficient .ox-figure {
+  color: var(--ox-ink-2);
+}
+
+.ox-shortfall {
+  font-size: var(--ox-micro);
+  color: var(--ox-watch);
+  white-space: nowrap;
+}
+
+.ox-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-tight);
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid color-mix(in srgb, var(--ox-poor-mark) 40%, transparent);
+  background: var(--ox-poor-tint);
+  color: var(--ox-ink);
+  font-size: var(--ox-body);
+}
+
+/* The demonstration-data statement. It is not decoration and it does not hide:
+ * every screen in this build reads a deterministic synthetic world. */
+.ox-synthetic {
+  display: inline-flex;
+  gap: 0.4375rem;
+  align-items: center;
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--ox-radius-sm);
+  border: 1px dashed var(--ox-line-dashed);
+  font-size: var(--ox-micro);
+  letter-spacing: 0.02em;
+  color: var(--ox-ink-4);
+}
+
+/* ============================================================================
+ * 22. PEOPLE — a roster that is not a leaderboard.
+ *
+ * Deliberately no rank number, no medal, no ordering by outcome. The rule from
+ * `docs/01-foundation.md` is that the agent's own data supply is what every
+ * upstream number rests on, and a scoreboard degrades the supply. What is
+ * compared is activity and verified outcome, side by side, with completeness
+ * stated for each.
+ * ========================================================================= */
+
+.ox-people {
+  display: grid;
+  gap: var(--ox-major);
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ox-person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-inner);
+  padding: var(--ox-section);
+  border-radius: var(--ox-radius);
+  border: 1px solid var(--ox-line-panel);
+  background: var(--ox-panel);
+  min-width: 0;
+}
+
+.ox-person-head {
+  display: flex;
+  gap: var(--ox-inner);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Initials rather than a photograph: there is no photograph, and a generated
+ * avatar would be a decoration standing where an identity should be. */
+.ox-person-initials {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  border-radius: var(--ox-round);
+  border: 1px solid var(--ox-line-field);
+  background: var(--ox-inset-fill);
+  font-size: var(--ox-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  color: var(--ox-ink-2);
+}
+
+.ox-person-name {
+  margin: 0;
+  font-size: var(--ox-lead);
+  font-weight: var(--weight-medium);
+  color: var(--ox-ink);
+  min-width: 0;
+}
+
+.ox-person-name a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.ox-person-name a:hover {
+  border-bottom-color: var(--ox-line-hover);
+}
+
+.ox-person-role {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+/* ============================================================================
+ * 23. THE BUILDING — the stacking plan.
+ *
+ * The final test of every Observer screen is that with the logo hidden it
+ * still reads as real-estate spatial intelligence. This is the one component
+ * that carries the building itself: a floor is a row, a unit is a cell sized
+ * by its area, and the ink of a cell is its attention rather than a decorative
+ * ramp. Status is carried by the border, so an available unit and a sold one
+ * differ in shape as well as in tone.
+ * ========================================================================= */
+
+.ox-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ox-stack-floor {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: var(--ox-inner);
+  align-items: center;
+  min-width: 0;
+}
+
+.ox-stack-label {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ox-stack-units {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ox-stack-unit {
+  display: block;
+  height: 22px;
+  border-radius: 3px;
+  border: 1px solid var(--ox-line);
+  background: var(--ox-inset-fill);
+  min-width: 6px;
+  text-decoration: none;
+  position: relative;
+}
+
+.ox-stack-unit:hover {
+  border-color: var(--ox-line-hover);
+}
+
+.ox-stack-unit[data-status="reserved"] {
+  border-style: dashed;
+}
+
+.ox-stack-unit[data-status="sold"] {
+  border-color: var(--ox-ink-disabled);
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 3px,
+    var(--ox-inset-fill) 3px,
+    var(--ox-inset-fill) 6px
+  );
+}
+
+/* Attention is a luminance ramp on one hue, supplied per unit as `--ox-heat`
+ * between 0 and 1. It is never a rainbow: a sequential quantity read as a
+ * categorical palette is the most common chart lie there is. */
+.ox-stack-unit[data-heat] {
+  background: color-mix(in srgb, var(--iris-accent) calc(var(--ox-heat, 0) * 62%), transparent);
+}
+
+.ox-stack-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ox-tight) var(--ox-inner);
+  margin: var(--ox-inner) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+}
+
+/* ============================================================================
+ * 24. RESPONSIVE
+ *
+ * Not a narrower desktop. Below 48rem the tables become records, every dense
+ * grid becomes one column, and the two-line label reservation is RELEASED —
+ * keeping it in a stacked group leaves a hole above every value.
+ * ========================================================================= */
+
+@media (width <= 78rem) {
+  .ox-root {
+    --ox-gutter: 1.75rem;
+  }
+}
+
+@media (width <= 64rem) {
+  .ox-head,
+  .ox-tabs {
+    padding-inline: var(--ox-section);
+  }
+
+  .ox-body {
+    padding-inline: 0;
+  }
+
+  .ox-plate-inner,
+  .ox-plane {
+    padding-inline: var(--ox-section);
+  }
+}
+
+@media (width <= 48rem) {
+  .ox-root {
+    --ox-gutter: 1rem;
+    --ox-pad: 1.25rem;
+    --ox-inset: 0.75rem;
+  }
+
+  .ox-context {
+    position: static;
+    padding-inline: var(--ox-section);
+  }
+
+  .ox-tally-item dt {
+    min-height: 0;
+  }
+
+  .ox-time-step {
+    grid-template-columns: 3.75rem 1px minmax(0, 1fr);
+    gap: 0 var(--ox-inner);
+  }
+
+  /*
+   * The table becomes a stack of records. Each cell promotes its own column
+   * name from `data-label`, so the row is still readable as a record rather
+   * than as an unlabelled list of numbers — which is what a table with its
+   * head scrolled off the screen actually is.
+   */
+  .ox-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /*
+   * `caption` joins the rest of the table here rather than being left to its
+   * own `table-caption` default.
+   *
+   * Measured on Meetings and Attention both: a `table-caption` box left
+   * outside a real table formatting context (its parent is `display: block`
+   * two lines above) shrink-wraps to its own content instead of spanning the
+   * table, so the sentence above the register wrapped one and two words to a
+   * line — 23 lines and 480px of height for a single caption on Attention.
+   * Joining the same block/auto-width treatment its siblings already get
+   * fixes that the same way this rule already fixes it for `tbody`/`tr`/`td`.
+   */
+  .ox-table,
+  .ox-table caption,
+  .ox-table tbody,
+  .ox-table tr,
+  .ox-table td {
+    display: block;
+    width: auto;
+  }
+
+  .ox-table tr {
+    padding: var(--ox-inner) var(--ox-section);
+    box-shadow: 0 -1px 0 var(--ox-line-panel);
+  }
+
+  .ox-table td {
+    display: flex;
+    /*
+     * Wraps rather than clips: a record cell's own width is whatever the
+     * viewport leaves it, and `.ox-chip`'s `white-space: nowrap` (correct at
+     * the width a chip was designed for, sitting beside plenty of room) hard
+     * -clipped a longer outcome label mid-word at 390px with no affordance to
+     * read the rest — "Follow-up needed" as "Follow-up needec". A label this
+     * cell already prints via `::before` lets the value drop to its own
+     * line when the two do not both fit.
+     */
+    flex-wrap: wrap;
+    gap: 0.125rem var(--ox-inner);
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.1875rem 0;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  .ox-table td .ox-chip {
+    white-space: normal;
+    text-align: left;
+  }
+
+  .ox-table td[data-numeric="true"] {
+    text-align: right;
+  }
+
+  .ox-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: var(--ox-micro);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink-4);
+    flex: none;
+  }
+
+  /* The code is the record's title once the row has become a record. */
+  .ox-table td.ox-table-code {
+    display: block;
+    font-size: var(--ox-lead);
+    padding-bottom: var(--ox-tight);
+  }
+
+  .ox-table td.ox-table-code::before {
+    content: none;
+  }
+}
+
+@media (width <= 30rem) {
+  .ox-tally {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /*
+   * The caption gets the row's own width, not whatever `dd`'s flex layout
+   * has left over after the figure and its delta. At a 2-up tally width a
+   * leftover column measured ~70px — enough for one word per line, ragged
+   * against its sibling cells' plain single-line captions. `.ox-of` is a
+   * flex child of `.ox-tally-item dd`, so `flex-basis: 100%` drops it to
+   * its own line, where it wraps across the item's real width instead.
+   */
+  .ox-tally-item .ox-of {
+    flex-basis: 100%;
+  }
+
+  .ox-title {
+    font-size: var(--ox-display-2);
+  }
+
+  .ox-answer-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* --- the report page: a document drawn on the product's own planes ------- */
+
+/*
+ * The contents list on the cover is a list of anchors, set as running text
+ * rather than a table: a table of two words per row is the kind of
+ * scaffolding this system refuses. The ladder inside the outcomes section
+ * keeps the funnel's own rhythm and only gains the plane's vertical seam.
+ */
+.ox-report-contents {
+  margin: 0;
+  padding: 0 0 0 1.25em;
+  display: grid;
+  gap: 0.25rem;
+  font-size: var(--ox-body);
+}
+
+.ox-report-ladder {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+/*
+ * PRINT: the page is the document. The print control leaves; the planes stop
+ * floating on graphite and sit on white with dark ink, because a printed page
+ * has one ground; a plane is kept whole across a page break where the browser
+ * can manage it. The shell's own chrome and the Ask dock leave too, in the
+ * sheets that own them (iris-shell.css, ask-iris.css): a sheet never claims a
+ * name another sheet owns.
+ */
+@media print {
+  .ox-report .ox-btn {
+    display: none !important;
+  }
+
+  .ox-report,
+  .ox-report .ox-plane {
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  .ox-report .ox-plane {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .ox-report a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

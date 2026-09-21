@@ -19,6 +19,20 @@ export function money(value: number, currency: string, locale: string): string {
   }).format(value);
 }
 
+/**
+ * The word a surface shows where a catalogue stated nothing.
+ *
+ * One word, everywhere: a floor, a count, an area, an aspect or a price the
+ * source left out reads "Not stated", never a zero, a dash or an empty cell.
+ * A reader can then tell a gap in the catalogue from a figure of nothing.
+ */
+export const NOT_STATED = "Not stated";
+
+/** `money`, or the word for a price the catalogue did not state. */
+export function moneyOr(value: number | null, currency: string, locale: string): string {
+  return value === null ? NOT_STATED : money(value, currency, locale);
+}
+
 export function compactMoney(value: number, currency: string, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -77,6 +91,63 @@ export function movement(
 export function days(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded} ${rounded === 1 ? "day" : "days"}`;
+}
+
+/* --- dates and times, in the project's own zone --------------------------- */
+
+/**
+ * Every date or time a surface prints is read in the project's time zone,
+ * never the host's. A meeting recorded at 10:30 in Bratislava is a 10:30
+ * meeting on every screen wherever the process rendering it happens to run;
+ * the same instant printed from a UTC host as "08:30" is a wrong fact, and the
+ * kind that reads as a data problem rather than a formatting one. The zone is
+ * `ViewContext.project.timeZone`, so nothing here reads the host clock.
+ *
+ * The formatters are cached by locale, zone and shape: these run once per row
+ * of every register, and `Intl.DateTimeFormat` is expensive to construct.
+ */
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormatter(
+  locale: string,
+  timeZone: string,
+  shape: "day" | "clock" | "month" | "monthYear",
+): Intl.DateTimeFormat {
+  const key = `${locale}|${timeZone}|${shape}`;
+  let cached = dateFormatters.get(key);
+  if (cached === undefined) {
+    const options: Intl.DateTimeFormatOptions =
+      shape === "day"
+        ? { day: "numeric", month: "short" }
+        : shape === "clock"
+          ? { hour: "2-digit", minute: "2-digit" }
+          : shape === "month"
+            ? { month: "short" }
+            : { month: "short", year: "numeric" };
+    cached = new Intl.DateTimeFormat(locale, { ...options, timeZone });
+    dateFormatters.set(key, cached);
+  }
+  return cached;
+}
+
+/** "24 Aug", in the project's zone. */
+export function dayLabel(iso: string | Date, locale: string, timeZone: string): string {
+  return dateFormatter(locale, timeZone, "day").format(new Date(iso));
+}
+
+/** "10:30", in the project's zone. */
+export function clockLabel(iso: string | Date, locale: string, timeZone: string): string {
+  return dateFormatter(locale, timeZone, "clock").format(new Date(iso));
+}
+
+/** "Aug", in the project's zone. */
+export function monthLabel(iso: string | Date, locale: string, timeZone: string): string {
+  return dateFormatter(locale, timeZone, "month").format(new Date(iso));
+}
+
+/** "Aug 2026", in the project's zone. */
+export function monthYearLabel(iso: string | Date, locale: string, timeZone: string): string {
+  return dateFormatter(locale, timeZone, "monthYear").format(new Date(iso));
 }
 
 /* --- builders -------------------------------------------------------------- */

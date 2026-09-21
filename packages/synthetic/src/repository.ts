@@ -34,15 +34,38 @@ import type {
   StorytellingIntelligence,
   UnitAttentionView,
 } from "@observer/readmodels";
+import type {
+  AgentDetailView,
+  AskHistoryView,
+  AskThread,
+  AttentionView,
+  MeetingFilters,
+  MeetingListView,
+  ReportScopeView,
+  UnitDetailView,
+} from "@observer/readmodels";
+import type {
+  CatalogueSource,
+  DealSource,
+  ProjectDirectory,
+  ShowroomSessionSource,
+} from "@observer/readmodels";
+import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
+import { periodsAt } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
+import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
-import { buildAskSession, buildProjectPulse } from "./pulse";
+import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
+import { assistedSalesAnswer, buildDeliveredAskSession } from "./ask-computed";
+import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
-  SYNTHETIC_AGENTS,
+  presentersIn,
+  provideAgentNames,
+  provideSessions,
   sessionById,
+  sessionsForProject,
   sessionsInPeriod,
-  showroomSessions,
 } from "./showroom/sessions";
 import { buildAgentCharts, buildFlowCharts, buildProjectCharts } from "./showroom/charts";
 import {
@@ -60,6 +83,10 @@ import {
   buildStorytelling,
   buildUnitAttention,
 } from "./showroom/project";
+import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
+import { buildAttention } from "./showroom/attention";
+import { buildAskHistory, buildAskThread } from "./ask-history";
+import { buildReportScope } from "./reports";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -117,16 +144,97 @@ const PERIODS: Record<PeriodPreset, Omit<Period, "preset">> = {
   },
 };
 
+/**
+ * What a composition root may hand the repository.
+ *
+ * `catalogueSource` is the seam ADR-0036 names: asked before every view is
+ * built, and when it answers with a connector's catalogue that stock replaces
+ * the synthetic one for the project — the stock only. Attention, changes and
+ * narrative figures come from observed sessions, and a delivered unit that no
+ * session has opened shows none rather than an invented one.
+ */
+export interface SyntheticRepositoryOptions {
+  readonly catalogueSource?: CatalogueSource;
+  /**
+   * The seam for the CRM's deals, beside the catalogue's: asked before every
+   * view, and the Sales Flow ladder draws what it answers. Absent, the ladder
+   * says the CRM is not connected; the synthetic world never invents a deal.
+   */
+  readonly dealSource?: DealSource;
+  /**
+   * The seam for a project whose showroom sessions come from a real
+   * telemetry source rather than the synthetic generator — asked before
+   * every view, same as the two above. Answering with sessions REPLACES the
+   * synthetic ones for that project everywhere `sessionsForProject`/
+   * `sessionsInPeriod`/`sessionById` are read; a project nothing was
+   * delivered for is untouched.
+   */
+  readonly sessionSource?: ShowroomSessionSource;
+  /**
+   * The projects that exist outside the synthetic world: the ones created in
+   * administration. Listed and resolved beside the world's own, and never in
+   * place of them — where a slug or an id collides, the world's entry stands,
+   * because a directory row must not be able to shadow a fixture a test or a
+   * demonstration depends on.
+   */
+  readonly projectDirectory?: ProjectDirectory;
+  /**
+   * The clock a project with a real session source runs on, and every project
+   * from the directory. Defaults to the system clock; a test pins it. The
+   * synthetic world never reads it.
+   */
+  readonly now?: () => Date;
+}
+
+/** Everything that can be resolved: the synthetic world, then the directory's additions. */
+interface ResolvableWorld {
+  readonly tenants: readonly TenantSummary[];
+  readonly projects: readonly ProjectSummary[];
+  /** Ids of the projects that came from the directory. */
+  readonly own: ReadonlySet<string>;
+}
+
 export class SyntheticObserverRepository implements ObserverRepository {
+  constructor(private readonly options: SyntheticRepositoryOptions = {}) {}
+
+  /**
+   * The synthetic world and whatever the directory adds to it.
+   *
+   * A directory entry is dropped, never merged, when the world already holds
+   * its id or its address: `/alpha/northgate` is the fixture's for as long as the
+   * fixture exists. Administration refuses such a slug up front, so reaching
+   * this filter means something upstream went wrong, and the safe reading of
+   * that is the one the tests already describe.
+   */
+  private async world(): Promise<ResolvableWorld> {
+    const added = (await this.options.projectDirectory?.entries()) ?? null;
+    if (added === null) return { tenants: TENANTS, projects: PROJECTS, own: new Set() };
+
+    const tenants = added.tenants.filter(
+      (t) => !TENANTS.some((w) => w.id === t.id || w.slug === t.slug),
+    );
+    const held = new Set(tenants.map((t) => t.id as string));
+    const projects = added.projects
+      .filter((p) => held.has(p.tenantId as string) && !PROJECTS.some((w) => w.id === p.id))
+      .map((p) => ({ ...p, ownDataOnly: true }));
+    return {
+      tenants: [...TENANTS, ...tenants],
+      projects: [...PROJECTS, ...projects],
+      own: new Set(projects.map((p) => p.id as string)),
+    };
+  }
+
   async listTenants(viewer: Viewer): Promise<readonly TenantSummary[]> {
-    return TENANTS.filter((t) => viewer.tenantIds.includes(t.id));
+    const { tenants } = await this.world();
+    return tenants.filter((t) => viewer.tenantIds.includes(t.id));
   }
 
   async listProjects(viewer: Viewer, tenantId: TenantId): Promise<readonly ProjectSummary[]> {
     if (!viewer.tenantIds.includes(tenantId)) {
       throw new NotPermittedError("this developer");
     }
-    return PROJECTS.filter((p) => p.tenantId === tenantId && viewer.projectIds.includes(p.id));
+    const { projects } = await this.world();
+    return projects.filter((p) => p.tenantId === tenantId && viewer.projectIds.includes(p.id));
   }
 
   async resolveProject(
@@ -134,10 +242,19 @@ export class SyntheticObserverRepository implements ObserverRepository {
     tenantSlug: string,
     projectSlug: string,
   ): Promise<{ tenant: TenantSummary; project: ProjectSummary }> {
-    const tenant = TENANTS.find((t) => t.slug === tenantSlug);
+    return (await this.resolveInWorld(viewer, tenantSlug, projectSlug)).resolved;
+  }
+
+  private async resolveInWorld(
+    viewer: Viewer,
+    tenantSlug: string,
+    projectSlug: string,
+  ): Promise<{ resolved: { tenant: TenantSummary; project: ProjectSummary }; own: boolean }> {
+    const world = await this.world();
+    const tenant = world.tenants.find((t) => t.slug === tenantSlug);
     if (tenant === undefined) throw new NotFoundError(`Developer "${tenantSlug}"`);
 
-    const project = PROJECTS.find((p) => p.slug === projectSlug && p.tenantId === tenant.id);
+    const project = world.projects.find((p) => p.slug === projectSlug && p.tenantId === tenant.id);
     if (project === undefined) throw new NotFoundError(`Project "${projectSlug}"`);
 
     // Both checks, not one. A viewer can hold a tenant grant without holding
@@ -145,22 +262,137 @@ export class SyntheticObserverRepository implements ObserverRepository {
     if (!viewer.tenantIds.includes(tenant.id)) throw new NotPermittedError(tenant.name);
     if (!viewer.projectIds.includes(project.id)) throw new NotPermittedError(project.name);
 
-    return { tenant, project };
+    return { resolved: { tenant, project }, own: world.own.has(project.id as string) };
   }
 
-  async resolvePeriod(_projectId: ProjectId, preset: PeriodPreset): Promise<Period> {
-    return { preset, ...PERIODS[preset] };
+  async resolvePeriod(projectId: ProjectId, preset: PeriodPreset): Promise<Period> {
+    const world = await this.world();
+    const project = world.projects.find((p) => p.id === projectId);
+    /*
+     * It used to answer an unknown project with the synthetic world's frozen
+     * periods, which put a project nobody had heard of in August 2026 without a
+     * word. There is no period for a project that does not exist.
+     */
+    if (project === undefined) throw new NotFoundError("This project");
+    const live = await this.overlaySessions(project);
+    const real = live || world.own.has(project.id as string);
+    return this.periodFor(project, preset, real ? this.clock() : null);
+  }
+
+  /**
+   * TWO CLOCKS, AND WHICH PROJECT IS ON WHICH.
+   *
+   * The synthetic world is generated for one fixed day, and its periods are
+   * constants, or a demo's figures change overnight and no screenshot or
+   * assertion survives it. A project a real source delivers sessions for cannot
+   * live there: its meetings happen now, and against a today pinned in the past
+   * every one of them falls outside every period, so a showroom that ingests
+   * correctly shows an empty quarter for ever.
+   *
+   * So delivery decides. Delivered sessions put the project on the real clock,
+   * in its own zone; anything else stays on the synthetic day.
+   *
+   * A project from the directory is on the real clock from the moment it
+   * exists, meetings or none: it has no synthetic day to stay on, and an empty
+   * new project dated August 2026 would be the same defect arriving earlier.
+   */
+  private clock(): Date {
+    return this.options.now?.() ?? new Date();
+  }
+
+  /** `now` is the real clock's reading for a delivered project, and null for a synthetic one. */
+  private periodFor(project: ProjectSummary, preset: PeriodPreset, now: Date | null): Period {
+    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone);
+    return { preset, ...periods[preset] };
   }
 
   private async context(query: OverviewQuery | BriefQuery): Promise<ViewContext> {
-    const { tenant, project } = await this.resolveProject(
-      query.viewer,
-      query.tenantSlug,
-      query.projectSlug,
-    );
+    const {
+      resolved: { tenant, project },
+      own,
+    } = await this.resolveInWorld(query.viewer, query.tenantSlug, query.projectSlug);
     const preset: PeriodPreset = "period" in query ? query.period : "quarter_to_date";
-    const period = await this.resolvePeriod(project.id, preset);
-    return { viewer: query.viewer, tenant, project, period, generatedAt: TODAY };
+    await this.overlayCatalogue(project);
+    // Before overlayDeals: the demonstration-CRM path reads sessionsForProject.
+    const live = await this.overlaySessions(project);
+    await this.overlayDeals(project);
+    const now = live || own ? this.clock() : null;
+    const period = this.periodFor(project, preset, now);
+    /*
+     * One policy governs the synthetic world, so the period and its baseline
+     * are always comparable; the refusal is computed rather than assumed, so
+     * a second policy version arriving with M6 changes the answer here and
+     * nowhere else.
+     */
+    const attribution = {
+      version: DEFAULT_ATTRIBUTION_POLICY.version,
+      effectiveFrom: DEFAULT_ATTRIBUTION_POLICY.effectiveFrom,
+      comparisonRefusal: comparisonRefusalReason(
+        DEFAULT_ATTRIBUTION_POLICY,
+        DEFAULT_ATTRIBUTION_POLICY,
+      ),
+    };
+    return {
+      viewer: query.viewer,
+      tenant,
+      project,
+      period,
+      generatedAt: now === null ? TODAY : now.toISOString(),
+      sessionsDelivered: live,
+      ownDataOnly: own,
+      attribution,
+    };
+  }
+
+  /** The CRM's deals for this project, if a connector delivered them, for the ladder. */
+  private async overlayDeals(project: ProjectSummary): Promise<void> {
+    const source = this.options.dealSource;
+    const delivered = source === undefined ? null : await source.dealsFor(project);
+    /*
+     * The connector first; the demonstration CRM only where none answered
+     * and the scenario is one the demonstration CRM covers (`DEMONSTRATION_CRM_SLUGS`).
+     * ISTER TOWER declares a CRM too but is the twin of a control-plane project
+     * whose connector is the real path, so it never gets demonstration deals:
+     * its ladder is its connector's or nobody's.
+     */
+    const scenario = delivered === null && DEMONSTRATION_CRM_SLUGS.has(project.slug);
+    provideDeals(
+      project.id as string,
+      scenario ? syntheticDeals(sessionsForProject(project.id as string), TODAY) : delivered,
+    );
+  }
+
+  /**
+   * A real telemetry source's sessions for this project, in place of the
+   * synthetic generator's — the same seam as the catalogue's and the deals',
+   * decided on every build. A repository composed without a source, or a
+   * project no source delivered for, reads the synthetic world as before.
+   */
+  private async overlaySessions(project: ProjectSummary): Promise<boolean> {
+    const source = this.options.sessionSource;
+    const delivered = source === undefined ? null : await source.sessionsFor(project);
+    provideSessions(project.id as string, delivered === null ? null : delivered.sessions);
+    provideAgentNames(project.id as string, delivered?.agentNames ?? null);
+    return delivered !== null;
+  }
+
+  /**
+   * The connector's catalogue for this project, if one was delivered, in
+   * place of the synthetic one — decided on every build, so a connector that
+   * is disabled between two requests takes effect on the second. A repository
+   * composed without a source restores the synthetic catalogue for the same
+   * reason: what it shows must be what it was told, not what an earlier
+   * instance in the same process was told.
+   */
+  private async overlayCatalogue(project: ProjectSummary): Promise<void> {
+    const source = this.options.catalogueSource;
+    const delivered = source === undefined ? null : await source.catalogueFor(project);
+    provideCatalogue(
+      project.id as string,
+      delivered === null
+        ? null
+        : rawUnitsFromCatalogue(delivered.units, delivered.orientationMap).units,
+    );
   }
 
   async getExecutiveOverview(query: OverviewQuery): Promise<ExecutiveOverview> {
@@ -196,13 +428,31 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getProjectPulse(query: OverviewQuery): Promise<ProjectPulse> {
-    const context = await this.context(query);
-    return buildProjectPulse(context);
+    /* The period's meetings go with it, so a delivered building is lit by them and not left dark. */
+    const { context, current, previous } = await this.slices(query);
+    return buildProjectPulse(context, { current, previous });
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
-    const context = await this.context(query);
-    return buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    const { context, current } = await this.slices(query);
+    /*
+     * The prepared answers are the synthetic scenario's own prose. Printed over a
+     * project whose meetings are its own showroom's they are a fabrication, so a
+     * delivered project gets only what can be worked out from what was delivered.
+     */
+    if (context.sessionsDelivered || context.ownDataOnly)
+      return buildDeliveredAskSession(context, current, selectionLabel);
+
+    const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    /* Never scripted, so offered here too: the fifth opening, where a CRM is connected. */
+    const assisted = assistedSalesAnswer(context);
+    return assisted === null
+      ? scripted
+      : {
+          ...scripted,
+          suggestions: [...scripted.suggestions, assisted.question],
+          answers: [...scripted.answers, assisted],
+        };
   }
 
   /* --- Showroom Intelligence ---------------------------------------------- */
@@ -214,28 +464,41 @@ export class SyntheticObserverRepository implements ObserverRepository {
    * cannot disagree about which meetings exist — which is exactly the class of
    * bug the legacy dashboard has between its two feature-time accumulators.
    */
-  /*
-   * "Today" is the synthetic world's today, not the clock's.
-   *
-   * The named buckets — today, this week, last month — resolve against the same
-   * fixed date the dataset was generated for, or a demo's figures change
-   * overnight and no screenshot or assertion survives it.
-   */
-  private readonly today = new Date(TODAY);
-
   private async slices(query: OverviewQuery) {
     const context = await this.context(query);
     /*
-     * A third slice, running to the end of today.
-     *
-     * "Quarter to date" ends at midnight this morning, which is right for a
-     * period comparison and wrong for a bucket called Today: the flow view was
-     * reporting zero meetings today because the period had already excluded
-     * them. The named buckets are their own windows and must not be filtered
-     * twice.
+     * "Today" is the context's, which is the synthetic world's fixed day for a
+     * synthetic project and the clock's for a delivered one (see `periodFor`).
+     * The named buckets — today, this week, last month — resolve against it.
      */
-    const endOfToday = new Date(this.today);
+    const today = new Date(context.generatedAt);
+    /*
+     * One slice for the period. Not two.
+     *
+     * There used to be two: `current`, running to the period's stated end, and
+     * `throughToday`, running to the end of today. "Quarter to date" ends at
+     * midnight this morning, so a bucket called Today was empty on a period
+     * that had already excluded today — which is what the second slice was
+     * for.
+     *
+     * Two slices meant two answers to "how many meetings are in this period",
+     * and both reached the screen: the briefing said "I reviewed 74 showroom
+     * presentations quarter to date" while Presentation DNA said "73 meetings"
+     * about the same quarter. Worse, `throughToday` ignored the period's end
+     * entirely, so **Last completed quarter reported 132 meetings** — every
+     * meeting in the dataset — on the three surfaces that read it.
+     *
+     * So the period's window is extended through today when the period is
+     * still running, and left alone when it is not. A period that ended within
+     * the last day is still running; anything older is history and does not
+     * grow.
+     */
+    const endOfToday = new Date(today);
     endOfToday.setUTCHours(23, 59, 59, 999);
+
+    const stillRunning =
+      new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
+    const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
 
     /*
      * Every slice is scoped to the project the viewer resolved.
@@ -248,37 +511,70 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
     return {
       context,
-      current: sessionsInPeriod(project, context.period.from, context.period.to),
+      today,
+      current: sessionsInPeriod(project, context.period.from, periodEnd),
       previous: sessionsInPeriod(project, context.period.baselineFrom, context.period.baselineTo),
-      throughToday: sessionsInPeriod(project, context.period.from, endOfToday.toISOString()),
     };
   }
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
-    const { context, throughToday, previous } = await this.slices(query);
-    return buildHome(context, throughToday, previous, this.today);
+    const { context, current, previous, today } = await this.slices(query);
+    return buildHome(context, current, previous, today);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
-    const { context, throughToday } = await this.slices(query);
-    return buildSalesFlow(context, throughToday, this.today);
+    const { context, current, previous, today } = await this.slices(query);
+    return buildSalesFlow(
+      context,
+      current,
+      today,
+      previous,
+      dealsFor(context.project.id as string),
+      sessionsForProject(context.project.id as string),
+    );
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {
-    const { context, throughToday } = await this.slices(query);
+    const { context, current, today } = await this.slices(query);
     /*
-     * The KPI window reads the whole dataset, not the selected period.
+     * The KPI window ignores the selected *period*. It does not ignore the
+     * project.
      *
      * "All time" inside a quarter-to-date period would be the quarter, which is
-     * not what the control says. The rest of the page stays on the period.
+     * not what the control says — so the window reads outside the period, and
+     * the rest of the page stays on it.
+     *
+     * It used to read `showroomSessions()`: every meeting in every project of
+     * every tenant. Northgate's Sales Flow therefore reported 98 presentations
+     * this month above a chart reading 32, and the 98 included Riverside and —
+     * a different developer entirely — Beta Development's Kingsford. A
+     * developer was being shown a competitor's volume inside their own
+     * headline figure.
+     *
+     * `sessionsForProject` is the same unfiltered-by-period set, scoped to the
+     * project the viewer already resolved. That scoping is what makes the
+     * authorisation reach the data rather than stopping at the page.
      */
-    return buildFlowCharts(context, throughToday, showroomSessions(), this.today, window);
+    return buildFlowCharts(
+      context,
+      current,
+      sessionsForProject(context.project.id as string),
+      today,
+      window,
+    );
   }
 
   async getProjectCharts(query: OverviewQuery): Promise<ProjectCharts> {
     // `current`, matching getProjectView for the same reason.
-    const { context, current } = await this.slices(query);
-    return buildProjectCharts(current, this.today, context.project.locale);
+    const { context, current, today } = await this.slices(query);
+    return buildProjectCharts(
+      context.project.id as string,
+      current,
+      today,
+      context.project.locale,
+      context.project.timeZone,
+      context.project.connectedSources.includes("crm"),
+    );
   }
 
   async getAgentCharts(query: OverviewQuery): Promise<AgentCharts> {
@@ -298,17 +594,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const { context, current } = await this.slices(query);
 
     /*
-     * A sales agent may not read a named comparison of their colleagues.
+     * Every role that holds the project reads this, sales agents included
+     * (ADR-0029). The refusal that used to stand here was a ROLE check; the
+     * check that matters is the project one, and it has already happened —
+     * `this.slices` resolves the project through the viewer's grants and
+     * throws before any session is counted if the grant is missing.
      *
-     * Refused at the read model, not only at the route, because the route is
-     * one of several ways in — a tool call, a server action or a future export
-     * would each have to remember the rule separately. The product promises an
-     * agent "no league table" on the sign-in screen, and this is the league
-     * table.
+     * So there is no branch here at all, and that is the point: an agent on
+     * Northgate sees Northgate's agents because Northgate is theirs, and sees
+     * nothing of Kingsford because Kingsford is not.
      */
-    if (context.viewer.role === "sales_agent") {
-      throw new NotPermittedError("the team comparison");
-    }
 
     // The IRIS rating is feedback on the software, so only MADSPACE sees it.
     return buildAgentsView(context, current, context.viewer.role === "madspace_admin");
@@ -320,6 +615,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getShowroomOverview(query: OverviewQuery): Promise<ShowroomOverview> {
+    // One slice, like every other read model. See `slices()` for why there
+    // used to be two and what having two put on the screen.
     const { context, current, previous } = await this.slices(query);
     return buildShowroomOverview(context, current, previous);
   }
@@ -345,7 +642,17 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getMeetingReplay(query: BriefQuery): Promise<MeetingReplay> {
     const context = await this.context(query);
-    const session = sessionById(query.meetingId);
+    /*
+     * Looked up WITHIN the resolved project, for two reasons that are one.
+     * Without the project, `sessionById` searches the static world only, so a
+     * meeting a connector delivered (the Supabase demo's eleven) was never
+     * found and its own register linked to "No brief for this meeting"; and
+     * it searched every project's meetings, so a meeting id from a project
+     * this viewer does not hold would have replayed under a project they do.
+     * `context()` has already run `overlaySessions`, so the project-scoped
+     * lookup sees exactly what the register listed.
+     */
+    const session = sessionById(query.meetingId, context.project.id as string);
     if (session === undefined) throw new NotFoundError(`Meeting "${query.meetingId}"`);
     return buildMeetingReplay(context, session);
   }
@@ -355,14 +662,86 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return buildMeetingList(context, current);
   }
 
+  async getMeetings(query: OverviewQuery, filters: MeetingFilters): Promise<MeetingListView> {
+    const { context, current } = await this.slices(query);
+    return buildMeetings(context, current, filters);
+  }
+
+  async getUnitDetail(query: OverviewQuery, unitCode: string): Promise<UnitDetailView> {
+    const { context, current, previous } = await this.slices(query);
+    const view = buildUnitDetail(context, current, previous, unitCode);
+    /*
+     * Not found, rather than an empty page.
+     *
+     * A unit the catalogue does not hold is a route that does not exist, and
+     * rendering a page of dashes for it would tell the reader that the flat is
+     * real and unobserved. A unit that *is* in the catalogue and was never
+     * opened returns a view with its `emptyState` set — which is a different
+     * answer, and the one the empty state exists for.
+     */
+    if (view === null) throw new NotFoundError(`Unit "${unitCode}"`);
+    return view;
+  }
+
+  async getAgentDetail(query: OverviewQuery, agentId: string): Promise<AgentDetailView> {
+    const { context, current } = await this.slices(query);
+    /*
+     * The projects passed in are the viewer's, not the agent's.
+     *
+     * "Where else does this person work" is answered from the intersection of
+     * the agent's meetings and the reader's own grants. A developer who could
+     * read the full list would be learning, off a staff page, that their agency
+     * also sells for somebody else — which is a commercial fact about a third
+     * party and not theirs to have.
+     */
+    const visible = (await this.world()).projects.filter(
+      (p) => p.tenantId === context.tenant.id && query.viewer.projectIds.includes(p.id),
+    );
+    const view = buildAgentDetail(context, current, visible, agentId);
+    if (view === null) throw new NotFoundError(`Agent "${agentId}" on this project`);
+    return view;
+  }
+
+  async getAttention(query: OverviewQuery): Promise<AttentionView> {
+    const { context, current, previous } = await this.slices(query);
+    return buildAttention(context, current, previous);
+  }
+
+  async getAskHistory(query: OverviewQuery): Promise<AskHistoryView> {
+    const { context, current } = await this.slices(query);
+    return buildAskHistory(context, current);
+  }
+
+  async getAskThread(query: OverviewQuery, threadId: string): Promise<AskThread> {
+    const { context, current } = await this.slices(query);
+    const thread = buildAskThread(context, current, threadId);
+    if (thread === null) throw new NotFoundError(`Conversation "${threadId}"`);
+    return thread;
+  }
+
+  async getReportScope(
+    query: OverviewQuery,
+    meetingId: string | null = null,
+  ): Promise<ReportScopeView> {
+    const { context, current } = await this.slices(query);
+    if (meetingId === null) return buildReportScope(context, current);
+    const session = sessionById(meetingId, context.project.id as string);
+    if (session === undefined || session.projectId !== context.project.id) {
+      throw new NotFoundError(`Meeting "${meetingId}"`);
+    }
+    return buildReportScope(context, current, session);
+  }
+
   async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {
     const { current } = await this.slices(query);
-    return SYNTHETIC_AGENTS.map((agent) => ({
-      agentId: agent.id,
-      name: agent.name,
-      organisationName: agent.organisationName,
-      meetingCount: current.filter((s) => s.agentId === agent.id).length,
-    })).filter((a) => a.meetingCount > 0);
+    return presentersIn(current)
+      .map((agent) => ({
+        agentId: agent.id,
+        name: agent.name,
+        organisationName: agent.organisationName,
+        meetingCount: current.filter((s) => s.agentId === agent.id).length,
+      }))
+      .filter((a) => a.meetingCount > 0);
   }
 
   async getUnitAttention(
@@ -374,8 +753,16 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getStorytelling(query: OverviewQuery): Promise<StorytellingIntelligence> {
-    const { context, current } = await this.slices(query);
-    return buildStorytelling(context, current);
+    /*
+     * The baseline goes in as well as the period.
+     *
+     * "Newly adopted" is the one thing on the feature surface that cannot be
+     * answered from the current slice alone, and a builder handed no baseline
+     * reports every feature as new. Passing `previous` is what lets it say
+     * `no_baseline` on a project three weeks old instead.
+     */
+    const { context, current, previous } = await this.slices(query);
+    return buildStorytelling(context, current, previous);
   }
 
   async getSessionSlice(query: OverviewQuery): Promise<ShowroomSessionSlice> {

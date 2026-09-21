@@ -97,6 +97,17 @@
   font-size: 9px;
   fill: var(--ink-3);
 }
+
+/*
+ * Sales Flow opt-in: `TrendLine` also renders on Unit Detail and the agent
+ * detail page, sharing this one component. Its axis ticks are the one
+ * remaining 9px text on Flow after the earlier typeset pass raised
+ * `.iris-trend-note`; scoped to this flag rather than the shared rule so the
+ * other two routes render exactly as before it.
+ */
+.iris-trend-measured .iris-trend-tick {
+  font-size: 0.75rem;
+}
 .iris-trend-fill {
   fill: color-mix(in oklab, var(--accent) 12%, transparent);
 }
@@ -122,7 +133,10 @@
  */
 .iris-trend-note {
   font-family: var(--mono);
-  font-size: 9px;
+  /* 0.75rem (12px): the base scale's own floor and the MADSPACE 12px type
+     floor both land here; this was a literal 9px, below either and also the
+     one size in this file not expressed in rem. */
+  font-size: 0.75rem;
   fill: var(--watch);
   paint-order: stroke;
   stroke: var(--plane);
@@ -177,7 +191,10 @@
 }
 
 .iris-stacks-label {
-  font-size: 0.6875rem;
+  /* 0.75rem (12px): the base scale's own floor, same as every other fixed
+     size in this file; this was 11px, below it. Flow-exclusive component,
+     fixed directly rather than opt-in. */
+  font-size: 0.75rem;
   color: var(--ink-2);
 }
 
@@ -238,23 +255,43 @@
   background: var(--watch);
 }
 
-/* Where the schedule wanted this to be by now. */
+/*
+ * Where the schedule wanted this to be by now.
+ *
+ * `left` is clamped inside the track's own clipped edges before the mark is
+ * centred on it: the target this scale is drawn against sits at 100% by
+ * construction (see `u` below), and a naive `left: 100%` on a 2px mark
+ * inside `.iris-bullet-track`'s `overflow: hidden` paints nothing — the
+ * whole box falls outside the visible region. Reserving half the mark's own
+ * width at each edge keeps it fully visible at any position, not only the
+ * ones this data happens to produce today.
+ */
 .iris-bullet-track b {
   position: absolute;
   top: 10%;
   bottom: 10%;
   width: 2px;
   background: var(--ink);
-  transform: translateX(-1px);
+  left: clamp(1px, var(--pos), calc(100% - 1px));
+  transform: translateX(-50%);
 }
 
-/* The target itself. */
+/*
+ * The target itself.
+ *
+ * Measured fully clipped at `left: 100%` before this: a 1px box whose left
+ * edge starts exactly at the track's own right edge contributes zero pixels
+ * inside `overflow: hidden`, on every row, at every width. Same clamp/centre
+ * fix as the pace mark above.
+ */
 .iris-bullet-track u {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 1px;
   background: var(--ink-3);
+  left: clamp(0.5px, var(--pos), calc(100% - 0.5px));
+  transform: translateX(-50%);
 }
 
 .iris-bullet-value {
@@ -265,6 +302,24 @@
 
 .iris-bullet-value[data-behind="true"] {
   color: var(--watch);
+}
+
+/*
+ * UNAVAILABLE, NOT ZERO.
+ *
+ * The track gets a dashed outline and no fill rather than a bar reading as a
+ * measured zero; the value reads "Unavailable" in muted ink rather than a
+ * number. The pace/target ticks stay — the schedule is known even when the
+ * actual is not.
+ */
+.iris-bullet-track[data-unavailable="true"] {
+  border: 1px dashed var(--ink-3);
+  background: transparent;
+}
+
+.iris-bullet-value[data-unavailable="true"] {
+  color: var(--ink-3);
+  font-style: italic;
 }
 
 /* --- two dimensions at once -------------------------------------------------- */
@@ -278,7 +333,9 @@
 .iris-heat-col,
 .iris-heat-row {
   font-family: var(--mono);
-  font-size: 0.625rem;
+  /* 0.75rem (12px): the base scale's own floor and the MADSPACE 12px type
+     floor both land here; this was 10px, below either. */
+  font-size: 0.75rem;
   color: var(--ink-2);
   display: flex;
   align-items: center;
@@ -295,7 +352,10 @@
   min-height: 1.75rem;
   border-radius: 2px;
   font-family: var(--mono);
-  font-size: 0.6875rem;
+  /* 0.75rem (12px): the base scale's own floor. The column/row labels beside
+     this cell were already raised to this floor; the cell's own value was
+     missed at 11px. Flow-exclusive component, fixed directly. */
+  font-size: 0.75rem;
   color: var(--ink);
   background: color-mix(in oklab, var(--accent) calc(var(--v) * 68%), #080b0f);
   border: 1px solid var(--rule);
@@ -450,6 +510,18 @@
   white-space: nowrap;
 }
 
+/*
+ * Sales Flow opt-in: the base scale's 12px floor instead of 11px, nothing
+ * else changed. `RankedBars`' `measured` prop adds this class only on Flow's
+ * two lists (`iris-ranked-measured`); Sales Agents' own ranked list keeps the
+ * base `.iris-ranked-name em` rule untouched. The truncation/ellipsis and its
+ * `title` fallback are deliberate (see the call site's own comment) and stay
+ * exactly as they are — this changes legibility, not the interaction.
+ */
+.iris-ranked-measured .iris-ranked-name em {
+  font-size: 0.75rem;
+}
+
 .iris-ranked-track {
   position: relative;
   height: 8px;
@@ -477,6 +549,75 @@
   max-width: 48rem;
   height: auto;
   max-height: 17rem;
+}
+
+/*
+ * A LEGIBILITY FLOOR, NOT A UNIFORM SHRINK.
+ *
+ * `.iris-flow`'s `width: 100%` scales the whole SVG — labels included, since
+ * they are sized in the viewBox's own user units — down to whatever its
+ * container allows. Measured at 390px: an effective ~3.4px label, the exact
+ * "desktop composition uniformly shrunk to unreadable" failure the doctrine
+ * names. Below the width the chart needs to stay legible, it stops shrinking
+ * and the wrapper scrolls instead — the same trade this system already makes
+ * elsewhere (a register that scrolls rather than a table crushed to fit).
+ */
+.iris-flow-scroll {
+  overflow-x: auto;
+  /*
+   * The floor is keyed on the COLUMN, not the viewport. A 34rem viewport
+   * query let a 768px tablet scale the chart to 664px — every label at 87%
+   * of its designed size, measured 9px rendered where 10px is the design —
+   * because the threshold was guessing at the column from the window.
+   * The scroller is its own inline-size container, so the switch happens
+   * exactly where the 1:1 drawing stops fitting and nowhere else.
+   */
+  container-type: inline-size;
+}
+
+@container (width < 47.5rem) {
+  .iris-flow-scroll .iris-flow {
+    /*
+     * `min-width` alone, not `width: auto` — `.iris-flow`'s own `width: 100%`
+     * stays: `min-width` wins over a percentage `width` by the CSS sizing
+     * algorithm's own rules, and pairing `width: auto` with this SVG's
+     * `height: auto` (no HTML width/height attributes, only a viewBox)
+     * collapsed it to 0×0 instead.
+     *
+     * The value is the chart's own natural width (760px viewBox) — no scale
+     * applied at all, so a label renders at its designed 9px rather than
+     * some intermediate size still too small to read.
+     */
+    min-width: 47.5rem;
+  }
+}
+
+/*
+ * WHERE THE CHART CONTINUES, THE EDGE SAYS SO.
+ *
+ * `data-overflow` is written by `FlowScroller` from the wrapper's real
+ * scroll state — which edge still has drawing past it — and removed when
+ * nothing does. The fade is the mask vocabulary Ask IRIS already uses for
+ * its own scrolling regions: no arrow, no badge, no copy, just the drawing
+ * dissolving into the plane where a reader has more of it to reach.
+ * Without script there is no attribute, and the plain scroller stands.
+ */
+.iris-flow-scroll[data-overflow~="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+.iris-flow-scroll[data-overflow~="left"] {
+  mask-image: linear-gradient(to right, transparent, #000 2.5rem);
+}
+
+.iris-flow-scroll[data-overflow~="left"][data-overflow~="right"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 2.5rem,
+    #000 calc(100% - 2.5rem),
+    transparent
+  );
 }
 
 .iris-flow-ribbon {

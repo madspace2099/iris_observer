@@ -3,12 +3,32 @@
 import { useState } from "react";
 
 /**
- * The profile picker.
+ * The profile picker — NOT PART OF THE PRODUCT.
+ *
+ * ## Read this before using it anywhere
+ *
+ * This component is not authentication, is not a step in any user journey, and
+ * must not be reintroduced into one. Observer's way in is:
+ *
+ *     ACCOUNT  →  PROJECTS  →  OBSERVER
+ *
+ * A reader signs in at `/sign-in` with an email address and a credential, lands
+ * on `/projects`, and opens a project. There is no profile selection between
+ * those steps and none behind a redirect. Choosing a card here mints nothing:
+ * the only route that renders this component is `/lab/sign-in`, declared
+ * `audience: "internal"` and `requiresRole: ["madspace_admin"]` in
+ * `src/lib/routes.ts`, and a test asserts that no other route imports it.
+ *
+ * What it remains is a design laboratory exhibit — the record of an adopted
+ * Figma anatomy, and a fixture the visual suite photographs. That is the whole
+ * of its purpose.
+ *
+ * ## The anatomy it records
  *
  * The showroom opens on a Netflix-style profile chooser: the agent picks
- * themselves and steps into IRIS. Observer opens the same way, and the point of
- * this component is that it invents **nothing** — every element is taken from
- * the Figma file:
+ * themselves and steps into IRIS. Observer once opened the same way, and the
+ * point of this component is that it invents **nothing** — every element is
+ * taken from the Figma file:
  *
  *  - the whole anatomy — a segmented control over labelled category rows of
  *    image-led cards — from the Welcome project browser `6964:245`;
@@ -43,9 +63,12 @@ export interface Profile {
   /**
    * The viewer key this card submits, when the picker is a form.
    *
-   * Production signs in through a server action that mints a session, so the
-   * card has to be a submit button rather than a link — the same card, doing
-   * the thing the real flow needs.
+   * Nothing passes one any more. It existed for the moment this component was
+   * the sign-in and a card had to be a submit button so a server action could
+   * mint a session; the sign-in is now a credential form and the only caller,
+   * the laboratory, hands each card an `href` instead. Kept because the two
+   * shapes are what the adopted anatomy supports, and removing one would be a
+   * change to the record rather than to the product.
    */
   readonly submitValue?: string;
 }
@@ -181,7 +204,13 @@ function ProfileCard({ profile }: { profile: Profile }) {
 
   if (profile.submitValue !== undefined) {
     return (
-      <button className="iris-card" type="submit" name="viewer" value={profile.submitValue} aria-label={label}>
+      <button
+        className="iris-card"
+        type="submit"
+        name="viewer"
+        value={profile.submitValue}
+        aria-label={label}
+      >
         {inner}
       </button>
     );
@@ -231,13 +260,13 @@ export function ProfilePicker({
         </div>
 
         {/*
-          * The demonstration status, in product language.
-          *
-          * "Scenario selector, not authentication" described the
-          * implementation to a reader who had not asked, and told a developer
-          * in a consultation they were looking at scaffolding. What matters to
-          * them is that the figures are synthetic, which the header now says.
-          */}
+         * The demonstration status, in product language.
+         *
+         * "Scenario selector, not authentication" described the
+         * implementation to a reader who had not asked, and told a developer
+         * in a consultation they were looking at scaffolding. What matters to
+         * them is that the figures are synthetic, which the header now says.
+         */}
         <span className="iris-code iris-welcome-badge">Demo data</span>
       </header>
 

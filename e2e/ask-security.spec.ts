@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { signInAs } from "./sign-in";
+import { BURST } from "./limits";
 
 /**
  * The API boundary, exercised rather than inspected.
@@ -23,11 +25,6 @@ function body(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function signInAs(page: Page, name: string) {
-  await page.goto("/sign-in");
-  await page.getByRole("button", { name: new RegExp(`Continue as ${name}`) }).click();
-  await page.waitForURL(/\/showroom/);
-}
 
 test.describe("Ask Observer's API boundary", () => {
   test("refuses an unauthenticated caller", async ({ request }) => {
@@ -107,6 +104,7 @@ test.describe("Ask Observer's API boundary", () => {
   });
 
   test("stops a burst and says when to come back", async ({ page }) => {
+    test.setTimeout(180_000);
     /*
      * Its own identity, deliberately.
      *
@@ -118,22 +116,51 @@ test.describe("Ask Observer's API boundary", () => {
      */
     await signInAs(page, "MADSPACE Operations");
 
+    /*
+     * At once, because that is what a burst is.
+     *
+     * This fired sixty requests in sequence, which reached the ceiling
+     * instantly for as long as the answer came from the deterministic composer
+     * and arrived in the same tick. Against a live model each request costs
+     * about six seconds — so ten of them take almost exactly the sixty seconds
+     * the per-minute window covers, and the window rolled over as fast as it
+     * filled. The hourly ceiling could not catch it either: that limit is
+     * sixty and the loop stopped at sixty, one short, by coincidence.
+     *
+     * The test did not fail because a ceiling was broken. It failed because a
+     * sequential loop cannot outrun a rolling window when each turn costs a
+     * tenth of it. A burst at once against a lower ceiling leaves no such race,
+     * and finishes in seconds rather than seven minutes.
+     *
+     * The count is DERIVED from the ceiling the suite configures, not written
+     * here. It used to be fifteen, chosen against a ceiling of ten; the suite
+     * later raised the ceiling to thirty and fifteen requests stopped reaching
+     * it. A test that proves a limit is enforced must not be silently disarmed
+     * by the configuration that sets the limit.
+     */
+    const burst = await Promise.all(
+      Array.from({ length: BURST }, () => page.request.post(ASK, { data: body() })),
+    );
+
     let stopped: { retryAfter: string | undefined; refusal: string | null } | null = null;
-    for (let i = 0; i < 60; i += 1) {
-      const response = await page.request.post(ASK, { data: body() });
-      if (response.status() === 429) {
-        // The gate answers a refusal with `error`; only the pipeline produces
-        // a `refusal` on a 200. Read whichever the boundary actually sends.
-        const json = (await response.json()) as { error?: string; refusal?: string | null };
-        stopped = {
-          retryAfter: response.headers()["retry-after"],
-          refusal: json.error ?? json.refusal ?? null,
-        };
-        break;
-      }
+    for (const response of burst) {
+      if (response.status() !== 429) continue;
+      // The gate answers a refusal with `error`; only the pipeline produces
+      // a `refusal` on a 200. Read whichever the boundary actually sends.
+      const json = (await response.json()) as { error?: string; refusal?: string | null };
+      stopped = {
+        retryAfter: response.headers()["retry-after"],
+        refusal: json.error ?? json.refusal ?? null,
+      };
+      break;
     }
 
-    expect(stopped, "the burst was never stopped").not.toBeNull();
+    expect(
+      stopped,
+      `the burst was never stopped — ${BURST} concurrent requests returned ${burst
+        .map((r) => r.status())
+        .join(", ")}`,
+    ).not.toBeNull();
     expect(Number(stopped?.retryAfter)).toBeGreaterThan(0);
 
     /*

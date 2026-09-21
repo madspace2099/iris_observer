@@ -200,7 +200,10 @@ export function isCausalQuestion(question: string): boolean {
  *
  * Pure and exported so the rule is a unit test rather than a comment.
  */
-export function findAnswerDefects(answer: ObserverAnswer, question?: string): readonly AnswerDefect[] {
+export function findAnswerDefects(
+  answer: ObserverAnswer,
+  question?: string,
+): readonly AnswerDefect[] {
   const defects: AnswerDefect[] = [];
   const known = new Set(answer.evidence.map((e) => e.bundleId));
 

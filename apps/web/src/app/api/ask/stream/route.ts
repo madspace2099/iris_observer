@@ -1,5 +1,14 @@
 import { askStream } from "@/lib/ai/agent";
-import { gate } from "@/lib/ai/gate";
+import {
+  abandonAdmission,
+  admitModelRequest,
+  blockFor,
+  dispatchAdmission,
+  recordModelUnavailable,
+  parseOverride,
+  settleAdmission,
+} from "@/lib/ai/admission";
+import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import { publicOutcome, reportOutcome } from "../route";
 
@@ -43,7 +52,7 @@ const SSE_HEADERS = {
 
 export async function POST(request: Request) {
   const started = Date.now();
-  const admitted = await gate(await request.json().catch(() => null));
+  const admitted = await gate(await request.json().catch(() => null), request);
 
   if (!admitted.ok) {
     /*
@@ -72,13 +81,41 @@ export async function POST(request: Request) {
    * that has gone quiet. Either must reach the upstream call, or a cancelled
    * question keeps costing money after nobody is listening.
    */
+  /*
+   * Model, credential and budget, decided together and before anything is
+   * spent. A refusal still streams: the reader gets every measured figure the
+   * tools produced, with the model stage skipped and the status saying why.
+   */
+  const admission = await admitModelRequest(
+    admitted.accountId,
+    admitted.question,
+    admitted.context.depth,
+    parseOverride(admitted.modelOverride),
+  );
+
+  /* Non-refundable from here. See the same block in the POST route. */
+  let dispatched = false;
+  if (admission.ok) {
+    dispatched = await dispatchAdmission(admission.reservation);
+  }
+  const resolved = admission.ok && dispatched ? admission.access : null;
+  const access =
+    resolved !== null
+      ? resolved
+      : admission.ok
+        ? { blocked: "unavailable" as const }
+        : blockFor(admission.refusal);
+
   const deadline = AbortSignal.timeout(LIMITS.requestTimeoutMs * 2);
   const signal = AbortSignal.any([request.signal, deadline]);
+
+  /* Whether the budget hold has already become a charge. */
+  let settled = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of askStream(admitted.question, admitted.context, signal)) {
+        for await (const event of askStream(admitted.question, admitted.context, access, signal)) {
           if (signal.aborted) break;
           switch (event.type) {
             case "stage":
@@ -91,8 +128,36 @@ export async function POST(request: Request) {
               controller.enqueue(frame("delta", { field: event.field, delta: event.delta }));
               break;
             case "final":
-              reportOutcome(event.outcome, admitted.subject, started);
+              /*
+               * The reader first, then the record — but the record before the
+               * stream closes.
+               *
+               * `reportOutcome` now waits on a database write, and putting that
+               * ahead of the final frame would make every answer land later for
+               * no reader-visible gain. Putting it after, but inside the
+               * generator, keeps it inside the request's lifetime: the runtime
+               * cannot freeze this instance while the stream is still open, and
+               * an unawaited write is exactly how the Preview lost 20 of 153
+               * records.
+               */
               controller.enqueue(frame("final", publicOutcome(event.outcome)));
+              await reportOutcome(event.outcome, admitted, started);
+              /*
+               * The hold becomes a charge, here, where the token counts are.
+               * Marked settled so the catch below cannot release a reservation
+               * that has already been paid.
+               */
+              if (admission.ok) {
+                /* Entitlement is durable; see the same block in the POST route. */
+                if (event.outcome.diagnostics.modelUnavailable) {
+                  await recordModelUnavailable(admitted.accountId, admission.access.model);
+                }
+                await settleAdmission(
+                  admission.reservation,
+                  event.outcome.diagnostics.usage ?? null,
+                );
+                settled = true;
+              }
               break;
           }
         }
@@ -108,11 +173,16 @@ export async function POST(request: Request) {
             error: "Observer could not complete this answer. The measured evidence is unchanged.",
           }),
         );
+        /* No answer, no charge. The reader asked and got nothing. */
+        if (admission.ok && !settled) await abandonAdmission(admission.reservation, dispatched);
       } finally {
         controller.close();
       }
     },
   });
 
-  return new Response(stream, { headers: SSE_HEADERS });
+  // The request id goes out with the response head, before the first frame, so
+  // a reader that never finishes consuming the stream can still name the audit
+  // row its request created.
+  return new Response(stream, { headers: { ...SSE_HEADERS, ...admittedHeaders(admitted) } });
 }

@@ -5,7 +5,9 @@
   "description": "Versioned, append-only event contract between IRIS showroom installations and Observer.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./ue5": "./src/ue5/index.ts",
+    "./ue5/openapi": "./src/ue5/openapi.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,0 +1,1217 @@
+/**
+ * THE IRIS SHELL — the visual language the whole application wears.
+ *
+ * Adopted from the Claude Design artefact "AI IRIS_OBSERVER PAGE"
+ * (`bf2bb7b8-f80c-4261-a172-f45cc881a52e`), which the user approved as the new
+ * design for the site. Every measurement here — the 70px header, the 24px nav
+ * gap, the 15.5px items, the 2px underline and its glow, the radial atmosphere,
+ * the radii and the text ramp — is read out of that file rather than
+ * approximated by eye.
+ *
+ * ## Two things were deliberately NOT adopted, and why
+ *
+ * **The typeface.** The artefact ships `Anthropic Sans` and `Inter`. Anthropic
+ * Sans is another company's corporate face and arrives here only because it is
+ * the design tool's default; Inter is the doctrine's named example of a generic
+ * choice. Manrope is brand-locked by ADR-0020 and by the Figma file, is already
+ * self-hosted, and carries the tabular figures every number in this product
+ * depends on. So the design's typography SCALE is taken and its font is not.
+ *
+ * **The accent.** The artefact uses `#2f97ff`; the brand is `#00a3ff`. The
+ * difference is small and the brand is not ours to move. What IS adopted is the
+ * artefact's atmosphere — the indigo grounds and glows below are its values
+ * exactly — so the accent sits on the ground the design intended, in the colour
+ * the brand requires.
+ *
+ * ## The prefix collides, and the fix is scoping rather than load order
+ *
+ * `iris.css` already owns `.irs-ask`, `.irs-brand`, `.irs-nav` and
+ * `.irs-suggestion` — the IRIS Spatial Intelligence layer this design will
+ * eventually replace. The first version of this file reused those names
+ * unscoped and inherited `border-radius: 999px` from the older sheet, which
+ * drew a 706px disc behind the whole page.
+ *
+ * Loading this sheet last would have fixed the disc and broken every existing
+ * surface that still uses those classes. So every rule below is scoped under
+ * `.irs-shell` instead: higher specificity where it should win, and no reach
+ * at all outside the shell. When the older layer retires, the scope can go with
+ * it.
+ *
+ * ## What this file is not
+ *
+ * Not a replacement for `tokens.css`. That file holds the vocabulary the
+ * analytical surfaces are built from — verdict colours, the metric ramp, the
+ * chart palette — and none of it changes. This adds the shell those surfaces
+ * now sit inside, and a handful of tokens the shell needs that did not exist.
+ */
+
+:root {
+  /* --- the ground ---------------------------------------------------------
+   *
+   * `#02050d` is the artefact's page colour: near-black with a blue cast, so
+   * that the atmosphere layered on top reads as depth rather than as a stain.
+   * `--surface-base` in `tokens.css` is `#07090c` — a neutral graphite — and
+   * both are kept: this one is the shell's ground, that one is the ground a
+   * panel sits on.
+   */
+  --iris-ground: #02050d;
+  --iris-header-veil: rgb(2 5 13 / 62%);
+  --iris-hairline: rgb(130 150 185 / 10%);
+
+  /* --- the text ramp, from the artefact ----------------------------------- */
+  --iris-text-primary: #f4f7fc;
+  --iris-text-secondary: rgb(244 247 252 / 72%);
+  --iris-text-tertiary: #98a4b8;
+  --iris-text-quiet: rgb(150 166 192 / 72%);
+  --iris-text-hover: #dfe7f3;
+
+  /* --- geometry ------------------------------------------------------------
+   *
+   * The content width is a clamp rather than a fixed column: the artefact holds
+   * its reading measure between 680 and 920px and then yields to the viewport,
+   * which is what keeps a long answer readable on a wide screen without
+   * stranding it in the middle of one.
+   */
+  --iris-content-width: min(clamp(680px, 49vw, 920px), calc(100vw - 48px));
+  --iris-shell-pad: 31px;
+  --iris-header-height: 70px;
+  --iris-nav-gap: 24px;
+
+  --iris-radius-hero: 24px;
+  --iris-radius-surface: 12px;
+  --iris-radius-control: 10px;
+  --iris-radius-pill: 999px;
+
+  --iris-icon-size: 18px;
+  --iris-icon-size-sm: 16px;
+  --iris-icon-stroke: 1.7;
+
+  /* --- the atmosphere ------------------------------------------------------
+   *
+   * TWO layers, which is what the artefact uses, and the count matters. The
+   * first draft of this had three: a wide indigo lift, a vignette, and a
+   * "halo". The halo was a mistake — it is the light INSIDE the prompt card,
+   * lifted out of a different element and wrongly promoted to the page — and it
+   * rendered as a visible dark disc behind the content, which is exactly what
+   * atmosphere must not do.
+   *
+   * The lift is paired with a vertical wash in the same layer, which is the
+   * part that keeps it from reading as a disc: the ellipse alone has an edge,
+   * and the linear gradient underneath gives it somewhere to end.
+   *
+   * The artefact also draws a faint grid on a `<canvas>` behind both. Not
+   * adopted: it is a continuously running animation frame for a texture, and
+   * the doctrine allows motion that communicates and forbids motion that
+   * decorates.
+   */
+  --iris-atmos-lift:
+    radial-gradient(
+      ellipse 52% 46% at 50% 40%,
+      rgb(0 73 180 / 13%) 0%,
+      rgb(0 42 105 / 5%) 44%,
+      transparent 74%
+    ),
+    linear-gradient(180deg, rgb(3 7 19 / 55%) 0%, rgb(2 5 13 / 75%) 100%);
+  --iris-atmos-vignette: radial-gradient(
+    ellipse 76% 84% at 50% 50%,
+    transparent 44%,
+    rgb(1 3 9 / 62%) 100%
+  );
+}
+
+/* --- the shell -------------------------------------------------------------- */
+
+.irs-shell {
+  position: relative;
+  min-height: 100vh;
+  background: var(--iris-ground);
+  color: var(--iris-text-primary);
+  /*
+   * NOT `overflow: hidden`, which the artefact uses. A design canvas is one
+   * fixed composition and can afford to clip; an application has pages taller
+   * than the viewport, and clipping here would make every one of them
+   * unscrollable. The atmosphere is contained by its own layer instead.
+   */
+  display: flex;
+  flex-direction: column;
+}
+
+/**
+ * The atmosphere, as one non-interactive layer behind everything.
+ *
+ * `position: fixed` rather than absolute, so a long page scrolls THROUGH the
+ * light instead of dragging it along — the glow belongs to the window, not to
+ * the document.
+ */
+.irs-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--iris-atmos-vignette), var(--iris-atmos-lift);
+}
+
+.irs-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- the header ------------------------------------------------------------- */
+
+.irs-header {
+  display: grid;
+  /*
+   * The side columns share the width equally, so the navigation sits at the
+   * centre — until the account cluster on the right is wider than its half.
+   * Then the right column grows to hold the cluster and the navigation moves
+   * left by the difference.
+   *
+   * With `minmax(0, 1fr)` on the right it did not: the cluster overflowed its
+   * column leftwards and lay across the last navigation item. Measured on the
+   * administrator's header, whose cluster carries the demonstration badge,
+   * Projects, Settings, Administration and Sign out: 71px of overlap at 1440,
+   * 151px at 1280, 191px at 1200 — a link under another link is a link nobody
+   * can click, and the developer's cluster overlapped by 55px at 1280 too. An
+   * off-centre navigation is a composition compromise; a covered one is a
+   * defect. The gap below 1440 is tightened so the shift stays small.
+   */
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  height: var(--iris-header-height);
+  padding: 0 var(--iris-shell-pad);
+  column-gap: 20px;
+  background: var(--iris-header-veil);
+  border-bottom: 1px solid var(--iris-hairline);
+  /*
+   * Sticky rather than static: the navigation is how an operator moves between
+   * four surfaces, and a page long enough to scroll is a page where it would
+   * otherwise be gone exactly when it is wanted.
+   */
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  backdrop-filter: blur(10px);
+}
+
+.irs-brand {
+  justify-self: start;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.irs-brand-mark {
+  display: block;
+  height: 21px;
+  width: auto;
+}
+
+/**
+ * "by MADSPACE", as text rather than as an image.
+ *
+ * The artefact ships it as a 5967x434 PNG — 94KB for something drawn seven
+ * pixels tall, on every page load. It is letterspaced small caps and nothing
+ * more, so type reproduces it exactly, scales to any density, follows the
+ * theme, and can be read aloud.
+ */
+.irs-brand-sub {
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: var(--weight-semibold);
+  color: var(--iris-text-primary);
+  opacity: 0.8;
+  padding-bottom: 3px;
+  white-space: nowrap;
+}
+
+/* --- primary navigation ------------------------------------------------------ */
+
+.irs-nav {
+  justify-self: center;
+  display: flex;
+  align-items: stretch;
+  gap: var(--iris-nav-gap);
+  height: var(--iris-header-height);
+  min-width: 0;
+}
+
+.irs-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: var(--iris-header-height);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  color: var(--iris-text-tertiary);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 170ms ease-out;
+}
+
+.irs-nav-item:hover {
+  color: var(--iris-text-hover);
+}
+
+.irs-nav-item[aria-current="page"] {
+  color: #fff;
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.06em;
+}
+
+/**
+ * The active marker: a 2px rule with a soft bloom.
+ *
+ * Drawn as an element rather than a `border-bottom` so it can sit inside the
+ * header's 70px without moving the label, and so the glow has something to
+ * belong to. It is decorative — the state is already carried by
+ * `aria-current`, which is what a screen reader announces.
+ */
+.irs-nav-item[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: 8px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--iris-accent), var(--iris-accent-dim));
+  box-shadow: 0 0 9px rgb(0 163 255 / 60%);
+}
+
+.irs-nav-icon {
+  flex: none;
+  color: var(--iris-accent);
+}
+
+.irs-header-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.irs-who {
+  text-align: right;
+  min-width: 0;
+}
+
+/*
+ * Laptop widths: the account cluster keeps every control, packed closer, and
+ * the reader's name and role give up width first — they are the one thing in
+ * the cluster that is information rather than a control, and the full name
+ * stays on hover (`title`). The block is capped rather than the name alone
+ * because the role line beneath it ("MADSPACE administrator") is the wider of
+ * the two and would otherwise hold the block open. The grid above then has
+ * less to make room for, so the navigation moves less: about 50px at 1440 for
+ * the administrator instead of 125. The second step keeps the wordmark clear
+ * of the navigation at 1200, the narrowest width the wide header renders at.
+ */
+@media (width <= 1599px) {
+  .irs-shell:not([data-variant="ask"]) .irs-header-end {
+    gap: 10px;
+  }
+
+  .irs-shell:not([data-variant="ask"]) .irs-who {
+    max-width: 104px;
+  }
+}
+
+@media (width <= 1279px) {
+  .irs-shell:not([data-variant="ask"]) .irs-who {
+    max-width: 76px;
+  }
+}
+
+.irs-who-name {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--iris-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.irs-who-role {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--iris-text-quiet);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- the main column --------------------------------------------------------- */
+
+.irs-main {
+  flex: 1;
+  width: var(--iris-content-width);
+  margin: 0 auto;
+  /*
+   * The docked Ask IRIS composer (`ask-iris.css` `.ask-dock`, present on
+   * every project page but `/ask` itself) is `position: fixed` at the
+   * bottom of the viewport, measured at ~92px tall on desktop. Trailing
+   * padding this size clears it for content that reaches the true end of
+   * the page — the common case the audit found on Sales Flow, Units,
+   * Briefing and both stress screens, all on mobile, all at the genuine
+   * end of scrollable content. `--ask-dock-safe-area` names the reserve so
+   * every width step below states the same intent rather than a bare
+   * number a reader has to trust matches the dock.
+   */
+  --ask-dock-safe-area: 152px;
+  padding: 40px 0 var(--ask-dock-safe-area);
+  min-width: 0;
+}
+
+/**
+ * A wide variant, for the analytical surfaces.
+ *
+ * The reading measure above is right for prose and for one column of answers,
+ * and wrong for a table of units or a chart that needs room. Those surfaces opt
+ * out rather than the shell guessing which they are.
+ */
+.irs-main--wide {
+  width: min(1440px, calc(100vw - 48px));
+}
+
+@media (width <= 1199px) {
+  :root {
+    --iris-shell-pad: 18px;
+    --iris-nav-gap: 16px;
+    /* A fixed row height rather than content-driven `auto`, so `.irs-mobile-bar` — a sibling, not a grid child, for reasons `.irs-mobile-menu` below explains — can match it exactly instead of guessing at it. */
+    --iris-header-height-mobile: 58px;
+  }
+
+  .irs-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0;
+    height: var(--iris-header-height-mobile);
+    padding: 0 var(--iris-shell-pad);
+  }
+
+  .irs-main {
+    /* Measured ~84px on a phone; the same buffer above the measured height as desktop. */
+    --ask-dock-safe-area: 140px;
+    padding: 24px 0 var(--ask-dock-safe-area);
+  }
+}
+
+/* ============================================================================
+ * THE MOBILE MENU
+ *
+ * The header stops trying to fit four sections, a name, a role and two
+ * account links on one line at a shrinking font below 1199px — it was
+ * measured consuming 33-62% of a 390px viewport before any page content,
+ * across nearly every customer route, and separately, a genuine pre-existing
+ * overlap between the nav and the account cluster at exactly the widths this
+ * breakpoint now covers (1024px among them — the header-end cluster and the
+ * nav collided outright, confirmed unchanged on a clean `git stash` of this
+ * work, so it predates it). The fix is a different composition at every one
+ * of those widths, not a narrower one. Sections, account controls, and — on
+ * every surface but Ask IRIS — the project/period switchers, the
+ * connected-sources list and the section's own sub-navigation all move one
+ * tap away, behind a single trigger, so the header itself is one row: the
+ * wordmark, the current project's name (so a reader can tell where they are
+ * without opening anything), and the trigger.
+ *
+ * `.irs-nav--wide`/`.irs-header-end--wide` render the identical desktop
+ * header at every width above this one; `.irs-mobile-bar` is the only thing
+ * that renders below it. Exactly one of the two is ever visible.
+ * ========================================================================= */
+
+.irs-mobile-bar {
+  display: none;
+}
+
+@media (width <= 1199px) {
+  /*
+   * Not on the Ask variant — Shell.tsx renders no `.irs-mobile-bar` there at
+   * all, so hiding the wide nav/header-end would leave the page with
+   * neither. The export's own header handles every width down from here on
+   * its own terms.
+   */
+  .irs-shell:not([data-variant="ask"]) .irs-nav--wide,
+  .irs-shell:not([data-variant="ask"]) .irs-header-end--wide {
+    display: none;
+  }
+
+  /*
+   * Duplicated inside the mobile menu panel below this width — see Shell.tsx.
+   * Compound selectors: `observer-product.css` declares `.ox-context`/
+   * `.ox-tabs` at the same specificity with no media query of its own, and
+   * loads after this file, so an equal-specificity rule here would lose the
+   * cascade regardless of this media query matching.
+   */
+  .irs-shell .ox-context,
+  .irs-shell .ox-tabs {
+    display: none;
+  }
+
+  /*
+   * A sibling of `<header>`, positioned to sit visually on its trailing
+   * edge — see Shell.tsx's docblock on this element for why it cannot be a
+   * DESCENDANT of `.irs-header`. `pointer-events: none` on the bar and
+   * `auto` again on its own children keeps it from intercepting a tap
+   * anywhere across its full width, most of which is empty space over the
+   * brand mark it is stacked on top of.
+   */
+  .irs-mobile-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    /*
+     * Above `.irs-header`'s own z-index: 4 (both are `.irs-shell > *`
+     * siblings, so a lower value here would paint under the header's own
+     * `backdrop-filter` blur layer) AND above the docked Ask composer's
+     * z-index: 5 (`ask-iris.css`) — an open menu is a modal sheet and has to
+     * win against every other floating chrome on the page, the dock
+     * included, or its own last item ends up exactly where Priority 4 found
+     * the dock covering other pages' content.
+     */
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    height: var(--iris-header-height-mobile);
+    padding: 0 var(--iris-shell-pad);
+    min-width: 0;
+    pointer-events: none;
+  }
+
+  .irs-mobile-bar > * {
+    pointer-events: auto;
+  }
+
+  .irs-mobile-project {
+    font-size: 13px;
+    font-weight: var(--weight-medium);
+    color: var(--iris-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 34vw;
+  }
+
+  /* The `<details>` itself carries no box — its summary and panel do. */
+  .irs-mobile-menu {
+    position: relative;
+  }
+
+  .irs-mobile-menu summary {
+    list-style: none;
+  }
+
+  .irs-mobile-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .irs-mobile-menu-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--iris-radius-control);
+    border: 1px solid rgb(150 175 215 / 30%);
+    background: rgb(6 14 30 / 55%);
+    color: var(--iris-text-primary);
+    cursor: pointer;
+    transition:
+      border-color 180ms ease-out,
+      background 180ms ease-out;
+  }
+
+  .irs-mobile-menu-trigger:hover {
+    border-color: rgb(180 205 240 / 48%);
+    background: rgb(11 24 48 / 70%);
+  }
+
+  .irs-mobile-menu-trigger:focus-visible {
+    outline: 2px solid var(--iris-accent);
+    outline-offset: 2px;
+  }
+
+  /* Hamburger by default; the close mark takes over once the sheet is open. */
+  .irs-menu-mark-close {
+    display: none;
+  }
+
+  .irs-mobile-menu[open] .irs-mobile-menu-trigger .irs-menu-mark-open {
+    display: none;
+  }
+
+  .irs-mobile-menu[open] .irs-mobile-menu-trigger .irs-menu-mark-close {
+    display: block;
+  }
+
+  /*
+   * THE SHEET.
+   *
+   * Fixed, not absolute: `.irs-mobile-menu-panel` needs to sit relative to
+   * the viewport, not to `.irs-mobile-bar`'s own small box. The sheet is a
+   * DOM descendant of `.irs-mobile-bar` but escapes its bounds visually —
+   * see the backdrop rule below for why the two still have to be scoped to
+   * the same stacking context to paint in the right order.
+   */
+  .irs-mobile-menu-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    top: auto;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    max-height: min(78vh, calc(100dvh - 96px));
+    border-radius: var(--iris-radius-surface);
+    border: 1px solid rgb(150 175 215 / 22%);
+    background: var(--surface-overlay);
+    box-shadow: 0 -8px 32px rgb(0 0 0 / 55%);
+    overflow: hidden;
+  }
+
+  .irs-mobile-menu:not([open]) .irs-mobile-menu-panel {
+    display: none;
+  }
+
+  /*
+   * Hosted on `.irs-mobile-bar`, not `.irs-shell` or `.irs-header`:
+   * `.irs-shell > *` (above) gives every direct child of the shell —
+   * `.irs-mobile-bar` included — its own `position: relative` and a
+   * `z-index`, which is what a stacking context needs to exist at all. The
+   * sheet is nested inside `.irs-mobile-bar`, so its own higher z-index only
+   * ever competes WITHIN that context. A `position: fixed` descendant
+   * escapes an ancestor's overflow clipping but NOT that ancestor's stacking
+   * context, so the backdrop has to be hosted inside the same context the
+   * sheet is scoped to, or the two are never actually compared against each
+   * other at all. Same fix, same reasoning, as the Ask composer's own mobile
+   * sheet backdrop.
+   */
+  .irs-mobile-bar:has(.irs-mobile-menu[open])::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgb(2 5 13 / 55%);
+  }
+
+  .irs-mobile-menu-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex: none;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-menu-title {
+    font-size: 13px;
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--iris-text-tertiary);
+  }
+
+  .irs-mobile-menu-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: var(--iris-radius-control);
+    background: transparent;
+    color: var(--iris-text-secondary);
+    cursor: pointer;
+  }
+
+  .irs-mobile-menu-close .irs-menu-mark-open {
+    display: none;
+  }
+
+  .irs-mobile-menu-close:hover {
+    background: rgb(255 255 255 / 6%);
+  }
+
+  .irs-mobile-menu-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .irs-mobile-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .irs-mobile-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 46px;
+    padding: 0 4px;
+    border-radius: var(--iris-radius-control);
+    font-size: 15.5px;
+    font-weight: 400;
+    color: var(--iris-text-secondary);
+    text-decoration: none;
+  }
+
+  .irs-mobile-nav-item[aria-current="page"] {
+    color: #fff;
+    font-weight: var(--weight-medium);
+    background: rgb(0 163 255 / 10%);
+  }
+
+  .irs-mobile-nav--tabs .irs-mobile-nav-item {
+    font-size: 14px;
+    min-height: 40px;
+    justify-content: space-between;
+  }
+
+  .irs-mobile-context {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-context .obs-context {
+    display: block;
+  }
+
+  .irs-mobile-context select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .irs-mobile-who {
+    padding-top: 14px;
+    border-top: 1px solid var(--iris-hairline);
+  }
+
+  .irs-mobile-who .irs-who-name {
+    font-size: 14px;
+    color: var(--iris-text-primary);
+  }
+
+  /*
+   * The role line keeps the header's quiet ink on the header's near-black
+   * veil, where it clears the floor. The sheet is a lighter surface
+   * (`--surface-overlay`), and axe measured the same ink there at 4.14:1
+   * against DESIGN.md's tested 4.5:1. One step up the existing ramp — the
+   * tertiary ink the sheet's own title already wears on this surface.
+   */
+  .irs-mobile-who .irs-who-role {
+    color: var(--iris-text-tertiary);
+  }
+
+  .irs-mobile-account {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* ============================================================== Ask IRIS ==== */
+
+/**
+ * The landing composition: one prompt, and the questions worth asking.
+ *
+ * Every measurement below is the artefact's. The one thing that is not adopted
+ * is its `<canvas>` glow behind the card — a decorative animation the design
+ * runs continuously. The doctrine allows motion that communicates and forbids
+ * motion that decorates, and a permanent shimmer behind an input communicates
+ * nothing. The card's own inner light does the same work without a frame loop.
+ */
+
+/*
+ * One measure for the card and the list beneath it. The design sets
+ * `--iris-list-width: var(--iris-content-width)` precisely so the two edges
+ * line up; letting the list find its own width put the suggestions inside the
+ * card's shoulders and made the composition look like two unrelated blocks.
+ */
+.irs-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+}
+
+.irs-ask-card {
+  position: relative;
+  min-height: 181px;
+  border-radius: var(--iris-radius-hero);
+  border: 1px solid rgb(120 170 240 / 28%);
+  background: linear-gradient(
+    180deg,
+    rgb(13 40 96 / 55%) 0%,
+    rgb(5 15 38 / 90%) 34%,
+    rgb(2 7 18 / 96%) 100%
+  );
+  box-shadow: inset 0 0 34px rgb(12 60 160 / 16%);
+  overflow: hidden;
+}
+
+/** The light inside the card, from above. Static, and that is the point. */
+.irs-ask-card::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -72%;
+  width: 56%;
+  height: 140%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgb(30 96 215 / 20%), transparent 66%);
+}
+
+.irs-ask-field {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 27px 34px 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  outline: none;
+  min-height: 115px;
+  color: var(--iris-text-primary);
+  caret-color: #35c9ff;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  line-height: 1.34;
+}
+
+.irs-ask-field::placeholder {
+  color: var(--iris-text-quiet);
+}
+
+.irs-ask-field:focus-visible {
+  outline: none;
+}
+
+/** Focus lands on the card, not the bare textarea, so the ring follows the shape. */
+.irs-ask-card:focus-within {
+  border-color: rgb(0 163 255 / 55%);
+  box-shadow:
+    inset 0 0 34px rgb(12 60 160 / 16%),
+    0 0 0 1px rgb(0 163 255 / 35%);
+}
+
+.irs-ask-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 27px 17px 33px;
+}
+
+.irs-ask-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 165px;
+  height: 41px;
+  padding: 0 12px 0 14px;
+  border-radius: var(--iris-radius-control);
+  border: 1px solid rgb(143 163 197 / 30%);
+  background: rgb(4 13 32 / 62%);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: #e9eff8;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.irs-ask-model:hover {
+  border-color: rgb(172 195 232 / 46%);
+  background: rgb(8 22 50 / 70%);
+}
+
+.irs-ask-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 41px;
+  height: 41px;
+  border: 0;
+  border-radius: var(--iris-radius-control);
+  background: linear-gradient(180deg, var(--iris-accent), var(--iris-accent-dim));
+  color: #04121f;
+  cursor: pointer;
+  transition: filter 180ms ease-out;
+}
+
+.irs-ask-send:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.irs-ask-send:disabled {
+  background: rgb(4 13 32 / 62%);
+  border: 1px solid rgb(143 163 197 / 30%);
+  color: var(--iris-text-quiet);
+  cursor: not-allowed;
+}
+
+/* --- the questions worth asking ---------------------------------------------- */
+
+.irs-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.irs-suggestion {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 16px;
+  min-height: 58px;
+  padding: 0 20px;
+  border-radius: 11px;
+  border: 1px solid rgb(140 165 205 / 14%);
+  background: linear-gradient(180deg, rgb(140 175 235 / 3.5%) 0%, rgb(88 124 190 / 1.8%) 100%);
+  backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: inset 0 1px 0 rgb(200 224 255 / 6%);
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 400;
+  color: rgb(156 168 188 / 90%);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out,
+    transform 180ms ease-out,
+    color 180ms ease-out;
+}
+
+.irs-suggestion:hover {
+  border-color: rgb(168 194 238 / 26%);
+  background: linear-gradient(180deg, rgb(150 185 240 / 6.5%) 0%, rgb(96 132 198 / 3.2%) 100%);
+  color: rgb(206 216 232 / 95%);
+  transform: translateY(-1px);
+}
+
+.irs-suggestion-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgb(148 172 212 / 16%);
+  background: rgb(150 185 240 / 4.5%);
+  color: rgb(148 161 182 / 82%);
+}
+
+.irs-suggestion-chevron {
+  flex: none;
+  opacity: 0.6;
+}
+
+/**
+ * What the reader is told when the model cannot be reached.
+ *
+ * Stated rather than hidden, and stated once. `docs/PROJECT-STATE.md` records
+ * that no model-backed answer has ever been produced here — the configured key
+ * is refused — so a prompt that looked ready to answer would be the screen
+ * telling its first lie.
+ */
+.irs-ask-notice {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--iris-radius-surface);
+  border: 1px solid rgb(140 165 205 / 14%);
+  background: rgb(140 175 235 / 3.5%);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--iris-text-quiet);
+}
+
+@media (width <= 768px) {
+  .irs-ask-field {
+    font-size: 20px;
+    letter-spacing: 0.06em;
+    padding: 20px 20px 0;
+    min-height: 96px;
+  }
+
+  .irs-ask-foot {
+    padding: 0 16px 14px 18px;
+  }
+
+  .irs-ask-model {
+    width: 140px;
+  }
+
+  .irs-suggestion {
+    grid-template-columns: 36px minmax(0, 1fr) 16px;
+    gap: 12px;
+    padding: 12px 14px;
+    font-size: 14.5px;
+  }
+
+  .irs-suggestion-mark {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* ============================================================================
+ * THE HEADER'S RIGHT-HAND CLUSTER, AT NARROW WIDTHS
+ *
+ * A measured defect rather than a preference: at 390px `.irs-header-end` came
+ * out 394px wide inside a 390px viewport, so the whole document scrolled
+ * sideways by 136px and the reader's own name sat at x = -42. Everything below
+ * exists to stop that, and nothing below changes any screen's content.
+ * ========================================================================= */
+
+/*
+ * The reader's name and role go first, and the design agrees: the delivered
+ * artefact hides `[data-username]` below 1199px for the same reason. It is the
+ * one thing in that cluster a reader already knows — they are the reader — and
+ * it is the widest.
+ */
+@media (width <= 1199px) {
+  .irs-shell[data-variant="ask"] .irs-who {
+    display: none;
+  }
+}
+
+@media (width <= 768px) {
+  /*
+   * The cluster wraps rather than overflowing, and it is allowed to shrink
+   * below its content — `min-width: 0` is what a grid item needs before
+   * anything inside it may ellipsis or wrap, and its absence is the usual
+   * cause of exactly this defect.
+   */
+  .irs-header-end {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 10px;
+    min-width: 0;
+  }
+
+  .irs-header-end .ox-btn {
+    padding: 0.3125rem 0.4375rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/*
+ * Below 30rem the account controls move under the navigation entirely. Four
+ * links and a badge cannot share a row with a wordmark at 390px without one of
+ * them being cut, and a cut control is worse than one a reader has to look
+ * slightly further down for.
+ */
+@media (width <= 30rem) {
+  .irs-header {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+
+  .irs-header-end {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+}
+
+/* ============================================================================
+ * THE ASK IRIS HEADER VARIANT
+ *
+ * The user delivered an HTML export as the visual source of truth for `/ask`
+ * and, in the same breath, asked that Sales Flow, Project, Sales Agents,
+ * Briefing, Units, Meetings and Meeting Detail not change. The header is
+ * shared, so the difference is a variant rather than a second shell: every
+ * rule below is keyed on `[data-variant="ask"]`, and no other surface can
+ * match it.
+ *
+ * The values are read out of the export, not chosen:
+ *
+ *   --iris-nav-gap: 40px            :root in the export
+ *   @media (max-width:1439px) 32px  its own first step
+ *   @media (max-width:1199px) 24px  its own second step, and the width at
+ *                                   which it hides [data-username]
+ *
+ * The 16px step below 768 is this application's, not the export's: the export
+ * was drawn at one width and has nothing to say about a phone, and by then the
+ * navigation has moved onto its own scrolling row where 24px overflows.
+ * ========================================================================= */
+
+.irs-shell[data-variant="ask"] {
+  --iris-nav-gap: 40px;
+}
+
+@media (width <= 1439px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 32px;
+  }
+}
+
+@media (width <= 1199px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 24px;
+  }
+}
+
+@media (width <= 768px) {
+  .irs-shell[data-variant="ask"] {
+    --iris-nav-gap: 16px;
+  }
+}
+
+/**
+ * The `Sign out` pill, transcribed.
+ *
+ * 96 x 38, radius 19 — a true stadium, half the height, rather than a rounded
+ * rectangle that approximates one. The border and both grounds are the
+ * export's alphas; the label is 14px at the medium weight the rest of this
+ * header uses.
+ *
+ * It is its own class rather than a variant of `.ox-btn`, because `.ox-btn`
+ * belongs to the product content system and is worn by controls on eleven
+ * other screens. A shared class restyled for one header is how a header
+ * silently redesigns a page.
+ */
+.irs-signout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 38px;
+  border-radius: 19px;
+  border: 1px solid rgb(150 175 215 / 30%);
+  background: rgb(6 14 30 / 55%);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: #e8eef8;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background 180ms ease-out;
+}
+
+.irs-signout:hover {
+  border-color: rgb(180 205 240 / 48%);
+  background: rgb(11 24 48 / 70%);
+}
+
+/*
+ * The reader's name, at the export's own size and ink. 13px rather than the
+ * default header's 13/11 pair, because the variant drops the role line: the
+ * export shows a name and nothing under it.
+ */
+.irs-shell[data-variant="ask"] .irs-who-name {
+  font-size: 13px;
+  color: #aab4c4;
+  max-width: 14ch;
+}
+
+.irs-shell[data-variant="ask"] .irs-who-role {
+  display: none;
+}
+
+.irs-shell[data-variant="ask"] .irs-header-end {
+  gap: 20px;
+}
+
+/*
+ * THE PROJECT SWITCH, ONLY ON ASK IRIS.
+ *
+ * `ContextSwitcher` draws `.ox-menu` — its own panel, since the native select
+ * was retired for opening an operating-system list out of a graphite header
+ * (`observer-product.css` §5 carries the reasoning). Its BUTTON is restyled
+ * here to the export's own pill, the same 38px/19px/border/ground as
+ * `.irs-signout` beside it. The panel it opens is deliberately not restyled:
+ * a menu that changed shape with the header it hangs from would be two menus,
+ * and this is the same list of projects either way.
+ */
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button {
+  height: 38px;
+  padding: 0 12px 0 14px;
+  border-radius: 19px;
+  border-color: rgb(150 175 215 / 30%);
+  background: rgb(6 14 30 / 55%);
+  font-size: 13px;
+  color: #e8eef8;
+  max-width: 17ch;
+}
+
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button:hover,
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu[open] > .ox-menu-button {
+  border-color: rgb(180 205 240 / 48%);
+  background: rgb(8 20 44 / 70%);
+}
+
+/* This header ends at the viewport's edge, so its menu opens back into the page. */
+.irs-shell[data-variant="ask"] .irs-header-end .ox-menu-panel {
+  left: auto;
+  right: 0;
+}
+
+@media (width <= 1199px) {
+  /* `.irs-who` drops here; the switch is the widest thing left and shrinks with it. */
+  .irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button {
+    max-width: 12ch;
+  }
+}
+
+/*
+ * PRINT: a printed page has one ground and no chrome. The header and the
+ * mobile bar leave; the shell and its main column sit on white with dark ink.
+ * Owned here because these are this sheet's names (observer-product.css owns
+ * the report page that asks for it).
+ */
+@media print {
+  .irs-header,
+  .irs-mobile-bar {
+    display: none !important;
+  }
+
+  html,
+  body,
+  .irs-shell,
+  .irs-main {
+    background: #fff !important;
+    color: #111 !important;
+  }
+}

@@ -9,10 +9,22 @@
 
 export * from "./world";
 export * from "./repository";
-export { buildProjectPulse, buildAskSession } from "./pulse";
+export {
+  buildProjectPulse,
+  buildAskSession,
+  catalogueFor,
+  provideCatalogue,
+  hasDeliveredCatalogue,
+} from "./pulse";
+export { rawUnitsFromCatalogue } from "./catalogue-overlay";
+export type { CatalogueOverlay, UnplacedUnit } from "./catalogue-overlay";
 export { VIKTORIA_MEETING_ID, COUPLE_MEETING_ID } from "./agent";
 
 export * from "./showroom/sessions";
 export * from "./showroom/project";
 export * from "./showroom/views3";
 export * from "./showroom/charts";
+export * from "./showroom/screens";
+export * from "./showroom/attention";
+export { buildAskHistory, buildAskThread } from "./ask-history";
+export { buildReportScope } from "./reports";

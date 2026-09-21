@@ -1,0 +1,84 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "exchange",
+    "name": "activation-success",
+    "description": "A fresh installation exchanges its one-time code and receives a source credential.",
+    "request": {
+      "method": "POST",
+      "path": "/functions/v1/observer-activate",
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "activation_code": "FIXTURE-ACTIVATION-CODE-NOT-REAL",
+        "reported_environment": "development",
+        "installation_nonce": "f1000000-0000-4000-8000-0000000000b2",
+        "build": {
+          "app_version": "1.4.0",
+          "plugin_version": "1.0.0",
+          "build_id": "fixture-build-0001",
+          "engine_version": "5.6"
+        },
+        "os": "Windows 11 (build 26100)"
+      }
+    },
+    "requestSchema": "ActivationRequest",
+    "requestValidates": true,
+    "response": {
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": {
+        "status": "activated",
+        "source_id": "f1000000-0000-4000-8000-0000000000a1",
+        "display_label": "Fixture Showroom, Bay 1",
+        "environment": "development",
+        "environment_mismatch": false,
+        "source_token": "obs_FIXTURE_selector.FIXTURE_secret_not_real",
+        "token_expires_at": null,
+        "ingest_url": "https://fixture.observer.invalid/functions/v1/observer-ingest",
+        "heartbeat_url": "https://fixture.observer.invalid/functions/v1/observer-heartbeat",
+        "accepted_schema_versions": {
+          "min": 1,
+          "max": 1
+        },
+        "limits": {
+          "max_batch_events": null,
+          "max_batch_bytes": null,
+          "max_event_bytes": null,
+          "max_property_depth": null,
+          "max_property_count": null,
+          "min_send_interval_ms": null
+        },
+        "config_refresh_after": "2026-01-08T08:15:31+00:00"
+      }
+    },
+    "responseSchema": "ActivationSuccess",
+    "responseValidates": true,
+    "submittedEventIds": [],
+    "expectedOutboxActions": {},
+    "expectedSending": "continue",
+    "expectedBackendState": {
+      "precondition": "One unspent, unexpired activation code for a registered active source, and no live credential.",
+      "storedEventIds": [],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "consumed",
+      "assertion": "One row in observer.source_credentials for this source in state active, the code marked consumed in the same transaction, and NOTHING else: no analytics_events row, and source_operations still holding null in both last_heartbeat_at and ingestion_verified_at. ACTIVATED is one fact; a source that has only activated is neither CONNECTED nor INGESTION VERIFIED, and a screen that says otherwise is guessing."
+    },
+    "why": "The token is returned once, here, and never again — persist it before answering anything else.",
+    "notes": [
+      "The response carries no tenant_id and no project_id. A client that wants either has misread the contract.",
+      "token_expires_at is null and is expected to stay null; the field exists so a future policy needs no new field."
+    ]
+  }
+}

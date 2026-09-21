@@ -28,9 +28,18 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { KPI_WINDOWS } from "@observer/readmodels";
-import { RAW_CATALOGUE } from "../pulse";
-import { count, evidenceRef, percent, signedPercent } from "../format";
-import { SYNTHETIC_AGENTS, agentById } from "./sessions";
+import { catalogueFor } from "../pulse";
+import {
+  count,
+  dayLabel,
+  evidenceRef,
+  monthLabel,
+  monthYearLabel,
+  percent,
+  signedPercent,
+} from "../format";
+import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
+import { presenterName, presentersIn } from "./sessions";
 import { meetings } from "./views3";
 
 /**
@@ -74,12 +83,12 @@ export function buildKpis(
   today: Date,
   windowId: KpiWindowId,
   locale: string,
+  timeZone: string,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
-  const end = new Date(today);
-  end.setUTCHours(23, 59, 59, 999);
-  const to = end.getTime();
+  // The window closes at the end of the project's own day, not UTC's.
+  const to = endOfDayIn(today, timeZone).getTime();
   const from = to - spec.days * day;
   const previousFrom = from - spec.days * day;
 
@@ -166,7 +175,13 @@ export function buildKpis(
         medNow === null || medBefore === null || medBefore === 0
           ? null
           : signedPercent((medNow - medBefore) / medBefore, locale),
-      tone: medNow === null || medBefore === null ? "flat" : tone(medNow, medBefore, "up"),
+      // Neutral always, not `tone(medNow, medBefore, "up")": a longer median
+      // is not a win and a shorter one is not a loss -- this is a
+      // descriptive measure with no earned direction, the same reason
+      // "How many, not how well" keeps Presentations-given volume neutral
+      // elsewhere on this page. Colouring it good/bad was a copy-paste of
+      // the up-is-good rule the genuinely directional figures use.
+      tone: "flat",
       points: seriesOf((slice) => {
         const timed = slice.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
         return timed.length === 0 ? null : median(timed);
@@ -177,10 +192,14 @@ export function buildKpis(
       label: "Progressing",
       measurementId: null,
       value: decided.length === 0 ? "—" : percent(progressed, locale),
+      // The window named here, not just on the chip row above the card — this
+      // figure and the Sales Flow headline are two genuinely different claims
+      // (different windows, different denominators), and a reader comparing
+      // them needs that on the card itself, not several lines away.
       qualifier:
         decided.length === 0
-          ? "no outcome recorded"
-          : `${count(decided.length, locale)} with an outcome`,
+          ? `no outcome recorded, ${spec.label.toLowerCase()}`
+          : `${count(decided.length, locale)} with an outcome, ${spec.label.toLowerCase()}`,
       delta:
         decidedBefore.length === 0 || decided.length === 0
           ? null
@@ -202,7 +221,10 @@ export function buildKpis(
       value: count(units, locale),
       qualifier: `${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
       delta: unitsBefore === 0 ? null : signedPercent((units - unitsBefore) / unitsBefore, locale),
-      tone: tone(units, unitsBefore, "up"),
+      // Neutral, same reasoning as Typical length above: which units get
+      // opened is decided by buyer interest, not by the showroom, so a
+      // count moving either way earns no verdict here.
+      tone: "flat",
       points: seriesOf((slice) => slice.reduce((a, s) => a + s.units.length, 0)),
     },
   ];
@@ -224,15 +246,23 @@ export function buildKpis(
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-export function buildActivity(sessions: readonly ShowroomSession[]): ActivityMatrix {
+export function buildActivity(
+  sessions: readonly ShowroomSession[],
+  timeZone: string,
+): ActivityMatrix {
   const hours = Array.from({ length: 10 }, (_, i) => `${String(9 + i).padStart(2, "0")}:00`);
   const cells: Record<string, number> = {};
   let counted = 0;
 
   for (const s of sessions) {
-    const at = new Date(s.startedAt);
-    const weekday = WEEKDAYS[(at.getUTCDay() + 6) % 7];
-    const hour = `${String(at.getUTCHours()).padStart(2, "0")}:00`;
+    /*
+     * The office's weekday and hour, not UTC's. Read in UTC, a 09:10 meeting
+     * in Bratislava landed in a 07:00 cell the grid does not have and fell
+     * out of `meetingsCounted` altogether.
+     */
+    const at = zoneParts(s.startedAt, timeZone);
+    const weekday = WEEKDAYS[at.weekday];
+    const hour = `${String(at.hour).padStart(2, "0")}:00`;
     if (weekday === undefined || !hours.includes(hour)) continue;
     cells[`${weekday}|${hour}`] = (cells[`${weekday}|${hour}`] ?? 0) + 1;
     counted += 1;
@@ -321,6 +351,24 @@ export function buildBehaviourFunnel(
   const rate = (xs: readonly ShowroomSession[], test: (s: ShowroomSession) => boolean) =>
     xs.length === 0 ? null : percent(share(xs.filter(test).length, xs.length), locale);
 
+  /*
+   * Nobody in the group is not a group that did nothing. Drawn, it was seven
+   * bands at nought under a red "0%", which reads as a finding; it is the
+   * absence of one, and says so.
+   */
+  if (cohort.length === 0) {
+    return {
+      cohortLabel: `Ended "not interested" · ${meetings(0, locale)}`,
+      steps: [],
+      empty:
+        sessions.length === 0
+          ? "No meeting was recorded in this period, so there is no group to describe."
+          : `None of the ${meetings(sessions.length, locale)} in this period ended "not interested", so there is no group to describe.`,
+      comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
+      disclaimer: "",
+    };
+  }
+
   let surviving: readonly ShowroomSession[] = cohort;
   const steps: BehaviourStep[] = [
     {
@@ -346,6 +394,7 @@ export function buildBehaviourFunnel(
   return {
     cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale)}`,
     steps,
+    empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
     disclaimer:
       "Each band is the meetings that did everything above it as well, so the bands narrow. Beside each is that behaviour on its own, in this group and in every other recorded meeting. This describes what the group had in common, at the stated sample sizes. It is not evidence that any of these behaviours produced the outcome — buyers who arrive uninterested are also shown less.",
@@ -363,14 +412,36 @@ const RADAR_AXES = [
   { label: "Places", note: "median named places stopped on" },
 ] as const;
 
-const RADAR_TONES = ["var(--accent)", "var(--gain)", "var(--watch)", "var(--loss)"];
+/*
+ * PER-AGENT IDENTITY, NOT STATUS.
+ *
+ * This used to be `["var(--accent)", "var(--gain)", "var(--watch)",
+ * "var(--loss)"]` — the product's own good/watch/poor status tokens,
+ * reassigned as arbitrary per-agent colours with no relationship to
+ * performance. An agent third in whatever order the data returned them
+ * inherited "watch" amber and a fourth inherited "loss" red, on a screen
+ * that also draws a real outcome-quality legend in the same hues right next
+ * to this chart. Evidence/identity and status are the doctrine's own named
+ * orthogonal axes; a shape a reader can compare across agents should not
+ * borrow the palette of a different, unrelated judgment.
+ *
+ * A restrained ramp instead: the brand accent, then two blends toward
+ * neutral ink, so every agent is still a distinct, legible line without
+ * reaching for a colour this product uses to mean something else.
+ */
+const RADAR_TONES = [
+  "var(--accent)",
+  "color-mix(in srgb, var(--accent) 55%, var(--ink))",
+  "var(--ink-2)",
+  "color-mix(in srgb, var(--accent) 30%, var(--ink-3))",
+];
 
 export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
 ): AgentCharts {
-  const raw = SYNTHETIC_AGENTS.flatMap((a) => {
+  const raw = presentersIn(sessions).flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
     return [
@@ -440,7 +511,7 @@ export function buildAgentCharts(
         sub: timed.length === 0 ? "no timed session" : `median ${duration(median(timed))}`,
         value: mine.length,
         display: count(mine.length, locale),
-        href: `${base}/agents?agent=${r.id}`,
+        href: `${base}/agents/${r.id}`,
       };
     })
     .sort((a, b) => b.value - a.value);
@@ -454,6 +525,7 @@ export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
+  timeZone: string,
 ): RankedRow[] {
   return [...sessions]
     .filter((s) => !s.timingUnavailable)
@@ -461,8 +533,8 @@ export function buildLongestMeetings(
     .slice(0, 8)
     .map((s) => ({
       id: s.meetingId,
-      label: new Date(s.startedAt).toLocaleDateString(locale, { day: "numeric", month: "short" }),
-      sub: `${agentById(s.agentId)?.name ?? s.agentId} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
+      label: dayLabel(s.startedAt, locale, timeZone),
+      sub: `${presenterName(s.projectId, s.agentId)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds),
       href: `${base}/meetings/${s.meetingId}`,
@@ -471,24 +543,33 @@ export function buildLongestMeetings(
 
 /* --- composition over months ------------------------------------------------------ */
 
+/**
+ * Kept identical to `OUTCOME_TONE` in `apps/web/src/showroom/charts.tsx` on
+ * purpose -- both name the same six `--outcome-*` custom properties
+ * (`packages/ui/src/iris.css`) rather than each declaring their own
+ * `color-mix()`, which is what let the two drift apart before. `skipped`
+ * still resolves to the heatmap's own empty-cell treatment's colour, not a
+ * seventh ladder rung.
+ */
 const OUTCOME_COLOURS: Record<MeetingOutcome, string> = {
-  purchase: "var(--gain)",
-  reservation: "color-mix(in oklab, var(--gain) 70%, var(--accent))",
-  interested: "var(--accent)",
-  follow_up_needed: "color-mix(in oklab, var(--accent) 55%, var(--ink-3))",
-  presentation_only: "var(--ink-3)",
-  not_interested: "var(--loss)",
+  purchase: "var(--outcome-purchase)",
+  reservation: "var(--outcome-reservation)",
+  interested: "var(--outcome-interested)",
+  follow_up_needed: "var(--outcome-follow-up)",
+  presentation_only: "var(--outcome-presentation-only)",
+  not_interested: "var(--outcome-not-interested)",
   skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
 };
 
 export function buildComposition(
   sessions: readonly ShowroomSession[],
   locale: string,
+  timeZone: string,
 ): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
-    const at = new Date(s.startedAt);
-    const key = `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, "0")}`;
+    // The office's month: a meeting late on 31 July is a July meeting there.
+    const key = monthKeyIn(s.startedAt, timeZone);
     months.set(key, [...(months.get(key) ?? []), s]);
   }
 
@@ -506,7 +587,7 @@ export function buildComposition(
     columns: [...months.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, xs]) => ({
-        label: new Date(`${key}-01T00:00:00Z`).toLocaleDateString(locale, { month: "short" }),
+        label: monthLabel(xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`, locale, timeZone),
         total: xs.length,
         parts: Object.fromEntries(order.map((o) => [o, xs.filter((s) => s.outcome === o).length])),
       })),
@@ -516,20 +597,44 @@ export function buildComposition(
 
 /* --- meetings per week, with the moment something changed ------------------------ */
 
-export function buildTrend(sessions: readonly ShowroomSession[], locale: string): TrendSeries {
+export function buildTrend(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+  timeZone: string,
+): TrendSeries {
+  /*
+   * Weeks start on the project's Monday, at its own midnight. They used to
+   * be epoch weeks — `floor(ms / 7 days)`, which begin on a Thursday in UTC —
+   * so every point was labelled with a Thursday and "the week" ran Thursday
+   * to Wednesday, which no sales office counts.
+   *
+   * A week with no meetings is drawn at zero rather than left out. Leaving it
+   * out put two weeks with a quiet fortnight between them side by side, and
+   * the annotation below then called that gap a week-on-week change. Zero
+   * meetings in a week is a real reading, not an absent one.
+   */
   const weeks = new Map<number, number>();
-  const day = 24 * 60 * 60 * 1000;
   for (const s of sessions) {
-    const at = Date.parse(s.startedAt);
-    const week = Math.floor(at / (7 * day));
+    const week = startOfWeekIn(Date.parse(s.startedAt), timeZone).getTime();
     weeks.set(week, (weeks.get(week) ?? 0) + 1);
   }
 
-  const ordered = [...weeks.entries()].sort((a, b) => a[0] - b[0]);
-  const points = ordered.map(([week, value]) => ({
-    label: new Date(week * 7 * day).toLocaleDateString(locale, { day: "numeric", month: "short" }),
-    value,
-  }));
+  const starts = [...weeks.keys()].sort((a, b) => a - b);
+  const first = starts[0];
+  const last = starts[starts.length - 1];
+  const points: { label: string; value: number }[] = [];
+  if (first !== undefined && last !== undefined) {
+    const day = 24 * 60 * 60 * 1000;
+    for (let week = first; week <= last;) {
+      points.push({
+        label: dayLabel(new Date(week), locale, timeZone),
+        value: weeks.get(week) ?? 0,
+      });
+      // Seven days on, re-anchored to Monday midnight so a clock change inside
+      // the week cannot drift the next start by an hour.
+      week = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+    }
+  }
 
   /*
    * The annotation is the largest week-on-week change.
@@ -571,10 +676,18 @@ export function buildTrend(sessions: readonly ShowroomSession[], locale: string)
  * be by now — because 33% sold is neither good nor bad until you know the plan
  * expected 41%.
  */
-export function buildTargets(today: Date, locale: string): SalesTarget[] {
-  const total = RAW_CATALOGUE.length;
-  const sold = RAW_CATALOGUE.filter((u) => u.status === "sold").length;
-  const reserved = RAW_CATALOGUE.filter((u) => u.status === "reserved").length;
+export function buildTargets(
+  projectId: string,
+  today: Date,
+  locale: string,
+  timeZone: string,
+  crmConnected: boolean,
+): SalesTarget[] {
+  // This project's stock. The sales plan was Northgate's on every project.
+  const catalogue = catalogueFor(projectId);
+  const total = catalogue.length;
+  const sold = catalogue.filter((u) => u.status === "sold").length;
+  const reserved = catalogue.filter((u) => u.status === "reserved").length;
 
   const startedOn = new Date("2026-01-15T00:00:00Z");
   const targetDate = new Date("2028-06-30T00:00:00Z");
@@ -582,30 +695,48 @@ export function buildTargets(today: Date, locale: string): SalesTarget[] {
   const span = targetDate.getTime() - startedOn.getTime();
   const pace = (elapsed / span) * total;
 
-  const format = (d: Date) => d.toLocaleDateString(locale, { month: "short", year: "numeric" });
+  const format = (d: Date) => monthYearLabel(d, locale, timeZone);
+
+  /*
+   * SOLD AND RESERVED ARE CRM OUTCOMES, NOT CATALOGUE ATTRIBUTES.
+   *
+   * The catalogue can be connected on a project whose CRM is not — Riverside
+   * Walk is built to prove exactly that split. `sold`/`reserved` on a unit
+   * records a closed deal, which is a fact the CRM tells and the catalogue
+   * cannot originate on its own, so `catalogue`'s own figures are read here
+   * only when `crmConnected` says the project actually has that source.
+   */
+  const soldActual = crmConnected ? sold : null;
+  const committedActual = crmConnected ? sold + reserved : null;
 
   return [
     {
       id: "sold",
       label: "Sold",
       total,
-      actual: sold,
+      actual: soldActual,
       target: total,
       pace,
       startedOn: format(startedOn),
       targetDate: format(targetDate),
-      note: `${sold} of ${total} sold. A straight line from ${format(startedOn)} to ${format(targetDate)} wants ${Math.round(pace)} by now.`,
+      note:
+        soldActual === null
+          ? "Unavailable — this project's CRM is not connected, and sold counts come from CRM outcomes."
+          : `${soldActual} of ${total} sold. A straight line from ${format(startedOn)} to ${format(targetDate)} wants ${Math.round(pace)} by now.`,
     },
     {
       id: "committed",
       label: "Sold or reserved",
       total,
-      actual: sold + reserved,
+      actual: committedActual,
       target: total,
       pace,
       startedOn: format(startedOn),
       targetDate: format(targetDate),
-      note: `${sold + reserved} of ${total} sold or reserved. A reservation is not a sale, so both figures are shown.`,
+      note:
+        committedActual === null
+          ? "Unavailable — this project's CRM is not connected, and reservations come from CRM outcomes."
+          : `${committedActual} of ${total} sold or reserved. A reservation is not a sale, so both figures are shown.`,
     },
   ];
 }
@@ -647,28 +778,35 @@ export function buildFlowCharts(
   windowId: KpiWindowId,
 ): FlowCharts {
   const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const charts = buildAgentCharts(sessions, base, locale);
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale),
-    activity: buildActivity(sessions),
-    composition: buildComposition(sessions, locale),
-    trend: buildTrend(sessions, locale),
+    kpis: buildKpis(all, today, windowId, locale, timeZone),
+    activity: buildActivity(sessions, timeZone),
+    composition: buildComposition(sessions, locale, timeZone),
+    trend: buildTrend(sessions, locale, timeZone),
     funnel: buildBehaviourFunnel(sessions, locale),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale),
+    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }
 
 export function buildProjectCharts(
+  projectId: string,
   sessions: readonly ShowroomSession[],
   today: Date,
   locale: string,
+  timeZone: string,
+  crmConnected: boolean,
 ): ProjectCharts {
-  return { targets: buildTargets(today, locale), journey: buildJourney(sessions, locale) };
+  return {
+    targets: buildTargets(projectId, today, locale, timeZone, crmConnected),
+    journey: buildJourney(sessions, locale),
+  };
 }
 
 export { SECTION_IDS, sectionLabel, type SectionId };

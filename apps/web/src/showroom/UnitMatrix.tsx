@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { UnitAttentionRow } from "@observer/readmodels";
+import { areaWord, roomsWord } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { Measure } from "./Measure";
 
@@ -86,18 +87,18 @@ export function UnitMatrix({
             <span className="iris-matrix-code">
               {row.unitCode}
               <em>
-                {row.rooms} rooms · {row.areaSqm} m²
+                {roomsWord(row.rooms)} · {areaWord(row.areaSqm)}
               </em>
             </span>
             {/*
-              * Every cell carries its own label.
-              *
-              * The header row disappears when the panel is too narrow for six
-              * columns, and a stack of bare numbers is unreadable without it.
-              * `data-label` is what the CSS prints in front of each figure, and
-              * the visually-hidden copy is what a screen reader hears in both
-              * layouts.
-              */}
+             * Every cell carries its own label.
+             *
+             * The header row disappears when the panel is too narrow for six
+             * columns, and a stack of bare numbers is unreadable without it.
+             * `data-label` is what the CSS prints in front of each figure, and
+             * the visually-hidden copy is what a screen reader hears in both
+             * layouts.
+             */}
             <span
               className="iris-matrix-attention"
               data-label="Attention"

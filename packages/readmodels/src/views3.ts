@@ -1,5 +1,6 @@
 import type { InsightSource, MeetingOutcome, PlaceCategory, SectionId } from "@observer/contracts";
 import type { ViewContext } from "./context";
+import type { AssistedSales, DealLadder } from "./deal-source";
 import type { EvidenceRef } from "./metric-value";
 import type { ShowroomFinding } from "./showroom";
 
@@ -108,8 +109,20 @@ export interface AgentOutcomeRing {
   readonly meetings: number;
   readonly slices: readonly OutcomeSlice[];
   readonly progressedShare: number;
-  /** Set only when the pattern is worth a conversation, never as a score. */
-  readonly flag: { readonly severity: "watch" | "concern"; readonly text: string } | null;
+  /**
+   * Set only when the pattern is worth a conversation, never as a score.
+   *
+   * `sampleSize` is the exact population `text`'s own figures are drawn from
+   * (not always the same one -- a "no outcome recorded" flag is stated over
+   * every meeting, the others over only the decided ones) -- so a finding
+   * built from this flag can cite the same number rather than a different
+   * one from a different field.
+   */
+  readonly flag: {
+    readonly severity: "watch" | "concern";
+    readonly text: string;
+    readonly sampleSize: number;
+  } | null;
   readonly href: string;
 }
 
@@ -122,6 +135,18 @@ export interface SalesFlowView {
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
   readonly evidence: EvidenceRef;
+  /**
+   * The deal ladder, which is the CRM's (ADR-0021). Drawn from the deals a
+   * connector delivered; says "not connected" where none did, never a rung
+   * at zero.
+   */
+  readonly ladder: DealLadder;
+  /**
+   * Which of the CRM's dated sales followed a showing of the unit in IRIS, by
+   * the versioned rule in `DEFAULT_IRIS_ASSIST_POLICY`. An observed sequence:
+   * it never says the showing produced the sale (ADR-0039).
+   */
+  readonly assisted: AssistedSales;
 }
 
 /* --- 2. Project -------------------------------------------------------------- */
@@ -137,6 +162,12 @@ export interface SalesFlowView {
 export interface SegmentInterest {
   readonly id: string;
   readonly label: string;
+  /**
+   * The room count this segment is defined by. Carried so a consumer can
+   * build a criterion from the segment itself rather than parse its id.
+   * `null` for the segment of units whose count the catalogue did not state.
+   */
+  readonly rooms: number | null;
   readonly availableUnits: number;
   readonly stockShare: number;
   readonly attentionShare: number;
@@ -174,6 +205,31 @@ export interface SegmentInterest {
     readonly otherRate: number;
   }[];
   readonly soWhat: string;
+  /**
+   * The attention × conversion reading (docs/02-views.md §4.2): where this
+   * segment falls against parity on attention and against the project on
+   * conversion. `quadrant` is null below the documented minimum sample or
+   * where no CRM records an outcome, and the words say which.
+   */
+  readonly conversion: SegmentConversion;
+}
+
+export const SEGMENT_QUADRANTS = ["hero", "mispriced", "hidden_gem", "dead_stock"] as const;
+export type SegmentQuadrant = (typeof SEGMENT_QUADRANTS)[number];
+
+export interface SegmentConversion {
+  /** Meetings that opened a unit of this segment and recorded an outcome. */
+  readonly decided: number;
+  readonly progressed: number;
+  /** progressed / decided, or null when nothing was decided. */
+  readonly share: number | null;
+  /** The same share over every decided meeting on the project. */
+  readonly projectShare: number | null;
+  /** The documented minimum for a verdict, so the screen can say how far short. */
+  readonly minimum: number;
+  readonly quadrant: SegmentQuadrant | null;
+  /** Why there is no quadrant, in words; null when there is one. */
+  readonly withheld: string | null;
 }
 
 export interface StatedDemand {
@@ -201,6 +257,8 @@ export interface ProjectView {
   readonly context: ViewContext;
   readonly verdict: string;
   readonly segments: readonly SegmentInterest[];
+  /** What the attention × conversion frame rests on, said once for the whole matrix. */
+  readonly matrixNote: string;
   readonly selectedSegment: SegmentInterest | null;
   readonly demand: readonly StatedDemand[];
   readonly places: readonly PlaceInterest[];
@@ -263,7 +321,25 @@ export interface AgentSectionUse {
 export interface AgentProfile {
   readonly agentId: string;
   readonly name: string;
+  /**
+   * The agency this agent presents for. Every project has had exactly one
+   * until docs/08-scenarios.md §3's "Multiple agencies" case (ISTER TOWER);
+   * printed regardless, since a byline that only appears on the one project
+   * with two agencies would itself be the tell that something is being
+   * hidden the rest of the time.
+   */
+  readonly organisationName: string;
   readonly meetings: number;
+  /**
+   * `meetings < AGENT_MIN_SAMPLE` (docs/10-policies.md §6), carried on the
+   * profile itself rather than left for the card to compute — the same rule
+   * `AgentDetailView` already states, applied where the roster shows a
+   * verdict too. Below it, the card prints `suppressionNote` in place of a
+   * percentage and a team-comparison flag: figures stand, no rank or trend.
+   */
+  readonly belowMinimum: boolean;
+  /** Null when the sample clears the minimum. Never an empty string. */
+  readonly suppressionNote: string | null;
   readonly medianDurationDisplay: string;
   readonly ring: AgentOutcomeRing;
   readonly repeats: readonly RepeatDistribution[];
@@ -321,6 +397,8 @@ export interface AudienceMatch {
 export interface AudienceView {
   readonly context: ViewContext;
   readonly criteria: AudienceCriteria;
+  /** The room counts this project's catalogue actually contains, ascending. */
+  readonly roomChoices: readonly { readonly rooms: number; readonly label: string }[];
   readonly description: string;
   readonly matches: readonly AudienceMatch[];
   readonly total: number;

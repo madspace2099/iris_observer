@@ -1,0 +1,71 @@
+{
+  "contract": {
+    "version": "1.0.0-candidate.1",
+    "status": "PROPOSED",
+    "generatedBy": "pnpm contracts:fixtures",
+    "note": "Generated from packages/contracts/src/ue5/fixtures.ts. Do not edit by hand."
+  },
+  "fixture": {
+    "kind": "read-model",
+    "name": "diagnostic-excluded-from-business-metrics",
+    "description": "Not an HTTP exchange. Three stored rows, and the read model that must count exactly two of them.",
+    "storedRows": [
+      {
+        "event_id": "e0000000-0000-4000-8000-000000000001",
+        "event_name": "section.entered",
+        "session_id": "5e551011-0000-4000-8000-000000000001",
+        "sequence": 1,
+        "occurred_at": "2026-01-01T09:15:00+01:00"
+      },
+      {
+        "event_id": "e0000000-0000-4000-8000-000000000002",
+        "event_name": "section.entered",
+        "session_id": "5e551011-0000-4000-8000-000000000001",
+        "sequence": 2,
+        "occurred_at": "2026-01-01T09:15:04+01:00"
+      },
+      {
+        "event_id": "d1a90057-0000-4000-8000-000000000010",
+        "event_name": "diagnostic.test",
+        "session_id": null,
+        "sequence": null,
+        "occurred_at": "2026-01-01T09:14:50+01:00"
+      }
+    ],
+    "expectedReadModel": {
+      "exclusionRule": "event_name NOT LIKE 'diagnostic.%'",
+      "countedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002"
+      ],
+      "excludedEventIds": [
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "metric": "section_entries",
+      "value": 2,
+      "valueWithoutTheRule": 3
+    },
+    "expectedBackendState": {
+      "precondition": "The two section.entered events and the diagnostic.test event of diagnostic-test-accepted are all stored for this source.",
+      "storedEventIds": [
+        "e0000000-0000-4000-8000-000000000001",
+        "e0000000-0000-4000-8000-000000000002",
+        "d1a90057-0000-4000-8000-000000000010"
+      ],
+      "undeterminedEventIds": [],
+      "connected": "unchanged",
+      "ingestionVerified": "unchanged",
+      "activeCredentials": 1,
+      "activationCode": "not-presented",
+      "assertion": "Three rows stored and two counted. The diagnostic row is never deleted, never hidden and never moved to a second table — it is filtered at read time by `event_name NOT LIKE 'diagnostic.%'`, which every business read model carries, so that nothing anywhere has to remember to exclude it."
+    },
+    "why": "A diagnostic row is stored for ever and counted never: the exclusion is a published rule a test can enforce, not a convention every future read model has to remember.",
+    "notes": [
+      "READ_MODEL_EXCLUSION_RULE is the predicate, verbatim: event_name NOT LIKE 'diagnostic.%'. It is published as a constant so the rule is one edit rather than a habit spread across every query somebody writes next year.",
+      "A read model that omits it reports 3 where the truth is 2. That is the failure this fixture measures, which is why valueWithoutTheRule is carried beside value rather than described in prose.",
+      "The rule matches the whole reserved namespace and not the single name diagnostic.test. A future diagnostic.something is excluded on the day it is invented, without anybody editing a read model.",
+      "isDiagnosticEvent is the same rule for code rather than SQL, and countsAsBusinessFact in @observer/sources states it positively — filter(countsAsBusinessFact) survives a refactor in a way that a negation does not.",
+      "This fixture has no request and no response because there is no HTTP call that demonstrates the rule. Inventing a query endpoint to make it fit the exchange shape would have published an interface that does not exist."
+    ]
+  }
+}

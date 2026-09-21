@@ -25,7 +25,9 @@ function answer(overrides: Partial<ObserverAnswer> = {}): ObserverAnswer {
   return {
     answer: "Compare use is 29% of presentations this quarter, 14 points below the previous one.",
     headline: "Compare use fell by 14 points",
-    findings: [{ statement: "Compare used in 29% of presentations", value: "29%", evidenceRefs: ["b1"] }],
+    findings: [
+      { statement: "Compare used in 29% of presentations", value: "29%", evidenceRefs: ["b1"] },
+    ],
     evidence: [bundle],
     interpretation:
       "These figures establish that the rate fell. They cannot establish why: nothing Observer records carries a cause.",
@@ -49,7 +51,11 @@ describe("recognising a question that asks why", () => {
     });
   }
 
-  for (const q of ["What changed this month?", "Compare the sales agents", "Which units are losing attention?"]) {
+  for (const q of [
+    "What changed this month?",
+    "Compare the sales agents",
+    "Which units are losing attention?",
+  ]) {
     it(`treats as descriptive: ${q}`, () => {
       expect(isCausalQuestion(q)).toBe(false);
     });
@@ -105,8 +111,16 @@ describe("saying the same thing twice", () => {
     const defects = findAnswerDefects(
       answer({
         findings: [
-          { statement: "Compare was unopened in 71% of presentations", value: "71%", evidenceRefs: ["b1"] },
-          { statement: "Compare was never opened in 71% of presentations", value: "71%", evidenceRefs: ["b1"] },
+          {
+            statement: "Compare was unopened in 71% of presentations",
+            value: "71%",
+            evidenceRefs: ["b1"],
+          },
+          {
+            statement: "Compare was never opened in 71% of presentations",
+            value: "71%",
+            evidenceRefs: ["b1"],
+          },
         ],
       }),
     );
@@ -118,8 +132,16 @@ describe("saying the same thing twice", () => {
       findAnswerDefects(
         answer({
           findings: [
-            { statement: "Compare used in 29% of presentations", value: "29%", evidenceRefs: ["b1"] },
-            { statement: "Shortlist reached in 86% of presentations", value: "86%", evidenceRefs: ["b1"] },
+            {
+              statement: "Compare used in 29% of presentations",
+              value: "29%",
+              evidenceRefs: ["b1"],
+            },
+            {
+              statement: "Shortlist reached in 86% of presentations",
+              value: "86%",
+              evidenceRefs: ["b1"],
+            },
           ],
         }),
       ),

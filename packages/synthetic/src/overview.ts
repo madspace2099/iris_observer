@@ -1,14 +1,15 @@
-import type {
-  ActionItem,
-  AiBriefing,
-  AlertItem,
-  ChangeItem,
-  DataHealth,
-  ExecutiveOverview,
-  FunnelStep,
-  MetricValue,
-  Verdict,
-  ViewContext,
+import {
+  NotFoundError,
+  type ActionItem,
+  type AiBriefing,
+  type AlertItem,
+  type ChangeItem,
+  type DataHealth,
+  type ExecutiveOverview,
+  type FunnelStep,
+  type MetricValue,
+  type Verdict,
+  type ViewContext,
 } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY } from "@observer/metrics";
 import {
@@ -676,8 +677,38 @@ const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
   prj_beta0000001: kingsford,
 };
 
+/**
+ * `context.project.id` decides, and nothing falls back to a HANDFUL of
+ * bespoke fixtures written for three specific projects.
+ *
+ * It used to: `BUILDERS[context.project.id] ?? kingsford`. ISTER TOWER has no
+ * entry here — it was added to the synthetic world after these three builders
+ * were written, specifically to give a reviewer five things Northgate,
+ * Riverside and Kingsford do not have together (`world.ts`'s own comment on
+ * `prj_istertower1`) — so every request for its executive overview silently
+ * fell through to Kingsford's, and Kingsford's is hand-typed: a fixed
+ * headline naming Kingsford Yard, Kingsford's meeting count, Kingsford's
+ * GBP figures re-labelled in whatever currency the REAL project uses. Opening
+ * `/{tenant}/ister-tower/overview` showed a different developer's project
+ * name, from a different tenant, under Alpha Estates' own currency label —
+ * measured, not inferred: `dataHealth.sourcesMissing` claimed WEBIRIS and CRM
+ * were absent on a project where both are connected.
+ *
+ * The honest fix is not a fourth hand-authored builder crammed into this
+ * block — that is real analytical work, `/overview` is demoted (ADR-0023) and
+ * reached only from the attention screen's evidence reference, with no
+ * reviewer depending on its content today, and doctrine
+ * §3 is explicit that fabricating a screen's data to keep it looking finished
+ * is the one thing never to do. So an unmapped project's executive overview
+ * is exactly what it is: not yet built. `NotFoundError` reaches this route's
+ * existing `error.tsx` boundary, which already exists to say a screen could
+ * not be produced — that is a true sentence here. A wrong one is not.
+ */
 export function buildExecutiveOverview(context: ViewContext): ExecutiveOverview {
-  const builder = BUILDERS[context.project.id] ?? kingsford;
+  const builder = BUILDERS[context.project.id];
+  if (builder === undefined) {
+    throw new NotFoundError(`an executive overview for ${context.project.name}`);
+  }
   return builder(context);
 }
 

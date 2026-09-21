@@ -26,7 +26,7 @@ closure amendment itself changed.
 | PII separation enables anonymisation but does not create it                         | `docs/05-identity.md` §2.3                                        | ✅     |
 | Deletion removes identity links and applies the retention policy                    | `docs/05-identity.md` §4                                          | ✅     |
 | Pseudonymous identifiers stay protected while linkable                              | `docs/05-identity.md` §2.3; `docs/10-policies.md` §3              | ✅     |
-| No legal-compliance claims; items marked for review                                 | `docs/10-policies.md` §7                                          | ✅     |
+| No legal-compliance claims; items marked for review                                 | `docs/10-policies.md` §8                                          | ✅     |
 | Attribution versioned, tenant-scoped, admin-only, comparison-guarded                | `policy.ts`; ADR-0014                                             | ✅     |
 | WEBIRIS visitor identity defaults                                                   | `docs/10-policies.md` §3                                          | 📄     |
 | Observer owns the canonical meeting identifier                                      | ADR-0017; `docs/10-policies.md` §4                                | ✅     |

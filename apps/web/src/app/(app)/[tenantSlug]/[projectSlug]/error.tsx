@@ -38,9 +38,7 @@ export default function Error({
     return (
       <section className="obs-state" role="alert">
         <strong>This project is not available to your account</strong>
-        <span>
-          If you expected access, ask the developer who owns the project to grant it.
-        </span>
+        <span>If you expected access, ask the developer who owns the project to grant it.</span>
       </section>
     );
   }
