@@ -519,7 +519,13 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
     const { context, current, previous, today } = await this.slices(query);
-    return buildHome(context, current, previous, today);
+    /*
+     * Built once and handed to both. The Briefing leads with whatever the
+     * attention screen ranked first, so the two cannot disagree about what is
+     * raised in a period — see `actionWorthTaking` in @observer/readmodels.
+     */
+    const attention = buildAttention(context, current, previous);
+    return buildHome(context, current, previous, today, attention);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {

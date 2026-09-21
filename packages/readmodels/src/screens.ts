@@ -676,6 +676,41 @@ export interface AttentionState {
   readonly rank: number;
 }
 
+/**
+ * The one state a summary surface leads with, for every surface that leads with one.
+ *
+ * ## Why this is here and not in a builder
+ *
+ * `AttentionState.rank` already says "1-based, severity first and size second.
+ * Stated so two surfaces agree" — the contract anticipated two readers before
+ * there were two. There were: **What needs attention** listed the ranked states,
+ * and **Briefing** scanned presenters for an outcome flag of its own and called
+ * the first one "the one thing worth acting on". Two computations over the same
+ * period, agreeing only by luck, which is the shape a checklist requirement
+ * exists to prevent.
+ *
+ * So the selection lives beside the definitions rather than inside either
+ * builder. A builder importing another builder would tie two synthetic
+ * implementations together and the tie would not survive the first of them
+ * being replaced; a rule in the contract is read by whatever implements it.
+ *
+ * Returns null when nothing is raised, which is the honest answer and the one
+ * the Briefing already draws as "Clear".
+ */
+export function actionWorthTaking(view: AttentionView): AttentionState | null {
+  /*
+   * `states` is documented as ranked, and `rank` is 1-based, so position and
+   * rank should agree. They are checked against each other rather than trusted:
+   * a builder that ranked correctly but emitted out of order would otherwise
+   * hand the two surfaces different leads while both looked right in isolation.
+   */
+  let best: AttentionState | null = null;
+  for (const state of view.states) {
+    if (best === null || state.rank < best.rank) best = state;
+  }
+  return best;
+}
+
 export const ATTENTION_CHECK_STATES = ["raised", "clear", "unavailable"] as const;
 export type AttentionCheckState = (typeof ATTENTION_CHECK_STATES)[number];
 

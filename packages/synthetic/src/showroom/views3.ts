@@ -16,6 +16,7 @@ import {
 import type {
   AgentOutcomeRing,
   AgentProfile,
+  AttentionView,
   AgentSectionUse,
   AgentsView,
   AudienceCriteria,
@@ -36,7 +37,7 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { nothingReceivedYet } from "@observer/readmodels";
+import { actionWorthTaking, nothingReceivedYet } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
   catalogueFor,
@@ -1322,6 +1323,14 @@ export function buildHome(
   sessions: readonly ShowroomSession[],
   previous: readonly ShowroomSession[],
   today: Date,
+  /**
+   * The same view **What needs attention** renders, not a second reading of it.
+   *
+   * Passed in rather than built here: both are composed from the same slices in
+   * the repository, so handing this one over costs no extra work and means the
+   * two screens cannot disagree about what is raised. See `actionWorthTaking`.
+   */
+  attention: AttentionView,
 ): ShowroomHome {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -1514,21 +1523,23 @@ export function buildHome(
     },
   ];
 
-  /* The one thing worth acting on. */
-  const teamProgressed = progressed;
-  const flagged = presentersIn(sessions)
-    .map((a) => {
-      const mine = sessions.filter((s) => s.agentId === a.id);
-      return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
-    })
-    .filter((f) => f.flag?.severity === "concern")[0];
-
+  /*
+   * The one thing worth acting on — the SAME one the attention screen leads with.
+   *
+   * This used to scan presenters for an outcome flag of its own and take the
+   * first with a "concern" severity. Nothing wrong with the arithmetic; the
+   * problem was that it was a second arithmetic. Two screens answering "what
+   * should I do about this period" from two computations agree until the day
+   * they do not, and the day they do not is the day a reader stops believing
+   * either. `actionWorthTaking` is now the only place that choice is made.
+   */
+  const leading = actionWorthTaking(attention);
   const alert =
-    flagged?.flag == null
+    leading === null || leading.alert.actionHref === null
       ? null
       : {
-          text: `${flagged.agent.name}: ${flagged.flag.text}`,
-          href: `${base}/agents/${flagged.agent.id}`,
+          text: leading.alert.title,
+          href: leading.alert.actionHref,
         };
 
   const project = buildProjectView(context, sessions, null);
