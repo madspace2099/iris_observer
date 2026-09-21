@@ -2477,3 +2477,57 @@ and reverted. Four of the thirteen cases failed, one per defect plus the chain c
 green proves nothing.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §13.
+
+## 2026-09-21 — P1-08a: an identifier was standing where a name should be
+
+The presenter's name — who gave the presentation, never the buyer. Split from P1-08b by decision;
+that half stays blocked and nothing here moved toward it.
+
+**The defect, and it was live on delivered data.** A showroom mints its own identifier for whoever
+ran a meeting, and the name for that identifier arrives separately: from the roster an
+administration keeps, or from the installation's own report of who presents on it. Where neither had
+arrived, `presenterName` returned the identifier itself, defended in a comment as "the truth about
+it". It is the truth and it is not a name. Akhilesh's delivered demonstration showed **"agent-guid"
+as the person who gave the presentation**, and a reader who does not know the shape of these ids —
+which is every reader this product is for — has no way to tell that from somebody actually called
+that. It is the same class of defect as a zero standing for a figure nobody measured, and `words.ts`
+exists to answer exactly that class.
+
+**The fix is one word, in the vocabulary that already owns this.** `PRESENTER_NOT_NAMED` and
+`presenterWord` join `NOT_STATED`, `NOTHING_RECEIVED_YET` and `DATA_SOURCE_MARKERS` in
+`packages/readmodels/src/words.ts`, and `presenterName` and `presentersIn` spend it. **The
+identifier stays beside the words**, and that is the other half of the requirement rather than a
+detail: two presenters nobody has named are still two presenters, and dropping the id would merge
+them into one anonymous person — turning a stated absence into a false claim about who did what.
+
+**Two people with one name were already safe, and are now proven safe.** Identity is the identifier
+the showroom minted and never the label a directory gives it. Two ids named "Ján Hruška" keep two
+rows, two ids, two pages, one meeting each, and both appear in the meeting filter. The world file
+had argued for this in prose for the two Lucias; it is now a test over the harder case, where the
+whole name matches rather than the forename.
+
+**The boundary held and is now guarded.** A test asserts that whatever the visitor label says, it is
+one of the three states `visitorLabel` declares, and that no presenter's name appears in it. P1-08b
+is blocked by product decision — ADR-0018, `docs/05-identity.md`, `docs/10-policies.md` — and
+nothing in this round introduced a pseudonymous handle, a stable visitor identifier or anything else
+that would reopen it. No event, contract, connector or read-model type was touched.
+
+**Four tests had encoded the old rule**, including one that printed `name: "agent-guid"` with a
+comment explaining why. They were updated together with their comments rather than just their
+strings, because a test whose prose still teaches the old rule is how the old rule comes back.
+
+**What could not be shown on screen, and why.** The unnamed case exists on the delivered demo
+project, whose sessions come from the control plane; this machine has no Docker and therefore no
+local control plane (ADR-0008), so the running application shows that project as empty and the
+screen could not be photographed. The last hop was verified in code instead: both surfaces print the
+read model verbatim — `agent: row.agentName` in the register, `` `Presented by ${replay.agentName}.` ``
+on the replay — so what the read model now says is what a reader sees. Worth a look when a control
+plane is available: that lede reads "Presented by Name not available · agent-guid." The label form is
+right for the table cell, the card and the filter, and is merely clumsy inside that one sentence.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; full vitest on a clean tree — 143 files, **3608
+passed, 1 skipped**. Stashing only the fix leaves four of the seven new cases failing, one of them
+reading `expected 'AG-1' to be 'Name not available · AG-1'`.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §14.

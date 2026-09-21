@@ -17,6 +17,7 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
+import { presenterWord } from "@observer/readmodels";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 import { zoneParts, zonedInstant } from "../time";
 import { PROJECTS } from "../world";
@@ -291,9 +292,20 @@ export function provideAgentNames(
   else providedNames.set(projectId, new Map(Object.entries(names)));
 }
 
-/** The name somebody presents under: the roster's, else this project's directory's, else the identifier. */
+/**
+ * The name somebody presents under: the roster's, else this project's
+ * directory's, else a statement that nobody has named them.
+ *
+ * The last step used to return the identifier itself, defended as "the truth
+ * about it". It is the truth and it is not a name, which is the distinction
+ * `presenterWord` exists to keep — a reader who does not know the shape of the
+ * ids this system mints, meaning every reader the product is for, sees
+ * "agent-guid" in a name's place and has no way to tell it apart from somebody
+ * actually called that.
+ */
 export function presenterName(projectId: string, agentId: string): string {
-  return agentById(agentId)?.name ?? providedNames.get(projectId)?.get(agentId) ?? agentId;
+  const named = agentById(agentId)?.name ?? providedNames.get(projectId)?.get(agentId) ?? null;
+  return presenterWord(named, agentId);
 }
 
 /** What a read model needs of somebody who presents: who they are, never how the generator drives them. */
@@ -309,8 +321,10 @@ export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">
  * who had presented, and an agent's own page was a 404 — over meetings that
  * were all there.
  *
- * An id no directory names yet is shown as the id. That is the truth about it,
- * and it is what every `agentById(id)?.name ?? id` fallback already printed.
+ * An id no directory names yet keeps its own row and its own id, and says in
+ * words that nobody has named it — see `presenterWord`. Two presenters nobody
+ * has named are still two presenters, so the id is what keeps them apart; the
+ * row is never merged and never dropped.
  * Sorted, so the order never depends on which meeting arrived first.
  */
 export function presentersIn(sessions: readonly ShowroomSession[]): readonly Presenter[] {
@@ -325,7 +339,7 @@ export function presentersIn(sessions: readonly ShowroomSession[]): readonly Pre
     ...beyond.map((id) => {
       const name = names?.get(id);
       return name === undefined
-        ? { id, name: id, organisationName: "Not in the directory" }
+        ? { id, name: presenterWord(null, id), organisationName: "Not in the directory" }
         : { id, name, organisationName: "Agency not stated" };
     }),
   ];

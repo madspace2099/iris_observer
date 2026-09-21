@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ProjectIdSchema, TenantIdSchema, type ShowroomSession } from "@observer/contracts";
 import {
   NOTHING_RECEIVED_YET,
+  PRESENTER_NOT_NAMED,
   type ProjectDirectory,
   type ProjectSummary,
   type ShowroomSessionSource,
@@ -164,15 +165,27 @@ describe("every meeting shows who presented it", () => {
     now: () => NOW,
   });
 
-  it("by the name administration keeps, and by the identifier where there is none yet", async () => {
+  it("by the name administration keeps, and by a stated absence where there is none yet", async () => {
+    /*
+     * AG-2 is named by nobody. It used to appear as "AG-2" in the name's
+     * place, which is an identifier wearing a name's clothes; it now says so
+     * and keeps the identifier, because that identifier is the only thing
+     * separating this unnamed presenter from the next one.
+     */
+    const unnamedWord = `${PRESENTER_NOT_NAMED} · AG-2`;
     const view = await live.getMeetings(query, NO_FILTERS);
     const byMeeting = new Map(view.rows.map((row) => [row.meetingId, row.agentName]));
     expect(byMeeting.get(named.meetingId)).toBe("Monika Kováčová");
-    expect(byMeeting.get(unnamed.meetingId)).toBe("AG-2");
-    expect(view.options.agents.map((o) => o.label).sort()).toEqual(["AG-2", "Monika Kováčová"]);
+    expect(byMeeting.get(unnamed.meetingId)).toBe(unnamedWord);
+    // The filter offers them too: a presenter nobody named is still somebody a
+    // reader may want to filter to, and dropping the option would hide meetings.
+    expect(view.options.agents.map((o) => o.label).sort()).toEqual([
+      "Monika Kováčová",
+      unnamedWord,
+    ]);
 
     const agents = await live.listAgents(query);
-    expect(agents.map((a) => a.name).sort()).toEqual(["AG-2", "Monika Kováčová"]);
+    expect(agents.map((a) => a.name).sort()).toEqual(["Monika Kováčová", unnamedWord]);
   });
 
   it("on the replay too, with a way through to that person's page", async () => {
@@ -198,6 +211,12 @@ describe("every meeting shows who presented it", () => {
       },
       NO_FILTERS,
     );
-    expect(other.rows.map((row) => row.agentName)).toEqual(["AG-1"]);
+    /*
+     * The SAME identifier, unnamed here. A name given on one development must
+     * not travel to another's meetings, so AG-1 is Monika above and an unnamed
+     * presenter on this project — and the absence is stated rather than
+     * rendered as the id, exactly as it is anywhere else.
+     */
+    expect(other.rows.map((row) => row.agentName)).toEqual([`${PRESENTER_NOT_NAMED} · AG-1`]);
   });
 });

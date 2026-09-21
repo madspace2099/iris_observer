@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ShowroomSession } from "@observer/contracts";
-import type { ShowroomSessionSource, Viewer } from "@observer/readmodels";
+import { PRESENTER_NOT_NAMED, type ShowroomSessionSource, type Viewer } from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
 import { PROJECTS, VIEWERS } from "../src/world";
@@ -84,11 +84,17 @@ describe("a project a real source delivers for runs on the real clock", () => {
       projectSlug: "akhilesh-demo-source",
       period: "last_28_days",
     } as const;
-    /* The showroom's own id: shown as the id, because nothing names it yet. */
+    /*
+     * The showroom's own id, and nothing names it yet — so the row says that
+     * in words and keeps the id beside it. It used to print the id alone,
+     * which read as somebody called "agent-guid" to anybody who does not know
+     * the shape of these identifiers. The id stays because it is what tells
+     * one unnamed presenter from the next.
+     */
     expect(await repository.listAgents(query)).toEqual([
       {
         agentId: "agent-guid",
-        name: "agent-guid",
+        name: `${PRESENTER_NOT_NAMED} · agent-guid`,
         organisationName: "Not in the directory",
         meetingCount: 1,
       },
@@ -120,7 +126,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
       { label: "Interested", value: "1 of 1", note: null },
     ]);
     expect(session.answers[2]?.figures).toEqual([
-      { label: "agent-guid", value: "1 of 1", note: null },
+      { label: `${PRESENTER_NOT_NAMED} · agent-guid`, value: "1 of 1", note: null },
     ]);
     expect(prose).not.toMatch(
       /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i,

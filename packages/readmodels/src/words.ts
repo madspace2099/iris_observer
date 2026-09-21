@@ -87,3 +87,30 @@ export const DATA_SOURCE_MARKERS = {
     full: "Meetings come from this project's own showroom. Whatever a connector has not delivered is demonstration data.",
   },
 } as const;
+
+/**
+ * What stands where a presenter's name would, when no directory names them.
+ *
+ * A showroom mints its own identifier for whoever ran a meeting, and a name for
+ * that identifier arrives separately — from the roster an administrator keeps,
+ * or from the installation's own report of who presents on it. Until one does,
+ * there is no name, and every surface used to print the identifier in the name's
+ * place: Akhilesh's delivered demonstration showed "agent-guid" as the person
+ * who gave the presentation.
+ *
+ * That is not a name, and it is not the absence of one either. It reads as a
+ * name to anybody who does not know the shape of the ids this system mints,
+ * which is everybody the product is for. It is the same defect as a zero
+ * standing for a figure nobody measured, and this module exists to answer it.
+ *
+ * THE IDENTIFIER STAYS, and that is the other half. Two people who present on
+ * one project and are named by nobody are still two people, and dropping the id
+ * would merge them into one anonymous presenter — turning a stated absence into
+ * a false claim about who did what. So the word says the name is missing and
+ * the id says which unnamed presenter this is.
+ */
+export const PRESENTER_NOT_NAMED = "Name not available";
+
+export function presenterWord(name: string | null, agentId: string): string {
+  return name === null || name.trim().length === 0 ? `${PRESENTER_NOT_NAMED} · ${agentId}` : name;
+}
