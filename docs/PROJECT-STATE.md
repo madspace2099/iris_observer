@@ -2989,13 +2989,22 @@ calculator exists, lives in the contract layer so four routes read one formula r
 every one of the seven cases the board enumerated has its own test named after the board's own word.
 Nothing on this deployment can feed it.
 
-**Two independent reasons, both checked rather than assumed.** The metric's required facts are
+**One reason checked, and a second that was asserted and is corrected below.** The metric's required facts are
 `meeting.attended`, `online.session.observed` and `deal.stage.changed`. The online half has **no
 producer at all** — `OnlineSession` appears nowhere under `packages/synthetic/src` — so "the buyer's
-first recorded interaction, online or in the showroom" cannot include the online side. And every
-read on the repository port takes an `OverviewQuery`, which carries a period: there is no read that
-spans the full history, and the plan's own capability precondition asks for the _original_ opening
-time from the _full accessible history_.
+first recorded interaction, online or in the showroom" cannot include the online side.
+
+**Correction, and it is the failure this phase keeps naming.** The first version of this entry gave
+a second reason as a universal: that every read on the port takes an `OverviewQuery`. That is
+false. Of the interface’s 33 members 26 do, and seven do not — `listTenants`, `listProjects` and
+`resolveProject` take a `Viewer`; `resolvePeriod` takes a `ProjectId` and produces periods rather
+than escaping them; `getPreMeetingBrief` and `getMeetingReplay` take a `BriefQuery` carrying a
+single `meetingId`; `getEvidence` resolves one reference. None of the seven returns a unit’s
+opening history: four are directory or resolution reads, two answer for one meeting, one resolves
+one reference. The conclusion survives — the original opening time across the full accessible
+history is not reachable — but it survives as a list rather than as a universal, which is the form
+the rule written two rounds earlier asks for. The block therefore rests on the first reason, which
+was checked; this one supports it without carrying it.
 
 **What exists and what it answers.** `AssistedSales` already pairs a CRM-stated sale date with a
 showing, and already carries `dateBasis` to say which record the date came from. But it measures the
