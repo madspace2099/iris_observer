@@ -21,6 +21,7 @@
     "matrix": "tsx packages/metrics/src/generate/cli.ts",
     "test:e2e": "playwright test",
     "audit:secrets": "node scripts/secret-audit.mjs",
+    "audit:frozen": "node scripts/frozen-surfaces.mjs",
     "smoke:openai": "node scripts/openai-smoke.mjs",
     "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit",
     "release:wrappers": "tsx scripts/release/wrap-migration.ts",

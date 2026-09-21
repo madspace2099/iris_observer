@@ -236,7 +236,7 @@ export default async function AiSettings({
               <p className="ox-kicker">Account settings</p>
               <h1 className="ox-title">AI and usage</h1>
               <p className="ox-lede">
-                Ask Observer runs on your own provider accounts. Everything here belongs to{" "}
+                These are your own provider accounts. Everything here belongs to{" "}
                 <strong>{account.email}</strong> and applies to every project you can open — never
                 to anybody else&rsquo;s.
               </p>
@@ -435,7 +435,27 @@ function CarryOrigin({ origin }: { origin: string }) {
 }
 
 const DONE: Readonly<Record<string, string>> = Object.freeze({
-  connected: "Connected. Ask Observer can now use that provider.",
+  /*
+   * WHAT A CONNECTED KEY ACTUALLY DOES, WHICH IS NARROWER THAN IT SOUNDS AND
+   * WIDER THAN "NOTHING".
+   *
+   * This line used to say Ask Observer could now use the provider. It cannot:
+   * every Ask screen composes its answer from the project's own figures and
+   * calls no model, and the components that would call one are not mounted by
+   * any page.
+   *
+   * But "not in use" would be the same lie from the other side. `/api/ask/stream`
+   * is a deployed POST handler that reaches `askStream`, and `gate()` resolves
+   * the account from the same signed cookie that says who is reading — so the
+   * endpoint spends THIS key, for anybody who reaches it. No screen leads there
+   * today; that is a fact about the interface, not about the deployment.
+   *
+   * So the sentence names the endpoint rather than the surface. A reader
+   * deciding whether to store a key is owed the path that can spend it.
+   */
+  connected:
+    "Connected. The test request reached the model. No Observer screen answers with this key; " +
+    "the deployed /api/ask/stream endpoint would, and nothing links to it.",
   connected_no_model:
     "Key saved. It works, but this account cannot reach the model it was tested against — choose another below.",
   replaced: "Key replaced. The previous one is gone.",
