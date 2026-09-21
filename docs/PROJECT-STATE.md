@@ -2632,3 +2632,61 @@ test-support` exit 0; `prettier --check` clean; `apps/web/test` plus `packages/s
 files, **1024 passed**. Reverting only the registry fix fails 6 of the 84 cases.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §16.
+
+## 2026-09-21 — P1-11: two dead ends, and a route that was reachable all along
+
+**The /overview decision was offered on a false premise, and I had supplied part of it.** The brief
+said nothing links to the route. My own P1-06 audit said so. So does a comment in
+`packages/synthetic/src/overview.ts` and a line in `docs/observer-visual-baseline.md`. All four were
+wrong for one reason: the href is built in a READ MODEL — the evidence reference on What needs
+attention — so it never appears as a literal anywhere under `apps/web/src`, which is the only place
+any of us looked. A grep of one directory is not a search.
+
+So ADR-0023 is satisfied: "The conversion funnel leaves the primary navigation. It remains
+reachable, labelled as outcome context" — and an evidence reference beside an outcome check is
+exactly that. The ADR also rejects deletion by name ("Demotion, not deletion"), and option 3 was
+never a one-line removal: `surfaces.test.ts` requires a SURFACES entry for every page, so removing
+the entry means removing the page, which five e2e specs open directly. Option 1 is a rewrite of the
+last `obs-` customer route, which `DESIGN.md` records as a scoped decision not yet made and the
+doctrine puts inside a review cycle rather than a `should` task.
+
+**Option 2, then — but what needed fixing was the comment, not the link.** The allow-list entry in
+`surfaces.test.ts` named a justification rather than a place, the only entry in that list that did,
+which is how the orphan check stayed green while nobody could say where the route was reached from.
+It names the anchor now, `nav-reachability.spec.ts` follows it in the rendered DOM, and the two
+other copies of the false claim are corrected.
+
+**I also built and then removed a link.** Before verifying, I added "The CRM outcome view" to Sales
+Flow's deal-ladder section on the strength of the same wrong premise. Once the real anchor turned
+up, a fourth entry point had no justification and would have put the rejected M2.1 card system in
+front of a reader for nothing. Reverted.
+
+**Two real dead ends, and one of them is mine.** An Ask answer offered "Reports arrive in M4"
+pointing at `/overview`, caveated "Report generation is not built yet". M4 has shipped — `/report`
+is a declared surface with a real page, linked from Project and from the export dialog — so a reader
+who asked for a report was told the thing they can already open does not exist, and sent to the
+CRM-led surface instead. It points at `/report` now, and the caveat keeps the half that is still
+true: the page composes the report and generates no file.
+
+The second came from P1-05. Closing the `/meetings/[meetingId]` role hole left the navigation
+disagreeing with it: the register drew every row as a link and every one bounced a developer back to
+Ask IRIS. A pre-existing e2e test found it, by failing. Both registers now draw the row as text for
+a reader who may not open one, with one shared sentence saying why. The rows stay — this is not
+hiding data, it is not offering a door that is locked — and `requireSurface` is still the access
+control.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; `apps/web/test` plus `packages/synthetic/test` — 51
+files, **1024 passed**; Playwright `nav-reachability` on desktop against a production build —
+**17 passed, 0 failed**, against 14 passed / 1 failed when the round began.
+
+**Not fixed, and recorded rather than passed over.** The survey found several refusal-vocabulary
+inconsistencies that are real but are each a product decision rather than a dead link: a forbidden
+Ask thread renders as a read failure with a retry that cannot help; a forbidden report section
+returns null and vanishes; `BriefView` distinguishes "Not available to your account" from "No brief
+for this meeting"; `/madspace/projects/{unknown}` renders a plausible "Unknown project" page where
+its own sibling tab refuses. The last two touch ADR-0018 and the MADSPACE surface respectively, and
+collapsing them would remove explanations a legitimately-refused reader currently gets. They belong
+in a round that can take that decision.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §17.

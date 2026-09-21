@@ -3,6 +3,7 @@ import type { MeetingRow, PeriodPreset } from "@observer/readmodels";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
+import { MEETINGS_NOT_OPENABLE } from "@/components/meetings/MeetingRegister";
 import { withPeriod } from "@/lib/period";
 import { Missing, isDash } from "./Rates";
 
@@ -49,11 +50,14 @@ export function MeetingRegister({
   rows,
   period,
   caption,
+  canOpen,
   emptyNote,
 }: {
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
   readonly caption: string;
+  /** Whether this reader may open a meeting. See the meetings register for why. */
+  readonly canOpen: boolean;
   readonly emptyNote: string;
 }) {
   const columns: readonly DataColumn[] = [
@@ -70,7 +74,11 @@ export function MeetingRegister({
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
     cells: {
-      meeting: <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>,
+      meeting: canOpen ? (
+        <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
+      ) : (
+        row.label
+      ),
 
       /*
        * A legacy import carries the order of a presentation and not its clock,
@@ -120,7 +128,7 @@ export function MeetingRegister({
 
   return (
     <DataTable
-      caption={caption}
+      caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
       columns={columns}
       rows={data}
       codeColumn="meeting"

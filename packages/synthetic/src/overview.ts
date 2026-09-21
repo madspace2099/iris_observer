@@ -695,8 +695,9 @@ const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
  * were absent on a project where both are connected.
  *
  * The honest fix is not a fourth hand-authored builder crammed into this
- * block — that is real analytical work, `/overview` is demoted and unlinked
- * (ADR-0023) with no reviewer depending on its content today, and doctrine
+ * block — that is real analytical work, `/overview` is demoted (ADR-0023) and
+ * reached only from the attention screen's evidence reference, with no
+ * reviewer depending on its content today, and doctrine
  * §3 is explicit that fabricating a screen's data to keep it looking finished
  * is the one thing never to do. So an unmapped project's executive overview
  * is exactly what it is: not yet built. `NotFoundError` reaches this route's

@@ -124,10 +124,19 @@ const COLUMNS: readonly DataColumn[] = [
   { key: "followUp", label: "Follow-up" },
 ];
 
+/**
+ * What the caption adds when the rows are not openable. One sentence, in one
+ * place, because the two registers that draw meeting rows must not explain the
+ * same refusal two different ways.
+ */
+export const MEETINGS_NOT_OPENABLE =
+  "A meeting replay is not part of this account’s access, so the rows below are listed rather than linked.";
+
 export function MeetingRegister({
   rows,
   period,
   caption,
+  canOpen,
   emptyState,
   crmConnected,
 }: {
@@ -141,6 +150,22 @@ export function MeetingRegister({
   readonly period: PeriodPreset;
   /** What this register lists, in a sentence, including its ordering. */
   readonly caption: string;
+  /**
+   * Whether this reader may open a meeting at all.
+   *
+   * `/meetings/[meetingId]` declares three roles and the developer is not one
+   * (`SURFACES`, enforced by `requireSurface` in the page). Before this
+   * existed, a developer was shown a table of rows, every one of them a link,
+   * and every one of them bounced them back to Ask IRIS — a control that looks
+   * ready and does nothing, which this product forbids in the same words one
+   * directory over ("A follow-up with no prepared answer is not drawn as a
+   * button", `ask/questions.ts`). The row still lists the meeting; it is text
+   * rather than an invitation.
+   *
+   * It is NOT access control — `requireSurface` is, and stays. This is the
+   * navigation agreeing with it.
+   */
+  readonly canOpen: boolean;
   /** The read model's own words for an empty result. Never composed here. */
   readonly emptyState: string;
   /** Whether the project has a CRM at all. Governs the band above the table. */
@@ -149,11 +174,13 @@ export function MeetingRegister({
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
     cells: {
-      when: (
+      when: canOpen ? (
         <Link href={dynamicRoute(withPeriod(row.href, period))}>
           {row.label}
           <span className="ox-sr"> — open this meeting</span>
         </Link>
+      ) : (
+        row.label
       ),
       agent: row.agentName,
       visitor: row.visitor.display,
@@ -221,7 +248,7 @@ export function MeetingRegister({
       )}
 
       <DataTable
-        caption={caption}
+        caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
         columns={COLUMNS}
         rows={data}
         codeColumn="when"

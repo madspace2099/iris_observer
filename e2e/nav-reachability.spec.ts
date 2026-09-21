@@ -174,7 +174,9 @@ test.describe("the retired SECONDARY_NAV row", () => {
 
 test.describe("Meeting Detail links to the agent who presented", () => {
   test("the agent's name is a real link to their detail screen", async ({ page }) => {
-    await signInAs(page, "Petra Novák");
+    // Monika rather than Petra: a developer may not open a meeting replay at
+    // all (P1-05), so this would assert against Ask IRIS instead.
+    await signInAs(page, "Monika Kováčová");
     await page.goto(`${NORTHGATE}/meetings`);
     const row = page.locator(".ox-table tbody tr").first().getByRole("link").first();
     await expect(row, "no meeting row on Northgate to open").toBeAttached();
@@ -194,6 +196,71 @@ test.describe("Meeting Detail links to the agent who presented", () => {
     expect(href).toMatch(/\/agents\/[^/]+$/);
     await agentLink.click();
     await page.waitForURL(/\/agents\/[^/]+$/);
+  });
+});
+
+test.describe("the demoted CRM-led surface is reachable, as ADR-0023 said it would be", () => {
+  /*
+   * `/overview` sat in `surfaces.test.ts`'s `reachedFromAView` allow-list with
+   * a comment naming an ADR instead of a screen, and two audits — including one
+   * of this project's own — concluded from a grep of `apps/web/src` that
+   * nothing linked to it. Both were wrong: the link is built in a READ MODEL,
+   * as the evidence reference on What needs attention, so it never appears as
+   * a literal in the application's source at all.
+   *
+   * That is the case this file exists for. An allow-list comment is not a link,
+   * and a grep of one directory is not a search. This reads the rendered
+   * markup: ADR-0023 said the funnel "remains reachable, labelled as outcome
+   * context", and this is where it is reached from.
+   */
+  test("the attention evidence reference opens it", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/attention`);
+    const link = page.locator('a.ox-evidence[href*="/overview"]').first();
+    await expect(link, "no evidence link to /overview on What needs attention").toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/overview(\?|$)/);
+    // It renders, rather than opening onto a blank refusal.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  });
+
+  test("it is not a primary-nav item, which is what demotion meant", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/attention`);
+    await expect(page.getByRole("navigation", { name: "Sections" })).not.toContainText("Overview");
+  });
+});
+
+test.describe("a meeting row is a link only for a reader who may open one", () => {
+  /*
+   * P1-05 closed a real hole — `/meetings/[meetingId]` declares three roles and
+   * the developer is not one — and left the navigation disagreeing with it: the
+   * register still drew every row as a link, and every one of them bounced a
+   * developer back to Ask IRIS. A control that looks ready and does nothing is
+   * the thing this product refuses by name elsewhere.
+   */
+  test("an agent gets links, and they open the replay", async ({ page }) => {
+    await signInAs(page, "Monika Kováčová");
+    await page.goto(`${NORTHGATE}/meetings`);
+    const row = page.locator(".ox-table tbody tr").first().getByRole("link").first();
+    await expect(row, "no meeting row on Northgate to open").toBeAttached();
+    await row.click();
+    await page.waitForURL(/\/meetings\/[^/]+$/);
+  });
+
+  test("a developer gets the same rows as text, and is told why", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/meetings`);
+    const table = page.locator(".ox-table");
+    await expect(table).toBeVisible();
+    // The rows are still there — this is not hiding data, it is not offering a
+    // door that is locked.
+    await expect(page.locator(".ox-table tbody tr").first()).toBeVisible();
+    await expect(table).toContainText(/listed rather than linked/i);
+    await expect(
+      page.locator('.ox-table tbody a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
   });
 });
 

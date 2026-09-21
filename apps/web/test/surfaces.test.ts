@@ -118,7 +118,27 @@ describe("surface audience", () => {
     // Reached from within another surface rather than from a navigation row.
     const reachedFromAView = new Set([
       "audience", // the Project view's "Build an audience from this"
-      "overview", // the demoted CRM-led surface, kept for comparison (ADR-0023)
+      /*
+       * The evidence reference on What needs attention — `AttentionView.evidence`
+       * carries `${root}/overview`, and `Evidence` in `Provenance.tsx` draws it
+       * as a real anchor. `nav-reachability.spec.ts` follows it.
+       *
+       * This entry used to read "the demoted CRM-led surface, kept for
+       * comparison (ADR-0023)", which named a justification rather than a place
+       * and was the only entry in this list that did. It also read as though
+       * nothing reached the route, and two audits — including this project's
+       * own P1-06 — concluded exactly that from a grep of `apps/web/src`. Both
+       * were wrong: the href is built in a READ MODEL
+       * (`packages/synthetic/src/showroom/attention.ts`), so it never appears
+       * as a literal in the application's source at all. A grep of one
+       * directory is not a search.
+       *
+       * ADR-0023 is also more specific than the old comment. It rejected
+       * deleting this surface by name — "Demotion, not deletion" — and said the
+       * funnel "remains reachable, labelled as outcome context", which is what
+       * an evidence reference beside an outcome check is.
+       */
+      "overview",
       "people", // opened from a meeting, never listed on its own
       "[meetingId]", // a row in the meetings list
 

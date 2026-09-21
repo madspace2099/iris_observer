@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
+import { maySeeSurface } from "@/lib/routes";
 import { presetFrom } from "@/lib/period";
 import { FilterBar, FindingList, PageHead, Synthetic } from "@/components/product";
 import {
@@ -153,6 +154,7 @@ export default async function MeetingsPage({
             <MeetingRegister
               rows={view.rows}
               period={period}
+              canOpen={maySeeSurface(viewer.role, "[meetingId]")}
               caption={`Showroom presentations on ${context.project.name}, newest first. ${view.total} of ${view.periodTotal} in ${periodLabel}.`}
               emptyState={view.emptyState}
               crmConnected={crmConnected}

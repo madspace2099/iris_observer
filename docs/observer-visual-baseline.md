@@ -41,7 +41,7 @@ refactor, and `apps/web/test/reference-parity.test.ts` fails if the list moves.
 
 - `/[tenantSlug]/[projectSlug]/audience`
 - `/[tenantSlug]/[projectSlug]/people`
-- `/[tenantSlug]/[projectSlug]/overview` (demoted; kept for comparison)
+- `/[tenantSlug]/[projectSlug]/overview` (demoted by ADR-0023; reached from the evidence reference on What needs attention)
 
 **Outside the project shell:**
 

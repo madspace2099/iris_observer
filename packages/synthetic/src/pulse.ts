@@ -848,10 +848,27 @@ export function buildAskSession(
         { label: "Available units", value: String(available), note: `of ${pulse.totals.units}` },
       ],
       evidence: evidenceRef("ask.report", "observed_sequence", `${root}/flow`, 46),
-      actionLabel: "Reports arrive in M4",
-      actionHref: `${root}/overview`,
+      /*
+       * THE ACTION POINTED AT THE WRONG SCREEN AND NAMED A MILESTONE THAT HAS
+       * SHIPPED.
+       *
+       * It read "Reports arrive in M4" and opened `/overview` — the CRM-led
+       * surface ADR-0023 demoted, which has nothing to do with reports. M4 has
+       * since landed: `/report` is a declared surface with a real page, linked
+       * from Project and from the export dialog. So a reader who asked for a
+       * report was told the thing they can already open does not exist, and
+       * sent somewhere else.
+       *
+       * The caveat stays, because the half of it that is true is still true:
+       * the page COMPOSES the report and no file is generated from it —
+       * `ReportGeneration.state` is typed to the single member `preview_only`,
+       * which is what the export dialog says on screen.
+       */
+      actionLabel: "Open the report page",
+      actionHref: `${root}/report`,
       followUps: ["Include the buyer list", "Compare with last quarter"],
-      caveat: "Report generation is not built yet; this answer describes what it would contain.",
+      caveat:
+        "The report page composes this on screen. Generating a file from it is not built yet.",
     },
   ];
 

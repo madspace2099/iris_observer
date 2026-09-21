@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { NotFoundError, NotPermittedError, type PeriodPreset } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
+import { maySeeSurface } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
@@ -649,6 +650,7 @@ export default async function AgentPage({
             <MeetingRegister
               rows={view.recentMeetings}
               period={period}
+              canOpen={maySeeSurface(viewer.role, "[meetingId]")}
               caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
               emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
             />
