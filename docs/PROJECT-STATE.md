@@ -2412,3 +2412,68 @@ constant, the two states are told apart, and the switcher's truncating value car
 its ellipsis. Stashed back to the pre-fix code, all four fail.
 
 The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §12.
+
+## 2026-09-21 — P1-07: a gate that can be built, and an activation that cannot
+
+The commercial gate. FREE, PRO and MAX, deny-by-default, restrictions that add up, and an audit of
+every way a priced figure could reach a reader around it. The resolver is delivered and tested. The
+activation is BLOCKED, for two reasons that are recorded rather than worked around.
+
+**A third question, composed with the two that already work.** Which tenant and project a viewer
+holds is settled by the repository, which refuses before it reads. Which role may open a screen is
+settled by `maySeeSurface` and enforced by `requireSurface` inside each page. Neither was
+duplicated: `entitlements.ts` answers only the commercial question and a surface has to satisfy all
+three.
+
+**It fails closed, and `maySeeSurface` fails open, and both are right.** An undeclared _surface_ is
+one nobody restricted, so denying it would make a page unreachable rather than unguarded — the
+failure nobody reports. An undeclared _capability_ is one nobody priced, and answering "allowed"
+there gives away whatever is added next, silently, to everybody. The two defaults are opposite
+because the two questions are.
+
+**Restrictions add up and never subtract.** `requiredPlan` takes the MAXIMUM across the whole
+ancestor chain rather than the most specific match, so a nested view asking for
+`metric.exec.revenue` cannot be cheaper than `metric.exec` — one careless line in a child cannot
+grant what its parent refuses, and a child view is exactly where nobody looks.
+
+**Where the plan value comes from: nowhere persistent, by the plan's own permission.** There is no
+tier column, no entitlement table and no key-value store to save one in — `account_preferences` has
+three fixed columns and `connector_configs` is keyed by a four-value check constraint (P1-03 §9.7).
+The v3 plan anticipated exactly this at line 310: where no durable tier configuration exists, a
+version-controlled default registry in application code may be used, admin editing is then an
+unsaved preview, and the runtime task stays BLOCKED. So `TENANT_PLANS` is empty, every tenant
+resolves to `DEFAULT_PLAN`, and that default is FREE rather than MAX — a default that admits
+everything means the day a capability is priced, every tenant keeps it and nobody notices the gate
+does not work.
+
+**The bypass audit found no content leak, and one structural gap.** Six API routes: four pass
+through `gate()`, and the two connector routes are write paths behind a timing-safe bearer compare
+and an HMAC signature that return operational status and no read model. The report export produces
+no file at all — `ReportGeneration.state` is typed to the single member `preview_only`, so there is
+nothing to download around a gate. Every Supabase call lives in a `server-only` module under `lib/`,
+already covered by `control-plane-boundary.test.ts`. No content anywhere is hidden with CSS: the two
+`display: none` rules in the product sheet are layout, not gating.
+
+The gap is on the read path. The repository port takes a viewer, two slugs and a period, and knows
+nothing about plans, so a priced capability would have to be filtered in each of the 21 project
+pages that call it — which is the "one control in two places is one control and a copy that will
+drift" failure `gate.ts` warns about. **So premium activation stays BLOCKED**, and deliberately not
+by touching RLS, a policy or a schema, which the v3 package forbids outright. Two things unblock it,
+in this order: a durable tier store, and one enforcement point on the read path rather than
+twenty-one.
+
+**Nothing changes on any screen.** Every root in the registry is FREE, so wiring it in later can
+only take something away deliberately. It has no production caller yet, and that is the plan's own
+sequencing — C26 spans phases 1 to 3 — rather than an omission. Adding a caller now would mean
+gating a feature nobody has priced, which is a product decision and not mine.
+
+**Verification.** `pnpm typecheck` clean; `pnpm exec eslint apps packages scripts e2e supabase
+test-support` exit 0; `prettier --check` clean; `apps/web/test` — 34 files, **678 passed**; full
+vitest on a clean tree — 142 files, **3601 passed, 1 skipped**.
+
+**The guards were measured, not assumed.** Three mutations of the resolver — an unknown plan treated
+as FREE, an unpriced key allowed, the deepest ancestor taken instead of the strongest — were applied
+and reverted. Four of the thirteen cases failed, one per defect plus the chain case. A guard born
+green proves nothing.
+
+The task-by-task evidence is in `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §13.
