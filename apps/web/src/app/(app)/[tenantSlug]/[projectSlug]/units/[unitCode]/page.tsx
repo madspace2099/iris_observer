@@ -399,8 +399,10 @@ export default async function UnitPage({
             <div className="ox-section-head">
               <h2 className="ox-section-title">Meetings that opened it</h2>
               <p className="ox-section-note">
-                A visitor is a privacy-safe identifier. No contact name, email or telephone number
-                appears on any surface of this product.
+                No buyer is named here. The visitor column is a privacy-safe label built from a
+                closed vocabulary and a count of previous meetings; the type it comes from has no
+                field a name, an address or a telephone number could sit in. The agent column names
+                the staff member who presented.
               </p>
             </div>
 
