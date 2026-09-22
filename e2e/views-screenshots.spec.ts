@@ -8,7 +8,17 @@ import { signIn } from "./sign-in";
  * vocabulary has its own set in `chart-screenshots.spec.ts`.
  */
 
-const OUT = "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/v3";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ *
+ * The environment override is new. This was the one screenshot spec with no
+ * way to redirect it at all, so on any machine but one it wrote its images
+ * into a folder called `C:` and reported a pass.
+ */
+const OUT = process.env["OBSERVER_VIEWS_SHOTS"] ?? "_review/views";
 
 const SHOTS = [
   ["01-home", "/alpha/northgate/showroom"],

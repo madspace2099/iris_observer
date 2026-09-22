@@ -9,9 +9,13 @@ import { chooseInSwitcher } from "./switcher";
  * approved. Every surface named in the milestone appears, at the widths the
  * defects were reported at, plus the states that only exist at runtime.
  */
-const OUT =
-  process.env["OBSERVER_MILESTONE_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/milestone";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_MILESTONE_SHOTS"] ?? "_review/milestone";
 
 
 async function shoot(page: Page, name: string) {
@@ -31,6 +35,12 @@ test.describe("milestone review", () => {
    * has since replaced — so run unasked it only turned `wide` red and wrote
    * screenshots into a dead session's temp directory. Name where the images go
    * to run it, and expect to update its selectors to the current UI first.
+   *
+   * The default beside `OBSERVER_MILESTONE_SHOTS` is where the images would
+   * land, not a sign that they will: this gate reads the same variable, so
+   * with it unset the file skips and the default is never used. Two jobs for
+   * one name, kept because the opt-in is deliberate and the alternative is a
+   * second variable that has to agree with the first.
    */
   test.skip(
     () => process.env["OBSERVER_MILESTONE_SHOTS"] === undefined,

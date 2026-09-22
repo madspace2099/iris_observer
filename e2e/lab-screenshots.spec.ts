@@ -17,9 +17,20 @@ test.skip(
  * desktop compositions first, and a phone layout invented before the direction
  * is chosen would be thrown away.
  */
-const OUT =
-  process.env["OBSERVER_LAB_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/lab";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ *
+ * `OBSERVER_CONCEPT_SHOTS` and not `OBSERVER_LAB_SHOTS`. This file and
+ * `design-lab.spec.ts` both read that name with different defaults, so
+ * redirecting either one silently moved the other's images into the same
+ * folder. They photograph different things — the two Executive Overview
+ * concepts and the retired profile picker here, the control-plane screens
+ * there — and two destinations that cannot be set apart are one destination.
+ */
+const OUT = process.env["OBSERVER_CONCEPT_SHOTS"] ?? "_review/concepts";
 
 async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);

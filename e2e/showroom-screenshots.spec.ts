@@ -23,9 +23,13 @@ import { signInAs } from "./sign-in";
  * (`What Typical look measures`) belonged to an older `/units` composition
  * that `StackPlan` does not have an equivalent control for.
  */
-const OUT =
-  process.env["OBSERVER_SHOWROOM_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/showroom";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_SHOWROOM_SHOTS"] ?? "_review/showroom";
 
 
 async function shoot(page: Page, name: string, project: string) {

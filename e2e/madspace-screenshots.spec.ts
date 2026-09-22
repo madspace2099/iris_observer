@@ -6,9 +6,12 @@ import { signInAs } from "./sign-in";
  *
  * Not assertions — these produce the images a human looks at, and
  * `docs/12-visual-autopsy.md` is the record of what happens when nobody does.
- * Written outside the repository, like every other screenshot spec here: a
+ * Kept out of version control, like every other screenshot spec here: a
  * screenshot committed without a visual baseline policy is a binary nobody
- * updates and everybody ignores.
+ * updates and everybody ignores. They land in `_review/`, which is inside the
+ * working tree and ignored by `.gitignore` — the previous "outside the
+ * repository" meant an absolute path into one machine's temp directory, which
+ * is a different thing and produced no images anywhere else.
  *
  * ## This one needs a development server
  *
@@ -45,9 +48,13 @@ import { signInAs } from "./sign-in";
  * then restart the dev server and press "Build the estate" on the projects
  * list, or simply let the walk's first navigation do it.
  */
-const OUT =
-  process.env["OBSERVER_MADSPACE_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/8eba7212-1d04-4994-b6ca-c0d2830338c5/scratchpad/madspace";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_MADSPACE_SHOTS"] ?? "_review/madspace";
 
 /**
  * Next's development overlay, hidden for the capture only.

@@ -9,9 +9,13 @@ import { signInAs } from "./sign-in";
  * of them, because a state machine that is only ever seen in one state has not
  * been reviewed.
  */
-const OUT =
-  process.env["OBSERVER_REVIEW_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/observer";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_REVIEW_SHOTS"] ?? "_review/observer";
 
 
 /** Long enough for the cross-fade to land, short enough to keep the run quick. */
@@ -29,6 +33,11 @@ test.describe("Observer review set", () => {
    * Opt-in, for the reason `milestone-review.spec.ts` states: images for a
    * human, no assertions, and selectors for a console that no longer sits on
    * the landing page.
+   */
+  /*
+   * The default beside `OBSERVER_REVIEW_SHOTS` is where the images would land,
+   * not a sign that they will: this gate reads the same variable, so with it
+   * unset the file skips and the default is never used.
    */
   test.skip(
     () => process.env["OBSERVER_REVIEW_SHOTS"] === undefined,
