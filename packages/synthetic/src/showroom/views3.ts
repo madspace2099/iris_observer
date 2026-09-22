@@ -1110,6 +1110,65 @@ function repeatDistribution(sessions: readonly ShowroomSession[]): RepeatDistrib
     .filter((b) => b.meetings > 0);
 }
 
+/**
+ * One row per section reached, for one scope against the team.
+ *
+ * Order, median time, reach, returns, and the team's figure beside each —
+ * rather than a share-of-time chart here and an order-and-timing chart
+ * somewhere else. Two views of the same measurement in two places is how a
+ * reader ends up comparing a chart against itself.
+ *
+ * One definition at two scopes, as `sectionSeconds` and `totalSeconds` are:
+ * an agent's lane (`mine` is their meetings) and the team's own list (`mine`
+ * is every meeting). The report's team table used to read the first agent's
+ * rows — the team's fields, on an array that had passed that agent's own
+ * `reachRate > 0` filter — so a section they never opened was missing from
+ * the team's table. `AgentsView.teamSections` is built here on every meeting.
+ */
+function sectionUses(
+  mine: readonly ShowroomSession[],
+  sessions: readonly ShowroomSession[],
+  teamSectionSecs: ReadonlyMap<SectionId, number>,
+  teamTotal: number,
+): AgentSectionUse[] {
+  /* The set a share of time stands on, at this scope: every step timed. */
+  const timedMine = mine.filter(fullyTimed);
+  const myTotal = timedMine.reduce((acc, s) => acc + totalSeconds(s), 0);
+  return (
+    SECTION_IDS.map((id) => {
+      const secs = timedMine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
+      const dwell = sectionDwell(mine, id);
+      const teamDwell = sectionDwell(sessions, id);
+      return {
+        sectionId: id,
+        label: sectionLabel(id),
+        order: 0,
+        position: meanPosition(mine, id),
+        medianDwellSeconds: dwell,
+        // Null, never zero: a section nobody's session could time has no median,
+        // and printing 0s would claim they passed through it instantly.
+        dwellDisplay: dwell === null ? "—" : duration(dwell),
+        timeShare: share(secs, myTotal),
+        teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
+        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
+        reachRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
+          mine.length,
+        ),
+        returnRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
+          Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
+        ),
+        availability: dwell === null ? "requires_ue5_v2_event" : "legacy_available",
+      } satisfies AgentSectionUse;
+    })
+      .filter((s) => s.reachRate > 0)
+      // Running order, because the question is what they open and in what order.
+      .sort((x, y) => x.position - y.position)
+      .map((s, i) => ({ ...s, order: i + 1 }))
+  );
+}
+
 export function buildAgentsView(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1149,46 +1208,8 @@ export function buildAgentsView(
 
     /* The same set, at the agent's scope. */
     const timedMine = mine.filter(fullyTimed);
-    const myTotal = timedMine.reduce((acc, s) => acc + totalSeconds(s), 0);
-    /*
-     * One row per section, carrying the whole answer.
-     *
-     * Order, median time, reach, returns, and the team's figure beside each —
-     * rather than a share-of-time chart here and an order-and-timing chart
-     * somewhere else. Two views of the same measurement in two places is how a
-     * reader ends up comparing a chart against itself.
-     */
-    const sections: AgentSectionUse[] = SECTION_IDS.map((id) => {
-      const secs = timedMine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
-      const dwell = sectionDwell(mine, id);
-      const teamDwell = sectionDwell(sessions, id);
-      return {
-        sectionId: id,
-        label: sectionLabel(id),
-        order: 0,
-        position: meanPosition(mine, id),
-        medianDwellSeconds: dwell,
-        // Null, never zero: a section nobody's session could time has no median,
-        // and printing 0s would claim they passed through it instantly.
-        dwellDisplay: dwell === null ? "—" : duration(dwell),
-        timeShare: share(secs, myTotal),
-        teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
-        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
-        reachRate: share(
-          mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
-          mine.length,
-        ),
-        returnRate: share(
-          mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
-          Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
-        ),
-        availability: dwell === null ? "requires_ue5_v2_event" : "legacy_available",
-      } satisfies AgentSectionUse;
-    })
-      .filter((s) => s.reachRate > 0)
-      // Running order, because the question is what they open and in what order.
-      .sort((x, y) => x.position - y.position)
-      .map((s, i) => ({ ...s, order: i + 1 }));
+    /* One row per section, carrying the whole answer: `sectionUses`, at the agent's scope. */
+    const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal);
 
     const over = [...sections]
       .filter((s) => s.teamShare > 0.02)
@@ -1350,6 +1371,8 @@ export function buildAgentsView(
     meetingCount: sessions.length,
     /* The team's section shares stand on these, not on `meetingCount`. */
     timedMeetingCount: sessions.filter(fullyTimed).length,
+    /* Every meeting, not the first agent's rows: a section only somebody else opened is here. */
+    teamSections: sectionUses(sessions, sessions, teamSectionSecs, teamTotal),
     evidence: evidenceRef("agents-view", "observed_sequence", `${base}/agents`, sessions.length),
   };
 }

@@ -421,6 +421,14 @@ export interface AgentsView {
   readonly meetingCount: number;
   /** Of `meetingCount`, the ones every step of which the source could time. The team's section shares stand on these. */
   readonly timedMeetingCount: number;
+  /**
+   * The team's own rows, one per section anyone reached, built on every
+   * meeting. The report's section table reads these — not the first agent's
+   * `sections`, which pass that agent's own reach filter and drop a section
+   * they never opened. The team's fields on those rows equal these; the
+   * array did not.
+   */
+  readonly teamSections: readonly AgentSectionUse[];
   readonly evidence: EvidenceRef;
 }
 

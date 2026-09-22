@@ -122,13 +122,6 @@ export default async function ReportPage({
   const pct = (share: number) => percent.format(share);
   const link = (href: string) => dynamicRoute(withPeriod(href, period));
 
-  /*
-   * The team's own figures per section, which every agent's row carries
-   * verbatim from the read model. The first agent's copy is the team's copy;
-   * nothing is averaged here.
-   */
-  const teamSections = agents.agents[0]?.sections ?? [];
-
   const content: Readonly<Record<string, ReactNode>> = {
     "period-summary": (
       <>
@@ -147,7 +140,7 @@ export default async function ReportPage({
       </>
     ),
     "presentation-coverage":
-      teamSections.length === 0 ? null : (
+      agents.teamSections.length === 0 ? null : (
         <DataTable
           caption={`Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: ${agents.timedMeetingCount} of ${agents.meetingCount} meetings, every step timed.`}
           columns={[
@@ -155,7 +148,7 @@ export default async function ReportPage({
             { key: "share", label: "Share of time", numeric: true },
             { key: "dwell", label: "Median dwell", numeric: true },
           ]}
-          rows={teamSections.map((section) => ({
+          rows={agents.teamSections.map((section) => ({
             key: section.sectionId,
             cells: {
               section: section.label,
