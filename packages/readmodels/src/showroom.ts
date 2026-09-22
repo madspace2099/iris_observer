@@ -252,6 +252,73 @@ export interface UnitsViewedSummary {
   readonly shortlisted: number;
   /** Both facts in words, singular and nought included. */
   readonly sentence: string;
+  /** Where the looking time went, by aspect. See {@link OrientationInterest}. */
+  readonly interest: OrientationInterest;
+}
+
+/**
+ * Which way the buyer's attention leaned, and the five shapes that answer can
+ * take.
+ *
+ * ## The measure, and why it is not raw dwell
+ *
+ * The index is P2-07's at meeting scope: a group's share of the looking time
+ * divided by its share of what was opened. Six units facing south and one
+ * facing west win on raw seconds by construction; the denominator is what lets
+ * the one west-facing unit's forty minutes mean something. It is always the
+ * whole set of opened units with a stated aspect — what this buyer saw — never
+ * the groups alone.
+ *
+ * ## A group is two units
+ *
+ * The sentence compares aspects as sets. One unit is a unit, and the journey
+ * below already speaks of it by code; calling it a group would make "the
+ * south-facing units" true of a single flat. So an aspect qualifies with two
+ * opened units, and the qualification decides which group the sentence is
+ * ABOUT, never whether there is a sentence.
+ *
+ * ## One band, applied twice
+ *
+ * Twenty per cent. Between two groups it separates a leader from a split;
+ * for a lone group it separates leaning from following, against 1.0, with
+ * 1/1.2 as the lower edge so the band is symmetric on a ratio. Measured before
+ * it was fixed: a near-tie named as a leader reaches a pricing decision, a
+ * leader left unnamed costs a reader one look at the journey.
+ *
+ * ## `one_orientation` is not a shortfall
+ *
+ * A scheme whose every unit faces the same way — one exists in the fixtures —
+ * can never compare aspects, and that is the catalogue's fact, not a gap in
+ * the measurement. It gets its own shape and its own sentence, not the
+ * "below minimum" one.
+ */
+export type OrientationInterestShape =
+  /** Two or more groups; the first leads the second by at least the band. */
+  | "leader"
+  /** Two or more groups, too close to name a leader. */
+  | "split"
+  /** One group, and it drew more than its share by at least the band. */
+  | "above_share"
+  /** One group, and it drew less than its share by at least the band. */
+  | "below_share"
+  /** One group, inside the band: attention followed supply. */
+  | "followed"
+  /** Aspects were opened, none more than once: no group to speak of. */
+  | "no_group"
+  /** Every opened unit shares one aspect. The catalogue's fact. */
+  | "one_orientation"
+  /** No opened unit has a stated aspect. */
+  | "unknown";
+
+export interface OrientationInterest {
+  readonly shape: OrientationInterestShape;
+  /** The qualified groups, descending by index. Empty for the last three shapes. */
+  readonly groups: readonly {
+    readonly orientation: string;
+    readonly units: number;
+    readonly index: number;
+  }[];
+  readonly sentence: string;
 }
 
 export interface MeetingReplay {

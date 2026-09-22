@@ -33,8 +33,8 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
-import { areaWord, roomsWord } from "@observer/readmodels";
-import type { UnitsViewedSummary } from "@observer/readmodels";
+import { areaWord, aspectWord, roomsWord } from "@observer/readmodels";
+import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
 import type { ShowroomUnitInteraction } from "@observer/contracts";
 import {
   clockLabel,
@@ -763,6 +763,121 @@ export function buildPresentationIntelligence(
  * leaves a code with nothing behind it. Dropping it would make `opened` lie;
  * banding it would make a room count up.
  */
+/** Two opened units make a group. One is a unit, and the journey already speaks of it by code. */
+const MIN_GROUP = 2;
+/** One band, applied twice: between two groups, and for one group against its own share. */
+const BAND = 0.2;
+const ABOVE = 1 + BAND;
+/** The multiplicative mirror of ABOVE, so the band is symmetric on a ratio: 1/1.2 = 0.833. */
+const BELOW = 1 / ABOVE;
+
+/**
+ * Which way the looking time leaned, by aspect. See `OrientationInterest`.
+ *
+ * The index is P2-07's at meeting scope — a group's share of the dwell divided
+ * by its share of the units opened — and both denominators are the whole set of
+ * opened units with a stated aspect. The qualification narrows what the
+ * sentence is about, never what it is measured against: a buyer who opened six
+ * south-facing flats and one west-facing saw seven, and the west-facing one's
+ * forty minutes are a seventh of the supply whatever the sentence ends up
+ * saying.
+ */
+function orientationInterestOf(
+  units: readonly ShowroomUnitInteraction[],
+  catalogue: ReadonlyMap<string, RawUnit>,
+): OrientationInterest {
+  const known = units.filter((u) => catalogue.get(u.unitCode)?.orientation != null);
+  const N = known.length;
+  const dwellTotal = known.reduce((sum, u) => sum + u.dwellSeconds, 0);
+
+  const count = new Map<string, number>();
+  const dwell = new Map<string, number>();
+  for (const u of known) {
+    const aspect = catalogue.get(u.unitCode)?.orientation ?? "";
+    count.set(aspect, (count.get(aspect) ?? 0) + 1);
+    dwell.set(aspect, (dwell.get(aspect) ?? 0) + u.dwellSeconds);
+  }
+
+  if (count.size === 0) {
+    return {
+      shape: "unknown",
+      groups: [],
+      sentence:
+        "No opened unit has a stated aspect, so nothing can be said about where the interest went.",
+    };
+  }
+  if (count.size === 1) {
+    const only = [...count.keys()][0] ?? "";
+    return {
+      shape: "one_orientation",
+      groups: [],
+      sentence: `Every unit opened was ${aspectWord(only)}, so there is no other aspect to compare it with.`,
+    };
+  }
+
+  const groups = [...count.entries()]
+    .filter(([, n]) => n >= MIN_GROUP)
+    .map(([orientation, n]) => ({
+      orientation,
+      units: n,
+      index: dwellTotal === 0 ? 0 : (dwell.get(orientation) ?? 0) / dwellTotal / (n / N),
+    }))
+    .sort((a, b) => b.index - a.index);
+
+  if (groups.length === 0) {
+    return {
+      shape: "no_group",
+      groups,
+      sentence:
+        "No aspect was opened more than once, so there is no group to compare; the journey below is the detail.",
+    };
+  }
+
+  const share = (index: number) => `${index.toFixed(2)}× their share of what was opened`;
+
+  if (groups.length === 1) {
+    const g = groups[0] as (typeof groups)[number];
+    const who = `the ${String(g.units)} units ${aspectWord(g.orientation)}`;
+    const rest = "no other aspect was opened more than once";
+    if (g.index >= ABOVE) {
+      return {
+        shape: "above_share",
+        groups,
+        sentence: `Interest leaned toward ${who}: they drew ${share(g.index)}; ${rest}.`,
+      };
+    }
+    if (g.index <= BELOW) {
+      return {
+        shape: "below_share",
+        groups,
+        sentence: `Interest leaned away from ${who}: they drew ${share(g.index)}; ${rest}.`,
+      };
+    }
+    return {
+      shape: "followed",
+      groups,
+      sentence: `Attention followed supply: ${who} drew ${share(g.index)}; ${rest}.`,
+    };
+  }
+
+  const first = groups[0] as (typeof groups)[number];
+  const second = groups[1] as (typeof groups)[number];
+  const gap = first.index === 0 ? 0 : (first.index - second.index) / first.index;
+
+  if (gap >= BAND) {
+    return {
+      shape: "leader",
+      groups,
+      sentence: `Interest leaned toward the ${String(first.units)} units ${aspectWord(first.orientation)}: they drew ${share(first.index)}, against ${second.index.toFixed(2)}× for the ${String(second.units)} ${aspectWord(second.orientation)}.`,
+    };
+  }
+  return {
+    shape: "split",
+    groups,
+    sentence: `Interest was split between the units ${aspectWord(first.orientation)} and those ${aspectWord(second.orientation)}: ${first.index.toFixed(2)}× and ${second.index.toFixed(2)}× their shares of what was opened, too close to name a leader.`,
+  };
+}
+
 function unitsViewedOf(
   units: readonly ShowroomUnitInteraction[],
   catalogue: ReadonlyMap<string, RawUnit>,
@@ -791,6 +906,7 @@ function unitsViewedOf(
     notInCatalogue,
     shortlisted,
     sentence: unitsViewedSentence(opened, byRooms, roomsUnstated, notInCatalogue, shortlisted),
+    interest: orientationInterestOf(units, catalogue),
   };
 }
 
