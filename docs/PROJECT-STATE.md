@@ -3450,3 +3450,63 @@ lower edge of the dock's hit area, read off the capture at ±5 px and not yet me
 `elementFromPoint`. Neither is fixed here.
 
 Evidence: `37e92e1`, `90c2cf7` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents closed: the habit's set, the three photographed defects, a deletion, and the dock measured
+
+**The gate's set, measured before it moved.** Three agent-rows on the fixtures hold twenty meetings
+and fewer than twenty timed ones; of the twelve cells that carry a signature finding, one loses it
+under a timed gate (`alpha/northgate · last_quarter`); no cell has everyone clearing twenty held and
+nobody clearing twenty timed. The stop condition — more than six cells losing their finding — did
+not trigger.
+
+**The habit's gate reads the set the habit stands on (`915274c`, then `10f4130`).** "Leans on" was
+gated on the meetings held while its sentence named the meetings timed: fifteen of twenty-five, under
+a gate that counted twenty-five. The finding, the withheld branch, the roster's card and the agent
+page's head now all gate on `timedMeetings`, and under that floor the read model's own reason stands
+where the habit would: "15 meetings of the 25 held could be timed end to end, 5 short of the 20 a
+habit needs before it is read as a verdict." The first commit shipped with that reason never built.
+The mutation's reverse replacement found two occurrences of its key and reported "hash restored: NO",
+and nothing read the report — the twenty-second rule: a check whose answer the next step does not
+depend on is not a check. The fix is its own commit, and from that commit on the order is commit,
+then mutate, then `git checkout -- <file>`, with an empty `git status --porcelain` as the proof.
+
+**The roster's three photographed defects (`aeefdfd`).** The workload list's sub line was handed a
+three-line sentence and truncated it to "19 meetings in this period, 1 short o…"; the radar card's
+label carried the count and the note repeated it; the note stood at the top of a cell three-quarters
+empty beside a 190px shape. `suppressionNoteFor` gains a named short form, "19 of 20 meetings", for
+the one-line slot; below the floor the radar label is the name alone; the note fills the box the
+shape would, vertically centred, by a stylesheet rule in `packages/ui`.
+
+**`TeamRegister` is deleted (`eeffee1`).** Lost: `apps/web/src/components/agents/TeamRegister.tsx`,
+242 lines — a table of Agent, Presentations, Median presentation, Progressed, Outcome not recorded,
+Reporting sample, Leans on, Rates IRIS — and the barrel's export and docblock entry. Three reasons,
+each checked before the deletion: nothing rendered it; the barrel's docblock called it "the shape
+that replaced four outcome doughnuts" while the four rings are what the roster draws; and `Rates.tsx`
+says `ShareFigure` is to be deleted once `AgentProfile` carries `MetricValue`s, which a second,
+unreachable consumer only made dearer. `isDash` stays; the meeting register uses it.
+
+**The dock, measured with an instrument, not touched.** On the roster, for two viewers, at
+1920×1080, 1440×900, 1440×810 and 1366×768, at the top, the middle and the bottom of the page,
+`elementFromPoint` found the dock's hit area and `elementsFromPoint` listed every page element under
+it on a 24×6 px grid, with whether it or an ancestor is focusable. Twenty-four measurements; nine
+hold a focusable link under the hit area. At the top of the page, the first card's "Agent detail →"
+link sits under it at 1440×900 (137 grid points for Petra, 83 for Operations) and at 1440×810 (3
+points, Petra). In the middle of the page the workload list's name links sit under it at 1440×900,
+1440×810 and 1366×768. At 1920×1080 nothing focusable is under it at any position, and at the bottom
+of the page nothing is at any size. The rule stood: the dock reopens if a focusable element is
+measured under the hit area. It is measured. The dock is its own round; nothing here touched it.
+
+**The photograph (`_review/views-p2-16/04-agents`).** The radar row reads as four equal cells: one
+shape, three notes, each note centred at the height of the shape, the name once in bold and the count
+once in the note. The bold name stands on its own line and the dash opens the second — "Monika
+Kováčová / — 19 meetings in this period, 1 short of the 20 needed for a verdict" — because the name
+and the dash wrap at the note's 22rem. The workload list's sub lines read "median 11m 42s", "19 of 20
+meetings", "18 of 20 meetings", "15 of 20 meetings"; none is truncated. The shape's legend, "Akhilesh
+Undev · 22 meetings", is drawn below the row and not under his cell, which is the Radar component's
+legend and older than this round.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite. The agent page's activity tally, whose three
+shortfall sentences overlap, and the report's `agents[0].sections` are the next round's sweep.
+
+Evidence: `915274c`, `10f4130`, `aeefdfd`, `eeffee1` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-16/`.
