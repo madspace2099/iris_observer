@@ -285,6 +285,18 @@ export interface UnitsViewedSummary {
  * it was fixed: a near-tie named as a leader reaches a pricing decision, a
  * leader left unnamed costs a reader one look at the journey.
  *
+ * ## The upper edge has a ceiling; the lower edge does not
+ *
+ * A group holding share `s` of the opened units can index at most `1/s`, when
+ * every second went to it. So `above_share` is unreachable once `s` exceeds
+ * 1/1.2 — a group that is more than five of six opened units can only ever
+ * "follow", however hard it was looked at. The lower edge has no such limit:
+ * dwell can fall to nought. This is not a defect — where a group is that much
+ * of what was opened, its drawing the attention is not news — but a reader
+ * counting `above_share` must know the shape can vanish by construction.
+ * Measured on the fixtures' 159 single-group meetings: none exceeds 5/6, one
+ * sits exactly on it (ceiling 1.20), seven sit at 4/5 (ceiling 1.25).
+ *
  * ## `one_orientation` is not a shortfall
  *
  * A scheme whose every unit faces the same way — one exists in the fixtures —
