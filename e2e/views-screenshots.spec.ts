@@ -27,6 +27,27 @@ const SHOTS = [
   ["04-agents", "/alpha/northgate/agents"],
   ["05-agent-detail", "/alpha/northgate/agents/agt_monika"],
   ["06-audience", "/alpha/northgate/audience?rooms=2&category=family"],
+  /*
+   * SETTINGS · AI — the one Observer surface no screenshot spec photographed.
+   *
+   * It belongs in this file rather than in `settings-ai.spec.ts`, which takes
+   * no pictures at all, or `madspace-screenshots.spec.ts`, whose describes
+   * skip unless `OBSERVER_BASE_URL` is set: the requirement is an image from
+   * the ordinary `--project=desktop` run with no extra environment. This file
+   * has no gate, already signs in as MADSPACE Operations — the account
+   * `settings-ai.spec.ts` itself uses for this screen — and is a plain list of
+   * routes.
+   *
+   * WHAT IS IN THE PICTURE, AND WHAT IS NOT. With no `OBSERVER_CREDENTIAL_KEY`
+   * and no Supabase, the page reads its credential store, fails, and renders
+   * its `unavailable` state: the panels are drawn and their controls are
+   * disabled. That is the state a reader meets on a machine with no secrets,
+   * so it is worth having a picture of — but it is one state of two, and the
+   * connected one is not photographed here. Producing that would need a
+   * credential key and a reachable Supabase project, which this round does not
+   * have and must not invent.
+   */
+  ["07-settings-ai", "/settings/ai"],
 ] as const;
 
 for (const [name, route] of SHOTS) {
