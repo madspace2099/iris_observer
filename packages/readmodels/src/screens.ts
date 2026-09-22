@@ -119,14 +119,20 @@ export function visitorLabel(kind: VisitorLabelKind, priorMeetings: number | nul
 /* --- 1. the meeting list --------------------------------------------------- */
 
 /**
- * Whether anybody is owed a follow-up, and whether that can be known.
+ * Whether anybody is owed a follow-up, as the recorded outcome says.
  *
- * Four states, and the fourth is the point. Observer sees the outcome the agent
- * recorded at the end of the meeting; it does not see the call that came
- * afterwards, and no source in this phase does. "Follow-up needed" and
- * "follow-up done" are therefore different questions with different answers,
- * and a screen that renders the first as the second turns a reminder into a
- * report of work that may never have happened.
+ * Three states. Observer sees the outcome the agent recorded at the end of the
+ * meeting — a showroom fact (`docs/06-ownership.md`) — and it does not see the
+ * call that came afterwards; no source in this phase does. "Follow-up needed"
+ * and "follow-up done" are therefore different questions with different
+ * answers, and a screen that renders the first as the second turns a reminder
+ * into a report of work that may never have happened.
+ *
+ * There was a fourth, `unavailable`, "no CRM is connected, so the meeting has
+ * no outcome to read". The outcome is recorded in the room and a CRM adds
+ * nothing to it; the state said the CRM produced a fact the showroom had, and
+ * every register on a project without a CRM printed "No CRM" over follow-ups
+ * the agent had recorded. It is gone rather than documented.
  */
 export const FOLLOW_UP_STATES = [
   /** The recorded outcome says one is owed. */
@@ -135,8 +141,6 @@ export const FOLLOW_UP_STATES = [
   "not_required",
   /** The meeting ended without an outcome being recorded at all. */
   "not_recorded",
-  /** No CRM is connected, so the meeting has no outcome to read. */
-  "unavailable",
 ] as const;
 export type FollowUpState = (typeof FOLLOW_UP_STATES)[number];
 
@@ -144,7 +148,6 @@ export const FOLLOW_UP_LABELS: Record<FollowUpState, string> = {
   required: "Follow-up recorded as needed",
   not_required: "No follow-up recorded as needed",
   not_recorded: "Outcome not recorded",
-  unavailable: "No CRM connected",
 };
 
 /**

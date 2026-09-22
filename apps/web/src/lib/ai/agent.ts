@@ -231,21 +231,18 @@ export function bundlesFor(
   return results.map((result, index) => {
     const tier = result.evidence?.tier;
     /*
-     * The read model's own tier wins where it has one.
+     * The read model's own tier wins where it has one; without one the
+     * bundle claims the least, an observed sequence.
      *
-     * Otherwise the class is inferred from where the figures came from, and
-     * conservatively: anything carrying a CRM outcome is an attributed
-     * conversion, everything else is an observed sequence. Nothing is labelled
-     * a statistical association unless a read model said so, because that tier
-     * is a claim about co-occurrence and inferring it from a source list would
-     * be exactly the kind of quiet upgrade this taxonomy exists to prevent.
+     * It used to read "conservatively: anything carrying a CRM outcome is an
+     * attributed conversion" — the quiet upgrade its own next sentence
+     * forbade. An attributed conversion is a conversion assigned under a
+     * stated rule (`EVIDENCE_TIERS`); a source chip is not a rule, and
+     * `CRM_OUTCOME_CONTEXT` on a tool's answer is most often the agent's own
+     * recorded outcome, which no rule has attributed to anything. Nothing is
+     * labelled stronger than the record unless a read model said so.
      */
-    const evidenceLevel =
-      tier !== undefined && isProducibleTier(tier)
-        ? tier
-        : result.sources.includes("CRM_OUTCOME_CONTEXT")
-          ? "attributed_conversion"
-          : "observed_sequence";
+    const evidenceLevel = tier !== undefined && isProducibleTier(tier) ? tier : "observed_sequence";
 
     const sourceChannel: InsightSource = result.sources.includes("IRIS_SHOWROOM_OBSERVED")
       ? "IRIS_SHOWROOM_OBSERVED"

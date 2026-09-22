@@ -6,7 +6,7 @@ import {
   type UnitReference,
 } from "@observer/readmodels";
 
-import { DataTable, Unavailable, type DataColumn, type DataRow } from "@/components/product";
+import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Chip } from "./Chip";
@@ -43,16 +43,14 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * component renders that string and never assembles one, so there is no call
  * site here through which a contact detail could reach the screen.
  *
- * ## Follow-up, and the state that belongs to the region rather than the row
+ * ## Follow-up is the recorded outcome's, on every project
  *
- * `FollowUpState` has four members and three of them are facts about the
- * meeting: a follow-up was recorded as needed, was recorded as not needed, or
- * no outcome was recorded at all. The fourth, `unavailable`, is not about the
- * meeting — it says no CRM is connected to the project, which is true of every
- * row at once. It is therefore stated ONCE, in a band above the table, and each
- * cell carries only the terse missing mark. Four dozen rows each repeating "No
- * CRM connected" is the defect `docs/12-visual-autopsy.md` §9 records, at
- * table scale.
+ * `FollowUpState` has three members and every one is a fact about the meeting:
+ * a follow-up was recorded as needed, was recorded as not needed, or no outcome
+ * was recorded at all. There used to be a fourth, "no CRM is connected", drawn
+ * as a band above the table and a terse mark in every cell; the outcome is the
+ * room's own record and a CRM adds nothing to it, so the band said the CRM
+ * produced a fact the showroom had, over follow-ups the agent had recorded.
  *
  * ## It draws every row it is given, and that is the answer rather than a gap
  *
@@ -157,7 +155,6 @@ export function MeetingRegister({
   caption,
   canOpen,
   emptyState,
-  crmConnected,
 }: {
   /**
    * Every route a row needs (`href`, each `unitsViewed[].href`) arrives
@@ -187,8 +184,6 @@ export function MeetingRegister({
   readonly canOpen: boolean;
   /** The read model's own words for an empty result. Never composed here. */
   readonly emptyState: string;
-  /** Whether the project has a CRM at all. Governs the band above the table. */
-  readonly crmConnected: boolean;
 }) {
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
@@ -228,44 +223,16 @@ export function MeetingRegister({
           {row.outcomeLabel}
         </Chip>
       ),
-      followUp:
-        row.followUp === "unavailable" ? (
-          /*
-           * The terse mark, and the reason only on hover. The band above the
-           * table carries it in full; repeating it here would be the same
-           * sentence forty times in one viewport.
-           */
-          <span className="ox-value" data-missing="true" title={row.followUpLabel}>
-            Unavailable
-          </span>
-        ) : (
-          <Chip tone={FOLLOW_UP_TONES[row.followUp]} title={row.followUpLabel}>
-            {FOLLOW_UP_LABELS[row.followUp]}
-          </Chip>
-        ),
+      followUp: (
+        <Chip tone={FOLLOW_UP_TONES[row.followUp]} title={row.followUpLabel}>
+          {FOLLOW_UP_LABELS[row.followUp]}
+        </Chip>
+      ),
     },
   }));
 
   return (
     <>
-      {crmConnected ? null : (
-        /*
-         * Inside the plate rather than above it, deliberately.
-         *
-         * This states why one COLUMN cannot be answered, so it belongs beside
-         * the column and not in the graphite band with the screen's
-         * conclusions. There is no action: a developer looking at a project
-         * whose CRM belongs to the agency cannot connect it, and a control that
-         * sent them somewhere they cannot act would be worse than none.
-         */
-        <Unavailable
-          what="Follow-up state"
-          why="no CRM is connected to this project, so no meeting on it carries a verified follow-up"
-          action={null}
-          period={period}
-        />
-      )}
-
       <DataTable
         caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
         columns={COLUMNS}

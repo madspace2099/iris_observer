@@ -77,8 +77,8 @@ export const metadata: Metadata = { title: "Sales agent" };
  * whatever the caption says, and a direction is a trend.
  *
  * Kingsford Yard is the project that forces this: three weeks live, seven
- * meetings, no CRM. Opened there, this page shows counts, four kinds of stated
- * absence, no trend and no verdict.
+ * meetings. Opened there, this page shows counts, the absences the read model
+ * states, no trend and no verdict.
  */
 export default async function AgentPage({
   params,
@@ -116,7 +116,6 @@ export default async function AgentPage({
   }
 
   const periodLabel = view.context.period.label;
-  const crmConnected = view.context.project.connectedSources.includes("crm");
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
 
   /*
@@ -231,33 +230,15 @@ export default async function AgentPage({
 
       <div className="ox-body">
         {/*
-         * THE MISSING SOURCE, STATED ONCE FOR THE WHOLE PAGE.
+         * No page-level "the CRM is not connected" any more.
          *
-         * Without a CRM this screen holds figures that cannot exist —
-         * follow-ups recorded, two funnel stages, and the outcome-recorded
-         * rate under them. `docs/12-visual-autopsy.md` §9
-         * is four panels in one viewport each repeating "The CRM is not
-         * connected", and eight would be worse. Each of those figures carries
-         * the terse missing mark that `Figure` draws, and the reason is here,
-         * once, above all of them, on the graphite ground where a reader arrives.
-         *
-         * It sits above the plates rather than inside one because the region it
-         * governs is the page, not a section: the same absence reaches the
-         * activity plate, the funnel plate and the chart band.
+         * A band used to stand here saying that without a CRM this page held
+         * figures that could not exist — follow-ups recorded, two funnel
+         * stages, the outcome-recorded rate. Every one of those is the outcome
+         * the agent recorded in the room, which the read model now carries on
+         * every project; nothing on this page is withheld for want of a CRM,
+         * so there is nothing for a band to explain.
          */}
-        {crmConnected ? null : (
-          <section className="ox-plane">
-            <Unavailable
-              what="Outcome, follow-up and conversion figures"
-              why={
-                view.followUp.recorded.message ??
-                "No CRM is connected to this project, so a meeting has no outcome to read."
-              }
-              action={null}
-              period={period}
-            />
-          </section>
-        )}
 
         {/* --- ACTIVITY, on the measured ground ------------------------- */}
 
@@ -321,27 +302,22 @@ export default async function AgentPage({
              * "Recorded as needed" and "actually done" are two questions, and
              * the second has no source at all — not even a connected CRM
              * answers it, since Observer holds the meeting and the activity
-             * after it belongs elsewhere. On a project with no CRM this band is
-             * not drawn: the page-level statement above already covers every
-             * figure the CRM would have answered, and repeating the sentence in
-             * a second panel a screen further down is the defect
-             * `docs/12-visual-autopsy.md` §9 recorded, at a slower scroll.
+             * after it belongs elsewhere. Drawn on every project: the first
+             * figure now stands everywhere, so the second's absence has to be
+             * stated everywhere, or a reader takes the reminder for the call.
              *
-             * No action is offered either way. Connecting a CRM belongs to the
-             * MADSPACE administration surface and is not this reader's to do,
-             * and a control that looks ready and does nothing is forbidden.
+             * No action is offered. Connecting a CRM belongs to the MADSPACE
+             * administration surface and is not this reader's to do, and a
+             * control that looks ready and does nothing is forbidden.
              */}
-            {crmConnected ? (
-              <Unavailable
-                what="Follow-ups completed"
-                why={
-                  view.followUp.completed.message ??
-                  "No source records whether a follow-up happened."
-                }
-                action={null}
-                period={period}
-              />
-            ) : null}
+            <Unavailable
+              what="Follow-ups completed"
+              why={
+                view.followUp.completed.message ?? "No source records whether a follow-up happened."
+              }
+              action={null}
+              period={period}
+            />
 
             <p className="ox-section-note">{view.followUp.note}</p>
 

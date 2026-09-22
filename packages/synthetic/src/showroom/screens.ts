@@ -188,16 +188,16 @@ function seriesOver(
 /* --- 1. the meeting list --------------------------------------------------- */
 
 /**
- * Whether anybody is owed a call, and whether that can be known here.
+ * Whether anybody is owed a call, as the recorded outcome says.
  *
  * The distinction that matters is between "the agent recorded that no follow-up
- * is needed" and "nobody recorded anything", and both of those differ again
- * from "this project has no CRM, so no meeting on it carries an outcome at
- * all". Three different sentences, three different next actions, and a boolean
- * would have collapsed all three into `false`.
+ * is needed" and "nobody recorded anything": two different sentences, two
+ * different next actions, and a boolean would have collapsed both into
+ * `false`. The outcome is the showroom's own record (`docs/06-ownership.md`),
+ * so no CRM is consulted here; the `!crm → "unavailable"` branch that stood
+ * first said the CRM produced a fact the room had recorded.
  */
-function followUpFor(session: ShowroomSession, crm: boolean): FollowUpState {
-  if (!crm) return "unavailable";
+function followUpFor(session: ShowroomSession): FollowUpState {
   if (outcomeIsUnknown(session.outcome)) return "not_recorded";
   return session.outcome === "follow_up_needed" || session.outcome === "interested"
     ? "required"
@@ -221,7 +221,6 @@ export function buildMeetingRows(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
 ): readonly MeetingRow[] {
-  const crm = crmConnected(context);
   const byId = new Map(sessions.map((s) => [s.meetingId, s]));
   const root = base(context);
   /*
@@ -235,7 +234,7 @@ export function buildMeetingRows(
   return buildMeetingList(context, sessions).flatMap<MeetingRow>((summary) => {
     const session = byId.get(summary.meetingId);
     if (session === undefined) return [];
-    const followUp = followUpFor(session, crm);
+    const followUp = followUpFor(session);
 
     return [
       {
@@ -255,13 +254,11 @@ export function buildMeetingRows(
         favourites: session.units.filter((u) => u.favourited).length,
         followUp,
         followUpLabel:
-          followUp === "unavailable"
-            ? NO_CRM
-            : followUp === "not_recorded"
-              ? "No outcome was recorded for this meeting."
-              : followUp === "required"
-                ? "The recorded outcome asks for a follow-up."
-                : "The recorded outcome does not ask for a follow-up.",
+          followUp === "not_recorded"
+            ? "No outcome was recorded for this meeting."
+            : followUp === "required"
+              ? "The recorded outcome asks for a follow-up."
+              : "The recorded outcome does not ask for a follow-up.",
         timingAvailable: !session.timingUnavailable,
       },
     ];
@@ -371,7 +368,7 @@ export function buildMeetings(
           : `${count(inRoom, locale)} of the ${count(sessions.length, locale)} meetings in this period carry the outcome the agent recorded in the room, and none is verified by a CRM.`,
       baseline: "no CRM is connected to this project",
       soWhat:
-        "The presentations are fully observed. Everything below the meeting — follow-up, reservation, purchase — has no source on this project and is shown as unavailable rather than as nil.",
+        "The presentations are fully observed, and what the agent recorded in the room — a follow-up owed, a reservation, a purchase — stands as recorded. Whether any deal later closed has no source on this project and is shown as unavailable rather than as nil.",
       nextStep: null,
       evidence: evidenceRef(
         "meetings-no-crm",
@@ -499,7 +496,6 @@ export function buildUnitDetail(
   const timeZone = context.project.timeZone;
   const currency = context.project.currency;
   const root = base(context);
-  const crm = crmConnected(context);
 
   const raw = catalogueFor(context.project.id as string).find((u) => u.code === unitCode);
   if (raw === undefined) return null;
@@ -676,13 +672,18 @@ export function buildUnitDetail(
         OBSERVED,
       );
     }
-    if (crm && !outcomeIsUnknown(session.outcome)) {
+    /*
+     * The agent's own record, at the observed tier, from the showroom. It was
+     * gated on a CRM and carried the attributed tier with the CRM's chip, which
+     * said a system of record stood behind an entry the room had made.
+     */
+    if (!outcomeIsUnknown(session.outcome)) {
       add(
         "outcome_recorded",
         `Meeting ended: ${OUTCOME_LABELS[session.outcome]}`,
         `${count(session.units.length, locale)} units were open in this meeting, so the outcome is the meeting's rather than this unit's`,
-        "attributed_conversion",
-        WITH_OUTCOME,
+        "observed_sequence",
+        OBSERVED,
         session.endedAt,
       );
     }
@@ -728,9 +729,15 @@ export function buildUnitDetail(
       "follow_up",
       {
         label: "Meeting asked for a follow-up",
-        metric: !crm
-          ? unavailable("unit.followup", "Meeting asked for a follow-up", UNIT_MIN_SAMPLE, NO_CRM)
-          : followUpIn.length === 0
+        /*
+         * The recorded outcome of the meetings that shortlisted it. Neither
+         * gated on a CRM nor credited to one: the outcome is the room's record.
+         * The verification word stays "attributed" — the funnel's own
+         * vocabulary for a meeting outcome joined to one of several units —
+         * and the tier says what is claimed: the record, nothing beyond it.
+         */
+        metric:
+          followUpIn.length === 0
             ? empty(
                 "unit.followup",
                 "Meeting asked for a follow-up",
@@ -747,13 +754,13 @@ export function buildUnitDetail(
                 minimumSampleSize: UNIT_MIN_SAMPLE,
                 drillHref: `${root}/meetings`,
               }),
-        fromCount: crm ? favouritedIn.length : null,
-        toCount: crm ? followUpIn.length : null,
+        fromCount: favouritedIn.length,
+        toCount: followUpIn.length,
       },
-      crm ? "attributed" : "unavailable",
+      "attributed",
       "The outcome belongs to the meeting, in which other units were also opened. It is an association with this unit, not a result of it.",
-      "attributed_conversion",
-      WITH_OUTCOME,
+      "observed_sequence",
+      OBSERVED,
     ),
     stage(
       "offer",
@@ -907,7 +914,7 @@ export function buildUnitDetail(
 
   const findings: ShowroomFinding[] = [...(attentionView.selected?.findings ?? [])];
 
-  if (row.favourites > 0 && crm && followUpIn.length === 0) {
+  if (row.favourites > 0 && followUpIn.length === 0) {
     findings.push({
       id: `unit-${unitCode}-shortlist-no-follow-up`,
       statement: `${unitCode} was shortlisted in ${count(row.favourites, locale)} meeting${row.favourites === 1 ? "" : "s"}, none of which recorded a follow-up.`,
@@ -922,8 +929,8 @@ export function buildUnitDetail(
         row.favourites,
       ),
       sampleSize: row.meetings,
-      sources: WITH_OUTCOME,
-      caveat: "Contact made outside the CRM would not appear here.",
+      sources: OBSERVED,
+      caveat: "A follow-up agreed but not recorded in the room would not appear here.",
     });
   }
 
@@ -1033,7 +1040,6 @@ export function buildAgentDetail(
 ): AgentDetailView | null {
   const locale = context.project.locale;
   const root = base(context);
-  const crm = crmConnected(context);
 
   /* The roster, or whoever this project's meetings name: a delivered project's agents are on no roster. */
   const agent = presentersIn(sessions).find((a) => a.id === agentId);
@@ -1142,11 +1148,11 @@ export function buildAgentDetail(
 
   /* --- follow-up, and the half nobody records ------------------------------ */
 
-  const followUpRecorded = mine.filter((s) => followUpFor(s, crm) === "required").length;
+  const followUpRecorded = mine.filter((s) => followUpFor(s) === "required").length;
   const followUp: AgentFollowUp = {
-    recorded: !crm
-      ? unavailable("agent.followup", "Follow-ups recorded as needed", AGENT_MIN_SAMPLE, NO_CRM)
-      : followUpRecorded === 0
+    /* The room's record, on every project; it was withheld without a CRM as though the CRM had made it. */
+    recorded:
+      followUpRecorded === 0
         ? empty(
             "agent.followup",
             "Follow-ups recorded as needed",
@@ -1227,38 +1233,41 @@ export function buildAgentDetail(
     label: string,
     value: number,
     from: number | null,
-    needsCrm: boolean,
   ): FunnelStep => ({
     label,
     metric:
-      needsCrm && !crm
-        ? unavailable(metricId, label, AGENT_MIN_SAMPLE, NO_CRM)
-        : value === 0
-          ? empty(
-              metricId,
-              label,
-              AGENT_MIN_SAMPLE,
-              `No meeting of theirs reached ${label.toLowerCase()}.`,
-            )
-          : ok({
-              metricId,
-              label,
-              display: count(value, locale),
-              raw: value,
-              qualifier: from === null ? undefined : `of ${count(from, locale)}`,
-              sampleSize,
-              minimumSampleSize: AGENT_MIN_SAMPLE,
-            }),
-    fromCount: needsCrm && !crm ? null : from,
-    toCount: needsCrm && !crm ? null : value,
+      value === 0
+        ? empty(
+            metricId,
+            label,
+            AGENT_MIN_SAMPLE,
+            `No meeting of theirs reached ${label.toLowerCase()}.`,
+          )
+        : ok({
+            metricId,
+            label,
+            display: count(value, locale),
+            raw: value,
+            qualifier: from === null ? undefined : `of ${count(from, locale)}`,
+            sampleSize,
+            minimumSampleSize: AGENT_MIN_SAMPLE,
+          }),
+    fromCount: from,
+    toCount: value,
   });
 
+  /*
+   * Five observed states. The last two are the recorded outcome, which is the
+   * room's own record; they were gated on a CRM as though the CRM had made
+   * them, and on a project without one the funnel drew its meetings dying at
+   * the shortlist.
+   */
   const funnel: readonly FunnelStep[] = [
-    funnelStep("agent.funnel.meetings", "Presentations", mine.length, null, false),
-    funnelStep("agent.funnel.units", "Opened a unit", openedUnit, mine.length, false),
-    funnelStep("agent.funnel.shortlist", "Shortlisted a unit", shortlisted, openedUnit, false),
-    funnelStep("agent.funnel.recorded", "Outcome recorded", recorded, mine.length, true),
-    funnelStep("agent.funnel.progressed", "Progressed further", progressed, recorded, true),
+    funnelStep("agent.funnel.meetings", "Presentations", mine.length, null),
+    funnelStep("agent.funnel.units", "Opened a unit", openedUnit, mine.length),
+    funnelStep("agent.funnel.shortlist", "Shortlisted a unit", shortlisted, openedUnit),
+    funnelStep("agent.funnel.recorded", "Outcome recorded", recorded, mine.length),
+    funnelStep("agent.funnel.progressed", "Progressed further", progressed, recorded),
   ];
 
   /* --- what their buyers were looking at ----------------------------------- */
@@ -1353,7 +1362,7 @@ export function buildAgentDetail(
   }
 
   const unrecorded = mine.length - recorded;
-  if (crm && unrecorded > 0) {
+  if (unrecorded > 0) {
     findings.push({
       id: `agent-${agentId}-unrecorded`,
       statement: `${count(unrecorded, locale)} of their ${count(mine.length, locale)} meetings ended with no outcome recorded.`,
@@ -1368,7 +1377,7 @@ export function buildAgentDetail(
         unrecorded,
       ),
       sampleSize: mine.length,
-      sources: WITH_OUTCOME,
+      sources: OBSERVED,
       caveat: null,
     });
   }

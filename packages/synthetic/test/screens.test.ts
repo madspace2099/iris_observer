@@ -117,11 +117,17 @@ describe("getMeetings", () => {
     expect(filtered.options.channels.find((o) => o.id === "showroom")?.count).toBe(showroom?.count);
   });
 
-  it("states the absence of a CRM instead of showing a meeting with no follow-up", async () => {
+  it("reads the follow-up off the recorded outcome, whatever the CRM", async () => {
+    /*
+     * Riverside has no CRM and records no outcomes, so every row is
+     * "not_recorded" — the absence of an outcome, not the absence of a CRM.
+     * This used to assert "unavailable", which said the CRM produced a fact
+     * the room records.
+     */
     const view = await repo.getMeetings(RIVERSIDE, NO_FILTERS);
     expect(view.rows.length).toBeGreaterThan(0);
     for (const row of view.rows) {
-      expect(row.followUp).toBe("unavailable");
+      expect(row.followUp).toBe("not_recorded");
     }
   });
 
@@ -250,21 +256,18 @@ describe("getAgentDetail", () => {
     }
   });
 
-  it("keeps the outcome-recorded funnel stage unavailable where no CRM is connected", async () => {
+  it("withholds nothing about the recorded outcome for want of a CRM", async () => {
     /*
-     * This case used to assert the same of the agent's recorded outcomes, and
-     * that assertion encoded the defect: the count was the agent's own entry,
-     * withheld as though a CRM produced it. Those stand on every project now
-     * (`agent-recorded-outcomes.test.ts`); the funnel stage is still gated and
-     * is a separate question, left as it was.
+     * Riverside has no CRM and records no outcomes. The recorded outcomes and
+     * the funnel's outcome stages are therefore EMPTY — a real answer about
+     * the record — and never "unavailable", which said the CRM produced a
+     * fact the room records. Both assertions used to say the opposite.
      */
     const view = await repo.getAgentDetail(RIVERSIDE, "agt_lucia");
     for (const outcome of view.recordedOutcomes) {
       expect(outcome.metric.state, outcome.label).not.toBe("unavailable");
     }
-    expect(view.funnel.find((s) => s.label === "Outcome recorded")?.metric.state).toBe(
-      "unavailable",
-    );
+    expect(view.funnel.find((s) => s.label === "Outcome recorded")?.metric.state).toBe("empty");
   });
 
   it("lists other projects only within the reader's own grants", async () => {

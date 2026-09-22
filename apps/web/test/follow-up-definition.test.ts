@@ -24,9 +24,11 @@ import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
  * So this file holds the definition rather than the wording. A surface may say
  * a contact is not recorded. It may never say a contact did not happen, that
  * somebody is waiting, or that everybody has been reached. The distinction is
- * also what keeps the four follow-up states four states: "no CRM connected" and
- * "outcome not recorded" are different facts about different systems, and a
- * reader who cannot tell them apart cannot act on either.
+ * also what keeps the three follow-up states three states, and keeps a CRM out
+ * of all of them: the follow-up is read off the outcome the agent recorded in
+ * the room, so "outcome not recorded" is a fact about the record and never a
+ * fact about an integration. A fourth state, "no CRM connected", used to stand
+ * beside these; it said the CRM produced a fact the showroom had, and it is gone.
  */
 
 const ROOT = resolve(import.meta.dirname, "../../..");
@@ -104,17 +106,14 @@ describe("what a missing follow-up means", () => {
 });
 
 describe("states that must never collapse into one another", () => {
-  it("gives the four follow-up states four different words", () => {
+  it("gives the three follow-up states three different words, none about a CRM", () => {
     const words = Object.values(FOLLOW_UP_LABELS);
     expect(new Set(words).size).toBe(words.length);
 
-    // Only one of the four is about a system being absent. If "outcome not
+    // None of the three is about a system being absent. If "outcome not
     // recorded" ever says CRM, a project with a connected CRM and a sloppy
     // agent reads as a project with no integration.
-    expect(FOLLOW_UP_LABELS.unavailable).toMatch(/crm/i);
-    expect(FOLLOW_UP_LABELS.not_recorded).not.toMatch(/crm/i);
-    expect(FOLLOW_UP_LABELS.required).not.toMatch(/crm/i);
-    expect(FOLLOW_UP_LABELS.not_required).not.toMatch(/crm/i);
+    for (const word of words) expect(word).not.toMatch(/crm/i);
   });
 
   it("never renders an unidentified visitor as a missing integration", () => {
@@ -124,7 +123,6 @@ describe("states that must never collapse into one another", () => {
     // disconnected CRM is a fact about the whole project, and the two share no
     // wording — otherwise one broken integration reads as a room full of
     // strangers, and a room full of strangers reads as a broken integration.
-    expect(unlinked).not.toBe(FOLLOW_UP_LABELS.unavailable);
     expect(unlinked).not.toMatch(/crm/i);
     for (const word of Object.values(FOLLOW_UP_LABELS)) {
       expect(unlinked).not.toBe(word);

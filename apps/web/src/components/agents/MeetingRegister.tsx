@@ -30,15 +30,16 @@ import { Missing, isDash } from "./Rates";
  * surface question is exactly the one `docs/22-visitor-name-display.md` §5
  * leaves to a product decision.
  *
- * ## Follow-up has four states and three of them are not "no"
+ * ## Follow-up has three states and one of them is not "no"
  *
  * `FOLLOW_UP_STATES` separates "the recorded outcome asks for one", "the
- * recorded outcome does not", "no outcome was recorded" and "no CRM is
- * connected". The last two are absences and are drawn as absences; folding them
- * into "no follow-up needed" would turn a gap in the record into a decision
- * somebody made. `followUpLabel` is the read model's sentence and is carried on
- * the cell's `title` so a reader can ask what a state means without the column
- * growing to hold a sentence.
+ * recorded outcome does not" and "no outcome was recorded". The last is an
+ * absence and is drawn as one; folding it into "no follow-up needed" would turn
+ * a gap in the record into a decision somebody made. `followUpLabel` is the
+ * read model's sentence and is carried on the cell's `title` so a reader can
+ * ask what a state means without the column growing to hold a sentence. A
+ * fourth state, "No CRM", used to stand here; the outcome is the room's record
+ * and no CRM is asked.
  */
 
 /** The short word for each state. The long sentence is the read model's. */
@@ -46,7 +47,6 @@ const FOLLOW_UP_SHORT: Readonly<Record<MeetingRow["followUp"], string>> = {
   required: "Needed",
   not_required: "Not needed",
   not_recorded: "No outcome",
-  unavailable: "No CRM",
 };
 
 export function MeetingRegister({
