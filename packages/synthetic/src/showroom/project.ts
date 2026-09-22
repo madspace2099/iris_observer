@@ -32,8 +32,10 @@ import type {
   UnitAttentionView,
   ViewContext,
 } from "@observer/readmodels";
-import { catalogueFor } from "../pulse";
+import { catalogueFor, type RawUnit } from "../pulse";
 import { areaWord, roomsWord } from "@observer/readmodels";
+import type { UnitsViewedSummary } from "@observer/readmodels";
+import type { ShowroomUnitInteraction } from "@observer/contracts";
 import {
   clockLabel,
   count,
@@ -750,11 +752,80 @@ export function buildPresentationIntelligence(
 
 /* --- C. Meeting Replay ----------------------------------------------------- */
 
+/**
+ * The join the replay's summary sentence needs, done here and nowhere else.
+ *
+ * Every opened code lands in exactly one of three places: a room band the
+ * catalogue states, "rooms unstated" for a code the catalogue holds without a
+ * count, or "not in the catalogue" for a code it does not hold at all. The last
+ * is the guard `buildMeetingRows` already keeps for the same reason — a
+ * showroom records whatever it showed, and a legacy import or a withdrawn flat
+ * leaves a code with nothing behind it. Dropping it would make `opened` lie;
+ * banding it would make a room count up.
+ */
+function unitsViewedOf(
+  units: readonly ShowroomUnitInteraction[],
+  catalogue: ReadonlyMap<string, RawUnit>,
+): UnitsViewedSummary {
+  const bands = new Map<number, number>();
+  let roomsUnstated = 0;
+  let notInCatalogue = 0;
+
+  for (const unit of units) {
+    const held = catalogue.get(unit.unitCode);
+    if (held === undefined) notInCatalogue += 1;
+    else if (held.rooms === null) roomsUnstated += 1;
+    else bands.set(held.rooms, (bands.get(held.rooms) ?? 0) + 1);
+  }
+
+  const byRooms = [...bands.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([rooms, count]) => ({ rooms, count }));
+  const shortlisted = units.filter((u) => u.favourited).length;
+  const opened = units.length;
+
+  return {
+    opened,
+    byRooms,
+    roomsUnstated,
+    notInCatalogue,
+    shortlisted,
+    sentence: unitsViewedSentence(opened, byRooms, roomsUnstated, notInCatalogue, shortlisted),
+  };
+}
+
+/**
+ * Singular and nought are answers. "1 unit opened" and "nothing was
+ * shortlisted" are what happened; a sentence that could not say them would fall
+ * silent on a fifth of the smallest scheme's meetings, and the reader would be
+ * left to guess whether nothing was chosen or nothing was measured.
+ */
+function unitsViewedSentence(
+  opened: number,
+  byRooms: readonly { readonly rooms: number; readonly count: number }[],
+  roomsUnstated: number,
+  notInCatalogue: number,
+  shortlisted: number,
+): string {
+  if (opened === 0) return "No unit was opened.";
+
+  const parts = byRooms.map(({ rooms, count }) => `${String(count)} with ${roomsWord(rooms)}`);
+  if (roomsUnstated > 0) parts.push(`${String(roomsUnstated)} with rooms not stated`);
+  if (notInCatalogue > 0) parts.push(`${String(notInCatalogue)} not in the catalogue`);
+
+  const shortlist =
+    shortlisted === 0 ? "nothing was shortlisted" : `${String(shortlisted)} shortlisted`;
+
+  return `${String(opened)} unit${opened === 1 ? "" : "s"} opened: ${parts.join(", ")}; ${shortlist}.`;
+}
+
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
+  /* The same catalogue `buildMeetingRows` consults, for the same project, keyed by the code a session carries. */
+  const catalogue = new Map(catalogueFor(context.project.id as string).map((u) => [u.code, u]));
   const steps: ReplayStep[] = [];
   let ordinal = 0;
 
@@ -918,6 +989,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     context,
     meetingId: session.meetingId,
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
+    unitsViewed: unitsViewedOf(session.units, catalogue),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,

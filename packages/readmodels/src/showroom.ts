@@ -214,10 +214,52 @@ export interface ReplayStep {
   readonly evidence: EvidenceRef | null;
 }
 
+/**
+ * What the catalogue and the session together say about the units this meeting
+ * opened.
+ *
+ * ## Why this is joined in the read model and nowhere else
+ *
+ * A replay carries unit codes; rooms, orientation and price are catalogue
+ * attributes. The sentence a reviewer wants — "three two-room flats opened, two
+ * shortlisted" — needs both, and ADR-0012 forbids a component from joining two
+ * read models to get it. So the join lives here, beside the replay it is about,
+ * with the same inputs `getMeetingReplay` already holds.
+ *
+ * ## Three counts that are not one count
+ *
+ * `opened` is every code the showroom recorded. A code the catalogue does not
+ * hold — a legacy import, a flat withdrawn since — is still a unit somebody
+ * looked at, so it stays in `opened` and is named in `notInCatalogue` rather
+ * than dropped or folded into a room band it does not belong to. A code the
+ * catalogue holds without a room count is a third thing again. The bands sum to
+ * `opened` only with those two beside them, and a reader is owed all three.
+ *
+ * `shortlisted` at nought is an answer. One meeting in five on the smallest
+ * scheme shortlists nothing, and "nothing was shortlisted" is what happened,
+ * not what could not be measured.
+ */
+export interface UnitsViewedSummary {
+  /** Units opened in this meeting, catalogue or not. The denominator. */
+  readonly opened: number;
+  /** Opened units by the room count the catalogue states, ascending. */
+  readonly byRooms: readonly { readonly rooms: number; readonly count: number }[];
+  /** Opened units the catalogue holds without a room count. */
+  readonly roomsUnstated: number;
+  /** Opened codes the catalogue does not hold. Named, never folded into a band. */
+  readonly notInCatalogue: number;
+  /** Shortlisted in this meeting. Nought is an answer, not an absence. */
+  readonly shortlisted: number;
+  /** Both facts in words, singular and nought included. */
+  readonly sentence: string;
+}
+
 export interface MeetingReplay {
   readonly context: ViewContext;
   readonly meetingId: string;
   readonly headline: string;
+  /** Joined here, never in a component. See {@link UnitsViewedSummary}. */
+  readonly unitsViewed: UnitsViewedSummary;
   readonly agentName: string;
   /**
    * Where this agent's own detail screen is, or `null` when the session's
