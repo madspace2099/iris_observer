@@ -994,6 +994,51 @@
 }
 
 /*
+ * THE COMPARISON LEADS WHEN THE PLANES STACK.
+ *
+ * On Presentation DNA the raised plane is the comparison — two lanes, what
+ * differs, the sample and the refusal — and the other plane is the material it
+ * is read against: every lane, the transitions, the finding. Side by side the
+ * order is not a narrative: both are on the first screen and the eye goes
+ * where it likes, so the composition stays as it was. Stacked, the order IS
+ * the narrative, and the material ran to 1,700px before the first "What
+ * differs" row — 950px of scroll at 1440×900, 1,082px at 1366×768, measured
+ * live. So the comparison comes first in the DOM, where reading order, focus
+ * order and the single column agree, and the two-column branch places it on
+ * the right by grid column rather than by source order. The hairline that
+ * separates the stacked planes stays between them: on the plane that now
+ * comes second.
+ *
+ * Opted into by the page, not inherited: `Replay.tsx` shares `.iris-two` and
+ * its raised plane is evidence, not a question.
+ */
+.iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.iris-two[data-lead="aside"] > .iris-plane--raised {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+@media (max-width: 90rem) {
+  .iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised),
+  .iris-two[data-lead="aside"] > .iris-plane--raised {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .iris-two[data-lead="aside"] > .iris-plane--raised {
+    border-top: 0;
+  }
+
+  .iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised) {
+    border-top: 1px solid var(--rule);
+  }
+}
+
+/*
  * A transition label is two section names and an arrow, so it needs more room
  * than a single section name. Truncating "amenities → residences" to
  * "amenities → residenc…" loses the half that carries the meaning.

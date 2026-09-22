@@ -65,81 +65,13 @@ export default async function PresentationPage({
   );
 
   return (
-    <div className="iris-two">
-      <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Presentation DNA · {view.context.period.label}</p>
-        <h1 className="iris-section">How the story is told, in the order it was told.</h1>
-        <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Each lane is one presenter&rsquo;s sequence. Width is how often their meetings reached
-          that section at all; fill is how long they stayed. A hatched, dashed block means the
-          source records that the section was reached but not for how long — which is a different
-          statement from no time at all.
-        </p>
-
-        <div className="iris-dna" style={{ marginTop: "1rem" }}>
-          <DnaLane lane={view.teamBenchmark} />
-          <hr className="iris-rule" style={{ margin: ".5rem 0" }} />
-          {view.lanes.map((lane) => (
-            <DnaLane key={lane.id} lane={lane} />
-          ))}
-        </div>
-
-        <hr className="iris-rule" />
-
-        <div>
-          <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
-            Most common transitions
-          </p>
-          {/*
-           * The denominator changes from row to row — it is the moves out of
-           * each row's own starting section — so it is printed under every
-           * share, and the sentence says so. Two bars read against each other
-           * as if they shared one were the P2-05 shape with a twist: the
-           * denominator was in the read model's docblock and nowhere else.
-           */}
-          <p className="iris-meta" style={{ marginBottom: ".5rem", maxWidth: "62ch" }}>
-            Each share is of the moves out of that row&rsquo;s own starting section, printed beneath
-            it. Two rows have two denominators, so a longer bar is not more meetings.
-          </p>
-          <div className="iris-bars" data-wide-labels="true" data-fraction="true">
-            {/*
-             * Sorted by share, not by raw count.
-             *
-             * The read model orders by volume because that is what the AI
-             * tools want; a reader looking at bars expects the longest one
-             * first, and a list whose order contradicts its own bars reads as
-             * a rendering bug.
-             */}
-            {[...view.transitions]
-              .sort((a, b) => b.share - a.share)
-              .slice(0, 6)
-              .map((t) => (
-                <div className="iris-bar" key={`${t.from}-${t.to}`}>
-                  <span className="iris-bar-label" title={`${t.from} → ${t.to}`}>
-                    {t.from} → {t.to}
-                  </span>
-                  <span
-                    className="iris-bar-track"
-                    style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}
-                  >
-                    <i />
-                  </span>
-                  <span className="iris-bar-value">
-                    {Math.round(t.share * 100)}%
-                    <span className="iris-bar-of">
-                      {t.count} of {t.outOf}
-                    </span>
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        {view.findings.map((finding) => (
-          <Finding key={finding.id} finding={finding} lead />
-        ))}
-      </section>
-
+    <div className="iris-two" data-lead="aside">
+      {/*
+       * The comparison first in the DOM — the question before the material.
+       * Stacked under 90rem this is the reading order; side by side the grid
+       * places it on the right by column, so the composition is unchanged.
+       * The reasoning is on `.iris-two[data-lead="aside"]` in `showroom.css`.
+       */}
       <aside className="iris-plane iris-plane--raised iris-stack">
         <div>
           <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
@@ -319,6 +251,80 @@ export default async function PresentationPage({
           }
         />
       </aside>
+
+      <section className="iris-plane iris-stack">
+        <p className="iris-kicker">Presentation DNA · {view.context.period.label}</p>
+        <h1 className="iris-section">How the story is told, in the order it was told.</h1>
+        <p className="iris-meta" style={{ maxWidth: "62ch" }}>
+          Each lane is one presenter&rsquo;s sequence. Width is how often their meetings reached
+          that section at all; fill is how long they stayed. A hatched, dashed block means the
+          source records that the section was reached but not for how long — which is a different
+          statement from no time at all.
+        </p>
+
+        <div className="iris-dna" style={{ marginTop: "1rem" }}>
+          <DnaLane lane={view.teamBenchmark} />
+          <hr className="iris-rule" style={{ margin: ".5rem 0" }} />
+          {view.lanes.map((lane) => (
+            <DnaLane key={lane.id} lane={lane} />
+          ))}
+        </div>
+
+        <hr className="iris-rule" />
+
+        <div>
+          <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
+            Most common transitions
+          </p>
+          {/*
+           * The denominator changes from row to row — it is the moves out of
+           * each row's own starting section — so it is printed under every
+           * share, and the sentence says so. Two bars read against each other
+           * as if they shared one were the P2-05 shape with a twist: the
+           * denominator was in the read model's docblock and nowhere else.
+           */}
+          <p className="iris-meta" style={{ marginBottom: ".5rem", maxWidth: "62ch" }}>
+            Each share is of the moves out of that row&rsquo;s own starting section, printed beneath
+            it. Two rows have two denominators, so a longer bar is not more meetings.
+          </p>
+          <div className="iris-bars" data-wide-labels="true" data-fraction="true">
+            {/*
+             * Sorted by share, not by raw count.
+             *
+             * The read model orders by volume because that is what the AI
+             * tools want; a reader looking at bars expects the longest one
+             * first, and a list whose order contradicts its own bars reads as
+             * a rendering bug.
+             */}
+            {[...view.transitions]
+              .sort((a, b) => b.share - a.share)
+              .slice(0, 6)
+              .map((t) => (
+                <div className="iris-bar" key={`${t.from}-${t.to}`}>
+                  <span className="iris-bar-label" title={`${t.from} → ${t.to}`}>
+                    {t.from} → {t.to}
+                  </span>
+                  <span
+                    className="iris-bar-track"
+                    style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}
+                  >
+                    <i />
+                  </span>
+                  <span className="iris-bar-value">
+                    {Math.round(t.share * 100)}%
+                    <span className="iris-bar-of">
+                      {t.count} of {t.outOf}
+                    </span>
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {view.findings.map((finding) => (
+          <Finding key={finding.id} finding={finding} lead />
+        ))}
+      </section>
     </div>
   );
 }

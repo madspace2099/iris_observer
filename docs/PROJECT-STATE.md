@@ -3289,3 +3289,30 @@ bar label (5 px below the hit area); at 1920×1080 it covers the third and fourt
 not changed: the layout decision is the board's.
 
 Evidence: the commit after `3a762f4` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — The comparison leads when the planes stack
+
+**The decision, from the fold numbers above.** Under the 90rem breakpoint the Compare plane comes
+first: in the DOM, so reading order, focus order and the single column agree, and the two-column
+branch places it on the right by grid column (`.iris-two[data-lead="aside"]`,
+`packages/ui/src/showroom.css`), so side by side nothing moved. The breakpoint stays where its
+docblock put it. The hairline between the stacked planes stays between them, on the plane that now
+comes second. Opted into by the page: `Replay.tsx` shares `.iris-two` and its raised plane is
+evidence, not a question.
+
+**Re-measured, same method, cohorts unless said.** First comparison row: 0 px of scroll at all four
+sizes (was 0 / 950 / 1,040 / 1,082 at 1920×1080 / 1440×900 / 1440×810 / 1366×768). The lanes, which
+were the whole first screen at 1366×768, are now entirely under the fold in one column (0 of 5, block
+at 1,357–1,734; 1,032–1,409 in agents mode); the first screen is the mode tabs, the two compact
+lanes and 92 / 72 / 63 % of "What differs" at 900 / 810 / 768. The dock's 70 px hit area now covers
+"What differs" rows — one at 1440×900 (Skips Amenities), two at 1440×810 and two at 1366×768 — and in
+agents mode the plane's kicker at 900 and the "What this source cannot say" block at 810; at 1920 the
+third and fourth transition labels and their values, as before. Nothing focusable or interactive is
+under it at any size now; before, the last lane's track (focusable) was, at 810 and 768. The dock is
+not changed here: the next decision.
+
+**Guard:** `e2e/presentation-order.spec.ts` asserts order, not pixels — document order and drawn order
+in one column, side-by-side placement in two. With the DOM order put back, the first two fail by name
+and the third still passes, which is the proof that they measure different things.
+
+Evidence: the commit after `3696bf6` on `feature/observer-ux-overhaul-phase2`.
