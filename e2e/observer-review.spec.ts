@@ -35,13 +35,22 @@ test.describe("Observer review set", () => {
    * the landing page.
    */
   /*
-   * The default beside `OBSERVER_REVIEW_SHOTS` is where the images would land,
-   * not a sign that they will: this gate reads the same variable, so with it
-   * unset the file skips and the default is never used.
+   * THE SWITCH IS NOT THE DESTINATION.
+   *
+   * This gate used to read `OBSERVER_REVIEW_SHOTS` — the same variable that names where
+   * the images go. The two jobs cancelled: with the variable unset the file
+   * skipped, and with it set the default never applied, so the
+   * `?? "_review/observer"` beside it was a line that could not become true. A
+   * default nobody can reach tells the next reader the file writes there, and
+   * it does not.
+   *
+   * `OBSERVER_REVIEW_CAPTURE` turns the generator on. `OBSERVER_REVIEW_SHOTS` still moves
+   * the images, and now its default is reachable: with the flag set and no
+   * destination named, they land in `_review/observer`.
    */
   test.skip(
-    () => process.env["OBSERVER_REVIEW_SHOTS"] === undefined,
-    "A screenshot generator: set OBSERVER_REVIEW_SHOTS to produce the set.",
+    () => process.env["OBSERVER_REVIEW_CAPTURE"] === undefined,
+    "A screenshot generator: set OBSERVER_REVIEW_CAPTURE=1 to produce the set.",
   );
 
   test("briefing at 1920×1080", async ({ page }, info) => {

@@ -33,18 +33,26 @@ test.describe("milestone review", () => {
    * Opt-in. This file produces images for a human, asserts nothing, and was
    * written against the briefing landing and the Observer console that Ask IRIS
    * has since replaced — so run unasked it only turned `wide` red and wrote
-   * screenshots into a dead session's temp directory. Name where the images go
-   * to run it, and expect to update its selectors to the current UI first.
+   * screenshots into a dead session's temp directory. Turn it on to run it, and
+   * expect to update its selectors to the current UI first.
+   */
+  /*
+   * THE SWITCH IS NOT THE DESTINATION.
    *
-   * The default beside `OBSERVER_MILESTONE_SHOTS` is where the images would
-   * land, not a sign that they will: this gate reads the same variable, so
-   * with it unset the file skips and the default is never used. Two jobs for
-   * one name, kept because the opt-in is deliberate and the alternative is a
-   * second variable that has to agree with the first.
+   * This gate used to read `OBSERVER_MILESTONE_SHOTS` — the same variable that names where
+   * the images go. The two jobs cancelled: with the variable unset the file
+   * skipped, and with it set the default never applied, so the
+   * `?? "_review/milestone"` beside it was a line that could not become true. A
+   * default nobody can reach tells the next reader the file writes there, and
+   * it does not.
+   *
+   * `OBSERVER_MILESTONE_CAPTURE` turns the generator on. `OBSERVER_MILESTONE_SHOTS` still moves
+   * the images, and now its default is reachable: with the flag set and no
+   * destination named, they land in `_review/milestone`.
    */
   test.skip(
-    () => process.env["OBSERVER_MILESTONE_SHOTS"] === undefined,
-    "A screenshot generator: set OBSERVER_MILESTONE_SHOTS to produce the set.",
+    () => process.env["OBSERVER_MILESTONE_CAPTURE"] === undefined,
+    "A screenshot generator: set OBSERVER_MILESTONE_CAPTURE=1 to produce the set.",
   );
 
   test("sign-in", async ({ page }) => {
