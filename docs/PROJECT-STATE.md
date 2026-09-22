@@ -3619,3 +3619,68 @@ doctrine on a file nothing renders. The rule for the next round is stated in the
 **Not run:** `mobile`/`wide`, the full Playwright suite.
 
 Evidence: `050f677` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-23 — P2-07 reopened: the project page's denominators on screen, and the guard where the reader stands
+
+**The rule that opened it.** A denominator that lives only in a `title` attribute is not stated; the
+first-page rule is about the screen, not the DOM. And what the reader sees is decided by a render or
+a photograph, not by reading the source: every claim below about what is on screen came from the
+rendered page's `innerText` and from the photographs, before and after.
+
+**Before, rendered (the f0cc4e3 build, `/project?segment=rooms-2` at 1440×900).** The parity rows
+read "Two-room 1.41×" and "Three-room 0.59×"; "70% of looking time on 50% of stock" was a `title`
+on an empty `<b>`. The paired rows read "Balcony view 40% 38%"; "share of units opened that got
+this" was a `title` on the label. The register rows read "Rooms 2 37 18" under bare heads. The
+place shares read "6%", "27%", rounded by the page.
+
+**The dock carries the period (`2d9e2ee`).** The layout cannot know it — its own docblock says a
+layout does not receive `searchParams`, by design — so it passed `""` and the dock's docblock was
+false. The shell meets the same constraint by reading the URL in a client component; `PeriodField`
+is that solution at the size of one hidden field. Measured on the rendered form: before, no field on
+a page read over 28 days; after, `last_28_days`, and none on the default span. The first mutation run
+was a false green — the mutated build failed its typecheck and the old server kept serving — caught
+because the run's red was expected and did not come; redone with a mutation that compiles, the build
+exit gated and the server replaced by PID: red on "the dock's form carries the period the page is
+read in".
+
+**The outlived guard deleted, its uncovered claim moved (`9f43b9d`).** "The Ask dock covers nothing"
+measured the dock's box against text at the end of eight surfaces and could not fail. Of its four
+claims — the dock by name, text, the page's end, eight surfaces — the roster guard covered the first
+three generalised; the other seven surfaces and text as a target did not, and moved:
+`fixed-covers-nothing.spec.ts` now also asserts on every surface, at three positions, that no fixed
+element covers a focusable element or a leaf with text. Mutation, the dock fixed at the foot again:
+all ten red, by name.
+
+**The denominators on screen (`f646fde`).** The parity scale prints the two shares under each label
+(the label column widens to 14rem); the paired chart gains `of`, one line under its head, and the
+read model carries `unitsOpened` and `otherUnitsOpened` — unit openings, which is what the rates
+are of; the register's two heads read "Times applied, of 74 presentations" and "Units matching, of
+36 available now", with `ProjectView.availableUnits` behind the second and the count columns widened
+from 7rem to 13rem, the width at which the heads wrap to two lines — measured, after a first attempt
+that read the stylesheet instead of the render and wrote a duplicate rule under an existing one.
+The shares come as `*Display` strings from `shareDisplay`, in the project's locale and with "<1%"
+for a share that rounds away but is not nothing; the page rounds nothing. Chosen over `ShareFigure`
+because these shares carry no verdict and no floor, and its own docblock calls it a stopgap.
+
+**The guard where the reader stands (`3a8f5bc`).** `project-overview-denominators.test.ts` read
+`SegmentDetail.tsx` from disk — a component nothing renders — and is deleted. Its claim about the
+attention index moves to the rendered matrix; its claims about a six-figure tally have no subject on
+the live page and die with it. `e2e/project-denominators.spec.ts` reads the rendered page through
+`innerText` — the register's head is uppercase on screen, so the assertion is — five tests, one
+assertion each. Mutation, one printed denominator taken away: red on "the search register says what
+a count of applications is of".
+
+**After, photographed (`_review/views-p2-18/03-project`).** Under "Two-room": "70% of looking time
+on 50% of stock", the track, "1.41×"; under "Three-room": "30% of looking time on 50% of stock",
+"0.59×". Under the paired head: "Each rate is of the unit openings in these meetings: 201 openings of
+two-room units on the left, 82 of other units on the right." over two lines, then the five rows. The
+register's heads: "TIMES APPLIED, OF 74 / PRESENTATIONS" and "UNITS MATCHING, OF 36 AVAILABLE /
+NOW", two lines each, right-aligned over "37 18". The place shares read "6%, 5%, 5%, 4%" and "27%,
+20%, 13%" as before — the same numbers, from the read model now; no share on this fixture is under
+one percent, so the "<1%" case is proven by the unit test alone, not by the photograph.
+
+**Not run:** `mobile`/`wide` — the register's narrow-width variant was widened in step and not
+photographed; the rest of `layout-integrity.spec.ts`; the full Playwright suite.
+
+Evidence: `2d9e2ee`, `9f43b9d`, `f646fde`, `3a8f5bc` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-18/`.
