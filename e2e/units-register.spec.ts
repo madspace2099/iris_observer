@@ -44,7 +44,6 @@ const DEFINED_COLUMNS = [
   "Plans opened",
   "Comparisons",
   "Demand · derived",
-  "Verified outcome",
 ] as const;
 
 /** The full set of column headers the table itself renders. */
@@ -61,7 +60,6 @@ const HEADERS = [
   "Plans opened",
   "Comparisons",
   "Demand · derived",
-  "Verified outcome",
 ] as const;
 
 test("every measured column on the unit register states what it measures", async ({ page }) => {

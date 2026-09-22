@@ -3154,3 +3154,12 @@ the removed column's argument at closer range. It is left standing and recorded 
 fixed, because the column's removal was a product decision and this is the same decision.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.10.
+
+**Correction to the entry above, from the same day.** It was written alongside a review note claiming
+no test depended on the removed column. That was measured in vitest and stated about every test:
+`e2e/units-register.spec.ts` carried "Verified outcome" in both its header list and its
+definitions list, and its column test would have failed. Both lists are corrected and the whole
+repository was swept rather than the `e2e/` directory alone. The Playwright suite is still not run,
+so the spec is now consistent with the source without that consistency having been observed. This is
+the third appearance of one shape: a measurement taken through one filter, reported as a claim about
+everything the filter did not cover.
