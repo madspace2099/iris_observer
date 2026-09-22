@@ -3050,9 +3050,22 @@ sample size. It now reads `1.41× attention for its share of stock`. No figure m
 after dump of every share, index, count and denominator on R06 came back identical.
 
 **No path exists from the place-of-interest demo to a real recipient list**, established four
-independent ways rather than by reading the page: `AudienceMatch` has no field that could carry a
-recipient, the page has no send or export of any kind, `getAudience` has one non-test consumer, and
-the live showroom connector does not populate place interactions at all.
+independent ways rather than by reading the page: `AudienceMatch`
+(`packages/readmodels/src/views3.ts:405-412`) has no field that could carry a recipient — its six are
+`meetingId`, `startedDisplay`, `agentName`, `outcomeLabel`, `because`, `href`, and `agentName` is
+staff; the audience page has no send or export of any kind; `getAudience` has one non-test consumer;
+and the live showroom connector does not populate place interactions at all
+(`packages/connectors/src/supabase-showroom.ts:72-76`).
+
+**Correction, recorded because of where it landed rather than how large it was.** The review log
+first cited that type at `views3.ts:236-243`, which is `SEGMENT_QUADRANTS` and `SegmentConversion` —
+a different type, with different fields, in the same file. A reader following the reference arrives
+somewhere that does not support the claim and has to decide whether the claim is false or the pointer
+is. The mechanism is worth naming: 236-243 is where `decided`, `share` and `projectShare` live, which
+is what the same round was reading for the quadrant matrix's conversion half, so the second clause's
+line range was carried onto the third clause's claim. The one reference in the round that could
+mislead about something off-screen is the one that was wrong; the other six checked out. A citation
+is a claim about a location and needs reading back at that location, not recalling.
 
 **The guard's own expectation was wrong, and the mutation is what proved it.** The test enumerates
 R06's figures and asserts each names its denominator. Searching for the denominator's _words_ passed
