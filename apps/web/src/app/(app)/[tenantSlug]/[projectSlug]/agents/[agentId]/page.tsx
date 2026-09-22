@@ -132,7 +132,7 @@ export default async function AgentPage({
     view.suppressionNote ??
     (view.profile.signature === null
       ? null
-      : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}.`);
+      : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}, across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end.`);
 
   /*
    * WHETHER THE PAGE HAS AN EVIDENCE REFERENCE TO OFFER AT ALL.

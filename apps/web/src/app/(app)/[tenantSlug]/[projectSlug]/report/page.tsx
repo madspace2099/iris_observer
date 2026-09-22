@@ -198,7 +198,7 @@ export default async function ReportPage({
           { key: "agent", label: "Agent" },
           { key: "meetings", label: "Meetings", numeric: true },
           { key: "duration", label: "Median duration", numeric: true },
-          { key: "progressed", label: "Progressed", numeric: true },
+          { key: "progressed", label: "Progressed, of meetings with an outcome", numeric: true },
         ]}
         rows={agents.agents.map((agent) => ({
           key: agent.agentId,
@@ -219,6 +219,8 @@ export default async function ReportPage({
             ),
             progressed: agent.belowMinimum ? (
               <Missing what={agent.suppressionNote ?? "Below the reporting sample"} />
+            ) : agent.ring.decidedMeetings === 0 ? (
+              <Missing what="No outcome recorded" />
             ) : (
               pct(agent.ring.progressedShare)
             ),

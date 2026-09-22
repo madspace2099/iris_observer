@@ -1363,7 +1363,8 @@ export function buildAgentDetail(
     findings.push({
       id: `agent-${agentId}-signature`,
       statement: `${agent.name} spends ${profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${profile.signature.label}.`,
-      baseline: `${count(mine.length, locale)} meetings, against ${count(sessions.length, locale)} on the project`,
+      /* The set the share stands on, then the project it is set against. */
+      baseline: `${count(profile.timedMeetings, locale)} of ${count(mine.length, locale)} meetings the source could time end to end, against ${count(sessions.length, locale)} on the project`,
       soWhat:
         "A habit is visible long before its result is. Whether it is worth copying or worth changing is a conversation this figure can open.",
       nextStep: { label: "Compare presentations", href: `${root}/presentation` },

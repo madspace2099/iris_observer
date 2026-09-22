@@ -6,6 +6,8 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { Missing, ShareFigure } from "@/components/agents";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
@@ -106,16 +108,39 @@ export default async function AgentsPage({
                   {a.suppressionNote}
                 </p>
               ) : (
+                /*
+                 * THE RATE THROUGH `ShareFigure`, NOT ROUNDED HERE.
+                 *
+                 * This line rounded `progressedShare` and appended a percent
+                 * sign — the component computing a figure that ADR-0012
+                 * forbids, and the exact thing the Flow page's docblock named
+                 * when it removed the same line. Worse, the only count on the
+                 * card was the ring's centre, every meeting, while the rate
+                 * stands on the decided ones. The denominator is the read
+                 * model's, in words; the locale is the project's.
+                 */
                 <p className="iris-code" style={{ margin: 0 }}>
-                  {Math.round(a.ring.progressedShare * 100)}% progressed · median{" "}
-                  {a.medianDurationDisplay}
+                  {a.ring.decidedMeetings === 0 ? (
+                    <Missing what="No outcome recorded" />
+                  ) : (
+                    <ShareFigure
+                      share={a.ring.progressedShare}
+                      sampleSize={a.meetings}
+                      minimumSampleSize={AGENT_MIN_SAMPLE}
+                      locale={view.context.project.locale}
+                      qualifier={`progressed, of ${a.ring.decidedMeetings} meetings with an outcome`}
+                    />
+                  )}{" "}
+                  · median {a.medianDurationDisplay}
                 </p>
               )}
               <OutcomeKey slices={a.ring.slices} />
               {a.belowMinimum || a.signature === null ? null : (
+                /* The set the two shares stand on, in the Features page's own form. */
                 <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
                   Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
-                  team&rsquo;s share.
+                  team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
+                  {a.meetings} meetings the source could time end to end.
                 </p>
               )}
               {a.irisRating === null ? null : (

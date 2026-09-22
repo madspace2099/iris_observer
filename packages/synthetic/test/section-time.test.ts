@@ -17,6 +17,17 @@ import { buildAgentsView } from "../src/showroom/views3";
  * set the share stands on. Those are what these tests guard. A mutation that
  * restores `?? 0` fails nothing here, and that is the finding, not a gap.
  *
+ * ## The rule the share follows now: a partly timed meeting moves no share
+ *
+ * The docblocks said the shares stood on the fully timed meetings; the builder
+ * summed every meeting's timed steps. A test here asserted that `MIXED` alone
+ * gave residences a share of 0.25 — and the same profile's `timedMeetings` was
+ * 0: a 25% share on a stated set of nothing. The Features page's
+ * `environmentTimeShare` already filtered on `fullyTimed`; the agent lane now
+ * follows it, one definition at two scopes. A meeting the source could not time
+ * end to end is outside the share on both sides; on its own it yields nought
+ * with `timedMeetings` 0, and a renderer reads the set, not the nought.
+ *
  * ## Why the sessions are constructed
  *
  * The fixtures' nulls are whole sessions. A session with SOME steps timed —
@@ -125,18 +136,38 @@ describe("the set a share of time stands on", () => {
 });
 
 describe("what the share is a share of", () => {
-  it("is the seconds the source could time, not the meeting's length", () => {
+  it("is nought, on a set of nought, for a meeting only some steps of which were timed", () => {
     /*
-     * MIXED: 100 in residences, 300 in gallery, one step untimed. Residences
-     * is 100 of 400 timed seconds. Against `durationSeconds` (9 999) it would
-     * be 1%; against a zeroed unknown it is the same 25%, which is why this
-     * assertion cannot see that mutation and the tests above exist.
+     * MIXED: 100 in residences, 300 in gallery, one step untimed. This used
+     * to assert 0.25 — 100 of 400 timed seconds — beside a `timedMeetings` of
+     * 0, a share on a set the read model said was empty. The meeting is
+     * outside the share now, and alone it leaves nothing to share.
      */
     const residences = profileOf([MIXED])?.sections.find((s) => s.sectionId === "residences");
     expect(
       residences?.timeShare,
-      "the share is not of the seconds the source could time",
-    ).toBeCloseTo(0.25, 5);
+      "a partly timed meeting was given a share of time on a set of no timed meetings",
+    ).toBe(0);
+  });
+
+  it("is unmoved by a meeting only some steps of which were timed", () => {
+    /*
+     * TIMED gives gallery 200 of 400. Summing MIXED's timed steps in would
+     * make it 500 of 800 — a different share, on a set the docblocks said it
+     * did not stand on.
+     */
+    const alone = profileOf([TIMED])?.sections.find((s) => s.sectionId === "gallery")?.timeShare;
+    const withMixed = profileOf([TIMED, MIXED])?.sections.find(
+      (s) => s.sectionId === "gallery",
+    )?.timeShare;
+    expect(withMixed, "a partly timed meeting moved a share of time").toBeCloseTo(alone ?? -1, 5);
+  });
+
+  it("reads no habit from a set of no timed meetings", () => {
+    expect(
+      profileOf([MIXED])?.signature,
+      "a section was named as leaned on with nothing timed to lean on",
+    ).toBeNull();
   });
 
   it("is unmoved by a meeting the source could not time at all", () => {

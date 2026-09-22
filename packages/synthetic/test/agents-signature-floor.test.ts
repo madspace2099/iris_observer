@@ -119,6 +119,14 @@ describe("the lead finding names nobody under the floor", () => {
   it("withholds nothing when somebody clears it", () => {
     expect(view.findings.map((f) => f.id)).not.toContain("agents-signature-withheld");
   });
+
+  it("names the set the share stands on, not the meetings held", () => {
+    /* Every constructed meeting is timed end to end, so the two counts agree here; the form is the claim. */
+    expect(
+      String(view.findings.find((f) => f.id === "agents-signature")?.baseline),
+      "the finding cites the meetings held where the share stands on the timed ones",
+    ).toMatch(/^25 of 25 meetings the source could time end to end/);
+  });
 });
 
 describe("where nobody clears the floor", () => {

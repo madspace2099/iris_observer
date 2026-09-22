@@ -125,7 +125,16 @@ export interface AgentOutcomeRing {
   readonly agentId: string;
   readonly name: string;
   readonly meetings: number;
+  /**
+   * Of `meetings`, the ones with an outcome recorded — the denominator of
+   * `progressedShare`, which is NOT `meetings`: the ring's centre says every
+   * meeting, the rate stands on the decided ones, and a card that printed the
+   * rate beside the centre count invited the reader to multiply the wrong two
+   * numbers. Carried here so the screen prints it rather than counts it.
+   */
+  readonly decidedMeetings: number;
   readonly slices: readonly OutcomeSlice[];
+  /** Of `decidedMeetings`. Nought where none was decided, which the screen must read as no rate. */
   readonly progressedShare: number;
   /**
    * Set only when the pattern is worth a conversation, never as a score.

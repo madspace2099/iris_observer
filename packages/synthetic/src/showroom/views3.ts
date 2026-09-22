@@ -369,6 +369,8 @@ function buildRing(
     agentId,
     name,
     meetings: session.length,
+    /* The rate's own denominator, on the read model, so no screen has to count it. */
+    decidedMeetings: decided.length,
     slices: outcomeSlices(session),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
     flag: outcomeFlag(session, teamProgressed),
@@ -1095,8 +1097,18 @@ export function buildAgentsView(
     decided.length,
   );
 
+  /*
+   * THE SET A SHARE OF TIME STANDS ON: the meetings every step of which the
+   * source could time, and nothing else — the definition the Features page
+   * already keeps (`environmentTimeShare`) and the docblocks on
+   * `timedMeetings` and `timeShare` already claimed while this summed every
+   * meeting's timed steps. A partly timed meeting contributes to no share on
+   * either side; measured across the fixtures the change moves nothing,
+   * because their unknowns are whole meetings.
+   */
+  const timedSessions = sessions.filter(fullyTimed);
   const teamSectionSecs = new Map<SectionId, number>();
-  for (const s of sessions) {
+  for (const s of timedSessions) {
     for (const id of SECTION_IDS) {
       teamSectionSecs.set(id, (teamSectionSecs.get(id) ?? 0) + sectionSeconds(s, id));
     }
@@ -1109,7 +1121,9 @@ export function buildAgentsView(
 
     const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
 
-    const myTotal = mine.reduce((acc, s) => acc + totalSeconds(s), 0);
+    /* The same set, at the agent's scope. */
+    const timedMine = mine.filter(fullyTimed);
+    const myTotal = timedMine.reduce((acc, s) => acc + totalSeconds(s), 0);
     /*
      * One row per section, carrying the whole answer.
      *
@@ -1119,7 +1133,7 @@ export function buildAgentsView(
      * reader ends up comparing a chart against itself.
      */
     const sections: AgentSectionUse[] = SECTION_IDS.map((id) => {
-      const secs = mine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
+      const secs = timedMine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
       const dwell = sectionDwell(mine, id);
       const teamDwell = sectionDwell(sessions, id);
       return {
@@ -1163,7 +1177,7 @@ export function buildAgentsView(
       organisationName: a.organisationName,
       meetings: mine.length,
       /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
-      timedMeetings: mine.filter(fullyTimed).length,
+      timedMeetings: timedMine.length,
       belowMinimum,
       suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
@@ -1212,7 +1226,8 @@ export function buildAgentsView(
     findings.push({
       id: "agents-signature",
       statement: `${distinct.name} spends ${distinct.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${distinct.signature.label}.`,
-      baseline: `${count(distinct.meetings, locale)} meetings`,
+      /* The set the share stands on, not the meetings held: the two differ by the meetings the source could not time. */
+      baseline: `${count(distinct.timedMeetings, locale)} of ${count(distinct.meetings, locale)} meetings the source could time end to end`,
       soWhat:
         "A presenter's habit is visible long before its result is. Whether it is worth copying or worth changing is a coaching conversation this figure can start.",
       nextStep: { label: `Open ${distinct.name.split(" ")[0]}`, href: distinct.href },
@@ -1220,9 +1235,9 @@ export function buildAgentsView(
         `agent-signature-${distinct.agentId}`,
         "observed_sequence",
         distinct.href,
-        distinct.meetings,
+        distinct.timedMeetings,
       ),
-      sampleSize: distinct.meetings,
+      sampleSize: distinct.timedMeetings,
       sources: [...DERIVED],
       caveat: null,
     });
