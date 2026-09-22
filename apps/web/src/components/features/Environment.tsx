@@ -156,6 +156,25 @@ export function Environment({
         appears four times.
       </p>
 
+      {/*
+       * THE SHARE OF TIME, WITH ITS DENOMINATOR ON THE SCREEN.
+       *
+       * This file's own rule, stated above for the counts: a percentage whose
+       * denominator the screen does not hold is a figure nobody can check. So
+       * the share is never drawn alone. It is the same definition the agent
+       * lane uses — seconds in this section over seconds in every section,
+       * across the meetings every step of which the source could time — and
+       * the set it stands on is printed beside it, because the meetings the
+       * source could not time are outside it on both sides, not counted as
+       * nought. When no meeting was fully timed there is nothing to stand on,
+       * and the sentence says so rather than showing 0%.
+       */}
+      <p className="ox-section-note">
+        {environment.timeShare === null
+          ? "How much presentation time Time & weather took is not observed yet: no presentation in this period had every step timed."
+          : `Time & weather took ${Math.round(environment.timeShare.share * 100)}% of presentation time — ${Math.round(environment.timeShare.environmentSeconds / 60)} of ${Math.round(environment.timeShare.timedSeconds / 60)} minutes in any section, across the ${environment.timeShare.timedMeetings} of ${environment.timeShare.meetingsTotal} presentations the source could time end to end.`}
+      </p>
+
       <div className="ox-cols" data-cols="2">
         <Presets
           title="Time of day chosen"
