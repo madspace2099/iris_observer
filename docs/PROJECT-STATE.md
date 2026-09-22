@@ -3510,3 +3510,59 @@ shortfall sentences overlap, and the report's `agents[0].sections` are the next 
 
 Evidence: `915274c`, `10f4130`, `aeefdfd`, `eeffee1` and this entry's commit on
 `feature/observer-ux-overhaul-phase2`; `_review/views-p2-16/`.
+
+## 2026-09-22 — Two sweep items of one shape: a primitive that holds on one surface and folds on another
+
+**The primitive's scope, measured before the fix.** `Figure` prints a below-the-floor metric as its
+raw figure and a shortfall sentence in `.ox-shortfall`, which was `white-space: nowrap` for the
+sheet row's short form; inside a tally cell the read model's sentence could not wrap, and on the
+agent page three of them ran across their cells into one line. Because the defect is the
+primitive's, the scope was measured across the repository first — three search angles, then one
+adversarial reader per file, twelve duplicate claims refuted: (A) 32 sites draw absent-state text
+inside a `Tally`/`TallyItem`, in 8 files; 23 on 4 mounted surfaces, 9 in 4 components no page
+imports; `Figure` itself inside a `TallyItem` at 11 sites on 2 surfaces. (B) Agent detail 5, Unit
+detail 14, Report 3 (with its `?meeting=` variant), Briefing 1; unmounted: `components/project/
+Building.tsx` 6, `SegmentDetail.tsx` 1, `components/flow/OutcomeFigures.tsx` 1, `WindowFigures.tsx` 1.
+(C) The longest visible text is 80 characters, the `insufficient` state: "Fewer than 20 meetings for
+this agent — shown as a raw figure, not as a verdict." Two longer producer strings, 103 and 117
+characters, are hover titles behind the word "Unavailable". More than six, so the rule is the grid's
+(`9ca1333`): `.ox-tally .ox-shortfall` wraps. The test measures the rendered page — every shortfall
+inside a tally cell ends inside that cell — and with the rule dropped it reports three sentences each
+132 px past their cells.
+
+**The team's section list is the team's (`6869d97`).** The report's section table read the first
+agent's `sections`: the team's fields on an array the first agent's own `reachRate > 0` filter had
+thinned. `AgentsView.teamSections` is built on every meeting by `sectionUses`, one function at two
+scopes as `sectionSeconds` and `totalSeconds` are; the report reads it, and the docblock that
+defended the shortcut went with it. The constructed case — a first presenter who never opens Compare
+beside one who does — is red on the old code.
+
+**The radar's caption is the card's (`c8b30b6`).** The finding held: `Radar` itself drew a key under
+every drawing, and the roster, its one consumer, hands it one profile per cell, so each cell got a
+key for one shape — a swatch beside the one name, where the caption belongs. The component draws its
+key for two series or more; the card is a `figure` and captions its own shape under it; the card's
+rows pack at the top so a note beside a shape is centred on the shape's box, not on the box plus the
+caption.
+
+**The photographs (`_review/views-p2-17/04-agents`, `05-agent-detail`).** On the roster's radar row,
+"Akhilesh Undev · 22 meetings" stands as plain text directly under his shape, no swatch, and the three
+notes are centred at the shape's height; the caption is the lowest line of the row, under the one
+shape it names. The notes still break after the bold name with the dash opening the second line, as
+last round recorded. The workload list's sub lines are unchanged: "median 11m 42s", "19 of 20
+meetings", "18 of 20 meetings", "15 of 20 meetings". On the agent page's activity tally the three
+shortfall sentences wrap onto two lines inside their own cells — "Fewer than 20 meetings for this
+agent — shown as / a raw figure, not as a verdict." — beside "12m 42s", "4.1" and "87%", with
+"19 of 74 on this project" in the first cell; nothing overlaps.
+
+**The dock, answered, not touched.** Last round's twenty-four measurements found a focusable link
+under the hit area in nine positions on the roster, against a tracker sentence that had generalised
+one surface's measurement to the product. The decision offered — the dock in the document flow (A), a
+launcher (B), a per-viewer hide (C) — is answered in the round's report: (A). A fixed bar over a
+scrolling document covers something at some scroll position whatever its size, so (A) is the one
+option under which "it covers nothing" is a statement and not a hope until the next measurement. It
+is its own round.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite.
+
+Evidence: `9ca1333`, `6869d97`, `c8b30b6` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-17/`.
