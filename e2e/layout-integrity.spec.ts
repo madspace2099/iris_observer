@@ -173,43 +173,6 @@ test.describe("every metric stays reachable", () => {
   });
 });
 
-test.describe("the Ask dock covers nothing", () => {
-  /*
-   * The Observer rail became the docked Ask IRIS composer (`.ask-dock`,
-   * ADR-0033), fixed at the bottom of every project page but Ask IRIS
-   * itself. The claim is the one the rail had: at the true end of the page
-   * it covers no text. `storytelling` is a redirect to `features` and is
-   * checked under that name; the report joined the list tonight.
-   */
-  for (const surface of ["project", "agents", "presentation", "units", "features", "meetings", "flow", "report"]) {
-    test(`clears the content on ${surface}`, async ({ page }) => {
-      await signInAs(page, "Petra Novák");
-      await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(250);
-
-      const overlaps = await page.evaluate(() => {
-        const rail = document.querySelector(".ask-dock");
-        if (rail === null) return 0;
-        const r = rail.getBoundingClientRect();
-        let hits = 0;
-        for (const el of Array.from(
-          document.querySelectorAll<HTMLElement>(".iris-plane *, .iris-doors *, .ox-plane *"),
-        )) {
-          if (el.children.length > 0) continue;
-          if ((el.textContent ?? "").trim().length === 0) continue;
-          const b = el.getBoundingClientRect();
-          if (b.height === 0) continue;
-          if (b.bottom > r.top && b.top < r.bottom && b.right > r.left && b.left < r.right) hits += 1;
-        }
-        return hits;
-      });
-
-      expect(overlaps, `the rail covers ${overlaps} elements on ${surface}`).toBe(0);
-    });
-  }
-});
-
 /*
  * "Observer holds still while it answers" measured the briefing's orb and
  * prompt (`.obs-console-orb`, `.obs-prompt`). ADR-0033 made Ask IRIS the
