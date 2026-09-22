@@ -47,6 +47,16 @@ export interface BuildingSpec {
   readonly soldPressure: number;
   /** Units written by hand in the scenario document, pinned against drift. */
   readonly pinned: Readonly<Record<string, Partial<PulseUnit> & { status: UnitStatus }>>;
+  /**
+   * How many of this scheme's sales fall inside the period, when its scenario
+   * states a figure.
+   *
+   * Optional, and absent means `null` rather than somebody else's number.
+   * Nothing in this builder can derive it: a unit carries a status and no sale
+   * date, and a meeting is not a sale. So it is a figure a scenario holds or a
+   * figure nobody has.
+   */
+  readonly soldInPeriod?: number;
 }
 
 /**
@@ -77,6 +87,8 @@ export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
     orientation: { A: "S", B: "SW", C: "W" },
     soldPressure: 0.25,
     pinned: NORTHGATE_PINNED,
+    /* The scenario document's own figure for Northgate, and only for Northgate. */
+    soldInPeriod: 7,
   },
   // Riverside is a smaller waterside scheme: two blocks, six floors, and a
   // different aspect — its stock faces the water, east and north-east.
@@ -453,11 +465,24 @@ function readingsFrom(observed: ObservedMeetings): {
   return { byCode };
 }
 
+/**
+ * The figure this scheme's scenario states, or none.
+ *
+ * Keyed by project, like `BUILDINGS` itself and for the reason this file
+ * already states about the geometry a few hundred lines up: "An unknown
+ * project gets nothing, not Northgate." The rule was written once, applied to
+ * the building, and not applied here.
+ */
+function scenarioSoldInPeriod(projectId: string): number | null {
+  return BUILDINGS[projectId]?.soldInPeriod ?? null;
+}
+
 export function buildProjectPulse(
   context: ViewContext,
   meetings: ObservedMeetings | null = null,
 ): ProjectPulse {
-  const raw = catalogueFor(context.project.id as string);
+  const projectId = context.project.id as string;
+  const raw = catalogueFor(projectId);
   const { locale, currency } = {
     locale: context.project.locale,
     currency: context.project.currency,
@@ -695,13 +720,26 @@ export function buildProjectPulse(
       reserved: units.filter((u) => u.status === "reserved").length,
       sold: units.filter((u) => u.status === "sold").length,
       /*
-       * Seven is the scenario's figure; a delivered catalogue has no observed
-       * period yet. Neither answer is honest for a project with no units at
-       * all — there is no scenario to hold a figure for, sold or otherwise —
-       * so an empty catalogue keeps the same "not observed" `null` rather
-       * than inheriting Northgate's number by default.
+       * THE SCENARIO'S OWN FIGURE, OR NONE.
+       *
+       * This was the literal `7` for every observed project with a non-empty
+       * catalogue. Seven is NORTHGATE's number. Ister Tower sold three flats
+       * and reported seven of them in the period; Kingsford Yard, which exists
+       * in this world precisely because "almost nothing moved yet", sold none
+       * and reported seven — across a tenant boundary. `soldInPeriod > sold`
+       * is arithmetically impossible, and both surfaces that draw the sentence
+       * drew it.
+       *
+       * The comment that stood here named this exact failure — "rather than
+       * inheriting Northgate's number by default" — and then guarded only the
+       * empty catalogue, which is the one project the number could not reach
+       * anyway. A reason can be present and still be watching the wrong edge.
+       *
+       * `null` is not a gap. The three surfaces that read this already word it:
+       * "how many of them in this period is not observed yet". A scheme whose
+       * scenario states no figure is exactly that, and saying so is the answer.
        */
-      soldInPeriod: observed && raw.length > 0 ? 7 : null,
+      soldInPeriod: observed && raw.length > 0 ? scenarioSoldInPeriod(projectId) : null,
     },
     peakViews,
     /*

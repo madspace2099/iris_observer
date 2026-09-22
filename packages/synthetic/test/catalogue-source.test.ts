@@ -214,7 +214,19 @@ describe("a repository composed with a catalogue source", () => {
     const plain = new SyntheticObserverRepository();
     const pulse = await plain.getProjectPulse(ISTER);
     expect(pulse.floors.flatMap((f) => f.units).some((u) => u.code.startsWith("IT-"))).toBe(true);
-    expect(pulse.totals.soldInPeriod).not.toBeNull();
+    /*
+     * `observationCount`, not `soldInPeriod`.
+     *
+     * This line asserted `soldInPeriod` was not null, as a proxy for "this is
+     * the observed path and not the delivered one". It stopped being a usable
+     * proxy when `soldInPeriod` became each scheme's own figure or none: Ister
+     * Tower's scenario states none, so the observed path now answers null here
+     * and the proxy reported the delivered path.
+     *
+     * The fact it stood for is asserted directly instead, and against the same
+     * number the delivered case pins to nought fifty lines up.
+     */
+    expect(pulse.evidence.observationCount).toBeGreaterThan(0);
   });
 });
 
