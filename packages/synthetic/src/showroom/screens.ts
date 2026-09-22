@@ -90,6 +90,19 @@ const WITH_OUTCOME: readonly InsightSource[] = [
   "IRIS_SHOWROOM_DERIVED",
   "CRM_OUTCOME_CONTEXT",
 ];
+/*
+ * A fact the unit catalogue states — a status of reserved or sold.
+ *
+ * `INSIGHT_SOURCES` has no word for the catalogue: showroom observed, showroom
+ * derived, CRM outcome context, WEBIRIS, model. None of the five is where a
+ * catalogue status comes from, and the two stages that carry it used to wear
+ * the showroom's chips and the CRM's. So they wear none, rather than one that
+ * is false; the stage's `verification` ("verified"), its basis sentence and its
+ * qualifier ("stated by the unit catalogue") carry the provenance in words. The
+ * vocabulary lives in `packages/contracts/src/provenance.ts`, which is frozen;
+ * a `CATALOGUE` source is the contract change that would let a chip say it.
+ */
+const CATALOGUE_STATED: readonly InsightSource[] = [];
 
 /* --- small helpers --------------------------------------------------------- */
 
@@ -806,8 +819,13 @@ export function buildUnitDetail(
       },
       "verified",
       "The unit catalogue is a system of record about this unit, so the status is stated rather than inferred from a meeting.",
-      "attributed_conversion",
-      WITH_OUTCOME,
+      /*
+       * The tier is the claim's strength, and the claim is a stated status:
+       * recorded, nothing beyond the record. It wore "attributed_conversion",
+       * a conversion assigned under a rule, which no rule had done.
+       */
+      "observed_sequence",
+      CATALOGUE_STATED,
     ),
     stage(
       "purchase",
@@ -830,8 +848,8 @@ export function buildUnitDetail(
       },
       "verified",
       "The unit catalogue is a system of record about this unit, so the status is stated rather than inferred from a meeting.",
-      "attributed_conversion",
-      WITH_OUTCOME,
+      "observed_sequence",
+      CATALOGUE_STATED,
     ),
   ];
 

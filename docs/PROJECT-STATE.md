@@ -3357,3 +3357,39 @@ wording reused here.
 workload medians and the section sequence's team medians under the floor; `TeamRegister`'s fate.
 
 Evidence: the two commits after `898bca5` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — The twentieth rule's sweep: one claim in five shapes, and a sixth of another class
+
+**Measured before fixing, on the doctrine.** `docs/06-ownership.md` gives the showroom "the recorded
+outcome" and the CRM "whether the deal later closed"; `meeting.outcome_set` is a showroom event
+(`docs/03-event-map.md`); `CRM_OUTCOME_CONTEXT` is "the CRM's account of what the commercial process
+concluded". In every one of the five places the number came from `session.outcome` alone and the
+CRM only gated or was credited: the agent page's follow-up figure and its two funnel outcome stages
+(with the unrecorded-outcome finding beside them), the registers' "No CRM" follow-up state — a
+fourth member of `FOLLOW_UP_STATES` whose own docblock said the CRM produced a fact the room had —
+the unit page's "Meeting ended" timeline entry and its follow-up stage (with the shortlist-without-
+follow-up finding beside them), and Ask's evidence bundles, which upgraded any answer carrying the
+CRM's chip to an attributed conversion in the words of the comment that forbade it. Zero good gates;
+the stop condition ("three or more") did not fire.
+
+**Fixed in one commit, on the `6ade758` pattern:** the number stays, the claim goes, the tier is the
+vocabulary's own word for a record. The `unavailable` state is deleted rather than documented, and
+the compiler found every consumer. Three tests that asserted the gates now assert the opposite; the
+meetings list's no-CRM finding keeps saying what a missing CRM takes away and now says it precisely.
+Through the port: Riverside's follow-up figure and outcome stages read `empty` — a real answer about
+the record — where they read `unavailable`; every register row reads "not recorded"; Northgate's
+A-402 timeline carries nine recorded outcomes at the observed tier from the showroom.
+
+**The sixth, separately.** The unit funnel's reserved and sold stages have the right provenance —
+`verified`, "stated by the unit catalogue" — and wore the wrong words: `attributed_conversion`, and
+the showroom's chips with the CRM's. The tier is `observed_sequence`, the vocabulary's word for a
+record. For the source there is no word: `INSIGHT_SOURCES` (frozen) has no catalogue, so the stages
+wear no chip rather than a false one, and the basis sentence carries the provenance. A `CATALOGUE`
+source is the contract change that would let a chip say it. The offer stage — `unavailable`, "the
+deal ladder is the CRM's" — keeps the attributed tier over a metric that does not exist; not touched.
+
+**Not run:** Playwright, screenshots, `mobile`/`wide`. Four regions' words changed on the agent
+pages since their last capture, and the meetings register lost its band; the next round photographs
+them.
+
+Evidence: the two commits after `3a1051d` on `feature/observer-ux-overhaul-phase2`.
