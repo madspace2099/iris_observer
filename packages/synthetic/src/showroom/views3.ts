@@ -1199,7 +1199,7 @@ export function buildAgentsView(
        * null too under `belowMinimum`, whose note already speaks for the card.
        */
       signatureNote:
-        false
+        !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
           ? timedSetNoteFor(timedMine.length, mine.length, locale)
           : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
