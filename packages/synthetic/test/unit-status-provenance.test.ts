@@ -14,9 +14,15 @@ import type { OverviewQuery, Viewer } from "@observer/readmodels";
  * provenance, wrong label: a different class from a source labelled as
  * another, so a guard of its own.
  *
- * Read through the port on the one project whose catalogue lists a sold unit.
- * One measured assertion per test, so a mutation is read by which one fails.
+ * Read through the port on Northgate's A-402, which meetings opened in the
+ * period. The labels are the STAGE's — verification, tier, sources — and stand
+ * whatever the status metric says, so an available unit answers as well as a
+ * sold one; a sold unit (A-505) is opened in no meeting and has no page here,
+ * which is how this guard first went red. One measured assertion per test, so
+ * a mutation is read by which one fails.
  */
+
+const UNIT = "A-402";
 
 const NORTHGATE: OverviewQuery = {
   viewer: VIEWERS.developer as Viewer,
@@ -29,12 +35,12 @@ const repo = new SyntheticObserverRepository();
 
 describe("the catalogue's status stages", () => {
   it("still say the catalogue stands behind them", async () => {
-    const view = await repo.getUnitDetail(NORTHGATE, "A-505");
+    const view = await repo.getUnitDetail(NORTHGATE, UNIT);
     expect(view.funnel.find((s) => s.id === "purchase")?.verification).toBe("verified");
   });
 
   it("claim only the record", async () => {
-    const view = await repo.getUnitDetail(NORTHGATE, "A-505");
+    const view = await repo.getUnitDetail(NORTHGATE, UNIT);
     expect(
       view.funnel.find((s) => s.id === "purchase")?.tier,
       "a stated status was presented as a conversion attributed under a rule",
@@ -42,7 +48,7 @@ describe("the catalogue's status stages", () => {
   });
 
   it("wear no source chip the vocabulary cannot make true", async () => {
-    const view = await repo.getUnitDetail(NORTHGATE, "A-505");
+    const view = await repo.getUnitDetail(NORTHGATE, UNIT);
     expect(
       view.funnel.find((s) => s.id === "reservation")?.sources,
       "a catalogue status was credited to the showroom and the CRM",

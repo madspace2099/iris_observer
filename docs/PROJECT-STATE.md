@@ -3388,8 +3388,13 @@ wear no chip rather than a false one, and the basis sentence carries the provena
 source is the contract change that would let a chip say it. The offer stage — `unavailable`, "the
 deal ladder is the CRM's" — keeps the attributed tier over a metric that does not exist; not touched.
 
+**A process defect, recorded.** The sixth's guard was pushed red once: it read a sold unit that no
+meeting had opened, so the port answered not-found, and the gate that should have stopped the commit
+piped vitest through `grep`, which returned the grep's status and not vitest's. The guard reads A-402
+now, the gate runs under `pipefail`, and the fix is its own commit.
+
 **Not run:** Playwright, screenshots, `mobile`/`wide`. Four regions' words changed on the agent
 pages since their last capture, and the meetings register lost its band; the next round photographs
 them.
 
-Evidence: the two commits after `3a1051d` on `feature/observer-ux-overhaul-phase2`.
+Evidence: the three commits after `3a1051d` on `feature/observer-ux-overhaul-phase2`.
