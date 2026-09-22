@@ -198,6 +198,14 @@ export interface SegmentInterest {
   readonly availableUnits: number;
   readonly stockShare: number;
   readonly attentionShare: number;
+  /**
+   * The two shares as the reader sees them: a whole percent in the project's
+   * locale, and "<1%" for a share that rounds away but is not nothing. The
+   * page prints these; it rounded the numbers itself, without the locale and
+   * without that guard, which ADR-0012 forbids.
+   */
+  readonly stockShareDisplay: string;
+  readonly attentionShareDisplay: string;
   readonly favouriteShare: number;
   readonly compareShare: number;
   readonly shareShare: number;
@@ -209,6 +217,8 @@ export interface SegmentInterest {
     readonly label: string;
     readonly category: string;
     readonly share: number;
+    /** `share` as the reader sees it, in the project's locale. */
+    readonly shareDisplay: string;
   }[];
   /** The sections these meetings spent longest in. */
   readonly sections: readonly {
@@ -225,6 +235,13 @@ export interface SegmentInterest {
    * the floor plan" call for different campaigns, and averaging them into
    * "engagement" loses exactly that.
    */
+  /**
+   * The sets `examinedHow`'s two rates stand on: openings of this segment's
+   * units in these meetings, and openings of every other unit. A rate with
+   * no set beside it is a percentage of nothing in particular.
+   */
+  readonly unitsOpened: number;
+  readonly otherUnitsOpened: number;
   readonly examinedHow: readonly {
     readonly id: string;
     readonly label: string;
@@ -293,10 +310,18 @@ export interface ProjectView {
     readonly category: PlaceCategory;
     readonly label: string;
     readonly share: number;
+    /** `share` as the reader sees it, in the project's locale. */
+    readonly shareDisplay: string;
     readonly meetings: number;
   }[];
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
+  /**
+   * Available units in the catalogue now: what "units matching" a search is
+   * a count of. "Now" is honest — a search recorded earlier matched the
+   * stock of its day, and the read model keeps its latest count.
+   */
+  readonly availableUnits: number;
   readonly evidence: EvidenceRef;
 }
 

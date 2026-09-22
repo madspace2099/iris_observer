@@ -275,6 +275,7 @@ export function PairedRates({
   rows,
   leftLabel,
   rightLabel,
+  of,
 }: {
   rows: readonly {
     readonly id: string;
@@ -285,6 +286,12 @@ export function PairedRates({
   }[];
   leftLabel: string;
   rightLabel: string;
+  /**
+   * What the rates are shares of, printed once under the head — the product's
+   * `of …` qualifier at the chart's scale. A row's `note` is a tooltip and a
+   * tooltip states nothing; a chart whose rates have a set says it here.
+   */
+  of?: string;
 }) {
   return (
     <div className="iris-paired">
@@ -298,6 +305,7 @@ export function PairedRates({
         <span className="iris-code">{leftLabel}</span>
         <span className="iris-code">{rightLabel}</span>
       </div>
+      {of === undefined ? null : <p className="iris-paired-of">{of}</p>}
       {rows.map((row) => {
         const lo = Math.min(row.left, row.right);
         const hi = Math.max(row.left, row.right);
@@ -465,7 +473,16 @@ export function ParityScale({
     <div className="iris-parity">
       {rows.map((row) => (
         <div className="iris-parity-row" key={row.id}>
-          <span className="iris-parity-label">{row.label}</span>
+          <span className="iris-parity-label">
+            {row.label}
+            {/*
+             * The two shares the index is a quotient of, printed under the
+             * label. This was the marker's `title`: a denominator that lives
+             * only in a tooltip on an empty element is not stated, and the
+             * repository's first-page rule is about the screen, not the DOM.
+             */}
+            <em className="iris-parity-note">{row.note}</em>
+          </span>
           <span className="iris-parity-track">
             <em style={{ left: place(1) }} />
             <i
@@ -475,7 +492,7 @@ export function ParityScale({
                 width: place(Math.abs(row.index - 1)),
               }}
             />
-            <b style={{ left: place(row.index) }} title={row.note} />
+            <b style={{ left: place(row.index) }} />
           </span>
           <span className="iris-parity-value" data-over={row.index >= 1 ? "true" : undefined}>
             {row.index.toFixed(2)}×

@@ -209,7 +209,8 @@ export default async function ProjectPage({
                   id: s.id,
                   label: s.label,
                   index: s.index,
-                  note: `${Math.round(s.attentionShare * 100)}% of looking time on ${Math.round(s.stockShare * 100)}% of stock`,
+                  /* The read model's own display strings: locale, and "<1%" for a share that rounds away. */
+                  note: `${s.attentionShareDisplay} of looking time on ${s.stockShareDisplay} of stock`,
                 }))}
               />
             </div>
@@ -293,8 +294,8 @@ export default async function ProjectPage({
                     label: e.label,
                     left: e.rate,
                     right: e.otherRate,
-                    note: "share of units opened that got this",
                   }))}
+                  of={`Each rate is of the unit openings in these meetings: ${segment.unitsOpened} openings of ${segment.label.toLowerCase()} units on the left, ${segment.otherUnitsOpened} of other units on the right.`}
                 />
               </div>
               <p className="iris-meta" style={{ marginTop: ".75rem" }}>
@@ -333,7 +334,7 @@ export default async function ProjectPage({
                     >
                       <i />
                     </span>
-                    <span className="iris-bar-value">{Math.round(a.share * 100)}%</span>
+                    <span className="iris-bar-value">{a.shareDisplay}</span>
                   </div>
                 ))}
               </div>
@@ -367,8 +368,13 @@ export default async function ProjectPage({
               <div className="iris-matrix-head">
                 <span>Filter</span>
                 <span>Value</span>
-                <span style={{ textAlign: "right" }}>Times applied</span>
-                <span style={{ textAlign: "right" }}>Units matching</span>
+                {/* The column head is beside every figure in the column: the set is stated once, visibly. */}
+                <span style={{ textAlign: "right" }}>
+                  Times applied, of {view.meetingCount} presentations
+                </span>
+                <span style={{ textAlign: "right" }}>
+                  Units matching, of {view.availableUnits} available now
+                </span>
               </div>
               {view.demand.slice(0, 10).map((d) => (
                 <div
@@ -422,7 +428,7 @@ export default async function ProjectPage({
                   >
                     <i />
                   </span>
-                  <span className="iris-bar-value">{Math.round(c.share * 100)}%</span>
+                  <span className="iris-bar-value">{c.shareDisplay}</span>
                 </div>
               ))}
             </div>

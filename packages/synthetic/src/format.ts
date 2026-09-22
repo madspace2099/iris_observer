@@ -54,6 +54,17 @@ export function count(value: number, locale: string): string {
 }
 
 /**
+ * A share as the reader sees it: a whole percent in the project's locale, and
+ * never "0%" for something that happened. A share that rounds away to nothing
+ * but is not nothing prints as "<1%" — a bare "0%" reads as absence, the one
+ * thing a rounding may not say. The threshold is half a percent, below which
+ * `percent` would print 0%.
+ */
+export function shareDisplay(value: number, locale: string): string {
+  return value > 0 && value < 0.005 ? `<${percent(0.01, locale)}` : percent(value, locale);
+}
+
+/**
  * A signed delta with a true minus sign rather than a hyphen.
  *
  * A value that rounds away to nothing is reported as no change. "−0%" is

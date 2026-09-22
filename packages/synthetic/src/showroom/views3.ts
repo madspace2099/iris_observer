@@ -47,7 +47,7 @@ import {
 } from "../pulse";
 import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
 import { buildAssistedSales, buildDealLadder } from "../deals";
-import { count, dayLabel, evidenceRef, percent } from "../format";
+import { count, dayLabel, evidenceRef, percent, shareDisplay } from "../format";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { agentById, presenterName, presentersIn } from "./sessions";
 
@@ -858,6 +858,8 @@ function buildSegment(
     availableUnits: available.length,
     stockShare,
     attentionShare,
+    stockShareDisplay: shareDisplay(stockShare, locale),
+    attentionShareDisplay: shareDisplay(attentionShare, locale),
     favouriteShare: share(mine.filter((t) => t.favourited).length, favAll),
     compareShare: share(mine.filter((t) => t.comparedWith.length > 0).length, cmpAll),
     shareShare: share(mine.filter((t) => t.shared).length, shrAll),
@@ -866,7 +868,12 @@ function buildSegment(
     attendedTo: [...placeSeconds.values()]
       .sort((a, b) => b.secs - a.secs)
       .slice(0, 6)
-      .map((e) => ({ label: e.label, category: e.category, share: share(e.secs, placeTotal) })),
+      .map((e) => ({
+        label: e.label,
+        category: e.category,
+        share: share(e.secs, placeTotal),
+        shareDisplay: shareDisplay(share(e.secs, placeTotal), locale),
+      })),
     sections: sectionSecs
       .filter((s) => s.secs > 0)
       .sort((a, b) => b.secs - a.secs)
@@ -880,6 +887,9 @@ function buildSegment(
      * "what should the next campaign show".
      */
     examinedHow,
+    /* The sets the rates above stand on, printed beside them. */
+    unitsOpened: mine.length,
+    otherUnitsOpened: others.length,
     conversion,
     soWhat:
       topPlace === undefined
@@ -895,9 +905,8 @@ export function buildProjectView(
 ): ProjectView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const segments = roomSegments(catalogueFor(context.project.id as string)).map((spec) =>
-    buildSegment(context, sessions, spec),
-  );
+  const catalogue = catalogueFor(context.project.id as string);
+  const segments = roomSegments(catalogue).map((spec) => buildSegment(context, sessions, spec));
   /*
    * No segment asked for opens the first one — the band below the tabs is
    * the point of the page, and "first" is the smallest count, the same
@@ -986,6 +995,7 @@ export function buildProjectView(
       category,
       label: PLACE_CATEGORY_LABELS[category],
       share: share(e.secs, categoryGrand),
+      shareDisplay: shareDisplay(share(e.secs, categoryGrand), locale),
       meetings: e.meetings.size,
     }))
     .sort((a, b) => b.share - a.share);
@@ -1080,6 +1090,8 @@ export function buildProjectView(
     demand,
     places: places.slice(0, 18),
     placeCategories,
+    /* What "units matching" a search is a count of: the catalogue's available units, now. */
+    availableUnits: catalogue.filter((u) => u.status === "available").length,
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("project-view", "observed_sequence", `${base}/project`, sessions.length),

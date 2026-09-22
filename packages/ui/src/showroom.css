@@ -1821,6 +1821,15 @@
   text-align: right;
 }
 
+/* What the rates are shares of, once, under the head. */
+.iris-paired-of {
+  margin: 0;
+  padding: 0.5rem 0 0.125rem;
+  max-width: 62ch;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
 .iris-paired-value[data-muted="true"] {
   color: var(--ink-2);
 }
@@ -1866,7 +1875,8 @@
 
 .iris-parity-row {
   display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 3.5rem;
+  /* Wide enough for the label and, under it, the two shares the index is made of. */
+  grid-template-columns: 14rem minmax(0, 1fr) 3.5rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -1923,6 +1933,15 @@
   font-weight: 600;
   text-align: right;
   color: var(--loss);
+}
+
+/* The two shares under the label: what the index is a quotient of, printed, not hovered. */
+.iris-parity-note {
+  display: block;
+  margin-top: 0.125rem;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--ink-2);
 }
 
 .iris-parity-value[data-over="true"] {
@@ -2218,12 +2237,18 @@
   color: var(--watch);
 }
 
-/* A demand row whose filter matched nothing is the finding, so it is marked. */
+/*
+ * The two count columns were 7rem: room for a number. Their heads carry the
+ * sets the counts are of now — "Times applied, of 74 presentations" — so
+ * they get the width at which such a head wraps to two lines, measured.
+ */
 .iris-matrix[data-columns="demand"] .iris-matrix-head,
 .iris-matrix[data-columns="demand"] .iris-matrix-row {
-  grid-template-columns: 8rem 1fr 7rem 7rem;
+  grid-template-columns: 8rem 1fr 13rem 13rem;
   gap: 1rem;
 }
+
+/* A demand row whose filter matched nothing is the finding, so it is marked. */
 
 .iris-matrix-row[data-empty="true"] {
   box-shadow: inset 2px 0 0 var(--loss);
@@ -2284,7 +2309,8 @@
 
   .iris-matrix[data-columns="demand"] .iris-matrix-head,
   .iris-matrix[data-columns="demand"] .iris-matrix-row {
-    grid-template-columns: 6rem 1fr 4rem 4rem;
+    /* Widened with the heads above; not photographed at this width this round. */
+    grid-template-columns: 6rem 1fr 9rem 9rem;
   }
 }
 
