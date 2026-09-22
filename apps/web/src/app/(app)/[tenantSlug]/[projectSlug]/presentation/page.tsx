@@ -90,7 +90,18 @@ export default async function PresentationPage({
           <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
             Most common transitions
           </p>
-          <div className="iris-bars" data-wide-labels="true">
+          {/*
+           * The denominator changes from row to row — it is the moves out of
+           * each row's own starting section — so it is printed under every
+           * share, and the sentence says so. Two bars read against each other
+           * as if they shared one were the P2-05 shape with a twist: the
+           * denominator was in the read model's docblock and nowhere else.
+           */}
+          <p className="iris-meta" style={{ marginBottom: ".5rem", maxWidth: "62ch" }}>
+            Each share is of the moves out of that row&rsquo;s own starting section, printed beneath
+            it. Two rows have two denominators, so a longer bar is not more meetings.
+          </p>
+          <div className="iris-bars" data-wide-labels="true" data-fraction="true">
             {/*
              * Sorted by share, not by raw count.
              *
@@ -113,7 +124,12 @@ export default async function PresentationPage({
                   >
                     <i />
                   </span>
-                  <span className="iris-bar-value">{Math.round(t.share * 100)}%</span>
+                  <span className="iris-bar-value">
+                    {Math.round(t.share * 100)}%
+                    <span className="iris-bar-of">
+                      {t.count} of {t.outOf}
+                    </span>
+                  </span>
                 </div>
               ))}
           </div>
@@ -159,9 +175,27 @@ export default async function PresentationPage({
                     mode: "agents",
                     left: agent.agentId,
                     right:
-                      comparison?.left.id === agent.agentId
-                        ? (comparison.right.id ?? "")
-                        : (comparison?.left.id ?? ""),
+                      comparison === null
+                        ? /*
+                           * No comparison to swap a side of: the default pair
+                           * had an absent side, and pairing the chip with the
+                           * same absent colleague again would be a dead end
+                           * on the review project. Pair it with the agent the
+                           * reader last chose if they have meetings, else the
+                           * first other one who does.
+                           */
+                          ((
+                            agents.find(
+                              (a) =>
+                                a.agentId === search.left &&
+                                a.agentId !== agent.agentId &&
+                                a.meetingCount > 0,
+                            ) ??
+                            agents.find((a) => a.agentId !== agent.agentId && a.meetingCount > 0)
+                          )?.agentId ?? "")
+                        : comparison.left.id === agent.agentId
+                          ? comparison.right.id
+                          : comparison.left.id,
                   }),
                 )}
               >
@@ -232,10 +266,28 @@ export default async function PresentationPage({
                         <i />
                       </span>
                       <span className="iris-diff-value">{d.rightDisplay}</span>
+                      {/*
+                       * A row whose sample is narrower than the lane's says so
+                       * on the row, with its own n: the "n = L and R" line
+                       * below is the lanes' count, not this row's.
+                       */}
+                      {d.note === null &&
+                      d.sampleLeft === comparison.left.meetingCount &&
+                      d.sampleRight === comparison.right.meetingCount ? null : (
+                        <p className="iris-diff-note">
+                          {d.note === null ? "" : `${d.note} `}n = {d.sampleLeft} and{" "}
+                          {d.sampleRight}.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+              {comparison.withheld.map((sentence) => (
+                <p className="iris-meta" key={sentence} style={{ marginTop: ".5rem" }}>
+                  {sentence}
+                </p>
+              ))}
               <p className="iris-meta" style={{ marginTop: ".75rem" }}>
                 n = {comparison.left.meetingCount} and {comparison.right.meetingCount} meetings.
                 {mode === "periods"

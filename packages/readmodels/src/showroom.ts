@@ -141,6 +141,12 @@ export interface PresentationTransition {
   readonly count: number;
   /** Share of all transitions out of `from`. */
   readonly share: number;
+  /**
+   * Every move out of `from` in the same set — the denominator of `share`. It
+   * is different on every row, so a screen prints it beside the share rather
+   * than leaving two bars to be read against one another as if it were not.
+   */
+  readonly outOf: number;
 }
 
 /**
@@ -166,6 +172,14 @@ export interface PresentationComparison {
    * nothing cleared the reporting threshold, which is a different statement.
    */
   readonly verdictRefusal: string | null;
+  /**
+   * Behaviours not compared because fewer than the floor's meetings on a side
+   * could answer them — a timing question on a timing-blind source, say. One
+   * sentence each, naming the behaviour and both counts. Empty when every
+   * behaviour was answerable, and always empty under `verdictRefusal`, which
+   * says the same thing once for all of them.
+   */
+  readonly withheld: readonly string[];
   readonly evidence: EvidenceRef;
   /** Always stated: an association at this sample size is not a cause. */
   readonly disclaimer: string;
@@ -178,6 +192,12 @@ export interface PresentationDifference {
   readonly rightDisplay: string;
   /** Absolute gap, for ordering. Never shown as a p-value. */
   readonly magnitude: number;
+  /**
+   * The meetings that could answer this behaviour, per side — the rates'
+   * denominators. Equal to the lane's meeting count unless the behaviour
+   * excludes meetings that cannot answer it, in which case `note` says so and
+   * the screen prints these beside the row.
+   */
   readonly sampleLeft: number;
   readonly sampleRight: number;
   readonly sources: readonly InsightSource[];

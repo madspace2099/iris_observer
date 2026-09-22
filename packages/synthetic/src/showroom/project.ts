@@ -222,7 +222,9 @@ export function buildTransitions(sessions: readonly ShowroomSession[]): Presenta
   return [...pairs.entries()]
     .map(([key, n]) => {
       const [from, to] = key.split(">") as [SectionId, SectionId];
-      return { from, to, count: n, share: share(n, outOf.get(from) ?? 1) };
+      /* Set in the same pass as the pair, so the fallback is only for the type. */
+      const out = outOf.get(from) ?? n;
+      return { from, to, count: n, share: share(n, out), outOf: out };
     })
     .sort((a, b) => b.count - a.count);
 }
@@ -240,6 +242,12 @@ const BEHAVIOURS: readonly {
   id: string;
   behaviour: string;
   test: (s: ShowroomSession) => boolean;
+  /**
+   * Which sessions can answer the question at all. Absent, every session can.
+   * A session that cannot answer is outside the rate on both sides — not a
+   * "no" in the denominator, which is what `?? 0` made of it.
+   */
+  answers?: (s: ShowroomSession) => boolean;
   note?: string;
 }[] = [
   {
@@ -267,7 +275,18 @@ const BEHAVIOURS: readonly {
   {
     id: "long_opening",
     behaviour: "Spends over a minute on Home",
-    test: (s) => s.steps.some((step) => step.sectionId === "home" && (step.dwellSeconds ?? 0) > 60),
+    test: (s) =>
+      s.steps.some(
+        (step) => step.sectionId === "home" && step.dwellSeconds !== null && step.dwellSeconds > 60,
+      ),
+    /*
+     * The note promised this exclusion for as long as it existed; the code
+     * counted a timing-blind session as "did not", lowering the rate instead.
+     * Ten timed meetings, five over a minute, beside ten the source could not
+     * time: the note said 50%, the code printed 25%. `fullyTimed` is the one
+     * definition of "the source could time it", the same the agent lane uses.
+     */
+    answers: fullyTimed,
     note: "Timing-blind sessions cannot answer this and are excluded from both sides.",
   },
   {
@@ -277,29 +296,48 @@ const BEHAVIOURS: readonly {
   },
 ];
 
+/**
+ * Both sides at or over the floor when this is called — the caller refuses
+ * the whole comparison otherwise, in one sentence. What remains is the floor
+ * per behaviour: a behaviour only some sessions can answer has a smaller
+ * sample than the lane, and under the floor it is withheld by name rather
+ * than drawn from five meetings, or from none as 0%.
+ */
 export function buildDifferences(
   left: readonly ShowroomSession[],
   right: readonly ShowroomSession[],
-): PresentationDifference[] {
-  return BEHAVIOURS.map((b) => {
-    const l = left.filter(b.test).length;
-    const r = right.filter(b.test).length;
-    const lRate = share(l, left.length);
-    const rRate = share(r, right.length);
-    return {
+): { differences: PresentationDifference[]; withheld: string[] } {
+  const differences: PresentationDifference[] = [];
+  const withheld: string[] = [];
+  for (const b of BEHAVIOURS) {
+    const el = b.answers === undefined ? left : left.filter(b.answers);
+    const er = b.answers === undefined ? right : right.filter(b.answers);
+    if (el.length < AGENT_MIN_SAMPLE || er.length < AGENT_MIN_SAMPLE) {
+      withheld.push(
+        `${b.behaviour}: fewer than ${AGENT_MIN_SAMPLE} meetings on a side could answer it — ${el.length} and ${er.length} — so it is not compared.`,
+      );
+      continue;
+    }
+    const lRate = share(el.filter(b.test).length, el.length);
+    const rRate = share(er.filter(b.test).length, er.length);
+    differences.push({
       id: b.id,
       behaviour: b.behaviour,
       leftDisplay: `${Math.round(lRate * 100)}%`,
       rightDisplay: `${Math.round(rRate * 100)}%`,
       magnitude: Math.abs(lRate - rRate),
-      sampleLeft: left.length,
-      sampleRight: right.length,
+      sampleLeft: el.length,
+      sampleRight: er.length,
       sources: DERIVED,
       note: b.note ?? null,
-    } satisfies PresentationDifference;
-  })
-    .filter((d) => d.magnitude > 0.04)
-    .sort((a, b) => b.magnitude - a.magnitude);
+    } satisfies PresentationDifference);
+  }
+  return {
+    differences: differences
+      .filter((d) => d.magnitude > 0.04)
+      .sort((a, b) => b.magnitude - a.magnitude),
+    withheld,
+  };
 }
 
 const DISCLAIMER =
@@ -669,6 +707,9 @@ export function buildPresentationIntelligence(
   ): PresentationComparison => {
     const underFloor =
       left.sessions.length < AGENT_MIN_SAMPLE || right.sessions.length < AGENT_MIN_SAMPLE;
+    const compared = underFloor
+      ? { differences: [], withheld: [] }
+      : buildDifferences(left.sessions, right.sessions);
     return {
       context,
       mode: kind,
@@ -676,8 +717,9 @@ export function buildPresentationIntelligence(
       right: buildLane(right.id, right.label, right.sessions),
       transitionsLeft: buildTransitions(left.sessions),
       transitionsRight: buildTransitions(right.sessions),
-      differences: underFloor ? [] : buildDifferences(left.sessions, right.sessions),
+      differences: compared.differences,
       verdictRefusal: underFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings on a side") : null,
+      withheld: compared.withheld,
       evidence: evidenceRef(evidenceId, tier, `${base}/presentation`, observations),
       disclaimer: DISCLAIMER,
     };

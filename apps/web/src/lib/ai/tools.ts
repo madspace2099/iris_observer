@@ -260,6 +260,7 @@ const compareAgentFlows: ToolDefinition<
       caveats: [
         NO_CAUSATION,
         ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
+        ...c.withheld,
         ...top.flatMap((d) => (d.note === null ? [] : [d.note])),
       ],
       action: {
@@ -345,6 +346,7 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
       caveats: [
         NO_CAUSATION,
         ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
+        ...c.withheld,
         "Meetings with no recorded outcome are excluded from both cohorts rather than assigned to one.",
       ],
       action: {

@@ -1003,6 +1003,19 @@
 }
 
 /*
+ * A share whose denominator changes from row to row prints the fraction
+ * beneath the figure, and "187 of 187" is ten monospace characters: a rem
+ * more than the percentage alone was given.
+ */
+.iris-bars[data-fraction="true"] .iris-bar {
+  grid-template-columns: 13rem 1fr 5rem;
+}
+
+.iris-bar-of {
+  display: block;
+}
+
+/*
  * The same column in a band's side panel, which is 308px wide on a phone:
  * 13rem of label there leaves the bar 12px. So the panel is measured as a
  * container, the label column returns to the default width below the point

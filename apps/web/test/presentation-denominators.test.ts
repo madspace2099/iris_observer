@@ -42,7 +42,36 @@ describe("the page prints the read model's reasons", () => {
   });
 });
 
+describe("the page prints every denominator the read model carries", () => {
+  it("prints each transition's own denominator beneath its share", () => {
+    expect(PAGE, "a transition share is drawn without the moves out of its `from`").toContain(
+      "{t.count} of {t.outOf}",
+    );
+  });
+
+  it("says that the denominator differs by row", () => {
+    expect(PAGE).toContain("own starting section");
+  });
+
+  it("prints a row's own sample where it is narrower than the lane's", () => {
+    expect(PAGE, "a row rated on fewer meetings than the lane shows the lane's n").toMatch(
+      /n = \{d\.sampleLeft\} and/,
+    );
+  });
+
+  it("prints what was withheld", () => {
+    expect(PAGE, "a behaviour withheld by the read model vanishes from the screen").toContain(
+      "comparison.withheld.map",
+    );
+  });
+});
+
 describe("the Ask Observer tools answer what the surface answers", () => {
+  it("both comparison tools carry what was withheld", () => {
+    const sites = TOOLS.match(/\.\.\.c\.withheld/g) ?? [];
+    expect(sites.length, "a tool rates a behaviour the surface withholds").toBe(2);
+  });
+
   it("both comparison tools carry the refusal", () => {
     /* Once in the caveats and once in the draft, per tool. */
     const sites = TOOLS.match(/c\.verdictRefusal (?:!==|===) null/g) ?? [];

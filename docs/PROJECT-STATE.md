@@ -3207,3 +3207,58 @@ everything the tool could not see.
 surface. The 80 skips were counted by spec but not explained.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §32.
+
+## 2026-09-22 — Presentation DNA: measured, then floored
+
+**What the measuring round found, on 60 cells (5 projects × 4 presets × 3 modes, the page's default
+selection).** The aggregated path exists and is drawn: the team benchmark lane is first on the plane
+(`packages/synthetic/src/showroom/project.ts`, `buildLane("team", …)`). The comparison's two
+denominators are on the screen three times over — lane headers, `n = L and R meetings`, the finding's
+`against N and M meetings`. Four things were not right. **(a)** A side with no meetings printed as 0%
+on every behaviour, because `share()` divides by nought as 0: the review project's default view read
+"Changes time of day or weather: Monika Kováčová 78%, Akhilesh Undev 0%" about a colleague with no
+meetings on it, and the page's "No comparison is available" branch had fired on none of the 60 cells.
+**(b)** The `long_opening` note promised that timing-blind sessions are excluded from both sides; the
+code's `?? 0` kept them in the denominator as "did not". **(c)** The transitions list printed six
+percentages whose denominator — the moves out of each row's own `from` — was in a read-model docblock
+and nowhere on the screen, so two bars were read against each other as fractions of one whole.
+**(d)** No sample floor anywhere on the surface: 48 of 60 cells had a side under `AGENT_MIN_SAMPLE`,
+41 had a side of nought, and the finding "The largest observed difference in how the two present" was
+drawn on all of them.
+
+**Decision, and its cost measured before it was built.** The floor is on the verdict, not on the
+lanes: `AGENT_MIN_SAMPLE`'s own docblock says no agent figure is presented _as a verdict_ below it,
+and a lane is a description with its count in its header. Applied to the same 60 cells: 12 keep a
+"What differs", 41 fall to the null branch, 7 keep the two lanes with the refusal in place of rows.
+The pre-stated stop condition was "empty on more than 48"; it is empty on 48, so it was built.
+
+**Shipped.** A side with no meetings yields no comparison and `noComparison` says who or what was
+absent; under the floor, `verdictRefusal` replaces the rows and the finding in the floor's own
+sentence; a behaviour only some sessions can answer is rated over those sessions, with its own n on
+the row, and withheld by name when fewer than the floor could answer it on a side; every transition
+carries `outOf` and the screen prints `count of outOf` beneath the share, saying that the whole
+differs by row. The two Ask Observer comparison tools say the refusal rather than "measurably similar
+ways". `share()` is unchanged: its other callers print the denominator beside the rate, and the one
+place a zero denominator reached a displayed rate without it is now never called with one.
+
+**A false hypothesis, and the one that was not.** The measuring round's second task put two numbers
+on one cell (Northgate, quarter to date, 74 meetings all timed): Time & weather's share of presentation
+time is 3.24% as a ratio of sums and 1.93% as the median of per-meeting ratios — 5.88% over the 42
+meetings that reached it, which is what P2-11 had measured on a narrower set. The stated hypothesis,
+that longer meetings spend proportionally less on the section, was labelled a guess and then measured
+false: Pearson 0.030 on all 74. The gap is compositional — 32 of 74 never opened the section. The mean
+of ratios is 3.21%, so the ratio of sums is not skewed by a few long meetings either. One definition
+stays on the surface.
+
+**Seventeenth rule, from the same round.** A comment that names a failure mode is evidence that the
+author saw it, not that it is handled. `pick()`'s docblock described "a stranger who has no meetings
+on the project" for delivered projects, and the guard beside it (`!context.ownDataOnly`) protected only
+that path while the synthetic roster path fell to the stranger by default. Third instance in this
+programme, after `soldInPeriod`'s comment guarding the wrong edge and `Environment`'s docblock stating
+the denominator rule it did not apply.
+
+**Not run:** Playwright, any screenshot, the `mobile` and `wide` projects. The next round captures
+`02-presentation`. The transitions' new fraction column and the diff-row note are unobserved in a
+browser.
+
+Evidence: commits `8ff0ab2` and the one after it on `feature/observer-ux-overhaul-phase2`.
