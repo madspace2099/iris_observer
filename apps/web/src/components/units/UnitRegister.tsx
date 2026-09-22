@@ -141,7 +141,23 @@ const COLUMNS: readonly RegisterColumn[] = [
     key: "verified",
     label: "Verified outcome",
     numeric: false,
-    note: "What a system of record confirms about this unit. The unit catalogue is the only one Observer holds — no offer, contract or CRM fact reaches this product against a single flat.",
+    /*
+     * The second half of this note used to read "no offer, contract or CRM
+     * fact reaches this product against a single flat". That was false, and
+     * falsifiable from the same route: `AssistedSale`
+     * (`packages/readmodels/src/deal-source.ts:133-151`) is keyed by
+     * `unitCode` and carries the CRM's stage, its stage date and its
+     * `dateBasis`, and the unit's own page draws a finding from it whose
+     * baseline is "the reserved date the CRM states". A per-unit CRM fact
+     * reaches this product; it just does not reach this column.
+     *
+     * What the note now says is what is true of the COLUMN: it is the
+     * catalogue's own field, the same one Status draws, and the sale the CRM
+     * dates is a different fact on a different clock that lives one click
+     * away. Whether a column labelled "Verified outcome" should draw the
+     * catalogue's state at all is a product decision and is not settled here.
+     */
+    note: "What the unit catalogue states about this flat — the same field the Status column draws, in the words leadership scans for. The sale a CRM dates is a different fact on a different clock: it is on the unit's own page, not in this column.",
   },
 ];
 
@@ -310,7 +326,20 @@ export function UnitRegister({
     const cells: Readonly<Record<string, ReactNode>> = {
       code: (
         <Link
-          href={dynamicRoute(withPeriod(`${base}/${row.unitCode}`, period))}
+          /*
+           * The register the reader built travels with them.
+           *
+           * This file's own folder states the rule — "the query string is the
+           * register's whole state" — and a link that leaves without it hands
+           * the unit page no way to send the reader back to the register they
+           * were reading. `registerHref` omits the period deliberately, because
+           * `withPeriod` adds it at the point of render; the two compose.
+           *
+           * The same argument the period already won here: a link that quietly
+           * resets the reader's scope is the defect whether or not the
+           * destination cares about the scope.
+           */
+          href={dynamicRoute(withPeriod(registerHref(`${base}/${row.unitCode}`, query), period))}
           /*
            * `aria-current="true"`, not `"page"` and not `aria-pressed`.
            *

@@ -35,7 +35,14 @@ import {
   type DataRow,
   type TimelineStep,
 } from "@/components/product";
-import { StatusChip, UnitFunnel, VerifiedOutcome } from "@/components/units";
+import {
+  StatusChip,
+  UnitFunnel,
+  VerifiedOutcome,
+  readRegisterQuery,
+  registerHref,
+  type RegisterSearch,
+} from "@/components/units";
 
 export const metadata: Metadata = { title: "Unit" };
 
@@ -93,7 +100,7 @@ export default async function UnitPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string; unitCode: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<RegisterSearch & { period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug, unitCode } = await params;
@@ -106,8 +113,8 @@ export default async function UnitPage({
    */
   requireSurface(viewer, "[unitCode]", root);
 
-  const { period: periodParam } = await searchParams;
-  const period = presetFrom(periodParam);
+  const search = await searchParams;
+  const period = presetFrom(search.period);
   const query = { viewer, tenantSlug, projectSlug, period };
 
   let detail: UnitDetailView;
@@ -186,7 +193,20 @@ export default async function UnitPage({
         lede={`${floorWord(unit.floor)}, block ${unit.block}, ${aspectWord(unit.orientation)}. ${unit.pricePerSqmDisplay}.`}
         crumbs={[
           { label: context.project.name, href: `${root}/project` },
-          { label: "Units", href: base },
+          /*
+           * Back to the register the reader was reading, not to a register.
+           *
+           * The register holds its whole state in the query string, the row
+           * that opened this page carries that state here, and this crumb
+           * hands it back. Without it a reader who narrowed forty-eight flats
+           * to the four reserved three-room ones, opened one of them and used
+           * the only Back this screen draws was returned to all forty-eight.
+           *
+           * The browser's own Back button restores the previous URL and was
+           * never the broken half; a rendered crumb is not the browser's
+           * history and had to be told.
+           */
+          { label: "Units", href: registerHref(base, readRegisterQuery(search)) },
           { label: unit.unitCode },
         ]}
         aside={

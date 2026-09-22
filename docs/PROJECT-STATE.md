@@ -3076,3 +3076,38 @@ figures are `Ratio`, whose `of` is required, so the compiler already guards them
 place on the sixth and on the matrix's free text.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §30.
+
+## 2026-09-22 — P2-08: the register a reader built, and what "verified" was standing on
+
+**Everything R07 draws about status or sale is one field**, `status`, with three values. It is drawn
+five times across the two surfaces, and twice under a label that promises something else: the
+register's thirteenth column and the unit page's second tally item are both `VerifiedOutcome`, both
+fed the catalogue's own state, and both marked with the tone this system reserves for "a person
+decided this". In two of the three states the two chips print the same word. A pre-reservation
+collapses to `reserved` on the delivered-catalogue path, so it reaches that column as a confirmed
+reservation.
+
+**The column's note denied a fact the same route draws.** It read "no offer, contract or CRM fact
+reaches this product against a single flat". `AssistedSale` is keyed by `unitCode` and carries the
+CRM's stage, its stage date and its `dateBasis`; the unit's own page renders a finding from it whose
+baseline is "the … date the CRM states". A per-unit CRM fact reaches this product — it does not
+reach that column, which is what the note now says. **Whether a column labelled "Verified outcome"
+should draw the catalogue's state at all is left open**: the code documents the duplication as
+deliberate, and overriding a recorded decision is not a correction.
+
+**The one genuine sale figure R07 was missing is now drawn.** `ProjectPulse.totals` carries
+`soldInPeriod` beside the lifetime `available`/`reserved`/`sold`, and the Briefing and the Project
+overview both state it. The register did not, so a lifetime stock count sat in a sentence on a screen
+where every other number is period-scoped, and "3 sold" read as three sales this quarter. Null is
+still not nought: an unobserved period says so in words.
+
+**The register survives opening a unit and coming back.** Its whole state is the query string, but
+the row's link carried only the period and the "Units" crumb — the only Back this screen draws —
+returned the reader to an unfiltered register. Both now go through `registerHref`. **The browser's
+own Back button is not tested and is not claimed**: what a browser restores is a runtime behaviour,
+and the filter living in the URL is a reason to expect it, not evidence of it.
+
+**No time-to-sell panel exists on R07**, so P2-06's blocked calculator has no second formula
+competing with it. `sale-cycle.ts` has two importers measured two ways: the barrel and its own test.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.
