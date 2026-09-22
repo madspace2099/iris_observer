@@ -127,20 +127,20 @@ function duration(seconds: number): string {
  * `AgentsView.timedMeetingCount` — so "share of presentation time" is a claim
  * about a stated set rather than an implied whole.
  */
-function sectionSeconds(session: ShowroomSession, sectionId: SectionId): number {
+export function sectionSeconds(session: ShowroomSession, sectionId: SectionId): number {
   return session.steps
     .filter((s) => s.sectionId === sectionId && s.dwellSeconds !== null)
     .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
 }
 
-function totalSeconds(session: ShowroomSession): number {
+export function totalSeconds(session: ShowroomSession): number {
   return session.steps
     .filter((s) => s.dwellSeconds !== null)
     .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
 }
 
 /** A meeting every step of which the source could time. The set a share of time stands on. */
-function fullyTimed(session: ShowroomSession): boolean {
+export function fullyTimed(session: ShowroomSession): boolean {
   return session.steps.length > 0 && session.steps.every((s) => s.dwellSeconds !== null);
 }
 

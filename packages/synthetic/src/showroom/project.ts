@@ -31,6 +31,7 @@ import type {
   UnitAttentionRow,
   UnitAttentionView,
   ViewContext,
+  EnvironmentUsage,
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
 import { areaWord, aspectWord, roomsWord } from "@observer/readmodels";
@@ -48,6 +49,8 @@ import {
   signedPercent,
 } from "../format";
 import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
+/* The one definition of "time the source could time" — the agent lane's, not a second one. */
+import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -1381,6 +1384,31 @@ export function buildUnitAttention(
  * of green "new" badges, which is the flattering answer the state exists to
  * refuse.
  */
+/**
+ * How much of the timed presentation time went to Time & weather.
+ *
+ * One definition, borrowed rather than written: `sectionSeconds` and
+ * `totalSeconds` are the agent lane's, so this share and the agent's
+ * `timeShare` for the same section are the same arithmetic at two scopes. The
+ * set is the fully timed meetings and nothing else — a meeting with one untimed
+ * step is outside both sides, and `timedMeetings` says how many that left.
+ *
+ * `null`, not nought, when no meeting was fully timed.
+ */
+function environmentTimeShare(sessions: readonly ShowroomSession[]): EnvironmentUsage["timeShare"] {
+  const timed = sessions.filter(fullyTimed);
+  const timedSeconds = timed.reduce((a, s) => a + totalSeconds(s), 0);
+  if (timed.length === 0 || timedSeconds === 0) return null;
+  const environmentSeconds = timed.reduce((a, s) => a + sectionSeconds(s, "environment"), 0);
+  return {
+    share: environmentSeconds / timedSeconds,
+    environmentSeconds,
+    timedSeconds,
+    timedMeetings: timed.length,
+    meetingsTotal: sessions.length,
+  };
+}
+
 export function buildStorytelling(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1563,6 +1591,7 @@ export function buildStorytelling(
       })),
       meetingsUsingEnvironment: sessions.filter((s) => s.environment.length > 0).length,
       meetingsTotal: n,
+      timeShare: environmentTimeShare(sessions),
     },
     beforeShortlist,
     findings,

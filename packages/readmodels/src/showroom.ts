@@ -483,6 +483,39 @@ export interface EnvironmentUsage {
   }[];
   readonly meetingsUsingEnvironment: number;
   readonly meetingsTotal: number;
+  /**
+   * How much of the presentation time went to Time & weather.
+   *
+   * ## One definition, the one the agent lane already states
+   *
+   * The denominator is the sum of every step's dwell — "the time the source
+   * could time" — exactly as `AgentSectionUse.timeShare` defines it, and not
+   * the meeting's length: a meeting's length holds time outside any section,
+   * and a share against it would leave the sections adding up to less than
+   * one with nobody told where the rest went. Against step time they add up
+   * to one, which is what makes the figure checkable.
+   *
+   * ## The set is stated, and a null dwell is not a nought
+   *
+   * A step the source could not time carries a null dwell — never inferred —
+   * and a meeting with such a step is outside this figure entirely, on both
+   * sides. Measured before this was written: sixteen meetings on the largest
+   * scheme reach the section without a timed dwell. `timedMeetings` of
+   * `meetingsTotal` says how many the share stands on, so the reader is never
+   * shown a share of an implied whole.
+   *
+   * `null` when no meeting was fully timed: nothing to stand on is not nought
+   * per cent.
+   */
+  readonly timeShare: {
+    /** Environment seconds over all-section seconds, both across the timed meetings only. */
+    readonly share: number;
+    readonly environmentSeconds: number;
+    readonly timedSeconds: number;
+    /** Meetings every step of which the source could time. The set the share stands on. */
+    readonly timedMeetings: number;
+    readonly meetingsTotal: number;
+  } | null;
 }
 
 export interface StorytellingIntelligence {
