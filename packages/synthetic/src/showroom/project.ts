@@ -1104,7 +1104,14 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
   return {
     context,
     meetingId: session.meetingId,
-    headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
+    /*
+     * Length and step count, and no unit count. The count used to sit here as
+     * well, two lines above `unitsViewed.sentence` opening with the very same
+     * number — one fact printed twice, which is the thirteenth column of the
+     * unit register in prose. The sentence beneath carries the count and its
+     * breakdown; the headline keeps what nothing else on the screen says.
+     */
+    headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps.`,
     unitsViewed: unitsViewedOf(session.units, catalogue),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
