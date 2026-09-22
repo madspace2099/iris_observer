@@ -1,36 +1,46 @@
 import type { UnitStatus } from "@observer/readmodels";
 
 /**
- * THE TWO QUESTIONS A UNIT'S STATUS ANSWERS, AND WHY THEY ARE DRAWN TWICE.
+ * ONE FIELD, AND THE ONE PLACE THAT STILL PRINTS IT TWICE.
  *
- * `available | reserved | sold` is one field on one row and it is read by two
- * different people asking two different things:
+ * `available | reserved | sold` is one field on one row, read by two different
+ * people asking two different things:
  *
  *   "Can I still sell it?"      — the agent, scanning for what to show.
  *   "Has anything been closed?" — leadership, scanning for verified results.
  *
- * The register carries both, and the second is not a decoration of the first:
- * it is the only column on that table a system of record stands behind.
- * Everything else there was observed by the showroom, and observation is not
- * verification — `docs/04-journey.md` separates the two axes and ADR-0021 keeps
- * an authoritative stage away from a signal. A register whose columns all look
- * equally solid invites a reader to treat forty-one views as the same kind of
- * fact as a sale.
+ * ## What this file used to say, and which half of it was false
  *
- * ## What is missing, and stated rather than filled
+ * It said the register carried both, and that the verified column "is the only
+ * column on that table a system of record stands behind". The first half is no
+ * longer true — the register drew its thirteenth column from `row.status`, the
+ * same field the Status column draws, and P2-08 removed it. The second half was
+ * never true: a column fed the identical field is not standing on a second
+ * source, and a reader who met Status=Sold beside Verified=Sold was entitled to
+ * read two systems agreeing where there was one system, printed twice.
  *
- * The unit catalogue is the only system of record this product holds about a
- * unit. There is no per-unit CRM fact anywhere in the read models: the offer
- * stage on the unit's own page is explicitly `unavailable` with the reason that
- * the deal ladder is the CRM's and no offer fact reaches Observer, and a
- * meeting outcome belongs to the meeting rather than to one of the five flats
- * that were open during it.
+ * It also said "there is no per-unit CRM fact anywhere in the read models".
+ * That is false and falsifiable from the same route: `AssistedSale`
+ * (`packages/readmodels/src/deal-source.ts:133-151`) is keyed by `unitCode` and
+ * carries the CRM's stage, its stage date and its `dateBasis`, and the unit's
+ * own page draws a finding from it whose baseline is the date the CRM states.
+ * `docs/04-journey.md` separates observation from verification and ADR-0021
+ * keeps an authoritative stage away from a signal; what was missing was never
+ * the fact, only a place to put it.
  *
- * So "verified outcome" here means exactly what the catalogue states and
- * nothing more, and an available unit's cell says **None recorded** — which is
- * a genuine zero and a real answer, not a missing measurement. Rendering it as
- * the missing mark would claim a source had failed to answer; rendering it as a
- * blank would let the reader supply their own meaning.
+ * ## Where it survives, and that this is not settled
+ *
+ * `VerifiedOutcome` now has one caller: the unit's own page, where it sits in a
+ * tally beside a `StatusChip` reading the same `unit.status`. That pair is the
+ * removed column's argument at closer range, and it has not been decided. It is
+ * recorded as open rather than quietly fixed, because the column's removal was
+ * a product decision and this is the same decision.
+ *
+ * For as long as it is drawn: "verified outcome" means exactly what the
+ * catalogue states and nothing more, and an available unit says **None
+ * recorded** — a genuine zero and a real answer, not a missing measurement.
+ * Rendering it as the missing mark would claim a source had failed to answer;
+ * rendering it as a blank would let the reader supply their own meaning.
  *
  * ## Never a colour alone
  *
@@ -40,12 +50,17 @@ import type { UnitStatus } from "@observer/readmodels";
  * reservation takes the waiting ring, and a sale takes the closed square: the
  * three shapes say the same three things the three words do.
  *
- * The verified column takes the human diamond, which in this system means "a
+ * `VerifiedOutcome` takes the human diamond, which in this system means "a
  * person decided this, and a person can change it". A reservation and a sale
  * are exactly that — decisions recorded by people in a system of record — and
  * marking them with the diamond rather than with a green tick is the difference
  * between saying "this is confirmed" and saying "this is confirmed by somebody
  * who could confirm it".
+ *
+ * The diamond is also the strongest claim on this pair, and it is the reason
+ * the surviving tally item is a live question rather than a leftover: a mark
+ * meaning "somebody decided this" on a field its neighbour already printed is
+ * the same overstatement the column was removed for.
  */
 
 const STATUS_TONE: Readonly<Record<UnitStatus, string>> = {

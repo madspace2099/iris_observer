@@ -37,7 +37,7 @@ export const metadata: Metadata = { title: "Units" };
  * carry actions, so they belong above the seam with everything else a reader
  * may act on.
  *
- * **The register, on paper.** Thirteen columns of measurement. ADR-0034 divides
+ * **The register, on paper.** Twelve columns of measurement. ADR-0034 divides
  * this product by content rather than by page, and this is the surface the
  * paper plate was written for: every cell in it is a reading, a date, a count
  * or a price, and none of it is a conclusion.

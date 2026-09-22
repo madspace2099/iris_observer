@@ -3111,3 +3111,46 @@ and the filter living in the URL is a reason to expect it, not evidence of it.
 competing with it. `sale-cycle.ts` has two importers measured two ways: the barrel and its own test.
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.
+
+## 2026-09-22 — The thirteenth column is gone, and what its docblock had assumed
+
+**The register's "Verified outcome" column is removed.** It was drawn from `row.status` — the same
+field the Status column two places from the left already draws — so it was never a second source
+agreeing with the first. It was the first source, printed again eleven columns away, wearing the tone
+this system reserves for "a person decided this". In two of its three states the two cells printed
+the same word, and a `pre_reserved` unit, which the contract layer folds into `reserved`
+(`packages/contracts/src/catalogue.ts:152-157`), arrived in it as a confirmed reservation.
+
+**The decisive argument is not redundancy.** A reader who meets Status=Sold beside Verified=Sold is
+entitled to conclude that two systems agree, and no two systems did. An empty space makes no claim;
+that column made a false one. It is the inverse of the contradiction P2-02 fixed: there, two surfaces
+said different things about one state — here one source was dressed as two.
+
+**This overrides a recorded decision, and the record deserves to say which part gave way.**
+`UnitStatus.tsx` argued the duplication at length. Its load-bearing sentence was that the verified
+column "is the only column on that table a system of record stands behind". That was not a
+preference; it was a factual premise, and it was false — a column fed the identical field stands on
+the same source as its neighbour, not a stronger one. The same docblock also stated "there is no
+per-unit CRM fact anywhere in the read models", which is false in the other direction: `AssistedSale`
+(`packages/readmodels/src/deal-source.ts:133-151`) is keyed by `unitCode` and carries the CRM's
+stage, its stage date and its `dateBasis`, and the unit's own page already draws a finding from it.
+So this is not a deliberate decision being overruled. It is a decision whose reasons stopped being
+true, measured rather than argued.
+
+**Twelve, not thirteen, and the count was stated in five places.** `UnitRegister.tsx` said it three
+times, `units/page.tsx` and `components/units/index.ts` once each. The same shape this repository
+keeps meeting: a number stated in one place is a number that drifts everywhere it was also stated.
+
+**Open — a real verified-sale column, and the three things it needs.** `AssistedSale` is the right
+content for such a column and it is not free. Before it can be drawn it needs: both clocks named, as
+`dateBasis` distinguishes the CRM's own stage instant from the sync that first witnessed the move; a
+denominator, because coverage is partial; and the flats it has no sale for told apart from the flats
+it records a zero for. Half of that would be worse than none, and would be exactly the "rule applied
+to one place in four" this programme has now corrected three times.
+
+**Open — the same pair survives one click away.** `VerifiedOutcome` now has a single caller: the unit
+page, where it sits in a tally directly beside a `StatusChip` reading the same `unit.status`. That is
+the removed column's argument at closer range. It is left standing and recorded rather than quietly
+fixed, because the column's removal was a product decision and this is the same decision.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.10.
