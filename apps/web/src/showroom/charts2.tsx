@@ -587,15 +587,24 @@ export function Radar({
           );
         })}
       </svg>
-      <ul className="iris-ring-key">
-        {series.map((s) => (
-          <li key={s.id}>
-            <i style={{ background: s.tone }} />
-            {s.label}
-            <b />
-          </li>
-        ))}
-      </ul>
+      {/*
+       * A key tells shapes apart. One shape has nothing to tell apart, and
+       * its label is the card's caption, drawn by the card under the shape.
+       * The roster hands one profile per cell, and each cell was getting a
+       * key for one shape — a swatch beside the one name — standing where
+       * the caption belongs.
+       */}
+      {series.length > 1 ? (
+        <ul className="iris-ring-key">
+          {series.map((s) => (
+            <li key={s.id}>
+              <i style={{ background: s.tone }} />
+              {s.label}
+              <b />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

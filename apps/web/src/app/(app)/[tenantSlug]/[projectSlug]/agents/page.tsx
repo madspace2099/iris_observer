@@ -186,7 +186,7 @@ export default async function AgentsPage({
           </p>
           <div className="iris-radars">
             {charts.radar.profiles.map((profile) => (
-              <div className="iris-radar-card" key={profile.id}>
+              <figure className="iris-radar-card" key={profile.id}>
                 {/*
                  * Below the floor the card stays and the shape does not: a
                  * shape scaled against the strongest colleague on every axis
@@ -200,9 +200,13 @@ export default async function AgentsPage({
                     <b>{profile.label}</b> — {profile.note}
                   </p>
                 ) : (
-                  <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                  /* The label is the card's caption, under the shape — not a key inside the component for one shape. */
+                  <>
+                    <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                    <figcaption>{profile.label}</figcaption>
+                  </>
                 )}
-              </div>
+              </figure>
             ))}
           </div>
           <dl className="iris-axis-key">

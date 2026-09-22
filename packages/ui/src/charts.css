@@ -688,10 +688,19 @@
   gap: 1.25rem;
 }
 
+/*
+ * A `figure`, so its caption is a caption: the browser's figure margin is
+ * reset. The rows pack at the top, so a note (`.iris-radar-note`) is centred
+ * on the shape's 190px box and not on the box plus the caption under it —
+ * a note and a shape in one row share one centre line, and the caption
+ * stands under its own shape.
+ */
 .iris-radar-card {
   display: grid;
   justify-items: center;
+  align-content: start;
   gap: 0.375rem;
+  margin: 0;
 }
 
 .iris-radar-card figcaption {
