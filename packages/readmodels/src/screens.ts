@@ -486,16 +486,23 @@ export interface AgentFollowUp {
 }
 
 /**
- * An outcome a system of record stands behind.
+ * An outcome the agent recorded at the end of the meeting, by its commercial word.
+ *
+ * What the agent entered on the showroom's outcome widget — not a reservation
+ * and not a sale, as the replay says of the same fact. No system of record
+ * stands behind it: no deal is linked to a meeting (ADR-0039, ADR-0011), so a
+ * CRM cannot confirm it and its presence changes nothing here. This used to be
+ * called a verified outcome, carried `CRM_OUTCOME_CONTEXT` and the attributed
+ * tier, and was withheld without a CRM — the same count, labelled as though a
+ * second source had produced it, which was the register's removed "Verified
+ * outcome" column on a second surface.
  *
  * Kept separate from the outcome mix, which is every outcome including the ones
- * nobody recorded. These are the commercial results, they carry
- * `CRM_OUTCOME_CONTEXT`, and on a project with no CRM every one of them is
- * unavailable rather than nil (ADR-0023: outcome context is never the subject
- * of a primary insight, which is why they sit beside the presentation figures
- * and not above them).
+ * nobody recorded, so the two commercial words can be read on their own; and
+ * beside the presentation figures, never above them (ADR-0023: a recorded
+ * outcome is context, not the subject of a primary insight).
  */
-export interface AgentVerifiedOutcome {
+export interface AgentRecordedOutcome {
   readonly outcome: MeetingOutcome;
   readonly label: string;
   readonly metric: MetricValue;
@@ -561,7 +568,7 @@ export interface AgentDetailView {
   readonly recentMeetings: readonly MeetingRow[];
   readonly commonUnits: readonly AgentUnitInterest[];
   readonly followUp: AgentFollowUp;
-  readonly verifiedOutcomes: readonly AgentVerifiedOutcome[];
+  readonly recordedOutcomes: readonly AgentRecordedOutcome[];
   readonly outcomeMix: readonly OutcomeSlice[];
   readonly sessionsOverTime: TrendSeries;
   /** Meetings, units opened, shortlisted, outcome recorded, progressed. */

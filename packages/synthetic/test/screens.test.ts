@@ -250,10 +250,17 @@ describe("getAgentDetail", () => {
     }
   });
 
-  it("shows outcomes as unavailable where no CRM can verify them", async () => {
+  it("keeps the outcome-recorded funnel stage unavailable where no CRM is connected", async () => {
+    /*
+     * This case used to assert the same of the agent's recorded outcomes, and
+     * that assertion encoded the defect: the count was the agent's own entry,
+     * withheld as though a CRM produced it. Those stand on every project now
+     * (`agent-recorded-outcomes.test.ts`); the funnel stage is still gated and
+     * is a separate question, left as it was.
+     */
     const view = await repo.getAgentDetail(RIVERSIDE, "agt_lucia");
-    for (const outcome of view.verifiedOutcomes) {
-      expect(outcome.metric.state).toBe("unavailable");
+    for (const outcome of view.recordedOutcomes) {
+      expect(outcome.metric.state, outcome.label).not.toBe("unavailable");
     }
     expect(view.funnel.find((s) => s.label === "Outcome recorded")?.metric.state).toBe(
       "unavailable",

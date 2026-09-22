@@ -145,12 +145,12 @@ export default async function AgentPage({
    * where none does says so once, below the figures.
    *
    * The agent read models return `evidence: null` on every metric in
-   * `activity`, `followUp`, `verifiedOutcomes` and `funnel`, even though the
+   * `activity`, `followUp`, `recordedOutcomes` and `funnel`, even though the
    * view itself carries one. That is reported as a gap rather than papered over
    * with a reference this page would have had to invent.
    */
   const activityHasEvidence = view.activity.some((metric) => metric.evidence !== null);
-  const outcomesHaveEvidence = view.verifiedOutcomes.some((o) => o.metric.evidence !== null);
+  const outcomesHaveEvidence = view.recordedOutcomes.some((o) => o.metric.evidence !== null);
   const funnelHasEvidence = view.funnel.some((step) => step.metric.evidence !== null);
 
   /*
@@ -233,9 +233,9 @@ export default async function AgentPage({
         {/*
          * THE MISSING SOURCE, STATED ONCE FOR THE WHOLE PAGE.
          *
-         * Without a CRM this screen holds eight figures that cannot exist —
-         * follow-ups recorded, two verified outcomes, two funnel stages, and
-         * the outcome-recorded rate under them. `docs/12-visual-autopsy.md` §9
+         * Without a CRM this screen holds figures that cannot exist —
+         * follow-ups recorded, two funnel stages, and the outcome-recorded
+         * rate under them. `docs/12-visual-autopsy.md` §9
          * is four panels in one viewport each repeating "The CRM is not
          * connected", and eight would be worse. Each of those figures carries
          * the terse missing mark that `Figure` draws, and the reason is here,
@@ -345,12 +345,22 @@ export default async function AgentPage({
 
             <p className="ox-section-note">{view.followUp.note}</p>
 
-            {/* --- outcomes a record stands behind ---------------------- */}
+            {/*
+             * THE OUTCOMES THEY RECORDED, BY THEIR COMMERCIAL WORD.
+             *
+             * This subhead read "Verified outcomes" over a count of the
+             * agent's own entries, said a system of record stood behind it,
+             * and drew the region only where a CRM was connected — the
+             * register's removed "Verified outcome" column, on a second
+             * surface. No deal is linked to a meeting (ADR-0039), so nothing
+             * here can be confirmed outside the showroom; the replay says the
+             * same of the same fact, and this says it in the same words.
+             */}
 
-            <p className="ox-subhead">Verified outcomes</p>
+            <p className="ox-subhead">Outcomes they recorded</p>
 
             <Tally>
-              {view.verifiedOutcomes.map((outcome) => (
+              {view.recordedOutcomes.map((outcome) => (
                 <TallyItem
                   key={outcome.outcome}
                   label={outcome.label}
@@ -369,10 +379,12 @@ export default async function AgentPage({
             </Tally>
 
             <p className="ox-section-note">
-              A commercial result a system of record stands behind, kept apart from the outcome mix
-              below, which is every outcome including the ones nobody recorded. The tier on each
-              says how strong the claim is; the source says what kind of fact it rests on. The two
-              are separate axes and neither stands for the other.
+              What {view.name} entered on the showroom&rsquo;s outcome widget as a purchase or a
+              reservation. It is the agent&rsquo;s own record — not a reservation and not a sale,
+              and no CRM or other system of record has confirmed it: Observer links no deal to a
+              meeting. Kept apart from the outcome mix below, which is every outcome including the
+              ones nobody recorded. The tier on each says how strong the claim is; the source says
+              what kind of fact it rests on.
               {outcomesHaveEvidence
                 ? ""
                 : " Neither figure carries a drill-down reference; the meetings behind them are in the register at the foot of this page."}

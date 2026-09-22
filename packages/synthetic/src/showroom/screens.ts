@@ -24,7 +24,7 @@ import type {
   AgentFollowUp,
   AgentProjectCoverage,
   AgentUnitInterest,
-  AgentVerifiedOutcome,
+  AgentRecordedOutcome,
   FollowUpState,
   FunnelStep,
   MeetingFilterOption,
@@ -1172,23 +1172,33 @@ export function buildAgentDetail(
     note: "Recorded as needed and actually done are two questions. Observer can answer the first one only, and the second is shown as unavailable rather than assumed.",
   };
 
-  /* --- outcomes a record stands behind ------------------------------------- */
+  /* --- the outcomes they recorded, by their commercial word ------------------ */
 
-  const verifiedOutcomes: readonly AgentVerifiedOutcome[] = (
+  /*
+   * The agent's own entry, and nothing stands behind it but the record.
+   *
+   * The count is `session.outcome`, which the agent tapped in the last minute
+   * of the meeting. It used to be gated on a CRM — `!crm ? unavailable(NO_CRM)`
+   * — which said the CRM produced the number, and it carried the attributed
+   * tier and `CRM_OUTCOME_CONTEXT`, which said a second source stood behind
+   * it. Neither was true: no deal is linked to a meeting (ADR-0039), so a
+   * per-agent CRM-confirmed outcome cannot exist. The record stands on every
+   * project, at the observed tier, from the showroom alone.
+   */
+  const recordedOutcomes: readonly AgentRecordedOutcome[] = (
     ["purchase", "reservation"] as const
-  ).map<AgentVerifiedOutcome>((outcome) => {
+  ).map<AgentRecordedOutcome>((outcome) => {
     const n = mine.filter((s) => s.outcome === outcome).length;
     return {
       outcome,
       label: OUTCOME_LABELS[outcome],
-      metric: !crm
-        ? unavailable(`agent.${outcome}`, OUTCOME_LABELS[outcome], AGENT_MIN_SAMPLE, NO_CRM)
-        : n === 0
+      metric:
+        n === 0
           ? empty(
               `agent.${outcome}`,
               OUTCOME_LABELS[outcome],
               AGENT_MIN_SAMPLE,
-              `No meeting of theirs in this period ended in a ${OUTCOME_LABELS[outcome].toLowerCase()}.`,
+              `No meeting of theirs in this period was recorded as a ${OUTCOME_LABELS[outcome].toLowerCase()}.`,
             )
           : ok({
               metricId: `agent.${outcome}`,
@@ -1200,8 +1210,8 @@ export function buildAgentDetail(
               minimumSampleSize: AGENT_MIN_SAMPLE,
               drillHref: `${root}/meetings?agent=${agentId}&outcome=${outcome}`,
             }),
-      tier: "attributed_conversion",
-      sources: WITH_OUTCOME,
+      tier: "observed_sequence",
+      sources: OBSERVED,
     };
   });
 
@@ -1387,7 +1397,7 @@ export function buildAgentDetail(
     recentMeetings: buildMeetingRows(context, mine).slice(0, 8),
     commonUnits,
     followUp,
-    verifiedOutcomes,
+    recordedOutcomes,
     outcomeMix: profile.ring.slices,
     sessionsOverTime: {
       points: seriesOver(mine, buckets),
