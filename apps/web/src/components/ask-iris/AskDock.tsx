@@ -3,7 +3,7 @@ import { PromptGlow } from "./PromptGlow";
 import { Microphone, Send } from "./icons";
 
 /**
- * THE PROMPT BAR, DOCKED AT THE FOOT OF EVERY SURFACE EXCEPT ASK IRIS.
+ * THE PROMPT BAR, AT THE END OF EVERY SURFACE EXCEPT ASK IRIS.
  *
  * The user delivered this as its own export and asked for it on Sales Flow,
  * Project and Sales Agents in place of the floating "Ask Observer" panel that
@@ -17,6 +17,17 @@ import { Microphone, Send } from "./icons";
  * working analytical screen — it asks a question and hands the reader to the
  * answer, and everything else about a conversation belongs on the surface that
  * holds conversations.
+ *
+ * ## In the flow, not fixed
+ *
+ * It was `position: fixed` at the foot of the viewport. A fixed bar over a
+ * scrolling document covers something at some scroll position whatever its
+ * size — measured on the roster at four sizes and three positions, a
+ * focusable link sat under it in nine of twenty-four — so "it covers
+ * nothing" was a rule narrowed after each measurement. The layout renders it
+ * as the last child of `<main>`, after the page's content, and
+ * `fixed-covers-nothing.spec.ts` is the guard the rule never had. From the
+ * top of a long page the header's ASK IRIS item is the door.
  *
  * ## Asking from here opens the answer over there
  *

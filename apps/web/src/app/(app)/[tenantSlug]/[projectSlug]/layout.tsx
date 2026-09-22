@@ -269,10 +269,11 @@ export default async function ProjectLayout({
    * so it survives navigation and both of them read the same conversation.
    * Holding it is not starting it — that still takes a click.
    *
-   * It survives the new frame unchanged. The rail is `position: fixed` and the
-   * shell's main column already reserves an offset below it, so the two do not
-   * fight: the rail floats over the ground exactly as it did, and ASK IRIS in
-   * the header is the full-size door to the same entity.
+   * It stands at the end of the main column now, in the flow, after the
+   * page's content — not fixed over it. A fixed bar over a scrolling document
+   * covers something at some scroll position whatever its size, and the
+   * roster measured nine such positions of twenty-four. ASK IRIS in the
+   * header is the full-size door to the same entity from the top of any page.
    */
   /*
    * Whether this project's meetings are its own showroom's. The one place it is
@@ -301,9 +302,9 @@ export default async function ProjectLayout({
         accountAsk={accountControlsAsk}
       >
         {children}
+        {/* The last child of `<main>`, after the content, in the flow. */}
+        <AskDock root={root} periodParam="" projectLabel={project.name} />
       </Shell>
-
-      <AskDock root={root} periodParam="" projectLabel={project.name} />
     </div>
   );
 }

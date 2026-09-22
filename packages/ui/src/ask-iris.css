@@ -2034,36 +2034,33 @@
 
 .ask-dock {
   /*
-   * Fixed rather than in flow, because it replaces a control that was always
-   * within reach. A composer a reader has to scroll a three-screen table to
-   * find is a composer they will not use.
+   * In the flow, the last child of `<main>`, after the content.
+   *
+   * It was `position: fixed` at the foot of the viewport, on the argument that
+   * a composer a reader has to scroll to find is one they will not use. A
+   * fixed bar over a scrolling document covers something at some scroll
+   * position whatever its size — the roster measured a focusable link under
+   * it in nine positions of twenty-four — so "it covers nothing" could only
+   * be kept by narrowing it after each measurement. In flow it is true by
+   * construction, and `fixed-covers-nothing.spec.ts` holds it. The gradient
+   * fade and the `pointer-events` pair went with the float: the fade made a
+   * seam legible where a table scrolled under the bar, and `none` on the
+   * strip with `auto` on the bar let clicks through the fade to the page
+   * beneath. Nothing is beneath now. The side padding went too: the main
+   * column is the bar's own width, and a strip the width of the viewport
+   * was the only reason for it.
+   *
+   * `overflow-x: clip` stays: the rim light and the glow canvas overhang the
+   * bar on both sides, and unclipped they would give the document a
+   * horizontal scrollbar.
    */
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  padding: 0 24px calc(20px + env(safe-area-inset-bottom, 0px));
-  pointer-events: none;
+  margin-top: 48px;
   overflow-x: clip;
-
-  /*
-   * A short fade above it, so a table scrolling underneath does not appear to
-   * be sliced off by a hard edge. It is the one gradient here that is not from
-   * the export, and it makes a seam legible rather than decorating one.
-   */
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgb(2 5 13 / 74%) 46%,
-    rgb(2 5 13 / 95%) 100%
-  );
 }
 
 .ask-dock-inner {
   display: flex;
   justify-content: center;
-  pointer-events: auto;
 }
 
 .ask-dock .ask-hero {
@@ -2200,23 +2197,7 @@
   display: none;
 }
 
-/**
- * ROOM FOR THE DOCK, RESERVED BY THE PAGE UNDER IT.
- *
- * The shell gives every surface 96px of bottom padding, which cleared the old
- * 74px rail and does not quite clear this. Without it the last row of a table
- * sits behind the bar, and the reader's only clue is that the page appears to
- * end mid-sentence.
- */
-:root:not(:has(.ask-page)) .irs-main {
-  padding-bottom: 132px;
-}
-
 @media (width <= 48rem) {
-  .ask-dock {
-    padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0px));
-  }
-
   .ask-bar {
     gap: 10px;
     padding: 0 10px 0 18px;
@@ -2225,10 +2206,6 @@
   .ask-bar-field {
     font-size: 16px;
     letter-spacing: 0.04em;
-  }
-
-  :root:not(:has(.ask-page)) .irs-main {
-    padding-bottom: 116px;
   }
 }
 

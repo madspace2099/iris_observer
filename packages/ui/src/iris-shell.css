@@ -359,18 +359,13 @@
   width: var(--iris-content-width);
   margin: 0 auto;
   /*
-   * The docked Ask IRIS composer (`ask-iris.css` `.ask-dock`, present on
-   * every project page but `/ask` itself) is `position: fixed` at the
-   * bottom of the viewport, measured at ~92px tall on desktop. Trailing
-   * padding this size clears it for content that reaches the true end of
-   * the page — the common case the audit found on Sales Flow, Units,
-   * Briefing and both stress screens, all on mobile, all at the genuine
-   * end of scrollable content. `--ask-dock-safe-area` names the reserve so
-   * every width step below states the same intent rather than a bare
-   * number a reader has to trust matches the dock.
+   * 96px at the foot, which the Ask page cancels exactly with its own
+   * negative margin (`.ask-page`, `ask-iris.css`). A 152px reserve stood
+   * here to clear a `position: fixed` composer; the composer is in the flow
+   * now, the last child of this column, and nothing floats over the end of
+   * a page.
    */
-  --ask-dock-safe-area: 152px;
-  padding: 40px 0 var(--ask-dock-safe-area);
+  padding: 40px 0 96px;
   min-width: 0;
 }
 
@@ -401,9 +396,7 @@
   }
 
   .irs-main {
-    /* Measured ~84px on a phone; the same buffer above the measured height as desktop. */
-    --ask-dock-safe-area: 140px;
-    padding: 24px 0 var(--ask-dock-safe-area);
+    padding: 24px 0 96px;
   }
 }
 
