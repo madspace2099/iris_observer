@@ -347,7 +347,9 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
         NO_CAUSATION,
         ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
         ...c.withheld,
-        "Meetings with no recorded outcome are excluded from both cohorts rather than assigned to one.",
+        /* With the count, where the read model has one. */
+        c.excluded ??
+          "Meetings with no recorded outcome are excluded from both cohorts rather than assigned to one.",
       ],
       action: {
         label: "Open the cohort comparison",

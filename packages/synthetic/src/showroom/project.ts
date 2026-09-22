@@ -697,14 +697,27 @@ export function buildPresentationIntelligence(
    * says who or what was absent, so the screen's null branch is a reason and
    * not a shrug.
    */
+  /*
+   * ONE HALF-SET, ONE NUMBER.
+   *
+   * The evidence behind a comparison is the meetings on its two sides — the
+   * count the finding's `n` is drawn from. Each mode used to pass its own
+   * idea of "observations": cohorts passed the whole slice, so the finding
+   * read "74 records" beside "n = 65 meetings" and the nine meetings with no
+   * recorded outcome were the unexplained gap; periods passed the current
+   * slice alone, so it read "74 records" beside "n = 109", evidence smaller
+   * than the sample. The count is derived here, once, and what stands on
+   * neither side is named in `excluded` rather than left as a difference.
+   */
   const comparisonOf = (
     kind: PresentationComparison["mode"],
     left: { id: string; label: string; sessions: readonly ShowroomSession[] },
     right: { id: string; label: string; sessions: readonly ShowroomSession[] },
     evidenceId: string,
     tier: Parameters<typeof evidenceRef>[1],
-    observations: number,
+    excluded: string | null,
   ): PresentationComparison => {
+    const observations = left.sessions.length + right.sessions.length;
     const underFloor =
       left.sessions.length < AGENT_MIN_SAMPLE || right.sessions.length < AGENT_MIN_SAMPLE;
     const compared = underFloor
@@ -720,6 +733,7 @@ export function buildPresentationIntelligence(
       differences: compared.differences,
       verdictRefusal: underFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings on a side") : null,
       withheld: compared.withheld,
+      excluded,
       evidence: evidenceRef(evidenceId, tier, `${base}/presentation`, observations),
       disclaimer: DISCLAIMER,
     };
@@ -738,13 +752,19 @@ export function buildPresentationIntelligence(
         progressed.length === 0 ? "did not progress" : "progressed"
       } — ${count(progressed.length + didNot.length, locale)} of them — so there is no second cohort to compare.`;
     } else {
+      /* Neither cohort: the meetings whose outcome was never recorded. Named, not a silent gap. */
+      const unknown = sessions.length - progressed.length - didNot.length;
       comparison = comparisonOf(
         "cohorts",
         { id: "progressed", label: "Progressed further", sessions: progressed },
         { id: "did_not", label: "Did not progress", sessions: didNot },
         "cohort-comparison",
         "statistical_association",
-        sessions.length,
+        unknown === 0
+          ? null
+          : `${count(unknown, locale)} meeting${unknown === 1 ? "" : "s"} in the period ${
+              unknown === 1 ? "has" : "have"
+            } no recorded outcome and stand${unknown === 1 ? "s" : ""} in neither cohort.`,
       );
     }
   } else if (mode === "periods") {
@@ -759,7 +779,7 @@ export function buildPresentationIntelligence(
         { id: "previous", label: "Previous period", sessions: previous },
         "period-comparison",
         "observed_sequence",
-        sessions.length,
+        null,
       );
     }
   } else {
@@ -809,7 +829,7 @@ export function buildPresentationIntelligence(
           { id: rightAgent.id, label: rightAgent.name, sessions: r },
           `agent-comparison-${leftAgent.id}-${rightAgent.id}`,
           "statistical_association",
-          l.length + r.length,
+          null,
         );
       }
     }
@@ -828,7 +848,9 @@ export function buildPresentationIntelligence(
       evidence: comparison.evidence,
       sampleSize: top.sampleLeft + top.sampleRight,
       sources: top.sources,
-      caveat: top.note,
+      /* What stands outside the comparison, then what the row itself excludes. */
+      caveat:
+        [comparison.excluded, top.note].filter((s): s is string => s !== null).join(" ") || null,
     });
   }
 

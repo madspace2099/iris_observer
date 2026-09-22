@@ -3262,3 +3262,30 @@ the denominator rule it did not apply.
 browser.
 
 Evidence: commits `8ff0ab2` and the one after it on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — One half-set, one number; and the fold, measured live
+
+**The cohorts finding read "74 records" beside "n = 65 meetings".** Measured through the port before
+touching anything: 74 was `sessions.length`, the whole quarter's slice, passed as the comparison's
+evidence count; 65 was `sampleLeft + sampleRight`, the two cohorts; the nine between them are the
+meetings whose outcome was never recorded (`skipped`), which `outcomeIsUnknown` puts in neither
+cohort. The same seam gave periods "74 records" beside "n = 109" — the current slice alone as
+evidence, both periods as the sample, evidence smaller than the sample. The evidence behind a
+comparison is now derived once, in `comparisonOf`, as the meetings on its two sides, and what stands
+on neither side is a sentence (`PresentationComparison.excluded`) printed on the finding's caveat, on
+the aside's n line and in the cohort tool's caveats: "9 meetings in the period have no recorded outcome
+and stand in neither cohort." Cohorts reads 65 and 65; periods 109 and 109; agents unchanged.
+
+**The fold, live, at four sizes (Northgate, cohorts, scroll 0; Playwright, boundingBox and
+`elementFromPoint`).** The Compare aside sits beside the plane only above the 90rem breakpoint
+(`packages/ui/src/showroom.css:985`): at 1920×1080 its top is at document y 184 and the first "What
+differs" row is on the first screen; at 1440 and 1366 it stacks under the plane at y 1361 — 461, 551
+and 593 px under the fold at 900, 810 and 768 — and the first row needs 950, 1040 and 1082 px of scroll
+to clear the dock. The first screen at 1440×900 holds the kicker, the title, the lede, the five lanes
+and 28% of the transitions block; at 1366×768 the lanes alone. The dock's box is 92 px tall but its
+hit area is 70: at 1440×900 it covers the denominator sentence at every probed point and not the first
+bar label (5 px below the hit area); at 1920×1080 it covers the third and fourth bar labels; at
+1440×810 and 1366×768 it covers the last lane's track — a figure, and a focusable region. Recorded,
+not changed: the layout decision is the board's.
+
+Evidence: the commit after `3a762f4` on `feature/observer-ux-overhaul-phase2`.

@@ -290,6 +290,7 @@ export default async function PresentationPage({
               ))}
               <p className="iris-meta" style={{ marginTop: ".75rem" }}>
                 n = {comparison.left.meetingCount} and {comparison.right.meetingCount} meetings.
+                {comparison.excluded === null ? "" : ` ${comparison.excluded}`}
                 {mode === "periods"
                   ? view.context.attribution.comparisonRefusal === null
                     ? ` Both periods measured under attribution policy ${view.context.attribution.version}.`

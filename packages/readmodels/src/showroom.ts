@@ -180,6 +180,14 @@ export interface PresentationComparison {
    * says the same thing once for all of them.
    */
   readonly withheld: readonly string[];
+  /**
+   * Meetings in scope that stand on neither side, in a sentence: for the
+   * outcome cohorts, those with no recorded outcome. Null where every meeting
+   * in scope is on one side or the other, and where the sides are named people
+   * and the rest are simply other people.
+   */
+  readonly excluded: string | null;
+  /** The meetings on the two sides — the same count the finding's n is drawn from. */
   readonly evidence: EvidenceRef;
   /** Always stated: an association at this sample size is not a cause. */
   readonly disclaimer: string;

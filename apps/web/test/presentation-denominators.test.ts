@@ -64,6 +64,12 @@ describe("the page prints every denominator the read model carries", () => {
       "comparison.withheld.map",
     );
   });
+
+  it("prints the meetings that stand on neither side, beside the n", () => {
+    expect(PAGE, "the meetings in neither cohort are a silent gap on the screen").toContain(
+      "comparison.excluded",
+    );
+  });
 });
 
 describe("the Ask Observer tools answer what the surface answers", () => {
