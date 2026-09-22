@@ -3163,3 +3163,47 @@ repository was swept rather than the `e2e/` directory alone. The Playwright suit
 so the spec is now consistent with the source without that consistency having been observed. This is
 the third appearance of one shape: a measurement taken through one filter, reported as a claim about
 everything the filter did not cover.
+
+## 2026-09-22 — The E2E layer, measured rather than assumed
+
+**Correction first, because it shaped the round.** A report described Playwright as never having run
+in this programme. That is false: it ran at the Phase 1 gate with 315 product tests passing and 130
+failures, all in the three `design-lab-*` specs. What is true is narrower and more useful — it had
+not run in any of Phase 2's eight rounds. A known-green starting point is a different situation from
+an unknown one.
+
+**The desktop project now: 321 passed, 130 failed, 80 skipped, 25.3 minutes.** Every one of the 130
+failures is in `design-lab-a11y` (60), `design-lab` (42) and `design-lab-stress` (28), and none is
+anywhere else. The mechanism matches the record as well as the count: 44, 43 and 43 waits for
+`.dla-root`, `.dlb-root` and `.dlc-root`, the three roots that do not exist because the lab route
+calls `notFound()` unless the local control plane is on, which needs a non-production `NODE_ENV`
+while the harness builds and starts. The spec says so itself. It is the wrong command, not a defect.
+The product count moved 315 → 321 since the Phase 1 gate and the six were not investigated.
+
+**`units-register.spec.ts` passes.** That was the round's first item: the branch carried a spec
+edited in P2-08 to expect twelve columns, and nobody had run it. Both of its tests are green, so the
+column removal is confirmed at runtime and not only in source.
+
+**The browser settled what source was not allowed to claim.** Three new cases in
+`e2e/register-filter-navigation.spec.ts`: the browser's Back restores the narrowed register, the
+"Units" crumb does too, and submitting the filter bar puts every axis it changed into the address.
+Reverting P2-08's crumb fix and rebuilding fails the crumb case with `Expected: 4, Received: 20` —
+the defect as a number — while the browser-Back case stays green, which is the proof that the two
+measure different things.
+
+**Two of the three new cases were wrong before they were right, and the runs said so.** The filter
+combination the last one used, `q=A` with `status=reserved`, is empty in this fixture — northgate's
+four reserved flats are B-601, B-602, C-701 and C-702 — so it failed against a register behaving
+correctly. And the crumb case's URL assertions passed against the mutation, because `click()`
+resolves on the click rather than the navigation and the unit page's address carries those same
+parameters. They now wait for the register and retry, and name the axis that was dropped.
+
+**A fourth instance of one shape.** A sweep reported as covering the whole repository missed
+"Verified outcome" where the phrase wrapped across two comment lines. Line-range filter, single
+runner, single-line grep: three times the tool chose the scope while the claim was written about
+everything the tool could not see.
+
+**Not run:** the `wide` and `mobile` projects, the full `pnpm test`, and no screenshot of any
+surface. The 80 skips were counted by spec but not explained.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §32.
