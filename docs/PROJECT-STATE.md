@@ -3566,3 +3566,56 @@ is its own round.
 
 Evidence: `9ca1333`, `6869d97`, `c8b30b6` and this entry's commit on
 `feature/observer-ux-overhaul-phase2`; `_review/views-p2-17/`.
+
+## 2026-09-22 — The dock stands in the document, and the dead tree is surveyed
+
+**The dock, in the flow (`050f677`).** A fixed bar over a scrolling document covers something at some
+scroll position whatever its size, so a rule about what the docked composer covers could only be
+narrowed after each measurement. The dock is the last child of `<main>` now, after the page's
+content. What was looked at before each change: `.ask-dock` lost `position: fixed`, its offsets and
+`z-index: 5`; the `pointer-events` pair and the gradient fade had one reason each — clicks through
+the fade to the page beneath, a seam where a table scrolled under the bar — and nothing is beneath
+now, so both went, and the side padding with them; `overflow-x: clip` stays for the overhanging glow.
+`--ask-dock-safe-area` had five readers, all in `iris-shell.css` (the definition and its reader at
+372–373, the 140px pair at 405–406, the docblock at 361–371); none elsewhere; all gone, and the second
+reserve — `:root:not(:has(.ask-page)) .irs-main { padding-bottom: 132px }` with its 116px twin in
+`ask-iris.css` — went as the same reserve stated twice. The column keeps the 96px foot the Ask page
+cancels. `Shell.tsx`'s inert list keeps `.ask-dock` beside `#main` with its reason beside it: the
+composer inherits `#main`'s inertness, but `mobile-menu-containment.spec.ts` reads the element's own
+`inert` property. The header already carries ASK IRIS through `withPeriod`, on the desktop nav and
+the mobile sheet; nothing was added.
+
+**The guard the rule never had:** `e2e/fixed-covers-nothing.spec.ts` — on the roster, four sizes by
+three scroll positions by two viewers, the box of no `position: fixed` element intersects a
+focusable element outside it. Before the commit it reported 12 and 9 intersections; after, none, and
+the 24-position `elementFromPoint` instrument reports 0. Mutation, `position: fixed` back with its
+offsets: 13 and 9, red on "no fixed element covers a focusable one on the roster, for Petra Novák"
+and "… for MADSPACE Operations"; restored from the commit, porcelain empty. Measured on the build:
+the dock is `static`, the last child of `#main`, 1392px wide at 1440, the document no wider than the
+viewport, `display: none` on the Ask page.
+
+**Findings, not fixed.** `layout-integrity.spec.ts`'s "the Ask dock covers nothing" measured the
+dock's box against text at the page's end; with the dock in flow it cannot fail — a guard that has
+outlived its subject. The layout passes `periodParam=""` to `AskDock`, so the dock's form does not
+carry the period its own docblock says travels with the question.
+
+**The dead tree, surveyed, nothing deleted.** One agent per file answered three questions —
+reachable by import graph, whether the live page draws the same, which tests read it — and one
+adversarial reader per file tried to refute each answer. All eleven are unreachable: the project
+barrel has no importer in any form, the flow barrel is imported only by `flow/page.tsx:9`
+(`AssistedSales`, `FlowLadder`) and `report/page.tsx:22` (`FlowLadder`). The live page draws the same
+in full for one file (`WindowFigures`: `flow/page.tsx:125–168`, denominator on the card), not at all
+for two (`Building` on `/project` — the stock tally with its `of {units}` denominators and the
+presentations count with its floor are drawn on `units` and `showroom` instead; `Movement` — no
+change register anywhere, `PulseUnit.change` is a title only), and partly for eight, where the
+denominators the components print are, on `/project`, either hover-only (`ParityScale`'s "X% of
+looking time on Y% of stock", `PairedRates`' "share of units opened that got this") or absent
+(`StatedDemandRegister`'s bare "Times applied" and "Units matching"; the six-figure segment tally with
+`of=` and its sample floor, missing entirely). No test imports any of the eleven; ten whole-tree
+tripwires read their bytes without naming them; one test reads one of them by path —
+`project-overview-denominators.test.ts:29` reads `SegmentDetail.tsx` and asserts the P2-07 denominator
+doctrine on a file nothing renders. The rule for the next round is stated in the tracker.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite.
+
+Evidence: `050f677` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
