@@ -1,4 +1,5 @@
 import { AskBarField } from "./AskBarField";
+import { PeriodField } from "./PeriodField";
 import { PromptGlow } from "./PromptGlow";
 import { Microphone, Send } from "./icons";
 
@@ -39,7 +40,10 @@ import { Microphone, Send } from "./icons";
  *
  * The period travels with it, because "why did demand fall" is a different
  * question over 28 days than over a quarter, and a prompt that dropped the
- * period would answer the wrong one without saying so.
+ * period would answer the wrong one without saying so. It did drop it: the
+ * layout that renders this bar cannot see the query, so it passed an empty
+ * period and this paragraph was false. `PeriodField` reads the period off
+ * the URL in the browser, as the shell reads its own.
  *
  * ## Hidden on Ask IRIS by the stylesheet, not by a prop
  *
@@ -51,12 +55,10 @@ import { Microphone, Send } from "./icons";
  */
 export function AskDock({
   root,
-  periodParam,
   projectLabel,
 }: {
   /** `/{tenant}/{project}`. */
   readonly root: string;
-  readonly periodParam: string;
   readonly projectLabel: string;
 }) {
   return (
@@ -71,7 +73,7 @@ export function AskDock({
           <PromptGlow />
 
           <form className="ask-bar" method="get" action={`${root}/ask`} data-glow-card="">
-            {periodParam !== "" ? <input type="hidden" name="period" value={periodParam} /> : null}
+            <PeriodField />
 
             <AskBarField name="q" label={`Ask IRIS about ${projectLabel}`} />
 

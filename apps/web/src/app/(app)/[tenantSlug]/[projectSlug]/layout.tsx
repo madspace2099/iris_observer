@@ -303,7 +303,7 @@ export default async function ProjectLayout({
       >
         {children}
         {/* The last child of `<main>`, after the content, in the flow. */}
-        <AskDock root={root} periodParam="" projectLabel={project.name} />
+        <AskDock root={root} projectLabel={project.name} />
       </Shell>
     </div>
   );
