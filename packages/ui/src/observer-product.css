@@ -2494,6 +2494,21 @@
   white-space: nowrap;
 }
 
+/*
+ * A SHORTFALL SENTENCE WRAPS WHERE IT STANDS.
+ *
+ * `nowrap` above is the sheet row's, where the shortfall is the short form
+ * beside a figure. A tally cell is a column with a width, and the read
+ * model's sentence — "Fewer than 20 meetings for this agent — shown as a raw
+ * figure, not as a verdict" — could not wrap in it: on the agent page three
+ * of them ran across their cells into one unreadable line, a withholding the
+ * reader never received. Eleven cells on two surfaces draw a `Figure` inside
+ * this grid, so the grid owns the rule rather than each cell.
+ */
+.ox-tally .ox-shortfall {
+  white-space: normal;
+}
+
 .ox-error {
   display: flex;
   flex-direction: column;
