@@ -73,6 +73,18 @@ export function meetings(n: number, locale: string): string {
   return `${count(n, locale)} meeting${n === 1 ? "" : "s"}`;
 }
 
+/**
+ * The sentence a figure prints under the agent floor, built once.
+ *
+ * The roster card, the radar card, the workload list and the agent page all
+ * say it. Two builders of a nearly identical sentence — the agent page's own
+ * copy said "presentations" where this said "meetings" — is what the header of
+ * `packages/metrics/src/registry/shared.ts` was written against.
+ */
+export function suppressionNoteFor(held: number, locale: string): string {
+  return `${meetings(held, locale)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
+}
+
 /* --- helpers ----------------------------------------------------------------- */
 
 function median(values: readonly number[]): number {
@@ -1153,9 +1165,7 @@ export function buildAgentsView(
       /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
       timedMeetings: mine.filter(fullyTimed).length,
       belowMinimum,
-      suppressionNote: belowMinimum
-        ? `${meetings(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`
-        : null,
+      suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
       repeats: repeatDistribution(mine),

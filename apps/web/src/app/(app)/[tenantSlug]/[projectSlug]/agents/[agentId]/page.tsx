@@ -487,16 +487,46 @@ export default async function AgentPage({
             )}
           </div>
 
+          {/*
+           * THE TEAM'S MEDIAN IS THE COMPARISON THE FLOOR SUPPRESSES HERE.
+           *
+           * The same rule as "What their buyers opened" two charts up, which
+           * withholds the project's rate below the floor and says why. This
+           * chart printed the team's median beside every stop regardless, and
+           * its summary — what a screen reader gets — said "team median" too.
+           * Below the floor neither does, and the reason stands under the
+           * chart in the same words.
+           */}
           <ChartFrame
             title={`${view.name}: running order and time in each section`}
             period={periodLabel}
-            note="The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop; the team's median is printed beside it, since a section time on its own has no scale."
-            summary={`${view.profile.sections.length} sections, in running order: ${view.profile.sections.map((s) => `${s.order}. ${s.label}, median ${s.dwellDisplay}, team median ${s.teamDwellDisplay}`).join("; ")}.`}
+            note={
+              view.belowMinimum
+                ? "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop."
+                : "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop; the team's median is printed beside it, since a section time on its own has no scale."
+            }
+            summary={`${view.profile.sections.length} sections, in running order: ${view.profile.sections
+              .map(
+                (s) =>
+                  `${s.order}. ${s.label}, median ${s.dwellDisplay}${
+                    view.belowMinimum ? "" : `, team median ${s.teamDwellDisplay}`
+                  }`,
+              )
+              .join("; ")}.`}
           >
             <SectionSequence
               rows={view.profile.sections}
               agentLabel={view.name.split(" ")[0] ?? "This agent"}
+              showTeam={!view.belowMinimum}
             />
+            {view.belowMinimum ? (
+              <p className="ox-chart-note">
+                The team&rsquo;s median is not printed beside their stops: at {view.sampleSize}{" "}
+                meetings, {view.minimumSampleSize - view.sampleSize} short of{" "}
+                {view.minimumSampleSize}, that comparison would be a judgement about how somebody
+                works drawn from a sample too thin to carry one.
+              </p>
+            ) : null}
           </ChartFrame>
 
           {/*

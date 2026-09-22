@@ -127,6 +127,15 @@ export interface RadarProfile {
   readonly tone: string;
   /** Normalised 0–1 against the strongest agent on each axis. */
   readonly values: readonly number[];
+  /**
+   * `meetings < AGENT_MIN_SAMPLE`. A shape scaled against the strongest
+   * colleague on every axis is a ranking without numbers, and below the floor
+   * no agent figure is presented as a verdict: the card prints `note` and not
+   * the shape.
+   */
+  readonly belowMinimum: boolean;
+  /** The floor's own sentence, null when the sample clears it. */
+  readonly note: string | null;
 }
 
 export interface AgentRadar {

@@ -17,6 +17,8 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { Missing } from "@/components/agents";
 import { FlowLadder } from "@/components/flow";
 import {
   DataTable,
@@ -203,8 +205,23 @@ export default async function ReportPage({
           cells: {
             agent: <Link href={link(agent.href)}>{agent.name}</Link>,
             meetings: String(agent.meetings),
-            duration: agent.medianDurationDisplay,
-            progressed: pct(agent.ring.progressedShare),
+            /*
+             * The floor, as the roster applies it. This table printed a
+             * median and a rate for every presenter whatever their sample —
+             * the comparison the roster card withholds, on a second surface.
+             * The words are the product's own: the shortfall `ShareFigure`
+             * prints, and the read model's suppression sentence.
+             */
+            duration: agent.belowMinimum ? (
+              <Missing what={`${agent.meetings} of ${AGENT_MIN_SAMPLE} meetings needed`} />
+            ) : (
+              agent.medianDurationDisplay
+            ),
+            progressed: agent.belowMinimum ? (
+              <Missing what={agent.suppressionNote ?? "Below the reporting sample"} />
+            ) : (
+              pct(agent.ring.progressedShare)
+            ),
           },
         }))}
         period={period}

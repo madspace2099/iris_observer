@@ -63,7 +63,7 @@ import {
 import { assistedSaleOf, dealsFor } from "../deals";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
-import { buildAgentsView, meetings as meetingsWord } from "./views3";
+import { buildAgentsView, meetings as meetingsWord, suppressionNoteFor } from "./views3";
 
 /**
  * The drill-down surfaces, projected from the same session stream.
@@ -1415,9 +1415,8 @@ export function buildAgentDetail(
     sampleSize,
     minimumSampleSize: AGENT_MIN_SAMPLE,
     belowMinimum,
-    suppressionNote: belowMinimum
-      ? `${meetingsWord(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} needed for a verdict. Figures are shown; no rank or trend is drawn.`
-      : null,
+    /* One builder for the floor's sentence, shared with the roster and the charts. */
+    suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
     activity,
     profile,
     projects,

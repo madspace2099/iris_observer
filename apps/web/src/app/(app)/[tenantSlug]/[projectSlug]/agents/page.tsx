@@ -150,7 +150,20 @@ export default async function AgentsPage({
           <div className="iris-radars">
             {charts.radar.profiles.map((profile) => (
               <div className="iris-radar-card" key={profile.id}>
-                <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                {/*
+                 * Below the floor the card stays and the shape does not: a
+                 * shape scaled against the strongest colleague on every axis
+                 * is a ranking without numbers, drawn from four meetings. The
+                 * note is the read model's, the same sentence the ring card
+                 * above prints.
+                 */}
+                {profile.belowMinimum ? (
+                  <p className="iris-meta" style={{ margin: 0 }}>
+                    <b>{profile.label}</b> — {profile.note}
+                  </p>
+                ) : (
+                  <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                )}
               </div>
             ))}
           </div>

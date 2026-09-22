@@ -40,7 +40,8 @@ import {
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
-import { meetings } from "./views3";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { meetings, suppressionNoteFor } from "./views3";
 
 /**
  * The figures behind the chart vocabulary.
@@ -472,6 +473,13 @@ export function buildAgentCharts(
         id: a.id,
         label: a.name,
         meetings: mine.length,
+        /*
+         * The floor is on the verdict. A radar shape scaled against the
+         * strongest colleague is a comparison, and a median in the workload
+         * list is the figure the agent page returns as `insufficient` below
+         * the floor; both used to be drawn from four meetings.
+         */
+        belowMinimum: mine.length < AGENT_MIN_SAMPLE,
         values: [
           median(
             mine.map((s) =>
@@ -512,6 +520,8 @@ export function buildAgentCharts(
       label: `${r.label} · ${meetings(r.meetings, locale)}`,
       tone: RADAR_TONES[i % RADAR_TONES.length] ?? "var(--accent)",
       values: r.values.map((v, axis) => v / (peaks[axis] ?? 1)),
+      belowMinimum: r.belowMinimum,
+      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale) : null,
     })),
   };
 
@@ -531,7 +541,11 @@ export function buildAgentCharts(
       return {
         id: r.id,
         label: r.label,
-        sub: timed.length === 0 ? "no timed session" : `median ${duration(median(timed))}`,
+        sub: r.belowMinimum
+          ? suppressionNoteFor(r.meetings, locale)
+          : timed.length === 0
+            ? "no timed session"
+            : `median ${duration(median(timed))}`,
         value: mine.length,
         display: count(mine.length, locale),
         href: `${base}/agents/${r.id}`,

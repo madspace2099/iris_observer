@@ -679,6 +679,7 @@ export function RankedBars({
 export function SectionSequence({
   rows,
   agentLabel,
+  showTeam,
 }: {
   rows: readonly {
     readonly sectionId: string;
@@ -692,6 +693,13 @@ export function SectionSequence({
     readonly availability: string;
   }[];
   agentLabel: string;
+  /**
+   * Whether the team's median is printed beside each stop. The page decides,
+   * from the sample floor: the team's figure is a comparison, and below the
+   * floor no comparison is made — the same rule the page applies to the
+   * project's rate two charts up.
+   */
+  showTeam: boolean;
 }) {
   const peak = Math.max(1, ...rows.map((r) => r.medianDwellSeconds ?? 0));
 
@@ -720,7 +728,7 @@ export function SectionSequence({
           </span>
           <span className="iris-sequence-time">
             {row.dwellDisplay}
-            <em>team {row.teamDwellDisplay}</em>
+            {showTeam ? <em>team {row.teamDwellDisplay}</em> : null}
           </span>
         </li>
       ))}
