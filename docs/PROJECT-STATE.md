@@ -3316,3 +3316,44 @@ in one column, side-by-side placement in two. With the DOM order put back, the f
 and the third still passes, which is the proof that they measure different things.
 
 Evidence: the commit after `3696bf6` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents: the provenance and the floor
+
+**Measured first (P2-14).** Both surfaces exist and cover activity, method and outcome. The roster
+draws four outcome rings, radars, a workload list and repeat bars — `TeamRegister`, whose docblock
+says it replaced the rings, is exported and rendered nowhere. Denominators missing from the screen:
+the roster's "% progressed" is over decided meetings while the only count on the card is every
+meeting (Monika, ISTER TOWER last quarter: 7 of 17 drawn as 41% beside 21); "× the team's share" on
+both surfaces stands on the timed meetings and neither says so; the repeat bars' whole is in the
+verdict sentence, not beside them. Under the floor: the radar shapes, the workload list's medians and
+the section sequence's team medians. Twenty cells, 46 agent-rows, 25 under `AGENT_MIN_SAMPLE`.
+
+**Two defects, fixed, in two commits.** The "Verified outcomes" region counted `session.outcome` —
+the agent's own entry — under a subhead and a sentence that said a system of record stood behind it,
+at the attributed tier with `CRM_OUTCOME_CONTEXT`, and only where a CRM was connected, which said the
+CRM produced the number. No deal is linked to a meeting (P2-13, ADR-0039), so none of it could be
+true: the register's removed "Verified outcome" column on a second surface, one source labelled as
+another. The region stays — the count is real — as `recordedOutcomes`, "Outcomes they recorded", at
+the observed tier, from the showroom, on every project. The tier vocabulary had the word:
+`observed_sequence`, "these facts were recorded; nothing beyond the record is claimed". And the
+roster's lead finding picked the largest over-index across every agent regardless of the floor, so on
+11 of 15 cells it said about a person what the card beside it had just refused to say. An agent under
+the floor is not a candidate; where nobody clears it, the refusal is a finding in the card's own
+words. After: 12 cells keep a signature finding, none under the floor; 3 carry the refusal; 0 are
+left with no finding.
+
+**Twentieth rule, and its sweep.** A defect removed from one surface is a class, not an instance, and
+the same claim is swept on the others before the item closes. The sweep found the same shape, not
+fixed here: the follow-up "recorded" figure and the funnel's two outcome stages are derived from
+`session.outcome` and withheld without a CRM (`packages/synthetic/src/showroom/screens.ts`,
+`followUpFor`, `funnelStep`); the meeting registers print "No CRM" for a follow-up state that is the
+outcome's; the unit page's timeline entry "Meeting ended: …" and its "asked for a follow-up" stage
+carry the attributed tier over the same recorded outcome; and `apps/web/src/lib/ai/agent.ts` upgrades
+any answer with `CRM_OUTCOME_CONTEXT` among its sources to the attributed tier. The replay's own
+region does it right — "what the agent entered — it is not a reservation and not a sale" — and is the
+wording reused here.
+
+**Recorded, next round:** the "% progressed" denominator and the "leans on" set; the radar, the
+workload medians and the section sequence's team medians under the floor; `TeamRegister`'s fate.
+
+Evidence: the two commits after `898bca5` on `feature/observer-ux-overhaul-phase2`.

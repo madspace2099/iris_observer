@@ -1176,9 +1176,22 @@ export function buildAgentsView(
   });
 
   const findings: ShowroomFinding[] = [];
-  const distinct = agents
-    .filter((a) => a.signature !== null)
-    .sort((x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0))[0];
+
+  /*
+   * THE FLOOR IS ON THE VERDICT, HERE TOO.
+   *
+   * The card withholds "leans on" below `AGENT_MIN_SAMPLE`. The lead finding
+   * used to pick the largest over-index across every agent regardless, so on
+   * 11 of 15 cells it said about a person what the card beside it had just
+   * refused to say — a four-meeting habit as the page's first sentence. An
+   * agent under the floor is not a candidate. Where nobody clears it, the
+   * refusal is a finding in the card's own words rather than a missing one.
+   */
+  const eligible = agents.filter((a) => a.signature !== null && !a.belowMinimum);
+  const distinct = [...eligible].sort(
+    (x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0),
+  )[0];
+  const largest = [...agents].sort((x, y) => y.meetings - x.meetings)[0];
 
   /*
    * A share of the TEAM's time needs a team. With one presenter the figure is
@@ -1200,6 +1213,24 @@ export function buildAgentsView(
         distinct.meetings,
       ),
       sampleSize: distinct.meetings,
+      sources: [...DERIVED],
+      caveat: null,
+    });
+  } else if (agents.length > 1 && largest !== undefined && largest.meetings < AGENT_MIN_SAMPLE) {
+    findings.push({
+      id: "agents-signature-withheld",
+      statement: `No presenter's habit is read as a finding: the most anyone presented was ${meetings(largest.meetings, locale)}, ${count(AGENT_MIN_SAMPLE - largest.meetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
+      baseline: `${count(agents.length, locale)} agents`,
+      soWhat:
+        "A habit read from fewer meetings than the floor would be a verdict about a person drawn from a handful. The cards above carry every figure with its count.",
+      nextStep: null,
+      evidence: evidenceRef(
+        "agents-signature-withheld",
+        "observed_sequence",
+        `${base}/agents`,
+        sessions.length,
+      ),
+      sampleSize: largest.meetings,
       sources: [...DERIVED],
       caveat: null,
     });
