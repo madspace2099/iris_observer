@@ -3398,3 +3398,55 @@ pages since their last capture, and the meetings register lost its band; the nex
 them.
 
 Evidence: the three commits after `3a1051d` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents: the floor on three comparisons, the set, two denominators, and the first photographs
+
+**The line that could have refuted the round, run first.** `section-time.test.ts` asserted that a
+partly timed meeting alone gave residences a share of 0.25; one temporary line printed the same
+profile's `timedMeetings`: `0`. A 25% share on a stated set of nothing, exactly as claimed. The line
+was removed and the file's hash proved unchanged.
+
+**The floor, on the comparisons the roster and the agent page still drew (`37e92e1`).** The radar
+scales every axis against the strongest colleague — a ranking without numbers — and was drawn from
+four meetings; the workload list printed a median under every name; the section sequence printed the
+team's median beside every stop, twelve lines under the block that withholds the project's rate and
+says why. Below the floor the radar card prints the note and not the shape, the list's sub line is
+the note, the sequence takes `showTeam` from the page and its summary drops "team median" with it.
+One sentence, one builder: `suppressionNoteFor`. The sweep of `progressedShare` and
+`medianDurationDisplay` found every consumer — the roster (floored), the report's agents table
+(not), `TeamRegister` (unrendered, untouched), `AgentOutcomes` (deliberately not drawing it), the
+Flow page's docblock (removed it), and two period-level readers that are not per agent; the report
+was the one unfloored per-agent reader, fixed in the same commit.
+
+**The set, then the denominators (`90c2cf7`).** The agent lane's shares now stand on the fully
+timed meetings, as the Features page's did and three docblocks already claimed. Measured before and
+after on every share of every agent on every cell — 414 figures — nothing moved: the fixtures'
+unknowns are whole meetings. "Leans on … × the team's share" names its set on the roster, the agent
+page's head and both signature findings, in the Features page's form; the finding's n and records are
+that set. "41% progressed" was rounded in the roster component with a percent sign — the figure
+ADR-0012 forbids, the line the Flow page named when it removed it — beside a centre of 21 where the
+rate stood on 17. `AgentOutcomeRing.decidedMeetings` carries the denominator; the card draws the rate
+through `ShareFigure` with it in words; the report's header names it.
+
+**Measured, not fixed:** the report's team table reads the first agent's `sections`, which passed
+that agent's own `reachRate > 0` filter. On the 15 cells with agents, no section any agent reached
+is missing from the first agent's rows: 0 cells, 0 rows, 0.0 percentage points carried.
+
+**The first photographs of these pages since four regions changed** (`_review/views-p2-15/04-agents`,
+`05-agent-detail`, plus the showroom bundle in `_review/showroom-p2-15`). What is there: on the
+roster, three cards under the floor print the note where the rate stood and the fourth prints "26%
+progressed, of 19 meetings with an outcome · median 11m 42s" over three lines, then "Leans on Home —
+1.8× the team's share of presentation time, across the 22 of 22 meetings the source could time end
+to end"; the radar row keeps four cells, one shape and three notes, and the notes float at the top of
+cells three-quarters empty, each beginning "Monika Kováčová · 19 meetings — 19 meetings in this
+period", the count twice; the workload list's sub line truncates the note to "19 meetings in this
+period, 1 short o…", the reason on hover only. On the agent page the section sequence prints no team
+median and the reason stands under it. Two findings the photograph made: the activity tally's three
+`insufficient` figures each print "Fewer than 20 meetings for this agent — shown as a raw figure, not
+as a verdict" without wrapping, and the three sentences overlap across the cells into an unreadable
+line — a defect of `Figure`'s shortfall in a `TallyItem`, older than this round and never
+photographed; and at 1440×900, scroll 0, the roster's first card's "Agent detail →" link sits at the
+lower edge of the dock's hit area, read off the capture at ±5 px and not yet measured with
+`elementFromPoint`. Neither is fixed here.
+
+Evidence: `37e92e1`, `90c2cf7` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
