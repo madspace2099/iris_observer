@@ -173,7 +173,14 @@ export default async function PresentationPage({
         ) : null}
 
         {comparison === null ? (
-          <p className="iris-meta">No comparison is available for this selection.</p>
+          /*
+           * The reason, not a shrug. A side with no meetings is an absence,
+           * and the read model says whose — on the review project's default
+           * view this used to be a lane of nought drawn as 0% on every row.
+           */
+          <p className="iris-meta">
+            {view.noComparison ?? "No comparison is available for this selection."}
+          </p>
         ) : (
           <>
             <div className="iris-dna">
@@ -187,34 +194,48 @@ export default async function PresentationPage({
               <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
                 What differs
               </p>
-              <div className="iris-diff">
-                <div className="iris-diff-row">
-                  <span className="iris-code">behaviour</span>
-                  <span className="iris-code" style={{ textAlign: "right" }}>
-                    {comparison.left.label.split(" ")[0]}
-                  </span>
-                  <span className="iris-code" style={{ textAlign: "center" }}>
-                    gap
-                  </span>
-                  <span className="iris-code" style={{ textAlign: "right" }}>
-                    {comparison.right.label.split(" ")[0]}
-                  </span>
-                </div>
-                {comparison.differences.map((d) => (
-                  <div className="iris-diff-row" key={d.id}>
-                    <span className="iris-diff-behaviour">{d.behaviour}</span>
-                    <span className="iris-diff-value">{d.leftDisplay}</span>
-                    <span
-                      className="iris-diff-bar"
-                      style={{ "--magnitude": d.magnitude.toFixed(3) } as React.CSSProperties}
-                      title={`${Math.round(d.magnitude * 100)} percentage points`}
-                    >
-                      <i />
+              {/*
+               * Three states, told apart. Under the floor the read model
+               * withholds every row and says so; that is not the same as two
+               * lanes that reach the floor and differ on nothing, and neither
+               * is an empty grid with a header.
+               */}
+              {comparison.verdictRefusal !== null ? (
+                <p className="iris-meta">{comparison.verdictRefusal}</p>
+              ) : comparison.differences.length === 0 ? (
+                <p className="iris-meta">
+                  No behaviour differs between the two by more than four percentage points.
+                </p>
+              ) : (
+                <div className="iris-diff">
+                  <div className="iris-diff-row">
+                    <span className="iris-code">behaviour</span>
+                    <span className="iris-code" style={{ textAlign: "right" }}>
+                      {comparison.left.label.split(" ")[0]}
                     </span>
-                    <span className="iris-diff-value">{d.rightDisplay}</span>
+                    <span className="iris-code" style={{ textAlign: "center" }}>
+                      gap
+                    </span>
+                    <span className="iris-code" style={{ textAlign: "right" }}>
+                      {comparison.right.label.split(" ")[0]}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  {comparison.differences.map((d) => (
+                    <div className="iris-diff-row" key={d.id}>
+                      <span className="iris-diff-behaviour">{d.behaviour}</span>
+                      <span className="iris-diff-value">{d.leftDisplay}</span>
+                      <span
+                        className="iris-diff-bar"
+                        style={{ "--magnitude": d.magnitude.toFixed(3) } as React.CSSProperties}
+                        title={`${Math.round(d.magnitude * 100)} percentage points`}
+                      >
+                        <i />
+                      </span>
+                      <span className="iris-diff-value">{d.rightDisplay}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <p className="iris-meta" style={{ marginTop: ".75rem" }}>
                 n = {comparison.left.meetingCount} and {comparison.right.meetingCount} meetings.
                 {mode === "periods"

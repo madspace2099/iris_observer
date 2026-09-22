@@ -158,6 +158,14 @@ export interface PresentationComparison {
   readonly transitionsLeft: readonly PresentationTransition[];
   readonly transitionsRight: readonly PresentationTransition[];
   readonly differences: readonly PresentationDifference[];
+  /**
+   * Why `differences` is empty and no finding is drawn: a side with fewer
+   * meetings than the agent floor (`AGENT_MIN_SAMPLE`). The lanes stay, as raw
+   * figures with their counts in their headers; the comparative claims do not.
+   * Null when both sides reach the floor — an empty `differences` then means
+   * nothing cleared the reporting threshold, which is a different statement.
+   */
+  readonly verdictRefusal: string | null;
   readonly evidence: EvidenceRef;
   /** Always stated: an association at this sample size is not a cause. */
   readonly disclaimer: string;
@@ -182,6 +190,12 @@ export interface PresentationIntelligence {
   readonly transitions: readonly PresentationTransition[];
   readonly teamBenchmark: PresentationLane;
   readonly comparison: PresentationComparison | null;
+  /**
+   * Why `comparison` is null, in a sentence a screen can print. A side with no
+   * meetings at all is not a small sample but an absence, and 0% of nothing is
+   * not a rate anybody presented. Null whenever a comparison is drawn.
+   */
+  readonly noComparison: string | null;
   readonly findings: readonly ShowroomFinding[];
   readonly evidence: EvidenceRef;
 }

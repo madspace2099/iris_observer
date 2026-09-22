@@ -143,11 +143,16 @@ describe("association, never cause", () => {
   });
 
   it("shows both sample sizes on every stated difference", async () => {
-    const view = await syntheticRepository.getPresentationIntelligence(QUERY, {
-      mode: "agents",
-      left: "agt_monika",
-      right: "agt_akhilesh",
-    });
+    /*
+     * Year to date, not the shared quarter: quarter to date is 19 and 22
+     * meetings, under the agent floor, where the read model now withholds
+     * every difference and this loop would pass over nothing.
+     */
+    const view = await syntheticRepository.getPresentationIntelligence(
+      { ...QUERY, period: "year_to_date" },
+      { mode: "agents", left: "agt_monika", right: "agt_akhilesh" },
+    );
+    expect(view.comparison?.differences.length ?? 0, "nothing to measure").toBeGreaterThan(0);
     for (const d of view.comparison?.differences ?? []) {
       expect(d.sampleLeft).toBeGreaterThan(0);
       expect(d.sampleRight).toBeGreaterThan(0);

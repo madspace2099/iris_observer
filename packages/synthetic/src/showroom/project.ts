@@ -48,6 +48,7 @@ import {
   percent,
   signedPercent,
 } from "../format";
+import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
 import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
 /* The one definition of "time the source could time" — the agent lane's, not a second one. */
 import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
@@ -638,45 +639,87 @@ export function buildPresentationIntelligence(
   const teamBenchmark = buildLane("team", "Team benchmark", sessions);
 
   let comparison: PresentationComparison | null = null;
+  let noComparison: string | null = null;
+
+  /*
+   * THE FLOOR IS ON THE VERDICT, NOT ON THE LANES.
+   *
+   * `AGENT_MIN_SAMPLE`'s own rule: below it, no agent figure is presented as a
+   * verdict. A lane is a description with its count in its header, and it
+   * stays on every cell. The finding and the "What differs" rows are
+   * comparative claims about two people or two periods, and those fall silent
+   * under the floor — with the reason beside the counts, not as an empty list
+   * that reads as "no difference".
+   *
+   * A side with NO meetings is not a small sample: it is an absence. `share()`
+   * divides by nought as 0, so a lane nobody presented came out as "0%" on
+   * every behaviour, and the finding read "Akhilesh Undev 0%" on a project he
+   * never presented on — a false statement about a named colleague, drawn by
+   * default. There is no comparison at all in that case, and `noComparison`
+   * says who or what was absent, so the screen's null branch is a reason and
+   * not a shrug.
+   */
+  const comparisonOf = (
+    kind: PresentationComparison["mode"],
+    left: { id: string; label: string; sessions: readonly ShowroomSession[] },
+    right: { id: string; label: string; sessions: readonly ShowroomSession[] },
+    evidenceId: string,
+    tier: Parameters<typeof evidenceRef>[1],
+    observations: number,
+  ): PresentationComparison => {
+    const underFloor =
+      left.sessions.length < AGENT_MIN_SAMPLE || right.sessions.length < AGENT_MIN_SAMPLE;
+    return {
+      context,
+      mode: kind,
+      left: buildLane(left.id, left.label, left.sessions),
+      right: buildLane(right.id, right.label, right.sessions),
+      transitionsLeft: buildTransitions(left.sessions),
+      transitionsRight: buildTransitions(right.sessions),
+      differences: underFloor ? [] : buildDifferences(left.sessions, right.sessions),
+      verdictRefusal: underFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings on a side") : null,
+      evidence: evidenceRef(evidenceId, tier, `${base}/presentation`, observations),
+      disclaimer: DISCLAIMER,
+    };
+  };
 
   if (mode === "cohorts") {
     const progressed = sessions.filter((s) => hasProgressed(s.outcome));
     const didNot = sessions.filter(
       (s) => !hasProgressed(s.outcome) && !outcomeIsUnknown(s.outcome),
     );
-    comparison = {
-      context,
-      mode: "cohorts",
-      left: buildLane("progressed", "Progressed further", progressed),
-      right: buildLane("did_not", "Did not progress", didNot),
-      transitionsLeft: buildTransitions(progressed),
-      transitionsRight: buildTransitions(didNot),
-      differences: buildDifferences(progressed, didNot),
-      evidence: evidenceRef(
+    if (progressed.length === 0 && didNot.length === 0) {
+      noComparison =
+        "No meeting in this period has a recorded outcome, so there is no cohort to compare.";
+    } else if (progressed.length === 0 || didNot.length === 0) {
+      noComparison = `Every meeting with a recorded outcome in this period ${
+        progressed.length === 0 ? "did not progress" : "progressed"
+      } — ${count(progressed.length + didNot.length, locale)} of them — so there is no second cohort to compare.`;
+    } else {
+      comparison = comparisonOf(
+        "cohorts",
+        { id: "progressed", label: "Progressed further", sessions: progressed },
+        { id: "did_not", label: "Did not progress", sessions: didNot },
         "cohort-comparison",
         "statistical_association",
-        `${base}/presentation`,
         sessions.length,
-      ),
-      disclaimer: DISCLAIMER,
-    };
+      );
+    }
   } else if (mode === "periods") {
-    comparison = {
-      context,
-      mode: "periods",
-      left: buildLane("current", context.period.label, sessions),
-      right: buildLane("previous", "Previous period", previous),
-      transitionsLeft: buildTransitions(sessions),
-      transitionsRight: buildTransitions(previous),
-      differences: buildDifferences(sessions, previous),
-      evidence: evidenceRef(
+    if (sessions.length === 0) {
+      noComparison = `No meetings in this period, so there is nothing to compare with ${context.period.baselineLabel}.`;
+    } else if (previous.length === 0) {
+      noComparison = `No meetings in ${context.period.baselineLabel}, so there is nothing to compare ${context.period.label} with.`;
+    } else {
+      comparison = comparisonOf(
+        "periods",
+        { id: "current", label: context.period.label, sessions },
+        { id: "previous", label: "Previous period", sessions: previous },
         "period-comparison",
         "observed_sequence",
-        `${base}/presentation`,
         sessions.length,
-      ),
-      disclaimer: DISCLAIMER,
-    };
+      );
+    }
   } else {
     /*
      * Who is compared when the reader has not chosen. On the synthetic roster
@@ -698,25 +741,35 @@ export function buildPresentationIntelligence(
       (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
     const leftAgent = pick(leftKey, "agt_monika", 0);
     const rightAgent = pick(rightKey, "agt_akhilesh", 1);
-    if (leftAgent !== undefined && rightAgent !== undefined) {
+    if (leftAgent === undefined || rightAgent === undefined) {
+      noComparison = `${
+        presented.length === 0 ? "Nobody" : "Only one person"
+      } has presented on this project in this period, so there is no pair to compare.`;
+    } else {
       const l = sessions.filter((s) => s.agentId === leftAgent.id);
       const r = sessions.filter((s) => s.agentId === rightAgent.id);
-      comparison = {
-        context,
-        mode: "agents",
-        left: buildLane(leftAgent.id, leftAgent.name, l),
-        right: buildLane(rightAgent.id, rightAgent.name, r),
-        transitionsLeft: buildTransitions(l),
-        transitionsRight: buildTransitions(r),
-        differences: buildDifferences(l, r),
-        evidence: evidenceRef(
+      /*
+       * The roster names the scenario's pair whether or not both presented
+       * here — the docblock above describes that stranger for delivered
+       * projects, and the same stranger stood on the synthetic ones: the
+       * review project's default view compared its presenter with a rostered
+       * colleague who has no meetings on it. Absent is absent on either path.
+       */
+      const absent = [leftAgent, rightAgent]
+        .filter((a) => !sessions.some((s) => s.agentId === a.id))
+        .map((a) => a.name);
+      if (absent.length > 0) {
+        noComparison = `${absent.join(" and ")} presented no meeting in this period, so there is nothing to compare.`;
+      } else {
+        comparison = comparisonOf(
+          "agents",
+          { id: leftAgent.id, label: leftAgent.name, sessions: l },
+          { id: rightAgent.id, label: rightAgent.name, sessions: r },
           `agent-comparison-${leftAgent.id}-${rightAgent.id}`,
           "statistical_association",
-          `${base}/presentation`,
           l.length + r.length,
-        ),
-        disclaimer: DISCLAIMER,
-      };
+        );
+      }
     }
   }
 
@@ -743,6 +796,7 @@ export function buildPresentationIntelligence(
     transitions: buildTransitions(sessions),
     teamBenchmark,
     comparison,
+    noComparison,
     findings,
     evidence: evidenceRef(
       "presentation-intelligence",

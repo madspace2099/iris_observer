@@ -220,15 +220,17 @@ const compareAgentFlows: ToolDefinition<
     });
     const c = view.comparison;
     if (c === null) {
+      /* The read model says who was absent; the old sentence stays for the case it does not. */
+      const why = view.noComparison ?? "Those two agents could not be resolved in this project.";
       return {
         tool: "compare_agent_flows",
         facts: [],
         sources: DERIVED,
         evidence: view.evidence,
         sampleSize: 0,
-        caveats: ["Those two agents could not be resolved in this project."],
+        caveats: [why],
         action: null,
-        draft: "Those two agents could not be resolved in this project.",
+        draft: why,
       };
     }
 
@@ -255,7 +257,11 @@ const compareAgentFlows: ToolDefinition<
       sources: DERIVED,
       evidence: c.evidence,
       sampleSize: c.left.meetingCount + c.right.meetingCount,
-      caveats: [NO_CAUSATION, ...top.flatMap((d) => (d.note === null ? [] : [d.note]))],
+      caveats: [
+        NO_CAUSATION,
+        ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
+        ...top.flatMap((d) => (d.note === null ? [] : [d.note])),
+      ],
       action: {
         label: "Open the comparison",
         href: `${root(context)}/presentation?mode=agents&left=${args.leftAgentId}&right=${args.rightAgentId}`,
@@ -266,15 +272,21 @@ const compareAgentFlows: ToolDefinition<
        * Without a model configured this is the answer the reader gets, so it has
        * to be readable on its own — a semicolon-separated dump of predicates is
        * a debug print, not an explanation.
+       *
+       * Under the floor the read model withholds every difference, and an
+       * empty list there is a refusal, not "similar ways": the surface says
+       * the same sentence, and this tool must not answer what it refuses.
        */
       draft:
-        top.length === 0
-          ? `Across ${c.left.meetingCount} and ${c.right.meetingCount} meetings, ${c.left.label} and ${c.right.label} present in measurably similar ways.`
-          : `The clearest difference is that ${c.left.label} ${describe(top[0] as PresentationDifferenceLike, "left")}, where ${c.right.label} ${describe(top[0] as PresentationDifferenceLike, "right")}.${
-              top[1] === undefined
-                ? ""
-                : ` ${c.left.label.split(" ")[0]} also ${describe(top[1] as PresentationDifferenceLike, "left")} against ${top[1].rightDisplay}.`
-            } Based on ${c.left.meetingCount} and ${c.right.meetingCount} meetings.`,
+        c.verdictRefusal !== null
+          ? `${c.left.label} and ${c.right.label}: ${c.verdictRefusal} ${c.left.meetingCount} and ${c.right.meetingCount} meetings.`
+          : top.length === 0
+            ? `Across ${c.left.meetingCount} and ${c.right.meetingCount} meetings, ${c.left.label} and ${c.right.label} present in measurably similar ways.`
+            : `The clearest difference is that ${c.left.label} ${describe(top[0] as PresentationDifferenceLike, "left")}, where ${c.right.label} ${describe(top[0] as PresentationDifferenceLike, "right")}.${
+                top[1] === undefined
+                  ? ""
+                  : ` ${c.left.label.split(" ")[0]} also ${describe(top[1] as PresentationDifferenceLike, "left")} against ${top[1].rightDisplay}.`
+              } Based on ${c.left.meetingCount} and ${c.right.meetingCount} meetings.`,
     };
   },
 };
@@ -294,15 +306,16 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
     });
     const c = view.comparison;
     if (c === null) {
+      const why = view.noComparison ?? "No cohort split was possible for this period.";
       return {
         tool: "compare_meeting_cohorts",
         facts: [],
         sources: WITH_OUTCOME,
         evidence: view.evidence,
         sampleSize: 0,
-        caveats: ["No cohort split was possible for this period."],
+        caveats: [why],
         action: null,
-        draft: "No cohort split was possible for this period.",
+        draft: why,
       };
     }
 
@@ -331,6 +344,7 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
       sampleSize: c.left.meetingCount + c.right.meetingCount,
       caveats: [
         NO_CAUSATION,
+        ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
         "Meetings with no recorded outcome are excluded from both cohorts rather than assigned to one.",
       ],
       action: {
@@ -338,13 +352,16 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
         href: `${root(context)}/presentation?mode=cohorts`,
       },
       draft:
-        top.length === 0
-          ? "The two cohorts show no behavioural difference above the reporting threshold."
-          : `Meetings that progressed differ most on: ${top
-              .map(
-                (d) => `${d.behaviour.toLowerCase()} (${d.leftDisplay} against ${d.rightDisplay})`,
-              )
-              .join("; ")}. ${c.left.meetingCount} progressed, ${c.right.meetingCount} did not.`,
+        c.verdictRefusal !== null
+          ? `${c.verdictRefusal} ${c.left.meetingCount} progressed, ${c.right.meetingCount} did not.`
+          : top.length === 0
+            ? "The two cohorts show no behavioural difference above the reporting threshold."
+            : `Meetings that progressed differ most on: ${top
+                .map(
+                  (d) =>
+                    `${d.behaviour.toLowerCase()} (${d.leftDisplay} against ${d.rightDisplay})`,
+                )
+                .join("; ")}. ${c.left.meetingCount} progressed, ${c.right.meetingCount} did not.`,
     };
   },
 };
