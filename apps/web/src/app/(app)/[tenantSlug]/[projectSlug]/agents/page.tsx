@@ -135,7 +135,19 @@ export default async function AgentsPage({
                 </p>
               )}
               <OutcomeKey slices={a.ring.slices} />
-              {a.belowMinimum || a.signature === null ? null : (
+              {/*
+               * The habit's own gate, on the set the habit stands on. The
+               * card's `belowMinimum` counts the meetings held; "leans on"
+               * stands on the timed ones, and a card that named a set of
+               * fifteen under a gate that counted twenty-five would contradict
+               * itself in one breath. Under the timed floor the read model's
+               * own reason stands where the habit would.
+               */}
+              {a.belowMinimum ? null : a.signatureNote !== null ? (
+                <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
+                  {a.signatureNote}
+                </p>
+              ) : a.signature === null ? null : (
                 /* The set the two shares stand on, in the Features page's own form. */
                 <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
                   Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the

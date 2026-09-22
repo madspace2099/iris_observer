@@ -85,6 +85,20 @@ export function suppressionNoteFor(held: number, locale: string): string {
   return `${meetings(held, locale)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
+/**
+ * The sentence for a habit the floor withholds on the TIMED set.
+ *
+ * "Leans on" and the signature finding stand on the meetings the source could
+ * time end to end, and that set is smaller than the meetings held wherever the
+ * legacy import reaches (every last-quarter cell). A gate that counted the
+ * meetings held let a verdict through on a set it had not counted — the ring's
+ * "41% over 21 where it was 7 of 17", a fourth time. This names the set it
+ * measured, so the reader is not told twenty when the habit stands on fifteen.
+ */
+export function timedSetNoteFor(timed: number, held: number, locale: string): string {
+  return `${meetings(timed, locale)} of the ${count(held, locale)} held could be timed end to end, ${count(AGENT_MIN_SAMPLE - timed, locale)} short of the ${String(AGENT_MIN_SAMPLE)} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
+}
+
 /* --- helpers ----------------------------------------------------------------- */
 
 function median(values: readonly number[]): number {
@@ -1180,6 +1194,14 @@ export function buildAgentsView(
       timedMeetings: timedMine.length,
       belowMinimum,
       suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
+      /*
+       * The habit's own floor, on the set the habit stands on. Null above it;
+       * null too under `belowMinimum`, whose note already speaks for the card.
+       */
+      signatureNote:
+        false
+          ? timedSetNoteFor(timedMine.length, mine.length, locale)
+          : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
       repeats: repeatDistribution(mine),
@@ -1211,11 +1233,21 @@ export function buildAgentsView(
    * agent under the floor is not a candidate. Where nobody clears it, the
    * refusal is a finding in the card's own words rather than a missing one.
    */
-  const eligible = agents.filter((a) => a.signature !== null && !a.belowMinimum);
+  /*
+   * The gate reads the set the claim stands on. The habit is a share of the
+   * TIMED meetings, so a presenter whose held meetings clear the floor while
+   * the timed ones do not is not a candidate either — the last-quarter cells
+   * hold such rows — and "the most anyone presented" is measured on the same
+   * set, or the case where everyone clears twenty held and nobody twenty timed
+   * would fall through both branches with nothing said.
+   */
+  const eligible = agents.filter(
+    (a) => a.signature !== null && !a.belowMinimum && a.timedMeetings >= AGENT_MIN_SAMPLE,
+  );
   const distinct = [...eligible].sort(
     (x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0),
   )[0];
-  const largest = [...agents].sort((x, y) => y.meetings - x.meetings)[0];
+  const largest = [...agents].sort((x, y) => y.timedMeetings - x.timedMeetings)[0];
 
   /*
    * A share of the TEAM's time needs a team. With one presenter the figure is
@@ -1241,10 +1273,14 @@ export function buildAgentsView(
       sources: [...DERIVED],
       caveat: null,
     });
-  } else if (agents.length > 1 && largest !== undefined && largest.meetings < AGENT_MIN_SAMPLE) {
+  } else if (
+    agents.length > 1 &&
+    largest !== undefined &&
+    largest.timedMeetings < AGENT_MIN_SAMPLE
+  ) {
     findings.push({
       id: "agents-signature-withheld",
-      statement: `No presenter's habit is read as a finding: the most anyone presented was ${meetings(largest.meetings, locale)}, ${count(AGENT_MIN_SAMPLE - largest.meetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
+      statement: `No presenter's habit is read as a finding: the most anyone presented that the source could time end to end was ${meetings(largest.timedMeetings, locale)} of ${count(largest.meetings, locale)} held, ${count(AGENT_MIN_SAMPLE - largest.timedMeetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
       baseline: `${count(agents.length, locale)} agents`,
       soWhat:
         "A habit read from fewer meetings than the floor would be a verdict about a person drawn from a handful. The cards above carry every figure with its count.",
@@ -1255,7 +1291,7 @@ export function buildAgentsView(
         `${base}/agents`,
         sessions.length,
       ),
-      sampleSize: largest.meetings,
+      sampleSize: largest.timedMeetings,
       sources: [...DERIVED],
       caveat: null,
     });

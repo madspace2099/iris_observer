@@ -26,9 +26,26 @@ const REPORT = markup("src/app/(app)/[tenantSlug]/[projectSlug]/report/page.tsx"
 const SEQUENCE = markup("src/showroom/charts2.tsx");
 
 describe("the roster", () => {
+  it("gates 'leans on' on the timed set, and prints the read model's reason under it", () => {
+    expect(
+      ROSTER,
+      "'leans on' stands on the timed set under a gate that counts the meetings held",
+    ).toMatch(
+      /a\.belowMinimum \? null : a\.signatureNote !== null \? \([\s\S]*?\{a\.signatureNote\}/,
+    );
+  });
+
   it("withholds the radar shape under the floor and prints the note", () => {
     expect(ROSTER, "a radar shape is drawn whatever the sample").toMatch(
       /profile\.belowMinimum \? \([\s\S]*?\{profile\.note\}[\s\S]*?\) : \([\s\S]*?<Radar/,
+    );
+  });
+});
+
+describe("the agent page's head", () => {
+  it("prints the read model's reason where the habit's timed set is under the floor", () => {
+    expect(DETAIL, "the head reads a habit under a gate that counted the meetings held").toMatch(
+      /view\.suppressionNote \?\?[\s\S]*?view\.profile\.signatureNote \?\?/,
     );
   });
 });

@@ -130,6 +130,8 @@ export default async function AgentPage({
    */
   const answer =
     view.suppressionNote ??
+    /* The habit's own floor, on the timed set: the read model's reason, not the habit. */
+    view.profile.signatureNote ??
     (view.profile.signature === null
       ? null
       : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}, across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end.`);

@@ -388,6 +388,14 @@ export interface AgentProfile {
   readonly belowMinimum: boolean;
   /** Null when the sample clears the minimum. Never an empty string. */
   readonly suppressionNote: string | null;
+  /**
+   * Why no habit is read for this presenter although the meetings held clear
+   * the floor: the habit stands on `timedMeetings`, and that set is under it.
+   * Null above the floor, and null under `belowMinimum`, whose
+   * `suppressionNote` speaks for the whole card. The screen prints this where
+   * "leans on" would stand; the signature finding's gate reads the same set.
+   */
+  readonly signatureNote: string | null;
   readonly medianDurationDisplay: string;
   readonly ring: AgentOutcomeRing;
   readonly repeats: readonly RepeatDistribution[];
