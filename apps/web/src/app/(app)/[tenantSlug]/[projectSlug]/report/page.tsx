@@ -147,7 +147,7 @@ export default async function ReportPage({
     "presentation-coverage":
       teamSections.length === 0 ? null : (
         <DataTable
-          caption="Where the team's presentation time goes, section by section, with the team's median dwell."
+          caption={`Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: ${agents.timedMeetingCount} of ${agents.meetingCount} meetings, every step timed.`}
           columns={[
             { key: "section", label: "Section" },
             { key: "share", label: "Share of time", numeric: true },

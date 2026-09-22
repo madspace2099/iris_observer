@@ -324,9 +324,24 @@ export interface AgentSectionUse {
   readonly medianDwellSeconds: number | null;
   /** Ready to print: "1m 24s", or "—" when the source cannot say. */
   readonly dwellDisplay: string;
-  /** Share of this agent's total presentation time. */
+  /**
+   * Share of the presentation time the source could time for this agent.
+   *
+   * Not "total presentation time". A step the source could not time carries
+   * a null dwell — never a nought, never inferred — and is outside this
+   * figure entirely: it is skipped on both sides of the share, and the
+   * meetings that had no such step are counted in `AgentProfile.timedMeetings`
+   * so the reader knows what set the share stands on. This used to say
+   * "total", while the builder zeroed every unknown into the denominator; the
+   * fixtures' unknowns happen to be whole meetings and moved nothing, and the
+   * ingest path's need not be.
+   */
   readonly timeShare: number;
-  /** Share of the team's time in the same section, for contrast. */
+  /**
+   * Share of the team's timed presentation time in the same section, for
+   * contrast. The same rule, the same skipped nulls, and the set is
+   * `AgentsView.timedMeetingCount`.
+   */
   readonly teamShare: number;
   /** The team's median seconds in the same section, so the agent's has a scale. */
   readonly teamDwellDisplay: string;
@@ -348,6 +363,12 @@ export interface AgentProfile {
    */
   readonly organisationName: string;
   readonly meetings: number;
+  /**
+   * Of `meetings`, the ones every step of which the source could time. The
+   * section shares below stand on these and no others; the difference is
+   * meetings the source could not time, not meetings that did not happen.
+   */
+  readonly timedMeetings: number;
   /**
    * `meetings < AGENT_MIN_SAMPLE` (docs/10-policies.md §6), carried on the
    * profile itself rather than left for the card to compute — the same rule
@@ -381,6 +402,8 @@ export interface AgentsView {
   readonly findings: readonly ShowroomFinding[];
   readonly showRatings: boolean;
   readonly meetingCount: number;
+  /** Of `meetingCount`, the ones every step of which the source could time. The team's section shares stand on these. */
+  readonly timedMeetingCount: number;
   readonly evidence: EvidenceRef;
 }
 

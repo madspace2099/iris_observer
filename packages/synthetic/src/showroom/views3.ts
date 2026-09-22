@@ -109,14 +109,39 @@ function duration(seconds: number): string {
   return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
+/**
+ * Seconds the source could time, and only those.
+ *
+ * `dwellSeconds` is null where the source cannot say — "never inferred", the
+ * contract says at `packages/contracts/src/showroom.ts:168`. These two used to
+ * read `?? 0`, which turned that null into a nought and added it to both the
+ * numerator and the denominator of every share built on them. Measured before
+ * the change: the fixtures' nulls are whole sessions (25 untimed across two
+ * schemes), which contribute nought to both sides and move no share — but the
+ * ingest path can deliver a session with SOME steps timed, and there a zeroed
+ * unknown shrinks the denominator and inflates every section at once.
+ *
+ * A null step is skipped, not counted. What that leaves is "the time the
+ * source could time", and the readers that publish a share of it now also
+ * publish how many meetings that is — `AgentProfile.timedMeetings`,
+ * `AgentsView.timedMeetingCount` — so "share of presentation time" is a claim
+ * about a stated set rather than an implied whole.
+ */
 function sectionSeconds(session: ShowroomSession, sectionId: SectionId): number {
   return session.steps
-    .filter((s) => s.sectionId === sectionId)
+    .filter((s) => s.sectionId === sectionId && s.dwellSeconds !== null)
     .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
 }
 
 function totalSeconds(session: ShowroomSession): number {
-  return session.steps.reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
+  return session.steps
+    .filter((s) => s.dwellSeconds !== null)
+    .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
+}
+
+/** A meeting every step of which the source could time. The set a share of time stands on. */
+function fullyTimed(session: ShowroomSession): boolean {
+  return session.steps.length > 0 && session.steps.every((s) => s.dwellSeconds !== null);
 }
 
 /** The distinct sections a session touched, in the order it first touched them. */
@@ -1125,6 +1150,8 @@ export function buildAgentsView(
       name: a.name,
       organisationName: a.organisationName,
       meetings: mine.length,
+      /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
+      timedMeetings: mine.filter(fullyTimed).length,
       belowMinimum,
       suppressionNote: belowMinimum
         ? `${meetings(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`
@@ -1217,6 +1244,8 @@ export function buildAgentsView(
     findings,
     showRatings,
     meetingCount: sessions.length,
+    /* The team's section shares stand on these, not on `meetingCount`. */
+    timedMeetingCount: sessions.filter(fullyTimed).length,
     evidence: evidenceRef("agents-view", "observed_sequence", `${base}/agents`, sessions.length),
   };
 }
