@@ -54,6 +54,25 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * CRM connected" is the defect `docs/12-visual-autopsy.md` §9 records, at
  * table scale.
  *
+ * ## It draws every row it is given, and that is the answer rather than a gap
+ *
+ * There is no page size and no "show the remaining N". Unfiltered, the longest
+ * register in the fixtures is 187 rows; the unit register caps at twenty and
+ * offers the rest behind a control, so the absence here is a difference worth
+ * stating rather than an omission.
+ *
+ * The difference is what the two screens are for. This one's own purpose,
+ * stated below, is to get to one record, and the way a reader gets there is the
+ * filter bar: measured across every combination of agent, channel and outcome
+ * on the two largest projects, the longest narrowed register is seventeen rows,
+ * against a median of three. Paging that would divide a list nobody is looking
+ * at into pages nobody asked for — and it would put an interactive control at
+ * the foot of the page, which is the one thing the Ask dock may never cover.
+ *
+ * Narrowing is the paging. If a reader is looking at a hundred rows, the answer
+ * is a filter they have not used, or a filter this bar does not offer, and a
+ * page number would hide which of the two it is.
+ *
  * ## There are no sort controls, and that is deliberate
  *
  * `DataTable` can render a sortable header, and `MeetingFilters` has no sort

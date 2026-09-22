@@ -945,8 +945,32 @@ export function buildMeetingList(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
+  /*
+   * NEWEST FIRST, AND THEN BY IDENTIFIER.
+   *
+   * The instant alone is not a total order. Two meetings that start in the same
+   * millisecond leave `sort` free to keep whichever order the input happened to
+   * arrive in, and the input order is not a promise anything here makes: it is
+   * whatever the sessions were assembled in.
+   *
+   * Today's fixtures contain no collision — measured across every project and
+   * every period, at minute granularity, which is coarser than the key, so the
+   * instants cannot collide either. That is a property of the data, not of this
+   * code. Two agents presenting at once, or a second installation in the same
+   * showroom, produce the same second without anything unusual happening, and
+   * the register is the one surface where the reader's position IS the order.
+   *
+   * `meetingId` is the tiebreaker because it is the only field on the session
+   * that is unique by construction. It makes the order total, so it is the same
+   * on every call whatever order the sessions arrived in — which is what a
+   * reader paging, linking or comparing two screenshots is entitled to assume,
+   * and what the caller's caption already states on their behalf.
+   */
   return [...sessions]
-    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+    .sort((a, b) => {
+      const byInstant = Date.parse(b.startedAt) - Date.parse(a.startedAt);
+      return byInstant !== 0 ? byInstant : a.meetingId.localeCompare(b.meetingId);
+    })
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
