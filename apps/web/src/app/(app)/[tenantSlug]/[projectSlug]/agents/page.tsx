@@ -195,7 +195,8 @@ export default async function AgentsPage({
                  * above prints.
                  */}
                 {profile.belowMinimum ? (
-                  <p className="iris-meta" style={{ margin: 0 }}>
+                  /* The note stands in the box the shape would fill (`.iris-radar-note`), so the row keeps four equal cells. */
+                  <p className="iris-meta iris-radar-note">
                     <b>{profile.label}</b> — {profile.note}
                   </p>
                 ) : (

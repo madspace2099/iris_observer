@@ -83,14 +83,29 @@ describe("the radar under the floor", () => {
     /* Guards the guard: a floor that flagged everyone would pass the two above. */
     expect(profile("agt_monika")?.belowMinimum).toBe(false);
   });
+
+  it("keeps the count out of the label under the floor, where the note carries it", () => {
+    expect(
+      profile("agt_akhilesh")?.label,
+      "the card read the count twice: in the label and again in the note",
+    ).toBe("Akhilesh Undev");
+  });
+
+  it("keeps the count in the label above the floor, beside the shape", () => {
+    expect(profile("agt_monika")?.label).toBe("Monika Kováčová · 25 meetings");
+  });
 });
 
 describe("the workload list under the floor", () => {
-  it("prints the shortfall, not a median", () => {
+  it("prints the short form, not a median and not the sentence", () => {
+    /*
+     * The slot is one line wide; the sentence truncated there to "5 meetings
+     * in this period, 15 short o…", a withholding the reader never received.
+     */
     expect(
-      String(row("agt_akhilesh")?.sub),
-      "a median was printed under a name with five meetings behind it",
-    ).toContain(`short of the ${AGENT_MIN_SAMPLE}`);
+      row("agt_akhilesh")?.sub,
+      "the sub line carries a median, or a sentence the slot cannot hold",
+    ).toBe(`5 of ${AGENT_MIN_SAMPLE} meetings`);
   });
 
   it("prints the median where the floor is cleared", () => {

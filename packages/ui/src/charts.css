@@ -701,6 +701,26 @@
 }
 
 /*
+ * The note that stands in for a shape below the sample floor.
+ *
+ * The card keeps its cell and its height: the note fills the box the radar
+ * would (190px, the size the page draws the radar at) and sits in its vertical
+ * middle, so a row of four reads as four equal cells rather than one chart and
+ * three captions floating at the top of empty space — which is what the first
+ * photograph showed.
+ */
+.iris-radar-note {
+  box-sizing: border-box;
+  min-height: 190px;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0 0.5rem;
+  display: grid;
+  align-content: center;
+  text-align: center;
+}
+
+/*
  * What each spoke means, stated rather than abbreviated.
  *
  * A normalised radar with six one-word axes and no key is a decoration; the

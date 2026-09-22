@@ -517,7 +517,13 @@ export function buildAgentCharts(
     axisNotes: RADAR_AXES.map((a) => a.note),
     profiles: raw.map((r, i) => ({
       id: r.id,
-      label: `${r.label} · ${meetings(r.meetings, locale)}`,
+      /*
+       * One number, one place. Above the floor the label carries the count
+       * beside the shape. Below it the note carries the count — "19 meetings
+       * in this period, 1 short of the 20…" — so the label is the name alone,
+       * or the card read "19 meetings — 19 meetings in this period".
+       */
+      label: r.belowMinimum ? r.label : `${r.label} · ${meetings(r.meetings, locale)}`,
       tone: RADAR_TONES[i % RADAR_TONES.length] ?? "var(--accent)",
       values: r.values.map((v, axis) => v / (peaks[axis] ?? 1)),
       belowMinimum: r.belowMinimum,
@@ -541,8 +547,9 @@ export function buildAgentCharts(
       return {
         id: r.id,
         label: r.label,
+        /* The slot is one line wide: the short form, "8 of 20 meetings". The sentence stands on the card. */
         sub: r.belowMinimum
-          ? suppressionNoteFor(r.meetings, locale)
+          ? suppressionNoteFor(r.meetings, locale, "short")
           : timed.length === 0
             ? "no timed session"
             : `median ${duration(median(timed))}`,

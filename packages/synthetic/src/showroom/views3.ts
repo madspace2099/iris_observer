@@ -80,8 +80,20 @@ export function meetings(n: number, locale: string): string {
  * say it. Two builders of a nearly identical sentence — the agent page's own
  * copy said "presentations" where this said "meetings" — is what the header of
  * `packages/metrics/src/registry/shared.ts` was written against.
+ *
+ * Two named forms of the one sentence, not two sentences. `"short"` is the
+ * figure alone — "8 of 20 meetings" — for a slot one line wide: the workload
+ * list's sub line truncated the sentence to "8 meetings in this period, 12
+ * short o…", and a withholding that reaches the reader truncated has not
+ * happened. The slot gets what fits; the sentence stands where it already
+ * stood, on the card.
  */
-export function suppressionNoteFor(held: number, locale: string): string {
+export function suppressionNoteFor(
+  held: number,
+  locale: string,
+  form: "sentence" | "short" = "sentence",
+): string {
+  if (form === "short") return `${count(held, locale)} of ${String(AGENT_MIN_SAMPLE)} meetings`;
   return `${meetings(held, locale)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
