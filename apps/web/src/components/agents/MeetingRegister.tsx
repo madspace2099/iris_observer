@@ -18,19 +18,19 @@ import { Missing, isDash } from "./Rates";
  * person the page is about, and a column repeating one name eight times is a
  * column of noise.
  *
- * ## No buyer reaches this table today — and "today" is the whole claim
+ * ## The buyer's name stands beside the label, behind the register's gate
  *
- * `MeetingRow.visitor` is a `VisitorLabel`, and the type has no field a name,
- * an email or a telephone number could sit in — `visitorLabel` takes a closed
- * enum and an integer and nothing else. What appears is "First meeting",
- * "Returning · 3rd meeting" or "Not linked to a contact". That is a structural
- * guarantee about this column as it stands, and it is why the column is safe
- * on a surface a whole agency can open. It is not a rule that no name may ever
- * stand beside it: P1-08b, reopened on 2026-09-21, records that a real visitor
- * name may be displayed and is in design (`docs/22-visitor-name-display.md`),
- * and its §5 — who may see it, on a surface this wide — is the open product
- * decision. This file says what is true today and not which way that goes;
- * the screen's own note beside the table says the same, in one sentence.
+ * `MeetingRow.visitor` is a `VisitorLabel`: a closed enum and an integer —
+ * "First meeting", "Returning · 3rd meeting", "Not linked to a contact" —
+ * with no field a name could sit in. `MeetingRow.visitorName` is the name,
+ * beside it and never inside it: joined per render by the read model from the
+ * contact directory and stored nowhere, null for a walk-in, an erased contact,
+ * a withdrawn behavioural-linking consent, a contact with no name recorded,
+ * and for every viewer outside `AGENT_REGISTER_ROLES`. That is
+ * `docs/22-visitor-name-display.md` §5's decision (B) and §6's three
+ * promises. This component renders the two strings it is given and assembles
+ * neither; whether it is rendered at all is the agent screen's decision, on
+ * the server, for the meeting drill-down's roles.
  *
  * ## Follow-up has three states and one of them is not "no"
  *
@@ -127,7 +127,16 @@ export function MeetingRegister({
           <Missing what={FOLLOW_UP_SHORT[row.followUp]} />
         ),
 
-      visitor: <span className="ox-n">{row.visitor.display}</span>,
+      visitor: (
+        <span>
+          {row.visitorName === null ? null : (
+            <>
+              <span className="ox-visitor-name">{row.visitorName}</span>{" "}
+            </>
+          )}
+          <span className="ox-n">{row.visitor.display}</span>
+        </span>
+      ),
     },
   }));
 

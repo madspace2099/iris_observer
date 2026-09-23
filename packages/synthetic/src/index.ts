@@ -8,6 +8,7 @@
  */
 
 export * from "./world";
+export * from "./contacts";
 export * from "./repository";
 export {
   buildProjectPulse,

@@ -442,7 +442,7 @@ export function buildAgentReportScope(
       id: "agent-meetings",
       label: "Their most recent meetings",
       summary:
-        "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column is a privacy-safe label; no buyer is named.",
+        "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column names the buyer where the contact gave consent to be named, beside a privacy-safe label; otherwise the label alone.",
       /* The register is the meeting drill-down's material, and it keeps the drill-down's audience. */
       ...(AGENT_REGISTER_ROLES.includes(context.viewer.role)
         ? { availability: "ready" as const, reason: null }

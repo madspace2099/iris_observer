@@ -662,11 +662,6 @@ export default async function AgentPage({
           <div className="ox-plate-inner">
             <div className="ox-section-head">
               <h2 className="ox-section-title">Their most recent meetings</h2>
-              <p className="ox-section-note">
-                No buyer is named in this register today. The visitor column is a privacy-safe label
-                built from a closed vocabulary and a count of previous meetings; the type it comes
-                from has no field a name, an address or a telephone number could sit in.
-              </p>
             </div>
 
             {/*
@@ -681,13 +676,21 @@ export default async function AgentPage({
              * missing and why. Everything else on the page stays theirs.
              */}
             {maySeeSurface(viewer.role, "[meetingId]") ? (
-              <MeetingRegister
-                rows={view.recentMeetings}
-                period={period}
-                canOpen
-                caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
-                emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
-              />
+              <>
+                <p className="ox-section-note">
+                  A buyer is named here where the contact gave consent to be, and the name is joined
+                  for this page as it is drawn and stored nowhere. Otherwise the visitor column is a
+                  privacy-safe label built from a closed vocabulary and a count of previous
+                  meetings.
+                </p>
+                <MeetingRegister
+                  rows={view.recentMeetings}
+                  period={period}
+                  canOpen
+                  caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
+                  emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
+                />
+              </>
             ) : (
               <p className="ox-result">
                 <span className="ox-chip" data-tone="none">

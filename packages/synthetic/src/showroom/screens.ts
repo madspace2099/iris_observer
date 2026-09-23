@@ -45,7 +45,14 @@ import type {
   ViewContext,
   VisitorLabelKind,
 } from "@observer/readmodels";
-import { areaWord, nothingReceivedYet, roomsWord, visitorLabel } from "@observer/readmodels";
+import {
+  AGENT_REGISTER_ROLES,
+  areaWord,
+  nothingReceivedYet,
+  roomsWord,
+  visitorLabel,
+} from "@observer/readmodels";
+import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
 import {
   clockLabel,
@@ -258,6 +265,15 @@ export function buildMeetingRows(
           visitorKindFor(session),
           session.contactId === null ? null : session.priorMeetings,
         ),
+        /*
+         * The gate first, then the directory. A viewer outside the roles never
+         * receives a name from the repository, so no screen has to remember to
+         * withhold one; inside them, the directory's own rule applies —
+         * consent, erasure, a name on record — per render, stored nowhere.
+         */
+        visitorName: AGENT_REGISTER_ROLES.includes(context.viewer.role)
+          ? visitorNameFor(session.contactId)
+          : null,
         unitsViewed: session.units.map((u) => ({
           code: u.unitCode,
           href: catalogueCodes.has(u.unitCode)

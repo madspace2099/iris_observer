@@ -8,9 +8,9 @@
  *
  *   StageFunnel     the stylesheet's own funnel, fed `MetricValue`s so an
  *                   unmeasurable stage renders its absence rather than a zero.
- *   MeetingRegister one agent's meetings, with no buyer's name in it today —
- *                   P1-08b and `docs/22-visitor-name-display.md` hold the
- *                   reopened name and its open visibility question.
+ *   MeetingRegister one agent's meetings; the buyer's name beside the label
+ *                   where the register's gate and the contact's consent allow
+ *                   it (`docs/22-visitor-name-display.md` §5, decision B).
  *   ShareFigure     a raw share from a read model, guarded by the sample floor
  *   Missing         from the metric registry, and the absence treatment for the
  *   isDash          em dash the agent read models use for "no value".

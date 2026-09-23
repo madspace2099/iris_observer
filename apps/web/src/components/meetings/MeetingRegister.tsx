@@ -34,8 +34,11 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * rather than "Outcome" so the qualification survives a reader who scrolled
  * past the sentence.
  *
- * ## The visitor column carries no person today
+ * ## The visitor column carries no person on this surface
  *
+ * The list is open to every role, the developer included, and prints the
+ * label alone: `MeetingRow.visitorName` exists for the agent's register,
+ * behind `AGENT_REGISTER_ROLES`, and is deliberately not read here.
  * `VisitorLabel` is privacy-safe by construction rather than by review: the
  * type has no field a name, an email or a phone number could sit in, and its
  * `display` is produced from a closed vocabulary and a count of previous

@@ -61,11 +61,11 @@ import type { AgentProfile, OutcomeSlice } from "./views3";
  * sentence a reader sees is produced by `visitorLabel` from those two values,
  * so a caller cannot pass prose through instead.
  *
- * What it does *not* say is which contact this is, because nothing in this
- * repository can say it yet: `ContactPii.fullName` is declared in the contracts
- * and has no producer, no store and no consumer. When that changes, the name
- * arrives as a field beside this label rather than inside its `display`, so the
- * guarantee above survives the feature that ends the silence.
+ * What it does *not* say is which contact this is. The name arrives as
+ * `MeetingRow.visitorName`, a field beside this label and never inside its
+ * `display` — joined per render from the contact directory, behind
+ * `AGENT_REGISTER_ROLES` and the contact's own consent — so the guarantee
+ * above survives the feature that ended the silence (`docs/22` §5, decision B).
  */
 /**
  * WHO MAY READ AN AGENT'S REGISTER OF MEETINGS.
@@ -193,6 +193,16 @@ export interface MeetingRow extends MeetingSummary {
   readonly channelLabel: string;
   /** Never a name, an email or a phone number. See `VisitorLabel`. */
   readonly visitor: VisitorLabel;
+  /**
+   * The buyer's name, joined per render from the contact directory and
+   * stored nowhere. Null for a walk-in, for an erased contact, for one whose
+   * behavioural-linking consent is withdrawn, for one with no name recorded,
+   * and for every viewer outside `AGENT_REGISTER_ROLES` — the read model
+   * withholds it before a row leaves the repository. It stands BESIDE the
+   * label and never inside it: "third meeting" is information whether or not
+   * the person is named. `docs/22-visitor-name-display.md` §5 (B), §6.
+   */
+  readonly visitorName: string | null;
   /**
    * Units opened in this meeting, in the order they were first opened.
    *
