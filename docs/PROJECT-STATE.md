@@ -4103,3 +4103,81 @@ languages (P2-17).
 Evidence: `e4dafe9` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run
 logs (`suite-desktop/lab/wide/mobile.log`, `rerun-two.log`) and the mobile error contexts in the
 session scratchpad.
+
+## 2026-09-23 — P2-15 closed: the buyer's name on the register, behind a gate; the evidence survives the next run
+
+**The decision, and its reading.** `docs/22` §5 is decided (B): the register shows a name and gains
+a gate — and the gate narrows the register REGION, not the agent's page. The agency manager keeps
+the page, the roster cards, the funnel, everything; only the block that carries a name is closed to
+the developer. Order by decision: gate first, name second, so no window exists in which an
+agency-wide surface shows names.
+
+**Step 0, the path, and it does not touch the frozen contracts.** A real name would reach the
+register from `ContactPii.fullName`, under `Lead.consent.behaviouralLinking` and `Contact.erasedAt`
+— all three already declared in `packages/contracts/src/identity.ts` and read, never edited. The
+join is the read model's (`buildMeetingRows`, `packages/synthetic/src/showroom/screens.ts`), the
+field is `MeetingRow.visitorName` beside `VisitorLabel` (`packages/readmodels/src/screens.ts`), and
+the synthetic phase's stand-in for the three records is `packages/synthetic/src/contacts.ts`, field
+for field, keyed to the 41 contacts the sessions already link by opaque id (`con_1000…1040`).
+`packages/sources/src` (frozen) is the control plane and is not on the path. `world.ts` has an
+older three-person list for the brief (`cnt_…`), untouched and named as docs/22 §7 step 6's
+business.
+
+**Commit 1, the gate (`c3ea848`).** `AGENT_REGISTER_ROLES` in the read model — the meeting
+drill-down's three roles — with a test holding it equal to the web's `[meetingId]` list; the
+manifest marks the printed page's register section blank for anyone else, with the reason; the
+agent's screen draws the table for the drill-down's roles and, for a reader outside them, no table
+in the document at all and a sentence in its place ("Kept for the sales team: the rows of this
+register are the meeting drill-down's own material, which this account does not open…"). Rendered
+on the config's own server: as Tomáš (manager) the table with eight rows and no sentence; as Petra
+(developer) no table and the sentence, one table fewer in the document. Mutation, the gate always
+open: red on "the register is drawn for the sales team and not for the developer" (the developer
+got the register). One mutation attempt before it failed the build's typecheck — an unused import
+— and was not counted; the counted one compiled.
+
+**Commit 2, the name (`f285a78`).** Joined per render, stored nowhere, null for a walk-in, an
+erased contact, a withdrawn consent, a contact with no name recorded, and for every viewer outside
+the roles — withheld in the repository, so no screen has to remember to. Beside the label, never
+inside it. The register renders two strings and assembles neither. Rendered as Tomáš on Lucia
+Horváth's register: "Ilona Balog Returning · 2nd meeting", "Klára Dobos First meeting", "Jakub Tóth
+First meeting" among eight rows, five with the label alone; as Petra, no table and the sentence.
+Three tests, one assertion each, from docs/22 §6, and three mutations: (a) "the buyer's name stands
+beside the label for the sales team" — red when the register drops the name (`named: false`); (b)
+"disappears when the consent is withdrawn, and the label stays" — red when the join ignores the
+consent; (c) "is in no stored record and no event" — red when the session record is stamped with
+the name (`visitorName (personal_key)` on every session, through the contract's own scanner).
+Every mutation restored to an empty porcelain.
+
+**An adversarial review of the two commits, and what it left (`b13be13`).** Nine agents, three
+lenses (a leak to a role or a surface; storage, events, logs and caches; gate bypass and role-list
+drift): nothing confirmed as a leak — the developer gets null in the repository and a blank
+section on paper, nothing writes the name anywhere, and the page's gate is the presentation policy
+while the data policy is the read model's. Three residues were real and are fixed: the directory
+kept an erased contact's name behind the join's refusal (deletion deletes — now it holds none, and
+there are three such contacts, not one); every `MeetingRow` carried the name for the three roles,
+the meetings list's and a unit's related meetings' included, with only the components' discipline
+keeping it off those two open surfaces (now only an agent's register asks for names, and the other
+rows never carry one); and the printed agent summary's docblock still said "no buyer's name in
+it". The printed summary draws that same register, behind the same gate, for the same three roles
+— on paper as on the screen — and this is said now, in the docblock and here. Test (b) reads the
+register's own rows, holds the erased contact beside the withdrawn one and the list's rows nameless
+for every viewer, in one assertion; mutations after the commit: the consent ignored — red; every
+row asking for names — red on the same assertion (`listNames`). Two notes not fixed: the commit
+message of `f285a78` quotes three invented name-and-label lines, and no test renders the printed
+summary's named register (both e2e specs measure the agent's screen).
+
+**Commit 3, the evidence survives (`e552475`).** Playwright clears each project's `outputDir` at
+the start of a run of that project; with one shared directory the lab run cleared the desktop's
+traces before anybody opened them — which is why the two desktop failures of the whole run
+("implementation at 1280", "the audience builder returns meetings, not people", both a navigation
+to /sign-in aborting before any assertion) stayed (D). A directory per project now: proved with a
+desktop run (2 passed, two entries under `test-results/desktop`) followed by a lab run (5 passed,
+`test-results/lab` appears, the desktop's two entries stay).
+
+**Not touched:** the (ii) mobile findings; the two (D) failures, which the next run that keeps its
+trace will answer; the four languages (P2-17); the brief's literal names in `world.ts`/`agent.ts`
+(docs/22 §7 step 6).
+
+Evidence: `c3ea848`, `f285a78`, `e552475`, `b13be13` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; the run logs, renders, photographs and the review's journal
+in the session scratchpad.
