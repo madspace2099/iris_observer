@@ -1,8 +1,14 @@
 import { outcomeIsUnknown, type InsightSource, type ShowroomSession } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import type { ReportScopeView, ReportSection, ViewContext } from "@observer/readmodels";
+import type {
+  ProjectSummary,
+  ReportScopeView,
+  ReportSection,
+  ViewContext,
+} from "@observer/readmodels";
 import { catalogueFor } from "./pulse";
 import { buildMeetingList } from "./showroom/project";
+import { buildAgentDetail } from "./showroom/screens";
 import { count, evidenceRef, percent } from "./format";
 import { presentersIn } from "./showroom/sessions";
 
@@ -79,6 +85,7 @@ export function buildReportScope(
           : null,
       sources: DERIVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: n === 0 ? null : evidence("summary", n),
     },
     {
@@ -95,6 +102,7 @@ export function buildReportScope(
             : null,
       sources: DERIVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: n === 0 ? null : evidence("coverage", n),
     },
     {
@@ -111,6 +119,7 @@ export function buildReportScope(
             : null,
       sources: DERIVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: catalogue.length === 0 || n === 0 ? null : evidence("units", catalogue.length),
     },
     {
@@ -127,6 +136,7 @@ export function buildReportScope(
             : null,
       sources: DERIVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: presenting.length === 0 ? null : evidence("agents", presenting.length),
     },
     {
@@ -142,6 +152,7 @@ export function buildReportScope(
           : null,
       sources: WITH_OUTCOME,
       sampleSize: recorded,
+      sampleNoun: "meetings",
       evidence: crm && recorded > 0 ? evidence("outcomes", recorded) : null,
     },
     {
@@ -161,6 +172,7 @@ export function buildReportScope(
               : null,
       sources: OBSERVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: webiris > 0 && webiris < n ? evidence("channel", n) : null,
     },
     {
@@ -177,6 +189,7 @@ export function buildReportScope(
             : null,
       sources: OBSERVED,
       sampleSize: n,
+      sampleNoun: "meetings",
       evidence: n === 0 ? null : evidence("meeting", n),
     },
     {
@@ -190,6 +203,7 @@ export function buildReportScope(
       reason: null,
       sources: DERIVED,
       sampleSize: null,
+      sampleNoun: "meetings",
       evidence: evidence("appendix", n),
     },
   ];
@@ -201,6 +215,7 @@ export function buildReportScope(
       label: `${context.project.name} · ${context.period.label}`,
       projectName: context.project.name,
       meetingId: null,
+      agentId: null,
     },
     periodLabel: context.period.label,
     sections,
@@ -248,6 +263,7 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
         : null,
       sources: OBSERVED,
       sampleSize: null,
+      sampleNoun: "meetings",
       evidence: evidence("sequence", meeting.steps.length),
     },
     {
@@ -259,6 +275,7 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
       reason: null,
       sources: OBSERVED,
       sampleSize: null,
+      sampleNoun: "meetings",
       evidence: evidence("appendix", meeting.steps.length),
     },
   ];
@@ -269,6 +286,7 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
       label,
       projectName: context.project.name,
       meetingId: meeting.meetingId,
+      agentId: null,
     },
     periodLabel: context.period.label,
     sections,
@@ -280,5 +298,204 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
     },
     unavailableCount: 0,
     evidence: evidence("scope", meeting.steps.length),
+  };
+}
+
+/**
+ * ONE AGENT'S SUMMARY AS A REPORT SCOPE — THE MANIFEST, NOT THE CONTENT.
+ *
+ * `ReportSection` is a manifest: what a section would say, whether it can be
+ * written, why not, and what sample stands under it. The printed page draws
+ * its body from `AgentDetailView` itself, with the same components the
+ * agent's own screen uses — `Figure`, `ShareFigure`, `StageFunnel`, the
+ * register — so a rate reaches paper with its denominator in words and,
+ * below the floor, with its shortfall beside it. A manifest of nine fields
+ * cannot carry a floor per figure, and the document does not need it to.
+ *
+ * Two kinds of gap are stated here, in `reason`. Below `AGENT_MIN_SAMPLE`
+ * every section whose figures are rates is `partial`, and its reason is the
+ * read model's own suppression sentence — the one the screen leads with. And
+ * the one section whose screen region the document does not carry whole
+ * says what is missing: the week-by-week series is not printed, the outcome
+ * ring reaches paper as a table rather than a shape, and the screen's
+ * reading guide is not a section. A document that quietly dropped a region
+ * would be the same lie as a zero standing in for a value nobody measured,
+ * one level up.
+ *
+ * The agent has to present on this project in this period, by the rule
+ * `getAgentDetail` applies: somebody who does not is not found here, and the
+ * answer does not say whether they exist on a project the reader cannot see.
+ * "Where else they present" is scoped to the reader's own grants and never
+ * to the agent's, for the reason the screen states under the list.
+ */
+export function buildAgentReportScope(
+  context: ViewContext,
+  sessions: readonly ShowroomSession[],
+  visibleProjects: readonly ProjectSummary[],
+  agentId: string,
+): ReportScopeView | null {
+  const view = buildAgentDetail(context, sessions, visibleProjects, agentId);
+  if (view === null) return null;
+  const root = `/${context.tenant.slug}/${context.project.slug}`;
+  const n = view.sampleSize;
+  const evidence = (id: string, observations: number) =>
+    evidenceRef(
+      `report-${context.project.slug}-agent-${agentId}-${id}`,
+      "observed_sequence",
+      `${root}/report?agent=${agentId}`,
+      observations,
+    );
+
+  /*
+   * A section of rates, under the floor, is writable with a stated gap: the
+   * figures stand as raw counts with their shortfall, and no verdict, rank or
+   * trend is drawn from them. The sentence is the read model's, not this
+   * file's, so the manifest and the page lead with the same words.
+   */
+  const rates = (gap: string | null = null): Pick<ReportSection, "availability" | "reason"> => {
+    const reasons = [view.suppressionNote, gap].filter((s): s is string => s !== null);
+    return reasons.length === 0
+      ? { availability: "ready", reason: null }
+      : { availability: "partial", reason: reasons.join(" ") };
+  };
+
+  /* What the document does not carry of the screen, said once and in full. */
+  const notCarried =
+    "Not in this document: the week-by-week series of their presentations, because a line is read as a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a shape, whose slices are printed as a table under What it met; and the screen's reading guide. Everything else on their screen is here, from the same read model.";
+
+  const sections: readonly ReportSection[] = [
+    {
+      id: "agent-activity",
+      label: "Activity in this period",
+      summary:
+        "Presentations, the median length, units opened per meeting and core sections reached; follow-ups recorded as needed, and the half no source records; and the outcomes they recorded, each with the count it is a fraction of.",
+      ...rates(),
+      sources: DERIVED,
+      sampleSize: n,
+      sampleNoun: "meetings",
+      evidence: evidence("activity", n),
+    },
+    {
+      id: "agent-funnel",
+      label: "Where their meetings reached",
+      summary:
+        "Five observed states, each a count of meetings that reached it against the count it is a fraction of. Nothing here says one stage produced the next.",
+      availability: "ready",
+      reason: null,
+      sources: OBSERVED,
+      sampleSize: n,
+      sampleNoun: "meetings",
+      evidence: evidence("funnel", n),
+    },
+    {
+      id: "agent-presentation",
+      label: "How they present",
+      summary:
+        "Their running order, with the median stay in each section. Above the floor, the share of their timed presentation time each section takes and the team's median beside it; below the floor, neither.",
+      ...rates(notCarried),
+      sources: DERIVED,
+      sampleSize: view.profile.timedMeetings,
+      sampleNoun: "timed meetings",
+      evidence: evidence("presentation", view.profile.timedMeetings),
+    },
+    {
+      id: "agent-buyers",
+      label: "What it met",
+      summary:
+        "What their buyers opened, by apartment size, and how their meetings ended: counts of their own meetings, with the share above the floor and the project's own rate beside it.",
+      ...rates(),
+      sources: DERIVED,
+      sampleSize: n,
+      sampleNoun: "meetings",
+      evidence: evidence("buyers", n),
+    },
+    {
+      id: "agent-units",
+      label: "The apartments they keep opening",
+      summary:
+        "Units opened in the largest share of their meetings, at most six, with how often each was shortlisted. An association with their habit and nothing more.",
+      ...(view.commonUnits.length === 0
+        ? {
+            availability: "unavailable" as const,
+            reason: "No meeting of theirs in the period opened an apartment in the catalogue.",
+          }
+        : rates()),
+      sources: DERIVED,
+      sampleSize: n,
+      sampleNoun: "meetings",
+      evidence: view.commonUnits.length === 0 ? null : evidence("units", n),
+    },
+    {
+      id: "agent-projects",
+      label: "Where else they present",
+      summary:
+        "The projects this account holds on which they also presented in the period, with the meeting count on each.",
+      availability: "ready",
+      reason: null,
+      sources: OBSERVED,
+      sampleSize: null,
+      sampleNoun: "meetings",
+      evidence: evidence("projects", view.projects.length),
+    },
+    {
+      id: "agent-meetings",
+      label: "Their most recent meetings",
+      summary:
+        "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column is a privacy-safe label; no buyer is named.",
+      availability: "ready",
+      reason: null,
+      sources: OBSERVED,
+      sampleSize: view.recentMeetings.length,
+      sampleNoun: "meetings listed",
+      evidence: evidence("meetings", view.recentMeetings.length),
+    },
+    {
+      id: "agent-findings",
+      label: "What this period found",
+      summary:
+        "The findings their own screen states, each with its baseline, its evidence and its caveat.",
+      availability: view.findings.length === 0 ? "unavailable" : "ready",
+      reason:
+        view.findings.length === 0
+          ? "Nothing on their screen reached a finding in the period."
+          : null,
+      sources: DERIVED,
+      sampleSize: n,
+      sampleNoun: "meetings",
+      evidence: view.findings.length === 0 ? null : evidence("findings", view.findings.length),
+    },
+    {
+      id: "evidence-appendix",
+      label: "Evidence appendix",
+      summary:
+        "Every section of this summary with its state, its sample in its own noun, and the reference that resolves to the records underneath it.",
+      availability: "ready",
+      reason: null,
+      sources: DERIVED,
+      sampleSize: null,
+      sampleNoun: "meetings",
+      evidence: evidence("appendix", n),
+    },
+  ];
+
+  return {
+    context,
+    scope: {
+      kind: "agent",
+      label: `${view.name} · ${context.period.label}`,
+      projectName: context.project.name,
+      meetingId: null,
+      agentId,
+    },
+    periodLabel: context.period.label,
+    sections,
+    generation: {
+      state: "preview_only",
+      statement:
+        "Nothing generates a document yet. This screen states what one agent's summary would contain, from the read model their own screen draws.",
+      milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+    },
+    unavailableCount: sections.filter((s) => s.availability === "unavailable").length,
+    evidence: evidence("scope", n),
   };
 }

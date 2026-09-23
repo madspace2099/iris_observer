@@ -8,8 +8,6 @@ import {
   NotFoundError,
   NotPermittedError,
   type PeriodPreset,
-  type ReportSection,
-  type ReportSectionAvailability,
   type Viewer,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
@@ -25,13 +23,13 @@ import {
   Evidence,
   FindingList,
   PageHead,
-  Sample,
-  Sources,
   Synthetic,
   Tally,
   TallyItem,
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
+import { AgentReport } from "./AgentReport";
+import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
 
 export const metadata: Metadata = { title: "Report" };
 
@@ -67,26 +65,23 @@ export const metadata: Metadata = { title: "Report" };
  * Every `ReportSection.evidence` the read model produces resolves to this
  * route. Until now that was a reference with nowhere to land; now it lands on
  * the section it describes, and the appendix lists them all.
+ *
+ * ## Three scopes, one page
+ *
+ * `?meeting=` draws one meeting's summary and `?agent=` one agent's, each
+ * from the read model its own screen draws (`MeetingReport` below,
+ * `AgentReport` beside this file). The sections are the scope's manifest;
+ * the body of every section is the page's, drawn with the screens' own
+ * components, so a rate reaches paper with the denominator and the floor it
+ * has on screen.
  */
-
-const AVAILABILITY_WORDS: Readonly<Record<ReportSectionAvailability, string>> = {
-  ready: "Ready",
-  partial: "Partial",
-  unavailable: "Blank",
-};
-
-const AVAILABILITY_TONES: Readonly<Record<ReportSectionAvailability, string>> = {
-  ready: "good",
-  partial: "watch",
-  unavailable: "none",
-};
 
 export default async function ReportPage({
   params,
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string; meeting?: string }>;
+  searchParams: Promise<{ period?: string; meeting?: string; agent?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -106,6 +101,12 @@ export default async function ReportPage({
   if (meetingId !== null) {
     requireSurface(viewer, "[meetingId]", `/${tenantSlug}/${projectSlug}`);
     return <MeetingReport query={query} meetingId={meetingId} />;
+  }
+  /* One agent's summary is the agent route's own material: the same roles, enforced on the same list. */
+  const agentId = typeof search.agent === "string" && search.agent.length > 0 ? search.agent : null;
+  if (agentId !== null) {
+    requireSurface(viewer, "[agentId]", `/${tenantSlug}/${projectSlug}`);
+    return <AgentReport query={query} agentId={agentId} />;
   }
 
   const [report, flow, project, agents, meetings] = await Promise.all([
@@ -292,7 +293,8 @@ export default async function ReportPage({
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
             state: AVAILABILITY_WORDS[section.availability],
-            sample: section.sampleSize === null ? "—" : String(section.sampleSize),
+            sample:
+              section.sampleSize === null ? "—" : `${section.sampleSize} ${section.sampleNoun}`,
             evidence: <Evidence evidence={section.evidence} period={period} />,
           },
         }))}
@@ -383,7 +385,7 @@ async function MeetingReport({
   let replay;
   try {
     [report, replay] = await Promise.all([
-      repository.getReportScope(query, meetingId),
+      repository.getReportScope(query, { meetingId }),
       repository.getMeetingReplay({ ...query, meetingId: meetingId as MeetingId }),
     ]);
   } catch (error) {
@@ -468,38 +470,5 @@ async function MeetingReport({
         ))}
       </div>
     </div>
-  );
-}
-
-function ReportPlane({
-  section,
-  period,
-  children,
-}: {
-  readonly section: ReportSection;
-  readonly period: ReturnType<typeof presetFrom>;
-  readonly children: ReactNode;
-}) {
-  const headingId = `${section.id}-heading`;
-  return (
-    <section className="ox-plane" id={section.id} aria-labelledby={headingId}>
-      <div className="ox-section-head">
-        <h2 className="ox-section-title" id={headingId}>
-          {section.label}
-        </h2>
-        <span className="ox-chip" data-tone={AVAILABILITY_TONES[section.availability]}>
-          <span className="ox-chip-mark" aria-hidden="true" />
-          {AVAILABILITY_WORDS[section.availability]}
-        </span>
-      </div>
-      <p className="ox-section-note">{section.summary}</p>
-      {section.reason === null ? null : <p className="ox-section-note">{section.reason}</p>}
-      {children}
-      <div className="ox-alert-foot">
-        <Sources sources={section.sources} />
-        {section.sampleSize === null ? null : <Sample n={section.sampleSize} noun="meetings" />}
-        <Evidence evidence={section.evidence} period={period} />
-      </div>
-    </section>
   );
 }

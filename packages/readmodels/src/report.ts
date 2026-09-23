@@ -43,25 +43,44 @@ export interface ReportSection {
   /** Why it is partial or unavailable. Null only when it is ready. */
   readonly reason: string | null;
   readonly sources: readonly InsightSource[];
-  /** Meetings behind it. Null for a section that does not rest on a sample. */
+  /** What stands behind it, counted in `sampleNoun`. Null for a section that does not rest on a sample. */
   readonly sampleSize: number | null;
+  /**
+   * What the sample is counted in: "meetings" for the project's sections,
+   * "timed meetings" where a section's shares stand on the timed set. Every
+   * surface prints it beside `sampleSize`, so no component supplies the noun:
+   * a rate over meetings and a rate over timed meetings are different
+   * questions, and the difference is the finding.
+   */
+  readonly sampleNoun: string;
   readonly evidence: EvidenceRef | null;
 }
 
 /**
  * Who the report would be about.
  *
- * A project report and a single meeting summary are the same machinery over
- * different scopes, and naming the scope on the view is what stops a component
- * from titling one with the other's heading.
+ * A project report, a single meeting summary and one agent's summary are the
+ * same machinery over different scopes, and naming the scope on the view is
+ * what stops a component from titling one with another's heading.
  */
 export interface ReportScope {
-  readonly kind: "project" | "meeting";
+  readonly kind: "project" | "meeting" | "agent";
   readonly label: string;
   readonly projectName: string;
   /** Set only when the scope is one meeting. */
   readonly meetingId: string | null;
+  /** Set only when the scope is one agent. */
+  readonly agentId: string | null;
 }
+
+/**
+ * Which one thing a report is asked for, when it is not the whole project.
+ *
+ * One of the two and never both: a scope that took a meeting id and an agent
+ * id side by side would need a rule for the caller who passes both, and a
+ * rule like that is remembered by nobody.
+ */
+export type ReportScopeSelector = { readonly meetingId: string } | { readonly agentId: string };
 
 export const REPORT_GENERATION_STATES = [
   /** Sections can be described. Nothing renders a document. */

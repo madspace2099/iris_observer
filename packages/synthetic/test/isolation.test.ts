@@ -513,11 +513,13 @@ describe("a meeting belongs to exactly one project — replay and report-scope",
       period: "quarter_to_date" as PeriodPreset,
     };
     await expect(
-      syntheticRepository.getReportScope(query, riversideMeetingId),
+      syntheticRepository.getReportScope(query, { meetingId: riversideMeetingId }),
     ).rejects.toBeInstanceOf(NotFoundError);
     // And the meeting's own project reads it back fine, from the same call shape.
     const riversideQuery = { ...query, projectSlug: "riverside" };
-    const scoped = await syntheticRepository.getReportScope(riversideQuery, riversideMeetingId);
+    const scoped = await syntheticRepository.getReportScope(riversideQuery, {
+      meetingId: riversideMeetingId,
+    });
     expect(scoped).toBeDefined();
   });
 

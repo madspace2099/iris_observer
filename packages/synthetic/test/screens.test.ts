@@ -428,6 +428,67 @@ describe("getReportScope", () => {
   });
 });
 
+/*
+ * ONE AGENT'S SUMMARY: THE MANIFEST ANSWERS FOR THE RIGHT PERSON, AND FOR
+ * NOBODY ELSE.
+ *
+ * The scope is asked for by agent id under a project the viewer holds, and
+ * the rule is `getAgentDetail`'s: an agent who did not present on this
+ * project in this period is not found here, whether they present on a
+ * project the reader cannot see (Akhilesh presents on Northgate and on
+ * Kingsford Yard, never on ISTER TOWER) or exist nowhere at all. Martin holds
+ * the tower's largest sample; Lucia Horváth is its thin one, fourteen
+ * meetings against a floor of twenty.
+ */
+describe("getReportScope for one agent", () => {
+  it("names the agent, the project and the period, and no meeting", async () => {
+    const view = await repo.getReportScope(ISTER, { agentId: "agt_martinkovac" });
+    expect(view.scope).toEqual({
+      kind: "agent",
+      agentId: "agt_martinkovac",
+      meetingId: null,
+      label: `Martin Kováč · ${view.periodLabel}`,
+      projectName: view.context.project.name,
+    });
+  });
+
+  it("an agent this project's meetings do not name is not found", async () => {
+    await expect(repo.getReportScope(ISTER, { agentId: "agt_akhilesh" })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("an id that exists nowhere is not found", async () => {
+    await expect(repo.getReportScope(ISTER, { agentId: "agt_nobody" })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("the running-order section's sample is the timed set, in its own noun", async () => {
+    const [view, detail] = await Promise.all([
+      repo.getReportScope(ISTER, { agentId: "agt_martinkovac" }),
+      repo.getAgentDetail(ISTER, "agt_martinkovac"),
+    ]);
+    const section = view.sections.find((s) => s.id === "agent-presentation");
+    expect({ sampleSize: section?.sampleSize, sampleNoun: section?.sampleNoun }).toEqual({
+      sampleSize: detail.profile.timedMeetings,
+      sampleNoun: "timed meetings",
+    });
+  });
+
+  it("below the floor, a section of rates is partial and its reason is the suppression sentence", async () => {
+    const [view, detail] = await Promise.all([
+      repo.getReportScope(ISTER, { agentId: "agt_luciahorvath" }),
+      repo.getAgentDetail(ISTER, "agt_luciahorvath"),
+    ]);
+    const section = view.sections.find((s) => s.id === "agent-activity");
+    expect({ availability: section?.availability, reason: section?.reason }).toEqual({
+      availability: "partial",
+      reason: detail.suppressionNote,
+    });
+  });
+});
+
 /* --- no causal language ----------------------------------------------------- */
 
 const CAUSAL =

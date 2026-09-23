@@ -105,12 +105,17 @@ describe("a restricted project surface checks the role it declares", () => {
       }
     }
     /*
-     * `/report` is the one legitimate second key and it is not an exception to
-     * the rule: with `?meeting=`, that page RENDERS the meeting surface, so it
-     * asks the meeting surface's question before it does. It is listed rather
-     * than filtered out, so the day it stops doing that this line fails.
+     * `/report` carries the only legitimate foreign keys and they are not an
+     * exception to the rule: with `?meeting=` that page RENDERS the meeting
+     * surface, and with `?agent=` the agent's, so it asks each surface's own
+     * question before it does. They are listed rather than filtered out, so
+     * the day the page stops doing that — or starts guarding a third — this
+     * line fails.
      */
-    expect(wrong).toEqual([`${PROJECT_PREFIX}report guards "[meetingId]"`]);
+    expect(wrong).toEqual([
+      `${PROJECT_PREFIX}report guards "[meetingId]"`,
+      `${PROJECT_PREFIX}report guards "[agentId]"`,
+    ]);
   });
 });
 

@@ -17,6 +17,7 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import type { ReportScopeSelector } from "@observer/readmodels";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "@observer/readmodels";
 import type {
   AgentsView,
@@ -86,7 +87,7 @@ import {
 import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
 import { buildAttention } from "./showroom/attention";
 import { buildAskHistory, buildAskThread } from "./ask-history";
-import { buildReportScope } from "./reports";
+import { buildAgentReportScope, buildReportScope } from "./reports";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -691,21 +692,29 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getAgentDetail(query: OverviewQuery, agentId: string): Promise<AgentDetailView> {
     const { context, current } = await this.slices(query);
-    /*
-     * The projects passed in are the viewer's, not the agent's.
-     *
-     * "Where else does this person work" is answered from the intersection of
-     * the agent's meetings and the reader's own grants. A developer who could
-     * read the full list would be learning, off a staff page, that their agency
-     * also sells for somebody else — which is a commercial fact about a third
-     * party and not theirs to have.
-     */
-    const visible = (await this.world()).projects.filter(
-      (p) => p.tenantId === context.tenant.id && query.viewer.projectIds.includes(p.id),
-    );
+    const visible = await this.projectsHeldHere(context, query.viewer);
     const view = buildAgentDetail(context, current, visible, agentId);
     if (view === null) throw new NotFoundError(`Agent "${agentId}" on this project`);
     return view;
+  }
+
+  /**
+   * The projects passed to the agent builders are the viewer's, not the agent's.
+   *
+   * "Where else does this person work" is answered from the intersection of
+   * the agent's meetings and the reader's own grants. A developer who could
+   * read the full list would be learning, off a staff page, that their agency
+   * also sells for somebody else — which is a commercial fact about a third
+   * party and not theirs to have. One rule, read by the agent's screen and by
+   * the agent's report scope, so the two cannot list different projects.
+   */
+  private async projectsHeldHere(
+    context: ViewContext,
+    viewer: Viewer,
+  ): Promise<readonly ProjectSummary[]> {
+    return (await this.world()).projects.filter(
+      (p) => p.tenantId === context.tenant.id && viewer.projectIds.includes(p.id),
+    );
   }
 
   async getAttention(query: OverviewQuery): Promise<AttentionView> {
@@ -727,13 +736,20 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getReportScope(
     query: OverviewQuery,
-    meetingId: string | null = null,
+    of: ReportScopeSelector | null = null,
   ): Promise<ReportScopeView> {
     const { context, current } = await this.slices(query);
-    if (meetingId === null) return buildReportScope(context, current);
-    const session = sessionById(meetingId, context.project.id as string);
+    if (of === null) return buildReportScope(context, current);
+    if ("agentId" in of) {
+      /* The same rule as getAgentDetail: not presenting here is not found here. */
+      const visible = await this.projectsHeldHere(context, query.viewer);
+      const view = buildAgentReportScope(context, current, visible, of.agentId);
+      if (view === null) throw new NotFoundError(`Agent "${of.agentId}" on this project`);
+      return view;
+    }
+    const session = sessionById(of.meetingId, context.project.id as string);
     if (session === undefined || session.projectId !== context.project.id) {
-      throw new NotFoundError(`Meeting "${meetingId}"`);
+      throw new NotFoundError(`Meeting "${of.meetingId}"`);
     }
     return buildReportScope(context, current, session);
   }

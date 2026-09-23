@@ -5,6 +5,13 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import type { ReportGeneration, ReportScope, ReportSection } from "@observer/readmodels";
 
+/** What the trigger and the dialog call themselves, by whose report it is. */
+const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
+  project: "Export project report",
+  meeting: "Export meeting summary",
+  agent: "Export agent summary",
+};
+
 import { Dialog } from "@/components/product/Dialog";
 import { ReportSections } from "./ReportSections";
 
@@ -51,18 +58,15 @@ import { ReportSections } from "./ReportSections";
  * both work would be this component deciding which sections are safe to hand a
  * buyer — a product rule a component is not allowed to invent.
  *
- * ## Scope, and the one thing the port cannot yet answer
+ * ## Scope
  *
- * `ReportScope.kind` is `project | meeting`, and the two are the same machinery
- * over different scopes — which is what stops a component titling one with the
- * other's heading. This component reads the kind and titles itself accordingly,
- * so Meeting Detail and Project Overview mount the same trigger.
- *
- * `getReportScope(query)` takes no meeting identifier, so the synthetic
- * repository returns `kind: "project"` on every call and a meeting-scoped view
- * cannot yet be fetched. That is a gap in the port rather than in this
- * component: when the method gains the argument, this dialog already renders
- * the result correctly and nothing here changes.
+ * `ReportScope.kind` is `project | meeting | agent`, and the three are the same
+ * machinery over different scopes — which is what stops a component titling
+ * one with another's heading. This component reads the kind and titles itself
+ * accordingly, so Project Overview, Meeting Detail and the agent's screen
+ * mount the same trigger. The port answers for one meeting or one agent
+ * through `ReportScopeSelector`, and the caller that mounts this dialog has
+ * already asked it; nothing here decides whose report it is.
  *
  * ## Why the period is stated and not chosen
  *
@@ -124,8 +128,7 @@ export function ExportReport({
   /** `quiet` beside other page controls; `primary` where export is the point. */
   readonly weight?: "primary" | "quiet";
 }) {
-  const meeting = report.scope.kind === "meeting";
-  const title = meeting ? "Export meeting summary" : "Export project report";
+  const title = TITLES[report.scope.kind];
 
   const ids = useId();
   const titleId = `${ids}-title`;

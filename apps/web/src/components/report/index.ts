@@ -2,16 +2,16 @@
  * THE EXPORT EXPERIENCE.
  *
  * One trigger and one dialog, mounted by the screens that own a scope worth
- * exporting: Project Overview offers the project report, Meeting Detail offers
- * the meeting summary, and both mount the same component — `ReportScope.kind`
- * decides which of the two it calls itself, so the two surfaces do not grow two
- * dialogs that disagree.
+ * exporting: Project Overview offers the project report, Meeting Detail the
+ * meeting summary, and the agent's screen the agent's summary — all three
+ * mount the same component, and `ReportScope.kind` decides what it calls
+ * itself, so three surfaces do not grow three dialogs that disagree.
  *
  * The mounting looks like this, from a Server Component that has already read
- * the scope through the port:
+ * the scope through the port, with a selector where the scope is one thing:
  *
- *     const report = await repository.getReportScope(query);
- *     <ExportReport report={report} />
+ *     const report = await repository.getReportScope(query, { agentId });
+ *     <ExportReport report={report} pageHref={`${root}/report?agent=${agentId}`} />
  *
  * `ReportScopeView` satisfies `ExportReportView` structurally, so the view goes
  * straight through and nothing has to be unpacked at the call site.

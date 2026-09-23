@@ -80,7 +80,7 @@ export default async function MeetingPage({
     });
     const report = await repository.getReportScope(
       { viewer, tenantSlug, projectSlug, period },
-      meetingId,
+      { meetingId },
     );
 
     return (

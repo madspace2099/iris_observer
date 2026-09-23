@@ -26,7 +26,14 @@ import {
   type DataColumn,
   type DataRow,
 } from "@/components/product";
-import { MeetingRegister, Missing, ShareFigure, StageFunnel } from "@/components/agents";
+import {
+  MeetingRegister,
+  Missing,
+  ShareFigure,
+  StageFunnel,
+  agentAnswer,
+} from "@/components/agents";
+import { ExportReport } from "@/components/report";
 import { OutcomeKey, OutcomeRing, PairedRates } from "@/showroom/charts";
 import { SectionSequence, TrendLine } from "@/showroom/charts2";
 
@@ -108,8 +115,14 @@ export default async function AgentPage({
    * not be distinguishable from a person who is not there.
    */
   let view;
+  let report;
   try {
-    view = await repository.getAgentDetail({ viewer, tenantSlug, projectSlug, period }, agentId);
+    const query = { viewer, tenantSlug, projectSlug, period };
+    [view, report] = await Promise.all([
+      repository.getAgentDetail(query, agentId),
+      /* The same person, as a report scope, for the export in the aside. */
+      repository.getReportScope(query, { agentId }),
+    ]);
   } catch (error) {
     if (error instanceof NotFoundError || error instanceof NotPermittedError) notFound();
     throw error;
@@ -118,23 +131,8 @@ export default async function AgentPage({
   const periodLabel = view.context.period.label;
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
 
-  /*
-   * The ten-second answer, and the two things it may be.
-   *
-   * Below the floor it is the suppression sentence: how many meetings, how far
-   * short, and what the page will therefore not say. Above it, the strongest
-   * association the read model produced about how this person presents. Where
-   * there is neither, the head carries no answer rather than an invented one —
-   * a confident sentence with nothing behind it is the failure the whole
-   * absence vocabulary exists to prevent.
-   */
-  const answer =
-    view.suppressionNote ??
-    /* The habit's own floor, on the timed set: the read model's reason, not the habit. */
-    view.profile.signatureNote ??
-    (view.profile.signature === null
-      ? null
-      : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}, across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end.`);
+  /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
+  const answer = agentAnswer(view);
 
   /*
    * WHETHER THE PAGE HAS AN EVIDENCE REFERENCE TO OFFER AT ALL.
@@ -225,6 +223,10 @@ export default async function AgentPage({
             <Synthetic />
             <Sample n={view.sampleSize} noun="meetings" />
             <Evidence evidence={view.evidence} period={period} />
+            <ExportReport
+              report={report}
+              pageHref={withPeriod(`${root}/report?agent=${view.agentId}`, period)}
+            />
           </>
         }
         period={period}

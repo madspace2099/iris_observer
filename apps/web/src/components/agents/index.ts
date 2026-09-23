@@ -12,6 +12,8 @@
  *   ShareFigure     a raw share from a read model, guarded by the sample floor
  *   Missing         from the metric registry, and the absence treatment for the
  *   isDash          em dash the agent read models use for "no value".
+ *   agentAnswer     the sentence one agent's screen and printed summary lead
+ *                   with, so the two cannot say different things about them.
  *
  * Nothing here computes a metric, joins two read models, or orders people by an
  * outcome. `ShareFigure` formats, which every other component in the product is
@@ -22,3 +24,4 @@
 export { StageFunnel } from "./StageFunnel";
 export { MeetingRegister } from "./MeetingRegister";
 export { ShareFigure, Missing, isDash } from "./Rates";
+export { agentAnswer } from "./answer";
