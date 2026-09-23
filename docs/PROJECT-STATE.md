@@ -4293,3 +4293,82 @@ of an account and its credentials, and an audit of who did what to whom.
 Evidence: `d18d47e` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the renders,
 photographs, session logs, the deployment probe and the two workflows' journals in the session
 scratchpad.
+
+## 2026-09-23 — The orphan work measured, the session secret stops the process, the revocation gap measured
+
+**The orphan work, decision (A).** The previous session's two commits (`d18d47e` the printed
+register's guard, `49fd667` its entry) were kept, the working tree that undid them uncommitted was
+restored to HEAD, and the guard was re-measured rather than believed: `e2e/paper-register.spec.ts`
+on the config's own server, 3 passed; the paper's gate mutated open (the manifest's branch) and run
+together with the three existing specs — `paper-register` (b) "the developer's printed page has
+no register and says why" red (`chip: "Ready", tables: 1`), and `agent-report` ×3, `register-gate`,
+`visitor-name` all green: the measurement the session had not made, and the gap the guard closes.
+Restored to an empty porcelain.
+
+**The session secret stops the process (`162222f`, `57fdac5`).** `OBSERVER_SESSION_SECRET` had a
+non-secret stand-in everywhere (`observer-dev.<deployment id>`), and neither `.env.example` nor
+`docs/18-deployment.md` named it — a value nobody documents as required is a value nobody sets.
+Now the stand-in exists for a developer's own machine alone: `session-secret.ts` is a pure resolver
+over an environment source; outside development, or on any deployment platform (the credential
+test store's `DEPLOYMENT_MARKERS`, now shared from `deployment-markers.ts`, presence not value,
+because `OBSERVER_ENVIRONMENT` defaults to development and can be forgotten), it throws
+`SessionSecretMissingError` by name, and `instrumentation.ts` ends the process on it at boot.
+Measured, not read: a throw alone left `next start` at "Failed to prepare server" with the port
+still bound and every request failing — down without having stopped — so the hook prints the error
+once and exits 1. `next start` without the variable under `production` and under `staging`: the
+named error, `Exit status 1`, nothing listening, no process left; under `development`: the server
+answers; under `production` with the variable set: the server answers. One assertion over five
+cases (staging, production, "development" on Vercel, nothing-set on Vercel — refused; local
+development — the stand-in); mutations: the stand-in back everywhere — red; the platform marker
+ignored — red, on "refuses to make a signing key outside development without
+OBSERVER_SESSION_SECRET". `.env.example` and `docs/18-deployment.md` name the variable as required
+and sensitive; ADR-0022 carries the amendment. **Consequence, stated:** the Preview deployment runs
+as `staging` and, by the record, has no `OBSERVER_SESSION_SECRET` — its next build of this branch
+refuses to start until one is set in Vercel. One transient: a single `pnpm --filter @observer/web
+typecheck` returned 1 with no error line during the boot experiments and 0 on the re-run.
+
+**(d) Other silent non-secret substitutions, listed and not fixed.** One in package source:
+`DEVICE_CREDENTIAL_PEPPER` falls back to the fixed string `"observer-safety-identifier-unpeppered"`
+(`apps/web/src/lib/ai/identity.ts:51`), keying the vendor-facing `safety_identifier` HMAC — stated
+in its own docblock as deliberate, and `.env.example` describes the variable as hashing device
+ingest credentials, which nothing does (those are keyed by `OBSERVER_SOURCE_TOKEN_PEPPER`). One in
+a script: `scripts/observer-acceptance.mjs:25` signs session cookies with `""` when neither argv
+nor the environment supplies a secret, so its tokens can never verify and failures read as product
+401s. Everything else refuses: `OBSERVER_SUBJECT_PEPPER` (`identity.ts:205`),
+`OBSERVER_ACTIVATION_CODE_PEPPER` / `OBSERVER_SOURCE_TOKEN_PEPPER` (`packages/sources/src/secrets.ts:216`),
+`OBSERVER_CREDENTIAL_KEY` (`credentials/envelope.ts:68`), `SUPABASE_SECRET_KEY`
+(`supabase-env.ts:151`), `CRON_SECRET` (`connectors/sync/route.ts:24`), the Lomnio webhook secret
+(`connectors/service.ts:493`).
+
+**The revocation gap, measured and not fixed — three data for the next round.** _Route handlers:_
+ten `route.ts` files. Four accept the session cookie, all through one `gate()`
+(`lib/ai/gate.ts:255` `currentViewer()`, `:266` `currentAccount()` → `resolveSession`,
+`session.ts:159`): `POST /api/ask` and `POST /api/ask/stream` spend money (the account's own key
+reaches the vendor, `transport.ts:171`, after an audit row and a budget reservation); `POST
+/api/observer/voice/tool` spends on its delegation branch; `POST /api/observer/voice/session` is
+gated but cannot spend today (`createVoiceSession` rejects, `voice.ts:209`). Two connector routes
+take a shared secret or an HMAC and no cookie; the four `functions/v1/*` routes take a
+source-scoped bearer and no cookie. Two server actions spend with a 16-token probe of a pasted or
+stored key (`settings/ai/actions.ts` connect and test, behind `requireAccount`). Forty-six modules
+import a session resolver, so a revocation store has one place to be consulted: `resolveSession`.
+Measured on the config-environment server, one process: after sign-out the old cookie is refused
+by a page (sent to `/sign-in`) and **accepted by `POST /api/ask` (200, with an answer) and
+`POST /api/ask/stream` (200)** — the in-process `revokedNonces` Map (`session.ts:113`) is a
+different Map in the route handlers' bundle. _Durable stores today:_ none holds a session, a nonce
+or an account-level revocation. Supabase: 29 `observer.*` tables in 22 migrations, RLS on and not
+one policy, every row reached only through `public.*` security-definer façades (`SUPABASE_URL` +
+`SUPABASE_SECRET_KEY`), reachable from a route handler on Vercel at request time where the pair is
+set (the Preview, by the record); the closest rows are `project_viewers.revoked_at` (an access
+grant, not a token), `source_credentials.revoked_at` (a source token) and `ai_rate_buckets`
+(pseudonym-keyed counters, pruned at 48 h); a revocation table would need a new migration and a
+new façade. No Vercel Edge Config, KV, Upstash or Redis in the repository. The local control plane
+is PGlite, development only, running the same migrations. _Lifetime:_ `SESSION_TTL_MS` is eight
+hours (`session.ts:39`) — the window a signed-out cookie stays live on the API.
+
+**Not touched:** the revocation (a store is the Gate 2 identity-provider decision), the identity
+provider, the (ii) mobile findings, the two (D) failures, the Blank section's "n = 8 meetings
+listed" foot, `DEVICE_CREDENTIAL_PEPPER` and the acceptance script.
+
+Evidence: `162222f`, `57fdac5` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the boot logs, the revocation measurement and the inventory workflow's journal in the session
+scratchpad.
