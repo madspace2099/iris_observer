@@ -147,6 +147,7 @@ export default async function MeetingsPage({
             <MeetingRegister
               rows={view.rows}
               period={period}
+              filters={view.filters}
               canOpen={maySeeSurface(viewer.role, "[meetingId]")}
               caption={`Showroom presentations on ${context.project.name}, newest first. ${view.total} of ${view.periodTotal} in ${periodLabel}.`}
               emptyState={view.emptyState}

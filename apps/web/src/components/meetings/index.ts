@@ -21,6 +21,7 @@ export { MeetingOutcomes } from "./MeetingOutcomes";
 export { Chip } from "./Chip";
 export {
   parseMeetingFilters,
+  withMeetingFilters,
   meetingFilterFields,
   AGENT_PARAM,
   CHANNEL_PARAM,

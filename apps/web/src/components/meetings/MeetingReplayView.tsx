@@ -1,10 +1,16 @@
 import Link from "next/link";
-import type { MeetingReplay, PeriodPreset, ReportScopeView } from "@observer/readmodels";
+import type {
+  MeetingFilters,
+  MeetingReplay,
+  PeriodPreset,
+  ReportScopeView,
+} from "@observer/readmodels";
 import { ExportReport } from "@/components/report";
 
 import { Evidence, PageHead, Sources, Synthetic } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { withMeetingFilters } from "./filters";
 import { MeetingJourney } from "./MeetingJourney";
 import { MeetingOutcomes } from "./MeetingOutcomes";
 
@@ -67,6 +73,7 @@ export function MeetingReplayView({
   replay,
   period,
   base,
+  filters,
   crmConnected,
   report,
 }: {
@@ -76,8 +83,16 @@ export function MeetingReplayView({
   readonly period: PeriodPreset;
   /** `/{tenantSlug}/{projectSlug}`. The register and the project hang off it. */
   readonly base: string;
+  /**
+   * The register the reader opened this meeting from, as the row's link
+   * carried it. Both ways back return to that register, not to the whole
+   * period (P2-16: list → detail → back keeps the scope).
+   */
+  readonly filters: MeetingFilters;
   readonly crmConnected: boolean;
 }) {
+  const register = withMeetingFilters(`${base}/meetings`, filters);
+  const narrowed = filters.agentId !== null || filters.channel !== null || filters.outcome !== null;
   return (
     <div className="ox-page">
       <PageHead
@@ -107,14 +122,18 @@ export function MeetingReplayView({
         }
         crumbs={[
           { label: "Project", href: `${base}/project` },
-          { label: "Meetings", href: `${base}/meetings` },
+          { label: "Meetings", href: register },
           { label: replay.startedDisplay },
         ]}
         aside={
           <>
             <Synthetic />
-            <Link className="ox-btn" href={dynamicRoute(withPeriod(`${base}/meetings`, period))}>
-              Every meeting in the period
+            {/*
+             * The label follows the destination (rule 21): a link back to
+             * three filtered meetings does not say "every meeting".
+             */}
+            <Link className="ox-btn" href={dynamicRoute(withPeriod(register, period))}>
+              {narrowed ? "Back to the narrowed register" : "Every meeting in the period"}
             </Link>
             <ExportReport
               report={report}

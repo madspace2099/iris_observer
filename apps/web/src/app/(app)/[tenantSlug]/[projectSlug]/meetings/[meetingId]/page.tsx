@@ -7,7 +7,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { BriefView } from "@/showroom/BriefView";
-import { MeetingReplayView } from "@/components/meetings";
+import { MeetingReplayView, parseMeetingFilters, type MeetingSearch } from "@/components/meetings";
 
 export const metadata: Metadata = { title: "Meeting" };
 
@@ -51,12 +51,14 @@ export default async function MeetingPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string; meetingId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<MeetingSearch & { period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug, meetingId } = await params;
-  const { period: periodParam } = await searchParams;
-  const period = presetFrom(periodParam);
+  const search = await searchParams;
+  const period = presetFrom(search.period);
+  /* The register the reader came from, carried here by the row's link, so both ways back return to it. */
+  const filters = parseMeetingFilters(search);
   const base = `/${tenantSlug}/${projectSlug}`;
   /*
    * The role list quoted above, enforced rather than only described.
@@ -88,6 +90,7 @@ export default async function MeetingPage({
         replay={replay}
         period={period}
         base={base}
+        filters={filters}
         report={report}
         /*
          * Read from the project's own declared sources on the replay's context,

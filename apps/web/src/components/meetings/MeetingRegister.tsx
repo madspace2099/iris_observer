@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   FOLLOW_UP_LABELS,
+  type MeetingFilters,
   type MeetingRow,
   type PeriodPreset,
   type UnitReference,
@@ -10,6 +11,7 @@ import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Chip } from "./Chip";
+import { withMeetingFilters } from "./filters";
 import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
 
 /**
@@ -156,6 +158,7 @@ export const MEETINGS_NOT_OPENABLE =
 export function MeetingRegister({
   rows,
   period,
+  filters,
   caption,
   canOpen,
   emptyState,
@@ -168,6 +171,12 @@ export function MeetingRegister({
    */
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
+  /**
+   * The filters this register was narrowed by. Written into every row's link
+   * so the replay can return the reader to this register rather than to the
+   * whole period (P2-16).
+   */
+  readonly filters: MeetingFilters;
   /** What this register lists, in a sentence, including its ordering. */
   readonly caption: string;
   /**
@@ -193,7 +202,7 @@ export function MeetingRegister({
     key: row.meetingId,
     cells: {
       when: canOpen ? (
-        <Link href={dynamicRoute(withPeriod(row.href, period))}>
+        <Link href={dynamicRoute(withPeriod(withMeetingFilters(row.href, filters), period))}>
           {row.label}
           <span className="ox-sr"> — open this meeting</span>
         </Link>
