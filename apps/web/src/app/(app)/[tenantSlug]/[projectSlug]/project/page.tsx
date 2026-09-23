@@ -66,6 +66,16 @@ export default async function ProjectPage({
     `${root}?${new URLSearchParams({ period: presetFrom(search.period), segment }).toString()}`;
   const segment = view.selectedSegment;
   const unmet = view.demand.filter((d) => d.matches === 0);
+  /*
+   * The search register's two count heads, each built once: the column head
+   * on a desk, and every cell's `data-label` on a phone, where the head is
+   * hidden and the record layout paints the label in front of the number.
+   * Two literals drifted apart - the head learnt the set, the label kept the
+   * short word, and a count stood without its set on the one view nobody
+   * had photographed.
+   */
+  const applicationsHead = `Times applied, of ${view.meetingCount} presentations`;
+  const matchesHead = `Units matching, of ${view.availableUnits} available now`;
   const peakPlace = view.places[0]?.totalDwellSeconds ?? 1;
 
   /*
@@ -369,12 +379,8 @@ export default async function ProjectPage({
                 <span>Filter</span>
                 <span>Value</span>
                 {/* The column head is beside every figure in the column: the set is stated once, visibly. */}
-                <span style={{ textAlign: "right" }}>
-                  Times applied, of {view.meetingCount} presentations
-                </span>
-                <span style={{ textAlign: "right" }}>
-                  Units matching, of {view.availableUnits} available now
-                </span>
+                <span style={{ textAlign: "right" }}>{applicationsHead}</span>
+                <span style={{ textAlign: "right" }}>{matchesHead}</span>
               </div>
               {view.demand.slice(0, 10).map((d) => (
                 <div
@@ -388,13 +394,13 @@ export default async function ProjectPage({
                   <span className="iris-bar-label" title={d.value} data-label="Value">
                     {d.value}
                   </span>
-                  <span className="iris-matrix-num" data-label="Times applied">
+                  <span className="iris-matrix-num" data-label={applicationsHead}>
                     {d.applications}
                   </span>
                   <span
                     className="iris-matrix-num"
                     data-zero={d.matches === 0 ? "true" : undefined}
-                    data-label="Units matching"
+                    data-label={matchesHead}
                   >
                     {d.matches}
                   </span>
