@@ -37,8 +37,9 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * ## The visitor column carries no person on this surface
  *
  * The list is open to every role, the developer included, and prints the
- * label alone: `MeetingRow.visitorName` exists for the agent's register,
- * behind `AGENT_REGISTER_ROLES`, and is deliberately not read here.
+ * label alone: `MeetingRow.visitorName` is produced for an agent's register
+ * only, behind `AGENT_REGISTER_ROLES`, and the rows this list receives never
+ * carry it — the read model withholds it, not this component.
  * `VisitorLabel` is privacy-safe by construction rather than by review: the
  * type has no field a name, an email or a phone number could sit in, and its
  * `display` is produced from a closed vocabulary and a count of previous

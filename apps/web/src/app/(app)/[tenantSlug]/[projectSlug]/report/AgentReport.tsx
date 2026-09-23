@@ -46,8 +46,11 @@ import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
  * from `AgentDetailView` — the read model the agent's own screen draws — with
  * the same components that screen uses: `Figure` for a metric that carries
  * its own state, `ShareFigure` for a raw share guarded by the floor from the
- * registry, `StageFunnel` for the observed states, the meeting register with
- * no buyer's name in it. So every rate reaches paper the way it reaches the
+ * registry, `StageFunnel` for the observed states, the meeting register that
+ * names the buyer where the register's gate and the contact's consent allow
+ * it and prints the label alone otherwise — on paper exactly as on the
+ * screen, for the same three roles, and blank with its reason for anyone
+ * else. So every rate reaches paper the way it reaches the
  * screen: with its denominator in words beside it, and below the floor with
  * its shortfall printed and every comparison withheld. The read model's own
  * suppression sentence leads the page, exactly as it leads the screen.

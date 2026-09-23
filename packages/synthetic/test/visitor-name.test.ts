@@ -15,15 +15,17 @@ import { VIEWERS } from "../src/world";
 /**
  * THE NAME DISAPPEARS WHEN THE CONSENT IS WITHDRAWN, AND THE LABEL STAYS.
  *
- * `docs/22-visitor-name-display.md` §6, the second promise. The contact is
- * chosen rather than found: one whose behavioural-linking consent stands and
- * one whose consent is withdrawn, each linked to one meeting on a project
- * built for this test alone, each a returning buyer. The read model's join
- * gives the first row its name beside the label and the second row the label
- * alone — and gives a developer, outside `AGENT_REGISTER_ROLES`, the labels
- * and nothing else. One assertion holds the four rows together, because the
- * claim is one claim: the name is a fact about consent and audience, the
- * label is a fact about the meeting, and the two are joined, never merged.
+ * `docs/22-visitor-name-display.md` §6, the second and third promises. The
+ * contacts are chosen rather than found: one whose behavioural-linking
+ * consent stands, one whose consent is withdrawn, one erased — each linked
+ * to one meeting on a project built for this test alone, each a returning
+ * buyer, all three presented by one agent whose register is read. The read
+ * model's join gives the first row its name beside the label and the other
+ * two the label alone — and gives a developer, outside
+ * `AGENT_REGISTER_ROLES`, the labels and nothing else. One assertion holds
+ * the six rows together, because the claim is one claim: the name is a fact
+ * about consent, erasure and audience, the label is a fact about the
+ * meeting, and the two are joined, never merged.
  */
 
 const NOW = new Date("2026-09-18T09:30:00.000Z");
@@ -108,42 +110,57 @@ const consenting = CONTACT_DIRECTORY.find(
 const withdrawn = CONTACT_DIRECTORY.find(
   (c) => !c.consent.behaviouralLinking && c.fullName !== null && c.erasedAt === null,
 );
-if (consenting === undefined || withdrawn === undefined) {
-  throw new Error("the directory no longer holds a consenting and a withdrawn named contact");
+const erased = CONTACT_DIRECTORY.find((c) => c.erasedAt !== null);
+if (consenting === undefined || withdrawn === undefined || erased === undefined) {
+  throw new Error("the directory no longer holds a consenting, a withdrawn and an erased contact");
 }
 
 const CONSENTING_MEETING = "3f5b1a2c-0000-4000-8000-000000000011";
 const WITHDRAWN_MEETING = "3f5b1a2c-0000-4000-8000-000000000012";
+const ERASED_MEETING = "3f5b1a2c-0000-4000-8000-000000000013";
 
 describe("the buyer's name beside the label", () => {
   it("disappears when the consent is withdrawn, and the label stays", async () => {
     const repo = repositoryOver([
       meeting(CONSENTING_MEETING, consenting.contactId),
       meeting(WITHDRAWN_MEETING, withdrawn.contactId),
+      meeting(ERASED_MEETING, erased.contactId),
     ]);
+    /* The agent's register is the one place a row carries a name; the list never does. */
     const rowsFor = async (viewer: Viewer) => {
-      const view = await repo.getMeetings(
-        { viewer, tenantSlug: tenant.slug, projectSlug: project.slug, period: "last_28_days" },
-        NO_FILTERS,
-      );
-      return view.rows
-        .map((r) => ({ meetingId: r.meetingId, label: r.visitor.display, name: r.visitorName }))
-        .sort((a, b) => a.meetingId.localeCompare(b.meetingId));
+      const query = {
+        viewer,
+        tenantSlug: tenant.slug,
+        projectSlug: project.slug,
+        period: "last_28_days",
+      } as const;
+      const register = (await repo.getAgentDetail(query, "AG-1")).recentMeetings;
+      const list = (await repo.getMeetings(query, NO_FILTERS)).rows;
+      const shape = (rows: typeof register) =>
+        rows
+          .map((r) => ({ meetingId: r.meetingId, label: r.visitor.display, name: r.visitorName }))
+          .sort((a, b) => a.meetingId.localeCompare(b.meetingId));
+      return { register: shape(register), listNames: list.map((r) => r.visitorName) };
     };
+    const label = "Returning · 2nd meeting";
 
     expect({ manager: await rowsFor(manager), developer: await rowsFor(developer) }).toEqual({
-      manager: [
-        {
-          meetingId: CONSENTING_MEETING,
-          label: "Returning · 2nd meeting",
-          name: consenting.fullName,
-        },
-        { meetingId: WITHDRAWN_MEETING, label: "Returning · 2nd meeting", name: null },
-      ],
-      developer: [
-        { meetingId: CONSENTING_MEETING, label: "Returning · 2nd meeting", name: null },
-        { meetingId: WITHDRAWN_MEETING, label: "Returning · 2nd meeting", name: null },
-      ],
+      manager: {
+        register: [
+          { meetingId: CONSENTING_MEETING, label, name: consenting.fullName },
+          { meetingId: WITHDRAWN_MEETING, label, name: null },
+          { meetingId: ERASED_MEETING, label, name: null },
+        ],
+        listNames: [null, null, null],
+      },
+      developer: {
+        register: [
+          { meetingId: CONSENTING_MEETING, label, name: null },
+          { meetingId: WITHDRAWN_MEETING, label, name: null },
+          { meetingId: ERASED_MEETING, label, name: null },
+        ],
+        listNames: [null, null, null],
+      },
     });
   });
 });

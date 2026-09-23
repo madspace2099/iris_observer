@@ -240,6 +240,13 @@ function visitorKindFor(session: ShowroomSession): VisitorLabelKind {
 export function buildMeetingRows(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
+  /*
+   * Only an agent's register prints the buyer's name (docs/22 §5, B), so only
+   * its rows carry one. The meetings list and a unit's related meetings are
+   * open to every role and print the label alone; rows that never carry the
+   * field cannot leak it through a component that forgets to withhold it.
+   */
+  naming: "agent-register" | "label-only" = "label-only",
 ): readonly MeetingRow[] {
   const byId = new Map(sessions.map((s) => [s.meetingId, s]));
   const root = base(context);
@@ -271,9 +278,10 @@ export function buildMeetingRows(
          * withhold one; inside them, the directory's own rule applies —
          * consent, erasure, a name on record — per render, stored nowhere.
          */
-        visitorName: AGENT_REGISTER_ROLES.includes(context.viewer.role)
-          ? visitorNameFor(session.contactId)
-          : null,
+        visitorName:
+          naming === "agent-register" && AGENT_REGISTER_ROLES.includes(context.viewer.role)
+            ? visitorNameFor(session.contactId)
+            : null,
         unitsViewed: session.units.map((u) => ({
           code: u.unitCode,
           href: catalogueCodes.has(u.unitCode)
@@ -1437,7 +1445,7 @@ export function buildAgentDetail(
     activity,
     profile,
     projects,
-    recentMeetings: buildMeetingRows(context, mine).slice(0, 8),
+    recentMeetings: buildMeetingRows(context, mine, "agent-register").slice(0, 8),
     commonUnits,
     followUp,
     recordedOutcomes,

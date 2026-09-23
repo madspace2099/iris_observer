@@ -197,8 +197,11 @@ export interface MeetingRow extends MeetingSummary {
    * The buyer's name, joined per render from the contact directory and
    * stored nowhere. Null for a walk-in, for an erased contact, for one whose
    * behavioural-linking consent is withdrawn, for one with no name recorded,
-   * and for every viewer outside `AGENT_REGISTER_ROLES` — the read model
-   * withholds it before a row leaves the repository. It stands BESIDE the
+   * for every viewer outside `AGENT_REGISTER_ROLES`, and on every row that is
+   * not an agent's register's — the read model withholds it before a row
+   * leaves the repository, so the meetings list and a unit's related meetings
+   * never carry a name a component would have to remember to withhold. It
+   * stands BESIDE the
    * label and never inside it: "third meeting" is information whether or not
    * the person is named. `docs/22-visitor-name-display.md` §5 (B), §6.
    */

@@ -100,9 +100,16 @@ export const CONTACT_DIRECTORY: readonly ContactRecord[] = Array.from(
   { length: CONTACT_COUNT },
   (_, index): ContactRecord => ({
     contactId: `con_${String(1000 + index)}`,
-    /* Every eleventh contact came in with no name recorded. */
+    /*
+     * Every eleventh contact came in with no name recorded — and an erased
+     * contact holds none either: deletion deletes (docs/22 §6), so the
+     * tombstone keeps the id resolvable and nothing else. `visitorNameFor`
+     * refuses an erased contact before it looks, but a directory that still
+     * held the name behind that refusal would be storing what it promised to
+     * delete.
+     */
     fullName:
-      index % 11 === 5
+      index % 11 === 5 || index % 13 === 9
         ? null
         : `${GIVEN[index % GIVEN.length] ?? "Anna"} ${FAMILY[(index * 7) % FAMILY.length] ?? "Novotná"}`,
     consent: {
@@ -111,7 +118,7 @@ export const CONTACT_DIRECTORY: readonly ContactRecord[] = Array.from(
       textVersion: CONSENT_TEXT_VERSION,
       capturedAt: "2026-06-14T09:00:00.000+02:00",
     },
-    /* One contact exercised erasure; the tombstone stays, the person does not. */
+    /* Every thirteenth contact exercised erasure; the tombstone stays, the person does not. */
     erasedAt: index % 13 === 9 ? "2026-08-01T00:00:00.000+02:00" : null,
   }),
 );
