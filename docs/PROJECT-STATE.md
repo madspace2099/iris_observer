@@ -4425,3 +4425,60 @@ decision is made), the identity provider, the "n = 8 meetings listed" foot on a 
 
 Evidence: `18efd8c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the boot
 logs, the script's output and the measurement notes in the session scratchpad.
+
+## 2026-09-24 — P2-16 built: the brief's project gate, no link to a person page that does not exist, the scope survives list → detail → back
+
+Six items from the P2-16 survey, each with its test written first and seen red, its fix, a
+mutation that turned the same named assertion red again, a photograph before and after, and its
+own commit and push. The journal with every red line and every photograph is `_review/p216-journal.md`
+(not committed).
+
+1. **`1d8328d` — the brief is served only under Northgate.** `buildPreMeetingBrief` was gated on
+   the meeting id alone, so the scripted brief appeared under ISTER TOWER and under Kingsford —
+   another developer — with those projects' links. Gated the way `buildAgentOverview` is. The
+   meeting-report half was measured and left alone: another project's meeting already draws the
+   not-found boundary, and `report/page.tsx:393` is reachable only when the layout has already
+   replaced the page with its refusal.
+2. **`bd8e59a` — every `/people` link is gone, and each vanished action says so.** 94 rendered
+   anchors pointed at `/people`, which redirects to the agents roster (ADR-0033). None is
+   re-pointed: evidence keeps its tier and count with an empty route (`NO_PAGE`, documented on
+   `EvidenceRef.href`, honoured by every renderer), actions keep their label and read "… — no
+   surface for this yet". The brief's `contactHref ?? "#"` is gone. The audience caveat promised
+   "open a meeting to reach the contact"; the replay names none, and it now says so.
+3. **`384cbe8` — the meeting register's filters survive a replay.** `withMeetingFilters` writes
+   agent, channel and outcome into the row link and both ways back; the button reads "Back to the
+   narrowed register" when a filter is carried.
+4. **`b6b4b28` — every link a read model built carries the period.** 588 links dropped it; now
+   `RankedBars` and `Finding` require it, the UI package's views are finished by
+   `withPeriodOnLinks`, and the remaining sites carry it where they draw. `segment` and `window`
+   are deliberately not carried: the DoD names search, period, project and paging place.
+5. **`d881574` — the unit page lists every meeting that opened the unit.** It listed eight under a
+   caption claiming all (the register counted up to 59). The cut is gone, since nothing else lists
+   a unit's meetings; the timeline keeps its forty entries and now says out of how many; the agent
+   report's blank register section no longer prints "n = 8 meetings listed". The survey had tied
+   that foot to the unit page; it is the report's.
+6. **`d6982a1` — the last-project cookie is documented as navigation state, not a preference.**
+   The units round trip with `more=1` was photographed and holds, so there is no seventh item.
+
+**Where P2-16's DoD stands.** Clause 1 holds on every route measured. Clause 2 holds in its
+negative half — nothing guesses at a person; the positive half, a related-meetings action active
+on a stable person link, stays blocked on the identity link that does not exist (ADR-0011,
+ADR-0039, P2-13's identity gate), and no person route is built (ADR-0033). Clause 3 holds. Ticking
+the tracker is Máté's decision.
+
+**Decisions left for Máté, measured and not taken:**
+- Every `notFound()` in the app answers 200 under streaming, with `robots=noindex` — measured on an
+  unknown unit and on another project's meeting report. A real 404 is a product-wide change.
+- The scripted Ask session — Northgate's prose, including the brief's buyer and A-505 — is served
+  on every synthetic project. Its "Open the full brief" now leads to "No brief for this meeting"
+  outside Northgate. Gating it decides what the other projects' Ask offers.
+- The `requireSurface` refusal redirect (`lib/authz.ts:53`) drops the period; it is a redirect, not
+  a read-model link, so it is outside item 4's rule.
+- Two more `?? "#"` fallbacks exist: `showroom/ProfilePicker.tsx` (the internal lab sign-in only)
+  and `showroom/UnitMatrix.tsx` (imported by nothing).
+
+**Not touched:** migrations, the identity provider, the session store and TTL, a person route, a
+contact-based action, `segment` and `window` scope, the frozen surfaces.
+
+Evidence: the six commits above on `feature/observer-ux-overhaul-phase2`, the journal, and the
+photograph and mutation logs in the session scratchpad.
