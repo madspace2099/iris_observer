@@ -172,6 +172,19 @@ export default defineConfig({
     trace: "retain-on-failure",
     colorScheme: "dark",
   },
+  /**
+   * THE EVIDENCE OF ONE RUN SURVIVES THE NEXT.
+   *
+   * Playwright clears each project's `outputDir` when a run of that project
+   * starts, and with one shared directory the run of one project clears the
+   * traces and error contexts of every other. On 2026-09-23 the desktop
+   * run's two failures — `ask-iris-compare.spec.ts` "implementation at 1280"
+   * and `showroom.spec.ts` "the audience builder returns meetings, not
+   * people", both a navigation to /sign-in that aborted before any assertion
+   * — could not be classified, because the lab run that followed had already
+   * removed their traces before anybody opened them. A directory per project
+   * keeps a run's evidence until that same project runs again.
+   */
   projects: [
     // 1920×1080 is the showroom-adjacent desktop the developer reviews on;
     // 1440×900 is the commonest laptop; Pixel 7 is the agent walking to a
@@ -179,20 +192,28 @@ export default defineConfig({
     {
       name: "wide",
       testIgnore: LAB_SPECS,
+      outputDir: "test-results/wide",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1920, height: 1080 } },
     },
     {
       name: "desktop",
       testIgnore: LAB_SPECS,
+      outputDir: "test-results/desktop",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
-    { name: "mobile", testIgnore: LAB_SPECS, use: { ...devices["Pixel 7"] } },
+    {
+      name: "mobile",
+      testIgnore: LAB_SPECS,
+      outputDir: "test-results/mobile",
+      use: { ...devices["Pixel 7"] },
+    },
     // No lab against a deployment: the route does not exist there, by design.
     ...(EXTERNAL === undefined
       ? [
           {
             name: "lab",
             testMatch: LAB_SPECS,
+            outputDir: "test-results/lab",
             use: {
               ...devices["Desktop Chrome"],
               viewport: { width: 1440, height: 900 },
