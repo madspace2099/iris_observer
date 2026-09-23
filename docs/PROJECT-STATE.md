@@ -3789,3 +3789,78 @@ the two obsolete specs.
 
 Evidence: `c37f795`, `8491819` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
 the three run logs in the session scratchpad; `test-results/` for each failure's page snapshot.
+
+## 2026-09-23 — The instrument closed: the lab measured, two guards moved, the "credential class" found to be the wrong server, the desktop suite run the config's way
+
+**The fifth instrument error, and it was mine.** The three whole runs — wide, mobile, desktop —
+reused a server started by hand (`OBSERVER_REUSE=1`), without the environment
+`playwright.config.ts` gives the server it starts itself: `OBSERVER_SUBJECT_PEPPER`,
+`OBSERVER_SYNTHETIC_HARNESS`, the demo accounts, the ask limits. Without a pepper the Ask gate
+refuses every question with 503 before it reads the body; without the harness the credential store
+is absent and the settings forms are disabled. That is the whole "credential class" of the last
+three reports: on the server the config starts, all thirteen pass as written — measured this round,
+before and after the change. The eight 503s were never a missing credential key; they were the
+pepper, missing from a server the suite did not start. Two guards broken by our own commits were
+real; the thirteen were the instrument.
+
+**Rule, stated:** a Playwright result counts only against the server the config starts, or a server
+started with the config's environment. `OBSERVER_REUSE=1` against a hand-started server measures
+that server, not the suite.
+
+**The design lab, measured (step 0).** (i) Not in `SURFACES`: the gate is the layout's own —
+`localControlPlaneEnabled()`, which needs a non-production `NODE_ENV` and
+`OBSERVER_LOCAL_CONTROL_PLANE=1`, and `madspace_admin`. (ii) Rendered, not read: under `pnpm dev`
+with the flag, as MADSPACE Operations, `/design-lab/projects/a` answers 200 with `.dla-root`, h1
+"Projects", "16 sources across 14 projects…" — three seconds after sign-in, the dev server ready in
+four; `/design-lab/a/projects` (variant first) is 404, which the first attempt at this measurement
+mistook for the lab being dead. (iii) `design-lab.spec.ts` photographs eighteen screens (six screens
+× three directions) at 1440, 390 and 1024 and asserts what a photograph hides; `design-lab-a11y`
+asserts a contract on all eighteen — one h1, no overflow, every state carries a word; a keyboard
+reaches every control and can see where it is; the phone reading order is the visual order; the
+activation panel traps, closes on Escape, gives focus back; the copy control announces — sixty
+assertions, none of which any other spec makes, and all of them about the lab's three prototypes,
+not a product surface; `design-lab-stress` renders the same eighteen against a fifty-installation
+fixture built in memory — holds at every width, long names, a missing measurement never a zero, a
+project with no sources still listed. Eleven other specs run axe on product surfaces; none runs a
+keyboard-reach, reading-order or focus-trap contract. (iv) Playwright takes a `webServer` array and a
+per-project `baseURL`: a `lab` project with `testMatch` on the three specs, `baseURL`
+`http://localhost:3211`, and a second `webServer` running `next dev --port 3211` with the flag and
+the same harness environment. Cost, measured: the dev server ready in four seconds, a lab page in
+about three on first render; the 130 tests took eleven minutes failing at five-second timeouts and
+would take roughly that or less passing. One port, 3211; no conflict with 3210. Under `next start`
+the route is `notFound()` by design, so no second server, no green. Not decided here.
+
+**The lap guard (`af5fcae`).** "films the lap" clipped around the docked bar and clamped to the
+viewport; the dock stands at the end of the document since `050f677`, so the clip was 0 px tall.
+The spec scrolls the bar to the middle of the viewport first and photographs what it always did.
+Red on today's HEAD, green after, same server; mutation, the scroll taken out: red, "films the lap".
+
+**The thirteen read the server (`63b7292`).** As decided: each reads its own first `/api/ask`
+response or the rendered `/settings/ai`, and skips with a sentence naming what is missing and what
+was not measured; none unconditionally. On the env-less server, twelve skip with those sentences
+(the thirteenth is gated to another project); on the config's server all thirteen run and pass. The
+budget spec's `afterAll` reset skips the same way — it was that hook's timeout the runs recorded.
+
+**The agent-link guard (`0719566`).** `.ox-lede` resolved to three: the head's, and two body
+sentences the replay view prints under the same class. The locator is `.ox-head .ox-lede`; not
+`.first()`. Mutation, the presenter's link removed: red, "the agent's name is a real link to their
+detail screen". The three ledes: the class is the head's opening paragraph and the replay view
+borrows it for the look — a copy, not a second intent; reported.
+
+**The desktop suite, the config's way — 549 declared, 338 passed, 130 failed, 81 skipped, 0 did
+not run (26.0 min).** 35 files ran; 3 carry a failure: the three lab specs, 130, all "`.dla-root`
+not found" under `next start`. Nothing else fails. Against last round's 143: −8 pepper (the wrong
+server), −3 credential store (the wrong server), −2 the two guards moved; and +13 passed that had
+"not run" behind the lap's failure in the serial group. 312 → 338 passed. (A) none left; (B) none;
+(C) none left; (D) none. The lab is its own class: the tool contradicting itself, until decided.
+
+**Across the three projects, corrected:** of the nine "in all three", the eight Ask/credential ones
+were the server; the ninth, `.ox-lede`, is fixed. The wide and mobile lists stand otherwise (the
+seven sheet-affordance (ii) findings, the two aborted sign-in navigations, the audience timeout) —
+and both were measured against the wrong server too, so their true counts are 13 − 7 = 6 and
+22 − 8 = 14 at most, to be re-measured the config's way when those projects are next run.
+
+**Not touched:** the lab's fate, the (ii) mobile findings. Next: P2-15.
+
+Evidence: `af5fcae`, `63b7292`, `0719566` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; the run logs in the session scratchpad.
