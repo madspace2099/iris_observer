@@ -663,7 +663,7 @@ export default async function AgentPage({
             <div className="ox-section-head">
               <h2 className="ox-section-title">Their most recent meetings</h2>
               <p className="ox-section-note">
-                No buyer is named here and none can be. The visitor column is a privacy-safe label
+                No buyer is named in this register today. The visitor column is a privacy-safe label
                 built from a closed vocabulary and a count of previous meetings; the type it comes
                 from has no field a name, an address or a telephone number could sit in.
               </p>

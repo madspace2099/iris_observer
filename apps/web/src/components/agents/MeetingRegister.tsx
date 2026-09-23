@@ -18,17 +18,19 @@ import { Missing, isDash } from "./Rates";
  * person the page is about, and a column repeating one name eight times is a
  * column of noise.
  *
- * ## No buyer reaches this table today
+ * ## No buyer reaches this table today — and "today" is the whole claim
  *
  * `MeetingRow.visitor` is a `VisitorLabel`, and the type has no field a name,
  * an email or a telephone number could sit in — `visitorLabel` takes a closed
  * enum and an integer and nothing else. What appears is "First meeting",
  * "Returning · 3rd meeting" or "Not linked to a contact". That is a structural
- * guarantee rather than a convention this component is remembering to keep, and
- * it is why the column is safe to show on a surface a whole agency can open.
- * Whether a real name should appear here is reopened and under design; that
- * surface question is exactly the one `docs/22-visitor-name-display.md` §5
- * leaves to a product decision.
+ * guarantee about this column as it stands, and it is why the column is safe
+ * on a surface a whole agency can open. It is not a rule that no name may ever
+ * stand beside it: P1-08b, reopened on 2026-09-21, records that a real visitor
+ * name may be displayed and is in design (`docs/22-visitor-name-display.md`),
+ * and its §5 — who may see it, on a surface this wide — is the open product
+ * decision. This file says what is true today and not which way that goes;
+ * the screen's own note beside the table says the same, in one sentence.
  *
  * ## Follow-up has three states and one of them is not "no"
  *
