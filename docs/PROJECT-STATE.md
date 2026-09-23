@@ -4030,3 +4030,76 @@ page's legitimate foreign keys.
 
 Evidence: `a6a0cde`, `5fc0e50` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
 the run logs and photographs in the session scratchpad.
+
+## 2026-09-23 — A false sentence on a screen, in three copies; the whole suite's first run with the agent report
+
+**The sentence (`e4dafe9`).** "No buyer is named here and none can be" stood in the note beside an
+agent's most recent meetings — rendered, read by the buyer's own agency, not a docblock — after
+P1-08b had been reopened on 2026-09-21 and `docs/22-visitor-name-display.md` had recorded that a
+real visitor name may be displayed and is in design, with §5 (who may see it) the one open product
+decision. The first half was true; the second claimed impossible what the board had decided
+possible. Two more copies said it for the author: the register's docblock and the barrel's line.
+Rendered before, on the current build: "No buyer is named here and none can be. The visitor
+column is a privacy-safe label built from a closed vocabulary and a count of previous meetings; the
+type it comes from has no field a name, an address or a telephone number could sit in." Rendered
+after, on the rebuilt server: "No buyer is named in this register today. …" — the rest unchanged.
+The two docblocks name P1-08b, docs/22 and the open §5 question and say which way it goes in
+neither direction. One source assertion holds all three copies to the present tense ("says no
+buyer is named today, and never that none can be"); mutation, the sentence put back: red on it,
+`expected [ 'page' ] to deeply equal []`. The class swept: the unit page's note reads "No buyer is
+named here." (present tense), the meeting register's docblock "carries no person today"; nothing
+else on a surface claims impossibility.
+
+**The visitor's name is not built in any direction.** `docs/22` §5 is Máté's decision — (A) the
+register stays nameless and the name appears only where the gate already narrows, (B) the
+register shows a name and gains a gate, (C) one column with two contents by viewer — and it has
+not been given; P2-15 closes with it.
+
+**The whole suite, the config's own servers, no `OBSERVER_REUSE`, all four projects in turn.**
+The lab's green counts prototypes, nothing else (see `LAB_PORT`). Traces of a run are cleared by
+the next run's start, so the desktop's were gone before they could be opened; re-runs in
+isolation stood in.
+
+| project | declared | passed | failed | skipped | did not run | time     |
+| ------- | -------- | ------ | ------ | ------- | ----------- | -------- |
+| desktop | 416      | 333    | 2      | 81      | 0           | 13.8 min |
+| lab     | 136      | 135    | 0      | 1       | 0           | 5.3 min  |
+| wide    | 416      | 265    | 0      | 151     | 0           | 10.0 min |
+| mobile  | 416      | 233    | 8      | 157     | 18          | 11.0 min |
+
+**Desktop, two failures, both the instrument — (A), mechanism (D).** `ask-iris-compare.spec.ts:118`
+"implementation at 1280" and `showroom.spec.ts:128` "the audience builder returns meetings, not
+people" both failed inside `signIn` at `page.goto("/sign-in")` — one `net::ERR_ABORTED; maybe
+frame was detached?`, one a 30-second timeout on the navigation — before any assertion about the
+product. The same two tests passed in the four previous whole runs, passed on wide the same
+afternoon ("implementation at 1280" is desktop-gated there), and passed three times each in
+isolation on the config's server afterwards (6 passed, 33 s). Not (B), not (C); the mechanism of a
+navigation that aborts once in four hundred is not shown, because the traces were cleared.
+
+**Mobile, eight failures, all one class — (C), the (ii) findings, untouched.** All eight are among
+the previous mobile run's twenty-two and are the sheet-affordance class: the specs address the
+desktop shell's controls, and the phone keeps them behind the Menu by design
+(`mobile-menu-containment.spec.ts` is the contract for that sheet). `authorization.spec.ts` :79,
+:90, :160, :178 wait on `.ox-context summary[aria-label="Developer"|"Period"]`, present and
+hidden ("element is not visible", 54 retries); :169 and `nav-reachability.spec.ts:233` wait on
+`navigation "Sections"`, which is not in the tree outside the Menu; `settings-ai.spec.ts:273`
+counts `link "Settings"` and finds none outside the Menu; `authorization.spec.ts:61`'s
+`getByText("Monika Kováčová").first()` resolves to the header's hidden `.irs-who-name` while the
+roster prints her as a level-3 heading beside "19 meetings" — the name is on the phone, the
+locator is not looking at it. The 18 that did not run are the rest of `settings-ai.spec.ts`,
+which is `mode: "serial"` from line 60, after its failure at :273. Nothing here is fixed: the
+(ii) findings belong to the P2-21 gate.
+
+**Two instrument incidents, both mine, both without product effect.** The first launch of the four
+runs was stopped for a timeout risk while its `next build` was still running; the relaunch failed
+in seconds ("Another next build process is already running", then `EADDRINUSE` on 3211) and left
+orphaned servers on both ports, killed by PID and relaunched from clean ports. And Playwright's
+`test-results` is cleared per run, so the desktop's error contexts and traces were gone once the
+lab run started; a per-project output directory would keep them, and is not this round's.
+
+**Not touched:** the visitor's name in any direction; the (ii) mobile findings; the four
+languages (P2-17).
+
+Evidence: `e4dafe9` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run
+logs (`suite-desktop/lab/wide/mobile.log`, `rerun-two.log`) and the mobile error contexts in the
+session scratchpad.
