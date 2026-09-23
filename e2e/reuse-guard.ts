@@ -28,7 +28,9 @@ import { credentialStoreMissing, gateRefusal } from "./secrets";
  *
  * The servers are the projects' `baseURL`s, because `FullConfig.webServer`
  * is not the config's array once the runner has turned it into plugins.
- * Playwright starts (or reuses) every server before this runs.
+ * Playwright starts (or reuses) every server before this runs. Each server
+ * gets a browser context whose `baseURL` is that server, so the readers'
+ * relative navigation resolves the way it does inside a test.
  */
 export default async function reuseGuard(config: FullConfig): Promise<void> {
   if (process.env["OBSERVER_REUSE"] !== "1") return;
@@ -52,8 +54,9 @@ export default async function reuseGuard(config: FullConfig): Promise<void> {
       if (!listening) continue;
       console.log(`[reuse-guard] asking the reused server at ${origin} what it carries`);
 
-      const page = await browser.newPage();
-      await page.goto(`${origin}/sign-in`);
+      const context = await browser.newContext({ baseURL: origin });
+      const page = await context.newPage();
+      await page.goto("/sign-in");
       await page.getByLabel("Work email address").fill(addressOf("Petra Novák"));
       await page.getByLabel("Password").fill(PASSWORD);
       await page.getByRole("button", { name: "Sign in with password" }).click();
@@ -72,7 +75,7 @@ export default async function reuseGuard(config: FullConfig): Promise<void> {
         );
       }
 
-      const ask = await page.request.post(`${origin}/api/ask`, {
+      const ask = await page.request.post("/api/ask", {
         data: {
           tenantSlug: "alpha",
           projectSlug: "northgate",
@@ -87,7 +90,7 @@ export default async function reuseGuard(config: FullConfig): Promise<void> {
       if (missing !== null) throw new Error(refusal(origin, missing));
 
       console.log(`[reuse-guard] ${origin} carries the harness environment`);
-      await page.close();
+      await context.close();
     }
   } finally {
     await browser.close();
