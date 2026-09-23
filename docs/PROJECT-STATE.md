@@ -3740,3 +3740,52 @@ too.
 
 Evidence: `f39389c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run logs
 in the session scratchpad; `test-results/` for the failures' page snapshots.
+
+## 2026-09-23 — Two fixes the measurement brought, and the whole `desktop` suite run for the first time
+
+**The count guard moved to its subject (`c37f795`).** `quality.spec.ts`'s "one agent has one
+meeting count on one page" waited for the radar's key item, which `c8b30b6` stopped drawing for one
+shape; it was red for two rounds on a project nobody ran whole. The locator now finds the radar card
+that names the ring card's agent and reads its caption or its note — the same assertion, on another
+element. Red before the change on the same server (30 s timeout on `.iris-ring-key li`), green
+after; mutation, the note's count off by one: red, "Monika Kováčová's radar card does not carry the
+count the ring does", expected "19", received "20 meetings in this period". A first mutation did not
+compile and the chain refused to run the test — rule twenty-four working as written.
+
+**The register's sets on the phone (`8491819`).** The head's words and the count cells'
+`data-label` are one string each now; on a Pixel 7 the record layout paints "Times applied, of 74
+presentations 37" and "Units matching, of 36 available now 18" on one line per cell (292×20 px, no
+wrap, no overflow, the document 412 px wide), photographed before and after. The guard runs on the
+mobile project and reads the pseudo-element's computed content on the rendered page; mutation, the
+short label back: red, "a count on the phone's register carries its set", received `"Times applied"`.
+
+**The `desktop` project, whole, for the first time — 549 declared, 312 passed, 143 failed, 81
+skipped, 13 did not run (24.7 min).** 42 spec files; 35 ran a test; 11 carry a failure (31% of
+those that ran, under the one-third line by two files); 143 of 549 tests. **130 of the 143 are the
+three design-lab specs** (`design-lab` 42, `design-lab-a11y` 60, `design-lab-stress` 28), every one
+"`.dla-root` not found": `apps/web/src/app/design-lab/layout.tsx:50` answers `notFound()` unless
+`localControlPlaneEnabled()`, which needs a non-production `NODE_ENV` and
+`OBSERVER_LOCAL_CONTROL_PLANE=1`; the suite's server is `next start` with neither. An environment
+gate, not a credential one and not a product defect. Of the other thirteen: eight are the
+credential class — the Ask API's 503 where 200, 400 or a stopped burst was expected
+(`account-login`, `agent-authorisation`, `ask-security` ×5, `settings-ai` "answers from evidence and
+offers the way to fix it"); three the disabled `#key-openai`/`#budget-input` and the transparent
+"Save budget" button (`models-and-budget` "spending on one account leaves the other untouched",
+`settings-observer-parity` ×2); one an obsolete locator, `nav-reachability`'s `.ox-lede` resolving
+to three paragraphs; and one whose cause is probable but not read to the end — `ask-iris-compare`
+"films the lap" asks for a screenshot clipped around `.ask-dock .ask-hero` and the clip has no
+height; the dock stands at the end of the document since `050f677`, below the fold where that spec
+looks. No failure in the (B) class was found in this run; the 130 do not prove the lab either way.
+
+**Across the three projects:** 158 distinct failing tests; nine fail on all three — the seven Ask
+API 503s, `nav-reachability`'s `.ox-lede`, `settings-observer-parity`'s save — the credential class
+but for the locator. Desktop-only: 134 (130 lab, the lap clip, three credential); mobile-only: 11
+(the sheet-affordance seven, the two aborted sign-in navigations, the phone settings test, the
+CRM-led nav item); wide-only: 2 (`settings-ai`'s request-named account, `views-screenshots`
+06-audience's timeout after the burst).
+
+**Not touched, as ordered:** the credential class, the design-lab gate, the (ii) mobile findings,
+the two obsolete specs.
+
+Evidence: `c37f795`, `8491819` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the three run logs in the session scratchpad; `test-results/` for each failure's page snapshot.
