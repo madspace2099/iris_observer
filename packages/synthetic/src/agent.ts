@@ -18,7 +18,17 @@ import {
   type ViewContext,
 } from "@observer/readmodels";
 import { daysBetween } from "./deals";
-import { comparison, count, days, evidenceRef, money, ok, percent, unavailable } from "./format";
+import {
+  NO_PAGE,
+  comparison,
+  count,
+  days,
+  evidenceRef,
+  money,
+  ok,
+  percent,
+  unavailable,
+} from "./format";
 import { TODAY, UNITS, unitById } from "./world";
 
 /**
@@ -346,13 +356,13 @@ export function buildPreMeetingBrief(
   if (context.project.id !== "prj_northgate01") return null;
 
   const root = `/${context.tenant.slug}/${context.project.slug}`;
-  const timeline = `${root}/people`;
 
+  /* Her own records have no page (see NO_PAGE): counted, never linked. */
   const refs: Record<string, EvidenceRef> = {
-    sessions: ev("viktoria.sessions", "observed_sequence", timeline, 3),
-    favourites: ev("viktoria.favourites", "observed_sequence", timeline, 2),
-    compare: ev("viktoria.compare", "observed_sequence", timeline, 1),
-    preferences: ev("viktoria.preferences", "statistical_association", timeline, 5),
+    sessions: ev("viktoria.sessions", "observed_sequence", NO_PAGE, 3),
+    favourites: ev("viktoria.favourites", "observed_sequence", NO_PAGE, 2),
+    compare: ev("viktoria.compare", "observed_sequence", NO_PAGE, 1),
+    preferences: ev("viktoria.preferences", "statistical_association", NO_PAGE, 5),
     a402: ev("viktoria.a402", "observed_sequence", `${root}/project`, 2),
     a505sold: ev("viktoria.a505sold", "observed_sequence", `${root}/project`, 1),
     alternatives: ev("viktoria.alternatives", "observed_sequence", `${root}/project`, 4),
@@ -380,7 +390,8 @@ export function buildPreMeetingBrief(
     units,
     evidence,
     meetingHref: `${root}/meetings/${meetingId}`,
-    contactHref: `${root}/people`,
+    /* No contact page exists, so there is no timeline to open (P2-16). */
+    contactHref: null,
   };
 }
 
@@ -457,7 +468,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       lastMeetingLabel: "8 August",
       daysSinceMeeting: danielDaysSinceMeeting,
       reason: "Shortlisted two units. No contact has been recorded since the meeting.",
-      href: `${root}/people`,
+      href: null,
       urgency: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "overdue" : "due",
     },
   ];
@@ -469,7 +480,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       headline: `Two meetings this week, and one buyer has had no contact recorded for ${String(danielDaysSinceMeeting)} days.`,
       supporting:
         "Your briefs are ready for Thursday. Daniel and Eva are the longest gap with nothing recorded against it.",
-      evidence: ev("agent.verdict", "observed_sequence", `${root}/people`, 2),
+      evidence: ev("agent.verdict", "observed_sequence", NO_PAGE, 2),
       rulesetVersion: "verdict-1.0.0",
       components: [
         {
@@ -507,7 +518,6 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         sampleSize: 14,
         minimumSampleSize: 1,
         comparison: comparison("your previous quarter", "+2", "up", "up"),
-        drillHref: `${root}/people`,
       }),
       ok({
         metricId: "unit.shares",
@@ -518,7 +528,6 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         sampleSize: 14,
         minimumSampleSize: 1,
         comparison: comparison("your previous quarter", "+4", "up", "up"),
-        drillHref: `${root}/people`,
       }),
       ok({
         metricId: "people.follow_up_delay",
@@ -529,7 +538,6 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         sampleSize: 14,
         minimumSampleSize: 15,
         comparison: comparison("your previous quarter", "−1 day", "down", "down"),
-        drillHref: `${root}/people`,
       }),
       unavailable(
         "people.agent_conversion",
@@ -565,7 +573,6 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         qualifier: "of your meetings fully recorded",
         sampleSize: 14,
         minimumSampleSize: 5,
-        drillHref: `${root}/people`,
       }),
       sourcesPresent: ["WEBIRIS", "Showroom", "Catalogue"],
       sourcesMissing: [],

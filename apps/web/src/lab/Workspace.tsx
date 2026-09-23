@@ -9,6 +9,7 @@ import type {
   PulseUnit,
 } from "@observer/readmodels";
 import type { ExecutiveOverview } from "@observer/readmodels";
+import { EvidencePill } from "@/showroom/parts";
 import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
 
 /**
@@ -339,10 +340,10 @@ function AnswerSheet({
         </dl>
 
         {answer.evidence === null ? null : (
-          <a className="iris-evidence" href={answer.evidence.href}>
+          <EvidencePill href={answer.evidence.href}>
             <i />
             {answer.evidence.observationCount} records · {answer.evidence.tier.replace(/_/g, " ")}
-          </a>
+          </EvidencePill>
         )}
 
         {answer.caveat === null ? null : (
@@ -551,10 +552,10 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
           <div>
             <p className="iris-body">{s.text}</p>
             {s.evidence === null ? null : (
-              <a className="iris-evidence" href={s.evidence.href} style={{ marginTop: ".5rem" }}>
+              <EvidencePill href={s.evidence.href} style={{ marginTop: ".5rem" }}>
                 <i />
                 {s.evidence.observationCount} records · {s.tier.replace(/_/g, " ")}
-              </a>
+              </EvidencePill>
             )}
           </div>
         </div>
@@ -778,14 +779,13 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
                 <div>
                   <p className="iris-body">{overview.briefing.statements[0]?.text}</p>
                   {overview.briefing.statements[0]?.evidence == null ? null : (
-                    <a
-                      className="iris-evidence"
+                    <EvidencePill
                       href={overview.briefing.statements[0].evidence.href}
                       style={{ marginTop: ".5rem" }}
                     >
                       <i />
                       {overview.briefing.statements[0].evidence.observationCount} records
-                    </a>
+                    </EvidencePill>
                   )}
                 </div>
               </div>

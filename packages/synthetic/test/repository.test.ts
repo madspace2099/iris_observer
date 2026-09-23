@@ -195,7 +195,9 @@ describe("tenant and project scoping", () => {
         ).rejects.toBeInstanceOf(NotFoundError);
       }
     }
-    expect(asked, "no brief reader holds a second project, so nothing was asked").toBeGreaterThan(0);
+    expect(asked, "no brief reader holds a second project, so nothing was asked").toBeGreaterThan(
+      0,
+    );
   });
 
   /*
@@ -213,7 +215,11 @@ describe("tenant and project scoping", () => {
       repo.getMeetingReplay({ viewer: VIEWERS.salesAgent, ...NORTHGATE, meetingId: meeting }),
     ).resolves.toMatchObject({ meetingId: meeting });
 
-    const elsewhere = { viewer: VIEWERS.salesAgent, ...ISTER_TOWER, period: "quarter_to_date" as const };
+    const elsewhere = {
+      viewer: VIEWERS.salesAgent,
+      ...ISTER_TOWER,
+      period: "quarter_to_date" as const,
+    };
     await expect(
       repo.getMeetingReplay({ ...elsewhere, meetingId: meeting }),
       "the replay",
@@ -297,7 +303,13 @@ describe("evidence integrity", () => {
     expect(overview.verdict.evidence).not.toBeNull();
     for (const statement of overview.briefing.statements) {
       expect(statement.evidence, statement.text).not.toBeNull();
-      expect(statement.evidence?.href.length ?? 0).toBeGreaterThan(1);
+      /*
+       * A route, or explicitly none. This asserted a non-empty route, and the
+       * follow-up statement's `/people` satisfied it while leading to the
+       * agents roster. Since P2-16 records no page lists carry an empty route
+       * (`EvidenceRef.href`) — the evidence is still attached and counted.
+       */
+      expect(statement.evidence?.href ?? "", statement.text).toMatch(/^$|^\/./);
       expect(statement.evidence?.observationCount ?? 0).toBeGreaterThan(0);
     }
   });

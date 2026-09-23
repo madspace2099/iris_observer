@@ -256,7 +256,12 @@ export function bundlesFor(
       sourceChannel,
       sampleSize: result.sampleSize,
       evidenceLevel,
-      href: result.evidence?.href ?? result.action?.href ?? null,
+      /*
+       * An empty evidence route means no page lists these records
+       * (`EvidenceRef.href`, P2-16): no link — and not the action's page in
+       * its place, which would be a guess at where the evidence lives.
+       */
+      href: result.evidence === null ? (result.action?.href ?? null) : result.evidence.href || null,
     };
   });
 }

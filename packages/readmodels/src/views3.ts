@@ -464,9 +464,11 @@ export interface AgentsView {
  *
  * The product case: a nursery is being built nearby, so find the buyers who
  * shortlisted a two-room flat and spent their time on family places. The result
- * is a count, the criteria in words, and the meetings behind it — the agent
- * opens those to reach the contacts, which keeps identity on the surface that
- * already governs it rather than in a list.
+ * is a count, the criteria in words, and the meetings behind it. It names no
+ * contact and routes to none: a meeting's replay carries no contact either, and
+ * Observer has no contact page (ADR-0033). Until 2026-09-23 this comment and the
+ * builder's own caveat promised the agent would "open a meeting to reach the
+ * contact"; nothing on the other side of that link ever named one (P2-16).
  */
 export interface AudienceCriteria {
   readonly rooms: number | null;

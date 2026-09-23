@@ -684,7 +684,8 @@
   border-bottom: 1px solid transparent;
 }
 
-.iris-evidence:hover {
+/* A pill with no route is text (`EvidencePill`), so only a link answers the pointer. */
+a.iris-evidence:hover {
   color: var(--ink-2);
   border-bottom-color: var(--rule-firm);
 }

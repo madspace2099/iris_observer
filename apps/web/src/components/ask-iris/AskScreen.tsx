@@ -1010,19 +1010,41 @@ export function AskConversationPanel({
 
                   {answer.caveat !== null ? <p className="ask-caveat">{answer.caveat}</p> : null}
 
-                  {answer.evidence !== null || answer.actionHref !== null ? (
+                  {answer.evidence !== null || answer.actionLabel !== null ? (
                     <ul className="ask-evidence">
                       {answer.evidence !== null ? (
                         <li>
-                          <Link
-                            className="ask-evidence-link"
-                            href={dynamicRoute(answer.evidence.href)}
-                          >
-                            {answer.evidence.observationCount.toLocaleString("en-GB")} observations
-                          </Link>
+                          {/*
+                           * An empty route (`EvidenceRef.href`): the observations
+                           * are counted and no page lists them, so this is text
+                           * rather than a link that reloads the answer (P2-16).
+                           */}
+                          {answer.evidence.href.length === 0 ? (
+                            <span className="ask-evidence-link">
+                              {answer.evidence.observationCount.toLocaleString("en-GB")}{" "}
+                              observations
+                            </span>
+                          ) : (
+                            <Link
+                              className="ask-evidence-link"
+                              href={dynamicRoute(answer.evidence.href)}
+                            >
+                              {answer.evidence.observationCount.toLocaleString("en-GB")}{" "}
+                              observations
+                            </Link>
+                          )}
                         </li>
                       ) : null}
-                      {answer.actionHref !== null && answer.actionLabel !== null ? (
+                      {/*
+                       * A LABEL WITH NO ROUTE IS NOT A BUTTON — drawn the way
+                       * `AnswerSheet` and `Attention` draw it: the next step
+                       * named, and the missing surface said.
+                       */}
+                      {answer.actionLabel === null ? null : answer.actionHref === null ? (
+                        <li className="ask-figure-note">
+                          {answer.actionLabel} — no surface for this yet
+                        </li>
+                      ) : (
                         <li>
                           <Link
                             className="ask-evidence-link"
@@ -1031,7 +1053,7 @@ export function AskConversationPanel({
                             {answer.actionLabel}
                           </Link>
                         </li>
-                      ) : null}
+                      )}
                     </ul>
                   ) : null}
 

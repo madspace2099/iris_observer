@@ -1466,7 +1466,7 @@ export function buildAudience(
     total: matches.length,
     ofMeetings: sessions.length,
     caveats: [
-      "This selects meetings, not people. Open a meeting to reach the contact — identity stays on the surface that already governs it.",
+      "This selects meetings, not people. A meeting's replay names no contact, and Observer has no page for one: each row names the agent who ran the meeting.",
       // A privacy guarantee, not a product-boundary note: it stays on screen.
       "Time spent on a category of place is a behaviour, not a fact about anyone's household. Family status is never inferred from it.",
       ...(criteria.placeCategory === null

@@ -11,7 +11,7 @@ import type {
 } from "@observer/readmodels";
 import { ProjectIdSchema, type ShowroomSession } from "@observer/contracts";
 import { meaningfulDwellThresholdMs } from "@observer/metrics";
-import { evidenceRef, moneyOr } from "./format";
+import { NO_PAGE, evidenceRef, moneyOr } from "./format";
 import { unitsForProject } from "./world";
 
 /**
@@ -831,9 +831,10 @@ export function buildAskSession(
         { label: "No contact recorded after a meeting", value: "4", note: "median gap 11 days" },
         { label: "Affected by a sold unit", value: "1", note: "Viktória Halász, A-505" },
       ],
-      evidence: evidenceRef("ask.contact", "observed_sequence", `${root}/people`, 4),
+      evidence: evidenceRef("ask.contact", "observed_sequence", NO_PAGE, 4),
       actionLabel: "Open the follow-up list",
-      actionHref: `${root}/people`,
+      /* No follow-up list exists to open; the label is drawn as a sentence (P2-16). */
+      actionHref: null,
       followUps: ["Prepare me for Viktória's meeting", "Who has the longest gap since a meeting?"],
       caveat: null,
     },
@@ -846,7 +847,7 @@ export function buildAskSession(
         { label: "Shortlisted", value: "A-402, A-505", note: "A-505 now sold" },
         { label: "Price range", value: "Never stated", note: "she set no price filter" },
       ],
-      evidence: evidenceRef("ask.viktoria", "observed_sequence", `${root}/people`, 3),
+      evidence: evidenceRef("ask.viktoria", "observed_sequence", NO_PAGE, 3),
       actionLabel: "Open the full brief",
       actionHref: `${root}/meetings/mtg_viktoria0827`,
       followUps: [

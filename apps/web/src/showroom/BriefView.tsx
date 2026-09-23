@@ -315,9 +315,23 @@ export async function BriefView({
               This brief must not be shown on the showroom display. The buyer-facing summary is a
               separate document with none of this in it.
             </p>
-            <div className="obs-actions" style={{ marginTop: "var(--space-3)" }}>
-              <ActionLink href={view.contactHref ?? "#"}>Open the full timeline</ActionLink>
-            </div>
+            {/*
+             * A LABEL WITH NO ROUTE IS NOT A BUTTON. This was
+             * `contactHref ?? "#"`: with no contact page to go to, the agent was
+             * sent to the top of this page by a button promising a timeline.
+             * The step is named, the missing page is said, and what the brief
+             * does hold is pointed at instead (P2-16).
+             */}
+            {view.contactHref === null ? (
+              <p className="obs-alert-detail" style={{ marginTop: "var(--space-3)" }}>
+                Open the full timeline — no surface for this yet. The records behind each statement
+                above are counted beside it.
+              </p>
+            ) : (
+              <div className="obs-actions" style={{ marginTop: "var(--space-3)" }}>
+                <ActionLink href={view.contactHref}>Open the full timeline</ActionLink>
+              </div>
+            )}
           </Card>
         </div>
       </div>

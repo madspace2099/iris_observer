@@ -47,6 +47,29 @@ export function EvidenceLink({ evidence }: { evidence: EvidenceRef | null }) {
     );
   }
   const label = TIER_LABEL[evidence.tier] ?? evidence.tier;
+  const words = (
+    <>
+      <span className="obs-evidence-dot" aria-hidden="true" />
+      {label} · {evidence.observationCount.toLocaleString()}{" "}
+      {evidence.observationCount === 1 ? "record" : "records"}
+    </>
+  );
+  /*
+   * An empty route: the records are real and counted, and no page lists them
+   * (`EvidenceRef.href`). Text, not `<a href="">`, which reloads this page
+   * while looking like the way to the evidence.
+   */
+  if (evidence.href.length === 0) {
+    return (
+      <span
+        className="obs-evidence"
+        data-tier={evidence.tier}
+        data-evidence-id={evidence.evidenceId}
+      >
+        {words}
+      </span>
+    );
+  }
   return (
     <a
       className="obs-evidence"
@@ -54,9 +77,7 @@ export function EvidenceLink({ evidence }: { evidence: EvidenceRef | null }) {
       data-evidence-id={evidence.evidenceId}
       href={evidence.href}
     >
-      <span className="obs-evidence-dot" aria-hidden="true" />
-      {label} · {evidence.observationCount.toLocaleString()}{" "}
-      {evidence.observationCount === 1 ? "record" : "records"}
+      {words}
     </a>
   );
 }
@@ -296,6 +317,17 @@ export function AlertList({ alerts }: { alerts: readonly AlertItem[] }) {
             <p className="obs-alert-detail">{alert.detail}</p>
             <div className="obs-metric-foot">
               <EvidenceLink evidence={alert.evidence} />
+              {/*
+               * A LABEL WITH NO ROUTE IS NOT A BUTTON — the rule the web app's
+               * `Attention` already follows. The next step is named, and the
+               * reader is told there is nowhere to take it yet, rather than the
+               * label vanishing and the step with it.
+               */}
+              {alert.actionLabel !== null && alert.actionHref === null ? (
+                <span className="obs-metric-note">
+                  {alert.actionLabel} — no surface for this yet
+                </span>
+              ) : null}
               {alert.actionHref === null || alert.actionLabel === null ? null : (
                 <a className="obs-evidence" href={alert.actionHref}>
                   {alert.actionLabel} →

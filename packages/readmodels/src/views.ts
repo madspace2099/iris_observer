@@ -59,7 +59,8 @@ export interface FollowUpItem {
   readonly lastMeetingLabel: string;
   readonly daysSinceMeeting: number;
   readonly reason: string;
-  readonly href: string;
+  /** Null while Observer has no contact page to open (ADR-0033, P2-16). */
+  readonly href: string | null;
   readonly urgency: "overdue" | "due" | "upcoming";
 }
 

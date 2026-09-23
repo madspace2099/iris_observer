@@ -5,6 +5,7 @@ import type {
   PresentationLane,
   ShowroomFinding,
 } from "@observer/readmodels";
+import type { CSSProperties, ReactNode } from "react";
 import { INSIGHT_SOURCE_LABELS, type InsightSource } from "@observer/contracts";
 import { DATA_SOURCE_MARKERS, defineMeasurement } from "@observer/readmodels";
 import { Measure } from "./Measure";
@@ -89,6 +90,32 @@ export function SyntheticBadge() {
 
 /* --- findings -------------------------------------------------------------- */
 
+/**
+ * An evidence pill: a link to the records it counts, or the same words as
+ * text when no page lists them — the empty route `EvidenceRef.href`
+ * documents (P2-16). Never `<a href="">`, which reloads the page it sits on
+ * while looking like the way to the evidence.
+ */
+export function EvidencePill({
+  href,
+  style,
+  children,
+}: {
+  readonly href: string;
+  readonly style?: CSSProperties;
+  readonly children: ReactNode;
+}) {
+  return href.length === 0 ? (
+    <span className="iris-evidence" style={style}>
+      {children}
+    </span>
+  ) : (
+    <a className="iris-evidence" href={href} style={style}>
+      {children}
+    </a>
+  );
+}
+
 export function Finding({
   finding,
   lead = false,
@@ -132,10 +159,10 @@ export function Finding({
       {finding.caveat === null ? null : <p className="iris-finding-caveat">{finding.caveat}</p>}
       <div className="iris-finding-foot">
         <SourceChips sources={finding.sources} measured={measured} />
-        <a className="iris-evidence" href={finding.evidence.href}>
+        <EvidencePill href={finding.evidence.href}>
           <i />
           {finding.evidence.observationCount} records · {finding.evidence.tier.replace(/_/g, " ")}
-        </a>
+        </EvidencePill>
         <span>n = {finding.sampleSize} meetings</span>
         {finding.nextStep === null ? null : (
           <Link className="iris-action" href={dynamicRoute(finding.nextStep.href)}>

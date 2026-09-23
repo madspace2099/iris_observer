@@ -19,10 +19,13 @@ export const metadata: Metadata = { title: "Audience" };
  * family places. That is two behaviours and a filter, and without it the agent
  * is reading meeting notes one by one.
  *
- * **It returns meetings, not a mailing list.** Identity stays on the surface
- * that already governs it (ADR-0018): the agent opens a meeting to reach the
- * contact, which keeps one route to a person and one place where that route is
- * checked. A page that printed names and addresses would be a second one.
+ * **It returns meetings, not a mailing list.** It names no contact and gives no
+ * route to one. This used to say the agent "opens a meeting to reach the
+ * contact"; the replay a row opens carries no contact, and Observer has no
+ * contact page (ADR-0033), so the promise led nowhere and was withdrawn with
+ * the links that made it (P2-16). What a row names is the agent who ran the
+ * meeting. A page that printed names and addresses would be a route to a
+ * person nobody checks.
  *
  * And it is careful about what it claims. Time on a category of place is a
  * behaviour. "Probably has children" is a reading a human may make from it;

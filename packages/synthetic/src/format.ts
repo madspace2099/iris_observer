@@ -164,6 +164,20 @@ export function monthYearLabel(iso: string | Date, locale: string, timeZone: str
 /* --- builders -------------------------------------------------------------- */
 
 /**
+ * THE ROUTE OF RECORDS NO PAGE LISTS.
+ *
+ * One contact's records — their visits, their favourites, the buyers behind a
+ * follow-up count — have no page in Observer: `/people` redirects to the
+ * agents roster (ADR-0033) and identity resolution is deferred (ADR-0011).
+ * An evidence reference to them keeps its tier and its count, which are true,
+ * and carries this empty route, which renderers draw as text and never as a
+ * link (`Evidence` in the web app's Provenance, `EvidenceLink` in the UI
+ * package). Pointing it at another page instead would be the same guess
+ * under another name (P2-16).
+ */
+export const NO_PAGE = "";
+
+/**
  * Evidence identifiers are derived from the reference itself rather than from
  * a counter, so the same evidence produces the same id on every run. A
  * deterministic demo whose ids shuffle between renders cannot be asserted on.

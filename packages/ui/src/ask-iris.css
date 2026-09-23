@@ -1910,7 +1910,8 @@
   white-space: nowrap;
 }
 
-.ask-evidence-link:hover {
+/* A pill with no route is text (`EvidenceRef.href`), so only a link answers the pointer. */
+a.ask-evidence-link:hover {
   border-color: rgb(150 190 250 / 46%);
   color: #ffffff;
 }

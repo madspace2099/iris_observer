@@ -19,6 +19,7 @@ import {
   days,
   evidenceRef,
   insufficient,
+  NO_PAGE,
   money,
   ok,
   percent,
@@ -113,8 +114,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
       sampleSize: 23,
       minimumSampleSize: 1,
       comparison: comparison("previous period", "+3", "up", "up"),
-      evidence: evidenceRef("northgate.active_buyers", "observed_sequence", `${root}/people`, 23),
-      drillHref: `${root}/people`,
+      evidence: evidenceRef("northgate.active_buyers", "observed_sequence", NO_PAGE, 23),
     }),
   ];
 
@@ -251,8 +251,8 @@ function northgate(context: ViewContext): ExecutiveOverview {
       direction: "up",
       better: "down",
       detail: "Median 8 days from meeting to first contact, against 5 last quarter.",
-      evidence: evidenceRef("northgate.followup", "observed_sequence", `${root}/people`, 31),
-      href: `${root}/people`,
+      evidence: evidenceRef("northgate.followup", "observed_sequence", NO_PAGE, 31),
+      href: null,
     },
   ];
 
@@ -281,9 +281,10 @@ function northgate(context: ViewContext): ExecutiveOverview {
       severity: "info",
       title: "A-505 sold while an active buyer had it shortlisted",
       detail: "Viktória Halász favourited it on 9 August. Her meeting is on 27 August.",
-      evidence: evidenceRef("northgate.a505", "observed_sequence", `${root}/people`, 1),
+      evidence: evidenceRef("northgate.a505", "observed_sequence", NO_PAGE, 1),
       actionLabel: "Open the buyer",
-      actionHref: `${root}/people`,
+      /* The label stays; with no buyer page it is drawn as a sentence (P2-16). */
+      actionHref: null,
     },
   ];
 
@@ -308,7 +309,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
       {
         text: "Median follow-up after a meeting is now 8 days, up from 5. Meetings followed up within 3 days reach an offer roughly twice as often (n = 31).",
         tier: "statistical_association",
-        evidence: evidenceRef("northgate.brief.3", "statistical_association", `${root}/people`, 31),
+        evidence: evidenceRef("northgate.brief.3", "statistical_association", NO_PAGE, 31),
       },
     ],
     generatorVersion: "briefing-1.0.0",
@@ -343,7 +344,6 @@ function northgate(context: ViewContext): ExecutiveOverview {
       sampleSize: 46,
       minimumSampleSize: 5,
       comparison: comparison("previous period", "+4%", "up", "up"),
-      drillHref: `${root}/people`,
     }),
     sourcesPresent: ["WEBIRIS", "Showroom", "CRM", "Catalogue"],
     sourcesMissing: [],
@@ -378,7 +378,7 @@ function riverside(context: ViewContext): ExecutiveOverview {
         "No verdict is possible for Riverside Walk: without the CRM, Observer can see the meetings but not what came of them.",
       supporting:
         "38 meetings and 214 online visitors are recorded this period. Connect the CRM to see offers, reservations and sales.",
-      evidence: evidenceRef("riverside.verdict", "observed_sequence", `${root}/people`, 38),
+      evidence: evidenceRef("riverside.verdict", "observed_sequence", NO_PAGE, 38),
       rulesetVersion: VERDICT_RULESET,
       components: [
         {
@@ -436,7 +436,7 @@ function riverside(context: ViewContext): ExecutiveOverview {
         {
           text: "38 meetings were held this period, and 214 people visited the project online.",
           tier: "observed_sequence",
-          evidence: evidenceRef("riverside.brief.1", "observed_sequence", `${root}/people`, 38),
+          evidence: evidenceRef("riverside.brief.1", "observed_sequence", NO_PAGE, 38),
         },
         {
           text: "South-facing units above the third floor take 1.7× their share of attention. Whether that converts cannot be seen from here.",
@@ -484,7 +484,6 @@ function riverside(context: ViewContext): ExecutiveOverview {
         qualifier: "of expected inputs",
         sampleSize: 38,
         minimumSampleSize: 5,
-        drillHref: `${root}/people`,
       }),
       sourcesPresent: ["WEBIRIS", "Showroom", "Catalogue"],
       sourcesMissing: ["CRM"],
@@ -506,7 +505,7 @@ function kingsford(context: ViewContext): ExecutiveOverview {
       headline: "Kingsford Yard has been live for three weeks and has held 7 meetings.",
       supporting:
         "That is too few to read as a trend. Figures are shown as raw counts until 20 meetings are on record.",
-      evidence: evidenceRef("kingsford.verdict", "observed_sequence", `${root}/people`, 7),
+      evidence: evidenceRef("kingsford.verdict", "observed_sequence", NO_PAGE, 7),
       rulesetVersion: VERDICT_RULESET,
       components: [
         {
@@ -566,7 +565,6 @@ function kingsford(context: ViewContext): ExecutiveOverview {
           qualifier: "in the last 28 days",
           sampleSize: 6,
           minimumSampleSize: 1,
-          drillHref: `${root}/people`,
         },
         thin,
       ),
@@ -630,7 +628,7 @@ function kingsford(context: ViewContext): ExecutiveOverview {
         {
           text: "7 meetings and 1 sale are on record. No pattern can be separated from chance at this volume.",
           tier: "observed_sequence",
-          evidence: evidenceRef("kingsford.brief.1", "observed_sequence", `${root}/people`, 7),
+          evidence: evidenceRef("kingsford.brief.1", "observed_sequence", NO_PAGE, 7),
         },
       ],
       generatorVersion: "briefing-1.0.0",
@@ -660,7 +658,6 @@ function kingsford(context: ViewContext): ExecutiveOverview {
           qualifier: "of expected inputs",
           sampleSize: 7,
           minimumSampleSize: 5,
-          drillHref: `${root}/people`,
         },
         thin,
       ),
