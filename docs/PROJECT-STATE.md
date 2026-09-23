@@ -3944,3 +3944,89 @@ their floor and denominator — unless the sections themselves changed shape.
 
 Evidence: `e2e2d8a`, `81632e6` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
 the run logs in the session scratchpad.
+
+## 2026-09-23 — P2-15: the generated file untracked, two must-items measured, the agent report scope built the other way round
+
+**The decision that turned the survey (`0624527`) around.** `ReportSection` is a manifest, not the
+content: the printed page's body has always come from the page's own `content[section.id]` map,
+drawn from other read models with the screens' own components. So "the structure cannot carry the
+floor" was true of the manifest and false of the document — and the agent scope is built the
+reverse of how the meeting scope was: the sections state what the document carries and what it
+does not, and the page draws `AgentDetailView` with `Figure`, `ShareFigure`, `StageFunnel` and the
+meeting register, the same components as the agent's screen. The plan's contradiction is resolved
+the same way: the entry point and the `agent` scope are P2-15's, the four languages are P2-17's.
+
+**`apps/web/next-env.d.ts` is untracked and ignored (`a6a0cde`).** Next generates it
+(`writeAppTypeDeclarations`, from `next typegen`, `next build` and `next dev`), and generates it
+differently: build and typegen import `.next/types/*`, the dev server `.next/dev/types/*`. Both are
+valid; tracking one made every lab run a dirty tree. Proved with the file deleted: `pnpm typecheck`
+exit 0 (`next typegen` wrote it back), `pnpm build` exit 0. Nothing in the tree depends on it except
+`tsconfig.json`'s include pattern.
+
+**Two must-items of the DoD, measured from render, not fixed.** (a) "The visitor name appears in
+the recent meetings table": on Monika's Northgate screen, as Tomáš and as Petra, all eight rows'
+Visitor column reads "Not linked to a contact"; on Lucia Horváth's and Martin's ISTER TOWER
+summaries the column reads "First meeting", "Returning · 2nd meeting", "Returning · 3rd meeting",
+"Not linked to a contact". No name. The read model cannot carry one — `MeetingRow.visitor` is a
+`VisitorLabel` of a closed kind, a prior-meeting count and a display string. **The finding is a
+contradiction between two sentences about the same column:** the screen's own note says "No buyer
+is named here and none can be" (`agents/[agentId]/page.tsx`, the meetings plate), while the
+register's docblock, corrected on 2026-09-21, says "No buyer reaches this table today … reopened
+and under design" — and P1-08b's record is that the name _may_ be displayed, that it is in design
+(`docs/22-visitor-name-display.md`), and that its §5 visibility question is the open decision.
+"None can be" is the claim P1-08b retired, still printed on the screen. Reported, not resolved.
+(b) "Where else they present is built from the permitted projects only": Monika's Northgate
+screen as Tomáš (holds Northgate, ISTER TOWER, Kingsford Yard) lists Northgate · This project and
+ISTER TOWER (23 meetings); as Petra (holds Northgate, Riverside Walk, ISTER TOWER) it lists
+Northgate · This project, Riverside Walk (17) and ISTER TOWER (23). Different grants, different
+lists; the rule is the repository's `projectsHeldHere`, one for the screen and the scope. No authz
+finding.
+
+**The agent report scope (`5fc0e50`).** `ReportScope.kind` gains `"agent"` and the scope an
+`agentId`; the port takes a `ReportScopeSelector` (one meeting or one agent, never both);
+`ReportSection` gains `sampleNoun`, because the frame printed "meetings" for every sample and the
+running order stands on the timed set — the noun is the section's now, on the page and in the
+dialog. `buildAgentReportScope` applies `getAgentDetail`'s not-found rule through the shared
+`projectsHeldHere`. Nine sections: activity, funnel, how they present (sample: timed meetings),
+what it met, the apartments, where else, most recent meetings (sample: meetings listed), findings,
+appendix. Below the floor every section of rates is `partial` with the read model's suppression
+sentence as its reason, the share columns are dropped as the screen drops them, and each caption
+says why. **What the document does not carry, said once in the presentation section's reason:**
+"Not in this document: the week-by-week series of their presentations, because a line is read as
+a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a
+shape, whose slices are printed as a table under What it met; and the screen's reading guide.
+Everything else on their screen is here, from the same read model." The agent's screen mounts the
+dialog in its aside, "Export agent summary", whose shareable page is `/report?agent=`. One
+`agentAnswer` supplies the screen's and the summary's leading sentence.
+
+**The stop condition, before the commit, rendered on the config's own server and photographed.**
+Lucia Horváth (14 of 20): the head leads with "14 meetings in this period, 6 short of the 20
+needed for a verdict…"; the median, the mean and the coverage carry the registry's "Fewer than 20
+meetings for this agent — shown as a raw figure, not as a verdict"; every count carries "of 14
+meetings"; no share column anywhere; the cover reads "4 of 9 carry a stated gap". Martin Kováč
+(38): the head leads with the signature on "the 38 of 38 meetings the source could time end to
+end"; every percentage carries "of 38 timed meetings", "of their meetings", "of 38 meetings" or
+"of every meeting on the project". Five things were found by looking and fixed before the commit:
+a caption that promised a column the floor drops, an outcome table that repeated the shortfall
+five times, a project rate with its denominator only in a caption, a cover that counted blanks and
+not gaps, a funnel note printed twice.
+
+**Tests and mutations.** Manifest (`screens.test.ts`, five, one assertion each): the scope names
+the agent and no meeting; another project's agent is not found; an id that exists nowhere is not
+found; the running-order section's sample is the timed set in its own noun; below the floor the
+activity section is partial with the suppression sentence. Printed page (`e2e/agent-report.spec.ts`,
+three): below the floor no rate stands without its shortfall; above it every share names its
+denominator; the agent's screen offers the export and links to their own summary. Mutations after
+the commit, each restored with `git checkout` to an empty porcelain: the not-found rule replaced
+by a fall-back to the project scope — red on "an agent this project's meetings do not name is not
+found" and "an id that exists nowhere is not found"; the page forgetting the floor (0 and the
+column always printed), rebuilt on the config's server — red on "below the floor, no rate on the
+printed page stands without its shortfall", 25 bare percentages; the outcome mix's qualifier
+removed — red on "above the floor, every share on the printed page names its denominator", 7
+unqualified. The surface-guard test now lists `[agentId]` beside `[meetingId]` as the report
+page's legitimate foreign keys.
+
+**Not touched:** the four languages (P2-17), the (a) contradiction, the (ii) mobile findings.
+
+Evidence: `a6a0cde`, `5fc0e50` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the run logs and photographs in the session scratchpad.
