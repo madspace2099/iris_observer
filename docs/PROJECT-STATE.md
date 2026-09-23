@@ -4467,6 +4467,7 @@ ADR-0039, P2-13's identity gate), and no person route is built (ADR-0033). Claus
 the tracker is Máté's decision.
 
 **Decisions left for Máté, measured and not taken:**
+
 - Every `notFound()` in the app answers 200 under streaming, with `robots=noindex` — measured on an
   unknown unit and on another project's meeting report. A real 404 is a product-wide change.
 - The scripted Ask session — Northgate's prose, including the brief's buyer and A-505 — is served
