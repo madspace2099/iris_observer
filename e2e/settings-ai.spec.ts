@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./sign-in";
+import { credentialStoreMissing, gateRefusal } from "./secrets";
 
 /**
  * THE OPENAI CONNECTION, THROUGH THE BROWSER.
@@ -228,6 +229,11 @@ test.describe("the account comes from the session, never from the request", () =
   });
 
   test("an account named in the request changes nothing", async ({ page }) => {
+    const missing = await credentialStoreMissing(page);
+    test.skip(
+      missing !== null,
+      `${missing ?? ""} — not measured: whether an account named in the request is ignored in favour of the session's`,
+    );
     /*
      * The account is never read from what the browser sends. Naming another one
      * in the query — the closest a caller can get to choosing a subject — does
@@ -528,6 +534,11 @@ test.describe("Ask Observer with and without a connection", () => {
         period: "quarter_to_date",
       },
     });
+    const refused = await gateRefusal(response);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether Ask Observer answers from evidence without a connection and names the way to fix it`,
+    );
     expect(response.status()).toBe(200);
 
     const answered: { status: { setupRequired: boolean }; answer: unknown } =

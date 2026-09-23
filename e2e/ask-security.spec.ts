@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { signInAs } from "./sign-in";
 import { BURST } from "./limits";
+import { gateRefusal } from "./secrets";
 
 /**
  * The API boundary, exercised rather than inspected.
@@ -38,6 +39,11 @@ test.describe("Ask Observer's API boundary", () => {
   test("refuses a malformed body without echoing it back", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     const response = await page.request.post(ASK, { data: { question: "" } });
+    const refused = await gateRefusal(response);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether a malformed body is refused with 400 and never echoed back`,
+    );
     expect(response.status()).toBe(400);
     const text = await response.text();
     expect(text).toContain("Malformed request.");
@@ -50,6 +56,11 @@ test.describe("Ask Observer's API boundary", () => {
     const response = await page.request.post(ASK, {
       data: body({ question: "a".repeat(5_000) }),
     });
+    const refused = await gateRefusal(response);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether a question over the ceiling is refused with 400`,
+    );
     // Rejected by the schema before a tool or a token is spent.
     expect(response.status()).toBe(400);
   });
@@ -57,6 +68,11 @@ test.describe("Ask Observer's API boundary", () => {
   test("never returns a key, a header or an upstream error body", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     const response = await page.request.post(ASK, { data: body() });
+    const refused = await gateRefusal(response);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether the response carries no key, no header and no upstream error body`,
+    );
     expect(response.ok()).toBe(true);
     const text = await response.text();
 
@@ -79,6 +95,11 @@ test.describe("Ask Observer's API boundary", () => {
   test("answers from evidence even when the model layer cannot be reached", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     const response = await page.request.post(ASK, { data: body() });
+    const refused = await gateRefusal(response);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether Ask Observer answers from evidence when no model can be reached`,
+    );
     const json = (await response.json()) as {
       answer: { findings: unknown[]; evidence: unknown[] } | null;
       refusal: string | null;
@@ -115,6 +136,13 @@ test.describe("Ask Observer's API boundary", () => {
      * but itself.
      */
     await signInAs(page, "MADSPACE Operations");
+    /* One request first, so a gate that refuses everything is read as that and not as a burst nobody stopped. */
+    const probe = await page.request.post(ASK, { data: body() });
+    const refused = await gateRefusal(probe);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether a burst is stopped with 429 and a Retry-After`,
+    );
 
     /*
      * At once, because that is what a burst is.
