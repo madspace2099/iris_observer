@@ -337,6 +337,13 @@ export function buildPreMeetingBrief(
   meetingId: MeetingId,
 ): PreMeetingBriefView | null {
   if (meetingId !== VIKTORIA_MEETING_ID) return null;
+  /*
+   * Northgate's scenario, gated like `buildAgentOverview` below. Without this
+   * line every project a brief reader held — ISTER TOWER, and Kingsford, which
+   * is another developer — served this brief under its own name and links.
+   * Null is the unknown-meeting answer, which is true there.
+   */
+  if (context.project.id !== "prj_northgate01") return null;
 
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const timeline = `${root}/people`;

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
-import { SyntheticObserverRepository, VIEWERS, VIKTORIA_MEETING_ID } from "../src/index";
+import {
+  PROJECTS,
+  SyntheticObserverRepository,
+  TENANTS,
+  VIEWERS,
+  VIKTORIA_MEETING_ID,
+} from "../src/index";
+import { sessionsForProject } from "../src/showroom/sessions";
 
 const repo = new SyntheticObserverRepository();
 const NORTHGATE = { tenantSlug: "alpha", projectSlug: "northgate" } as const;
@@ -146,6 +153,75 @@ describe("tenant and project scoping", () => {
     });
     await expect(isterTower).rejects.toBeInstanceOf(NotFoundError);
     await expect(isterTower).rejects.toThrow(/ister tower/i);
+  });
+
+  /*
+   * THE BRIEF IS THE SAME SCENARIO, ONE FUNCTION FURTHER DOWN.
+   *
+   * `buildPreMeetingBrief` recognised the scripted meeting by its id alone, so
+   * every project a brief reader held served Northgate's brief under its own
+   * name with its own links stapled on — photographed on 2026-09-23 under
+   * ISTER TOWER, and under Kingsford, which is another developer. Every
+   * project every brief reader holds is asked, not one, because the leak
+   * crossed tenants as well as projects.
+   */
+  it("never serves Northgate's pre-meeting brief under another project", async () => {
+    // Northgate keeps its brief: a refusal everywhere would also pass below.
+    const own = await repo.getPreMeetingBrief({
+      viewer: VIEWERS.salesAgent,
+      ...NORTHGATE,
+      meetingId: VIKTORIA_MEETING_ID,
+    });
+    expect(own.context.project.slug).toBe("northgate");
+
+    const readers = Object.values(VIEWERS).filter((v) =>
+      ["sales_agent", "agency_manager", "madspace_admin"].includes(v.role),
+    );
+    let asked = 0;
+    for (const viewer of readers) {
+      for (const project of PROJECTS) {
+        if (project.slug === "northgate" || !viewer.projectIds.includes(project.id)) continue;
+        const tenant = TENANTS.find((t) => t.id === project.tenantId);
+        if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
+        asked += 1;
+        await expect(
+          repo.getPreMeetingBrief({
+            viewer,
+            tenantSlug: tenant.slug,
+            projectSlug: project.slug,
+            meetingId: VIKTORIA_MEETING_ID,
+          }),
+          `${viewer.displayName} was served the brief on ${project.slug}`,
+        ).rejects.toBeInstanceOf(NotFoundError);
+      }
+    }
+    expect(asked, "no brief reader holds a second project, so nothing was asked").toBeGreaterThan(0);
+  });
+
+  /*
+   * The report and the replay were already scoped (`getReportScope`,
+   * `getMeetingReplay`): measured on 2026-09-23, another project's meeting
+   * under ISTER TOWER draws the not-found boundary. Kept beside the brief so
+   * the two halves of the meeting route cannot drift apart again.
+   */
+  it("never replays or reports another project's meeting under this one", async () => {
+    const meeting = sessionsForProject("prj_northgate01")[0]?.meetingId as MeetingId | undefined;
+    if (meeting === undefined) throw new Error("Northgate has no meeting to borrow");
+
+    // Found at home, so a refusal below is about the project and not the id.
+    await expect(
+      repo.getMeetingReplay({ viewer: VIEWERS.salesAgent, ...NORTHGATE, meetingId: meeting }),
+    ).resolves.toMatchObject({ meetingId: meeting });
+
+    const elsewhere = { viewer: VIEWERS.salesAgent, ...ISTER_TOWER, period: "quarter_to_date" as const };
+    await expect(
+      repo.getMeetingReplay({ ...elsewhere, meetingId: meeting }),
+      "the replay",
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      repo.getReportScope(elsewhere, { meetingId: meeting }),
+      "the meeting report",
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("clips the baseline when the current period is still running", async () => {
