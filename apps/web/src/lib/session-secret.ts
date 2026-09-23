@@ -9,10 +9,14 @@
  *     SECRET: the string is readable in this file and in every deployment's
  *     metadata, and that is why it is allowed only where nothing real stands
  *     behind a session;
- *   - anywhere else — staging, production — there is no stand-in. The process
- *     refuses to start (`instrumentation.ts`), naming the variable, and every
- *     signing call refuses too, so a server that somehow got past boot cannot
- *     mint or accept a token on a key the whole world can read.
+ *   - anywhere else there is no stand-in: staging, production, and any
+ *     process that a deployment platform runs (`DEPLOYMENT_MARKERS` — VERCEL,
+ *     AWS, Netlify, Kubernetes and the rest) whatever `OBSERVER_ENVIRONMENT`
+ *     says or fails to say, because that variable defaults to "development"
+ *     and is one a person can forget. The process refuses to start
+ *     (`instrumentation.ts`), naming the variable, and every signing call
+ *     refuses too, so a server that somehow got past boot cannot mint or
+ *     accept a token on a key the whole world can read.
  *
  * Until 2026-09-23 the stand-in applied everywhere, and neither the deployment
  * guide nor `.env.example` named the variable — which is how it came to be
@@ -24,6 +28,8 @@
  * tested without a process and without `next/headers`.
  */
 
+import { onDeploymentPlatform } from "@/lib/deployment-markers";
+
 export const SESSION_SECRET_NAME = "OBSERVER_SESSION_SECRET";
 
 export type EnvSource = Readonly<Record<string, string | undefined>>;
@@ -31,12 +37,13 @@ export type EnvSource = Readonly<Record<string, string | undefined>>;
 /** Thrown, by name, wherever a session would otherwise be signed on a stand-in outside development. */
 export class SessionSecretMissingError extends Error {
   override readonly name = "SessionSecretMissingError";
-  constructor(environment: string) {
+  constructor(environment: string, onPlatform: boolean) {
     super(
-      `${SESSION_SECRET_NAME} is not set and OBSERVER_ENVIRONMENT is "${environment}": no session ` +
-        `can be signed. Set ${SESSION_SECRET_NAME} (64 random bytes, base64 or hex, generated in a ` +
-        `password manager and marked sensitive) and start again. The development stand-in is not a ` +
-        `secret and is refused outside development.`,
+      `${SESSION_SECRET_NAME} is not set and OBSERVER_ENVIRONMENT is "${environment}"` +
+        `${onPlatform ? " on a deployment platform" : ""}: no session can be signed. Set ` +
+        `${SESSION_SECRET_NAME} (64 random bytes, base64 or hex, generated in a password manager ` +
+        `and marked sensitive) and start again. The development stand-in is not a secret and is ` +
+        `refused outside development and on every deployment platform.`,
     );
   }
 }
@@ -52,6 +59,9 @@ export function signingSecretFrom(source: EnvSource): string {
   const configured = source[SESSION_SECRET_NAME];
   if (configured !== undefined && configured.length > 0) return configured;
   const environment = source["OBSERVER_ENVIRONMENT"] ?? "development";
-  if (environment !== "development") throw new SessionSecretMissingError(environment);
+  const onPlatform = onDeploymentPlatform(source);
+  if (environment !== "development" || onPlatform) {
+    throw new SessionSecretMissingError(environment, onPlatform);
+  }
   return `observer-dev.${source["VERCEL_DEPLOYMENT_ID"] ?? source["VERCEL_GIT_COMMIT_SHA"] ?? "local"}`;
 }

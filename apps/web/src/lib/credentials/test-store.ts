@@ -1,5 +1,6 @@
 import "server-only";
 
+import { DEPLOYMENT_MARKERS } from "@/lib/deployment-markers";
 import type { EnvSource } from "@/lib/supabase-env";
 import type { AuditEntry, CredentialStore, StoredCredential, TestOutcome } from "./store";
 
@@ -48,26 +49,7 @@ const TEST_FLAG = "OBSERVER_CREDENTIAL_TEST_STORE";
 const TEST_FLAG_VALUE = "browser-tests-only";
 const SYNTHETIC_HARNESS = "OBSERVER_SYNTHETIC_HARNESS";
 
-/**
- * Names a platform sets and a person does not.
- *
- * Presence is what counts, not value: `VERCEL_ENV=preview` is still Vercel.
- */
-const DEPLOYMENT_MARKERS = [
-  "VERCEL",
-  "VERCEL_ENV",
-  "VERCEL_URL",
-  "AWS_REGION",
-  "AWS_EXECUTION_ENV",
-  "LAMBDA_TASK_ROOT",
-  "NETLIFY",
-  "RENDER",
-  "FLY_APP_NAME",
-  "DYNO",
-  "WEBSITE_INSTANCE_ID",
-  "KUBERNETES_SERVICE_HOST",
-  "K_SERVICE",
-] as const;
+/* The platform markers live in `deployment-markers.ts`, shared with the session signing stand-in. */
 
 /**
  * The only credential shape this store will hold.
