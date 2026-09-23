@@ -122,24 +122,25 @@ log, a screenshot or a chat message.
 
 ### Preview environment
 
-| Variable                               | Scope           | Sensitive | Value                                                             |
-| -------------------------------------- | --------------- | --------- | ----------------------------------------------------------------- |
-| `OBSERVER_DATA_SOURCE`                 | build + runtime | no        | `synthetic`                                                       |
-| `OBSERVER_ENVIRONMENT`                 | build + runtime | no        | `staging`                                                         |
-| `NEXT_PUBLIC_SUPABASE_URL`             | build + runtime | no        | from the staging project                                          |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build + runtime | no        | from the staging project                                          |
-| `SUPABASE_URL`                         | runtime         | no        | from the staging project                                          |
-| `SUPABASE_SECRET_KEY`                  | runtime         | **yes**   | from the staging project                                          |
-| `FAL_KEY`                              | runtime         | **yes**   | optional; without it Ask Observer uses the deterministic provider |
-| `OBSERVER_LLM_PROVIDER`                | runtime         | no        | `fal-openrouter`                                                  |
-| `OBSERVER_LLM_MODEL`                   | runtime         | no        | `google/gemini-2.5-flash` (ADR-0024)                              |
+| Variable                               | Scope           | Sensitive | Value                                                                             |
+| -------------------------------------- | --------------- | --------- | --------------------------------------------------------------------------------- |
+| `OBSERVER_DATA_SOURCE`                 | build + runtime | no        | `synthetic`                                                                       |
+| `OBSERVER_ENVIRONMENT`                 | build + runtime | no        | `staging`                                                                         |
+| `NEXT_PUBLIC_SUPABASE_URL`             | build + runtime | no        | from the staging project                                                          |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build + runtime | no        | from the staging project                                                          |
+| `SUPABASE_URL`                         | runtime         | no        | from the staging project                                                          |
+| `SUPABASE_SECRET_KEY`                  | runtime         | **yes**   | from the staging project                                                          |
+| `OBSERVER_SESSION_SECRET`              | runtime         | **yes**   | 64 random bytes; **required** — staging and production refuse to start without it |
+| `FAL_KEY`                              | runtime         | **yes**   | optional; without it Ask Observer uses the deterministic provider                 |
+| `OBSERVER_LLM_PROVIDER`                | runtime         | no        | `fal-openrouter`                                                                  |
+| `OBSERVER_LLM_MODEL`                   | runtime         | no        | `google/gemini-2.5-flash` (ADR-0024)                                              |
 
 Rules that are not negotiable:
 
 - never prefix a secret with `NEXT_PUBLIC_`;
 - never use the legacy `anon` / `service_role` names on this project — it was created under the
   publishable/secret key model, and the names say which is which;
-- mark `SUPABASE_SECRET_KEY` and `FAL_KEY` **sensitive** in Vercel;
+- mark `SUPABASE_SECRET_KEY`, `FAL_KEY` and `OBSERVER_SESSION_SECRET` **sensitive** in Vercel;
 - do not copy a local `.env` file into Vercel;
 - if the Vercel–Supabase integration creates these variables itself, verify and use those rather than
   creating conflicting duplicates.

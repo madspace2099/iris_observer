@@ -36,6 +36,7 @@
   "include": [
     "apps/web/test/ai-audit.test.ts",
     "apps/web/test/ai-config.test.ts",
+    "apps/web/test/session-secret.test.ts",
     "supabase/test/audit-contract.test.ts",
     "supabase/test/cron-health.test.ts",
     "supabase/test/http-proof.test.ts",
