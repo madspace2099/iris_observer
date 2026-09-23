@@ -4372,3 +4372,56 @@ listed" foot, `DEVICE_CREDENTIAL_PEPPER` and the acceptance script.
 Evidence: `162222f`, `57fdac5` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
 the boot logs, the revocation measurement and the inventory workflow's journal in the session
 scratchpad.
+
+## 2026-09-23 — The spend window after sign-out: measured and not cut; the two remaining silent stand-ins closed
+
+**Step 1, measured before anything was written, and the round stopped on it.** The proposal was to
+cut the eight-hour window a signed-out cookie stays live on the spending routes without a store:
+require a fresh issuance on `/api/ask`, `/api/ask/stream` and the voice tool, and have pages renew
+the cookie on navigation, so a signed-out copy ages out in minutes. Two measurements decide it.
+_Renewal:_ none exists. `observer_session` is written in exactly one place — the sign-in server
+action (`sign-in/page.tsx:85`, `createAccountSession`, `maxAge` eight hours) — and deleted in
+three; no page, layout, action or middleware re-signs it, so a cookie counts eight hours from
+issuance and nothing else. Nor can a page do it: a Server Component cannot write a cookie during
+render (Next reserves that for Server Actions, Route Handlers and middleware — `middleware.ts`'s
+own docblock), the middleware runs on the Edge runtime without `node:crypto` (the reason
+`cookie-names.ts` exists), and Next 16's successor `proxy.ts` runs on Node and may set cookies
+(`node_modules/next/dist/docs/…/proxy.md:221-223, 337`) but is not what the repository uses.
+_Freshness:_ the token carries `expiresAt`, a nonce and the signature, no issuance; issuance is
+derivable as `expiresAt − SESSION_TTL_MS` while the TTL is a constant, so a route could demand a
+young cookie without a format change. Without renewal that demand signs out a working reader
+every N minutes on the one surface that costs money — a different decision — so, by the brief's
+own stop rule, the freshness requirement is not built. One more finding for whoever builds
+renewal: a copy of the cookie is renewed by whoever presents it, so renewal-based expiry closes
+the window only where the page path already refuses — the same warm instance — and not on
+another instance; without a store it is as narrow as the Map it would replace.
+
+**Commit 3 (`18efd8c`): the two remaining silent stand-ins.** `DEVICE_CREDENTIAL_PEPPER`, the
+key of the HMAC that names a viewer to the model vendor, was stood in for everywhere by a fixed
+string in the source — a pseudonym in name only, since the viewer ids come from a six-entry
+directory — and `.env.example` described the variable as hashing device ingest credentials, which
+nothing does. Its one reader is `ai/identity.ts` (no conflict with the stability requirement: it is
+a configured value, kept the same across deployments, never deployment-derived). Now the session
+secret's rule, from the shared platform-marker list (`lib/device-pepper.ts`): a stand-in on a
+developer's own machine, stated not a secret; a named refusal at boot and at every call anywhere
+else. Measured: `next start` under production with the session secret and no pepper —
+`DevicePepperMissingError`, exit 1, nothing listening; with both — the server answers; under
+development with neither — the server answers. One assertion over six cases; mutation, the
+stand-in back everywhere: red on "refuses to key a safety identifier outside development without
+DEVICE_CREDENTIAL_PEPPER". `.env.example` says what the variable is and that it is required;
+`docs/18-deployment.md` lists it, required and sensitive. And `scripts/observer-acceptance.mjs`,
+which signed session cookies with `""` when given no secret, stops before the first request with
+the variable named (exit 2) — run without one, it printed exactly that.
+
+**Consequence, stated again:** the Preview deployment now needs both `OBSERVER_SESSION_SECRET`
+and `DEVICE_CREDENTIAL_PEPPER` in Vercel before its next build of this branch starts; production,
+if it exists, needs both with its own session secret and the SAME pepper value if the vendor is to
+see one viewer as one viewer across the two.
+
+**Not touched:** the freshness requirement and renewal (stopped by measurement), the revocation
+store (a migration under the frozen surface — Máté's signature, once the Gate 2 identity-provider
+decision is made), the identity provider, the "n = 8 meetings listed" foot on a blank section, the
+(ii) mobile findings, the two (D) failures.
+
+Evidence: `18efd8c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the boot
+logs, the script's output and the measurement notes in the session scratchpad.
