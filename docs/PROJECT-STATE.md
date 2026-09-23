@@ -4181,3 +4181,115 @@ trace will answer; the four languages (P2-17); the brief's literal names in `wor
 Evidence: `c3ea848`, `f285a78`, `e552475`, `b13be13` and this entry's commit on
 `feature/observer-ux-overhaul-phase2`; the run logs, renders, photographs and the review's journal
 in the session scratchpad.
+
+## 2026-09-23 — The printed register's guard, and the first measurement of Gate 2
+
+**The paper gets its own guard (`d18d47e`).** `/report?agent=` draws the agent's register — the same
+component, behind the same `AGENT_REGISTER_ROLES` — on a page whose one control is the browser's
+print dialog; the screen's gate had two viewers measuring it, the paper's had none, and the paper's
+gate is a second code path (the manifest's `unavailable` branch and the page's `content` map).
+`e2e/paper-register.spec.ts`, three tests, one assertion each, in the rendered document on the
+config's own server: (a) for the agency manager the printed register is there and a row carries
+the buyer's name beside its label; (b) for the developer there is no register table, the section's
+chip reads "Blank" and its reason names "Kept for the sales team"; (c) the names on paper follow the
+join's rules — Lucia Horváth's eight rows hold an erased contact (23 Aug · 14:17) and two whose
+consent is withdrawn (20 Aug · 09:00, 11 Aug · 13:02), and those rows print the label alone, the
+fixture's facts stated row by row. Run on the HEAD before the commit: 3 passed — the behaviour
+was there, the guard was not. Mutation, the paper's gate always open (the manifest's branch):
+red on "(b) the developer's printed page has no register and says why" — chip "Ready", one table,
+no sentence; restored to an empty porcelain. Rendered and photographed: as Tomáš, "Ready", eight
+rows, "Ilona Balog", "Klára Dobos", "Jakub Tóth" beside their labels, the erased and the withdrawn
+rows with the label alone; as Petra, "Blank", no table, the reason. One residue, not fixed: the
+blank section's foot still prints "n = 8 meetings listed" — the manifest's sample, for a section
+the reader does not get.
+
+**Gate 2, measured and not built.** Four questions, read from source by four agents and re-read by
+four verifiers (file:line), and where a render could answer, rendered.
+
+_(i) The deployed build._ A real credential store needs server-side Supabase (`SUPABASE_URL` and
+exactly `SUPABASE_SECRET_KEY`, `apps/web/src/lib/supabase-env.ts:30,41,149-152`) AND a 64-hex
+`OBSERVER_CREDENTIAL_KEY` (`env.ts:223-226,335-336`); the in-memory test store cannot exist on
+Vercel (`credentials/test-store.ts:85-90` refuses any `VERCEL*` marker). Vercel's environment could
+not be read from here — the listing call was refused by this session's permission classifier as a
+production read — so the record stands in: `docs/PROJECT-STATE.md:51` (2026-09-07) says the
+Preview carries Supabase and `OBSERVER_DEMO_ACCOUNTS=1` and that `OBSERVER_CREDENTIAL_KEY` is "not
+set anywhere yet"; no later line records it set; whether the credentials migration
+(`20260829173000`) is on the hosted project is not recorded either (`supabase/README.md:19-22`
+lists only the five 25 August migrations). Rendered: the production alias
+`iris-observer-madspaces-projects.vercel.app` answers `/sign-in` with "NO ACCOUNTS CONFIGURED …
+No account directory is configured on this server, so there is nothing to sign in to", and a
+demo credential is sent back to `/sign-in?error=unavailable` — nobody can reach `/settings/ai`
+there. **The exposure is latent**: by the record no key can be attached today, and on the production
+alias nobody can even sign in. It becomes live the moment an operator sets the key in Vercel,
+redeploys, and the migration is on the hosted project.
+
+_(ii) The session today, from the code and from the machine._ The cookie is `observer_session`,
+`${accountId}.${expiresAt}.${nonce}.${hmac}` — HMAC-SHA256 over the first three, an 8-hour expiry,
+a nonce from `randomUUID`, no role, tenant or version in it (`session.ts:38,59-61,85-90`);
+httpOnly, SameSite=Lax, secure under `NODE_ENV=production` (`:219-225`). The secret is
+`OBSERVER_SESSION_SECRET` when set — it is set nowhere on this machine and named in neither
+`.env.example` nor `docs/18-deployment.md` — otherwise the **non-secret**
+`observer-dev.${VERCEL_DEPLOYMENT_ID ?? VERCEL_GIT_COMMIT_SHA ?? "local"}`, stated as such in its
+own docblock (`:40-57`). Measured: a session survives a server restart (the fallback is the constant
+`observer-dev.local`); on Vercel only a new deployment rotates it. Revocation: `revokedNonces`, a
+module-level in-process `Map` written on sign-out and consulted on every resolve (`:113,130-141,176`)
+— measured: after sign-out the old cookie is refused by a page, and **accepted after a restart**
+(the Map is process memory). And a finding the verifier raised from the repository's own history and
+the machine confirmed: the Map is a plain module constant, not hung off `globalThis`, while
+`771ac10` (2026-08-24) recorded that Next bundles route handlers separately from pages and server
+actions, so a module-level Map is a different Map in each — **after sign-out the old cookie is
+refused by `/alpha/ister-tower/showroom` and accepted by `POST /api/ask` (200, with an answer), on
+the same process**. The revocation the sign-out promises does not reach the route handlers.
+`docs/11-preproduction-gates.md:138-140` already lists "session revocation that survives a restart"
+as a production blocker; the route-handler half is new. Not fixed here: step 2 builds nothing.
+
+_(iii) WorkOS._ No WorkOS reference exists in the repository; everything about its model is from
+knowledge and marked so. The conflicts, with Observer's evidence: (1) Observer's grant unit is the
+project (`Viewer.projectIds` beside `tenantIds`, `context.ts:17-20`; the live grant row is
+`(project_id, viewer_account)` with no role, `20260918100000:158-171`) — a WorkOS Organization
+Membership has no resource below the organisation. (2) The tenant → project hierarchy
+(`/[tenantSlug]/[projectSlug]`, `tenant_baseline` comparisons) has no counterpart in flat
+organisations. (3) The agency is an operator, not an entity: `organisationName` is a display string,
+"there is no tenant, user or agency table yet" (`accounts.ts:359-360`), `OrganisationIdSchema` is
+declared and unused; a WorkOS Organization is a data-owning boundary, so Meridian is either an
+organisation whose members hold nothing in Alpha's, or Alpha's members whose agency can no longer be
+derived. (4) Tomáš holds two competing developers in one session and the shell switches portfolios
+(`authz.ts:79-88`), whereas an AuthKit session is bound to one organisation. (5) Role is a property
+of the account, identical in every tenant (`accounts.ts:303`; `directory/live.ts:247-255` merges
+grants and never a role), whereas WorkOS puts one role on each membership. (6) `madspace_admin`
+stands above every organisation with no grant row, and the whole live directory runs under ONE
+operating-estate account (`CONTROL_PLANE_ACCOUNT = "acct_madspace_demo"`, `control-plane.ts:31-45`;
+the migration header calls one account per developer "the spine's long shape"). (7) The
+viewer↔agent link exists only in the synthetic `VIEWERS` constant; the live directory merges no
+`agentId`, so a directory-granted account can never pass `getAgentOverview` — a mapping gap that is
+Observer's, not WorkOS's. (8) Email-domain provisioning would put Meridian's people in Meridian's
+organisation, not in each developer's. Verifier corrections folded in: no RLS policy exists (every
+table is "enabled, no policy", reached through SECURITY DEFINER facades keyed on the operating
+account), `viewer_role` is stamped on `ai_requests` as an audit column, and the tenant list already
+holds a non-developer holding tenant (`tnt_madspacedemo1`).
+
+_(iv) The account's lifecycle._ Creation, suspension and deletion of a user account exist nowhere:
+the only account store is the six-entry literal `DIRECTORY` (`accounts.ts:96-150`, "no password
+reset, no lockout, no second factor and no account lifecycle", `:26-27`), one shared demo password,
+read-only lookups, and the whole directory off unless `OBSERVER_DEMO_ACCOUNTS=1`. Creating an
+account means editing the literal and redeploying; deleting one means removing it (a signed token
+for an id the directory no longer holds resolves to no session, `session.ts:178-183`). The sign-in
+page's SSO and invitation controls are stubs ("Invitations are not connected to this build").
+`packages/sources` is about installations and never people: create project/source, activation
+codes, suspend/resume/archive a source, revoke a source credential (`admin.ts:315-348`); the project
+directory grants and revokes a viewer by an opaque account string (`directory.ts:117-140`).
+`/madspace` creates projects and `showroom_ue5` sources, and — the verifier's addition — saves,
+enables, syncs and removes CRM connector configurations and credentials (`connector-actions.ts`;
+`20260907100000` `connector_configs`, `connector_credentials`). Two credential stores exist per
+account (`account_credentials`, `connector_credentials`), each removable by hard delete, with no
+cascade from an account that does not exist as a row. Missing for a billed, self-service
+subscription, with no home today: an account row at all, a billing identity, plan and seats,
+suspension on non-payment (only a source can be suspended), invitation and password reset, erasure
+of an account and its credentials, and an audit of who did what to whom.
+
+**Not touched:** the (ii) mobile findings, the two (D) failures, the route-handler revocation gap
+(reported, not fixed), the identity provider (not chosen), the four languages.
+
+Evidence: `d18d47e` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the renders,
+photographs, session logs, the deployment probe and the two workflows' journals in the session
+scratchpad.
