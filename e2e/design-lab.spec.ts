@@ -130,7 +130,7 @@ test.describe("design lab", () => {
   for (const variant of VARIANTS) {
     for (const screen of SCREENS) {
       test(`${variant} ${screen} at 1440`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
+        test.skip(test.info().project.name !== "lab", "captured once, at the review width");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
         await assertNoOverflow(page, `${variant}/${screen} at 1440`);
@@ -149,7 +149,7 @@ test.describe("design lab", () => {
      * states; the direction that shows both at once simply photographs twice.
      */
     test(`${variant} activation with the panel dismissed`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "captured once");
+      test.skip(test.info().project.name !== "lab", "captured once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
@@ -167,7 +167,7 @@ test.describe("design lab", () => {
 
     for (const screen of MOBILE_SCREENS) {
       test(`${variant} ${screen} at 390`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "captured once, at the review width");
+        test.skip(test.info().project.name !== "lab", "captured once, at the review width");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 390, 844);
         await assertNoOverflow(page, `${variant}/${screen} at 390`);
@@ -182,7 +182,7 @@ test.describe("design lab", () => {
      * that decision easier to see than the assertion does.
      */
     test(`${variant} holds together at 1024`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       for (const screen of SCREENS) {
         await open(page, variant, screen, 1024, 900);
@@ -204,7 +204,7 @@ test.describe("design lab", () => {
    */
   for (const screen of SCREENS) {
     test(`contact sheet: ${screen}`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "composed once");
+      test.skip(test.info().project.name !== "lab", "composed once");
 
       const shots = VARIANTS.map((variant) => ({
         variant,

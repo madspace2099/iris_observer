@@ -66,7 +66,7 @@ test.describe("design lab: the accessibility contract", () => {
       const where = `${variant}/${screen}`;
 
       test(`${where}: one h1, no overflow, and every state carries a word`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once, at the review width");
+        test.skip(test.info().project.name !== "lab", "checked once, at the review width");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
@@ -129,7 +129,7 @@ test.describe("design lab: the accessibility contract", () => {
       test(`${where}: a keyboard can reach every control, and can see where it is`, async ({
         page,
       }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once");
+        test.skip(test.info().project.name !== "lab", "checked once");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
@@ -168,7 +168,7 @@ test.describe("design lab: the accessibility contract", () => {
       });
 
       test(`${where}: the phone reading order is the visual order`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once");
+        test.skip(test.info().project.name !== "lab", "checked once");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 390, 844);
 
@@ -227,7 +227,7 @@ test.describe("design lab: the accessibility contract", () => {
     test(`${variant}/activation: the panel traps, closes on Escape, and gives focus back`, async ({
       page,
     }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
@@ -274,7 +274,7 @@ test.describe("design lab: the accessibility contract", () => {
      * control that describes its own result.
      */
     test(`${variant}/activation: the copy control can announce what it did`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 

@@ -111,7 +111,7 @@ async function clipped(page: Page): Promise<string[]> {
 
 test.describe("design lab under a portfolio-sized estate", () => {
   test("the fixture is the size the brief asks for", async ({ page }) => {
-    test.skip(test.info().project.name !== "desktop", "checked once");
+    test.skip(test.info().project.name !== "lab", "checked once");
     await signIn(page, "MADSPACE Operations");
     await open(page, "a", "projects", 1440, 900);
 
@@ -126,7 +126,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
   for (const variant of VARIANTS) {
     for (const screen of SCREENS) {
       test(`${variant}/${screen} holds together at every width`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once");
+        test.skip(test.info().project.name !== "lab", "checked once");
         await signIn(page, "MADSPACE Operations");
 
         for (const size of WIDTHS) {
@@ -173,7 +173,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
     }
 
     test(`${variant}: a long name does not break either list`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
 
       for (const screen of LIST_SCREENS) {
@@ -199,7 +199,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
      * other check in this file.
      */
     test(`${variant}/sources: a missing measurement never renders as a zero`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "sources", 1440, 900);
 
@@ -215,7 +215,7 @@ test.describe("design lab under a portfolio-sized estate", () => {
      * estate list lies is by listing only what has data in it.
      */
     test(`${variant}/projects: a project with no sources is still listed`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "projects", 1440, 900);
 
