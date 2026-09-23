@@ -5,7 +5,7 @@ import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Gaps, SourceChips } from "@/showroom/parts";
 
@@ -181,7 +181,11 @@ export default async function AudiencePage({
               <span style={{ textAlign: "right" }}>Outcome</span>
             </div>
             {view.matches.map((m) => (
-              <Link className="iris-matrix-row" key={m.meetingId} href={dynamicRoute(m.href)}>
+              <Link
+                className="iris-matrix-row"
+                key={m.meetingId}
+                href={dynamicRoute(withPeriod(m.href, presetFrom(search.period)))}
+              >
                 <span className="iris-matrix-code">{m.startedDisplay}</span>
                 <span className="iris-bar-label" title={m.agentName}>
                   {m.agentName}

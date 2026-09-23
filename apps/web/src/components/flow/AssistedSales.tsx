@@ -39,6 +39,7 @@ export function AssistedSales({
       </p>
       {assisted.sales.length === 0 ? null : (
         <RankedBars
+          period={period}
           rows={assisted.sales.map((sale) => {
             const href = sale.meetingHref ?? sale.unitHref;
             return {

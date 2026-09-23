@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { AskField } from "./AskField";
 import { ClosableDetails } from "./ClosableDetails";
 import { MenuCloseButton } from "./MenuCloseButton";
@@ -1027,7 +1028,9 @@ export function AskConversationPanel({
                           ) : (
                             <Link
                               className="ask-evidence-link"
-                              href={dynamicRoute(answer.evidence.href)}
+                              href={dynamicRoute(
+                                withPeriod(answer.evidence.href, presetFrom(periodParam)),
+                              )}
                             >
                               {answer.evidence.observationCount.toLocaleString("en-GB")}{" "}
                               observations
@@ -1048,7 +1051,9 @@ export function AskConversationPanel({
                         <li>
                           <Link
                             className="ask-evidence-link"
-                            href={dynamicRoute(answer.actionHref)}
+                            href={dynamicRoute(
+                              withPeriod(answer.actionHref, presetFrom(periodParam)),
+                            )}
                           >
                             {answer.actionLabel}
                           </Link>

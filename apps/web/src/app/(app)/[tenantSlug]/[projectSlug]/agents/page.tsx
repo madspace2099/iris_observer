@@ -232,7 +232,7 @@ export default async function AgentsPage({
             <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
               Presentations given
             </p>
-            <RankedBars rows={charts.ranked} />
+            <RankedBars rows={charts.ranked} period={period} />
             <p className="iris-meta" style={{ marginTop: ".5rem" }}>
               How many, and how long they typically ran. This list is ordered by workload. It is not
               ordered by outcome, and there is no list here that is.
@@ -278,7 +278,7 @@ export default async function AgentsPage({
         />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} />
+          <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />
         ))}
 
         <Gaps

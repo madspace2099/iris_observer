@@ -152,6 +152,7 @@ export function DemandSignals({
                   .join(". ")}
               >
                 <RankedBars
+                  period={period}
                   rows={topCategories.map((category) => ({
                     id: category.category,
                     label: category.label,
@@ -176,6 +177,7 @@ export function DemandSignals({
                   .join(". ")}
               >
                 <RankedBars
+                  period={period}
                   rows={topPlaces.map((place) => ({
                     id: place.placeId,
                     label: place.name,

@@ -2,6 +2,7 @@ import type {
   BehaviourChange,
   MetricValue,
   PresentationCoverage,
+  PeriodPreset,
   PresentationLane,
   ShowroomFinding,
 } from "@observer/readmodels";
@@ -10,6 +11,7 @@ import { INSIGHT_SOURCE_LABELS, type InsightSource } from "@observer/contracts";
 import { DATA_SOURCE_MARKERS, defineMeasurement } from "@observer/readmodels";
 import { Measure } from "./Measure";
 import { dynamicRoute } from "@/lib/href";
+import { withPeriod } from "@/lib/period";
 import Link from "next/link";
 
 /**
@@ -118,11 +120,14 @@ export function EvidencePill({
 
 export function Finding({
   finding,
+  period,
   lead = false,
   plane = false,
   measured = false,
 }: {
   finding: ShowroomFinding;
+  /** Carried by the evidence and the next step, which returned a reader to the quarter until P2-16. */
+  period: PeriodPreset;
   lead?: boolean;
   /**
    * Opt-in only, and only ever read by CSS scoped to `[data-plane="true"]`.
@@ -159,13 +164,18 @@ export function Finding({
       {finding.caveat === null ? null : <p className="iris-finding-caveat">{finding.caveat}</p>}
       <div className="iris-finding-foot">
         <SourceChips sources={finding.sources} measured={measured} />
-        <EvidencePill href={finding.evidence.href}>
+        <EvidencePill
+          href={finding.evidence.href.length === 0 ? "" : withPeriod(finding.evidence.href, period)}
+        >
           <i />
           {finding.evidence.observationCount} records · {finding.evidence.tier.replace(/_/g, " ")}
         </EvidencePill>
         <span>n = {finding.sampleSize} meetings</span>
         {finding.nextStep === null ? null : (
-          <Link className="iris-action" href={dynamicRoute(finding.nextStep.href)}>
+          <Link
+            className="iris-action"
+            href={dynamicRoute(withPeriod(finding.nextStep.href, period))}
+          >
             {finding.nextStep.label}
           </Link>
         )}

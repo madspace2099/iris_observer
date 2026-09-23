@@ -268,6 +268,7 @@ export function SegmentDetail({
                 .join(". ")}
             >
               <RankedBars
+                period={period}
                 rows={selected.attendedTo.slice(0, 8).map((item) => ({
                   id: `${item.category}:${item.label}`,
                   label: item.label,

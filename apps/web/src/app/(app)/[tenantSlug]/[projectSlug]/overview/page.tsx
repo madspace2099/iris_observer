@@ -20,7 +20,7 @@ import {
   type AgentOverview,
   type ExecutiveOverview,
 } from "@observer/readmodels";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod, withPeriodOnLinks } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 
@@ -92,7 +92,7 @@ export default async function OverviewPage({
           detail="Project carries the same figures for every project, read from the same records."
           action={
             <div className="obs-actions" style={{ marginTop: "var(--space-3)" }}>
-              <ActionLink href={`${root}/project`} emphasis="primary">
+              <ActionLink href={withPeriod(`${root}/project`, query.period)} emphasis="primary">
                 Open Project
               </ActionLink>
             </div>
@@ -103,10 +103,11 @@ export default async function OverviewPage({
     throw error;
   }
 
+  /* The UI package's components know no period; every link is finished here (P2-16). */
   return read.kind === "agent" ? (
-    <AgentView overview={read.overview} />
+    <AgentView overview={withPeriodOnLinks(read.overview, query.period)} />
   ) : (
-    <ExecutiveView overview={read.overview} />
+    <ExecutiveView overview={withPeriodOnLinks(read.overview, query.period)} />
   );
 }
 

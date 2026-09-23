@@ -89,6 +89,7 @@ function Presets({
         .join(", ")}.`}
     >
       <RankedBars
+        period={period}
         rows={ordered.map((entry) => ({
           id: entry.label,
           label: entry.label,

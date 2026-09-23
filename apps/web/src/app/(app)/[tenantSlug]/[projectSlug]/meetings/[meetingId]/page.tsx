@@ -107,6 +107,13 @@ export default async function MeetingPage({
   } catch (error) {
     if (!(error instanceof NotFoundError) && !(error instanceof NotPermittedError)) throw error;
     // No showroom session against this id, so it is a meeting that has not run.
-    return <BriefView tenantSlug={tenantSlug} projectSlug={projectSlug} meetingId={meetingId} />;
+    return (
+      <BriefView
+        tenantSlug={tenantSlug}
+        projectSlug={projectSlug}
+        meetingId={meetingId}
+        period={period}
+      />
+    );
   }
 }

@@ -137,7 +137,9 @@ export default async function ProjectPage({
         <p className="iris-meta iris-actions">
           <Link
             className="iris-action"
-            href={dynamicRoute(`/${tenantSlug}/${projectSlug}/presentation`)}
+            href={dynamicRoute(
+              withPeriod(`/${tenantSlug}/${projectSlug}/presentation`, query.period),
+            )}
           >
             Presentation DNA →
           </Link>
@@ -355,9 +357,12 @@ export default async function ProjectPage({
                 className="iris-action"
                 data-emphasis="primary"
                 href={dynamicRoute(
-                  segment.rooms === null
-                    ? `/${tenantSlug}/${projectSlug}/audience`
-                    : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
+                  withPeriod(
+                    segment.rooms === null
+                      ? `/${tenantSlug}/${projectSlug}/audience`
+                      : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
+                    query.period,
+                  ),
                 )}
                 style={{ marginTop: "1rem" }}
               >
@@ -495,7 +500,13 @@ export default async function ProjectPage({
         <hr className="iris-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} plane />
+          <Finding
+            key={finding.id}
+            finding={finding}
+            period={query.period}
+            lead={index === 0}
+            plane
+          />
         ))}
 
         <Gaps

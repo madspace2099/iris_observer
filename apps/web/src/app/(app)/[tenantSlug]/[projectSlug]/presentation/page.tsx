@@ -322,7 +322,7 @@ export default async function PresentationPage({
         </div>
 
         {view.findings.map((finding) => (
-          <Finding key={finding.id} finding={finding} lead />
+          <Finding key={finding.id} finding={finding} period={query.period} lead />
         ))}
       </section>
     </div>

@@ -21,7 +21,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import type { PeriodPreset } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
+import { withPeriod } from "@/lib/period";
 
 /* --- a figure with its history -------------------------------------------- */
 
@@ -613,6 +615,7 @@ export function Radar({
 
 export function RankedBars({
   rows,
+  period,
   valueSuffix = "",
   measured = false,
   peak: scale,
@@ -625,6 +628,13 @@ export function RankedBars({
     readonly display: string;
     readonly href?: string | null;
   }[];
+  /**
+   * The reader's period, carried by every row that links. Required, not
+   * optional: six of ten callers handed read-model routes through raw, and a
+   * reader on "Last 28 days" who opened a ranked agent or meeting was
+   * returned to the quarter (P2-16).
+   */
+  period: PeriodPreset;
   valueSuffix?: string;
   /**
    * Opt-in only: Sales Flow's two lists pass this, Sales Agents' does not.
@@ -652,7 +662,7 @@ export function RankedBars({
             {row.href === undefined || row.href === null ? (
               row.label
             ) : (
-              <Link href={dynamicRoute(row.href)}>{row.label}</Link>
+              <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
             )}
             {/* Truncated visibly, and never unreachable: the full line is the
                 element's own title. */}

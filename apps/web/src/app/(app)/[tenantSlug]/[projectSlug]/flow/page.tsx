@@ -222,7 +222,10 @@ export default async function FlowPage({
                     {change.deltaDisplay}
                   </p>
                   <p className="iris-change-detail">{change.detail}</p>
-                  <Link className="iris-action" href={dynamicRoute(change.href)}>
+                  <Link
+                    className="iris-action"
+                    href={dynamicRoute(withPeriod(change.href, query.period))}
+                  >
                     Look at it
                   </Link>
                 </article>
@@ -321,7 +324,10 @@ export default async function FlowPage({
                     {ring.flag.text}
                   </p>
                 )}
-                <Link className="iris-action" href={dynamicRoute(ring.href)}>
+                <Link
+                  className="iris-action"
+                  href={dynamicRoute(withPeriod(ring.href, query.period))}
+                >
                   How they present
                 </Link>
               </article>
@@ -415,6 +421,7 @@ export default async function FlowPage({
               ) : (
                 <>
                   <RankedBars
+                    period={query.period}
                     rows={view.ladder.stalled.map((deal) => ({
                       id: deal.externalId,
                       label:
@@ -456,13 +463,13 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
-            <RankedBars rows={charts.longestMeetings} measured />
+            <RankedBars period={query.period} rows={charts.longestMeetings} measured />
           </div>
           <div className="iris-band-side">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
-            <RankedBars rows={charts.rankedAgents} measured />
+            <RankedBars period={query.period} rows={charts.rankedAgents} measured />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>
@@ -472,7 +479,13 @@ export default async function FlowPage({
         <hr className="iris-rule iris-section-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} measured />
+          <Finding
+            key={finding.id}
+            finding={finding}
+            period={query.period}
+            lead={index === 0}
+            measured
+          />
         ))}
 
         <Gaps

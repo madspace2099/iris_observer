@@ -45,3 +45,28 @@ export function withPeriod(href: string, preset: PeriodPreset): string {
   params.set("period", preset);
   return `${path}?${params.toString()}`;
 }
+
+/**
+ * EVERY LINK A READ MODEL BUILT, FINISHED WITH THE READER'S PERIOD.
+ *
+ * For views drawn by the UI package's components — `VerdictStrip`,
+ * `AlertList`, `EvidenceLink`, `ActionLink` — which take a resolved href and
+ * know nothing of periods, so every link on the two overviews and on the brief
+ * returned a reader who chose "Last 28 days" to the quarter (P2-16). Every
+ * string under a key ending in `href` that is a route gets `withPeriod`; an
+ * empty route (no page lists those records, `EvidenceRef.href`) and null are
+ * left as they are. The view is copied, never mutated.
+ */
+export function withPeriodOnLinks<T>(view: T, preset: PeriodPreset): T {
+  const walk = (value: unknown, key: string): unknown => {
+    if (typeof value === "string") {
+      return /href$/i.test(key) && value.startsWith("/") ? withPeriod(value, preset) : value;
+    }
+    if (Array.isArray(value)) return value.map((item) => walk(item, key));
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k)]));
+    }
+    return value;
+  };
+  return walk(view, "") as T;
+}

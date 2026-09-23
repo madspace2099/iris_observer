@@ -394,6 +394,7 @@ export default async function FeaturesPage({
                 sections={view.sections}
                 meetingsTotal={meetingsTotal}
                 periodLabel={view.context.period.label}
+                period={period}
               />
             ) : null}
 

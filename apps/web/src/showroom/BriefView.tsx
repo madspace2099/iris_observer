@@ -1,9 +1,10 @@
 import { NotFoundError, NotPermittedError } from "@observer/readmodels";
-import type { EvidenceRef, PreMeetingBriefView } from "@observer/readmodels";
+import type { EvidenceRef, PeriodPreset, PreMeetingBriefView } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
 import { ActionLink, Badge, Card, EvidenceLink, SectionHead, StateMessage } from "@observer/ui";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { withPeriodOnLinks } from "@/lib/period";
 
 /**
  * The pre-meeting brief.
@@ -20,21 +21,27 @@ export async function BriefView({
   tenantSlug,
   projectSlug,
   meetingId,
+  period,
 }: {
   tenantSlug: string;
   projectSlug: string;
   meetingId: string;
+  /** Every link the brief hands the agent carries it (P2-16). */
+  period: PeriodPreset;
 }) {
   const viewer = await requireViewer();
 
   let view: PreMeetingBriefView;
   try {
-    view = await repository.getPreMeetingBrief({
-      viewer,
-      tenantSlug,
-      projectSlug,
-      meetingId: meetingId as MeetingId,
-    });
+    view = withPeriodOnLinks(
+      await repository.getPreMeetingBrief({
+        viewer,
+        tenantSlug,
+        projectSlug,
+        meetingId: meetingId as MeetingId,
+      }),
+      period,
+    );
   } catch (error) {
     if (error instanceof NotPermittedError) {
       return (
