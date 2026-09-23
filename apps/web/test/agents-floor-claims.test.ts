@@ -22,6 +22,8 @@ const markup = (path: string): string =>
 
 const ROSTER = markup("src/app/(app)/[tenantSlug]/[projectSlug]/agents/page.tsx");
 const DETAIL = markup("src/app/(app)/[tenantSlug]/[projectSlug]/agents/[agentId]/page.tsx");
+/* The head's sentence lives in `agentAnswer`, shared with the printed summary; the page calls it. */
+const ANSWER = markup("src/components/agents/answer.ts");
 const REPORT = markup("src/app/(app)/[tenantSlug]/[projectSlug]/report/page.tsx");
 const SEQUENCE = markup("src/showroom/charts2.tsx");
 
@@ -44,7 +46,7 @@ describe("the roster", () => {
 
 describe("the agent page's head", () => {
   it("prints the read model's reason where the habit's timed set is under the floor", () => {
-    expect(DETAIL, "the head reads a habit under a gate that counted the meetings held").toMatch(
+    expect(ANSWER, "the head reads a habit under a gate that counted the meetings held").toMatch(
       /view\.suppressionNote \?\?[\s\S]*?view\.profile\.signatureNote \?\?/,
     );
   });

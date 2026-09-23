@@ -24,7 +24,8 @@ const markup = (path: string): string =>
     .replace(/\/\*[\s\S]*?\*\//g, "");
 
 const ROSTER = markup("src/app/(app)/[tenantSlug]/[projectSlug]/agents/page.tsx");
-const DETAIL = markup("src/app/(app)/[tenantSlug]/[projectSlug]/agents/[agentId]/page.tsx");
+/* The head's sentence lives in `agentAnswer`, shared with the printed summary; the page calls it. */
+const ANSWER = markup("src/components/agents/answer.ts");
 const REPORT = markup("src/app/(app)/[tenantSlug]/[projectSlug]/report/page.tsx");
 
 describe("the roster", () => {
@@ -49,7 +50,7 @@ describe("the roster", () => {
 
 describe("the agent page", () => {
   it("names the set the head's habit stands on", () => {
-    expect(DETAIL).toContain(
+    expect(ANSWER).toContain(
       "across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end",
     );
   });
