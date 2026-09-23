@@ -669,13 +669,39 @@ export default async function AgentPage({
               </p>
             </div>
 
-            <MeetingRegister
-              rows={view.recentMeetings}
-              period={period}
-              canOpen={maySeeSurface(viewer.role, "[meetingId]")}
-              caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
-              emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
-            />
+            {/*
+             * THE GATE, DECIDED HERE AND NOT BY A STYLESHEET.
+             *
+             * The register is the meeting drill-down's own material, one row
+             * per meeting, and it keeps the drill-down's audience
+             * (`AGENT_REGISTER_ROLES`, the web's `[meetingId]` roles):
+             * docs/22 §5's decision (B) narrows this region, not the page.
+             * A reader outside it gets no table in the document at all — a
+             * hidden element is not a gate — and a sentence that says what is
+             * missing and why. Everything else on the page stays theirs.
+             */}
+            {maySeeSurface(viewer.role, "[meetingId]") ? (
+              <MeetingRegister
+                rows={view.recentMeetings}
+                period={period}
+                canOpen
+                caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
+                emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
+              />
+            ) : (
+              <p className="ox-result">
+                <span className="ox-chip" data-tone="none">
+                  <span className="ox-chip-mark" aria-hidden="true" />
+                  Kept for the sales team
+                </span>
+                <span>
+                  The rows of this register are the meeting drill-down&rsquo;s own material, which
+                  this account does not open: what is about one buyer stays on the sales
+                  team&rsquo;s surfaces. Every one of these meetings is counted in the figures
+                  above.
+                </span>
+              </p>
+            )}
 
             {/*
              * The screen's action. Eight rows is a sample of the register and

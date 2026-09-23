@@ -1,5 +1,6 @@
 import { outcomeIsUnknown, type InsightSource, type ShowroomSession } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { AGENT_REGISTER_ROLES } from "@observer/readmodels";
 import type {
   ProjectSummary,
   ReportScopeView,
@@ -442,8 +443,14 @@ export function buildAgentReportScope(
       label: "Their most recent meetings",
       summary:
         "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column is a privacy-safe label; no buyer is named.",
-      availability: "ready",
-      reason: null,
+      /* The register is the meeting drill-down's material, and it keeps the drill-down's audience. */
+      ...(AGENT_REGISTER_ROLES.includes(context.viewer.role)
+        ? { availability: "ready" as const, reason: null }
+        : {
+            availability: "unavailable" as const,
+            reason:
+              "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
+          }),
       sources: OBSERVED,
       sampleSize: view.recentMeetings.length,
       sampleNoun: "meetings listed",

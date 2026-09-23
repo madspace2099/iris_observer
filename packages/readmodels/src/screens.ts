@@ -1,3 +1,4 @@
+import type { Role } from "@observer/metrics";
 import type {
   EvidenceTier,
   InsightSource,
@@ -66,6 +67,29 @@ import type { AgentProfile, OutcomeSlice } from "./views3";
  * arrives as a field beside this label rather than inside its `display`, so the
  * guarantee above survives the feature that ends the silence.
  */
+/**
+ * WHO MAY READ AN AGENT'S REGISTER OF MEETINGS.
+ *
+ * The register beside an agent's figures lists their meetings one by one —
+ * the meeting drill-down's own material, row by row — and `docs/22` §5's
+ * decision (B) narrows that region to the drill-down's three roles: the sales
+ * agent, the agency manager and MADSPACE. The developer keeps every figure on
+ * the agent's screen and loses the rows, exactly as they cannot open a
+ * meeting (ADR-0018 keeps what is about one buyer on the sales team's
+ * surfaces). The same gate is the one a buyer's name will stand behind, so it
+ * is declared once, here, where the read model can apply it before anything
+ * reaches a screen.
+ *
+ * The web declares the drill-down's roles on its route (`SURFACES`,
+ * `[meetingId]`); a test holds the two lists equal, because two copies of a
+ * role list are how a gate comes to guard different things on two surfaces.
+ */
+export const AGENT_REGISTER_ROLES: readonly Role[] = [
+  "sales_agent",
+  "agency_manager",
+  "madspace_admin",
+];
+
 export const VISITOR_LABEL_KINDS = [
   /** No contact was ever linked. A walk-in has no history to have. */
   "unlinked",
