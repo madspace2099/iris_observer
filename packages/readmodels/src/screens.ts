@@ -472,6 +472,7 @@ export interface UnitDetailView {
   /** What the timeline cannot say. Stated, never implied by a gap. */
   readonly timelineNote: string;
   readonly funnel: readonly UnitFunnelStage[];
+  /** Every meeting in the period that opened the unit, never a cut of them. */
   readonly relatedMeetings: readonly MeetingRow[];
   readonly relatedAgents: readonly UnitAgentInterest[];
   readonly trend: UnitInterestTrend;

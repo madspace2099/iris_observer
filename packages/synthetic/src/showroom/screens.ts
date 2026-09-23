@@ -628,6 +628,8 @@ export function buildUnitDetail(
    * section that was on screen.
    */
   const timeline: UnitTimelineEntry[] = [];
+  /* Forty entries, newest meetings first; the note below says so and out of how many (P2-16). */
+  const TIMELINE_SHOWN = 40;
   for (const session of [...touchedBy].sort(
     (a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt),
   )) {
@@ -1026,11 +1028,19 @@ export function buildUnitDetail(
     headline,
     attention: row,
     signals,
-    timeline: timeline.slice(0, 40),
+    timeline: timeline.slice(0, TIMELINE_SHOWN),
     timelineNote:
-      "Only section entries carry a time. Everything that happened inside a section is recorded as having happened during it, so these entries show the day and not the moment. The recorded outcome is the exception: it is stamped at the end of the meeting.",
+      "Only section entries carry a time. Everything that happened inside a section is recorded as having happened during it, so these entries show the day and not the moment. The recorded outcome is the exception: it is stamped at the end of the meeting." +
+      (timeline.length > TIMELINE_SHOWN
+        ? ` The ${TIMELINE_SHOWN} entries from the most recent meetings are shown, of ${count(timeline.length, locale)}.`
+        : ""),
     funnel,
-    relatedMeetings: buildMeetingRows(context, touchedBy).slice(0, 8),
+    /*
+     * Every meeting in the period that opened this unit. It was the first eight
+     * under a caption claiming all of them, and no other surface lists a unit's
+     * meetings, so the rest were unreachable (P2-16).
+     */
+    relatedMeetings: buildMeetingRows(context, touchedBy),
     relatedAgents,
     trend,
     findings,

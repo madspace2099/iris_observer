@@ -452,7 +452,10 @@ export function buildAgentReportScope(
               "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
           }),
       sources: OBSERVED,
-      sampleSize: view.recentMeetings.length,
+      /* A section drawn blank lists nothing, so it counts nothing as listed (P2-16). */
+      sampleSize: AGENT_REGISTER_ROLES.includes(context.viewer.role)
+        ? view.recentMeetings.length
+        : null,
       sampleNoun: "meetings listed",
       evidence: evidence("meetings", view.recentMeetings.length),
     },
