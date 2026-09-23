@@ -3864,3 +3864,83 @@ and both were measured against the wrong server too, so their true counts are 13
 
 Evidence: `af5fcae`, `63b7292`, `0719566` and this entry's commit on
 `feature/observer-ux-overhaul-phase2`; the run logs in the session scratchpad.
+
+## 2026-09-23 — The instrument's last two pieces, and the P2-15 survey
+
+**Rule twenty-five, recorded.** The instrument must be verified, not only the reading: the server
+a Playwright result was measured against has to be proven the right one. Not as a convention —
+`e2e/reuse-guard.ts` now asks a reused server what it carries and refuses the run if it is the
+wrong one.
+
+**The lab has its own project and server (`e2e2d8a`).** A `lab` project (`testMatch` on the three
+design-lab specs, `baseURL` on port 3211) and a second `webServer`, `next dev --port 3211`, with
+`OBSERVER_LOCAL_CONTROL_PLANE=1` and the same harness environment the production server on 3210
+gets; the three specs left the other three projects (413 tests each; the lab 136), and their own
+"captured once" gates name the lab. First run, both servers started by the config: **134 passed, 2
+skipped, none failed, 6.4 minutes.** The line drawn with it: the lab's green is about three
+prototypes of the MADSPACE screens; its sixty accessibility assertions — one h1, keyboard reach,
+focus visibility, reading order, a focus trap, an announcement — stand on the prototypes alone,
+and no product surface is behind any of them. Costs, measured: every run now starts the lab's dev
+server too (four seconds, one port, a `next dev` process alongside), and `next dev` rewrites
+`apps/web/next-env.d.ts` on start (`.next/types` → `.next/dev/types`), restored by hand each time
+this round — a tracked file that every lab run dirties, to be decided.
+
+**The reuse guard (`e2e2d8a`, fixed in `81632e6`).** With `OBSERVER_REUSE=1`, the global setup —
+which Playwright runs after every server is started or reused — signs in to each reused server
+(the projects' `baseURL`s; `FullConfig.webServer` is null once the runner has made plugins of the
+array) as a demonstration account, posts one question and opens the settings page, with the same
+two readers the tests use, and refuses the run with the missing thing named. On this machine the
+split that fooled three whole runs is exact: `next start` reads `apps/web/.env.local` (the demo
+accounts, the local-control-plane flag) and not `.env.development.local` (the subject pepper, the
+credential key), so sign-in worked and every question was refused. Proved on two hand-started
+servers: without the pepper — "refusing to run against the reused server at http://localhost:3210:
+the Ask gate refuses every question on this server (503 before the body is read …) — it has no
+OBSERVER_SUBJECT_PEPPER, or no usage-ceiling store"; with the pepper and the harness flag but no
+store — refused on "Secure credential storage is not configured". The first version's store check
+navigated by a relative path from a page with no `baseURL` and threw instead of refusing; the
+mutation run after the commit showed it (the inverted pepper check fell through to the store check,
+which crashed), and the fix is its own commit. Mutation, the guard's own condition inverted: against
+the env-less server the run proceeded — two tests ran and passed — where it should have been
+refused.
+
+**P2-15, surveyed, nothing built.** The plan's definition of done is not in the tracked tree: it
+lives in the inbound package `_planning/observer-v3-package/OBSERVER_Claude_Code_Phase_1_2_3_v3.md`
+(excluded through `.git/info/exclude`), line 626, verbatim: "Kész, ha: Saját és menedzsment scope
+helyes; nevek látszanak. Riport drawer SK/EN/DE/HU opcióval nyílik. Ismeretlen follow-up nem
+késés." — with the R13 route checklist behind it (lines 1309–1339: activity, recorded outcomes,
+verified outcomes and follow-up kept apart with real denominators; the visitor name in the recent
+meetings; "Where else they present" from permitted projects only; the Report button opening the
+shared panel with agent and period preloaded, tagged P2-17). `ReportScope.kind` is `"project" |
+"meeting"` (`packages/readmodels/src/report.ts:59`); the port takes only a `meetingId`; the synthetic
+repository resolves it with a cross-project `NotFoundError`; the builder has two section lists, the
+project's eight and the meeting's two (`meeting-summary`, `evidence-appendix`); the dialog is
+mounted twice, on the meeting page's head aside and on the project page's action row, binary on
+`kind`; `pageHref` goes to `/report?meeting={id}` with the period. Rendered as Monika on
+`mtg_ng0132`: "Export meeting summary", Scope "24 Aug · 15:39 · Lucia Bartošová", Period, Audience
+"Internal", two sections both "Ready" with checkboxes, Format PDF / Shareable page / CSV, "Preview-
+ready … 2 of 2 writable sections", "Generate document" aria-disabled with "Nothing generates a
+document yet … scheduled for M4"; with "Shareable page" chosen, "Available now" and the link "Open
+the report page", which opens "Meeting summary" with a four-cell tally and the numbered sequence.
+An agent scope would need an `"agent"` member and an `agentId` on the scope, a way to ask the
+port, a repository branch with the not-found rule `getAgentDetail` already has, a builder whose
+inputs `AgentDetailView` already computes, a third dialog title, an `?agent=` branch on the report
+page, and a mount on the agent page — and three stale docblocks that say there are two kinds. Of
+the agent page's twelve regions, only the sales-agents row of the report carries counterparts, and
+those three are exact: meetings, median presentation, progressed of decided; nothing else on the
+page — follow-up, recorded outcomes, the funnel's middle steps, the outcome ring, buyer interest,
+running order, the trend, the apartments, where else they present, the agent's own recent meetings
+and findings — has a section.
+
+**The doctrine question, found and not decided.** `ReportSection` carries eight fields and no
+`MetricValue`: one `sampleSize` per section, one `reason` sentence, a three-state availability with
+no `insufficient`. The meeting scope carries no sample, no denominator and no floor at all — its
+withholdings are the `partial` flag and the legacy-import sentence, and its content is plain
+strings and null-dropped fragments. The one place the agent floor reaches a printed report is the
+project scope's sales-agents table, and it reaches it from the roster read model, through `Missing`
+and a page-built string, not through the section. The appendix promises "its sample size" per
+figure while the structure holds one per section. So today's structure would carry an agent's
+withholdings the way it carries the meeting's: as sentences beside sections, not as figures with
+their floor and denominator — unless the sections themselves changed shape.
+
+Evidence: `e2e2d8a`, `81632e6` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the run logs in the session scratchpad.
