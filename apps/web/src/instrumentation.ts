@@ -23,8 +23,11 @@ export async function register(): Promise<void> {
    * platform and a person reading the log all recognise as "did not start".
    */
   const { signingSecretFrom } = await import("./lib/session-secret");
+  const { devicePepperFrom } = await import("./lib/device-pepper");
   try {
     signingSecretFrom(process.env);
+    /* The same rule for the pepper behind the vendor-facing safety identifier. */
+    devicePepperFrom(process.env);
   } catch (error) {
     console.error(error);
     process.exit(1);
