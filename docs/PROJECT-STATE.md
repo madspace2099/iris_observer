@@ -3684,3 +3684,59 @@ photographed; the rest of `layout-integrity.spec.ts`; the full Playwright suite.
 
 Evidence: `2d9e2ee`, `9f43b9d`, `f646fde`, `3a8f5bc` and this entry's commit on
 `feature/observer-ux-overhaul-phase2`; `_review/views-p2-18/`.
+
+## 2026-09-23 — The wide and mobile projects run for the first time; the first dead file goes; the register at 1199px and on a phone
+
+**Rule twenty-four, recorded.** A green mutation counts only when the same pipeline, in the same
+run, has shown red: last round's mutated build failed its typecheck, the old server kept serving
+the un-mutated code, and the green looked like evidence. Every mutation since gates on the build's
+exit and on the server being replaced by PID.
+
+**`WindowFigures` is deleted (`f39389c`).** The first item of the dwindling checklist: 162 lines,
+one export, a tally of the KPI panel with the qualifier beside each figure; the barrel's docblock
+entry and export. Checked before: imported by the barrel alone, the barrel by `flow/page.tsx:9` and
+`report/page.tsx:22` for other names; the live flow page draws the same group at 122–170; no test
+names it, the tree-walking tripwires pass without it. `OutcomeFigures` and `AgentOutcomes` stay in
+the barrel, unreachable, their rules not yet landed.
+
+**The `wide` project, first run — 548 declared, 230 passed, 13 failed, 285 skipped, 20 did not
+run (9.9 min).** 41 spec files; 29 ran at least one test; 9 of those carry a failure; 12 are
+entirely skipped by their own project gates ("captured once", "checked once" on desktop). The 20
+that did not run are `ask-iris-compare`'s serial group, skipped by project. The 13: seven are the
+Ask API answering 503 where 200, 400 or a stopped burst was expected (`account-login`,
+`agent-authorisation`, five in `ask-security`); three are a disabled `#budget-input` or
+`#key-openai` (`models-and-budget`, `settings-ai`, `settings-observer-parity`) — this machine has
+no credential key; one is `quality`'s "one agent has one meeting count on one page", waiting for
+`.iris-radars .iris-ring-key li`, the radar key that `c8b30b6` stopped drawing for one shape — a
+guard on a removed element; one is `nav-reachability`'s `.ox-lede` resolving to three elements; one
+is `views-screenshots` 06-audience timing out on `/sign-in` right after the 100-request burst. None
+of the thirteen is about the 1920px width.
+
+**The `mobile` project, first run — 548 declared, 216 passed, 22 failed, 292 skipped, 18 did not
+run (14.1 min).** 28 spec files ran a test; 10 carry a failure. Twelve of the 22 are the same
+failures as on wide, same first line, not phone findings. Of the other ten: seven are specs that
+assume a desktop affordance the phone deliberately puts in the sheet — the context band's Developer
+and Period switchers (`authorization` ×4), the Sections navigation (`authorization`,
+`nav-reachability`), the header's Settings link (`settings-ai`), and `getByText('Monika
+Kováčová').first()` resolving to the header's hidden account name (`authorization`); two are
+`page.goto /sign-in` aborted with "frame was detached" (`mobile-menu-containment`,
+`nav-reachability`) — not understood; and `settings-observer-parity`'s own phone test finds
+`#key-openai` disabled, the credential-key environment again. Two of twenty-two "do not know": the
+classification stands.
+
+**The register at 1199px and on a Pixel 7, photographed, untouched.** At 1199px the grid is
+`96px 647px 144px 144px`; the two heads wrap to two lines and fit (144×40 px); the counts stay in
+their columns; the document is 1199px wide, no horizontal scroll. On the Pixel 7 the head is
+hidden by the record layout and each row reads "Rooms 2 · Times applied 37 · Units matching 18";
+the document is 412px wide, no horizontal scroll. Not broken by any of the three criteria, so not
+touched. What the phone photograph also shows: the sets the heads carry — "of 74 presentations",
+"of 36 available now" — are absent on the phone, because the head that carries them is hidden and
+the cells' `data-label` values are the old short words. A count without its set, on the phone: a
+finding for the next round, not fixed here.
+
+**Not run:** nothing else; both projects ran whole. The `desktop` project was not run whole this
+round; the environment-class failures above (503, disabled inputs, the radar key) will show there
+too.
+
+Evidence: `f39389c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run logs
+in the session scratchpad; `test-results/` for the failures' page snapshots.
