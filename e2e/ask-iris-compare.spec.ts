@@ -582,6 +582,15 @@ test.describe("Ask IRIS against the delivered design", () => {
     /* And one of the docked bar, mid-lap. */
     await page.goto("/alpha/northgate/flow");
     await expect(page.locator(".ask-dock .ask-glow-canvas")).toBeAttached();
+    /*
+     * The dock stands at the end of the document now, not fixed to the foot of
+     * the viewport. "around" clamps its clip to the viewport, and with the bar
+     * below the fold the clip was 0px tall: bring the bar to the middle of the
+     * viewport first, and photograph the same thing this always photographed.
+     */
+    await page
+      .locator(".ask-dock .ask-hero")
+      .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await page.waitForTimeout(1200);
     await page.screenshot({
       clip: await around(".ask-dock .ask-hero", 70),
