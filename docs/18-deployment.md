@@ -282,7 +282,7 @@ Vercel through its deployment API, and GitHub's deployment records. Nothing was 
 | 5            | not completed              | the original `3f298a6` build, `dpl_ETZbUdf4Jkb7cHR7xFeRaRz2AHZ5` (created 2026-08-25 23:06:41 UTC), is still READY; and no audit row has been written since 2026-08-25 19:53:02 UTC, so no smoke reached admission                                                                                                                                                |
 | 6–7          | not run                    | `pg_cron` is not installed; 1.6.4 is available                                                                                                                                                                                                                                                                                                                    |
 | 8–9          | not run                    | the migration history holds five rows, the `20260825*` versions, and `admit_ai_request` still takes 13 arguments                                                                                                                                                                                                                                                  |
-| 10–11        | not run                    | they follow Migrations 3–4, which are not applied; no audit row has been written since 2026-08-25                                                                                                                                                                                                                                                                 |
+| 10–11        | RETIRED 2026-09-24         | see RETIRED 2026-09-24 before the sequence. Measured: they follow Migrations 3–4, which are not applied; no audit row has been written since 2026-08-25                                                                                                                                                                                                           |
 | 12–13        | not run                    | their subject — the schema of Migrations 3–4 and the scheduled job — does not exist on the host                                                                                                                                                                                                                                                                   |
 | 14           | UNVERIFIED 2026-09-24      | which branch "the corrected release branch" names, and whether that push happened, was not established                                                                                                                                                                                                                                                            |
 | 15–17        | not run                    | `observer.ai_requests` holds 133 rows, every one `audit_version = 1`; no row that a scoped or live-model proof writes exists                                                                                                                                                                                                                                      |
@@ -306,6 +306,10 @@ OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright 
 ```
 
 ### The rollout order, and why the application comes first
+
+**RETIRED 2026-09-24.** The order argued for below — the application before the migrations — no
+longer binds; see _RETIRED 2026-09-24_ before the sequence. The argument stays as the record of why
+it existed.
 
 Two orderings here were discovered by audit, not by design, and both would have wasted database
 mutations before anybody noticed the application could not answer.
@@ -582,6 +586,60 @@ The retirement gate must:
 what was written, never what can be written. It remains honestly INCONCLUSIVE, and the external gate
 is a person's enumeration.
 
+#### RETIRED 2026-09-24 — the legacy-compatibility phase, and the order that served it
+
+Two things in the sequence below no longer bind:
+
+- **steps 10–11**, the legacy compatibility proof through the fresh `3f298a6` Preview;
+- **the constraint that steps 1–5 come before Migrations 3–4** (steps 8–9) — "the application comes
+  first".
+
+Neither is deleted. The steps keep their text and their numbers, and
+`supabase/test/rollout-order.test.ts` still reads the table unchanged.
+
+**What it protected.** That the builds already deployed keep writing version-1 rows through
+Migrations 3 and 4. That is 22 deployments whose source calls an old façade, and `3f298a6` — one
+SHA, two READY builds — which reaches thirteen-argument admission.
+
+**What was measured, 2026-09-24.**
+
+- **No version-1 row for 29 days.** The newest audit row is 2026-08-25 19:53:02 UTC, and every one
+  of the 133 is `audit_version = 1`.
+- **The current code cannot write an audit row on this host.** HEAD sends two arguments the host's
+  function does not have: `p_audit_client_hash` at `apps/web/src/lib/ai/quota.ts:337` and
+  `p_pseudonym_version` at `:338`. The host's `admit_ai_request` takes thirteen parameters, and
+  neither of those is among them. PostgREST matches a call to a function by its argument names, so
+  this call has no function to reach.
+
+**What it blocked.** Migrations 3 and 4 — exactly what would let the current code write. Migration 3
+gives `admit_ai_request` both missing parameters:
+
+- `p_audit_client_hash` at
+  `supabase/migrations/20260826120000_observer_exact_retry_and_pseudonym_scope.sql:242`;
+- `p_pseudonym_version` at `:247`.
+
+The phase kept 22 builds that have written nothing for 29 days able to write, at the price of the
+current build writing nothing at all.
+
+**What returns it.** If anybody proves that an old deployment is in live use, the phase returns as
+written, before Migration 3.
+
+**What is not retired.**
+
+- steps 1–3, the preflight and the pepper;
+- step 5's deletion of the original `3f298a6` build;
+- step 18's deletion of every version-1-capable build;
+- step 19's gate, with the contract migration last;
+- the scoped proof, steps 15–16.
+
+Step 4's fresh `3f298a6` Preview existed only to carry the retired proof. It is one of the builds step
+18 deletes.
+
+**One dependency to carry over.** Step 10 was the only row that said to run Part A of
+`supabase/verifiers/observer-http-compat-proof.sql`. The scoped proof still needs its own: that file
+counts the audit rows written since the `floor_ts` Part A records (its check 11). Run Part A
+immediately before step 15's request.
+
 #### The sequence
 
 Steps 1–2 are read-only; nothing external is mutated before explicit operator approval.
@@ -641,6 +699,10 @@ rather than either of the other two sentences. `e2e/observer-live.spec.ts` prove
 from the rendered answer sheet.
 
 ### Database migrations, once the application is proven
+
+**RETIRED 2026-09-24, in part.** "Once the application is proven" meant the legacy proof, which no
+longer gates Migrations 3–4; see _RETIRED 2026-09-24_ before the sequence. The expand–contract order
+below still holds.
 
 The Supabase MCP tools are write-blocked from the authoring session, so every migration is
 applied by hand through the SQL Editor. The audit change ships in two halves and the order
