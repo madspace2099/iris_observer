@@ -4517,3 +4517,53 @@ The shape of P2-17 is Máté's decision.
 **Not touched:** migrations, the identity provider, the session store, the frozen surfaces; the
 two remaining `?? "#"` fallbacks, the refusal redirect that drops the period, and the 200 that
 `notFound()` answers, all still awaiting a decision.
+
+## 2026-09-24 — The migration history says what is true; the owner-role window is built and guarded
+
+Three rounds on the hosted project `tfcchobwobpadenampyh`; the first two stopped on their own
+conditions. The journal is `_review/p-migrations-journal.md` (not committed).
+
+1. **Measured, not assumed.** Of the 22 migrations, the five `20260825*` are fully applied — every
+   object, every live function body equal to its file but for CRLF (9 of 9), the comments, the
+   defaults and the fixed `search_path` — and the other seventeen are wholly absent; none is partial.
+   There was no migration history at all. `supabase/README.md` (frozen, not edited) claims more than
+   is there: `run_rate_bucket_retention`, `maintenance` and `pseudonym_version` are described as
+   present and are not, and only four of the seventeen are marked "executed, not applied". The old
+   staging project `jtvqecusxzogqubxpoyf` exists, INACTIVE, in another organisation.
+2. **Found: the seventeen cannot be applied as written.** Hosted `postgres` is not a superuser, so
+   the first `… OWNER TO` stops at `20260829173000:121` with
+   `must be able to SET ROLE "observer_credentials_owner"`, and the façades then need their owner
+   to hold CREATE on `public`. PGlite applies every migration as a superuser, which is why the
+   suite never saw it.
+3. **`a76846a` — the owner-role prerequisite and its guard.**
+   `supabase/prerequisites/observer-role-prerequisite.sql` creates the three roles exactly as the
+   migrations declare them and grants them to `postgres` (INHERIT and SET) with CREATE on
+   `observer` — those stay — and opens a **window**: CREATE on `public`, which PostgREST serves and
+   where the owners run 61 `security definer` façades. `observer-role-window-closed.sql` raises an
+   exception while the window is open. Proved in one PGlite run under a non-superuser `postgres`
+   with the measured attributes: red at 121 without it; with it, run twice (idempotent), all fifteen
+   pending files apply; the guard is red with the window open, with one owner left open, with CREATE
+   granted to PUBLIC and with the roles missing, and green after the runbook's revoke; the façades
+   answer `service_role` afterwards.
+4. **`a85ee15` — `docs/18-deployment.md`, "Owner roles, and the window on `public`":** open →
+   apply `20260829173000` to `20260918100000` → revoke → check. Applying the migrations is not
+   finished until the check is green; a file that recreates its façades needs the window again.
+5. **The history repaired — the round's only hosted write.**
+   `supabase migration repair --status applied` for the five `20260825*`;
+   `supabase migration list` shows them local and remote and the seventeen local only, and
+   `list_migrations` returns the same five. A re-measurement at 09:42 UTC,
+   before the repair, matched the evidence it rests on exactly. Side effect of the CLI's own login:
+   a role `cli_login_postgres` (LOGIN, member of `postgres`, password valid for five minutes) now
+   exists on the project.
+
+`pnpm verify` exit 0 at `a85ee15` (190 test files, 3,938 passed, 1 skipped; build), pushed
+`c9dce55..a85ee15`.
+
+**Next:** the seventeen, applied by an operator, not by a session: `20260826120000`; the cron
+prerequisite, then `20260826140000`; the owner-role window around `20260829173000` to
+`20260918100000`; the contract `20260826090000` last, after `observer-contract-readiness.sql` — and
+once later versions are recorded, `supabase db push` will take the contract only with
+`--include-all`. A `repair` follows every application made by hand.
+
+**Not touched:** every migration, `supabase/README.md`, the other frozen surfaces; no `db push`, no
+migration applied.
