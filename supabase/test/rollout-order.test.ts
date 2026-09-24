@@ -123,34 +123,148 @@ describe("the rollout table is intact", () => {
 
 /* --- 2. the order that makes it safe ------------------------------------- */
 
+/**
+ * WHAT THE RUNBOOK HAS RETIRED, read from the runbook itself.
+ *
+ * The RETIRED 2026-09-24 block carries a fenced `retired-rules` list, the one
+ * place the retirement is written down. `step N` retires every ordering check
+ * involving step N; `order A-B before C-D` retires every check that puts a
+ * step of A..B before a step of C..D. A line in any other form throws, so a
+ * drifting format cannot read as "nothing is retired".
+ */
+interface Retired {
+  readonly steps: ReadonlySet<number>;
+  readonly orders: readonly {
+    readonly from: readonly [number, number];
+    readonly to: readonly [number, number];
+  }[];
+}
+
+function retiredRules(): Retired {
+  const blocks = [...TEXT.matchAll(/^```retired-rules\n([\s\S]*?)^```$/gm)];
+  if (blocks.length !== 1) {
+    throw new Error(`expected one retired-rules block in the runbook, found ${blocks.length}`);
+  }
+  const steps = new Set<number>();
+  const orders: { from: [number, number]; to: [number, number] }[] = [];
+  const lines = (blocks[0]?.[1] ?? "").split("\n").map((l) => l.trim());
+  for (const line of lines.filter((l) => l.length > 0)) {
+    const step = /^step (\d+)(?: — .*)?$/.exec(line);
+    const order = /^order (\d+)-(\d+) before (\d+)-(\d+)(?: — .*)?$/.exec(line);
+    if (step) steps.add(Number(step[1]));
+    else if (order) {
+      orders.push({
+        from: [Number(order[1]), Number(order[2])],
+        to: [Number(order[3]), Number(order[4])],
+      });
+    } else throw new Error(`unreadable retired-rules line: ${line}`);
+  }
+  return { steps, orders };
+}
+
+const RETIRED = retiredRules();
+const within = (n: number, [a, b]: readonly [number, number]) => n >= a && n <= b;
+
+/**
+ * Every ordering the table is held to, declared as data with its status.
+ *
+ * The status is DECLARED, not derived. A live check is enforced; a retired one
+ * carries the date the runbook retired it. Deriving the status from the runbook
+ * would make the consistency test below true by construction: the point is that
+ * this declaration and the runbook's list must agree, so neither moves alone.
+ */
+interface Ban {
+  readonly name: string;
+  readonly before: RegExp;
+  readonly after: RegExp;
+  /** `<=` rather than `<`: the two may share one row. */
+  readonly sameRow?: true;
+  readonly retired?: "2026-09-24";
+}
+
+const BANS: readonly Ban[] = [
+  {
+    name: "the pepper is configured before 3f298a6 is redeployed",
+    before: PEPPER,
+    after: REDEPLOY,
+  },
+  { name: "the redeploy comes before its smoke", before: REDEPLOY, after: SMOKE },
+  {
+    name: "the smoke comes before Migration 3",
+    before: SMOKE,
+    after: MIGRATION_3,
+    retired: "2026-09-24",
+  },
+  {
+    name: "the smoke comes no later than the original's deletion",
+    before: SMOKE,
+    after: ISOLATE,
+    sameRow: true,
+  },
+  {
+    name: "the original is deleted before Migration 3",
+    before: ISOLATE,
+    after: MIGRATION_3,
+    retired: "2026-09-24",
+  },
+  {
+    name: "Migration 3 comes before the legacy proof",
+    before: MIGRATION_3,
+    after: LEGACY_PROOF,
+    retired: "2026-09-24",
+  },
+  {
+    name: "the legacy proof comes before the push",
+    before: LEGACY_PROOF,
+    after: PUSH,
+    retired: "2026-09-24",
+  },
+  { name: "the push comes before the scoped proof", before: PUSH, after: SCOPED_PROOF },
+  {
+    name: "the scoped proof comes before the live-model proof",
+    before: SCOPED_PROOF,
+    after: LIVE_MODEL,
+  },
+  {
+    name: "the live-model proof comes before version-1 writers are retired",
+    before: LIVE_MODEL,
+    after: RETIRE,
+  },
+  {
+    name: "every version-1 writer is retired before the contract migration",
+    before: RETIRE,
+    after: CONTRACT,
+  },
+];
+
+/** Whether the runbook's retired-rules list reaches this ordering check. */
+function touchesRetired(ban: Ban): boolean {
+  const a = stepOf(ban.before);
+  const b = stepOf(ban.after);
+  return (
+    RETIRED.steps.has(a) ||
+    RETIRED.steps.has(b) ||
+    RETIRED.orders.some((o) => within(a, o.from) && within(b, o.to))
+  );
+}
+
+const LIVE = BANS.filter((b) => b.retired === undefined);
+
 describe("the sequence protects what it is meant to protect", () => {
-  it("configures the pepper and redeploys before any database mutation", () => {
-    expect(stepOf(PEPPER)).toBeLessThan(stepOf(REDEPLOY));
-    expect(stepOf(REDEPLOY)).toBeLessThan(stepOf(SMOKE));
-    expect(stepOf(SMOKE)).toBeLessThan(stepOf(MIGRATION_3));
+  it.each(LIVE.map((b) => [b.name, b] as const))("%s", (_name, ban) => {
+    const a = stepOf(ban.before);
+    const b = stepOf(ban.after);
+    expect(a, "the earlier step is missing from the table").toBeGreaterThan(0);
+    expect(b, "the later step is missing from the table").toBeGreaterThan(0);
+    if (ban.sameRow) expect(a).toBeLessThanOrEqual(b);
+    else expect(a).toBeLessThan(b);
   });
 
-  it("deletes the original unverified deployment once the fresh one answers", () => {
-    // Deleted, not protected — the deletion-policy test below says why.
-    expect(stepOf(SMOKE)).toBeLessThanOrEqual(stepOf(ISOLATE));
-    expect(stepOf(ISOLATE)).toBeLessThan(stepOf(MIGRATION_3));
-  });
-
-  it("proves the legacy build before pushing, and pushes before the scoped proof", () => {
-    expect(stepOf(MIGRATION_3)).toBeLessThan(stepOf(LEGACY_PROOF));
-    expect(stepOf(LEGACY_PROOF)).toBeLessThan(stepOf(PUSH));
-    expect(stepOf(PUSH)).toBeLessThan(stepOf(SCOPED_PROOF));
-  });
-
-  it("keeps the live-model proof separate from, and after, the scoped proof", () => {
-    expect(stepOf(SCOPED_PROOF)).toBeLessThan(stepOf(LIVE_MODEL));
-    // And it is its own row, not folded into the compatibility one.
+  it("keeps the live-model proof in its own row, not folded into the compatibility one", () => {
     expect(stepOf(SCOPED_PROOF)).not.toBe(stepOf(LIVE_MODEL));
   });
 
-  it("retires every version-1 writer before the contract migration", () => {
-    expect(stepOf(LIVE_MODEL)).toBeLessThan(stepOf(RETIRE));
-    expect(stepOf(RETIRE)).toBeLessThan(stepOf(CONTRACT));
+  it("applies the contract migration last", () => {
     expect(stepOf(CONTRACT)).toBe(19);
   });
 
@@ -167,6 +281,35 @@ describe("the sequence protects what it is meant to protect", () => {
     const five = STEPS.find((s) => s.n === 5)?.text ?? "";
     expect(five).toMatch(/original unverified `?3f298a6/i);
   });
+});
+
+/*
+ * THE TEST THAT WOULD HAVE MADE 2026-09-24 RED.
+ *
+ * That day the runbook retired steps 10–11 and the rule that steps 1–5 come
+ * before Migrations 3–4, and left the table's text alone. Every ordering check
+ * above still passed, because the rows had not moved — so a green suite guarded
+ * a rule the runbook had withdrawn, and would have stopped the first person to
+ * act on the withdrawal. A check's declared status must match the runbook's
+ * list, in both directions.
+ */
+describe("no live ordering check stands on a retired step", () => {
+  it("reads a non-empty retired-rules block out of the runbook", () => {
+    expect(RETIRED.steps.size + RETIRED.orders.length).toBeGreaterThan(0);
+  });
+
+  it.each(BANS.map((b) => [b.name, b] as const))(
+    "%s — its declared status matches the runbook",
+    (_name, ban) => {
+      const reached = touchesRetired(ban);
+      expect(
+        ban.retired !== undefined,
+        reached
+          ? "the runbook retires this check, but it is declared live"
+          : "declared retired, but the runbook's retired-rules list does not reach it",
+      ).toBe(reached);
+    },
+  );
 });
 
 /* --- 3. the claims that must stay honest --------------------------------- */
