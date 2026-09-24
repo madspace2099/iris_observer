@@ -81,6 +81,12 @@ deleted.
 (`vrhrzlvhyxrkxxcjxmaf`, `eu-west-1`, `INACTIVE`) belongs to the obsolete MVP and previously served
 rows to unauthenticated callers. It is left alone: not deleted, not modified, not connected.
 
+**UNVERIFIED 2026-09-24 — what the two paragraphs above say about the other two projects.** The
+organization `sekhesnlqiutdovgcoqw` lists three projects today: `IRIS OBSERVER`,
+`madspace-portal-staging` and `webiris-production`. Neither `jtvqecusxzogqubxpoyf` nor
+`vrhrzlvhyxrkxxcjxmaf` is among them. That is not evidence that either was deleted — the listing was
+made with this organization's access only — and their region, state and migrations were not read.
+
 **`cli_login_postgres` is the Supabase CLI's expected trace, not debris, and is not to be
 deleted.** The CLI signs in through it (`Initialising login role...`): LOGIN, a member of
 `postgres`, its password valid for minutes and long expired between runs.
