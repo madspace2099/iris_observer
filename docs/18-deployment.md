@@ -625,14 +625,18 @@ keep reaching the project needs the new key before its next deployment.
 
 #### RETIRED 2026-09-24 — the legacy-compatibility phase, and the order that served it
 
-Two things in the sequence below no longer bind:
+What no longer binds in the sequence below is listed here, once, in a form a test can read.
+`supabase/test/rollout-order.test.ts` parses this block: a `step` line retires every ordering check
+involving that step, and an `order` line retires every check that puts a step of the first range
+before a step of the second. Any other line fails the test.
 
-- **steps 10–11**, the legacy compatibility proof through the fresh `3f298a6` Preview;
-- **the constraint that steps 1–5 come before Migrations 3–4** (steps 8–9) — "the application comes
-  first".
+```retired-rules
+step 10 — the controlled request through the fresh legacy Preview
+step 11 — legacy 13/13
+order 1-5 before 8-9 — "the application comes first": steps 1–5 before Migrations 3–4
+```
 
-Neither is deleted. The steps keep their text and their numbers, and
-`supabase/test/rollout-order.test.ts` still reads the table unchanged.
+Nothing is deleted. The steps keep their text and their numbers.
 
 **What it protected.** That the builds already deployed keep writing version-1 rows through
 Migrations 3 and 4. That is 22 deployments whose source calls an old façade, and `3f298a6` — one
