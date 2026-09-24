@@ -4671,3 +4671,44 @@ Separately, and blocking none of the above:
 **Not pushed.** The ten runbook commits and this entry are local only. Not touched: the host (read
 only), every deployment, every migration, `supabase/README.md`, `rollout-order.test.ts`, and the
 seven plural sites.
+
+## 2026-09-24 (evening) — the retirement's two defects closed
+
+The eleven commits above were pushed first, `2942a0a..48c9d30`. From now on every round that produces
+commits closes with a push to this branch. The journal is `_review/p-doc18c-journal.md` (not
+committed).
+
+1. **`9e0aabd` — Part A stands in step 15's own row.**
+   - The retirement had moved it into the RETIRED block, where a live instruction does not run. Step
+     16 would then have counted from a floor nobody opened.
+   - The RETIRED block keeps a pointer.
+2. **`c49a6d0` — Part B of `observer-http-compat-proof.sql` does not run without Part A.**
+   - The template shipped example values that, on a table nobody had written to since 2026-08-25,
+     counted true: 13 of 13 could read PASS with nothing measured. It now ships NULL for both.
+   - A `part_a` CTE refuses to run, naming one of four reasons: floor null, count null, floor in the
+     future, or the two not taken together.
+   - Six new cases cover six ways to get there. The existing verifier suites stayed green with the
+     guard (112 tests), so no test had been passing on a missing floor.
+   - Two mutations were each shown present, then run: with the cast disabled, 6 of 6 red; with the
+     WHERE removed, 6 of 6 red — the planner prunes an unfiltered cast.
+   - The locally staged copy in `_sql-to-paste/` was re-staged from HEAD. The release build requires
+     it byte-identical.
+3. **`1c15f2d` — the retired rules live in one fenced `retired-rules` block** in the runbook's
+   RETIRED section: step 10, step 11, and `order 1-5 before 8-9`.
+4. **`418e6a4` — `rollout-order.test.ts` reads that block.**
+   - It enforces only the seven live orderings, and fails when a check's declared status disagrees
+     with the block, in either direction.
+   - Rule 29 for the four assertions no longer enforced is in the commit message.
+   - Shown by mutation: the old shape, with all four declared live, gives 4 red while the orderings
+     themselves pass.
+5. **`ed0f34c` — §12 no longer lists the rollout test as open.**
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+**Still open, unchanged:**
+
+- the `service_role` rotation (Matthew's), then the contract-migration order, then the migration
+  round;
+- `supabase/README.md:285-288,330` — whether its freeze may open for those lines is Matthew's
+  decision;
+- the P2-17 language questions.
