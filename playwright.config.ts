@@ -15,6 +15,22 @@ import {
  * while walking to the room. Those are the two real contexts; anything between
  * them is covered by the CSS, not by a third screenshot.
  */
+
+/**
+ * A PAGE THAT REFUSES, OR FINDS NOTHING, ANSWERS 200 — ASSERT WHAT IT RENDERS.
+ *
+ * Pages stream, so by the time a page calls `notFound()`, or the project
+ * layout draws its refusal, the status line has already gone out as 200:
+ * measured on 2026-09-23 on an unknown unit, on another project's meeting
+ * report and on a project the account does not hold — each answered 200 with
+ * the not-found or refusal boundary and `robots=noindex`. A status assertion
+ * is therefore as green on "This isn't here" as on a leak. A refusal on a page
+ * is asserted by the boundary it renders — "This isn't here", "This project is
+ * not available to your account.", a surface's own refusal sentence — together
+ * with the absence of what must not be there. Route handlers under `/api` are
+ * the exception: they answer with real status codes, and asserting those is
+ * right.
+ */
 const PORT = 3210;
 
 /**
