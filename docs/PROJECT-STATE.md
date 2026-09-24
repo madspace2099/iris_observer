@@ -4606,3 +4606,68 @@ before the history repair — and point-in-time recovery is off.
 **Not touched:** the host, every migration, `supabase/README.md`, section 7 of the runbook and
 `rollout-order.test.ts`. The local control plane (`apps/web/src/lib/sources/local-db.ts`) still
 applies migrations as PGlite's superuser; it is not a test and was out of scope.
+
+## 2026-09-24 (afternoon) — the report's language measured, and the runbook aligned with the host
+
+Five rounds, three of them stopped by their own conditions and one landing as ten commits. The
+journals are in `_review/` (not committed): `p217-report-journal.md`, `p217a-journal.md`,
+`p217b-journal.md`, `p-doc18-journal.md`, `p-doc18b-journal.md`.
+
+1. **P2-17 — the report's own text, measured, no code.**
+   - 819 distinct texts, 21,883 occurrences.
+   - Seven plural decision sites, and none of them uses `Intl.PluralRules`.
+   - 337 distinct source messages.
+2. **P2-17a — stopped before any change.**
+   - The "locale in hand" at the sites is `context.project.locale`. That is the **formatting**
+     locale — figures, money, dates; the administration form suggests `sk-SK` — not the language
+     of the words.
+   - Fed to `Intl.PluralRules`, it would change a word the report renders in 139 of 142 ICU
+     locales. On `sk-SK` "2nd" would become "2th".
+   - The report's language is a third concept, meant to travel on the read-model request.
+3. **P2-17b — who builds the report's 185 read-model messages, measured by rendering. Stopped.**
+   - By the brief's rule: shared 51, exclusive 45, undecidable 89. At the function level: 76, 55
+     and 54.
+   - The report's `?agent=` document is largely `buildAgentDetail`'s output, `?meeting=` is
+     `buildMeetingReplay`'s, and the project report renders the Sales Flow findings. So a report
+     language is a separation question, not a parameter, and it is undecided.
+4. **P2-doc18 — the runbook against the host. Stopped on its own security condition.**
+   - 22 READY deployments on `release/observer-demo-rc1` call the old façades.
+   - The user's measurement narrowed it: only `postgres` and `service_role` can execute any of the
+     five functions. The exposure is therefore a build holding a live `service_role` key, and the
+     control is rotation.
+5. **P2-doc18b — `docs/18-deployment.md`, ten commits, one claim each** (`6e115bb..0dbbeb0`):
+   - five functions in `public`, not three;
+   - Node 24.x;
+   - a third domain;
+   - five of twenty-two migrations applied, the history repaired at about 09:47 UTC (witness:
+     `cli_login_postgres` `valid_until` 09:52:22 UTC);
+   - the two other Supabase projects UNVERIFIED rather than gone;
+   - a measured state of all nineteen steps at the top of §7 — step 4 ran, as a redeploy on
+     2026-09-06; steps 5–19 did not;
+   - steps 10–11 and the steps-1–5-first rule **RETIRED 2026-09-24**, not deleted. The measurement:
+     no version-1 row for 29 days, and the current build cannot write an audit row on this host
+     until Migration 3;
+   - rotating the `service_role` key as the stronger control beside step 18, because the
+     enumeration cannot be completed;
+   - a §12 of what is unverified, what is measured different, and what needs a decision;
+   - the date.
+
+   `pnpm verify` exit 0 on `0dbbeb0`: 191 test files, 3,950 passed, 1 skipped.
+
+**Next, in this order.**
+
+1. Matthew rotates every key that authenticates as `service_role` on `tfcchobwobpadenampyh`
+   (runbook §7, "Beside step 18").
+2. Decide where the contract migration goes. Version order puts `20260826090000` first; step 19
+   puts it last; and the owner-role steps say "in order" (runbook §12).
+3. The migration round.
+4. Delete the 22 old-façade builds and both `3f298a6` builds.
+
+Separately, and blocking none of the above:
+
+- the report-language architecture (P2-17b);
+- whether Slovak is needed before the first paying customer.
+
+**Not pushed.** The ten runbook commits and this entry are local only. Not touched: the host (read
+only), every deployment, every migration, `supabase/README.md`, `rollout-order.test.ts`, and the
+seven plural sites.
