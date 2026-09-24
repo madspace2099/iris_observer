@@ -1131,7 +1131,5 @@ unmeasured was rewritten or removed.
 - The owner-role steps say "the migrations, in order". In version order the contract migration
   `20260826090000` comes before Migrations 3–4 and before the fourteen owner-role files. Step 19
   applies it last, and the fourteen have no step in §7.
-- `supabase/README.md` is frozen. It still describes the retired phase at lines 285–288, and it
-  numbers the proof's steps "4–5" and "9" at line 330.
 - The header of `supabase/verifiers/observer-contract-readiness.sql` still names the enumeration as
   the contract migration's precondition. The rotation beside step 18 is recorded here, not there.
