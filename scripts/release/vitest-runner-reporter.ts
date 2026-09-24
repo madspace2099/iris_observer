@@ -353,6 +353,7 @@ export const PGLITE_SUITES: readonly string[] = [
   "journey.test.ts",
   "model-budget-grants.test.ts",
   "operations.test.ts",
+  "owner-role-window.test.ts",
   "pglite-adapter.test.ts",
   "pglite-lifecycle.test.ts",
   "source-operations.test.ts",
