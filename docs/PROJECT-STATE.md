@@ -4567,3 +4567,42 @@ once later versions are recorded, `supabase db push` will take the contract only
 
 **Not touched:** every migration, `supabase/README.md`, the other frozen surfaces; no `db push`, no
 migration applied.
+
+## 2026-09-24 — The test harness applies migrations the way the host does
+
+Until today every suite applied every migration as PGlite's bootstrap superuser, which skips every
+ownership and privilege check; that is how a chain that cannot run on the host stayed green for a
+month. The journal is `_review/p-harness-journal.md` (not committed).
+
+1. **`a62bd4d` — a second runner.** `openDatabase(scope, "hosted")` in
+   `supabase/test/support/pglite.ts`: the bootstrap superuser steps aside and a non-superuser
+   `postgres` takes the name, with the attributes and memberships measured on the host on
+   2026-09-24 (a dated comment, so a later measurement can refute it). `asPlatform` does the
+   platform's own work, such as installing the `pg_cron` stand-in; `applyMigrations` is the
+   runbook's four steps, with the revoke read out of `docs/18-deployment.md`. The superuser mode
+   stays. First consumer: `supabase/test/owner-role-window.test.ts`, the proof that lived in a
+   scratch script — sixteen pending files through the window, and the guard red in five ways,
+   including psql without ON_ERROR_STOP. Two mutations turn it red where they should.
+2. **`8f7b247` — all 25 migration-applying suites on the hosted runner.** What failed is the
+   product: three suites claimed that nobody is a member of an owner role, which held only under a
+   superuser — on the host `postgres` is a member twice (ADMIN since PostgreSQL 16 for creating
+   the role, INHERIT and SET from the role prerequisite) and nobody else, and the assertions now
+   say so; re-applying a file over itself needs the window again, as the runbook says, so those
+   tests re-apply through it; breaking `cron.schedule` on purpose is the platform's act. No
+   migration changed, and no suite went back to the superuser runner — `pglite-lifecycle` never
+   applied a migration and says why it keeps the default.
+3. **`4f1574e` — `docs/18-deployment.md` §2:** `cli_login_postgres` is the CLI's expected trace,
+   not debris, and is not to be deleted.
+4. **`ae46ee3` — the runner reporter's list of PGlite suites** names the new file;
+   `worker-bound.test.ts` refused it until it did.
+
+Closing gate at `ae46ee3`: `pnpm audit:frozen`, `pnpm typecheck`, `npx vitest run`, `pnpm build`
+and `pnpm verify` all exit 0 — 191 test files, 3,950 passed, 1 skipped (190 and 3,938 this
+morning); the run took 215.8 s against 190.5 s this morning. Pushed `6bbd49a..ae46ee3`.
+
+For the application round: one backup is visible on the project — physical, 08:17:52 UTC today,
+before the history repair — and point-in-time recovery is off.
+
+**Not touched:** the host, every migration, `supabase/README.md`, section 7 of the runbook and
+`rollout-order.test.ts`. The local control plane (`apps/web/src/lib/sources/local-db.ts`) still
+applies migrations as PGlite's superuser; it is not a test and was out of scope.
