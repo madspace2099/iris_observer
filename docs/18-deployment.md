@@ -1,6 +1,6 @@
 # Deployment runbook
 
-**Status:** deployed and verified · **Last updated:** 2026-08-24
+**Status:** deployed and verified · **Last updated:** 2026-09-24
 
 Everything a future session needs to maintain this deployment without asking for an identifier
 twice. **No secret value appears in this file, and none may be added to it.**
