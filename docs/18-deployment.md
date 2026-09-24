@@ -116,7 +116,7 @@ Determined from the workspace, not assumed:
 | Install command  | Vercel default                | it reads `packageManager: pnpm@11.23.0` and the committed `pnpm-lock.yaml`, and installs frozen                            |
 | Build command    | Vercel default (`next build`) | the same path `pnpm --filter @observer/web build` runs locally                                                             |
 | Output directory | Vercel default (`.next`)      |                                                                                                                            |
-| Node             | 22.x                          | root `package.json` declares `engines.node >= 22`                                                                          |
+| Node             | 24.x                          | the project's setting, read 2026-09-24; root `package.json` declares `engines.node >= 22.0.0`                              |
 
 **Do not** set an explicit install command. The five `@observer/*` packages are consumed as TypeScript
 source (ADR-0003, `transpilePackages`), so the build needs the whole workspace present — which is
