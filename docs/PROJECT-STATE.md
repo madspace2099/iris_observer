@@ -4483,3 +4483,37 @@ contact-based action, `segment` and `window` scope, the frozen surfaces.
 
 Evidence: the six commits above on `feature/observer-ux-overhaul-phase2`, the journal, and the
 photograph and mutation logs in the session scratchpad.
+
+## 2026-09-24 — The third instance of the scenario leak closed; `pnpm verify` green in full; P2-17 surveyed
+
+Three fixes, each with its test red first, a mutation turned red again, and its own commit and push;
+then a survey of P2-17 with no code. The journal is `_review/p217-journal.md` (not committed).
+
+1. **`12d59b7` — the scripted Ask session is served only on Northgate.** A crawl of every synthetic
+   project with every account came first (rule 27): 459 pages, 124 project-surface pairs, 44 flagged,
+   31 genuine after reading each on the render — all from one source, the repository serving
+   Northgate's prepared Ask session (its figures, unit A-505, its buyer, its "south-facing, floors 4
+   to 6" framing) to Riverside, Kingsford and ISTER TOWER. One gate at that source, in the pattern of
+   the brief and the agent overview; the other projects get the session their own meetings support.
+   After: 0 genuine. The test asserts the Ask screen's rendered refusal, never a status (rule 28).
+2. **`03fe37a` — the two files that kept `pnpm format:check` red are formatted.** Then `pnpm verify`
+   ran in full for the first time in this programme and exited 0: format, typecheck, lint, 190 test
+   files, build.
+3. **`47f3cf8` — rule 28 is written down** in `playwright.config.ts`: a page that refuses or finds
+   nothing answers 200 under streaming, so a refusal on a page is asserted by the boundary it renders;
+   route handlers under `/api` answer real statuses.
+
+**P2-17, surveyed (four languages, SK/EN/DE/HU).** No i18n machinery exists: no library,
+`<html lang="en">`, a per-project `locale` (all `"en-GB"`) that formats numbers and dates only, 58
+hand-written English plurals, no language control anywhere. Every visible string for every account
+on 412 pages: 3,617 distinct, 91,558 occurrences. By origin: read-model prose 743 distinct, component
+literals 969, locale-shaped values 973, frozen contract vocabulary 70 (26 labels, 30 raw enum keys, 14
+Slovak amenity nouns), and 862 that are data, of mixed origin, or assembled at render. 353 distinct
+strings carry a denominator or a floor explanation, where a wrong translation makes a false claim.
+The four contract label maps are keyed by stable enum values, so they can be translated without
+opening the contracts; the raw keys and the Slovak amenity nouns reach the screen as contract text.
+The shape of P2-17 is Máté's decision.
+
+**Not touched:** migrations, the identity provider, the session store, the frozen surfaces; the
+two remaining `?? "#"` fallbacks, the refusal redirect that drops the period, and the 200 that
+`notFound()` answers, all still awaiting a decision.
