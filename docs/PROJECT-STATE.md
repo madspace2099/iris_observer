@@ -4843,3 +4843,55 @@ The category counts above were measured with ICU 78.3 on Node 24.19.0.
   the messages behind them.
 
 The demo's `en-GB` locale is unchanged. It belongs to that phase.
+
+## 2026-09-24 (late) — the frozen README opened, the staging trap closed
+
+With Máté's permission, the frozen `supabase/README.md` opened in two places. The staging folder
+that caught a stale copy this afternoon is now generated, and when it is missing the checks say so.
+The journal is `_review/p221a-journal.md` (not committed).
+
+1. **`9e9d49b` — the README's two places.**
+   - Lines 285–288 described the fresh legacy redeploy as the required target of a proof retired
+     that day. Line 330 numbered the proof's steps "4–5" and "9".
+   - Both now point to _RETIRED 2026-09-24_. The steps read 10–11 (retired) and 15–16.
+   - `audit:frozen` is red on this commit, as it has to be: 1 file changed since base,
+     `supabase/README.md`.
+2. **`90bcdec` — `DEFAULT_BASE` moves to `9e9d49b`.** Its comment says who allowed the move and why.
+   - The script used to say the base moves "in the same commit". No commit can name its own SHA, so
+     it now says the next one.
+   - `audit:frozen` exits 0: 7 surfaces, 124 files, 0 changed.
+   - The six other surfaces (123 files) do not differ between `aac1866` and `9e9d49b`, and none
+     differs on the tree either.
+3. **`2d043d7` — the runbook's §12 no longer lists the README as open.**
+4. **`e33debd` — `pnpm release:wrappers` generates all of `_sql-to-paste/`.**
+   - The seven verbatim copies had no generator, and one went stale this afternoon. The generator
+     now writes them from one list, and the builder's allow-list is derived from the same list.
+   - It also creates the directory, which a fresh clone lacks. Its first write used to die on
+     ENOENT.
+   - Against the hand-staged directory: 11 files unchanged. On a fresh directory it wrote 11 files,
+     none different from the hand-staged ones.
+5. **`e12ad6c`, `e8a4ac3` — a missing or stale directory is named.**
+   - **Before, measured with the directory moved away:** the run was red, but by accident:
+     - 32 bare ENOENTs;
+     - a release build that died before its byte check had examined anything;
+     - 23 tests skipped behind failed hooks;
+     - 97 tests never collected.
+   - **What changed:** the builder refuses by name before it reads the directory. `facts.ts` names
+     the missing file. `contract-policy` states the directory's existence and freshness itself.
+   - **Now, with the directory moved away:**
+     - 7 of 10 files are red;
+     - 75 lines name `pnpm release:wrappers`, and no bare ENOENT is left;
+     - the three green files never read the directory.
+   - **A stale copy** is named by `--check`, by `contract-policy` and by the build.
+     `pnpm release:wrappers` restores it byte for byte.
+6. **`f4603f8` — P2-17's reclassification**, above.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+**Still open:**
+
+- the `service_role` rotation (Matthew's), then the contract-migration order, then the migration
+  round;
+- the header comment at `supabase/test/http-proof.test.ts:30` still numbers the proof's steps "4-5"
+  and "9";
+- P2-17, now a phase of its own.
