@@ -11,6 +11,7 @@ import {
   type MeetingOutcome,
   type PlaceCategory,
   type SectionId,
+  type ShowroomPlaceInteraction,
   type ShowroomSession,
 } from "@observer/contracts";
 import type {
@@ -1391,6 +1392,22 @@ export function buildAgentsView(
 
 /* --- the audience builder ---------------------------------------------------- */
 
+/**
+ * Whether a place may select a meeting, or be named as why it matched.
+ *
+ * Only where its presentation was recorded. The contract says of Surroundings
+ * points of interest that `availability` is `requires_ue5_v2_event` "and every
+ * surface reading them says so" (`ShowroomPlaceInteraction`); this builder read
+ * them on category and dwell alone, so a list of transport places was built
+ * entirely from presentations nobody recorded (P2-18). `partially_derivable`
+ * does not qualify either: for a point of interest it means the section was
+ * reached and nothing more (`docs/16` §2.6), the general Surroundings data no
+ * list may be built from.
+ */
+function recordedPlace(place: ShowroomPlaceInteraction): boolean {
+  return place.availability === "legacy_available";
+}
+
 export function buildAudience(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1417,14 +1434,20 @@ export function buildAudience(
         criteria.placeCategory === null ||
         s.places.some(
           (p) =>
-            p.category === criteria.placeCategory && p.dwellSeconds >= criteria.minimumPlaceSeconds,
+            recordedPlace(p) &&
+            p.category === criteria.placeCategory &&
+            p.dwellSeconds >= criteria.minimumPlaceSeconds,
         );
       return unitOk && placeOk;
     })
     .map((s) => {
       const agent = agentById(s.agentId);
       const places = s.places
-        .filter((p) => criteria.placeCategory === null || p.category === criteria.placeCategory)
+        .filter(
+          (p) =>
+            recordedPlace(p) &&
+            (criteria.placeCategory === null || p.category === criteria.placeCategory),
+        )
         .sort((a, b) => b.dwellSeconds - a.dwellSeconds)
         .slice(0, 2);
       const units = (criteria.favouritedOnly ? s.units.filter((u) => u.favourited) : s.units)
@@ -1469,11 +1492,7 @@ export function buildAudience(
       "This selects meetings, not people. A meeting's replay names no contact, and Observer has no page for one: each row names the agent who ran the meeting.",
       // A privacy guarantee, not a product-boundary note: it stays on screen.
       "Time spent on a category of place is a behaviour, not a fact about anyone's household. Family status is never inferred from it.",
-      ...(criteria.placeCategory === null
-        ? []
-        : [
-            "Points of interest in Surroundings need a UE5 v2 event. Amenity items are recorded today; both are shown here as a demonstration.",
-          ]),
+      "Only places whose presentation was recorded count. Which point of interest in Surroundings was presented needs a UE5 v2 event, so Surroundings places select no meeting and appear in no row.",
     ],
     evidence: evidenceRef(
       `audience-${criteria.rooms ?? "any"}-${criteria.placeCategory ?? "any"}`,
