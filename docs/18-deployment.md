@@ -88,6 +88,7 @@ deleted.** The CLI signs in through it (`Initialising login role...`): LOGIN, a 
 | Region            | `fra1`                                                         |
 | Live URL          | `https://iris-observer.vercel.app`                             |
 | Branch alias      | `https://iris-observer-git-main-madspaces-projects.vercel.app` |
+| Project alias     | `https://iris-observer-madspaces-projects.vercel.app`          |
 
 **It deployed to Production, not to Preview.** `create_git_project` deploys from the linked
 repository's production branch, and `main` is that branch, so the deployment took the `target:
