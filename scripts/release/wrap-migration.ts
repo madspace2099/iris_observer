@@ -9,11 +9,14 @@
  * mechanical: the body IS the source, spliced between `begin;` and `commit;`,
  * and the header's sha256 is computed from the same bytes.
  *
- * Run:  pnpm release:wrappers          rewrite every wrapper
- *       pnpm release:wrappers --check  fail if any is stale, change nothing
+ * It writes the verbatim copies too (`VERBATIM`), so the whole directory is
+ * generated: nothing in it is kept in step by hand.
+ *
+ * Run:  pnpm release:wrappers          rewrite every staged file
+ *       pnpm release:wrappers --check  fail if any is missing or stale, change nothing
  */
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -90,6 +93,40 @@ export const WRAPPERS: readonly WrapperSpec[] = [
   },
 ];
 
+/**
+ * The verbatim copies: tracked files staged byte for byte, under the name the
+ * package ships them as.
+ *
+ * They used to be copied by hand. Nothing regenerated them, so when the compat
+ * proof's source changed on 2026-09-24 its staged copy went stale, and the
+ * release check that caught the mismatch could not name a remedy, because
+ * there was none. `GENERATED_ORIGINS` in `build-package.ts` derives its
+ * verbatim entries from this list, so the builder's allow-list and the
+ * generator cannot drift apart.
+ *
+ * `supabase/release-evidence/` holds the two that are neither verifiers nor
+ * prerequisites: release evidence a reviewer pastes, tracked at the exact bytes
+ * every previous archive shipped.
+ */
+export const VERBATIM: readonly { readonly out: string; readonly source: string }[] = [
+  { out: "observer-cron-health.sql", source: "supabase/verifiers/observer-cron-health.sql" },
+  {
+    out: "observer-contract-readiness.sql",
+    source: "supabase/verifiers/observer-contract-readiness.sql",
+  },
+  {
+    out: "observer-http-compat-proof.sql",
+    source: "supabase/verifiers/observer-http-compat-proof.sql",
+  },
+  { out: "observer-ai-readiness.sql", source: "supabase/verifiers/observer-ai-readiness.sql" },
+  {
+    out: "observer-cron-prerequisite.sql",
+    source: "supabase/prerequisites/observer-cron-prerequisite.sql",
+  },
+  { out: "observer-verify-2.sql", source: "supabase/release-evidence/observer-verify-2.sql" },
+  { out: "observer-behaviour-2.sql", source: "supabase/release-evidence/observer-behaviour-2.sql" },
+];
+
 /** The exact bytes a wrapper should contain, given the source on disk. */
 export function renderWrapper(spec: WrapperSpec, root = REPO_ROOT): string {
   const body = readFileSync(join(root, spec.source), "utf8");
@@ -128,28 +165,43 @@ export function extractBody(wrapper: string): string {
 
 function main(): void {
   const check = process.argv.includes("--check");
+  const dir = join(REPO_ROOT, "_sql-to-paste");
+  /*
+   * Gitignored and never tracked, so a fresh clone has no such directory, and
+   * the first write used to die on ENOENT: the generator could not make its
+   * own output (measured 2026-09-24).
+   */
+  if (!check) mkdirSync(dir, { recursive: true });
   let stale = 0;
 
-  for (const spec of WRAPPERS) {
-    const path = join(REPO_ROOT, "_sql-to-paste", spec.out);
-    const wanted = renderWrapper(spec);
-    const current = existsSync(path) ? readFileSync(path, "utf8") : null;
+  const staged = [
+    ...WRAPPERS.map((spec) => ({
+      out: spec.out,
+      wanted: Buffer.from(renderWrapper(spec), "utf8"),
+    })),
+    ...VERBATIM.map((v) => ({ out: v.out, wanted: readFileSync(join(REPO_ROOT, v.source)) })),
+  ];
+  for (const { out, wanted } of staged) {
+    const path = join(dir, out);
+    const current = existsSync(path) ? readFileSync(path) : null;
 
-    if (current === wanted) {
-      console.log(`  unchanged  ${spec.out}`);
+    if (current !== null && current.equals(wanted)) {
+      console.log(`  unchanged  ${out}`);
       continue;
     }
     stale += 1;
     if (check) {
-      console.log(`  STALE      ${spec.out}`);
+      console.log(`  ${current === null ? "MISSING" : "STALE  "}    ${out}`);
       continue;
     }
-    writeFileSync(path, wanted, "utf8");
-    console.log(`  rewritten  ${spec.out}`);
+    writeFileSync(path, wanted);
+    console.log(`  rewritten  ${out}`);
   }
 
   if (check && stale > 0) {
-    console.log(`\n${stale} wrapper(s) do not match their source. Run: pnpm release:wrappers`);
+    console.log(
+      `\n${stale} staged file(s) missing or not matching their source. Run: pnpm release:wrappers`,
+    );
     process.exit(1);
   }
 }

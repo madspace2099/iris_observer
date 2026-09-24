@@ -764,8 +764,9 @@ A timestamp inside the last day means something is still writing through the old
 or delete the deployments that are.
 
 `_sql-to-paste/` holds the generated block and the read-only verification query. It is
-gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
-and those copies are generated from them.
+gitignored. The migrations under `supabase/migrations/`, and the verifiers, prerequisites and
+release evidence beside them, are the version-controlled sources; every copy is generated from
+them, so a fresh clone has none until it runs the command below.
 
 Generated, now, rather than kept in step by hand:
 

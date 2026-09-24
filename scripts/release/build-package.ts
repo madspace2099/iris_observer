@@ -74,7 +74,7 @@ import {
 } from "./operation-journal";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
 import { scanText, inScope } from "./secret-recipes";
-import { WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
+import { VERBATIM, WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
 import {
   readGateRecord,
@@ -721,40 +721,13 @@ export const GENERATED_ORIGINS: ReadonlyMap<string, GeneratedOrigin> = new Map<
   GeneratedOrigin
 >([
   ...WRAPPERS.map((spec) => [`_sql-to-paste/${spec.out}`, { kind: "wrapper", spec }] as const),
-  [
-    "_sql-to-paste/observer-cron-health.sql",
-    { kind: "verbatim", source: "supabase/verifiers/observer-cron-health.sql" },
-  ],
-  [
-    "_sql-to-paste/observer-contract-readiness.sql",
-    { kind: "verbatim", source: "supabase/verifiers/observer-contract-readiness.sql" },
-  ],
-  [
-    "_sql-to-paste/observer-http-compat-proof.sql",
-    { kind: "verbatim", source: "supabase/verifiers/observer-http-compat-proof.sql" },
-  ],
-  [
-    "_sql-to-paste/observer-ai-readiness.sql",
-    { kind: "verbatim", source: "supabase/verifiers/observer-ai-readiness.sql" },
-  ],
-  [
-    "_sql-to-paste/observer-cron-prerequisite.sql",
-    { kind: "verbatim", source: "supabase/prerequisites/observer-cron-prerequisite.sql" },
-  ],
   /*
-   * TRACKED NOW, under a directory named for what it holds. These two are not
-   * verifiers and not prerequisites — they are release evidence a reviewer
-   * pastes — so they live beside neither, and their bytes are the exact bytes
-   * every previous archive shipped.
+   * Derived from the generator's own list, as the wrappers are, so a copy the
+   * package accepts is a copy `pnpm release:wrappers` writes.
    */
-  [
-    "_sql-to-paste/observer-verify-2.sql",
-    { kind: "verbatim", source: "supabase/release-evidence/observer-verify-2.sql" },
-  ],
-  [
-    "_sql-to-paste/observer-behaviour-2.sql",
-    { kind: "verbatim", source: "supabase/release-evidence/observer-behaviour-2.sql" },
-  ],
+  ...VERBATIM.map(
+    (v) => [`_sql-to-paste/${v.out}`, { kind: "verbatim", source: v.source }] as const,
+  ),
 ]);
 
 /**
@@ -886,7 +859,9 @@ export function stagedOriginResult(
             continue;
           }
           if (!readFileSync(path).equals(source)) {
-            problems.push(`${origin} is not byte-identical to HEAD:${declared.source}`);
+            problems.push(
+              `${origin} is not byte-identical to HEAD:${declared.source}; run pnpm release:wrappers`,
+            );
           } else verbatim += 1;
           continue;
         }
