@@ -58,11 +58,20 @@ const FROZEN = Object.freeze([
 /**
  * The commit the frozen surfaces are frozen AS OF.
  *
- * Phase 1's baseline, and the answer to "unchanged since when". A later phase
- * that legitimately moves one of these surfaces moves this too, in the same
- * commit, so the pairing stays readable in the history.
+ * The answer to "unchanged since when". Phase 1's baseline was `aac1866`. A
+ * later phase that legitimately moves one of these surfaces moves this too —
+ * in the NEXT commit, not the same one. The comparison runs against the
+ * working tree, so the base has to be a commit whose tree already holds the
+ * moved surface, and no commit can name its own SHA. Between the two commits
+ * this script is red, and that red is the record of the move.
+ *
+ * Moved on 2026-09-24 to `9e9d49b`, with Máté's permission, because
+ * `supabase/README.md` opened in two places. Lines 285-288 described the
+ * fresh legacy redeploy as the required target of a proof retired that day,
+ * and line 330 numbered the proof's steps by the old sequence. Nothing else
+ * moved between `aac1866` and `9e9d49b`: the six other surfaces diff empty.
  */
-const DEFAULT_BASE = "aac1866485da5d872a93653e781e56a4fac6d441";
+const DEFAULT_BASE = "9e9d49bfca8380a0eb5541f485fa10eff1620150";
 
 function git(...args) {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -150,8 +159,8 @@ if (changed.length > 0) {
   console.error("\nfrozen-surfaces: a frozen surface moved.\n");
   for (const file of changed) console.error(`  CHANGED  ${file}`);
   console.error(
-    "\nIf one of these was meant to move, move DEFAULT_BASE in this file in the same commit, " +
-      "so the history says when the surface was unfrozen and by what.",
+    "\nIf one of these was meant to move, commit it, then point DEFAULT_BASE in this file at " +
+      "that commit in the next one, saying who allowed the move and why.",
   );
   process.exit(1);
 }
