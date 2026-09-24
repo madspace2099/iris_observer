@@ -148,6 +148,19 @@
      * it at all.
      */
     "apps/web/test/access-matrix.test.ts",
-    "test-support/access-matrix.ts"
+    "test-support/access-matrix.ts",
+
+    /*
+     * THE HOSTED RUNNER (2026-09-24).
+     *
+     * The proof that the owner-role window opens, lets the chain through and
+     * closes, and that its guard fails in every way the window can be left open.
+     * Its assertions are error messages and line numbers read out of Postgres,
+     * and the harness it drives now decides which role applies every migration
+     * in the suite, so both are worth a strict compile.
+     */
+    "supabase/test/owner-role-window.test.ts",
+    "supabase/test/support/pglite.ts",
+    "supabase/test/support/cron-stand-in.ts"
   ]
 }

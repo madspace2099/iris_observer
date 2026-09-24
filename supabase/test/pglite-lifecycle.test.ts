@@ -20,6 +20,9 @@ import {
  * These are the assertions that keep the correction from quietly regressing.
  * They exercise the real helper with real instances, because the behaviour
  * under test is what `close()` does and not what a double would be told to say.
+ *
+ * The superuser runner stays here: this file applies no migration, and what it
+ * counts — instances opened and closed — is the same under either runner.
  */
 
 const suiteScoped: { db: PGlite | null } = { db: null };
