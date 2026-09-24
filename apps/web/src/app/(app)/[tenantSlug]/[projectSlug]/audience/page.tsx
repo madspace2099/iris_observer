@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@observer/contracts";
+import {
+  INSIGHT_SOURCE_LABELS,
+  PLACE_CATEGORIES,
+  PLACE_CATEGORY_LABELS,
+  type PlaceCategory,
+} from "@observer/contracts";
 import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { Gaps, SourceChips } from "@/showroom/parts";
+import { AVAILABILITY_WORDS, Gaps, SourceChips } from "@/showroom/parts";
 
 export const metadata: Metadata = { title: "Audience" };
 
@@ -30,6 +35,10 @@ export const metadata: Metadata = { title: "Audience" };
  * And it is careful about what it claims. Time on a category of place is a
  * behaviour. "Probably has children" is a reading a human may make from it;
  * Observer states the behaviour and lets them make it.
+ *
+ * Each row says what it stands on, source and availability, because each row
+ * is a claim; a kind of place with nothing recorded behind it gets no list and
+ * a sentence naming what is missing, not "nothing matched" (P2-18).
  */
 export default async function AudiencePage({
   params,
@@ -89,7 +98,9 @@ export default async function AudiencePage({
           {view.ofMeetings === 0
             ? (nothingReceivedYet(view.context) ??
               "No meeting in this period to build an audience from.")
-            : `${String(view.total)} of ${String(view.ofMeetings)} meetings match.`}
+            : view.unavailable !== null
+              ? view.unavailable.headline
+              : `${String(view.total)} of ${String(view.ofMeetings)} meetings match.`}
         </h1>
         <p className="iris-body" style={{ maxWidth: "62ch", color: "var(--ink-2)" }}>
           {view.description}
@@ -167,7 +178,11 @@ export default async function AudiencePage({
 
         <hr className="iris-rule" />
 
-        {view.total === 0 ? (
+        {view.unavailable !== null ? (
+          <p className="iris-body" style={{ maxWidth: "62ch", color: "var(--ink-2)" }}>
+            {view.unavailable.missing}
+          </p>
+        ) : view.total === 0 ? (
           <p className="iris-body" style={{ color: "var(--ink-2)" }}>
             Nothing matched. That is an answer about this period, not an error — try a weaker
             strength of interest, a lower threshold, or a different kind of place.
@@ -190,8 +205,13 @@ export default async function AudiencePage({
                 <span className="iris-bar-label" title={m.agentName}>
                   {m.agentName}
                 </span>
-                <span className="iris-bar-label" title={m.because}>
-                  {m.because}
+                <span className="iris-audience-why">
+                  <span className="iris-bar-label" title={m.because}>
+                    {m.because}
+                  </span>
+                  <span className="iris-audience-basis" data-availability={m.availability}>
+                    {INSIGHT_SOURCE_LABELS[m.source]} · {AVAILABILITY_WORDS[m.availability]}
+                  </span>
                 </span>
                 <span className="iris-matrix-num" style={{ textAlign: "right" }}>
                   {m.outcomeLabel}

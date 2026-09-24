@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SURROUNDINGS,
   type MeasurementAvailability,
+  type PlaceCategory,
   type ShowroomPlaceInteraction,
   type ShowroomSession,
 } from "@observer/contracts";
@@ -81,6 +82,11 @@ describe("the synthetic world, against the measurement", () => {
     const naming = matches.filter((m) => SURROUNDINGS.some((p) => m.because.includes(p.name)));
     expect(naming.map((m) => m.because)).toEqual([]);
   });
+
+  it("says on every row what it stands on", () => {
+    const said = new Set(matches.map((m) => `${m.source} · ${m.availability}`));
+    expect([...said]).toEqual(["IRIS_SHOWROOM_OBSERVED · legacy_available"]);
+  });
 });
 
 describe("one meeting at a time", () => {
@@ -91,11 +97,12 @@ describe("one meeting at a time", () => {
     section: ShowroomPlaceInteraction["section"],
     availability: MeasurementAvailability,
     dwellSeconds: number,
+    category: PlaceCategory = "family",
   ): ShowroomPlaceInteraction {
     return {
       placeId: `place_${placeName}`,
       placeName,
-      category: "family",
+      category,
       section,
       dwellSeconds,
       availability,
@@ -187,5 +194,44 @@ describe("one meeting at a time", () => {
       "A-101 · Park 30s",
       "A-101",
     ]);
+  });
+
+  describe("no list, and the input it is missing", () => {
+    const TRAM_STOP = place(
+      "Električková zastávka Herlianska",
+      "surroundings",
+      "requires_ue5_v2_event",
+      60,
+      "transport",
+    );
+    const TRANSPORT = { ...FAMILY, placeCategory: "transport" as const };
+    const unavailable = (meetings: readonly ShowroomSession[], criteria: AudienceCriteria) =>
+      buildAudience(contextFor(PROJECT_ID), meetings, criteria).unavailable;
+
+    it("names both inputs when no meeting has a recorded place", () => {
+      // The live connectors' shape today: `places: []` on every meeting.
+      const said = unavailable([meeting("mtg_live", [])], TRANSPORT);
+      expect(said?.missing).toMatch(/UE5 v2 event/);
+      expect(said?.missing).toMatch(/legacy Amenities items mapped to places/);
+    });
+
+    it("names the UE5 v2 event when the kind was reached only where nothing is recorded", () => {
+      const said = unavailable([meeting("mtg_tram", [TRAM_STOP]), AMENITY], TRANSPORT);
+      expect(said?.missing).toMatch(/UE5 v2 event/);
+      expect(said?.missing).not.toMatch(/Amenities/);
+    });
+
+    it("keeps a list, empty, when the kind can be recorded and nobody lingered on it", () => {
+      const view = buildAudience(contextFor(PROJECT_ID), [AMENITY], {
+        ...FAMILY,
+        placeCategory: "convenience",
+      });
+      expect([view.unavailable, view.total]).toEqual([null, 0]);
+    });
+
+    it("keeps a list when the kind has a recorded place, or when no kind was asked for", () => {
+      expect(unavailable(MEETINGS, FAMILY)).toBeNull();
+      expect(unavailable([meeting("mtg_live", [])], { ...FAMILY, placeCategory: null })).toBeNull();
+    });
   });
 });

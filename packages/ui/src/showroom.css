@@ -2432,6 +2432,46 @@
 }
 
 /*
+ * Why a row matched, and what that stands on, row by row: the contract says
+ * every surface reading an unrecorded place says so, and a row is a claim.
+ */
+.iris-audience-why {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.iris-audience-basis {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+/*
+ * A phone: the reason takes the row's width and wraps. In the three-track row
+ * it was cut to five characters, so the claim it makes was never on screen.
+ */
+@container matrix (max-width: 40rem) {
+  .iris-matrix[data-columns="audience"] .iris-matrix-head {
+    display: none;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-matrix-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-audience-why {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-audience-why .iris-bar-label {
+    white-space: normal;
+  }
+}
+
+/*
  * Period buckets, grouped in pairs.
  *
  * Each pair carries its own scale, because a day beside a month on one axis

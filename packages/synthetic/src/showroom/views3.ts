@@ -21,6 +21,7 @@ import type {
   AgentSectionUse,
   AgentsView,
   AudienceCriteria,
+  AudienceUnavailable,
   AudienceView,
   DeliveredDeals,
   FlowPeriod,
@@ -1408,6 +1409,40 @@ function recordedPlace(place: ShowroomPlaceInteraction): boolean {
   return place.availability === "legacy_available";
 }
 
+/**
+ * No list, and why, when the kind of place asked for has nothing recorded
+ * behind it.
+ *
+ * Empty is a different answer. A kind with recorded places that nobody lingered
+ * on this period gets "nothing matched". A kind whose only places are
+ * unrecorded, or a project with no recorded place at all, has no input to
+ * answer from, and "nothing matched" there would send the reader to loosen
+ * criteria that cannot help.
+ */
+function audienceUnavailable(
+  sessions: readonly ShowroomSession[],
+  asked: PlaceCategory | null,
+): AudienceUnavailable | null {
+  if (asked === null || sessions.length === 0) return null;
+  const reached = sessions.flatMap((s) => s.places.filter((p) => p.category === asked));
+  if (reached.some(recordedPlace)) return null;
+  if (!sessions.some((s) => s.places.some(recordedPlace))) {
+    return {
+      headline: "No list: no meeting in this period has a recorded place.",
+      missing:
+        "A place selects a meeting only where its presentation was recorded. That needs either the UE5 v2 event that names which point of interest in Surroundings was presented, or the legacy Amenities items mapped to places.",
+    };
+  }
+  if (reached.some((p) => p.availability === "requires_ue5_v2_event")) {
+    return {
+      headline: "No list: no place of this kind was recorded in this period.",
+      missing:
+        "These meetings reached places of this kind, but which one was presented needs the UE5 v2 event that names it. Until that event exists, they select no meeting.",
+    };
+  }
+  return null;
+}
+
 export function buildAudience(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1465,6 +1500,18 @@ export function buildAudience(
             ? `${units.join(", ")}`
             : `${units.join(", ")} · ${places.map((p) => `${p.placeName} ${p.dwellSeconds}s`).join(", ")}`,
         href: `${base}/meetings/${s.meetingId}`,
+        // The showroom's own record of the meeting: its units and its places.
+        source: "IRIS_SHOWROOM_OBSERVED" as const,
+        /*
+         * Units are recorded (`docs/16` §2.5); the places are the ones `because`
+         * names, and each states its own availability. Read from the place, not
+         * from `recordedPlace`: asking the gate would repeat its verdict, and a
+         * gate that let an unrecorded place through would have every row say
+         * "recorded". Measured: with the gate removed, the rows said so.
+         */
+        availability:
+          places.find((p) => p.availability !== "legacy_available")?.availability ??
+          "legacy_available",
       };
     });
 
@@ -1488,6 +1535,7 @@ export function buildAudience(
     matches,
     total: matches.length,
     ofMeetings: sessions.length,
+    unavailable: audienceUnavailable(sessions, criteria.placeCategory),
     caveats: [
       "This selects meetings, not people. A meeting's replay names no contact, and Observer has no page for one: each row names the agent who ran the meeting.",
       // A privacy guarantee, not a product-boundary note: it stays on screen.

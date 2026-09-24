@@ -1,4 +1,10 @@
-import type { InsightSource, MeetingOutcome, PlaceCategory, SectionId } from "@observer/contracts";
+import type {
+  InsightSource,
+  MeasurementAvailability,
+  MeetingOutcome,
+  PlaceCategory,
+  SectionId,
+} from "@observer/contracts";
 import type { ViewContext } from "./context";
 import type { AssistedSales, DealLadder } from "./deal-source";
 import type { EvidenceRef } from "./metric-value";
@@ -485,6 +491,28 @@ export interface AudienceMatch {
   /** Why this meeting matched, in words. */
   readonly because: string;
   readonly href: string;
+  /**
+   * What `because` stands on, row by row. The contract says of an unrecorded
+   * place that "every surface reading them says so"; one chip over the whole
+   * list did not say which row stood on what.
+   */
+  readonly source: InsightSource;
+  /**
+   * `legacy_available` — its units are recorded — unless a place the row names
+   * states another availability of its own; then that one.
+   */
+  readonly availability: MeasurementAvailability;
+}
+
+/**
+ * Why there is no list, when the kind of place asked for has no recorded point
+ * of interest behind it. Not "nothing matched", which says the criteria were too
+ * tight: what is missing is the input, and this names it.
+ */
+export interface AudienceUnavailable {
+  readonly headline: string;
+  /** What would have to exist for there to be a list. */
+  readonly missing: string;
 }
 
 export interface AudienceView {
@@ -496,6 +524,8 @@ export interface AudienceView {
   readonly matches: readonly AudienceMatch[];
   readonly total: number;
   readonly ofMeetings: number;
+  /** Null whenever a list stands: on recorded places, or on units alone. */
+  readonly unavailable: AudienceUnavailable | null;
   readonly caveats: readonly string[];
   readonly evidence: EvidenceRef;
 }
