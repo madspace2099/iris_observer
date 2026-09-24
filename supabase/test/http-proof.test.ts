@@ -91,8 +91,9 @@ interface Row {
 }
 
 interface Params {
-  readonly floorTs: string;
-  readonly auditRowsBefore: number;
+  /** `null` is expressible on purpose: Part B must refuse to run without Part A. */
+  readonly floorTs: string | null;
+  readonly auditRowsBefore: number | null;
   /** `null` is expressible on purpose: a half-filled block must be refused. */
   readonly expectedBuild: string | null;
   readonly crossTenantDone: boolean | null;
@@ -127,8 +128,8 @@ function partB(p: Params): string {
 
   const block = `with params as (
   select
-    '${p.floorTs}'::timestamptz as floor_ts,
-    ${p.auditRowsBefore}::bigint as audit_rows_before,
+    ${p.floorTs === null ? "null::timestamptz" : `'${p.floorTs}'::timestamptz`} as floor_ts,
+    ${p.auditRowsBefore === null ? "null::bigint" : `${p.auditRowsBefore}::bigint`} as audit_rows_before,
     ${textLit(p.expectedBuild)} as expected_build,
     ${p.crossTenantDone === null ? "null::boolean" : String(p.crossTenantDone)} as cross_tenant_done,
     '${p.primaryTenant ?? "alpha"}'::text as primary_tenant,
@@ -971,6 +972,76 @@ describe("unrelated traffic cannot produce a false pass", () => {
 });
 
 /* --- 6. the verifier prints nothing identifying -------------------------- */
+
+/* --- Part B does not run without Part A ---------------------------------- */
+
+/**
+ * Part B refuses to RUN — not a FAIL row among PASS rows — when the two values
+ * PART A printed are missing or do not describe one moment. Six ways an operator
+ * gets there, four distinguishable refusals. Every case seeds a controlled
+ * request first, so the only thing wrong is Part A.
+ *
+ * The template used to ship example values, and on a table nobody had written to
+ * since, the example counted true: all 13 rows read PASS with no floor anybody had
+ * opened. That is why the first case runs the file exactly as it ships.
+ */
+describe("Part B does not run without Part A", () => {
+  const legacy = { expectedBuild: "legacy", crossTenantDone: false } as const;
+
+  it("refuses the file as shipped, run with nothing pasted", async () => {
+    const { db } = await opened();
+    await ask(db, { id: ID.primary });
+    const start = PROOF_SQL.indexOf("with params as (");
+    const end = PROOF_SQL.indexOf(" order by ord;", start) + " order by ord;".length;
+    await expect(db.query(PROOF_SQL.slice(start, end))).rejects.toThrow(/PART A: floor_ts is null/);
+  });
+
+  it("refuses a pasted count without its floor", async () => {
+    const { db, before } = await opened();
+    await ask(db, { id: ID.primary });
+    await expect(proof(db, { ...legacy, floorTs: null, auditRowsBefore: before })).rejects.toThrow(
+      /PART A: floor_ts is null/,
+    );
+  });
+
+  it("refuses a pasted floor without its count", async () => {
+    const { db, floorTs } = await opened();
+    await ask(db, { id: ID.primary });
+    await expect(proof(db, { ...legacy, floorTs, auditRowsBefore: null })).rejects.toThrow(
+      /PART A: audit_rows_before is null/,
+    );
+  });
+
+  it("refuses a floor in the future — a local time pasted as UTC", async () => {
+    const { db, before } = await opened();
+    await ask(db, { id: ID.primary });
+    const ahead =
+      (await db.query<{ t: string }>(`select (clock_timestamp() + interval '2 hours')::text as t`))
+        .rows[0]?.t ?? "";
+    await expect(proof(db, { ...legacy, floorTs: ahead, auditRowsBefore: before })).rejects.toThrow(
+      /PART A: floor_ts is in the future/,
+    );
+  });
+
+  it("refuses a floor and a count taken from two different PART A runs", async () => {
+    const db = await database();
+    const firstCount = await auditCount(db);
+    await ask(db, { id: ID.other });
+    const secondFloor = await floorNow(db);
+    await ask(db, { id: ID.primary });
+    await expect(
+      proof(db, { ...legacy, floorTs: secondFloor, auditRowsBefore: firstCount }),
+    ).rejects.toThrow(/PART A: audit_rows_before is 0 but 1 rows precede floor_ts/);
+  });
+
+  it("refuses the example values the template used to ship, where they describe no window", async () => {
+    const { db } = await opened();
+    await ask(db, { id: ID.primary });
+    await expect(
+      proof(db, { ...legacy, floorTs: "2026-08-26 12:34:56.789+00", auditRowsBefore: 133 }),
+    ).rejects.toThrow(/PART A: audit_rows_before is 133 but 0 rows precede floor_ts/);
+  });
+});
 
 describe("the verifier prints nothing identifying", () => {
   it("emits no fingerprint, subject, key identifier or request id", async () => {
