@@ -44,17 +44,22 @@ Never force-push. Never rewrite remote history. If the remote has diverged, push
 
 ### Supabase
 
-|                    |                                     |
-| ------------------ | ----------------------------------- |
-| Organization       | `sekhesnlqiutdovgcoqw`              |
-| Project name       | `IRIS OBSERVER`                     |
-| Project ref        | `tfcchobwobpadenampyh`              |
-| Region             | `eu-west-1`                         |
-| Created            | 2026-08-24                          |
-| Status             | `ACTIVE_HEALTHY`                    |
-| Postgres           | 17.6                                |
-| Cost               | €0/month                            |
-| Tables in `public` | **none** — three RPC functions only |
+|                    |                                             |
+| ------------------ | ------------------------------------------- |
+| Organization       | `sekhesnlqiutdovgcoqw`                      |
+| Project name       | `IRIS OBSERVER`                             |
+| Project ref        | `tfcchobwobpadenampyh`                      |
+| Region             | `eu-west-1`                                 |
+| Created            | 2026-08-24                                  |
+| Status             | `ACTIVE_HEALTHY`                            |
+| Postgres           | 17.6                                        |
+| Cost               | €0/month                                    |
+| Tables in `public` | **none** — five RPC functions, listed below |
+
+**`public`, measured 2026-09-24** by a read-only catalogue query: no table and no view, and five
+functions — `admit_ai_request` (13 arguments), `complete_ai_request` (14), `consume_ai_quota` (7),
+`record_ai_request` (13) and `observer_whoami` (none). The first four are the façades, the fifth is
+the diagnostic. An earlier edition said three.
 
 **This is the project the Vercel Preview reaches.** It was not the first choice.
 `iris-observer-staging` (`jtvqecusxzogqubxpoyf`, eu-central-1) was provisioned for this and holds
