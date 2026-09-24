@@ -127,6 +127,26 @@ export const VERBATIM: readonly { readonly out: string; readonly source: string 
   { out: "observer-behaviour-2.sql", source: "supabase/release-evidence/observer-behaviour-2.sql" },
 ];
 
+/**
+ * The sentence a reader gets when the generated directory is not there.
+ *
+ * Measured on 2026-09-24 with the directory moved away, as on a fresh clone:
+ * every reader failed on a bare ENOENT, which is red but names neither what is
+ * missing nor what makes it. The release build died before its byte check
+ * had examined anything, and one suite's 97 tests were never collected. The
+ * readers that depend on the directory now say this instead.
+ */
+export const STAGED_REMEDY =
+  "_sql-to-paste/ is generated and never tracked, so a fresh clone has none of it. " +
+  "Run: pnpm release:wrappers";
+
+/** The files the generator writes that are not on disk, as repository paths. */
+export function missingStaged(root = REPO_ROOT): readonly string[] {
+  return [...WRAPPERS, ...VERBATIM]
+    .map((f) => `_sql-to-paste/${f.out}`)
+    .filter((path) => !existsSync(join(root, path)));
+}
+
 /** The exact bytes a wrapper should contain, given the source on disk. */
 export function renderWrapper(spec: WrapperSpec, root = REPO_ROOT): string {
   const body = readFileSync(join(root, spec.source), "utf8");

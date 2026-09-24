@@ -74,7 +74,14 @@ import {
 } from "./operation-journal";
 import { treeIdentity, treeProblems, TreeBinding } from "./tree-identity";
 import { scanText, inScope } from "./secret-recipes";
-import { VERBATIM, WRAPPERS, renderWrapper, extractBody } from "./wrap-migration";
+import {
+  STAGED_REMEDY,
+  VERBATIM,
+  WRAPPERS,
+  extractBody,
+  missingStaged,
+  renderWrapper,
+} from "./wrap-migration";
 import { DEPLOYMENTS, LIVE, LAST_VERCEL_ENUMERATION, DELIVERED_ARCHIVES } from "./live-snapshot";
 import {
   readGateRecord,
@@ -1009,6 +1016,17 @@ function stage(dir: string, evidence: CapturedEvidence | null): StagingInventory
   };
 
   const isSql = (f: string): boolean => f.endsWith(".sql");
+  /*
+   * NAMED, NOT A BARE ENOENT. The generated files are absent from a fresh
+   * clone, and the read below used to throw on the missing directory before
+   * the byte check had examined anything.
+   */
+  const missing = missingStaged();
+  if (missing.length > 0) {
+    throw new Error(
+      `${String(missing.length)} staged file(s) missing: ${missing.join(", ")}. ${STAGED_REMEDY}`,
+    );
+  }
   copyAll("_sql-to-paste", ".", isSql);
   copyAll(MIGRATIONS_DIR, "supabase-migrations", isSql);
   copyAll("supabase/verifiers", "supabase-migrations", isSql);

@@ -30,6 +30,7 @@ import {
   DEPLOYMENT_INVENTORY_PROVENANCE,
 } from "./live-snapshot";
 import { HISTORICAL_CONTROL_CHAR_COMMITS } from "./transport-safe";
+import { STAGED_REMEDY } from "./wrap-migration";
 import {
   renderMappingTable,
   renderObservedMapping,
@@ -117,6 +118,12 @@ const sha256 = (path: string): string =>
   createHash("sha256")
     .update(readFileSync(join(REPO_ROOT, path)))
     .digest("hex");
+
+/** A generated staged file's hash, or the sentence that says it was never generated. */
+const stagedSha256 = (path: string): string => {
+  if (!existsSync(join(REPO_ROOT, path))) throw new Error(`${path} is missing. ${STAGED_REMEDY}`);
+  return sha256(path);
+};
 
 /** Executable SQL only: comments stripped, whitespace collapsed. */
 export const strip = (sql: string): string =>
@@ -962,7 +969,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   });
 
   const cronHealth = sha256("supabase/verifiers/observer-cron-health.sql");
-  const cronHealthWrapper = sha256("_sql-to-paste/observer-cron-health.sql");
+  const cronHealthWrapper = stagedSha256("_sql-to-paste/observer-cron-health.sql");
   /* Prior deliveries, excluding the candidate this package will become. */
   const priorBundles = INVENTORY_RECORDED_IN.filter((b) => b !== headShort);
   const bundles = word(priorBundles.length).toLowerCase();
@@ -1132,7 +1139,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     DEPLOYMENT_INVENTORY_LINE: deploymentInventoryLine(),
 
     M4_SOURCE_SHA: sha256(M4),
-    M4_WRAPPER_SHA: sha256("_sql-to-paste/observer-migration-4-retention.sql"),
+    M4_WRAPPER_SHA: stagedSha256("_sql-to-paste/observer-migration-4-retention.sql"),
     M4_EXEC_SHA: m4ExecNow,
     M4_HISTORY_BLOCK: m4HistoryBlock,
     CRON_HEALTH_SHA: cronHealth,

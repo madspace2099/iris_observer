@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { WRAPPERS, renderWrapper, extractBody } from "../../scripts/release/wrap-migration";
+import {
+  STAGED_REMEDY,
+  VERBATIM,
+  WRAPPERS,
+  extractBody,
+  missingStaged,
+  renderWrapper,
+} from "../../scripts/release/wrap-migration";
 
 /**
  * The contract migration's own instructions must state the corrected
@@ -171,6 +178,27 @@ describe("every paste wrapper is generated from its source", () => {
        * self-consistent.
        */
       expect(read(join("_sql-to-paste", spec.out))).toBe(renderWrapper(spec, ROOT));
+    },
+  );
+});
+
+describe("the generated directory is there and current, or says what makes it", () => {
+  /*
+   * `_sql-to-paste/` is gitignored and holds no tracked file, so a fresh clone
+   * has none of it. With the directory moved away, every reader here failed on
+   * a bare ENOENT: red, but naming nothing. This test is the one that names it.
+   */
+  it("holds every file the generator writes", () => {
+    expect(missingStaged(ROOT), STAGED_REMEDY).toEqual([]);
+  });
+
+  it.each(VERBATIM.map((v) => [v.out, v] as const))(
+    "%s is byte-identical to its tracked source",
+    (_name, spec) => {
+      const staged = readFileSync(join(ROOT, "_sql-to-paste", spec.out));
+      expect(staged.equals(readFileSync(join(ROOT, spec.source))), `stale. ${STAGED_REMEDY}`).toBe(
+        true,
+      );
     },
   );
 });
