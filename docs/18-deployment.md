@@ -55,11 +55,20 @@ Never force-push. Never rewrite remote history. If the remote has diverged, push
 | Postgres           | 17.6                                        |
 | Cost               | €0/month                                    |
 | Tables in `public` | **none** — five RPC functions, listed below |
+| Migrations applied | 5 of 22, listed below                       |
 
 **`public`, measured 2026-09-24** by a read-only catalogue query: no table and no view, and five
 functions — `admit_ai_request` (13 arguments), `complete_ai_request` (14), `consume_ai_quota` (7),
 `record_ai_request` (13) and `observer_whoami` (none). The first four are the façades, the fifth is
 the diagnostic. An earlier edition said three.
+
+**Migrations, measured 2026-09-24.** Five of the twenty-two files in `supabase/migrations/` are
+applied, and the history table says the same: `supabase_migrations.schema_migrations` holds exactly
+the five `20260825*` versions (`121909`, `121927`, `154900`, `173000`, `205000`). The seventeen from
+`20260826090000` on are not applied — none of their objects exists on the host. The history was
+recorded that day by `supabase migration repair --status applied`, at about 09:47 UTC. The table
+stores no time; the witness is the CLI's login role, whose `valid_until` reads 09:52:22 UTC — the
+CLI issues it for minutes at each sign-in (see `cli_login_postgres` below).
 
 **This is the project the Vercel Preview reaches.** It was not the first choice.
 `iris-observer-staging` (`jtvqecusxzogqubxpoyf`, eu-central-1) was provisioned for this and holds
