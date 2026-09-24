@@ -837,6 +837,67 @@ So the ownership rule is narrow and the failure is loud:
 Row 11 of the health verifier reports the same condition read-only, and reports
 is all it does.
 
+### Owner roles, and the window on `public`
+
+The cron prerequisite has a sibling. From `20260829173000` on, fourteen
+migrations give what they build to one of three NOLOGIN owner roles —
+`alter table … owner to observer_credentials_owner` — and on this project they
+run as `postgres`, which is not a superuser. `… OWNER TO` then needs two things a
+superuser is excused from: `postgres` must be able to `SET ROLE` to the new
+owner, and the owner must hold CREATE on the object's schema — `observer` for the
+tables, `public` for the façades. Without them the first transfer stops the
+migration:
+
+```text
+ERROR:  must be able to SET ROLE "observer_credentials_owner"
+```
+
+The test suite never met it, because PGlite applies every migration as a
+superuser.
+
+`supabase/prerequisites/observer-role-prerequisite.sql` creates the three roles
+exactly as the migrations declare them, grants each to `postgres`, and gives each
+CREATE on `observer`. Those stay. It also gives each CREATE on `public`, and that
+one is a **window, not a state**: `public` is the schema PostgREST serves, and the
+owners run the code behind 61 `security definer` façades, so a standing CREATE
+there would let a flaw in any one of them add a new callable object to the API.
+The transfer needs it only while it happens; a façade keeps its owner, and keeps
+answering, once it is revoked.
+
+Four steps, in this order:
+
+1. **Open.** Run `supabase/prerequisites/observer-role-prerequisite.sql`. Its
+   last query returns three rows, every column true.
+2. **Apply.** The migrations, in order, one transaction per file. The window
+   covers `20260829173000` to `20260918100000`, the fourteen that hand objects to
+   an owner role.
+3. **Close.** The operator runs the revoke by hand:
+
+   ```sql
+   revoke create on schema public
+     from observer_credentials_owner, observer_budget_owner, observer_ingest_owner;
+   ```
+
+4. **Check.** Run `supabase/prerequisites/observer-role-window-closed.sql`. It
+   raises an exception while any owner can still create in `public`, and answers
+   `observer role window: CLOSED — no owner role can create in schema public`
+   when none can.
+
+**Applying the migrations is not finished until step 4 is green.** A green step 2
+with the window still open is half a job.
+
+The revoke lives here and not in the prerequisite on purpose: the prerequisite
+opens, it does not close. A migration that recreates its façades —
+`20260917100000` and `20260918100000` apply over themselves — needs the window
+again: open, apply, close, check.
+
+The four were proved together in PGlite, under a non-superuser `postgres` with
+this project's attributes: without the prerequisite the chain stops in
+`20260829173000` at line 121; with it, every pending file except `20260826140000`
+(Cron) and `20260826090000` (the contract) applies; the check fails while the
+window is open and passes after the revoke; and the façades still answer
+`service_role` afterwards.
+
 ### Rotation is a maintenance operation
 
 Rotating the pepper **changes every pseudonymous identifier** and therefore
