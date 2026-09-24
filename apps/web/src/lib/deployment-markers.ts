@@ -28,6 +28,8 @@ export const DEPLOYMENT_MARKERS = [
 ] as const;
 
 /** True when any platform marker is present in `source`, whatever its value. */
-export function onDeploymentPlatform(source: Readonly<Record<string, string | undefined>>): boolean {
+export function onDeploymentPlatform(
+  source: Readonly<Record<string, string | undefined>>,
+): boolean {
   return DEPLOYMENT_MARKERS.some((marker) => (source[marker] ?? "").length > 0);
 }

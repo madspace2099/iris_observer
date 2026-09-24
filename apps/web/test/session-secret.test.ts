@@ -26,7 +26,11 @@ describe("the session signing secret", () => {
     };
     const onVercel = (environment: string | undefined): string => {
       try {
-        signingSecretFrom({ OBSERVER_ENVIRONMENT: environment, VERCEL: "1", VERCEL_ENV: "preview" });
+        signingSecretFrom({
+          OBSERVER_ENVIRONMENT: environment,
+          VERCEL: "1",
+          VERCEL_ENV: "preview",
+        });
         return "signed on a stand-in";
       } catch (error) {
         return error instanceof SessionSecretMissingError ? "refused" : "other error";
