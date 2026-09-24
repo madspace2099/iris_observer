@@ -4796,3 +4796,50 @@ or adapter, and no document defines it.
   `views3.ts:1071`. That is true of the legacy capture and not of Observer's connectors.
 
 The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-24 (late) — P2-17 leaves Phase 2: a pre-customer phase of its own
+
+**Decided by Máté, 2026-09-24.** In his words: „kell szlovák plusz angol felület az első fizető
+ügyfél ELŐTT, mert a piac Szlovákia, és ott vannak a kliensek. Német és magyar később.” A Slovak and
+an English surface are needed before the first paying customer, because the market is Slovakia and
+the clients are there; German and Hungarian come later.
+
+**P2-17 does not stay in Phase 2.** The decision makes it too big for a checklist item.
+
+- It becomes its own phase: a pre-customer blocker that runs beside Gate 2, ordered before P2-19 and
+  P2-20.
+- The plan file (`_planning/observer-v3-package/OBSERVER_Claude_Code_Phase_1_2_3_v3.md`) is the v3
+  package and is not rewritten. This entry records the reclassification.
+
+**The three measurements of 2026-09-24 that set the scope:**
+
+1. **482 and 185.** The report's translatable text rests on 482 origin-bound messages, 337 of them
+   distinct. 185 of the 482 are assembled in the read-model layer: 153 literals and 32 templates
+   (`_review/p217-report-journal.md:110`, `_review/p217b-journal.md`).
+2. **3 and 13.** Three of the builders behind them are report-only: the three report-scope builders,
+   whose own text is mostly the export panel's section list. Thirteen are shared. By message, shared
+   outnumbers exclusive: 51 to 45 by the survey's rule, 76 to 55 by function witness.
+3. **The report has no text of its own to speak of.**
+   - `?agent=` is largely `buildAgentDetail`'s output, and `?meeting=` is `buildMeetingReplay`'s.
+   - The project report renders `buildSalesFlow`'s findings.
+   - Translating the report is therefore translating the agent, meeting and flow surfaces.
+
+**Two languages are not half of four.** English exists, so the translation work is one language,
+Slovak. The machinery is not halved:
+
+- **Plurals.** English has two cardinal forms (`one`, `other`); Slovak has four (`one`, `few`, `many`,
+  `other`, with 2–4 taking `few`). The seven plural sites use no `Intl.PluralRules`.
+- **Ordinals.** English has four ordinal forms (1st, 2nd, 3rd, nth); Slovak has one. The English
+  suffix code, fed a formatting locale, prints "2th" on `sk-SK` (P2-17a).
+- **Language versus locale.** The report's language has to travel on the read-model request,
+  separate from `context.project.locale`, which formats figures and dates.
+
+The category counts above were measured with ICU 78.3 on Node 24.19.0.
+
+**The number nobody has measured:** how many distinct source messages the whole product carries.
+
+- The report carries 337.
+- The P2-17 survey's 3,617 distinct strings are rendered texts, a different unit. Nobody has counted
+  the messages behind them.
+
+The demo's `en-GB` locale is unchanged. It belongs to that phase.
