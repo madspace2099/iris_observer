@@ -440,8 +440,18 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * The prepared answers are the synthetic scenario's own prose. Printed over a
      * project whose meetings are its own showroom's they are a fabrication, so a
      * delivered project gets only what can be worked out from what was delivered.
+     *
+     * And the scenario is NORTHGATE's — its figures, its unit A-505, its buyer,
+     * its "south-facing, floors 4 to 6" — gated like `buildPreMeetingBrief` and
+     * `buildAgentOverview`. Every other synthetic project was served it until
+     * P2-17's first item: a crawl found 31 surface pairs on Riverside, Kingsford
+     * and ISTER TOWER. They get the answers their own meetings support.
      */
-    if (context.sessionsDelivered || context.ownDataOnly)
+    if (
+      context.sessionsDelivered ||
+      context.ownDataOnly ||
+      context.project.id !== "prj_northgate01"
+    )
       return buildDeliveredAskSession(context, current, selectionLabel);
 
     const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);

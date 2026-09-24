@@ -230,6 +230,58 @@ describe("tenant and project scoping", () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  /*
+   * THE THIRD INSTANCE: THE SCRIPTED ASK SESSION.
+   *
+   * `buildAskSession` is Northgate's scenario — its figures, its unit A-505,
+   * its buyer, its "south-facing, floors 4 to 6" framing — and every
+   * synthetic project was served it. A crawl on 2026-09-24 found 31 surface
+   * pairs across Riverside, Kingsford and ISTER TOWER, every one from this
+   * source. Every account and every project it holds are asked here, not the
+   * two that were known.
+   */
+  it("never serves Northgate's scripted Ask session under another project", async () => {
+    const NORTHGATE_WORDS = [
+      "Viktória",
+      "Halász",
+      "A-505",
+      "A-402",
+      "viewings held at 46",
+      "Offers fell from 17 to 12",
+      "South-facing units draw",
+      "the two-room finding",
+      "three stalled offers",
+      "Intent signals expire after 21 days",
+    ];
+    // Northgate keeps its scenario: the computed session everywhere would also pass below.
+    const own = await repo.getAskSession(
+      { viewer: VIEWERS.salesAgent, ...NORTHGATE, period: "quarter_to_date" },
+      null,
+    );
+    expect(own.suggestions).toContain("Prepare me for Viktória's meeting.");
+
+    const leaked = new Set<string>();
+    let asked = 0;
+    for (const viewer of Object.values(VIEWERS)) {
+      for (const project of PROJECTS) {
+        if (project.slug === "northgate" || !viewer.projectIds.includes(project.id)) continue;
+        const tenant = TENANTS.find((t) => t.id === project.tenantId);
+        if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
+        const session = await repo.getAskSession(
+          { viewer, tenantSlug: tenant.slug, projectSlug: project.slug, period: "quarter_to_date" },
+          null,
+        );
+        asked += 1;
+        const text = JSON.stringify(session);
+        for (const word of NORTHGATE_WORDS) {
+          if (text.includes(word)) leaked.add(`${project.slug}: "${word}"`);
+        }
+      }
+    }
+    expect(asked, "no account holds a project besides Northgate").toBeGreaterThan(0);
+    expect([...leaked], [...leaked].join("\n")).toEqual([]);
+  });
+
   it("clips the baseline when the current period is still running", async () => {
     const overview = await repo.getExecutiveOverview({
       viewer: VIEWERS.developer,
