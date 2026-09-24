@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /*
  * CLOSE WHAT THE FIXTURE OPENS. `worker-bound.test.ts` fails when a suite that
@@ -40,7 +43,6 @@ afterAll(closeSuiteDatabases);
  * because that is where they would actually be noticed.
  */
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const FILES = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
@@ -107,16 +109,9 @@ const ACCOUNT_B = "acct_riverside";
 let db: PGlite;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
+  db = await openDatabase("suite", "hosted");
 
-  /* The three roles Supabase provides, to the shape it provides them. */
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-
-  for (const file of FILES) await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
+  await applyMigrations(db, FILES);
 });
 
 async function one<T>(sql: string, params: unknown[] = []): Promise<T> {
@@ -196,7 +191,7 @@ describe("the migration executes on top of the ones before it", () => {
     }
   });
 
-  it("leaves the ingest owner unable to log in and with nobody inside it", async () => {
+  it("leaves the ingest owner unable to log in and with nobody inside it but postgres", async () => {
     const role = await db.query<{ rolcanlogin: boolean; rolsuper: boolean }>(
       `select rolcanlogin, rolsuper from pg_catalog.pg_roles where rolname = $1`,
       [OWNER],
@@ -204,15 +199,31 @@ describe("the migration executes on top of the ones before it", () => {
     expect(role.rows[0]?.rolcanlogin).toBe(false);
     expect(role.rows[0]?.rolsuper).toBe(false);
 
-    expect(
-      await one<string>(
-        `select count(*)::text from pg_catalog.pg_auth_members m
-           join pg_catalog.pg_roles r on r.oid = m.roleid
-          where r.rolname = $1`,
-        [OWNER],
-      ),
-      "nobody is a member of the owner role",
-    ).toBe("0");
+    /*
+     * This said "nobody" while a superuser applied the migrations, and a superuser gets no
+     * membership in a role it creates. The host's `postgres` does: ADMIN, since PostgreSQL 16,
+     * for creating it, and INHERIT with SET from `observer-role-prerequisite.sql`, without which
+     * it cannot hand the role its objects. Nobody else is inside it.
+     */
+    const members = await db.query<{
+      member: string;
+      admin: boolean;
+      inherit: boolean;
+      set: boolean;
+    }>(
+      `select g.rolname as member, m.admin_option as admin, m.inherit_option as inherit,
+              m.set_option as set
+         from pg_catalog.pg_auth_members m
+         join pg_catalog.pg_roles r on r.oid = m.roleid
+         join pg_catalog.pg_roles g on g.oid = m.member
+        where r.rolname = $1
+        order by m.admin_option desc`,
+      [OWNER],
+    );
+    expect(members.rows, "postgres is the owner role's only member").toEqual([
+      { member: "postgres", admin: true, inherit: false, set: false },
+      { member: "postgres", admin: false, inherit: true, set: true },
+    ]);
   });
 });
 

@@ -10,7 +10,12 @@ import {
 } from "@observer/connectors";
 
 import { installCronStandIn } from "./support/cron-stand-in";
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /**
  * THE TWO M10 MIGRATIONS, AS THE PREVIEW WOULD RECEIVE THEM.
@@ -24,12 +29,14 @@ import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support
  *
  * ## What this proves, and what it cannot
  *
- * PGlite is PostgreSQL 17 compiled to WebAssembly: the SQL, the catalogue,
- * the privilege system and row-level security are Postgres's own, so a
- * grant that reads false here reads false on the hosted project too. What
- * it is NOT is Supabase: there is no PostgREST in front of it, no JWT
- * claims, no `pg_cron` worker (a stand-in satisfies the retention
- * migration's precondition), and no Supabase-managed role attributes. This
+ * PGlite is PostgreSQL compiled to WebAssembly (18.3 in PGlite 0.5.7; the
+ * host runs 17.6): the SQL, the catalogue, the privilege system and
+ * row-level security are Postgres's own, so a grant that reads false here
+ * reads false on the hosted project too. What it is NOT is Supabase: there
+ * is no PostgREST in front of it, no JWT claims, no `pg_cron` worker (a
+ * stand-in satisfies the retention migration's precondition), and of the
+ * Supabase-managed roles only what `support/pglite.ts` measured — the
+ * non-superuser `postgres` that applies the chain here as it must there. This
  * workstation has neither Docker nor a Postgres binary, so `supabase start`
  * cannot run. Everything below is therefore evidence about the migration
  * files against Postgres, and nothing below is evidence that they have been
@@ -50,7 +57,6 @@ const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const CATALOGUE = "20260907100000_observer_catalogue_and_connectors.sql";
 const DEALS = "20260907180000_observer_deals.sql";
 const CONTRACT = "20260826090000_observer_audit_facade_cleanup.sql";
-const RETENTION = "20260826140000_observer_bucket_retention.sql";
 
 const files = (): readonly string[] =>
   readdirSync(MIGRATIONS)
@@ -82,23 +88,19 @@ async function one<T>(text: string, params: unknown[] = []): Promise<T> {
 }
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
+  db = await openDatabase("suite", "hosted");
   /*
-   * The whole chain, in filename order, as the SQL Editor received it: the
-   * contract migration is skipped because the README holds it back on
-   * evidence (its expand half is applied), and the retention migration is
-   * preceded by the pg_cron stand-in its precondition demands.
+   * The whole chain, in filename order, the way the host has to receive it:
+   * the contract migration is skipped because the README holds it back on
+   * evidence (its expand half is applied), the pg_cron stand-in its retention
+   * migration demands is installed first, and the owner-role window is opened
+   * before the chain and closed after it.
    */
-  for (const file of files()) {
-    if (file === CONTRACT) continue;
-    if (file === RETENTION) await installCronStandIn(db);
-    await db.exec(sql(file));
-  }
+  await installCronStandIn(db);
+  await applyMigrations(
+    db,
+    files().filter((file) => file !== CONTRACT),
+  );
 });
 
 /* Both hooks, as every PGlite suite must: the bound test asks for them by name, and a suite with no per-test database still says so. */
@@ -141,8 +143,8 @@ describe("ordering", () => {
          where n.nspname in ('public', 'observer') and (p.proname like 'observer_%' or p.proname like 'refuse_%')`,
       );
     const before = await count();
-    await db.exec(sql(CATALOGUE));
-    await db.exec(sql(DEALS));
+    /* Through the window again, as `docs/18-deployment.md` requires of any re-application. */
+    await applyMigrations(db, [CATALOGUE, DEALS]);
     expect(await count()).toBe(before);
     for (const table of TABLES) {
       expect(await one<boolean>(`select to_regclass($1) is not null`, [`observer.${table}`])).toBe(

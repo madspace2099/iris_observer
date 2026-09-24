@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import type { HeartbeatFacts, ObserverDb } from "../src/db";
@@ -17,6 +15,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -51,8 +50,6 @@ afterAll(closeSuiteDatabases);
  * The one credential this suite mints exists to be searched for in a serialised
  * view and asserted absent — never compared against, and never printed.
  */
-
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 
 /*
  * Named rather than globbed, so a migration added later joins this fixture by
@@ -89,18 +86,8 @@ let operations: ObserverOperations;
 const query: SqlQuery = async (sql, params) => pg.query(sql, [...params]);
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  /*
-   * The three Supabase roles the migrations revoke from and grant to. PGlite has
-   * none of them, and `revoke ... from anon` against a role that does not exist
-   * is an error rather than a no-op.
-   */
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
   db = pgliteDb(query);
   operations = observerOperations({ db });
 });

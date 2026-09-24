@@ -3,7 +3,12 @@ import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /*
  * CLOSE WHAT THE FIXTURE OPENS.
@@ -32,9 +37,9 @@ afterAll(closeSuiteDatabases);
  *
  * ## What it still does not prove
  *
- * That a Supabase project matches. The roles here are created by this file to
- * the shape Supabase gives them, PGlite has no PostgREST in front of it, and
- * nothing here has been applied to a hosted database. Executing this migration
+ * That a Supabase project matches. The roles here come from the hosted runner
+ * (`support/pglite.ts`), measured on the project, PGlite has no PostgREST in
+ * front of it, and nothing here has been applied to a hosted database. Executing this migration
  * against the real project and running the verifier remains an open deployment
  * prerequisite, recorded as one — this closes the design question, not the
  * deployment one.
@@ -61,21 +66,9 @@ const SEALED = ["v1", "bm9uY2U", "Y2lwaGVy", "dGFn", "wxyz"] as const;
 let db: PGlite;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
+  db = await openDatabase("suite", "hosted");
 
-  /*
-   * The three roles Supabase provides, to the shape it provides them. Note
-   * `service_role` gets `bypassrls` exactly as it does there — so if these
-   * tables were reachable by it at all, RLS would not save them, and the
-   * assertions below would fail rather than passing for the wrong reason.
-   */
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-
-  await db.exec(readFileSync(join(MIGRATIONS, CREDENTIALS), "utf8"));
+  await applyMigrations(db, [CREDENTIALS]);
 });
 
 async function one<T>(sql: string, params: unknown[] = []): Promise<T> {
@@ -125,19 +118,37 @@ describe("the migration executes", () => {
     }
   });
 
-  it("gives that role no way to log in and no members", async () => {
+  it("gives that role no way to log in, and no member but postgres", async () => {
     const role = await db.query<{ rolcanlogin: boolean; rolsuper: boolean }>(
       `select rolcanlogin, rolsuper from pg_catalog.pg_roles where rolname = 'observer_credentials_owner'`,
     );
     expect(role.rows[0]?.rolcanlogin).toBe(false);
     expect(role.rows[0]?.rolsuper).toBe(false);
 
-    const members = await one<string>(
-      `select count(*)::text from pg_catalog.pg_auth_members m
+    /*
+     * This said "no members" while a superuser applied the migrations, and a superuser gets no
+     * membership in a role it creates. The host's `postgres` does: ADMIN, since PostgreSQL 16,
+     * for creating it, and INHERIT with SET from `observer-role-prerequisite.sql`, without which
+     * it cannot hand the role its objects. Nobody else is inside it.
+     */
+    const members = await db.query<{
+      member: string;
+      admin: boolean;
+      inherit: boolean;
+      set: boolean;
+    }>(
+      `select g.rolname as member, m.admin_option as admin, m.inherit_option as inherit,
+              m.set_option as set
+         from pg_catalog.pg_auth_members m
          join pg_catalog.pg_roles r on r.oid = m.roleid
-        where r.rolname = 'observer_credentials_owner'`,
+         join pg_catalog.pg_roles g on g.oid = m.member
+        where r.rolname = 'observer_credentials_owner'
+        order by m.admin_option desc`,
     );
-    expect(members, "nobody is a member of the owner role").toBe("0");
+    expect(members.rows, "postgres is the owner role's only member").toEqual([
+      { member: "postgres", admin: true, inherit: false, set: false },
+      { member: "postgres", admin: false, inherit: true, set: true },
+    ]);
   });
 });
 
@@ -331,7 +342,7 @@ describe("a row cannot be moved between accounts", () => {
     );
     await db.exec("reset role");
 
-    /* Even as the superuser running this test, the trigger refuses. */
+    /* Even as `postgres`, who holds the owner's rights through the prerequisite, the trigger refuses. */
     await expect(
       db.query(
         `update observer.account_credentials set account_id = 'acct_thief' where account_id = 'acct_owner'`,

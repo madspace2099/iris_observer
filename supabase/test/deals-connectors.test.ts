@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { ProjectIdSchema, TenantIdSchema, type CrmDeal } from "@observer/contracts";
@@ -13,7 +11,12 @@ import {
   sqlDealsDb,
 } from "@observer/connectors";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
@@ -28,7 +31,6 @@ afterAll(closeSuiteDatabases);
  * of it.
  */
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const FILES = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260907100000_observer_catalogue_and_connectors.sql",
@@ -46,13 +48,8 @@ let projectA: string;
 let projectB: string;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const file of FILES) await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
+  db = await openDatabase("suite", "hosted");
+  await applyMigrations(db, FILES);
   projectA = await one<string>(`select public.observer_project_create($1, $2, $3)`, [
     ACCOUNT_A,
     "Ister Tower",

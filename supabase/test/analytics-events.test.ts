@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
@@ -22,7 +25,6 @@ afterAll(closeSuiteDatabases);
  * somewhere else.
  */
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const FILES = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
@@ -38,13 +40,8 @@ const ACCOUNT_B = "acct_riverside";
 let db: PGlite;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const file of FILES) await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
+  db = await openDatabase("suite", "hosted");
+  await applyMigrations(db, FILES);
 });
 
 async function one<T>(sql: string, params: unknown[] = []): Promise<T> {

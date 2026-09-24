@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -13,7 +11,12 @@ import {
   type IssuedSecret,
 } from "@observer/sources";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
@@ -42,7 +45,6 @@ afterAll(closeSuiteDatabases);
  * to yield exactly one success and one credential.
  */
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const SPINE = "20260902090000_observer_source_identity_spine.sql";
 const ACTIVATION = "20260902093000_observer_activation_and_credentials.sql";
 
@@ -75,14 +77,8 @@ const ENV: EnvSource = {
 let db: PGlite;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  await db.exec(readFileSync(join(MIGRATIONS, SPINE), "utf8"));
-  await db.exec(readFileSync(join(MIGRATIONS, ACTIVATION), "utf8"));
+  db = await openDatabase("suite", "hosted");
+  await applyMigrations(db, [SPINE, ACTIVATION]);
 });
 
 async function one<T>(sql: string, params: unknown[] = []): Promise<T> {

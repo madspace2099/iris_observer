@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -25,6 +23,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -84,8 +83,6 @@ afterAll(closeSuiteDatabases);
  * endpoints, and no plaintext is ever printed: each is compared, or asserted
  * absent, never logged.
  */
-
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 
 /**
  * The six migrations of the ingestion domain, named rather than globbed.
@@ -161,18 +158,8 @@ let deps: HandlerDeps;
 const query: SqlQuery = (sql, params) => pg.query(sql, [...params]);
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  /*
-   * The three Supabase roles the migrations revoke from and grant to. PGlite
-   * ships none of them, and `revoke ... from anon` against a role that does not
-   * exist is an error rather than a no-op.
-   */
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
 
   db = pgliteDb(query);
   admin = observerAdmin({ db, env: ENV, now: () => NOW });

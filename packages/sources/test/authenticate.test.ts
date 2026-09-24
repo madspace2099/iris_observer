@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OBSERVER_ROUTES } from "@observer/contracts/ue5";
@@ -22,6 +20,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -110,7 +109,6 @@ vi.mock("../src/secrets", async (importOriginal) => {
  * redefines facades the earlier four created, so applying four of five leaves a
  * database that is nobody's deployment.
  */
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 const FILES = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
@@ -240,18 +238,8 @@ let suspended: Awaited<ReturnType<typeof activate>>;
 let archived: Awaited<ReturnType<typeof activate>>;
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  /*
-   * The three Supabase roles the migrations revoke from and grant to. PGlite has
-   * none of them, and a `revoke ... from anon` against a role that does not
-   * exist is an error rather than a no-op.
-   */
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
   db = pgliteDb(query);
 
   live = await activate("Atrium PC", "development", null);
