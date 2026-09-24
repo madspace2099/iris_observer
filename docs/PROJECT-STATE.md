@@ -4712,3 +4712,87 @@ The full `pnpm verify` ran on this commit; its result is in the journal and the 
 - `supabase/README.md:285-288,330` — whether its freeze may open for those lines is Matthew's
   decision;
 - the P2-17 language questions.
+
+## 2026-09-24 (night) — P2-18: the negative half is built; the list is BLOCKED on a missing input
+
+**The negative half is built, and the list is BLOCKED.** This is the same split P2-06 drew. The
+survey is in `_review/p218-journal.md` and this round's record in `_review/p218b-journal.md`; the
+photographs are in `_review/p218b/`. None of them is committed.
+
+**What was fixed is the frozen contract's invariant, not the P2-18 DoD.**
+
+- `ShowroomPlaceInteraction` (`packages/contracts/src/showroom.ts:209-212`) says that Surroundings
+  points of interest are `requires_ue5_v2_event` "and every surface reading them says so".
+- `buildAudience` read them on category and dwell alone (`views3.ts:1416-1421` at `457c504`), and
+  said nothing.
+- The contract was not touched. The surface now does what the contract says.
+
+1. **`55123f6` — the gate.**
+   - A place selects a meeting, or is named as why it matched, only when its availability is
+     `legacy_available`.
+   - `partially_derivable` does not qualify. For a point of interest it means the section was reached
+     and nothing more, which is the general Surroundings data the DoD forbids a list from.
+   - Over every synthetic meeting — family places, 25 s, any unit, merely opened — the count went
+     from 125 to 99. That is the survey's independent expectation from the section split: 47 on
+     amenities only plus 52 on both. The 26 matches that stood on Surroundings alone are gone.
+   - Mutations, each restored byte for byte: with no gate, 6 of 6 red and the 26 back; each half of
+     the gate on its own, 3 red; a deny-list in place of the allow-list, 2 red.
+2. **`0fd6afd` — the statement.**
+   - Every row prints its source and availability ("IRIS observed · Recorded today"). Both are read
+     from each named place's own token.
+   - A first version asked the gate instead. With the gate removed, every row still said
+     "recorded"; this was found by mutation and fixed before the commit.
+   - When the kind of place asked for has nothing recorded behind it, the page names what is missing
+     rather than printing "nothing matched".
+   - On a phone the reason had been cut to five characters. It now wraps.
+
+**Rendered, before and after:**
+
+- **Northgate, year to date, transport.** 29 rows, every one on a Surroundings stop or the airport,
+  became "No list: no place of this kind was recorded in this period.", naming the UE5 v2 event.
+- **Family.** 34 rows became 24. Rows naming a Surroundings place fell from 19 to 0.
+- **Akhilesh Demo Source (11 live meetings) and Birch Court.** The page had read:
+  - "0 of 11 meetings match";
+  - advice to loosen the criteria;
+  - "both are shown here as a demonstration", on a project badged "Live meetings".
+
+  It now names both inputs.
+
+**The list: BLOCKED.** What is missing is a verified, concrete point of interest on a real session.
+Every real path today delivers `places: []` (`supabase-showroom.ts:328`, `ue5-events.ts:322`). The
+input is one of two:
+
+- **either (X)** the UE5 v2 event that names which point of interest was presented. P2-18 may not
+  create it: the capability clause forbids new telemetry.
+- **or (Y)** the legacy Amenities item entries mapped into `ShowroomPlaceInteraction`, which is the
+  pass deferred at `supabase-showroom.ts:72-76`. The mapping needs a taxonomy that is not the
+  Ružinov demonstration list (`places.ts:4-5`), because the acceptance forbids demo points of
+  interest for real targeting.
+
+The confirmed-preference path is not an option: there is no such field in any contract, read model
+or adapter, and no document defines it.
+
+**No ADR records this gate. That is a gap.** It is stated only by `docs/16` §2.6 (rows `:141` and
+`:142`) and by a connector comment (`supabase-showroom.ts:72-76`).
+
+- P2-13 and P2-16 (2) stand behind ADRs: ADR-0011, as ADR-0039 applies it.
+- P2-18 stands behind an audit table and a code comment.
+- It is also a different gate from theirs. Its acceptance asks for a person or a session link, and
+  every match carries its session. What it lacks is an observation, not an identity.
+
+**Where the DoD stands.**
+
+- Holds: reason, date, source and link on every row; no kindergarten list from Surroundings; no
+  e-mail; the list active only on a verified place; and no real targeting from demo points of
+  interest (the four P2-07 grounds, re-measured in the survey).
+- Blocked: the list itself, as above.
+- Ticking the tracker is Máté's decision.
+
+**Observed, not changed:**
+
+- `StatedDemandRegister`, whose availability words moved beside `SourceChips`, is mounted on no
+  route, so that change is type-checked, not rendered.
+- Two other surfaces still say amenities "are recorded … today": `project/page.tsx:477-478` and
+  `views3.ts:1071`. That is true of the legacy capture and not of Observer's connectors.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
