@@ -1092,3 +1092,45 @@ both are recorded.
 
 It is a record, not a guard: nothing refuses to start on a changed key id,
 because that would turn a legitimate rotation into an outage.
+
+---
+
+## 12. Unverified on 2026-09-24, and what would settle it
+
+This edition corrected only what it measured. What it could not measure is marked **UNVERIFIED
+2026-09-24** where it stands, and listed here with the measurement that would settle it. Nothing
+unmeasured was rewritten or removed.
+
+**Marked UNVERIFIED, and how to measure it**
+
+| Where                  | What                                                                      | How to measure                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| §2 Supabase            | the two other projects, `jtvqecusxzogqubxpoyf` and `vrhrzlvhyxrkxxcjxmaf` | the owner's list of organizations and projects, or each ref opened in the dashboard                                                      |
+| §7, steps 1 (ii), 2, 3 | pepper presence, type and scope; the server-side Supabase mapping         | step 1 (ii) as written: metadata only, read by Matthew if the tooling cannot isolate it                                                  |
+| §7, step 4             | whether steps 1–3 preceded the redeploy of 2026-09-06                     | the same metadata, set against that build's creation time                                                                                |
+| §7, step 14            | which branch "the corrected release branch" is, and whether it was pushed | the branch's name from whoever wrote the step, then `git ls-remote`                                                                      |
+| §7, rotation           | which keys authenticate as `service_role`, legacy JWT keys included       | the project's API-key settings in the dashboard                                                                                          |
+| §7, rotation           | whether anything outside these deployments holds such a key               | a list of every place the key was ever put                                                                                               |
+| §1 and §8              | whether the deployment was ever promoted to Production                    | GitHub holds 6 Production deployment records; whether any was a promotion rather than a push to `main` needs Vercel's deployment history |
+
+**Measured on 2026-09-24 and at odds with this document, not corrected in this edition**
+
+- §1, "A Supabase staging project, empty on purpose": the project holds 133 audit rows and 78 rate
+  buckets.
+- §2 GitHub, "pushed — 15 commits": `origin/main` has 393 commits.
+- §7, "Expected: 455 unit tests, 495 Playwright tests": `playwright test --list` counts 1,552 tests
+  in 50 files. The unit count was not recorded here.
+- §10 lists pushing, the Vercel project and its first deployment as blocked. Pushing works, and the
+  project exists with 111 deployments on GitHub's record.
+- §11, "Enabling it is rollout step 1": the sequence table puts it at step 6.
+
+**Open, and a decision rather than a measurement**
+
+- The owner-role steps say "the migrations, in order". In version order the contract migration
+  `20260826090000` comes before Migrations 3–4 and before the fourteen owner-role files. Step 19
+  applies it last, and the fourteen have no step in §7.
+- `supabase/README.md` is frozen. It still describes the retired phase at lines 285–288, and it
+  numbers the proof's steps "4–5" and "9" at line 330.
+- `supabase/test/rollout-order.test.ts` still asserts the retired order against the unchanged table.
+- The header of `supabase/verifiers/observer-contract-readiness.sql` still names the enumeration as
+  the contract migration's precondition. The rotation beside step 18 is recorded here, not there.
