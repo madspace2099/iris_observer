@@ -586,6 +586,43 @@ The retirement gate must:
 what was written, never what can be written. It remains honestly INCONCLUSIVE, and the external gate
 is a person's enumeration.
 
+#### Beside step 18, a stronger control: rotate the `service_role` key
+
+Step 18 rests on an enumeration. On 2026-09-24 that enumeration could not be completed:
+
+- a deployment made from the CLI leaves no GitHub record, and this team has one — project `deploy`,
+  `dpl_5Dn42tcF6hPrRWHMQj5Kr1CN2sdT`, 2026-08-28, by its file tree a different site;
+- the Vercel listing pages only with a numeric cursor, which the tooling used could not send, so it
+  read one page per project;
+- a key copied into a log or a shell history is not a deployment at all.
+
+What an old build needs in order to write is measured, and it is narrow:
+
+- EXECUTE on the five functions in `public` is held by `postgres` and `service_role` only; `anon`
+  can execute none of them, and neither can `authenticated`;
+- USAGE on the `observer` schema is held by `postgres` alone;
+- both `observer` tables have row-level security on and no policy;
+- the security advisor reports no ERROR — one WARN, a mutable `search_path` on
+  `public.observer_whoami`, and two INFO for the two tables without a policy.
+
+So a build reaches the façades only if its baked environment holds a key that authenticates as
+`service_role` and still works.
+
+**Matthew rotates every key that authenticates as `service_role` on `tfcchobwobpadenampyh`, before
+the migration round.** Rotation closes every build at once, enumerated or not. Step 18 still runs
+after it, as clean-up of builds the rotation has already disarmed; it no longer carries the
+guarantee alone.
+
+The cost today, as measured: the current build's admission does not resolve on this host (see
+_RETIRED 2026-09-24_ below), so rotation breaks no write that works now. Every environment that must
+keep reaching the project needs the new key before its next deployment.
+
+**UNVERIFIED 2026-09-24:**
+
+- which keys authenticate as `service_role` on this project — the secret API keys, and whether the
+  legacy JWT keys are still enabled — was not read;
+- whether anything outside these deployments holds one was not read either.
+
 #### RETIRED 2026-09-24 — the legacy-compatibility phase, and the order that served it
 
 Two things in the sequence below no longer bind:
