@@ -67,6 +67,10 @@ deleted.
 (`vrhrzlvhyxrkxxcjxmaf`, `eu-west-1`, `INACTIVE`) belongs to the obsolete MVP and previously served
 rows to unauthenticated callers. It is left alone: not deleted, not modified, not connected.
 
+**`cli_login_postgres` is the Supabase CLI's expected trace, not debris, and is not to be
+deleted.** The CLI signs in through it (`Initialising login role...`): LOGIN, a member of
+`postgres`, its password valid for minutes and long expired between runs.
+
 ### Vercel
 
 |                   |                                                                |
