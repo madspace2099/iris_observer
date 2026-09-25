@@ -552,7 +552,15 @@ export default async function FlowPage({
           gaps={[
             "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
             "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
-            "The summary cards read the whole dataset over the window you pick. Everything below them reads the period in the bar at the top.",
+            /*
+             * Measured on 2026-09-25, rendering the page under four periods: the
+             * three deal blocks were byte-identical under all four, and every
+             * section listed as reading the period moved with it. "Everything
+             * below them reads the period" was false for three blocks, and since
+             * R05-a those three stand right under the cards. A new section is
+             * added to one list or the other, not claimed by either.
+             */
+            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
           ]}
           title="How to read this"
         />
