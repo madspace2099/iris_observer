@@ -4819,10 +4819,15 @@ the clients are there; German and Hungarian come later.
 2. **3 and 13.** Three of the builders behind them are report-only: the three report-scope builders,
    whose own text is mostly the export panel's section list. Thirteen are shared. By message, shared
    outnumbers exclusive: 51 to 45 by the survey's rule, 76 to 55 by function witness.
-3. **The report has no text of its own to speak of.**
+3. **The report's own text is 45 messages from 3 builders, mostly the export panel's section
+   list.** The 45 are exclusive by the survey's rule, and the 3 builders are the report-only ones.
+   Everything else it prints is other surfaces' text:
    - `?agent=` is largely `buildAgentDetail`'s output, and `?meeting=` is `buildMeetingReplay`'s.
    - The project report renders `buildSalesFlow`'s findings.
-   - Translating the report is therefore translating the agent, meeting and flow surfaces.
+   - Translating the report is therefore translating the agent, meeting and flow surfaces, plus
+     those 45.
+   - _Corrected 2026-09-25._ This item first said the report had "no text of its own to speak of",
+     an overstatement of the measured 45 and 3.
 
 **Two languages are not half of four.** English exists, so the translation work is one language,
 Slovak. The machinery is not halved:
