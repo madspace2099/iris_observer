@@ -406,6 +406,12 @@ export interface DFacts {
   readonly ranking: readonly DRankRow[];
   /** What orders the ranking, or why it holds fewer than three rows. */
   readonly rankingNote: string | null;
+  /** A second ranking, where a question has two ends worth reading. */
+  readonly alsoRanking?: {
+    readonly title: string;
+    readonly rows: readonly DRankRow[];
+    readonly note: string | null;
+  };
 }
 
 export interface DWithheld {
@@ -545,7 +551,8 @@ export interface DScatterCard {
     /** "1.45× · 37% of 114": the point's position, and the decided meetings its rate is out of. */
     readonly display: string;
   }[];
-  readonly withheld: readonly DWithheld[];
+  /** The segments off the chart, named, and why; or, when none is, that every segment is on it. */
+  readonly offChart: string;
   readonly projectShare: number | null;
   readonly projectShareDisplay: string | null;
   /** The attention axis runs from nought to here: at least 2.00×, else the largest index, rounded up to a half. */
@@ -1083,6 +1090,25 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const placed = segments.filter(
     (s) => s.conversion.quadrant !== null && s.conversion.share !== null,
   );
+  /*
+   * The segments off the chart, by name, and why, in plain words rather than
+   * the read model's terse reason; where the reason is not the floor, the read
+   * model's own words stand. The floor's why is arithmetic: below it, one
+   * decided meeting more or less moves a segment's rate by more than a
+   * twentieth, enough to carry it across the project's line.
+   */
+  const offChart = segments.filter((s) => !placed.includes(s));
+  const floorWhy = `The system leaves a segment off below ${n(AGENT_MIN_SAMPLE)} decided meetings, where one meeting more or less would move its rate by more than ${n(Math.round(100 / AGENT_MIN_SAMPLE))} percentage points.`;
+  const offChartWords =
+    offChart.length === 0
+      ? `Every segment is on the chart, ${n(placed.length)} of ${n(segments.length)}: each has at least ${n(AGENT_MIN_SAMPLE)} decided meetings. ${floorWhy}`
+      : `Not on the chart: ${list(
+          offChart.map((s) =>
+            s.conversion.decided < s.conversion.minimum
+              ? `${s.label}, with ${n(s.conversion.decided)} decided ${s.conversion.decided === 1 ? "meeting" : "meetings"}, ${n(s.conversion.minimum - s.conversion.decided)} short of the ${n(s.conversion.minimum)} it needs`
+              : `${s.label}, because ${(s.conversion.withheld ?? "no rate can be read").replace(/\.$/, "").replace(/^./, (c) => c.toLowerCase())}`,
+          ),
+        )}. ${floorWhy}`;
   const scatter: DScatterCard = {
     points: placed.map((s) => ({
       id: s.id,
@@ -1093,9 +1119,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       quadrant: s.conversion.quadrant ?? "",
       display: `${s.index.toFixed(2)}× · ${pct(s.conversion.share ?? 0)} of ${n(s.conversion.decided)}`,
     })),
-    withheld: segments
-      .filter((s) => !placed.includes(s))
-      .map((s) => ({ id: s.id, label: s.label, note: s.conversion.withheld ?? "" })),
+    offChart: offChartWords,
     projectShare,
     projectShareDisplay: projectShare === null ? null : pct(projectShare),
     indexMax: Math.max(2, Math.ceil(Math.max(0, ...segments.map((s) => s.index)) * 2) / 2),
@@ -1106,17 +1130,9 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
           (s) =>
             `${s.label}: ${s.index.toFixed(2)}× the attention its share of stock would give it, and ${pct(s.conversion.share ?? 0)} of its ${n(s.conversion.decided)} decided meetings progressed: ${D_QUADRANT_NAME[s.conversion.quadrant ?? ""] ?? "no cell"}.`,
         )
-        .join(" ")}${
-        placed.length === segments.length
-          ? ""
-          : ` Not placed: ${list(
-              segments
-                .filter((s) => !placed.includes(s))
-                .map((s) => `${s.label} (${s.conversion.withheld ?? "no reason given"})`),
-            )}.`
-      }`,
+        .join(" ")}${offChart.length === 0 ? "" : ` ${offChartWords}`}`,
       figures: [
-        figure("Segments placed", n(placed.length), `of ${n(segments.length)}`),
+        figure("Segments on the chart", n(placed.length), `of ${n(segments.length)}`),
         figure(
           "Project conversion",
           projectShare === null ? "Unavailable" : pct(projectShare),
@@ -1273,31 +1289,58 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  const gaps = now.rows.map((r) => ({ r, v: Math.abs(r.share - r.comparisonShare) }));
+  /*
+   * A gap between two shares is in percentage points, taken between the shares
+   * as printed, so that 18% against 41% reads as 23 and the sentence can be
+   * checked against the drawing by eye. The rounding is held to the printed
+   * figure, or the gallery refuses.
+   */
+  const points = (share: number) => Math.round(share * 100);
+  const gaps = now.rows
+    .map((r) => {
+      same(`"${r.label}" in the group, as printed`, pct(points(r.share) / 100), r.shareDisplay);
+      same(
+        `"${r.label}" elsewhere, as printed`,
+        pct(points(r.comparisonShare) / 100),
+        r.comparisonDisplay,
+      );
+      return {
+        r,
+        v: Math.abs(points(r.share) - points(r.comparisonShare)),
+        less: r.share < r.comparisonShare,
+      };
+    })
+    .sort((a, b) => b.v - a.v);
+  const widest = gaps[0];
+  const restGaps = gaps.slice(1);
   const dumbbell: DDumbbellCard = {
     cohortLabel: funnel.cohortLabel,
     comparisonLabel: funnel.comparisonLabel,
     rows: now.rows,
     empty: funnel.empty,
     facts: {
+      lead:
+        widest === undefined
+          ? undefined
+          : `In the group, "${widest.r.label}" happened ${n(widest.v)} percentage points ${widest.less ? "less" : "more"} often than in every other recorded meeting: ${widest.r.shareDisplay} against ${widest.r.comparisonDisplay}.${restGaps.length === 0 ? "" : ` The other ${n(restGaps.length)} behaviours differ by ${n(Math.max(...restGaps.map((g) => g.v)))} percentage points or less.`}`,
       note: `Each behaviour on its own, not nested: the share of the ${meetings(now.cohort)} ${period} that ended "not interested" which showed it, against the same share among the ${n(now.rest)} other meetings with an outcome recorded. Meetings with no outcome recorded are in neither. It describes the group; it does not explain it.`,
       summary:
         now.rows.length === 0
           ? (funnel.empty ?? "There is no group to describe.")
           : `${now.rows.map((r) => `${r.label}: ${r.shareDisplay} in the group, ${r.comparisonDisplay} in every other recorded meeting`).join("; ")}.`,
       figures: [groupFigure, restFigure],
-      rankingTitle: "Widest gaps",
+      rankingTitle: "Widest gaps, in percentage points",
       ranking: topThree(
         gaps,
         (g) => g.v,
         (g) => ({
           id: g.r.id,
           label: g.r.label,
-          value: `${g.r.share >= g.r.comparisonShare ? "+" : "−"}${n(Math.round(g.v * 100))} points`,
+          value: `${n(g.v)} ${g.less ? "less" : "more"} often`,
         }),
       ),
       rankingNote:
-        "The group against every other recorded meeting. It describes the group; it does not explain it.",
+        "A gap is the difference between the two printed shares, in percentage points; less or more often is the group's against every other recorded meeting's.",
     },
   };
 
@@ -1642,6 +1685,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       rankingNote: "Monday to Sunday, in the project's own time zone.",
     },
   };
+
   const kpiFigures = charts.kpis.figures;
   const presentations = kpiFigures.find((f) => f.id === "presentations") ?? kpiFigures[0];
   if (presentations === undefined) refuse("a KPI figure to draw");
@@ -1765,6 +1809,16 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
               (s) => ({ id: s.sectionId, label: s.label, value: s.dwellDisplay }),
             ),
             rankingNote: "Median stay in each section, not the total.",
+            /* The other end of the same question; a section the source could not time has no place on either. */
+            alsoRanking: {
+              title: "Their shortest stops",
+              rows: sections
+                .filter((s) => s.medianDwellSeconds !== null)
+                .sort((a, b) => (a.medianDwellSeconds ?? 0) - (b.medianDwellSeconds ?? 0))
+                .slice(0, 3)
+                .map((s) => ({ id: s.sectionId, label: s.label, value: s.dwellDisplay })),
+              note: "The shortest median stay first. A section the source could not time is in neither list.",
+            },
           },
         };
 

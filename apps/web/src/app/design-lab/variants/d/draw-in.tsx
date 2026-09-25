@@ -25,8 +25,18 @@ import { useEffect, useRef, type ReactNode } from "react";
  * preference in the first place. A browser without script never hides anything
  * either: the waiting frame is declared under `@media (scripting: enabled)`, so
  * without this component running there is no frame to wait in.
+ *
+ * ## At rest, nothing of the entry stays
+ *
+ * Once the longest entry has had time to play, the attribute becomes `done`
+ * and every rule the entry needed lets go. That matters for the turn: its conic
+ * mask clips to the drawing's box, and left in place at rest it cut the ring's
+ * glow off in a square.
  */
 export type DrawKind = "sweep" | "turn" | "bloom" | "rise";
+
+/** The longest entry, the turn's 1200ms, with room to finish; the heat cells end by 1000ms. */
+const PLAY_MS = 1500;
 
 export function DrawIn({
   kind,
@@ -44,16 +54,23 @@ export function DrawIn({
       element.dataset.draw = "done";
       return;
     }
+    let rest: number | undefined;
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         element.dataset.draw = "run";
         observer.disconnect();
+        rest = window.setTimeout(() => {
+          element.dataset.draw = "done";
+        }, PLAY_MS);
       },
       { threshold: 0.2 },
     );
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(rest);
+    };
   }, []);
 
   /*

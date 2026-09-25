@@ -399,7 +399,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               l={<Scatter data={data.scatter} size="l" />}
             />
             <ScatterKey data={data.scatter} />
-            <Withheld rows={data.scatter.withheld} />
+            <p className="dld-note">{data.scatter.offChart}</p>
           </DCard>
         </div>
       </section>

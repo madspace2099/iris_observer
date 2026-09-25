@@ -535,8 +535,10 @@
     column-gap: 40px;
   }
 
+  /* The column stacks from the top: stretched to the drawing's height, its rows drifted apart. */
   .dld-facts {
     grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     gap: 24px;
   }
 }
@@ -1799,11 +1801,15 @@
     animation: dld-cell 500ms var(--d-ease) both;
     animation-delay: calc(var(--v, 0) * 500ms);
   }
-}
 
-/* The ring and the dial turn in on a conic mask; at rest the mask is the whole turn. */
-.dld-draw[data-kind="turn"] svg {
-  mask-image: conic-gradient(#000 var(--d-sweep), transparent 0);
+  /*
+   * The ring and the dial turn in on a conic mask, and only while they wait and
+   * turn. A mask clips to the drawing's box, and left on at rest it cut the
+   * ring's glow off in a square; `DrawIn` writes `done` once the turn is over.
+   */
+  .dld-draw:is([data-draw="wait"], [data-draw="run"])[data-kind="turn"] svg {
+    mask-image: conic-gradient(#000 var(--d-sweep), transparent 0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

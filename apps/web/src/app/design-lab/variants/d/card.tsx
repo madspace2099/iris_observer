@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { DFacts } from "../../lab-data";
+import type { DFacts, DRankRow } from "../../lab-data";
 import { DrawIn, type DrawKind } from "./draw-in";
 
 /**
@@ -80,25 +80,44 @@ export function DCard({
             ))}
           </dl>
 
-          <section className="dld-rank" aria-label={facts.rankingTitle}>
-            <p className="dld-rank-title">{facts.rankingTitle}</p>
-            {facts.ranking.length === 0 ? null : (
-              <ol>
-                {facts.ranking.map((row) => (
-                  <li key={row.id}>
-                    <span>{row.label}</span>
-                    <b>{row.value}</b>
-                  </li>
-                ))}
-              </ol>
-            )}
-            {facts.rankingNote === null ? null : (
-              <p className="dld-rank-note">{facts.rankingNote}</p>
-            )}
-          </section>
+          <Ranking title={facts.rankingTitle} rows={facts.ranking} note={facts.rankingNote} />
+          {facts.alsoRanking === undefined ? null : (
+            <Ranking
+              title={facts.alsoRanking.title}
+              rows={facts.alsoRanking.rows}
+              note={facts.alsoRanking.note}
+            />
+          )}
         </div>
       </div>
     </article>
+  );
+}
+
+function Ranking({
+  title,
+  rows,
+  note,
+}: {
+  readonly title: string;
+  readonly rows: readonly DRankRow[];
+  readonly note: string | null;
+}) {
+  return (
+    <section className="dld-rank" aria-label={title}>
+      <p className="dld-rank-title">{title}</p>
+      {rows.length === 0 ? null : (
+        <ol>
+          {rows.map((row) => (
+            <li key={row.id}>
+              <span>{row.label}</span>
+              <b>{row.value}</b>
+            </li>
+          ))}
+        </ol>
+      )}
+      {note === null ? null : <p className="dld-rank-note">{note}</p>}
+    </section>
   );
 }
 

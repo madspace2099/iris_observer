@@ -1,13 +1,14 @@
 import type * as React from "react";
 
-import type {
-  DDumbbellCard,
-  DJourneyCard,
-  DOutcomeFunnelsCard,
-  DParallelCard,
-  DPunchCard,
-  DRadialCard,
-  DScatterCard,
+import {
+  D_QUADRANT_NAME,
+  type DDumbbellCard,
+  type DJourneyCard,
+  type DOutcomeFunnelsCard,
+  type DParallelCard,
+  type DPunchCard,
+  type DRadialCard,
+  type DScatterCard,
 } from "../../lab-data";
 
 /**
@@ -287,13 +288,6 @@ export function Parallel({ data, size }: { readonly data: DParallelCard; readonl
 
 /* --- the scatter: attention against conversion, one point per segment ------------ */
 
-const QUADRANT_NAME: Readonly<Record<string, string>> = {
-  hero: "Hero",
-  mispriced: "Mispriced",
-  hidden_gem: "Hidden gem",
-  dead_stock: "Dead stock",
-};
-
 export function Scatter({ data, size }: { readonly data: DScatterCard; readonly size: DSize }) {
   const width = size === "xl" ? 752 : 327;
   const height = size === "xl" ? 290 : 244;
@@ -351,16 +345,16 @@ export function Scatter({ data, size }: { readonly data: DScatterCard; readonly 
         />
       )}
       <text x={width - pad.right} y={pad.top + 12} textAnchor="end" className="dld-quadrant">
-        {QUADRANT_NAME.hero}
+        {D_QUADRANT_NAME.hero}
       </text>
       <text x={pad.left + 6} y={pad.top + 12} className="dld-quadrant">
-        {QUADRANT_NAME.hidden_gem}
+        {D_QUADRANT_NAME.hidden_gem}
       </text>
       <text x={width - pad.right} y={pad.top + plotH - 6} textAnchor="end" className="dld-quadrant">
-        {QUADRANT_NAME.mispriced}
+        {D_QUADRANT_NAME.mispriced}
       </text>
       <text x={pad.left + 6} y={pad.top + plotH - 6} className="dld-quadrant">
-        {QUADRANT_NAME.dead_stock}
+        {D_QUADRANT_NAME.dead_stock}
       </text>
       {data.points.map((p, i) => (
         <g key={p.id} className="dld-scatter-point" data-quadrant={p.quadrant}>
