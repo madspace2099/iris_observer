@@ -4895,3 +4895,77 @@ The full `pnpm verify` ran on this commit; its result is in the journal and the 
 - the header comment at `supabase/test/http-proof.test.ts:30` still numbers the proof's steps "4-5"
   and "9";
 - P2-17, now a phase of its own.
+
+## 2026-09-25 — R05-a: Sales Flow rearranged, under Máté's approval
+
+**Approved by Máté on 2026-09-24** under `docs/observer-visual-baseline.md:280`, the fourth reason:
+explicit user approval for that specific change. The approval covers exactly three things:
+
+- R05 item 2: the summary row, regrouped;
+- R05 item 8: long lists shown as five rows plus Show all;
+- the R05 target layout's order, from `v3 :1039`.
+
+R01, R02, R06 and R12 are not approved. Each commit carries the approval text and names its item.
+The journal is `_review/r05a-journal.md`; the photographs are in `_review/r05a/`. Neither is
+committed.
+
+**Step 0 stopped the first attempt.** Two of the plan's four groups have nothing on the page to
+hold:
+
+- **Conversion.** The deal ladder is stock, not path (`deal-source.ts:50-52`).
+  `flow.stage_conversion` is defined and computed nowhere. Progressing is a meeting ratio, which
+  `v3:516` excludes.
+- **Cycle time.** P2-06 is blocked.
+
+The reviewer decided that both empty groups are printed, each with what is missing, as a report
+prints a blank section. Typical length stays outside the groups.
+
+1. **`12a586f` — item 2.**
+   - Volume holds Presentations and Units opened; Progress holds Progressing.
+   - Conversion and Cycle time are printed empty, each naming its missing input.
+   - Typical length sits in the row outside any group.
+   - Every word comes from the read model (`KpiPanel.groups`, `KpiPanel.ungrouped`). A subgrid lines
+     up the names, definitions and figures.
+2. **`54d67f2` — the order.** Hero, groups, deal ladder, stalled deals, then the details in the
+   order they already had. IRIS-assisted sales has no station in `:1039` and stays with the deal
+   blocks.
+   - Station 1's common period is not built: moving the summary onto the page period would change
+     its numbers.
+   - Station 3's cohort view is not built: it is a new number, and is the next round.
+   - Station 4 is not built: P2-06 is blocked.
+   - Station 6's collapsing is not built: whole sections were not approved.
+3. **`74c7784` — item 8.** Three lists collapse after five rows: stalled deals, IRIS-assisted sales
+   and longest presentations. In each, no hidden row carries an "of N" the page states nowhere
+   else. Presentations given never collapses: its rows carry "N of M meetings".
+   - `RankedBars.collapseAfter` is opt-in, and hidden rows keep their places and the shared scale.
+   - Without the prop the markup is unchanged, so Sales Agents' and Features' lists are untouched.
+
+**The proof that nothing was recomputed.** The page was read as one token per digit-bearing word of
+every text node, hidden rows included.
+
+- **Coverage:** Northgate, quarter to date and year to date, as a developer and as an agent.
+- **Result:** the figure multiset is byte-identical before and after every commit — 402 and 442
+  tokens.
+- **The instrument can fail:** two runs of the old page agreed, and a deliberate Presentations +1
+  showed as "41: 1→0 | 42: 1→2".
+- **New text:** only the ten group texts and "Show all", none with a digit.
+
+**Tests and mutations.** kpi-groups adds 6 tests and ranked-collapse adds 3. Two mutations turn the
+collapse test red: places restarting at one (2 red), and hidden rows on their own scale (1 red).
+
+**Page height.** Desktop went from 6725 px to 6541 px. The phone went from 11334 px to 11544 px: the
+definitions and the two empty groups take more room than the collapsed rows give back.
+
+**Observed, not changed.** "How to read this" still says "Everything below them reads the period in
+the bar at the top."
+
+- It is false for the deal ladder, stalled deals and IRIS-assisted sales, which read the CRM's
+  present or the whole history.
+- It was false before this round, and those blocks now sit directly below the summary.
+- The approval allowed no other new text.
+- The baseline's "Accepted later fixes" does not list R05-a. Whether it should is Máté's decision.
+
+**Next:** the cohort round. It measures whether the delivered deals carry enough stage history for
+`flow.stage_conversion`, and asks its own approval before it becomes a number.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
