@@ -24,8 +24,6 @@ import {
   RadialHistogram,
   Scatter,
   ScatterKey,
-  Sunburst,
-  SunburstKey,
   seriesTone,
 } from "./forms";
 
@@ -304,67 +302,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
           </DCard>
 
           <DCard
-            id="heatmap-hex"
-            group="A · Heatmap, hex"
-            title="When meetings start, as cells"
-            reads={reads("FlowCharts.activity")}
-            facts={data.heatmapHex.facts}
-            kind="bloom"
-            wide
-          >
-            <div className="dld-heat" data-variant="hex">
-              <Heatmap
-                rows={data.heatmapHex.activity.rows}
-                columns={data.heatmapHex.activity.columns}
-                cells={data.heatmapHex.activity.cells}
-                caption={`Meetings by weekday and starting hour, across ${data.heatmapHex.activity.meetingsCounted} presentations.`}
-              />
-            </div>
-          </DCard>
-
-          <DCard
-            id="funnel-basic"
-            group="A · Funnel, basic"
-            title={data.funnelBasic.funnel.cohortLabel}
-            reads={reads("FlowCharts.funnel")}
-            facts={data.funnelBasic.facts}
-            kind="bloom"
-          >
-            {data.funnelBasic.funnel.empty !== null ? (
-              <p className="dld-empty">{data.funnelBasic.funnel.empty}</p>
-            ) : (
-              <div className="dld-funnel" data-variant="basic">
-                <Funnel
-                  steps={data.funnelBasic.funnel.steps}
-                  totalLabel={data.funnelBasic.funnel.comparisonLabel}
-                />
-              </div>
-            )}
-          </DCard>
-
-          <DCard
-            id="funnel-detailed"
-            group="A · Funnel, detailed"
-            title={data.funnelDetailed.funnel.cohortLabel}
-            reads={reads("FlowCharts.funnel")}
-            facts={data.funnelDetailed.facts}
-            kind="bloom"
-            wide
-          >
-            {data.funnelDetailed.funnel.empty !== null ? (
-              <p className="dld-empty">{data.funnelDetailed.funnel.empty}</p>
-            ) : (
-              <div className="dld-funnel" data-variant="detailed">
-                <Funnel
-                  steps={data.funnelDetailed.funnel.steps}
-                  totalLabel={data.funnelDetailed.funnel.comparisonLabel}
-                />
-                <p className="dld-note">{data.funnelDetailed.funnel.disclaimer}</p>
-              </div>
-            )}
-          </DCard>
-
-          <DCard
             id="funnel-multiply"
             group="A · Funnel, multiply"
             title={`Ended "not interested", ${data.earlierLabel.toLowerCase()} and ${data.laterLabel.toLowerCase()}`}
@@ -506,23 +443,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               </p>
             )}
             <Withheld rows={data.parallel.withheld} />
-          </DCard>
-
-          <DCard
-            id="sunburst"
-            group="B · Sunburst, two levels"
-            title="Who presented, and how each one's meetings ended"
-            reads={reads("SalesFlowView.rings")}
-            facts={data.sunburst.facts}
-            kind="turn"
-          >
-            <div className="dld-centred">
-              <Sized
-                xl={<Sunburst data={data.sunburst} size="xl" />}
-                l={<Sunburst data={data.sunburst} size="l" />}
-              />
-            </div>
-            <SunburstKey data={data.sunburst} />
           </DCard>
 
           <DCard

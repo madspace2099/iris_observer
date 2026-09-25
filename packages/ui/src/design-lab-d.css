@@ -31,7 +31,7 @@
 
 @import "@fontsource-variable/geist-mono";
 
-/* The ring and sunburst turn in on one animated angle. */
+/* The ring and the dial turn in on one animated angle. */
 @property --d-sweep {
   syntax: "<angle>";
   inherits: false;
@@ -835,7 +835,7 @@
   fill: color-mix(in oklab, var(--tone) 7%, transparent);
 }
 
-/* --- the weekday grid, three ways -------------------------------------------------- */
+/* --- the weekday grid, two ways --------------------------------------------------- */
 
 .dld-root .dld-heat .iris-heat-grid {
   gap: 1px;
@@ -885,71 +885,6 @@
   background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 100%), var(--d-ramp-lo));
   box-shadow: 0 0 calc(var(--v) * 22px) calc(var(--v) * 4px)
     color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 40%), transparent);
-}
-
-/*
- * Hex: pointy-top cells, every second weekday shifted by half a cell.
- *
- * The component writes its column template inline, so the hex grid's fixed
- * columns can only be set over it with `!important`; the shift selects the
- * Tuesday, Thursday and Saturday rows by position, which holds while the grid
- * is the read model's ten hours (09:00 to 18:00) wide.
- */
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-grid {
-  grid-template-columns: 3rem repeat(10, 44px) !important;
-  justify-content: center;
-  row-gap: 0;
-}
-
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell {
-  width: 44px;
-  aspect-ratio: 0.866;
-  min-height: 0;
-  margin-block: -6px;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 100%), var(--d-ramp-lo));
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
-  color: var(--d-ink);
-}
-
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell[data-empty="true"] {
-  background: #111114;
-  box-shadow: none;
-}
-
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 24):nth-child(-n + 33),
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 46):nth-child(-n + 55),
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 68):nth-child(-n + 77) {
-  translate: 22px 0;
-}
-
-.dld-root .dld-heat[data-variant="hex"] .iris-heat-col {
-  padding-bottom: 10px;
-}
-
-/* A phone: the same honeycomb at 25px, so ten hours and the half-cell shift fit the card. */
-@container (width < 34rem) {
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-grid {
-    grid-template-columns: 2.25rem repeat(10, 25px) !important;
-    justify-content: start;
-  }
-
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell {
-    width: 25px;
-    margin-block: -3px;
-    font-size: 12px;
-  }
-
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 24):nth-child(-n + 33),
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 46):nth-child(-n + 55),
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 68):nth-child(-n + 77) {
-    translate: 12.5px 0;
-  }
-
-  .dld-root .dld-heat[data-variant="hex"] .iris-heat-col {
-    font-size: 12px;
-    letter-spacing: -0.04em;
-  }
 }
 
 .dld-root .dld-heat .iris-meta {
@@ -1426,19 +1361,6 @@
   font-size: 12px;
 }
 
-/* --- sunburst: agents inside, their outcomes outside ------------------------------ */
-
-.dld-root .dld-sunburst path {
-  fill: var(--d-tone);
-  stroke: var(--d-tone);
-  stroke-width: 2;
-  stroke-linejoin: round;
-}
-
-.dld-root .dld-sunburst-inner path {
-  filter: url(#dld-glow);
-}
-
 /* --- radial histogram: one hue, brighter with the count ----------------------------- */
 
 .dld-root .dld-radial-spoke {
@@ -1751,7 +1673,7 @@
   }
 }
 
-/* The ring and the sunburst turn in on a conic mask; at rest the mask is the whole turn. */
+/* The ring and the dial turn in on a conic mask; at rest the mask is the whole turn. */
 .dld-draw[data-kind="turn"] svg {
   mask-image: conic-gradient(#000 var(--d-sweep), transparent 0);
 }

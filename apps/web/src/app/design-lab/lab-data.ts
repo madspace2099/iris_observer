@@ -30,7 +30,7 @@ import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 import type { CredentialStatusRow } from "@observer/sources";
 import type { MarkTone } from "@/components/madspace/StatusMark";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { outcomeIsUnknown, type MeetingOutcome, type ShowroomSession } from "@observer/contracts";
+import { outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
 import type {
   AgentDetailView,
   AgentOutcomeRing,
@@ -50,7 +50,6 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
-import { OUTCOME_STACK_KEYS } from "@/showroom/charts";
 
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
@@ -425,31 +424,6 @@ export interface DParallelCard {
   readonly facts: DFacts;
 }
 
-/** An arc as fractions of the full turn, decided here so the drawing only converts them to angles. */
-export interface DArc {
-  readonly id: string;
-  readonly label: string;
-  readonly count: number;
-  readonly from: number;
-  readonly to: number;
-  /** `OUTCOME_TONE`, through `OUTCOME_STACK_KEYS`, on the outcome ring; null on the agent ring. */
-  readonly colour: string | null;
-  readonly parent: string | null;
-}
-
-export interface DSunburstCard {
-  readonly total: number;
-  readonly inner: readonly DArc[];
-  readonly outer: readonly DArc[];
-  /** The outcomes the outer ring holds, in ladder order, for its key. */
-  readonly outcomes: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly colour: string;
-  }[];
-  readonly facts: DFacts;
-}
-
 export interface DHourCount {
   readonly hour: number;
   readonly label: string;
@@ -537,8 +511,6 @@ export interface LabChartsD {
     readonly total: number;
     readonly facts: DFacts;
   };
-  readonly funnelBasic: { readonly funnel: BehaviourFunnel; readonly facts: DFacts };
-  readonly funnelDetailed: { readonly funnel: BehaviourFunnel; readonly facts: DFacts };
   readonly funnelMultiply: {
     readonly now: BehaviourFunnel;
     readonly earlier: BehaviourFunnel;
@@ -546,7 +518,6 @@ export interface LabChartsD {
   };
   readonly heatmapBasic: { readonly activity: ActivityMatrix; readonly facts: DFacts };
   readonly heatmapGradient: { readonly activity: ActivityMatrix; readonly facts: DFacts };
-  readonly heatmapHex: { readonly activity: ActivityMatrix; readonly facts: DFacts };
   readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
   readonly stacked: { readonly composition: OutcomeComposition; readonly facts: DFacts };
   readonly trend: {
@@ -567,7 +538,6 @@ export interface LabChartsD {
     readonly facts: DFacts;
   } | null;
   readonly parallel: DParallelCard;
-  readonly sunburst: DSunburstCard;
   readonly radial: DRadialCard;
   readonly punch: DPunchCard;
   readonly dumbbell: DDumbbellCard;
@@ -943,7 +913,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- the outcome ring and the two-level sunburst ------------------------------- */
+  /* --- the outcome ring ------------------------------------------------------------ */
 
   const recorded = flow.outcomes.filter((s) => !outcomeIsUnknown(s.outcome));
   const recordedCount = recorded.reduce((a, s) => a + s.count, 0);
@@ -965,120 +935,15 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  const colourOf = new Map(OUTCOME_STACK_KEYS.map((k) => [k.id, k.colour]));
-  const ladder = OUTCOME_STACK_KEYS.map((k) => k.id as MeetingOutcome);
-  const ringsTotal = byWorkload.reduce((a, r) => a + r.meetings, 0);
-  same("the sunburst's meetings", ringsTotal, flow.meetingCount);
-  const inner: DArc[] = [];
-  const outer: DArc[] = [];
-  let cursor = 0;
-  for (const r of byWorkload) {
-    const from = cursor;
-    const to = cursor + r.meetings / ringsTotal;
-    inner.push({
-      id: r.agentId,
-      label: r.name,
-      count: r.meetings,
-      from,
-      to,
-      colour: null,
-      parent: null,
-    });
-    same(
-      `${r.name}'s outcome slices`,
-      r.slices.reduce((a, s) => a + s.count, 0),
-      r.meetings,
-    );
-    let at = from;
-    for (const outcome of ladder) {
-      const part = r.slices.find((s) => s.outcome === outcome);
-      if (part === undefined || part.count === 0) continue;
-      const end = at + part.count / ringsTotal;
-      outer.push({
-        id: `${r.agentId}|${outcome}`,
-        label: part.label,
-        count: part.count,
-        from: at,
-        to: end,
-        colour: colourOf.get(outcome) ?? null,
-        parent: r.agentId,
-      });
-      at = end;
-    }
-    cursor = to;
-  }
-  const present = new Set(outer.map((a) => a.id.split("|")[1]));
-  const sunburst: DSunburstCard = {
-    total: ringsTotal,
-    inner,
-    outer,
-    outcomes: OUTCOME_STACK_KEYS.filter((k) => present.has(k.id)).map((k) => ({
-      id: k.id,
-      label: k.label,
-      colour: k.colour,
-    })),
-    facts: {
-      figures: [
-        figure("Meetings", n(ringsTotal), periodLabel),
-        figure("Agents", n(byWorkload.length), "the inner ring, by workload"),
-      ],
-      rankingTitle: "Presentations given",
-      ranking: workloadRows,
-      rankingNote: `${workloadNote} The outer ring is each agent's own outcome mix.`,
-    },
-  };
-
-  /* --- behaviour: the funnel three ways, and the dumbbell ------------------------ */
+  /* --- behaviour: the funnel by period, and the dumbbell ------------------------ */
 
   const funnel = charts.funnel;
   const now = behaviourShares(funnel, sessions, pct, periodLabel);
   const earlier = behaviourShares(earlierCharts.funnel, earlierSlice.sessions, pct, earlierLabel);
   const later = behaviourShares(laterCharts.funnel, laterSlice.sessions, pct, laterLabel);
-  const firstBand = funnel.steps[0];
-  const lastBand = funnel.steps[funnel.steps.length - 1];
-  const bandDrops = funnel.steps.slice(1).map((step, i) => ({
-    id: step.id,
-    label: step.label,
-    lost: (funnel.steps[i]?.count ?? step.count) - step.count,
-  }));
   const groupFigure = figure("In the group", n(now.cohort), `ended "not interested", ${period}`);
   const restFigure = figure("Compared with", n(now.rest), "every other recorded meeting");
 
-  const funnelDetailed = {
-    funnel,
-    facts: {
-      figures: [groupFigure, restFigure] as const,
-      rankingTitle: "Where the group narrows most",
-      ranking: topThree(
-        bandDrops,
-        (d) => d.lost,
-        (d) => ({ id: d.id, label: d.label, value: `−${n(d.lost)}` }),
-      ),
-      rankingNote: "Each band is the meetings that did everything above it as well.",
-    },
-  };
-  const funnelBasic = {
-    funnel,
-    facts: {
-      figures: [
-        figure("First band", n(firstBand?.count ?? 0), firstBand?.label ?? null),
-        figure(
-          "Last band",
-          n(lastBand?.count ?? 0),
-          firstBand === undefined || firstBand.count === 0 || lastBand === undefined
-            ? null
-            : `${pct(lastBand.count / firstBand.count)} of the first`,
-        ),
-      ] as const,
-      rankingTitle: "Most common in the group",
-      ranking: topThree(
-        now.rows,
-        (r) => r.share,
-        (r) => ({ id: r.id, label: r.label, value: r.shareDisplay }),
-      ),
-      rankingNote: "Each behaviour on its own, not only after the ones above it.",
-    },
-  };
   const moved = later.rows.flatMap((r) => {
     const before = earlier.rows.find((e) => e.id === r.id);
     return before === undefined ? [] : [{ r, before, v: Math.abs(r.share - before.share) }];
@@ -1140,7 +1005,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- when meetings happen: the grid three ways, the dial, the punch card ------- */
+  /* --- when meetings happen: the grid two ways, the dial, the punch card ---------- */
 
   const activity = charts.activity;
   const cell = (r: string, c: string) => activity.cells[`${r}|${c}`] ?? 0;
@@ -1148,10 +1013,6 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     id: c,
     hour: Number(c.slice(0, 2)),
     v: activity.rows.reduce((a, r) => a + cell(r, c), 0),
-  }));
-  const daySums = activity.rows.map((r) => ({
-    id: r,
-    v: activity.columns.reduce((a, c) => a + cell(r, c), 0),
   }));
   const slots = activity.rows.flatMap((r) =>
     activity.columns.map((c) => ({ id: `${r} ${c}`, v: cell(r, c) })),
@@ -1206,24 +1067,6 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       rankingNote: "Every weekday added together, hour by hour.",
     },
   };
-  const busiestDays = topThree(
-    daySums,
-    (d) => d.v,
-    (d) => ({ id: d.id, label: d.id, value: meetings(d.v) }),
-  );
-  const heatmapHex = {
-    activity,
-    facts: {
-      figures: [
-        inGrid,
-        figure("Busiest weekday", busiestDays[0]?.label ?? "None", busiestDays[0]?.value ?? null),
-      ] as const,
-      rankingTitle: "Busiest weekdays",
-      ranking: busiestDays,
-      rankingNote: "Every hour of the grid added together, day by day.",
-    },
-  };
-
   const hourOf = hourReader(timeZone);
   const hourCounts = Array.from({ length: 24 }, () => 0);
   const agentHour = new Map<string, number>();
@@ -1496,12 +1339,9 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     sankey,
     scatter,
     ring,
-    funnelBasic,
-    funnelDetailed,
     funnelMultiply,
     heatmapBasic,
     heatmapGradient,
-    heatmapHex,
     bullet,
     stacked,
     trend,
@@ -1510,7 +1350,6 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     kpi,
     sequence,
     parallel,
-    sunburst,
     radial,
     punch,
     dumbbell,

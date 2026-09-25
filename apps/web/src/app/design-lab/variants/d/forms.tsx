@@ -1,29 +1,27 @@
 import type * as React from "react";
 
 import type {
-  DArc,
   DDumbbellCard,
   DParallelCard,
   DPunchCard,
   DRadialCard,
   DScatterCard,
-  DSunburstCard,
 } from "../../lab-data";
 
 /**
  * VARIANT D'S NEW FORMS, AND THE ONE OLD QUESTION WITH NO FORM OF ITS OWN.
  *
- * Six drawings the product does not have: parallel coordinates, a two-level
- * sunburst, a radial histogram, a punch card, a dumbbell, and a scatter of the
- * attention-against-conversion frame (the product draws that frame as four
- * quadrant lists, `QuadrantMatrix`, and has no scatter component at all).
+ * Drawings the product does not have: parallel coordinates, a radial histogram,
+ * a punch card, a dumbbell, and a scatter of the attention-against-conversion
+ * frame (the product draws that frame as four quadrant lists, `QuadrantMatrix`,
+ * and has no scatter component at all).
  *
  * ## These files draw; they do not count
  *
- * Every figure arrives from `labChartsD()` already counted, divided and ordered,
- * and every arc arrives as fractions of a turn. What happens here is geometry:
- * a fraction to an angle, a share to a length, a count to a radius against the
- * peak the loader stated. No sum, no grouping, no ordering, no rate.
+ * Every figure arrives from `labChartsD()` already counted, divided and ordered.
+ * What happens here is geometry: an hour to an angle, a share to a length, a
+ * count to a radius against the peak the loader stated. No sum, no grouping, no
+ * ordering, no rate.
  *
  * ## Two geometries rather than one scaled
  *
@@ -50,113 +48,6 @@ function polar(cx: number, cy: number, r: number, turn: number): readonly [numbe
 
 function f(v: number): string {
   return v.toFixed(2);
-}
-
-/** An annular sector between two turns, split in two when it is the whole ring (an arc cannot close on itself). */
-function annulus(cx: number, cy: number, r0: number, r1: number, t0: number, t1: number): string {
-  if (t1 - t0 >= 0.9999) {
-    return `${annulus(cx, cy, r0, r1, t0, t0 + 0.5)} ${annulus(cx, cy, r0, r1, t0 + 0.5, t1)}`;
-  }
-  const large = t1 - t0 > 0.5 ? 1 : 0;
-  const [ax, ay] = polar(cx, cy, r1, t0);
-  const [bx, by] = polar(cx, cy, r1, t1);
-  const [cx2, cy2] = polar(cx, cy, r0, t1);
-  const [dx, dy] = polar(cx, cy, r0, t0);
-  return [
-    `M ${f(ax)} ${f(ay)}`,
-    `A ${f(r1)} ${f(r1)} 0 ${large} 1 ${f(bx)} ${f(by)}`,
-    `L ${f(cx2)} ${f(cy2)}`,
-    `A ${f(r0)} ${f(r0)} 0 ${large} 0 ${f(dx)} ${f(dy)}`,
-    "Z",
-  ].join(" ");
-}
-
-/** The kit's angular gap between segments, about 1.1°, taken from both ends of anything wide enough to lose it. */
-function gapped(arc: DArc): readonly [number, number] {
-  const gap = 0.0015;
-  return arc.to - arc.from > gap * 4 ? [arc.from + gap, arc.to - gap] : [arc.from, arc.to];
-}
-
-/* --- the sunburst: agents inside, each agent's outcomes around them ------------- */
-
-export function Sunburst({ data, size }: { readonly data: DSunburstCard; readonly size: DSize }) {
-  const box = size === "xl" ? 330 : 280;
-  const c = box / 2;
-  const k = box / 330;
-  const inner = { r0: 58 * k, r1: 104 * k };
-  const outer = { r0: 112 * k, r1: 158 * k };
-  const agentIndex = new Map(data.inner.map((a, i) => [a.id, i]));
-
-  return (
-    <svg
-      className="dld-sunburst"
-      viewBox={`0 0 ${box} ${box}`}
-      width={box}
-      height={box}
-      role="img"
-      aria-label={`${data.total} meetings: ${data.inner.map((a) => `${a.label} ${a.count}`).join(", ")}`}
-    >
-      <g className="dld-sunburst-inner">
-        {data.inner.map((arc, i) => {
-          const [t0, t1] = gapped(arc);
-          return (
-            <path
-              key={arc.id}
-              d={annulus(c, c, inner.r0, inner.r1, t0, t1)}
-              style={{ "--d-tone": seriesTone(i) } as React.CSSProperties}
-            >
-              <title>{`${arc.label}: ${arc.count} of ${data.total} meetings`}</title>
-            </path>
-          );
-        })}
-      </g>
-      <g className="dld-sunburst-outer">
-        {data.outer.map((arc) => {
-          const [t0, t1] = gapped(arc);
-          const parent = data.inner[agentIndex.get(arc.parent ?? "") ?? -1];
-          return (
-            <path
-              key={arc.id}
-              d={annulus(c, c, outer.r0, outer.r1, t0, t1)}
-              style={{ "--d-tone": arc.colour ?? "var(--d-ink-4)" } as React.CSSProperties}
-            >
-              <title>{`${parent?.label ?? ""} · ${arc.label}: ${arc.count} of ${parent?.count ?? 0}`}</title>
-            </path>
-          );
-        })}
-      </g>
-      <text x={c} y={c + 2} textAnchor="middle" className="dld-centre-figure">
-        {data.total}
-      </text>
-      <text x={c} y={c + 20 * k + 6} textAnchor="middle" className="dld-centre-caption">
-        MEETINGS
-      </text>
-    </svg>
-  );
-}
-
-export function SunburstKey({ data }: { readonly data: DSunburstCard }) {
-  const outcomes = data.outcomes.map((o) => [o.label, o.colour] as const);
-  return (
-    <div className="dld-key">
-      <ul>
-        {data.inner.map((a, i) => (
-          <li key={a.id}>
-            <i style={{ background: seriesTone(i) }} />
-            {a.label}
-          </li>
-        ))}
-      </ul>
-      <ul>
-        {outcomes.map(([label, colour]) => (
-          <li key={label}>
-            <i style={{ background: colour ?? "var(--d-ink-4)" }} />
-            {label}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
 }
 
 /* --- the radial histogram: the day as a clock face -------------------------------- */
