@@ -1,10 +1,7 @@
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
-import { FlowScroller } from "@/showroom/FlowScroller";
 import {
   BulletChart,
-  Funnel,
   Heatmap,
-  JourneyFlow,
   KpiCard,
   Radar,
   RankedBars,
@@ -19,6 +16,8 @@ import { DCard, Sized } from "./card";
 import { DDefs } from "./defs";
 import {
   Dumbbell,
+  JourneyFunnel,
+  OutcomeFunnels,
   Parallel,
   PunchCard,
   RadialHistogram,
@@ -39,7 +38,9 @@ import {
  *       scatter component, so it is drawn in `forms.tsx` from the same rows
  *       `QuadrantMatrix` places in its four lists.
  *   B   forms the product does not have, each over an aggregate `lab-data.ts`
- *       composes and checks against the read model it came from.
+ *       composes and checks against the read model it came from. The two
+ *       funnels are here: the journey the product draws as a flow, and the
+ *       behaviour funnel the product draws for one outcome, drawn for each.
  *
  * The treatment is the kit's: black cards on a darker ground, the six-layer
  * elevation, the kit's accents and its glow. The typefaces are not the kit's —
@@ -92,7 +93,7 @@ function RadarBody({
 export function GalleryD({ data }: { readonly data: LabChartsD }) {
   const reads = (source: string) => `${source} · ${data.projectName} · ${data.periodLabel}`;
   const order = data.radarMultiply.profiles.map((p) => p.id);
-  const { funnelMultiply, trend, sequence } = data;
+  const { trend, sequence } = data;
 
   /*
    * `ox-graphite` is the product's own token bridge and nothing else: it declares
@@ -302,39 +303,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
           </DCard>
 
           <DCard
-            id="funnel-multiply"
-            group="A · Funnel, multiply"
-            title={`Ended "not interested", ${data.earlierLabel.toLowerCase()} and ${data.laterLabel.toLowerCase()}`}
-            reads={`FlowCharts.funnel · ${data.projectName} · ${data.earlierLabel} and ${data.laterLabel}`}
-            facts={funnelMultiply.facts}
-            kind="bloom"
-            wide
-          >
-            <div className="dld-funnel-pair">
-              {[
-                { key: "earlier", label: data.earlierLabel, funnel: funnelMultiply.earlier },
-                { key: "now", label: data.laterLabel, funnel: funnelMultiply.now },
-              ].map((side) => (
-                <div
-                  key={side.key}
-                  className="dld-funnel"
-                  data-variant="multiply"
-                  data-side={side.key}
-                >
-                  <p className="dld-funnel-side">
-                    {side.label} · {side.funnel.cohortLabel}
-                  </p>
-                  {side.funnel.empty !== null ? (
-                    <p className="dld-empty">{side.funnel.empty}</p>
-                  ) : (
-                    <Funnel steps={side.funnel.steps} totalLabel={side.funnel.comparisonLabel} />
-                  )}
-                </div>
-              ))}
-            </div>
-          </DCard>
-
-          <DCard
             id="bullet"
             group="A · Bullet"
             title="Sold against the plan"
@@ -356,21 +324,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
                 }))}
               />
             </div>
-          </DCard>
-
-          <DCard
-            id="sankey"
-            group="A · Sankey"
-            title="Where journeys go, and where they stop"
-            reads={reads("ProjectCharts.journey")}
-            facts={data.sankey.facts}
-            kind="sweep"
-            wide
-          >
-            {/* The product's own scroller: below the drawing's natural width it scrolls, and the edge that has more fades. */}
-            <FlowScroller label="Where journeys go, and where they stop">
-              <JourneyFlow stages={data.sankey.journey.stages} links={data.sankey.journey.links} />
-            </FlowScroller>
           </DCard>
 
           {sequence === null ? null : (
@@ -474,6 +427,30 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               xl={<PunchCard data={data.punch} size="xl" />}
               l={<PunchCard data={data.punch} size="l" />}
             />
+          </DCard>
+
+          <DCard
+            id="journey-funnel"
+            group="B · Funnel, the journey · was the sankey"
+            title="Where journeys stop"
+            reads={reads("ProjectCharts.journey")}
+            facts={data.journeyFunnel.facts}
+            kind="bloom"
+            wide
+          >
+            <JourneyFunnel data={data.journeyFunnel} />
+          </DCard>
+
+          <DCard
+            id="funnel-multiply"
+            group="B · Funnel, multiply · one per outcome"
+            title="What each outcome's meetings did"
+            reads={reads("the session slice, by outcome, over FlowCharts.funnel's bands")}
+            facts={data.funnelMultiply.facts}
+            kind="bloom"
+            wide
+          >
+            <OutcomeFunnels data={data.funnelMultiply} />
           </DCard>
 
           <DCard

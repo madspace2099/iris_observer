@@ -2,6 +2,8 @@ import type * as React from "react";
 
 import type {
   DDumbbellCard,
+  DJourneyCard,
+  DOutcomeFunnelsCard,
   DParallelCard,
   DPunchCard,
   DRadialCard,
@@ -12,9 +14,10 @@ import type {
  * VARIANT D'S NEW FORMS, AND THE ONE OLD QUESTION WITH NO FORM OF ITS OWN.
  *
  * Drawings the product does not have: parallel coordinates, a radial histogram,
- * a punch card, a dumbbell, and a scatter of the attention-against-conversion
- * frame (the product draws that frame as four quadrant lists, `QuadrantMatrix`,
- * and has no scatter component at all).
+ * a punch card, a dumbbell, the journey as a funnel (the product draws it as a
+ * flow), a funnel per outcome (the product draws one group's), and a scatter of
+ * the attention-against-conversion frame (the product draws that frame as four
+ * quadrant lists, `QuadrantMatrix`, and has no scatter component at all).
  *
  * ## These files draw; they do not count
  *
@@ -389,6 +392,86 @@ export function ScatterKey({ data }: { readonly data: DScatterCard }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+/* --- funnels: the journey's one path, and one funnel per outcome ------------------- */
+
+/** A band centred on its track, its width the step's share of the first; the count sits on it. */
+function Band({ share, count }: { readonly share: number; readonly count: string }) {
+  return (
+    <span className="dld-band">
+      <i style={{ width: `${share * 100}%` }} />
+      <b>{count}</b>
+    </span>
+  );
+}
+
+export function JourneyFunnel({ data }: { readonly data: DJourneyCard }) {
+  return (
+    <div className="dld-jf">
+      <ol>
+        {data.steps.map((step) => (
+          <li key={step.id}>
+            <span className="dld-jf-label">{step.label}</span>
+            <Band share={step.share} count={step.countDisplay} />
+            <em>{step.shareDisplay}</em>
+          </li>
+        ))}
+      </ol>
+      {data.merged === null ? null : <p className="dld-note">{data.merged}</p>}
+    </div>
+  );
+}
+
+/**
+ * The outcomes side by side, the bands' names once down the left. Each column
+ * keeps its own names too, for a screen reader and for the narrow card, where
+ * the columns stack and every funnel reads on its own.
+ */
+export function OutcomeFunnels({ data }: { readonly data: DOutcomeFunnelsCard }) {
+  return (
+    <div
+      className="dld-of"
+      style={
+        {
+          "--groups": data.groups.length,
+          "--steps": data.stepLabels.length,
+        } as React.CSSProperties
+      }
+    >
+      <div className="dld-of-names" aria-hidden="true">
+        <span />
+        {data.stepLabels.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+      {data.groups.map((group) => (
+        <section
+          key={group.id}
+          className="dld-of-group"
+          data-drawn={group.steps === null ? "false" : "true"}
+          style={{ "--d-tone": group.colour } as React.CSSProperties}
+        >
+          <h4>
+            {group.label}
+            <span>{group.meetingsDisplay}</span>
+          </h4>
+          {group.steps === null ? (
+            <p>{group.withheld}</p>
+          ) : (
+            <ol>
+              {group.steps.map((step) => (
+                <li key={step.id}>
+                  <span className="dld-of-name">{step.label}</span>
+                  <Band share={step.share} count={step.countDisplay} />
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      ))}
+    </div>
   );
 }
 

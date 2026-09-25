@@ -84,7 +84,7 @@
   --d-series-5: #96969d;
   --d-series-6: #fffc00;
 
-  /* Funnels: one hue per series, the steps told apart by strength alone. */
+  /* The journey funnel: the kit's funnel violet, one path, one colour. */
   --d-funnel: #8338ec;
 
   --d-font-numeric: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
@@ -240,6 +240,17 @@
   line-height: 16px;
   color: var(--d-ink-4);
   overflow-wrap: anywhere;
+}
+
+/* The one sentence a drawing has to say: white, above the source line, never louder than the title. */
+.dld-card-lead {
+  margin: 4px 0 2px;
+  max-width: 68ch;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--d-ink);
+  text-wrap: pretty;
 }
 
 .dld-plot {
@@ -894,153 +905,6 @@
   color: var(--d-ink-4);
 }
 
-/* --- funnels: one hue, the steps told apart by strength, a glow behind ---------- */
-
-.dld-funnel {
-  position: relative;
-  isolation: isolate;
-}
-
-.dld-funnel::before {
-  content: "";
-  position: absolute;
-  inset: 8% 18% 22%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in oklab, var(--d-funnel) 45%, transparent),
-    transparent
-  );
-  filter: blur(28px);
-  pointer-events: none;
-}
-
-.dld-funnel[data-side="now"] {
-  --d-funnel: #0ac5ef;
-}
-
-.dld-root .dld-funnel .iris-funnel {
-  max-width: none;
-  gap: 6px;
-}
-
-.dld-root .dld-funnel .iris-funnel-step {
-  grid-template-columns: minmax(0, 1fr) 15rem 3.5rem;
-  gap: 16px;
-}
-
-.dld-root .dld-funnel .iris-funnel-bar {
-  justify-content: center;
-  justify-self: center;
-  width: 100%;
-  height: 36px;
-  padding: 0;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--d-funnel) var(--d-step, 100%), transparent);
-}
-
-.dld-funnel .iris-funnel-step:nth-child(1) {
-  --d-step: 22%;
-}
-.dld-funnel .iris-funnel-step:nth-child(2) {
-  --d-step: 34%;
-}
-.dld-funnel .iris-funnel-step:nth-child(3) {
-  --d-step: 46%;
-}
-.dld-funnel .iris-funnel-step:nth-child(4) {
-  --d-step: 58%;
-}
-.dld-funnel .iris-funnel-step:nth-child(5) {
-  --d-step: 70%;
-}
-.dld-funnel .iris-funnel-step:nth-child(6) {
-  --d-step: 84%;
-}
-.dld-funnel .iris-funnel-step:nth-child(7) {
-  --d-step: 100%;
-}
-
-/* The kit's value pill: black, round, mono white. */
-.dld-root .dld-funnel .iris-funnel-bar b {
-  padding: 4px 12px;
-  border-radius: 100px;
-  background: #000000;
-  font-family: var(--d-font-numeric);
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--d-ink);
-}
-
-.dld-root .dld-funnel .iris-funnel-label {
-  font-size: 14px;
-  color: var(--d-ink-2);
-}
-
-.dld-root .dld-funnel .iris-funnel-label em {
-  font-size: 12px;
-  color: var(--d-ink-4);
-}
-
-.dld-root .dld-funnel .iris-funnel-drop {
-  font-family: var(--d-font-numeric);
-  font-size: 12px;
-}
-
-.dld-root .dld-funnel > .iris-funnel > .iris-code,
-.dld-root .dld-funnel .iris-funnel > p {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--d-ink-4) !important;
-}
-
-/* Basic: the bands and their counts; the side rates and the losses are the detailed card's. */
-.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-step {
-  grid-template-columns: minmax(0, 1fr) 11rem;
-}
-
-.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-label em,
-.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-drop {
-  display: none;
-}
-
-.dld-funnel-pair {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-  gap: 28px;
-}
-
-.dld-funnel-side {
-  margin: 0 0 10px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--d-ink-2);
-}
-
-.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-step {
-  grid-template-columns: minmax(0, 1fr) 9.5rem;
-  gap: 12px;
-}
-
-.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-drop,
-.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-label em {
-  display: none;
-}
-
-@container (width < 34rem) {
-  .dld-root .dld-funnel .iris-funnel-step,
-  .dld-root .dld-funnel[data-variant="basic"] .iris-funnel-step {
-    grid-template-columns: minmax(0, 1fr) 8.5rem;
-  }
-
-  .dld-root .dld-funnel .iris-funnel-drop {
-    display: none;
-  }
-}
-
 /* --- the bullet: the kit's track and tick, the bar in one hue ------------------- */
 
 .dld-root .dld-bullets .iris-bullets {
@@ -1121,43 +985,6 @@
     grid-column: 1 / -1;
     grid-row: 2;
   }
-}
-
-/* --- the sankey: violet into green ribbons, violet nodes --------------------------- */
-
-/* The product's scroller keeps its own floor below 47.5rem; above it the drawing takes the width. */
-.dld-root .iris-flow-scroll .iris-flow {
-  display: block;
-  max-width: none;
-  max-height: none;
-}
-
-.dld-root .iris-flow-ribbon {
-  fill: url(#dld-flow);
-  opacity: 0.6;
-}
-
-.dld-root .iris-flow-node {
-  fill: #6d5ce8;
-  stroke: none;
-  rx: 3px;
-}
-
-.dld-root .iris-flow-label {
-  font-family: var(--d-font-numeric);
-  font-size: 11px;
-  fill: var(--d-ink-2);
-}
-
-.dld-root .iris-flow-count {
-  font-family: var(--d-font-numeric);
-  font-size: 13px;
-  fill: var(--d-ink);
-}
-
-.dld-root .iris-flow-drop {
-  font-family: var(--d-font-numeric);
-  font-size: 11px;
 }
 
 /* --- the running order ------------------------------------------------------------ */
@@ -1396,6 +1223,240 @@
 
 .dld-root .dld-punch-zero {
   fill: var(--d-ramp-lo);
+}
+
+/* --- funnels: the journey's one path, and one funnel per outcome ------------------ */
+
+/*
+ * A band is centred on its track, as the kit's funnel sits, and carries its
+ * count in the kit's black pill. One colour per funnel and no ramp down it: the
+ * bands' order is their position, and a colour that changed from band to band
+ * would be saying something the numbers do not.
+ */
+.dld-band {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 36px;
+}
+
+.dld-band i {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--d-tone, var(--d-funnel));
+  translate: -50% 0;
+}
+
+.dld-band b {
+  position: relative;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: #000000;
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--d-ink);
+}
+
+/* The journey: one path in the kit's funnel violet, which glows; it means nothing but "this path". */
+.dld-jf ol {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-jf li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "label share" "band band";
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.dld-jf-label {
+  grid-area: label;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--d-ink-2);
+}
+
+.dld-jf .dld-band {
+  grid-area: band;
+  height: 40px;
+}
+
+.dld-jf .dld-band i {
+  box-shadow: 0 10px 28px color-mix(in oklab, var(--d-funnel) 40%, transparent);
+}
+
+.dld-jf li em {
+  grid-area: share;
+  font-family: var(--d-font-numeric);
+  font-size: 14px;
+  font-style: normal;
+  color: var(--d-ink-2);
+  text-align: right;
+}
+
+@container (width >= 34rem) {
+  .dld-jf li {
+    grid-template-columns: 10rem minmax(0, 1fr) 3.5rem;
+    grid-template-areas: "label band share";
+    gap: 20px;
+  }
+}
+
+/*
+ * One funnel per outcome, in the outcome's own colour and without the glow:
+ * OUTCOME_TONE is a meaning, not a treatment. Narrow, every funnel reads on its
+ * own, names and all; wide, they stand side by side on one set of rows, the
+ * names once down the left, each column a subgrid of the whole so a band lines
+ * up with its name whatever wraps.
+ */
+.dld-of {
+  display: grid;
+  gap: 20px;
+}
+
+.dld-of-names {
+  display: none;
+}
+
+.dld-of-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dld-of-group h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.dld-of-group h4 span {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--d-ink-4);
+}
+
+.dld-of-group ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-of-group li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 42%);
+  align-items: center;
+  gap: 12px;
+}
+
+.dld-of-name {
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-of .dld-band {
+  height: 26px;
+}
+
+.dld-of .dld-band b {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.dld-of-group > p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed rgb(255 255 255 / 0.16);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+@container (width >= 48rem) {
+  .dld-of {
+    grid-template-columns: minmax(8rem, 11rem) repeat(var(--groups), minmax(0, 1fr));
+    grid-template-rows: auto repeat(var(--steps), 30px);
+    gap: 6px 10px;
+  }
+
+  .dld-of-names,
+  .dld-of-group,
+  .dld-of-group ol {
+    display: grid;
+    grid-template-rows: subgrid;
+    row-gap: normal;
+  }
+
+  .dld-of-names,
+  .dld-of-group {
+    grid-row: 1 / -1;
+  }
+
+  .dld-of-names span {
+    align-self: center;
+    font-size: 12px;
+    line-height: 14px;
+    color: var(--d-ink-2);
+  }
+
+  .dld-of-group h4 {
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: end;
+    padding-bottom: 6px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .dld-of-group ol {
+    grid-row: 2 / -1;
+  }
+
+  .dld-of-group li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The column's own names stay for a screen reader; the eye reads them once, on the left. */
+  .dld-of-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dld-of .dld-band {
+    height: 100%;
+  }
+
+  .dld-of-group > p {
+    grid-row: 2 / -1;
+    align-self: start;
+  }
 }
 
 /* --- dumbbell: the group against everyone else ------------------------------------ */

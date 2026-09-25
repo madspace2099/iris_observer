@@ -27,12 +27,6 @@ export function DDefs() {
           <stop offset="1" stopColor="#5cf101" />
         </linearGradient>
 
-        {/* The sankey's ribbons: violet into green, as the kit's basic flow. */}
-        <linearGradient id="dld-flow" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#6959dc" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#1eebaa" stopOpacity="0.9" />
-        </linearGradient>
-
         {/* The area chart's dot matrix: a 1px dot on a 5px pitch. */}
         <pattern id="dld-dots" width="5" height="5" patternUnits="userSpaceOnUse">
           <rect width="1.2" height="1.2" fill="#15ffab" />

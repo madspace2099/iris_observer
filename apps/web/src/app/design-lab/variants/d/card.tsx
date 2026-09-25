@@ -12,6 +12,9 @@ import { DrawIn, type DrawKind } from "./draw-in";
  * ranking share a band under the drawing — but the order a screen reader meets
  * them in does not change, and neither does anything they say.
  *
+ * Where a drawing has one thing to say, the card leads with it: one sentence
+ * under the title, composed with the figures, describing and never explaining.
+ *
  * Nothing on the card is computed here. The figures and the rows are
  * `DFacts`, composed in `lab-data.ts`; this file only lays them out.
  *
@@ -45,6 +48,7 @@ export function DCard({
         <header className="dld-card-head">
           <p className="dld-card-kicker">{group}</p>
           <h3 className="dld-card-title">{title}</h3>
+          {facts.lead === undefined ? null : <p className="dld-card-lead">{facts.lead}</p>}
           <p className="dld-card-reads">{reads}</p>
         </header>
 

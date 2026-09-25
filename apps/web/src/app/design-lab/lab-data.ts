@@ -36,7 +36,6 @@ import type {
   AgentOutcomeRing,
   BehaviourFunnel,
   ActivityMatrix,
-  JourneyFlowModel,
   KpiFigure,
   KpiWindowId,
   OutcomeComposition,
@@ -360,13 +359,6 @@ export interface LabScreenProps {
 const D_TENANT = "alpha";
 const D_PROJECT = "northgate";
 const D_PERIOD: PeriodPreset = "year_to_date";
-/**
- * The multiply funnel's two series: the quarter before and this quarter. Not
- * the main period against the quarter before it — the year to date contains
- * that quarter, and a comparison of a group with part of itself is not one.
- */
-const D_EARLIER: PeriodPreset = "last_quarter";
-const D_LATER: PeriodPreset = "quarter_to_date";
 /** Sales Flow's default KPI window, so the KPI card says what that page says. */
 const D_WINDOW: KpiWindowId = "month";
 /** Beyond this many lines a parallel-coordinates plot stops being read; above it the gallery cuts, and says so. */
@@ -389,6 +381,8 @@ export interface DRankRow {
 }
 
 export interface DFacts {
+  /** The one sentence the card leads with, where the drawing has one thing to say; it describes, never explains. */
+  readonly lead?: string;
   readonly figures: readonly [DFigure, DFigure];
   readonly rankingTitle: string;
   readonly ranking: readonly DRankRow[];
@@ -473,6 +467,42 @@ export interface DDumbbellCard {
   readonly facts: DFacts;
 }
 
+/** One band of a funnel: its count, and its width as a share of the funnel's first band. */
+export interface DFunnelStep {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+  readonly countDisplay: string;
+  readonly share: number;
+  readonly shareDisplay: string;
+}
+
+export interface DJourneyCard {
+  readonly steps: readonly DFunnelStep[];
+  /** The stages nobody stopped before, which would add a band as wide as the last: named here, not drawn. Null when every stage is drawn. */
+  readonly merged: string | null;
+  readonly facts: DFacts;
+}
+
+export interface DOutcomeFunnel {
+  readonly id: string;
+  readonly label: string;
+  /** The outcome's own colour, as the read model's composition keys carry it. */
+  readonly colour: string;
+  readonly meetings: number;
+  readonly meetingsDisplay: string;
+  /** Null below the floor, where `withheld` stands instead of the funnel. */
+  readonly steps: readonly DFunnelStep[] | null;
+  readonly withheld: string | null;
+}
+
+export interface DOutcomeFunnelsCard {
+  /** The bands' names, shared by every funnel, in the read model's order. */
+  readonly stepLabels: readonly string[];
+  readonly groups: readonly DOutcomeFunnel[];
+  readonly facts: DFacts;
+}
+
 export interface DScatterCard {
   readonly points: readonly {
     readonly id: string;
@@ -496,26 +526,19 @@ export interface LabChartsD {
   readonly projectName: string;
   readonly period: PeriodPreset;
   readonly periodLabel: string;
-  /** The multiply funnel's two periods, earlier first. */
-  readonly earlierLabel: string;
-  readonly laterLabel: string;
   readonly windowLabel: string;
   readonly minimum: number;
   readonly radarBasic: DRadarCard;
   readonly radarSimple: DRadarCard;
   readonly radarMultiply: DRadarCard;
-  readonly sankey: { readonly journey: JourneyFlowModel; readonly facts: DFacts };
+  readonly journeyFunnel: DJourneyCard;
   readonly scatter: DScatterCard;
   readonly ring: {
     readonly slices: readonly OutcomeSlice[];
     readonly total: number;
     readonly facts: DFacts;
   };
-  readonly funnelMultiply: {
-    readonly now: BehaviourFunnel;
-    readonly earlier: BehaviourFunnel;
-    readonly facts: DFacts;
-  };
+  readonly funnelMultiply: DOutcomeFunnelsCard;
   readonly heatmapBasic: { readonly activity: ActivityMatrix; readonly facts: DFacts };
   readonly heatmapGradient: { readonly activity: ActivityMatrix; readonly facts: DFacts };
   readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
@@ -658,19 +681,6 @@ function behaviourShares(
   return { cohort: cohort.length, rest: rest.length, rows };
 }
 
-/** Where a journey loses people, stage to stage, the way `JourneyFlow` draws the gap. */
-function journeyDrops(journey: JourneyFlowModel): { id: string; label: string; lost: number }[] {
-  const carried = new Map(journey.links.map((l) => [`${l.from}|${l.to}`, l.count]));
-  return journey.stages.slice(0, -1).flatMap((from, i) => {
-    const to = journey.stages[i + 1];
-    if (to === undefined) return [];
-    const kept = carried.get(`${from.id}|${to.id}`) ?? to.count;
-    return [
-      { id: `${from.id}-${to.id}`, label: `${from.label} to ${to.label}`, lost: from.count - kept },
-    ];
-  });
-}
-
 /**
  * Variant D's whole read.
  *
@@ -679,37 +689,18 @@ function journeyDrops(journey: JourneyFlowModel): { id: string; label: string; l
  */
 export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const query = { viewer, tenantSlug: D_TENANT, projectSlug: D_PROJECT, period: D_PERIOD };
-  const earlierQuery = { ...query, period: D_EARLIER };
-  const laterQuery = { ...query, period: D_LATER };
 
-  const [
-    flow,
-    charts,
-    earlierCharts,
-    laterCharts,
-    projectCharts,
-    projectView,
-    agentCharts,
-    slice,
-    earlierSlice,
-    laterSlice,
-  ] = await Promise.all([
+  const [flow, charts, projectCharts, projectView, agentCharts, slice] = await Promise.all([
     repository.getSalesFlow(query),
     repository.getFlowCharts(query, D_WINDOW),
-    repository.getFlowCharts(earlierQuery, D_WINDOW),
-    repository.getFlowCharts(laterQuery, D_WINDOW),
     repository.getProjectCharts(query),
     repository.getProjectView(query, null),
     repository.getAgentCharts(query),
     repository.getSessionSlice(query),
-    repository.getSessionSlice(earlierQuery),
-    repository.getSessionSlice(laterQuery),
   ]);
 
   const { locale, timeZone, name: projectName } = flow.context.project;
   const periodLabel = flow.context.period.label;
-  const earlierLabel = earlierCharts.context.period.label;
-  const laterLabel = laterCharts.context.period.label;
   const period = periodLabel.toLowerCase();
   const number = new Intl.NumberFormat(locale);
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
@@ -841,29 +832,75 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- the journey --------------------------------------------------------------- */
+  /* --- the journey, as a funnel --------------------------------------------------- */
 
+  /*
+   * One path, narrowing: every link carries exactly the stage it enters, and no
+   * stage is wider than the one before it. The read model builds it that way;
+   * a funnel drawn over anything else would draw a shape the data does not have.
+   */
   const journey = projectCharts.journey;
-  const firstStage = journey.stages[0];
-  const lastStage = journey.stages[journey.stages.length - 1];
-  const sankey = {
-    journey,
+  const stageCount = new Map(journey.stages.map((s) => [s.id, s.count]));
+  for (const l of journey.links) {
+    same(`the journey's "${l.from}" to "${l.to}" link`, l.count, stageCount.get(l.to));
+  }
+  journey.stages.forEach((s, i) => {
+    const before = journey.stages[i - 1];
+    if (before !== undefined && s.count > before.count) {
+      refuse(`a journey that narrows ("${s.label}" holds more than "${before.label}")`);
+    }
+  });
+  /* A stage nobody stopped before would add a band exactly as wide as the last: it is named, not drawn. */
+  const drawnStages = journey.stages.filter((s, i) => s.count !== journey.stages[i - 1]?.count);
+  const firstStage = drawnStages[0];
+  if (firstStage === undefined || firstStage.count === 0) {
+    refuse("a journey with a meeting in it");
+  }
+  const lastStage = drawnStages[drawnStages.length - 1] ?? firstStage;
+  const journeySteps: DFunnelStep[] = drawnStages.map((s) => ({
+    id: s.id,
+    label: s.label,
+    count: s.count,
+    countDisplay: n(s.count),
+    share: s.count / firstStage.count,
+    shareDisplay: pct(s.count / firstStage.count),
+  }));
+  const mergedStages = journey.stages.flatMap((s, i) => {
+    const before = journey.stages[i - 1];
+    return before === undefined || drawnStages.includes(s)
+      ? []
+      : [
+          `"${s.label}" is not drawn: all ${meetings(s.count)} at "${before.label}" reached it, so nobody stopped between the two.`,
+        ];
+  });
+  const stops = journeySteps.flatMap((to, i) => {
+    const from = journeySteps[i - 1];
+    return from === undefined
+      ? []
+      : [{ id: `${from.id}-${to.id}`, from, to, lost: from.count - to.count }];
+  });
+  const lastStop = stops[stops.length - 1];
+  const journeyFunnel: DJourneyCard = {
+    steps: journeySteps,
+    merged: mergedStages.length === 0 ? null : mergedStages.join(" "),
     facts: {
+      lead:
+        lastStop === undefined
+          ? undefined
+          : `Of the ${meetings(lastStop.from.count)} at "${lastStop.from.label}", ${n(lastStop.lost)} stopped at the last step, before "${lastStop.to.label}".`,
       figures: [
-        figure(firstStage?.label ?? "First stage", n(firstStage?.count ?? 0), periodLabel),
+        figure(firstStage.label, n(firstStage.count), periodLabel),
         figure(
-          lastStage?.label ?? "Last stage",
-          n(lastStage?.count ?? 0),
-          firstStage === undefined || firstStage.count === 0 || lastStage === undefined
-            ? null
-            : `${pct(lastStage.count / firstStage.count)} of ${firstStage.label.toLowerCase()}`,
+          lastStage.label,
+          n(lastStage.count),
+          `${pct(lastStage.count / firstStage.count)} of ${firstStage.label.toLowerCase()}`,
         ),
-      ] as const,
+      ],
       rankingTitle: "Where journeys stop",
       ranking: topThree(
-        journeyDrops(journey),
+        stops,
         (d) => d.lost,
-        (d) => ({ id: d.id, label: d.label, value: `−${n(d.lost)}` }),
+        (d) => ({ id: d.id, label: `${d.from.label} to ${d.to.label}`, value: `−${n(d.lost)}` }),
       ),
       rankingNote: journey.note,
     },
@@ -935,50 +972,104 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- behaviour: the funnel by period, and the dumbbell ------------------------ */
+  /* --- behaviour: one funnel per outcome, and the dumbbell ----------------------- */
 
   const funnel = charts.funnel;
   const now = behaviourShares(funnel, sessions, pct, periodLabel);
-  const earlier = behaviourShares(earlierCharts.funnel, earlierSlice.sessions, pct, earlierLabel);
-  const later = behaviourShares(laterCharts.funnel, laterSlice.sessions, pct, laterLabel);
   const groupFigure = figure("In the group", n(now.cohort), `ended "not interested", ${period}`);
   const restFigure = figure("Compared with", n(now.rest), "every other recorded meeting");
 
-  const moved = later.rows.flatMap((r) => {
-    const before = earlier.rows.find((e) => e.id === r.id);
-    return before === undefined ? [] : [{ r, before, v: Math.abs(r.share - before.share) }];
-  });
   /*
-   * A change between two groups is a trend, and a ranking of changes is a
-   * verdict on which moved: below the floor there is neither. The floor is the
-   * product's documented minimum for a verdict, the same 20 the agent screens
-   * and the segment quadrants read.
+   * The read model draws one group, the meetings that ended "not interested".
+   * The same bands over every outcome's own meetings, nested the same way: each
+   * band is the meetings that did this and everything above it. Below the floor
+   * a group's shape is not drawn, because the shape is what gets compared, and
+   * the floor is the product's documented minimum for exactly that — the same
+   * 20 the agent screens read.
    */
-  const smaller = Math.min(earlier.cohort, later.cohort);
-  const changeRankable = smaller >= AGENT_MIN_SAMPLE;
-  const funnelMultiply = {
-    now: laterCharts.funnel,
-    earlier: earlierCharts.funnel,
+  if (funnel.steps.length === 0) refuse("the behaviour funnel's bands: its own group is empty");
+  const outcomeGroups: DOutcomeFunnel[] = charts.composition.keys
+    .filter((k) => !outcomeIsUnknown(k.id))
+    .map((k) => {
+      const group = sessions.filter((s) => s.outcome === k.id);
+      same(
+        `the "${k.label}" meetings`,
+        group.length,
+        flow.outcomes.find((o) => o.outcome === k.id)?.count ?? 0,
+      );
+      const base = { id: k.id, label: k.label, colour: k.colour, meetings: group.length };
+      const meetingsDisplay = meetings(group.length);
+      if (group.length < AGENT_MIN_SAMPLE) {
+        return {
+          ...base,
+          meetingsDisplay,
+          steps: null,
+          withheld: `${n(AGENT_MIN_SAMPLE - group.length)} short of the ${n(AGENT_MIN_SAMPLE)} meetings a funnel needs, so none is drawn.`,
+        };
+      }
+      let surviving = group;
+      const steps = funnel.steps.map((step) => {
+        if (step.id !== "all") {
+          const test = D_BEHAVIOURS[step.id];
+          if (test === undefined) refuse(`a behaviour this gallery does not know, "${step.id}"`);
+          surviving = surviving.filter(test);
+        }
+        return {
+          id: step.id,
+          label: step.label,
+          count: surviving.length,
+          countDisplay: n(surviving.length),
+          share: surviving.length / group.length,
+          shareDisplay: pct(surviving.length / group.length),
+        };
+      });
+      return { ...base, meetingsDisplay, steps, withheld: null };
+    });
+  /* The read model's own group, band for band: the copy of its tests must nest the way its own do. */
+  const readModelsGroup = outcomeGroups.find((g) => g.id === "not_interested");
+  readModelsGroup?.steps?.forEach((s, i) =>
+    same(`the "not interested" funnel's "${s.label}" band`, s.count, funnel.steps[i]?.count),
+  );
+
+  const drawnGroups = outcomeGroups.filter((g) => g.steps !== null);
+  const inDrawn = drawnGroups.reduce((a, g) => a + g.meetings, 0);
+  const inSmaller = outcomeGroups.reduce((a, g) => a + (g.steps === null ? g.meetings : 0), 0);
+  const bandGaps =
+    drawnGroups.length < 2
+      ? []
+      : funnel.steps.flatMap((step, i) => {
+          if (step.id === "all") return [];
+          const widths = drawnGroups.map((g) => g.steps?.[i]?.share ?? 0);
+          const lo = Math.min(...widths);
+          const hi = Math.max(...widths);
+          return [{ id: step.id, label: step.label, lo, hi, v: hi - lo }];
+        });
+  const funnelMultiply: DOutcomeFunnelsCard = {
+    stepLabels: funnel.steps.map((s) => s.label),
+    groups: outcomeGroups,
     facts: {
       figures: [
-        figure(earlierLabel, n(earlier.cohort), `ended "not interested"`),
-        figure(laterLabel, n(later.cohort), `ended "not interested"`),
-      ] as const,
-      rankingTitle: "What changed most between the two",
-      ranking: changeRankable
-        ? topThree(
-            moved,
-            (m) => m.v,
-            (m) => ({
-              id: m.r.id,
-              label: m.r.label,
-              value: `${m.before.shareDisplay} → ${m.r.shareDisplay}`,
-            }),
-          )
-        : [],
-      rankingNote: changeRankable
-        ? `${earlierLabel} to ${laterLabel.toLowerCase()}: each behaviour on its own, within the group.`
-        : `Not ranked: the smaller group holds ${meetings(smaller)}, ${n(AGENT_MIN_SAMPLE - smaller)} short of the ${n(AGENT_MIN_SAMPLE)} a change between two groups needs. The two funnels are shown; which behaviour moved most is not.`,
+        figure(
+          "Funnels drawn",
+          n(drawnGroups.length),
+          `of ${n(outcomeGroups.length)} outcomes; each holds ${n(AGENT_MIN_SAMPLE)} meetings or more`,
+        ),
+        figure(
+          "Meetings in them",
+          n(inDrawn),
+          `of ${n(sessions.length)}; ${n(inSmaller)} in smaller groups, ${n(sessions.length - inDrawn - inSmaller)} with no outcome recorded`,
+        ),
+      ],
+      rankingTitle: "Where the drawn funnels differ most",
+      ranking: topThree(
+        bandGaps,
+        (g) => g.v,
+        (g) => ({ id: g.id, label: g.label, value: `${pct(g.lo)} to ${pct(g.hi)}` }),
+      ),
+      rankingNote:
+        drawnGroups.length < 2
+          ? "Fewer than two funnels are drawn, so there is nothing to set side by side."
+          : "A band's width in its own group, the narrowest group against the widest. The bands nest, so each carries every band above it. It describes the groups; it does not explain the outcomes.",
     },
   };
 
@@ -1329,14 +1420,12 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     projectName,
     period: D_PERIOD,
     periodLabel,
-    earlierLabel,
-    laterLabel,
     windowLabel: charts.kpis.windowLabel,
     minimum: AGENT_MIN_SAMPLE,
     radarBasic: profileCard(drawn[0]),
     radarSimple: profileCard(drawn[1] ?? drawn[0]),
     radarMultiply,
-    sankey,
+    journeyFunnel,
     scatter,
     ring,
     funnelMultiply,
