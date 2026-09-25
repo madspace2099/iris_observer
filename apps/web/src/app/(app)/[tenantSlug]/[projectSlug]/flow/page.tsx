@@ -214,6 +214,95 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
+        {/*
+         * The order from here is the plan's (v3 :1039, R05's target layout,
+         * approved 2026-09-24): the groups above, then the current pipeline,
+         * stalled deals, and the details last. IRIS-assisted sales stay with the
+         * deal blocks beside which they already stood. The plan's first-showing-
+         * to-sale block is not built (P2-06 is blocked), and Cycle time says so.
+         */}
+        {/*
+         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
+         * connector delivered, every rung verified because the CRM stated it,
+         * and where none did the sentence says so rather than six rungs at zero.
+         */}
+        <div>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+            The deal ladder, as the CRM states it
+          </h2>
+          {view.ladder.source === "crm" ? (
+            <>
+              <FlowLadder
+                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
+                noun="deals"
+              />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {view.ladder.note}
+              </p>
+              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          ) : (
+            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
+          )}
+        </div>
+
+        {/*
+         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
+         * by stage, sorted by time stuck). Time in stage sits on the ladder's
+         * own rungs above; this is the same deals one by one, longest on
+         * their rung first, each opening the unit it is about. The list is
+         * ordered by time and never by outcome, and an undated deal is
+         * counted beside it rather than drawn at zero days.
+         */}
+        {view.ladder.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <div>
+              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+                Stalled deals, longest on their rung first
+              </h2>
+              {view.ladder.stalled.length === 0 ? (
+                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
+              ) : (
+                <>
+                  <RankedBars
+                    period={query.period}
+                    rows={view.ladder.stalled.map((deal) => ({
+                      id: deal.externalId,
+                      label:
+                        deal.unitCode === null
+                          ? deal.externalId
+                          : `${deal.unitCode} · ${deal.externalId}`,
+                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
+                      value: deal.daysInStage,
+                      display: deal.daysDisplay,
+                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
+                    }))}
+                    measured
+                  />
+                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                    {view.ladder.stalledNote}
+                  </p>
+                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+                </>
+              )}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
+         * for the ladder's reason: no deal, no sale to place against a showing.
+         */}
+        {view.assisted.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <AssistedSales assisted={view.assisted} period={query.period} />
+          </>
+        ) : null}
+
+        <hr className="iris-rule iris-section-rule" />
+
         <div className="iris-band">
           <div>
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
@@ -417,88 +506,6 @@ export default async function FlowPage({
             </>
           )}
         </div>
-
-        <hr className="iris-rule iris-section-rule" />
-
-        {/*
-         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
-         * connector delivered, every rung verified because the CRM stated it,
-         * and where none did the sentence says so rather than six rungs at zero.
-         */}
-        <div>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            The deal ladder, as the CRM states it
-          </h2>
-          {view.ladder.source === "crm" ? (
-            <>
-              <FlowLadder
-                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
-                noun="deals"
-              />
-              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                {view.ladder.note}
-              </p>
-              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-            </>
-          ) : (
-            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
-          )}
-        </div>
-
-        {/*
-         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
-         * by stage, sorted by time stuck). Time in stage sits on the ladder's
-         * own rungs above; this is the same deals one by one, longest on
-         * their rung first, each opening the unit it is about. The list is
-         * ordered by time and never by outcome, and an undated deal is
-         * counted beside it rather than drawn at zero days.
-         */}
-        {view.ladder.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
-            <div>
-              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-                Stalled deals, longest on their rung first
-              </h2>
-              {view.ladder.stalled.length === 0 ? (
-                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
-              ) : (
-                <>
-                  <RankedBars
-                    period={query.period}
-                    rows={view.ladder.stalled.map((deal) => ({
-                      id: deal.externalId,
-                      label:
-                        deal.unitCode === null
-                          ? deal.externalId
-                          : `${deal.unitCode} · ${deal.externalId}`,
-                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
-                      value: deal.daysInStage,
-                      display: deal.daysDisplay,
-                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
-                    }))}
-                    measured
-                  />
-                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                    {view.ladder.stalledNote}
-                  </p>
-                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-                </>
-              )}
-            </div>
-          </>
-        ) : null}
-
-        {/*
-         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
-         * for the ladder's reason: no deal, no sale to place against a showing.
-         */}
-        {view.assisted.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
-            <AssistedSales assisted={view.assisted} period={query.period} />
-          </>
-        ) : null}
 
         <hr className="iris-rule iris-section-rule" />
 
