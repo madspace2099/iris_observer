@@ -1280,9 +1280,35 @@
   fill: var(--d-ink);
 }
 
+.dld-root .dld-row-label {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  fill: var(--d-ink-2);
+}
+
 .dld-root .dld-gridline {
   stroke: var(--d-grid);
   stroke-width: 1;
+}
+
+.dld-root .dld-guide {
+  stroke: var(--d-guide);
+  stroke-width: 1;
+}
+
+.dld-root .dld-centre-figure {
+  font-family: var(--d-font-numeric);
+  font-size: 22px;
+  letter-spacing: -0.05em;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-centre-caption {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  fill: var(--d-ink-4);
 }
 
 /* --- scatter: the kit's bright point, glowing -------------------------------------- */
@@ -1340,6 +1366,280 @@
   font-family: var(--d-font-numeric);
   font-size: 12px;
   color: var(--d-ink-4);
+}
+
+/* --- parallel coordinates: 5px round lines, black lift, the kit's haze ----------- */
+
+.dld-parallel svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.dld-root .dld-haze {
+  fill: #ff60dc;
+  opacity: 0.16;
+  filter: blur(40px);
+}
+
+.dld-root .dld-parallel-axis {
+  stroke: var(--d-ink-4);
+  stroke-opacity: 0.6;
+  stroke-width: 1;
+}
+
+.dld-root .dld-parallel-line {
+  fill: none;
+  stroke: var(--d-tone);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#dld-lift);
+}
+
+.dld-size[data-size="l"] .dld-parallel-line {
+  stroke-width: 4;
+}
+
+.dld-parallel-axes {
+  display: grid;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+  text-align: center;
+}
+
+.dld-parallel-axes li {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* On the phone's geometry an axis name is wider than its column: every second name drops a line. */
+.dld-size[data-size="l"] .dld-parallel-axes li:nth-child(even) {
+  padding-top: 18px;
+}
+
+.dld-size[data-size="l"] .dld-row-label {
+  font-size: 12px;
+}
+
+/* --- sunburst: agents inside, their outcomes outside ------------------------------ */
+
+.dld-root .dld-sunburst path {
+  fill: var(--d-tone);
+  stroke: var(--d-tone);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.dld-root .dld-sunburst-inner path {
+  filter: url(#dld-glow);
+}
+
+/* --- radial histogram: one hue, brighter with the count ----------------------------- */
+
+.dld-root .dld-radial-spoke {
+  stroke: var(--d-ink-4);
+  stroke-opacity: 0.7;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.dld-root .dld-radial-bar {
+  stroke: color-mix(in oklab, var(--d-ramp-hi) calc(30% + var(--v) * 70%), var(--d-ramp-lo));
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.dld-root .dld-radial-bar[data-long="true"] {
+  filter: url(#dld-glow);
+}
+
+.dld-size[data-size="l"] .dld-radial-bar {
+  stroke-width: 4;
+}
+
+/* --- punch card: one hue, the size is the count ----------------------------------- */
+
+.dld-root .dld-punch-dot {
+  fill: color-mix(in oklab, var(--d-ramp-hi) calc(45% + var(--v) * 55%), var(--d-ramp-lo));
+}
+
+.dld-root .dld-punch-dot[data-long="true"] {
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-punch-zero {
+  fill: var(--d-ramp-lo);
+}
+
+/* --- dumbbell: the group against everyone else ------------------------------------ */
+
+.dld-dumbbell {
+  display: grid;
+  gap: 12px;
+}
+
+.dld-dumbbell-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-dumbbell-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dld-dumbbell-legend span::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dld-dumbbell-legend [data-end="group"]::before {
+  background: var(--d-accent-2);
+}
+
+.dld-dumbbell-legend [data-end="rest"]::before {
+  background: var(--d-ink-2);
+}
+
+.dld-dumbbell-scale,
+.dld-dumbbell-track {
+  position: relative;
+}
+
+.dld-dumbbell-scale {
+  height: 16px;
+  margin-left: calc(15rem + 16px);
+  margin-right: calc(7rem + 16px);
+}
+
+.dld-dumbbell-scale em {
+  position: absolute;
+  translate: -50% 0;
+  font-style: normal;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+/* The two ends hang inward, so "0%" and "100%" stay inside the scale rather than past the card's edge. */
+.dld-dumbbell-scale em:first-child {
+  translate: 0 0;
+}
+
+.dld-dumbbell-scale em:last-child {
+  translate: -100% 0;
+}
+
+.dld-dumbbell-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-dumbbell-rows li {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) 7rem;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--d-hairline);
+}
+
+.dld-dumbbell-label {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-dumbbell-track {
+  height: 12px;
+  background:
+    linear-gradient(var(--d-grid), var(--d-grid)) 0% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 25% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 50% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 75% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 100% 50% / 1px 100% no-repeat;
+}
+
+/* The kit's bar: 6px, round caps, Spring Green, its glow. */
+.dld-dumbbell-track i {
+  position: absolute;
+  top: 3px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--d-accent-2);
+  box-shadow:
+    0 0.5px 3px rgb(24 255 152 / 0.19),
+    0 2.4px 6px rgb(24 255 152 / 0.31),
+    0 5.8px 12.5px rgb(24 255 152 / 0.39),
+    0 11px 24.5px rgb(24 255 152 / 0.47);
+}
+
+.dld-dumbbell-track b {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #000000;
+  border-radius: 50%;
+  translate: -50% -50%;
+  box-sizing: border-box;
+}
+
+.dld-dumbbell-track b[data-end="group"] {
+  background: var(--d-accent-2);
+}
+
+.dld-dumbbell-track b[data-end="rest"] {
+  background: var(--d-ink-2);
+}
+
+.dld-dumbbell-values {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  font-family: var(--d-font-numeric);
+  font-size: 14px;
+}
+
+.dld-dumbbell-values em {
+  font-style: normal;
+}
+
+.dld-dumbbell-values [data-end="group"] {
+  color: var(--d-accent-2);
+}
+
+.dld-dumbbell-values [data-end="rest"] {
+  color: var(--d-ink-2);
+}
+
+@container (width < 34rem) {
+  .dld-dumbbell-scale {
+    margin: 0;
+  }
+
+  .dld-dumbbell-rows li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .dld-dumbbell-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }
 
 /* ============================================================================

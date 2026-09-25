@@ -30,7 +30,7 @@ import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 import type { CredentialStatusRow } from "@observer/sources";
 import type { MarkTone } from "@/components/madspace/StatusMark";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
+import { outcomeIsUnknown, type MeetingOutcome, type ShowroomSession } from "@observer/contracts";
 import type {
   AgentDetailView,
   AgentOutcomeRing,
@@ -50,6 +50,7 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
+import { OUTCOME_STACK_KEYS } from "@/showroom/charts";
 
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
@@ -369,6 +370,9 @@ const D_EARLIER: PeriodPreset = "last_quarter";
 const D_LATER: PeriodPreset = "quarter_to_date";
 /** Sales Flow's default KPI window, so the KPI card says what that page says. */
 const D_WINDOW: KpiWindowId = "month";
+/** Beyond this many lines a parallel-coordinates plot stops being read; above it the gallery cuts, and says so. */
+const D_PARALLEL_MAX = 15;
+
 export interface DFigure {
   readonly label: string;
   readonly value: string;
@@ -407,6 +411,74 @@ export interface DRadarCard {
   readonly facts: DFacts;
 }
 
+export interface DParallelCard {
+  readonly axes: readonly string[];
+  readonly axisNotes: readonly string[];
+  readonly lines: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly values: readonly number[];
+  }[];
+  readonly withheld: readonly DWithheld[];
+  /** Null when every eligible line is drawn. */
+  readonly cut: { readonly drawn: number; readonly of: number } | null;
+  readonly facts: DFacts;
+}
+
+/** An arc as fractions of the full turn, decided here so the drawing only converts them to angles. */
+export interface DArc {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+  readonly from: number;
+  readonly to: number;
+  /** `OUTCOME_TONE`, through `OUTCOME_STACK_KEYS`, on the outcome ring; null on the agent ring. */
+  readonly colour: string | null;
+  readonly parent: string | null;
+}
+
+export interface DSunburstCard {
+  readonly total: number;
+  readonly inner: readonly DArc[];
+  readonly outer: readonly DArc[];
+  /** The outcomes the outer ring holds, in ladder order, for its key. */
+  readonly outcomes: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly colour: string;
+  }[];
+  readonly facts: DFacts;
+}
+
+export interface DHourCount {
+  readonly hour: number;
+  readonly label: string;
+  readonly count: number;
+}
+
+export interface DRadialCard {
+  readonly hours: readonly DHourCount[];
+  readonly peak: number;
+  readonly total: number;
+  readonly facts: DFacts;
+}
+
+export interface DPunchCard {
+  readonly agents: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly meetings: number;
+  }[];
+  readonly hours: readonly { readonly hour: number; readonly label: string }[];
+  readonly cells: readonly {
+    readonly agentId: string;
+    readonly hour: number;
+    readonly count: number;
+  }[];
+  readonly peak: number;
+  readonly facts: DFacts;
+}
+
 export interface DDumbbellRow {
   readonly id: string;
   readonly label: string;
@@ -416,6 +488,15 @@ export interface DDumbbellRow {
   /** The same behaviour among every other recorded meeting. The read model prints it as `comparisonNote`. */
   readonly comparisonShare: number;
   readonly comparisonDisplay: string;
+}
+
+export interface DDumbbellCard {
+  readonly cohortLabel: string;
+  readonly comparisonLabel: string;
+  readonly rows: readonly DDumbbellRow[];
+  /** The read model's own sentence when the group is empty; null otherwise. */
+  readonly empty: string | null;
+  readonly facts: DFacts;
 }
 
 export interface DScatterCard {
@@ -485,6 +566,11 @@ export interface LabChartsD {
     readonly note: string | null;
     readonly facts: DFacts;
   } | null;
+  readonly parallel: DParallelCard;
+  readonly sunburst: DSunburstCard;
+  readonly radial: DRadialCard;
+  readonly punch: DPunchCard;
+  readonly dumbbell: DDumbbellCard;
 }
 
 /**
@@ -537,6 +623,20 @@ function topThree<T>(
     .sort((a, b) => b.v - a.v || a.i - b.i)
     .slice(0, 3)
     .map((e) => row(e.item));
+}
+
+function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
+}
+
+/** The session's own hour in the project's time zone — the office's hour, as the weekday grid reads it. */
+function hourReader(timeZone: string): (iso: string) => number {
+  const format = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    hourCycle: "h23",
+  });
+  return (iso) => Number(format.format(new Date(iso)));
 }
 
 interface BehaviourShares {
@@ -636,7 +736,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     repository.getSessionSlice(laterQuery),
   ]);
 
-  const { locale, name: projectName } = flow.context.project;
+  const { locale, timeZone, name: projectName } = flow.context.project;
   const periodLabel = flow.context.period.label;
   const earlierLabel = earlierCharts.context.period.label;
   const laterLabel = laterCharts.context.period.label;
@@ -663,7 +763,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   );
   const workloadNote = "Ordered by how many they presented, never by how they ended.";
 
-  /* --- the radar, three ways ---------------------------------------------------- */
+  /* --- the radar, three ways, and parallel coordinates ------------------------ */
 
   const meetingsOf = new Map(agentCharts.ranked.map((r) => [r.id, r.value]));
   const radar = agentCharts.radar;
@@ -735,6 +835,39 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       rankingTitle: "Presentations given",
       ranking: workloadRows,
       rankingNote: workloadNote,
+    },
+  };
+
+  const lines = drawn.slice(0, D_PARALLEL_MAX).map((p) => ({
+    id: p.id,
+    label: nameOf.get(p.id) ?? p.label,
+    values: p.values,
+  }));
+  const spread = radar.axes.map((axis, i) => {
+    const values = lines.map((l) => l.values[i] ?? 0);
+    return { axis, v: values.length < 2 ? 0 : Math.max(...values) - Math.min(...values) };
+  });
+  const parallel: DParallelCard = {
+    axes: radar.axes,
+    axisNotes: radar.axisNotes,
+    lines,
+    withheld,
+    cut: drawn.length > D_PARALLEL_MAX ? { drawn: D_PARALLEL_MAX, of: drawn.length } : null,
+    facts: {
+      figures: [
+        figure("Lines drawn", n(lines.length), `of ${n(radar.profiles.length)} agents`),
+        withheldFigure,
+      ],
+      rankingTitle: "Where the drawn agents differ most",
+      ranking: topThree(
+        spread,
+        (e) => e.v,
+        (e) => ({ id: e.axis, label: e.axis, value: `${pct(e.v)} apart` }),
+      ),
+      rankingNote:
+        lines.length < 2
+          ? "One line has nothing to differ from."
+          : "The gap between the highest and lowest drawn line on each axis, as a share of the strongest.",
     },
   };
 
@@ -810,7 +943,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- the outcome ring ------------------------------------------------------------ */
+  /* --- the outcome ring and the two-level sunburst ------------------------------- */
 
   const recorded = flow.outcomes.filter((s) => !outcomeIsUnknown(s.outcome));
   const recordedCount = recorded.reduce((a, s) => a + s.count, 0);
@@ -832,7 +965,70 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- behaviour: the funnel three ways ------------------------------------------- */
+  const colourOf = new Map(OUTCOME_STACK_KEYS.map((k) => [k.id, k.colour]));
+  const ladder = OUTCOME_STACK_KEYS.map((k) => k.id as MeetingOutcome);
+  const ringsTotal = byWorkload.reduce((a, r) => a + r.meetings, 0);
+  same("the sunburst's meetings", ringsTotal, flow.meetingCount);
+  const inner: DArc[] = [];
+  const outer: DArc[] = [];
+  let cursor = 0;
+  for (const r of byWorkload) {
+    const from = cursor;
+    const to = cursor + r.meetings / ringsTotal;
+    inner.push({
+      id: r.agentId,
+      label: r.name,
+      count: r.meetings,
+      from,
+      to,
+      colour: null,
+      parent: null,
+    });
+    same(
+      `${r.name}'s outcome slices`,
+      r.slices.reduce((a, s) => a + s.count, 0),
+      r.meetings,
+    );
+    let at = from;
+    for (const outcome of ladder) {
+      const part = r.slices.find((s) => s.outcome === outcome);
+      if (part === undefined || part.count === 0) continue;
+      const end = at + part.count / ringsTotal;
+      outer.push({
+        id: `${r.agentId}|${outcome}`,
+        label: part.label,
+        count: part.count,
+        from: at,
+        to: end,
+        colour: colourOf.get(outcome) ?? null,
+        parent: r.agentId,
+      });
+      at = end;
+    }
+    cursor = to;
+  }
+  const present = new Set(outer.map((a) => a.id.split("|")[1]));
+  const sunburst: DSunburstCard = {
+    total: ringsTotal,
+    inner,
+    outer,
+    outcomes: OUTCOME_STACK_KEYS.filter((k) => present.has(k.id)).map((k) => ({
+      id: k.id,
+      label: k.label,
+      colour: k.colour,
+    })),
+    facts: {
+      figures: [
+        figure("Meetings", n(ringsTotal), periodLabel),
+        figure("Agents", n(byWorkload.length), "the inner ring, by workload"),
+      ],
+      rankingTitle: "Presentations given",
+      ranking: workloadRows,
+      rankingNote: `${workloadNote} The outer ring is each agent's own outcome mix.`,
+    },
+  };
+
+  /* --- behaviour: the funnel three ways, and the dumbbell ------------------------ */
 
   const funnel = charts.funnel;
   const now = behaviourShares(funnel, sessions, pct, periodLabel);
@@ -921,7 +1117,30 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- when meetings happen: the grid three ways ----------------------------------- */
+  const gaps = now.rows.map((r) => ({ r, v: Math.abs(r.share - r.comparisonShare) }));
+  const dumbbell: DDumbbellCard = {
+    cohortLabel: funnel.cohortLabel,
+    comparisonLabel: funnel.comparisonLabel,
+    rows: now.rows,
+    empty: funnel.empty,
+    facts: {
+      figures: [groupFigure, restFigure],
+      rankingTitle: "Widest gaps",
+      ranking: topThree(
+        gaps,
+        (g) => g.v,
+        (g) => ({
+          id: g.r.id,
+          label: g.r.label,
+          value: `${g.r.share >= g.r.comparisonShare ? "+" : "−"}${n(Math.round(g.v * 100))} points`,
+        }),
+      ),
+      rankingNote:
+        "The group against every other recorded meeting. It describes the group; it does not explain it.",
+    },
+  };
+
+  /* --- when meetings happen: the grid three ways, the dial, the punch card ------- */
 
   const activity = charts.activity;
   const cell = (r: string, c: string) => activity.cells[`${r}|${c}`] ?? 0;
@@ -1002,6 +1221,98 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       rankingTitle: "Busiest weekdays",
       ranking: busiestDays,
       rankingNote: "Every hour of the grid added together, day by day.",
+    },
+  };
+
+  const hourOf = hourReader(timeZone);
+  const hourCounts = Array.from({ length: 24 }, () => 0);
+  const agentHour = new Map<string, number>();
+  for (const s of sessions) {
+    const h = hourOf(s.startedAt);
+    hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+    const key = `${s.agentId}|${h}`;
+    agentHour.set(key, (agentHour.get(key) ?? 0) + 1);
+  }
+  /* The dial and the grid read the same meetings; on the grid's hours they must agree. */
+  for (const h of hourSums) same(`the ${h.id} column`, hourCounts[h.hour] ?? 0, h.v);
+  const hours: DHourCount[] = hourCounts.map((count, hour) => ({
+    hour,
+    label: hourLabel(hour),
+    count,
+  }));
+  const radialPeak = Math.max(0, ...hourCounts);
+  const radial: DRadialCard = {
+    hours,
+    peak: radialPeak,
+    total: sessions.length,
+    facts: {
+      figures: [
+        figure("Meetings", n(sessions.length), `${periodLabel}, all 24 hours`),
+        figure("Busiest hour", hourLabel(hourCounts.indexOf(radialPeak)), meetings(radialPeak)),
+      ],
+      rankingTitle: "Busiest hours",
+      ranking: topThree(
+        hours,
+        (h) => h.count,
+        (h) => ({ id: h.label, label: h.label, value: meetings(h.count) }),
+      ),
+      rankingNote: "Starting hour in the project's own time zone, every weekday together.",
+    },
+  };
+
+  const used = hourCounts.flatMap((c, h) => (c > 0 ? [h] : []));
+  const spanFrom = used.length === 0 ? 0 : Math.min(...used);
+  const spanTo = used.length === 0 ? -1 : Math.max(...used);
+  const punchHours = Array.from({ length: spanTo - spanFrom + 1 }, (_, i) => spanFrom + i).map(
+    (hour) => ({ hour, label: hourLabel(hour) }),
+  );
+  const punchCells = byWorkload.flatMap((r) =>
+    punchHours.map((h) => ({
+      agentId: r.agentId,
+      hour: h.hour,
+      count: agentHour.get(`${r.agentId}|${h.hour}`) ?? 0,
+    })),
+  );
+  same(
+    "the punch card's meetings",
+    punchCells.reduce((a, c) => a + c.count, 0),
+    sessions.length,
+  );
+  /* The ranking's first row as a cell, so the figure can print the hour and the name apart. */
+  const busiestCell = punchCells
+    .filter((c) => c.count > 0)
+    .reduce<(typeof punchCells)[number] | undefined>(
+      (best, c) => (best === undefined || c.count > best.count ? c : best),
+      undefined,
+    );
+  const busiestCells = topThree(
+    punchCells,
+    (c) => c.count,
+    (c) => ({
+      id: `${c.agentId}|${c.hour}`,
+      label: `${nameOf.get(c.agentId) ?? c.agentId} · ${hourLabel(c.hour)}`,
+      value: meetings(c.count),
+    }),
+  );
+  const punch: DPunchCard = {
+    agents: byWorkload.map((r) => ({ id: r.agentId, label: r.name, meetings: r.meetings })),
+    hours: punchHours,
+    cells: punchCells,
+    peak: Math.max(0, ...punchCells.map((c) => c.count)),
+    facts: {
+      figures: [
+        figure("Meetings", n(sessions.length), `${n(byWorkload.length)} agents, ${period}`),
+        figure(
+          "Busiest agent-hour",
+          busiestCell === undefined ? "None" : hourLabel(busiestCell.hour),
+          busiestCell === undefined
+            ? null
+            : `${nameOf.get(busiestCell.agentId) ?? busiestCell.agentId}, ${meetings(busiestCell.count)}`,
+        ),
+      ],
+      rankingTitle: "Busiest agent-hours",
+      ranking: busiestCells,
+      rankingNote: "Workload by the hour. How a meeting ended plays no part in this order.",
     },
   };
 
@@ -1198,5 +1509,10 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     ranked,
     kpi,
     sequence,
+    parallel,
+    sunburst,
+    radial,
+    punch,
+    dumbbell,
   };
 }

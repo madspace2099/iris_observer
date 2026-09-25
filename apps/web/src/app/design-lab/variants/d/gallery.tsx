@@ -17,7 +17,17 @@ import {
 import type { DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
 import { DCard, Sized } from "./card";
 import { DDefs } from "./defs";
-import { Scatter, ScatterKey, seriesTone } from "./forms";
+import {
+  Dumbbell,
+  Parallel,
+  PunchCard,
+  RadialHistogram,
+  Scatter,
+  ScatterKey,
+  Sunburst,
+  SunburstKey,
+  seriesTone,
+} from "./forms";
 
 /**
  * VARIANT D. THE HYPER KIT'S TREATMENT, ON THE PRODUCT'S OWN CHARTS.
@@ -462,6 +472,100 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             />
             <ScatterKey data={data.scatter} />
             <Withheld rows={data.scatter.withheld} />
+          </DCard>
+        </div>
+      </section>
+
+      <section className="dld-section" aria-labelledby="dld-b">
+        <div className="dld-section-head">
+          <h2 id="dld-b">B · New forms, over aggregates lab-data.ts composes</h2>
+          <p>
+            Each aggregate is counted in <code>lab-data.ts</code> from the port&rsquo;s own session
+            slice and checked against the read model before anything is drawn.
+          </p>
+        </div>
+
+        <div className="dld-grid">
+          <DCard
+            id="parallel"
+            group="B · Parallel coordinates"
+            title="Every agent across the six axes"
+            reads={reads("AgentRadar.axes, profiles[].values")}
+            facts={data.parallel.facts}
+            kind="sweep"
+            wide
+          >
+            <Sized
+              xl={<Parallel data={data.parallel} size="xl" />}
+              l={<Parallel data={data.parallel} size="l" />}
+            />
+            {data.parallel.cut === null ? null : (
+              <p className="dld-note">
+                {data.parallel.cut.drawn} of {data.parallel.cut.of} lines drawn; beyond{" "}
+                {data.parallel.cut.drawn} the lines stop being read, so the rest are cut.
+              </p>
+            )}
+            <Withheld rows={data.parallel.withheld} />
+          </DCard>
+
+          <DCard
+            id="sunburst"
+            group="B · Sunburst, two levels"
+            title="Who presented, and how each one's meetings ended"
+            reads={reads("SalesFlowView.rings")}
+            facts={data.sunburst.facts}
+            kind="turn"
+          >
+            <div className="dld-centred">
+              <Sized
+                xl={<Sunburst data={data.sunburst} size="xl" />}
+                l={<Sunburst data={data.sunburst} size="l" />}
+              />
+            </div>
+            <SunburstKey data={data.sunburst} />
+          </DCard>
+
+          <DCard
+            id="radial"
+            group="B · Radial histogram"
+            title="The day, hour by hour"
+            reads={reads("the session slice, by starting hour")}
+            facts={data.radial.facts}
+            kind="turn"
+          >
+            <div className="dld-centred">
+              <Sized
+                xl={<RadialHistogram data={data.radial} size="xl" />}
+                l={<RadialHistogram data={data.radial} size="l" />}
+              />
+            </div>
+          </DCard>
+
+          <DCard
+            id="punch"
+            group="B · Punch card"
+            title="Who presents at which hour"
+            reads={reads("the session slice, by agent and starting hour")}
+            facts={data.punch.facts}
+            kind="bloom"
+            wide
+          >
+            <Sized
+              xl={<PunchCard data={data.punch} size="xl" />}
+              l={<PunchCard data={data.punch} size="l" />}
+            />
+          </DCard>
+
+          <DCard
+            id="dumbbell"
+            group="B · Dumbbell"
+            title="The group, against every other recorded meeting"
+            reads={reads("FlowCharts.funnel, as numbers")}
+            facts={data.dumbbell.facts}
+            kind="sweep"
+            wide
+          >
+            <Dumbbell data={data.dumbbell} />
           </DCard>
         </div>
       </section>
