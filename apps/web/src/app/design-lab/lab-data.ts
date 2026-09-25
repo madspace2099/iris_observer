@@ -30,7 +30,7 @@ import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 import type { CredentialStatusRow } from "@observer/sources";
 import type { MarkTone } from "@/components/madspace/StatusMark";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
+import { hasProgressed, outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
 import type {
   AgentDetailView,
   AgentOutcomeRing,
@@ -363,6 +363,13 @@ const D_PERIOD: PeriodPreset = "year_to_date";
 const D_WINDOW: KpiWindowId = "month";
 /** Beyond this many lines a parallel-coordinates plot stops being read; above it the gallery cuts, and says so. */
 const D_PARALLEL_MAX = 15;
+/** The attention × conversion frame's four cells, in `QuadrantMatrix`'s own words. */
+export const D_QUADRANT_NAME: Readonly<Record<string, string>> = {
+  hero: "Hero",
+  mispriced: "Mispriced or oversold",
+  hidden_gem: "Hidden gem",
+  dead_stock: "Dead stock",
+};
 
 export interface DFigure {
   readonly label: string;
@@ -380,9 +387,20 @@ export interface DRankRow {
   readonly value: string;
 }
 
+/**
+ * What a card says besides its drawing.
+ *
+ * `note` and `summary` are required for the reason `ChartFrame` requires them,
+ * and they mean what they mean there: the note is the metric's definition,
+ * precise enough to argue with — what is counted, over which set, what is left
+ * out — and it is printed; the summary is what a reader who cannot see the
+ * drawing is told instead, and it is not.
+ */
 export interface DFacts {
   /** The one sentence the card leads with, where the drawing has one thing to say; it describes, never explains. */
   readonly lead?: string;
+  readonly note: string;
+  readonly summary: string;
   readonly figures: readonly [DFigure, DFigure];
   readonly rankingTitle: string;
   readonly ranking: readonly DRankRow[];
@@ -618,6 +636,16 @@ function topThree<T>(
     .map((e) => row(e.item));
 }
 
+/** "a, b and c": the lab's words are English whatever locale formats its figures. */
+const listWords = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" });
+const listOrWords = new Intl.ListFormat("en-GB", { style: "long", type: "disjunction" });
+function list(items: readonly string[]): string {
+  return listWords.format(items);
+}
+function listOr(items: readonly string[]): string {
+  return listOrWords.format(items);
+}
+
 function hourLabel(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
@@ -742,6 +770,18 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   );
   const radarNote =
     "Each spoke is scaled to the strongest agent on it. Wider is a different way of presenting, not a better one.";
+  /* The definition all four agent-shape cards print; the six measures themselves are listed under each drawing. */
+  const shapeNote = (scale: string) =>
+    `Six measures of how an agent presented ${period}, each defined under the drawing. Every value is divided by the highest any agent reached on the same measure, so ${scale}. An agent under ${n(AGENT_MIN_SAMPLE)} meetings is not drawn.`;
+  const radarDefinition = shapeNote(
+    "a spoke's outer end is the strongest agent on it and the centre is nought",
+  );
+  const shapeOf = (id: string, values: readonly number[]) =>
+    `${nameOf.get(id) ?? id}: ${list(radar.axes.map((axis, i) => `${axis} ${pct(values[i] ?? 0)}`))} of the strongest`;
+  const withheldWords =
+    withheld.length === 0
+      ? ""
+      : ` Not drawn, under ${n(AGENT_MIN_SAMPLE)} meetings: ${list(withheld.map((w) => w.label))}.`;
 
   const profileCard = (profile: RadarProfile | undefined): DRadarCard => {
     if (profile === undefined) {
@@ -751,6 +791,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         profiles: [],
         withheld,
         facts: {
+          note: radarDefinition,
+          summary: `No agent presented ${n(AGENT_MIN_SAMPLE)} meetings ${period}, so no shape is drawn.${withheldWords}`,
           figures: [
             figure("Profiles drawn", n(0), `of ${n(radar.profiles.length)} agents`),
             withheldFigure,
@@ -768,6 +810,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       profiles: [profile],
       withheld,
       facts: {
+        note: radarDefinition,
+        summary: `${shapeOf(profile.id, profile.values)}, over ${meetings(meetingsOf.get(profile.id) ?? 0)}.${withheldWords}`,
         figures: [
           figure("Meetings", n(meetingsOf.get(profile.id) ?? 0), `${name}, ${period}`),
           withheldFigure,
@@ -789,6 +833,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     profiles: drawn,
     withheld,
     facts: {
+      note: radarDefinition,
+      summary: `${n(drawn.length)} shapes overlaid. ${drawn.map((p) => `${shapeOf(p.id, p.values)}.`).join(" ")}${withheldWords}`,
       figures: [
         figure("Profiles overlaid", n(drawn.length), `of ${n(radar.profiles.length)} agents`),
         withheldFigure,
@@ -815,6 +861,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     withheld,
     cut: drawn.length > D_PARALLEL_MAX ? { drawn: D_PARALLEL_MAX, of: drawn.length } : null,
     facts: {
+      note: shapeNote("an axis's top is the strongest agent on it and its foot is nought"),
+      summary: `${n(lines.length)} lines, one per agent. ${lines.map((l) => `${shapeOf(l.id, l.values)}.`).join(" ")}${withheldWords}`,
       figures: [
         figure("Lines drawn", n(lines.length), `of ${n(radar.profiles.length)} agents`),
         withheldFigure,
@@ -880,10 +928,31 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       : [{ id: `${from.id}-${to.id}`, from, to, lost: from.count - to.count }];
   });
   const lastStop = stops[stops.length - 1];
+  /* What each stage counts, as `buildJourney` tests it; a stage this does not know is refused rather than described. */
+  const progressedWords = listOr(
+    charts.composition.keys.filter((k) => hasProgressed(k.id)).map((k) => `"${k.label}"`),
+  );
+  const stageWords: Readonly<Record<string, string>> = {
+    all: `every meeting ${period}`,
+    opened: "a meeting in which at least one unit was opened",
+    shortlisted: "one of those in which at least one unit was favourited",
+    progressed: `one of those whose recorded outcome is ${progressedWords}`,
+  };
+  const journeyNote = `${journey.stages
+    .map((s) => {
+      const words = stageWords[s.id];
+      if (words === undefined) refuse(`a journey stage this gallery does not know, "${s.id}"`);
+      return `"${s.label}" is ${words}`;
+    })
+    .join(
+      "; ",
+    )}. A band is what reached that step, and the share beside it is out of the first band.`;
   const journeyFunnel: DJourneyCard = {
     steps: journeySteps,
     merged: mergedStages.length === 0 ? null : mergedStages.join(" "),
     facts: {
+      note: journeyNote,
+      summary: `${journeySteps.map((s) => `${s.label} ${s.countDisplay}, ${s.shareDisplay} of the first band`).join("; ")}.`,
       lead:
         lastStop === undefined
           ? undefined
@@ -932,6 +1001,21 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     projectShareDisplay: projectShare === null ? null : pct(projectShare),
     indexMax: Math.max(2, Math.ceil(Math.max(0, ...segments.map((s) => s.index)) * 2) / 2),
     facts: {
+      note: `${projectView.matrixNote} A decided meeting is one that opened a unit of the segment and recorded an outcome. The upright line is parity, 1.00×; the level line is the project's share.`,
+      summary: `${placed
+        .map(
+          (s) =>
+            `${s.label}: ${s.index.toFixed(2)}× the attention its share of stock would give it, and ${pct(s.conversion.share ?? 0)} of its ${n(s.conversion.decided)} decided meetings progressed: ${D_QUADRANT_NAME[s.conversion.quadrant ?? ""] ?? "no cell"}.`,
+        )
+        .join(" ")}${
+        placed.length === segments.length
+          ? ""
+          : ` Not placed: ${list(
+              segments
+                .filter((s) => !placed.includes(s))
+                .map((s) => `${s.label} (${s.conversion.withheld ?? "no reason given"})`),
+            )}.`
+      }`,
       figures: [
         figure("Segments placed", n(placed.length), `of ${n(segments.length)}`),
         figure(
@@ -958,6 +1042,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     slices: flow.outcomes,
     total: flow.meetingCount,
     facts: {
+      note: `Every meeting ${period} by the outcome recorded at its end. Each share is out of all ${meetings(flow.meetingCount)}, the ${n(flow.meetingCount - recordedCount)} with no outcome recorded included, so the recorded outcomes add up to less than the whole.`,
+      summary: `${meetings(flow.meetingCount)} ${period}: ${list(flow.outcomes.map((s) => `${s.label} ${n(s.count)} (${pct(s.share)})`))}.`,
       figures: [
         figure("Meetings", n(flow.meetingCount), periodLabel),
         figure("Outcome recorded", n(recordedCount), `of ${n(flow.meetingCount)}`),
@@ -1048,6 +1134,21 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     stepLabels: funnel.steps.map((s) => s.label),
     groups: outcomeGroups,
     facts: {
+      note: `A group is the meetings ${period} that ended with one outcome recorded; the ${n(sessions.length - inDrawn - inSmaller)} with no outcome recorded are in none. Each band counts the group's meetings that did this and every behaviour above it, so the bands narrow, and the first band is the whole group. A group under ${n(AGENT_MIN_SAMPLE)} meetings is counted, not drawn. What a group's meetings had in common is not evidence that any behaviour produced the outcome.`,
+      summary: `${drawnGroups
+        .map(
+          (g) =>
+            `${g.label}, ${g.meetingsDisplay}: ${list((g.steps ?? []).map((s) => `${s.label} ${s.countDisplay}`))}.`,
+        )
+        .join(" ")}${
+        drawnGroups.length === outcomeGroups.length
+          ? ""
+          : ` Counted, not drawn: ${list(
+              outcomeGroups
+                .filter((g) => g.steps === null)
+                .map((g) => `${g.label} ${g.meetingsDisplay}`),
+            )}.`
+      }`,
       figures: [
         figure(
           "Funnels drawn",
@@ -1080,6 +1181,11 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     rows: now.rows,
     empty: funnel.empty,
     facts: {
+      note: `Each behaviour on its own, not nested: the share of the ${meetings(now.cohort)} ${period} that ended "not interested" which showed it, against the same share among the ${n(now.rest)} other meetings with an outcome recorded. Meetings with no outcome recorded are in neither. It describes the group; it does not explain it.`,
+      summary:
+        now.rows.length === 0
+          ? (funnel.empty ?? "There is no group to describe.")
+          : `${now.rows.map((r) => `${r.label}: ${r.shareDisplay} in the group, ${r.comparisonDisplay} in every other recorded meeting`).join("; ")}.`,
       figures: [groupFigure, restFigure],
       rankingTitle: "Widest gaps",
       ranking: topThree(
@@ -1114,9 +1220,15 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     n(activity.meetingsCounted),
     `of ${n(flow.meetingCount)}; the grid runs ${gridSpan}`,
   );
+  const lastColumn = activity.columns[activity.columns.length - 1] ?? "";
+  const outsideGrid = flow.meetingCount - activity.meetingsCounted;
+  const gridNote = `Meetings ${period} by weekday and the hour they started, in the project's own time zone (${timeZone}), for starts from ${activity.columns[0] ?? ""} to ${lastColumn.slice(0, 2)}:59. ${outsideGrid === 0 ? "Every meeting started inside those hours." : `The ${meetings(outsideGrid)} that started outside those hours are not in the grid.`} Every cell prints its own count; an outlined empty cell is none.`;
+  const inTheGrid = `${n(activity.meetingsCounted)} of ${meetings(flow.meetingCount)} started inside the grid.`;
   const heatmapBasic = {
     activity,
     facts: {
+      note: gridNote,
+      summary: `${inTheGrid} By weekday: ${list(activity.rows.map((r) => `${r} ${n(activity.columns.reduce((a, c) => a + cell(r, c), 0))}`))}.${activity.busiest === null ? "" : ` The busiest slot is ${activity.busiest.weekday} ${activity.busiest.hour}, with ${meetings(activity.busiest.meetings)}.`}`,
       figures: [
         inGrid,
         activity.busiest === null
@@ -1139,6 +1251,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const heatmapGradient = {
     activity,
     facts: {
+      note: gridNote,
+      summary: `${inTheGrid} By starting hour: ${list(hourSums.map((h) => `${h.id} ${n(h.v)}`))}.${activity.quietest === null ? "" : ` The quietest weekday is ${activity.quietest.weekday}, with ${meetings(activity.quietest.meetings)}.`}`,
       figures: [
         inGrid,
         activity.quietest === null
@@ -1180,6 +1294,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     peak: radialPeak,
     total: sessions.length,
     facts: {
+      note: `Every meeting ${period} by the hour it started, in the project's own time zone (${timeZone}), round all 24 hours. A bar's length is its count against the busiest hour; an hour with none has no bar.`,
+      summary: `${meetings(sessions.length)} by starting hour: ${list(hours.filter((h) => h.count > 0).map((h) => `${h.label} ${n(h.count)}`))}; no meeting started in any other hour.`,
       figures: [
         figure("Meetings", n(sessions.length), `${periodLabel}, all 24 hours`),
         figure("Busiest hour", hourLabel(hourCounts.indexOf(radialPeak)), meetings(radialPeak)),
@@ -1234,6 +1350,17 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     cells: punchCells,
     peak: Math.max(0, ...punchCells.map((c) => c.count)),
     facts: {
+      note: `Every meeting ${period} by the agent who presented it and the hour it started, in the project's own time zone. A dot's area is its count against the busiest agent-hour; a point is an hour with none. Rows run by workload, the busiest agent first.`,
+      summary: `${byWorkload
+        .map(
+          (r) =>
+            `${r.name}: ${list(
+              punchCells
+                .filter((c) => c.agentId === r.agentId && c.count > 0)
+                .map((c) => `${hourLabel(c.hour)} ${n(c.count)}`),
+            )}.`,
+        )
+        .join(" ")}`,
       figures: [
         figure("Meetings", n(sessions.length), `${n(byWorkload.length)} agents, ${period}`),
         figure(
@@ -1257,6 +1384,19 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const bullet = {
     targets,
     facts: {
+      note:
+        targets.length === 0
+          ? "The plan holds no target, so there is nothing to measure against."
+          : `${targets.map((t) => `${t.label}: ${t.note}`).join(" ")} "Needed by now" is where a straight line from the plan's start to its target date stands today.`,
+      summary:
+        targets.length === 0
+          ? "The plan holds no target."
+          : `${targets
+              .map(
+                (t) =>
+                  `${t.label}: ${t.actual === null ? "unavailable" : n(t.actual)} against a target of ${n(t.target)}, with ${n(Math.round(t.pace))} needed by now`,
+              )
+              .join("; ")}.`,
       figures: [
         firstTarget === undefined
           ? figure("Sold", "Unavailable", "the plan holds no target")
@@ -1288,6 +1428,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const stacked = {
     composition,
     facts: {
+      note: `Every meeting ${period} by the calendar month it started in, in the project's own time zone, split by the outcome recorded at its end. "${composition.keys.find((k) => outcomeIsUnknown(k.id))?.label ?? "Outcome not recorded"}" is a part of its own, not a nought. A month with no meeting has no column, and the last column runs to today.`,
+      summary: `${meetings(compositionTotal)} by month: ${list(composition.columns.map((c) => `${c.label} ${n(c.total)}`))}.`,
       figures: [
         figure("Meetings", n(compositionTotal), `across ${n(composition.columns.length)} columns`),
         figure("Columns", n(composition.columns.length), periodLabel),
@@ -1306,9 +1448,16 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const weeklyTotal = weekly.points.reduce((a, p) => a + p.value, 0);
   same("the weekly series' meetings", weeklyTotal, flow.meetingCount);
   const lastWeek = weekly.points[weekly.points.length - 1];
+  const firstWeek = weekly.points[0];
+  const weekValues = weekly.points.map((p) => p.value);
   const sparkline = {
     series: weekly,
     facts: {
+      note: `Meetings started in each week ${period}, Monday to Sunday in the project's own time zone, from the first week with a meeting to the last; a week between them with none is drawn at nought. Every meeting counts once, whatever its outcome. The week the period opens in and the week it closes in can each hold only part of a week.`,
+      summary:
+        firstWeek === undefined || lastWeek === undefined
+          ? `No meeting ${period}.`
+          : `${meetings(weeklyTotal)} over ${n(weekly.points.length)} weeks: ${n(firstWeek.value)} in the week of ${firstWeek.label}, ${n(lastWeek.value)} in the week of ${lastWeek.label}. The busiest week held ${n(Math.max(...weekValues))}, the quietest ${n(Math.min(...weekValues))}.`,
       figures: [
         /* The series' own label is a rate ("per week"); its sum is a count, and says so. */
         figure("Meetings", n(weeklyTotal), `${periodLabel}, all ${n(weekly.points.length)} weeks`),
@@ -1337,9 +1486,26 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     f === undefined
       ? figure("Not measured", "None", null)
       : figure(f.label, f.value, f.qualifier, f.delta, f.tone);
+  /* The panel's own group definitions; a figure in no group is defined here, from how `buildKpis` measures it. */
+  const kpiGroupWords = charts.kpis.groups
+    .filter((g) => g.figureIds.length > 0)
+    .map((g) => `${g.label}: ${g.definition}`);
+  const kpiUngroupedWords: Readonly<Record<string, string>> = {
+    duration: "Typical length: the median length of the meetings the source timed end to end.",
+  };
   const kpi = {
     figure: presentations,
     facts: {
+      note: [
+        `${charts.kpis.windowLabel}, closing at the end of the project's own day; each figure is set against the same length of time just before it.`,
+        ...kpiGroupWords,
+        ...charts.kpis.ungrouped.map((id) => {
+          const words = kpiUngroupedWords[id];
+          if (words === undefined) refuse(`a KPI figure this gallery cannot define, "${id}"`);
+          return words;
+        }),
+      ].join(" "),
+      summary: `${charts.kpis.windowLabel}: ${kpiFigures.map((f) => `${f.label} ${f.value}${f.delta === null ? "" : ` (${f.delta} against the time before)`}`).join("; ")}.`,
       figures: [asFigure(others[0]), asFigure(others[1])] as const,
       rankingTitle: "The rest of the panel",
       ranking: others.slice(2, 5).map((f) => ({ id: f.id, label: f.label, value: f.value })),
@@ -1353,14 +1519,29 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const detail = lead === undefined ? null : await repository.getAgentDetail(query, lead.id);
   const leadName = detail?.name ?? "No agent above the floor";
   const leadWeeks = detail?.sessionsOverTime.points ?? [];
+  /*
+   * The agent page's weeks are not the Sales Flow's. `sessionsOverTime` counts
+   * seven-day spans from the period's first moment, and keeps the last twelve;
+   * the note says so rather than letting a reader take them for calendar weeks.
+   */
+  const periodOpens = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone }).format(
+    new Date(flow.context.period.from),
+  );
+  const trendSeries = detail === null || detail.belowMinimum ? null : detail.sessionsOverTime;
   const trend = {
     agentLabel: leadName,
-    series: detail === null || detail.belowMinimum ? null : detail.sessionsOverTime,
+    series: trendSeries,
     note:
       detail === null
         ? `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`
         : detail.suppressionNote,
     facts: {
+      note: `Meetings ${leadName} presented in each of the period's last ${n(leadWeeks.length)} seven-day spans. The spans are counted from the moment the period opens, a ${periodOpens}, so they are not calendar weeks, and the last one closes today and can be short. Every meeting counts once, whatever its outcome. The line is drawn only for an agent with ${n(AGENT_MIN_SAMPLE)} meetings or more.`,
+      summary:
+        trendSeries === null
+          ? (detail?.suppressionNote ??
+            `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`)
+          : `${leadName}, by the day each seven-day span opens: ${list(leadWeeks.map((p) => `${p.label} ${n(p.value)}`))}.`,
       figures: [
         figure("Meetings", n(detail?.sampleSize ?? 0), `${leadName}, ${period}`),
         figure("Weeks drawn", n(leadWeeks.length), "part-weeks drawn as what they hold"),
@@ -1384,6 +1565,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
           showTeam: !detail.belowMinimum,
           note: detail.belowMinimum ? detail.suppressionNote : null,
           facts: {
+            note: `The sections in the order ${detail.name} usually opens them, from each section's mean position across their ${meetings(detail.sampleSize)} ${period}. A time is their median stay in that section, and its bar is set against their own longest stop.${detail.belowMinimum ? ` Below ${n(AGENT_MIN_SAMPLE)} meetings the team's median is not set beside it.` : ` "Team" is every agent's median stay in the same section.`}`,
+            summary: `${detail.name}'s usual running order, with the median stay in each: ${sections.map((s) => `${s.label} (${s.dwellDisplay})`).join(", then ")}.`,
             figures: [
               figure("Meetings", n(detail.sampleSize), detail.name),
               figure("Sections", n(sections.length), "in their usual running order"),
@@ -1404,6 +1587,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const ranked = {
     rows: agentCharts.ranked,
     facts: {
+      note: `Presentations each agent gave ${period}, every meeting counted once whatever its outcome. Beside each name, the median length of their timed meetings, or, under ${n(AGENT_MIN_SAMPLE)} meetings, how far short they are. The order is workload, never a verdict on how the meetings went.`,
+      summary: `${list(agentCharts.ranked.map((r) => `${r.label} ${r.display}`))}: ${n(rankedTotal)} presentations ${period}.`,
       figures: [
         figure("Agents", n(agentCharts.ranked.length), periodLabel),
         figure("Presentations", n(rankedTotal), "every agent together"),

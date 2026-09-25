@@ -242,6 +242,58 @@
   overflow-wrap: anywhere;
 }
 
+/* The drawing's definition: under it, across a hairline, in the kit's caption grey. */
+.dld-card-note {
+  margin: 18px 0 0;
+  /* The rule runs the drawing's full width; the line of text stops at a readable measure. */
+  padding: 12px max(0px, calc(100% - 76ch)) 0 0;
+  border-top: 1px solid var(--d-hairline);
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--d-ink-3);
+  text-wrap: pretty;
+}
+
+/* What a screen reader is told instead of the drawing: present, and out of sight. */
+.dld-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The six measures under an agent's shape, two or three to a row. */
+.dld-axis-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 8px 24px;
+  justify-self: stretch;
+  margin: 18px 0 0;
+}
+
+.dld-axis-notes > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dld-axis-notes dt {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink);
+}
+
+.dld-axis-notes dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
 /* The one sentence a drawing has to say: white, above the source line, never louder than the title. */
 .dld-card-lead {
   margin: 4px 0 2px;
@@ -785,7 +837,13 @@
 .dld-radar {
   display: grid;
   justify-items: center;
+}
+
+.dld-radar-plot {
   position: relative;
+  display: grid;
+  justify-items: center;
+  width: 100%;
 }
 
 .dld-root .dld-radar .iris-radar svg {
@@ -819,7 +877,7 @@
   fill: none;
 }
 
-.dld-radar[data-variant="basic"]::before {
+.dld-radar[data-variant="basic"] .dld-radar-plot::before {
   content: "";
   position: absolute;
   inset: 22% 20% 30%;

@@ -15,6 +15,10 @@ import { DrawIn, type DrawKind } from "./draw-in";
  * Where a drawing has one thing to say, the card leads with it: one sentence
  * under the title, composed with the figures, describing and never explaining.
  *
+ * Under every drawing, its definition; beside it, hidden from the eye, what a
+ * screen reader is told instead of the drawing. Both are required, as they are
+ * on `ChartFrame`, and for its reason: an optional definition is an absent one.
+ *
  * Nothing on the card is computed here. The figures and the rows are
  * `DFacts`, composed in `lab-data.ts`; this file only lays them out.
  *
@@ -54,6 +58,8 @@ export function DCard({
 
         <div className="dld-plot">
           <DrawIn kind={kind}>{children}</DrawIn>
+          <p className="dld-card-note">{facts.note}</p>
+          <p className="dld-sr">{facts.summary}</p>
         </div>
 
         <div className="dld-facts">

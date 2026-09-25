@@ -71,6 +71,26 @@ function Withheld({ rows }: { readonly rows: readonly DWithheld[] }) {
   );
 }
 
+/** The six measures, in the read model's own words (`AgentRadar.axisNotes`): a normalised shape with no definitions is a decoration. */
+function AxisNotes({
+  axes,
+  notes,
+}: {
+  readonly axes: readonly string[];
+  readonly notes: readonly string[];
+}) {
+  return (
+    <dl className="dld-axis-notes">
+      {axes.map((axis, i) => (
+        <div key={axis}>
+          <dt>{axis}</dt>
+          <dd>{notes[i]}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function RadarBody({
   card,
   order,
@@ -83,8 +103,11 @@ function RadarBody({
   return (
     <div className="dld-radar" data-variant={variant}>
       {card.profiles.length === 0 ? null : (
-        <Radar axes={card.axes} series={radarSeries(card, order)} size={260} />
+        <div className="dld-radar-plot">
+          <Radar axes={card.axes} series={radarSeries(card, order)} size={260} />
+        </div>
       )}
+      <AxisNotes axes={card.axes} notes={card.axisNotes} />
       <Withheld rows={card.withheld} />
     </div>
   );
@@ -389,6 +412,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               xl={<Parallel data={data.parallel} size="xl" />}
               l={<Parallel data={data.parallel} size="l" />}
             />
+            <AxisNotes axes={data.parallel.axes} notes={data.parallel.axisNotes} />
             {data.parallel.cut === null ? null : (
               <p className="dld-note">
                 {data.parallel.cut.drawn} of {data.parallel.cut.of} lines drawn; beyond{" "}
