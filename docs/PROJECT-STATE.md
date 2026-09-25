@@ -4974,3 +4974,31 @@ the bar at the top."
 `flow.stage_conversion`, and asks its own approval before it becomes a number.
 
 The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-25 — R05-b: the false sentence, the baseline record, the P2-17 numbers
+
+The journal is `_review/r05b-journal.md`, with photographs in `_review/r05b/`. Neither is committed.
+
+1. **`1a3a571` — Sales Flow's "How to read this" says which sections read the period.**
+   - "Everything below them reads the period in the bar at the top" was false for three blocks. It
+     is a proven bug under the baseline's first reason (`:276`).
+   - **Measured by rendering the page under four periods,** on two projects:
+     - the deal ladder, stalled deals and IRIS-assisted sales are byte-identical under all four;
+     - every other section moves.
+   - The sentence now lists both groups.
+   - **Proof:** the figure multiset is unchanged, and exactly one text node changed.
+2. **`bce8e24` — the baseline records R05-a** under "Accepted later fixes": the dates, the three
+   items, the approval and the four commits. The baseline is not a frozen surface. With it edited
+   on disk, `audit:frozen` reported 0 changed.
+3. **`62633ad` — P2-17's item 3 gives the report's own text in numbers:** 45 exclusive messages
+   from 3 report-only builders, mostly the export panel's section list. The overstatement is marked
+   as corrected.
+
+**Still open:**
+
+- the phone length of Sales Flow, which is the hunt's scope;
+- the cohort round;
+- the header comment at `supabase/test/http-proof.test.ts:30`;
+- the `service_role` rotation.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
