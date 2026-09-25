@@ -1,0 +1,1464 @@
+/* ============================================================================
+ * DESIGN LAB, VARIANT D. THE HYPER KIT'S TREATMENT. Classes dld-, tokens --d-.
+ *
+ * The product's own chart components, unchanged, under the treatment of the
+ * "Hyper ✦ Charts templates" kit (Figma K0MHbKl6esDEoVajsBYrTN, dark theme):
+ * black cards on a darker ground, the kit's six-layer elevation, its accents,
+ * its gradients and its glow. Everything here is scoped to `.dld-root`, so no
+ * rule reaches a live screen, and nothing here redefines a product token:
+ * `tokens.css` and the `--viz-*` palette are read, never written.
+ *
+ * ## What is the kit's and what is not
+ *
+ *   geometry, spacing, stroke     the kit's XL (800×486) and Large (375×556)
+ *   widths, caps, gradients,      cards, measured node by node; the values are
+ *   glow, colour                  cited where they are used
+ *   typefaces                     NOT the kit's. Text stays Manrope; figures
+ *                                 take `--d-font-numeric`, Geist Mono
+ *   colours that already mean     NOT the kit's. An outcome keeps OUTCOME_TONE
+ *   something                     (`--outcome-*`), a delta keeps its verdict
+ *                                 colour, and neither is given the glow
+ *
+ * ## Two colour rules, both held here
+ *
+ *   1  #5EFF5A and #77FF60 are never two series on one chart. #5EFF5A is not
+ *      used at all; #77FF60 appears only where a chart has one series.
+ *   2  An ordered variable is one hue, dark to bright: `--d-ramp-lo` to
+ *      `--d-ramp-hi`, the kit's own dim and bright point. The kit's rainbow
+ *      heatmaps and its four-colour bullet bar are the two places it breaks
+ *      this, and the two places this sheet does not follow it.
+ * ========================================================================= */
+
+@import "@fontsource-variable/geist-mono";
+
+/* The ring and sunburst turn in on one animated angle. */
+@property --d-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 360deg;
+}
+
+.dld-root {
+  /* --- elevation: the kit's "Shadow/Dark theme", and the same at half ------- */
+  --d-elevation-full:
+    10.67px 21.33px 3.38px #00000010, 13.48px 26.97px 7.01px #0000001a,
+    18.78px 37.57px 13.98px #00000021, 27.06px 54.13px 27.39px #00000028,
+    38.82px 77.65px 50.37px #00000032, 54.56px 109.12px 86px #00000042;
+  --d-elevation-half:
+    5.335px 10.665px 1.69px #00000010, 6.74px 13.485px 3.505px #0000001a,
+    9.39px 18.785px 6.99px #00000021, 13.53px 27.065px 13.695px #00000028,
+    19.41px 38.825px 25.185px #00000032, 27.28px 54.56px 43px #00000042;
+
+  /* --- ground, card, ink: the kit's dark theme -------------------------------- */
+  --d-ground: #16151c;
+  --d-card: #000000; /* every dark card */
+  --d-card-radius: 12px;
+  --d-card-pad: 24px;
+  --d-card-gap: 20px;
+  --d-ink: #ffffff; /* White: values */
+  --d-ink-2: #d0d0da; /* Light telegray: titles, labels */
+  --d-ink-3: #b3b3c5; /* Very light magenta blue: XL captions */
+  --d-ink-4: #5b5b65; /* Marengo: secondary text, axes */
+  --d-hairline: rgb(255 255 255 / 0.2); /* table dividers */
+  --d-grid: rgb(255 255 255 / 0.2); /* grid lines */
+  --d-guide: rgb(255 255 255 / 0.1); /* punch-card guides */
+  --d-track: #424141; /* Platinum Gray */
+  --d-space: #3d464d; /* Space: column separators */
+  --d-control: rgb(66 65 65 / 0.48); /* buttons */
+
+  /* --- accents ------------------------------------------------------------------ */
+  --d-accent: #77ff60; /* Screaming Green: the kit's single-series bar */
+  --d-accent-2: #15ffab; /* Spring Green: points, dumbbells, stepped lines */
+  --d-ramp-lo: #0c4d41; /* the kit's dim point */
+  --d-ramp-hi: #15ffab; /* the kit's bright point */
+
+  /*
+   * Agent identity: the kit's series colours in its own order, the first two
+   * as its multiply radar pairs them. Red, amber and pink are left out: each
+   * sits beside a verdict colour, and an agent must never read as one.
+   */
+  --d-series-1: #15ffab;
+  --d-series-2: #8338ec;
+  --d-series-3: #0ac5ef;
+  --d-series-4: #db03f2;
+  --d-series-5: #96969d;
+  --d-series-6: #fffc00;
+
+  /* Funnels: one hue per series, the steps told apart by strength alone. */
+  --d-funnel: #8338ec;
+
+  --d-font-numeric: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+  --d-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  background: var(--d-ground);
+  color: var(--d-ink);
+  min-height: 100vh;
+  padding: clamp(16px, 2.8vw, 40px);
+  overflow-x: clip;
+}
+
+.dld-root svg {
+  overflow: visible;
+}
+
+.dld-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* --- the page ------------------------------------------------------------------ */
+
+.dld-head {
+  display: grid;
+  gap: 12px;
+  max-width: 72rem;
+}
+
+.dld-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+.dld-title {
+  margin: 0;
+  font-size: clamp(28px, 1.6vw + 18px, 44px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.dld-lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--d-ink-2);
+}
+
+.dld-root code {
+  font-family: var(--d-font-numeric);
+  font-size: 0.9em;
+  color: var(--d-accent-2);
+}
+
+.dld-section {
+  display: grid;
+  gap: 20px;
+  margin-top: 48px;
+}
+
+.dld-section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.dld-section-head h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dld-section-head p {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--d-ink-4);
+}
+
+.dld-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 34rem), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* --- the card: the kit's Large anatomy, and its XL arrangement when wide ------- */
+
+.dld-card {
+  container-type: inline-size;
+  min-width: 0;
+  padding: var(--d-card-pad) var(--d-card-pad) calc(var(--d-card-pad) + 8px);
+  border-radius: var(--d-card-radius);
+  background: var(--d-card);
+  box-shadow: var(--d-elevation-full);
+}
+
+.dld-card[data-wide="true"] {
+  grid-column: 1 / -1;
+}
+
+.dld-card-inner {
+  display: grid;
+  grid-template-areas: "head" "plot" "facts";
+  gap: var(--d-card-gap);
+  min-width: 0;
+}
+
+.dld-card-head {
+  grid-area: head;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dld-card-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+/* The kit's Large title: bold 24, white. */
+.dld-card-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.009em;
+  color: var(--d-ink);
+  text-wrap: balance;
+}
+
+.dld-card-reads {
+  margin: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+  overflow-wrap: anywhere;
+}
+
+.dld-plot {
+  grid-area: plot;
+  min-width: 0;
+}
+
+.dld-facts {
+  grid-area: facts;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The kit's KPI pair: label 12 telegray, value mono 24 white, caption 12 marengo. */
+.dld-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.dld-figures > div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dld-figures dt {
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--d-ink-2);
+}
+
+.dld-figure-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--d-ink);
+  overflow-wrap: anywhere;
+}
+
+.dld-figure-of {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/*
+ * A delta is a verdict: bold 12, never the glow, and the product's own colour for it —
+ * `--gain` and `--loss`, the names the KPI component beside it reads, which the
+ * graphite ground resolves to its verdict marks. One "good" green per card, not two.
+ */
+.dld-delta {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.dld-delta[data-tone="good"] {
+  color: var(--gain);
+}
+
+.dld-delta[data-tone="bad"] {
+  color: var(--loss);
+}
+
+.dld-delta[data-tone="flat"] {
+  color: var(--d-ink-2);
+}
+
+/* The kit's ranked table: 14 telegray against mono 16 white, white hairlines at 20%. */
+.dld-rank {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dld-rank-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+.dld-rank ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-rank li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--d-hairline);
+}
+
+.dld-rank li:first-child {
+  border-top: 0;
+}
+
+.dld-rank li span {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 16px;
+  color: var(--d-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.dld-rank li b {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+  white-space: nowrap;
+}
+
+.dld-rank-note,
+.dld-note {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.dld-note {
+  margin-top: 12px;
+}
+
+.dld-empty {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--d-ink-2);
+}
+
+.dld-withheld {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.dld-withheld b {
+  color: var(--d-ink-2);
+  font-weight: 600;
+}
+
+.dld-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-key ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dld-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* The XL arrangement: KPI pair and ranking side by side under the drawing. */
+@container (width >= 36rem) {
+  .dld-card-title {
+    font-size: 16px;
+    line-height: 28px;
+    color: var(--d-ink-2);
+  }
+
+  .dld-figure-value {
+    font-size: 28px;
+    font-weight: 600;
+  }
+
+  .dld-facts {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 28px;
+    align-items: start;
+  }
+}
+
+/* A wide card at a wide window: the drawing takes the width, the facts a column. */
+@container (width >= 64rem) {
+  .dld-card-inner {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-areas: "head head" "plot facts";
+    column-gap: 40px;
+  }
+
+  .dld-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+
+/* Two geometries for a new form; the card's own width chooses. */
+.dld-size[data-size="l"] {
+  display: none;
+}
+
+.dld-size svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@container (width < 34rem) {
+  .dld-size[data-size="xl"] {
+    display: none;
+  }
+
+  .dld-size[data-size="l"] {
+    display: block;
+  }
+}
+
+.dld-centred {
+  display: grid;
+  justify-items: center;
+}
+
+/* ============================================================================
+ * A. THE PRODUCT'S COMPONENTS
+ * ========================================================================= */
+
+/* --- KPI card: its own card dissolves into ours --------------------------------- */
+
+.dld-root .dld-kpi .iris-kpi {
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.dld-root .dld-kpi .iris-kpi-label {
+  font-size: 16px;
+  line-height: 28px;
+  font-weight: 700;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-kpi .iris-kpi-value {
+  font-family: var(--d-font-numeric);
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-kpi .iris-kpi-foot {
+  align-items: center;
+  gap: 24px;
+}
+
+.dld-root .dld-kpi .iris-kpi-foot .iris-code {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-kpi .iris-kpi-delta {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dld-root .dld-kpi .iris-kpi-delta[data-tone="flat"] {
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-kpi .iris-spark {
+  width: min(100%, 220px);
+  height: auto;
+}
+
+/* --- the lead line: sparkline and trend -------------------------------------------- */
+
+.dld-root .iris-spark-line,
+.dld-root .iris-trend-line {
+  stroke: url(#dld-line);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#dld-glow);
+}
+
+.dld-root .iris-spark-fill,
+.dld-root .iris-trend-fill {
+  fill: url(#dld-dots);
+  opacity: 0.55;
+}
+
+.dld-root .iris-spark-tip,
+.dld-root .iris-trend-dot {
+  fill: #000000;
+  stroke: var(--d-accent-2);
+  stroke-width: 2.5;
+}
+
+.dld-spark .iris-spark {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dld-root .iris-trend {
+  max-height: none;
+}
+
+.dld-root .iris-trend-grid {
+  stroke: var(--d-grid);
+}
+
+.dld-root .iris-trend-tick {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-root .iris-trend-note {
+  stroke: #000000;
+}
+
+/* --- stacked columns: the kit's pill columns, the outcome colours kept ---------- */
+
+.dld-root .dld-stacks .iris-stacks-plot {
+  height: 12rem;
+  grid-auto-columns: minmax(0, 4rem);
+  gap: 12px;
+}
+
+.dld-root .dld-stacks .iris-stacks-column {
+  width: 14px;
+  min-width: 14px;
+  border-radius: 100px;
+}
+
+/* A 2px black seam between the parts rather than a gap: a gap would add to a column's height. */
+.dld-root .dld-stacks .iris-stacks-column > span {
+  box-shadow: inset 0 -2px 0 #000000;
+}
+
+.dld-root .dld-stacks .iris-stacks-total {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-stacks .iris-stacks-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+/* --- keys, wherever a product component draws one ------------------------------- */
+
+.dld-root .iris-ring-key li {
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .iris-ring-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dld-root .iris-ring-key b {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+.dld-root .iris-code {
+  font-family: var(--d-font-numeric);
+}
+
+/* --- ranked bars: the kit's segmented row, on in green, off in platinum ---------- */
+
+.dld-root .dld-ranked .iris-ranked li {
+  grid-template-columns: 1.5rem minmax(0, 11rem) minmax(0, 1fr) 4.5rem;
+  gap: 12px;
+  padding: 9px 0;
+  border-top-color: var(--d-hairline);
+}
+
+.dld-root .dld-ranked .iris-ranked-place {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-ranked .iris-ranked-name {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-ranked .iris-ranked-name em {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-ranked .iris-ranked-track {
+  display: block;
+  height: 7px;
+  border-radius: 0;
+  overflow: visible;
+  background: repeating-linear-gradient(90deg, var(--d-track) 0 22px, transparent 22px 24px);
+}
+
+.dld-root .dld-ranked .iris-ranked-track i {
+  background: repeating-linear-gradient(90deg, var(--d-accent) 0 22px, transparent 22px 24px);
+  filter: drop-shadow(0 3px 8px rgb(99 255 59 / 0.35));
+}
+
+.dld-root .dld-ranked .iris-ranked-value {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+}
+
+@container (width < 34rem) {
+  .dld-root .dld-ranked .iris-ranked li {
+    grid-template-columns: 1.25rem minmax(0, 1fr) 3.5rem;
+  }
+
+  .dld-root .dld-ranked .iris-ranked-track {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- the outcome ring: round slice ends, the outcome colours kept --------------- */
+
+.dld-ring {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.dld-root .dld-ring .iris-ring {
+  width: 220px;
+  height: 220px;
+}
+
+/*
+ * The kit's Large ring is 20 wide with round caps. The component's own stroke is
+ * 13% of its box, and its slices sit a hairline apart, so the caps are drawn at
+  * 12: the cap is what overlaps the next slice, and the narrower it is the less a
+ * thin slice is overstated by it.
+ */
+.dld-root .dld-ring .iris-ring path {
+  stroke-width: 12;
+  stroke-linecap: round;
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-ring .iris-ring circle {
+  stroke: #111114;
+  stroke-width: 12;
+}
+
+.dld-root .dld-ring .iris-ring-figure {
+  font-family: var(--d-font-numeric);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-ring .iris-ring-caption {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--d-ink-2);
+}
+
+@container (width < 34rem) {
+  .dld-ring {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+}
+
+/* --- the radar, three ways ------------------------------------------------------ */
+
+.dld-radar {
+  display: grid;
+  justify-items: center;
+  position: relative;
+}
+
+.dld-root .dld-radar .iris-radar svg {
+  width: min(100%, 356px);
+  height: auto;
+}
+
+.dld-root .dld-radar .iris-radar-web,
+.dld-root .dld-radar .iris-radar-spoke {
+  stroke: var(--d-track);
+  stroke-width: 1;
+}
+
+.dld-root .dld-radar .iris-radar-axis {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+  paint-order: stroke;
+  stroke: #000000;
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+.dld-root .dld-radar .iris-radar-shape {
+  stroke-width: 3;
+  filter: url(#dld-glow);
+}
+
+/* Basic: one outline, no fill, a soft field of its own colour behind it. */
+.dld-root .dld-radar[data-variant="basic"] .iris-radar-shape {
+  fill: none;
+}
+
+.dld-radar[data-variant="basic"]::before {
+  content: "";
+  position: absolute;
+  inset: 22% 20% 30%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(21 255 171 / 0.22), transparent);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+/* Simple: the hexagonal web at half strength in mother-of-pearl, the shape filled at 11%. */
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-web,
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-spoke {
+  stroke: #96969d;
+  opacity: 0.5;
+}
+
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-shape {
+  fill: color-mix(in oklab, var(--tone) 11%, transparent);
+  filter: none;
+}
+
+/* Multiply: every drawn profile outlined, each over its own faint fill. */
+.dld-root .dld-radar[data-variant="multiply"] .iris-radar-shape {
+  fill: color-mix(in oklab, var(--tone) 7%, transparent);
+}
+
+/* --- the weekday grid, three ways -------------------------------------------------- */
+
+.dld-root .dld-heat .iris-heat-grid {
+  gap: 1px;
+}
+
+.dld-root .dld-heat .iris-heat-col,
+.dld-root .dld-heat .iris-heat-row {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-heat .iris-heat-cell {
+  border: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+/*
+ * An empty slot stays an empty slot, as the product draws it: never the ramp's
+ * floor, which would print a nought as a small count. Keyed on the variant too,
+ * so it outranks each variant's fill below rather than depending on order: the
+ * first draft lost to them, and every empty hour came out a dim green.
+ */
+.dld-root .dld-heat[data-variant] .iris-heat-cell[data-empty="true"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+/* Basic: the kit's rounded cells; the ramp steps in fifths of the busiest slot. */
+.dld-root .dld-heat[data-variant="basic"] .iris-heat-cell {
+  min-height: 30px;
+  border-radius: 8px;
+  background: color-mix(
+    in oklab,
+    var(--d-ramp-hi) calc(round(up, var(--v) * 5, 1) * 20%),
+    var(--d-ramp-lo)
+  );
+}
+
+/* Gradient: continuous, and each cell bleeds into its neighbours, as the kit's blurred field does. */
+.dld-root .dld-heat[data-variant="gradient"] .iris-heat-cell {
+  min-height: 30px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 100%), var(--d-ramp-lo));
+  box-shadow: 0 0 calc(var(--v) * 22px) calc(var(--v) * 4px)
+    color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 40%), transparent);
+}
+
+/*
+ * Hex: pointy-top cells, every second weekday shifted by half a cell.
+ *
+ * The component writes its column template inline, so the hex grid's fixed
+ * columns can only be set over it with `!important`; the shift selects the
+ * Tuesday, Thursday and Saturday rows by position, which holds while the grid
+ * is the read model's ten hours (09:00 to 18:00) wide.
+ */
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-grid {
+  grid-template-columns: 3rem repeat(10, 44px) !important;
+  justify-content: center;
+  row-gap: 0;
+}
+
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell {
+  width: 44px;
+  aspect-ratio: 0.866;
+  min-height: 0;
+  margin-block: -6px;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 100%), var(--d-ramp-lo));
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+  color: var(--d-ink);
+}
+
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell[data-empty="true"] {
+  background: #111114;
+  box-shadow: none;
+}
+
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 24):nth-child(-n + 33),
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 46):nth-child(-n + 55),
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 68):nth-child(-n + 77) {
+  translate: 22px 0;
+}
+
+.dld-root .dld-heat[data-variant="hex"] .iris-heat-col {
+  padding-bottom: 10px;
+}
+
+/* A phone: the same honeycomb at 25px, so ten hours and the half-cell shift fit the card. */
+@container (width < 34rem) {
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-grid {
+    grid-template-columns: 2.25rem repeat(10, 25px) !important;
+    justify-content: start;
+  }
+
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell {
+    width: 25px;
+    margin-block: -3px;
+    font-size: 12px;
+  }
+
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 24):nth-child(-n + 33),
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 46):nth-child(-n + 55),
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-cell:nth-child(n + 68):nth-child(-n + 77) {
+    translate: 12.5px 0;
+  }
+
+  .dld-root .dld-heat[data-variant="hex"] .iris-heat-col {
+    font-size: 12px;
+    letter-spacing: -0.04em;
+  }
+}
+
+.dld-root .dld-heat .iris-meta {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/* --- funnels: one hue, the steps told apart by strength, a glow behind ---------- */
+
+.dld-funnel {
+  position: relative;
+  isolation: isolate;
+}
+
+.dld-funnel::before {
+  content: "";
+  position: absolute;
+  inset: 8% 18% 22%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--d-funnel) 45%, transparent),
+    transparent
+  );
+  filter: blur(28px);
+  pointer-events: none;
+}
+
+.dld-funnel[data-side="now"] {
+  --d-funnel: #0ac5ef;
+}
+
+.dld-root .dld-funnel .iris-funnel {
+  max-width: none;
+  gap: 6px;
+}
+
+.dld-root .dld-funnel .iris-funnel-step {
+  grid-template-columns: minmax(0, 1fr) 15rem 3.5rem;
+  gap: 16px;
+}
+
+.dld-root .dld-funnel .iris-funnel-bar {
+  justify-content: center;
+  justify-self: center;
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--d-funnel) var(--d-step, 100%), transparent);
+}
+
+.dld-funnel .iris-funnel-step:nth-child(1) {
+  --d-step: 22%;
+}
+.dld-funnel .iris-funnel-step:nth-child(2) {
+  --d-step: 34%;
+}
+.dld-funnel .iris-funnel-step:nth-child(3) {
+  --d-step: 46%;
+}
+.dld-funnel .iris-funnel-step:nth-child(4) {
+  --d-step: 58%;
+}
+.dld-funnel .iris-funnel-step:nth-child(5) {
+  --d-step: 70%;
+}
+.dld-funnel .iris-funnel-step:nth-child(6) {
+  --d-step: 84%;
+}
+.dld-funnel .iris-funnel-step:nth-child(7) {
+  --d-step: 100%;
+}
+
+/* The kit's value pill: black, round, mono white. */
+.dld-root .dld-funnel .iris-funnel-bar b {
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: #000000;
+  font-family: var(--d-font-numeric);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-funnel .iris-funnel-label {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-funnel .iris-funnel-label em {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-funnel .iris-funnel-drop {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+}
+
+.dld-root .dld-funnel > .iris-funnel > .iris-code,
+.dld-root .dld-funnel .iris-funnel > p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--d-ink-4) !important;
+}
+
+/* Basic: the bands and their counts; the side rates and the losses are the detailed card's. */
+.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-step {
+  grid-template-columns: minmax(0, 1fr) 11rem;
+}
+
+.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-label em,
+.dld-root .dld-funnel[data-variant="basic"] .iris-funnel-drop {
+  display: none;
+}
+
+.dld-funnel-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 28px;
+}
+
+.dld-funnel-side {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-step {
+  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  gap: 12px;
+}
+
+.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-drop,
+.dld-root .dld-funnel[data-variant="multiply"] .iris-funnel-label em {
+  display: none;
+}
+
+@container (width < 34rem) {
+  .dld-root .dld-funnel .iris-funnel-step,
+  .dld-root .dld-funnel[data-variant="basic"] .iris-funnel-step {
+    grid-template-columns: minmax(0, 1fr) 8.5rem;
+  }
+
+  .dld-root .dld-funnel .iris-funnel-drop {
+    display: none;
+  }
+}
+
+/* --- the bullet: the kit's track and tick, the bar in one hue ------------------- */
+
+.dld-root .dld-bullets .iris-bullets {
+  max-width: none;
+  gap: 14px;
+}
+
+.dld-root .dld-bullets .iris-bullet {
+  grid-template-columns: 11rem minmax(0, 1fr) 7.5rem;
+  gap: 16px;
+}
+
+.dld-root .dld-bullets .iris-bullet-label {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-bullets .iris-bullet-track {
+  height: 19px;
+  border-radius: 0;
+  background: rgb(66 65 65 / 0.5);
+  overflow: visible;
+}
+
+.dld-root .dld-bullets .iris-bullet-band {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.dld-root .dld-bullets .iris-bullet-track i {
+  top: calc(50% - 4px);
+  bottom: auto;
+  height: 8px;
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--d-ramp-lo), var(--d-ramp-hi));
+  box-shadow:
+    0 2px 6px rgb(21 255 171 / 0.35),
+    0 8px 22px rgb(21 255 171 / 0.22);
+}
+
+/* Behind the schedule is a verdict: the product's watch colour, and no glow. */
+.dld-root .dld-bullets .iris-bullet-track i[data-behind="true"] {
+  background: var(--watch);
+  box-shadow: none;
+}
+
+.dld-root .dld-bullets .iris-bullet-track b {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--d-ink-2);
+}
+
+.dld-root .dld-bullets .iris-bullet-track u {
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background: var(--d-ink);
+}
+
+.dld-root .dld-bullets .iris-bullet-value {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-bullets .iris-bullets > .iris-code {
+  font-size: 12px;
+  color: var(--d-ink-4) !important;
+}
+
+@container (width < 34rem) {
+  .dld-root .dld-bullets .iris-bullet {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dld-root .dld-bullets .iris-bullet-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- the sankey: violet into green ribbons, violet nodes --------------------------- */
+
+/* The product's scroller keeps its own floor below 47.5rem; above it the drawing takes the width. */
+.dld-root .iris-flow-scroll .iris-flow {
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+.dld-root .iris-flow-ribbon {
+  fill: url(#dld-flow);
+  opacity: 0.6;
+}
+
+.dld-root .iris-flow-node {
+  fill: #6d5ce8;
+  stroke: none;
+  rx: 3px;
+}
+
+.dld-root .iris-flow-label {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+  fill: var(--d-ink-2);
+}
+
+.dld-root .iris-flow-count {
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  fill: var(--d-ink);
+}
+
+.dld-root .iris-flow-drop {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+}
+
+/* --- the running order ------------------------------------------------------------ */
+
+.dld-root .dld-sequence .iris-sequence li {
+  border-top-color: var(--d-hairline);
+}
+
+.dld-root .dld-sequence .iris-sequence-step {
+  font-family: var(--d-font-numeric);
+  color: var(--d-ink);
+  background: #1d1e1f;
+  border-color: transparent;
+}
+
+.dld-root .dld-sequence .iris-sequence-name {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-sequence .iris-sequence-name em {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-sequence .iris-sequence-track {
+  height: 6px;
+  border-radius: 100px;
+  background: rgb(66 65 65 / 0.5);
+  overflow: visible;
+}
+
+.dld-root .dld-sequence .iris-sequence-track i {
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--d-ramp-lo), var(--d-ramp-hi));
+  box-shadow: 0 3px 10px rgb(21 255 171 / 0.3);
+}
+
+.dld-root .dld-sequence .iris-sequence-time {
+  font-family: var(--d-font-numeric);
+  color: var(--d-ink);
+}
+
+.dld-root .dld-sequence .iris-sequence-time em {
+  color: var(--d-ink-4);
+}
+
+/* ============================================================================
+ * B, AND THE SCATTER. THE NEW FORMS.
+ * ========================================================================= */
+
+.dld-root .dld-axis-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-gridline {
+  stroke: var(--d-grid);
+  stroke-width: 1;
+}
+
+/* --- scatter: the kit's bright point, glowing -------------------------------------- */
+
+.dld-root .dld-parity {
+  stroke: var(--d-ink-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.dld-root .dld-quadrant {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--d-ink-4);
+}
+
+.dld-root .dld-scatter-point circle {
+  fill: var(--d-accent-2);
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-point-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-scatter-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 8px 20px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-scatter-key li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 2px 8px;
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-scatter-key b {
+  font-family: var(--d-font-numeric);
+  font-weight: 400;
+  color: var(--d-accent-2);
+}
+
+.dld-scatter-key em {
+  grid-column: 2;
+  font-style: normal;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+/* ============================================================================
+ * ENTRY. THE DATA DRAWS IN, ONCE; A REDUCED-MOTION READER SEES IT DRAWN.
+ *
+ * `DrawIn` writes `data-draw="run"` the first time a drawing is on screen, and
+ * nothing else ever writes it. The waiting frame exists only where script runs
+ * and motion is wanted, so a reader without either sees the final frame at once.
+ * ========================================================================= */
+
+@keyframes dld-sweep {
+  from {
+    clip-path: inset(-12% 100% -12% -2%);
+  }
+  to {
+    clip-path: inset(-12% -2% -12% -2%);
+  }
+}
+
+@keyframes dld-bloom {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dld-rise {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes dld-turn {
+  from {
+    --d-sweep: 0deg;
+  }
+  to {
+    --d-sweep: 360deg;
+  }
+}
+
+@keyframes dld-cell {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  /* The waiting frame, per kind. */
+  .dld-draw[data-draw="wait"][data-kind="sweep"] > .dld-draw-body {
+    clip-path: inset(-12% 100% -12% -2%);
+  }
+
+  .dld-draw[data-draw="wait"][data-kind="bloom"] > .dld-draw-body,
+  .dld-draw[data-draw="wait"][data-kind="rise"] > .dld-draw-body {
+    opacity: 0;
+  }
+
+  .dld-draw[data-draw="wait"][data-kind="turn"] svg {
+    --d-sweep: 0deg;
+  }
+
+  /* The play. */
+  .dld-draw[data-draw="run"][data-kind="sweep"] > .dld-draw-body {
+    animation: dld-sweep 1100ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="bloom"] > .dld-draw-body {
+    animation: dld-bloom 700ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-column {
+    transform-origin: 50% 100%;
+    animation: dld-rise 800ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-item:nth-child(2) .iris-stacks-column {
+    animation-delay: 60ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-item:nth-child(3) .iris-stacks-column {
+    animation-delay: 120ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"]
+    .iris-stacks-item:nth-child(n + 4)
+    .iris-stacks-column {
+    animation-delay: 180ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation: dld-turn 1200ms var(--d-ease) both;
+  }
+
+  /* A cell lights in the order of its own count: the busiest last. */
+  .dld-draw[data-draw="run"] .iris-heat-cell {
+    animation: dld-cell 500ms var(--d-ease) both;
+    animation-delay: calc(var(--v, 0) * 500ms);
+  }
+}
+
+/* The ring and the sunburst turn in on a conic mask; at rest the mask is the whole turn. */
+.dld-draw[data-kind="turn"] svg {
+  mask-image: conic-gradient(#000 var(--d-sweep), transparent 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dld-draw,
+  .dld-draw * {
+    animation: none !important;
+  }
+}

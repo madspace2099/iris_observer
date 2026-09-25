@@ -29,6 +29,27 @@ import { demonstrationEstate } from "@/lib/sources/seed";
 import { localControlPlaneEnabled } from "@/lib/sources/local-db";
 import type { CredentialStatusRow } from "@observer/sources";
 import type { MarkTone } from "@/components/madspace/StatusMark";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
+import type {
+  AgentDetailView,
+  AgentOutcomeRing,
+  BehaviourFunnel,
+  ActivityMatrix,
+  JourneyFlowModel,
+  KpiFigure,
+  KpiWindowId,
+  OutcomeComposition,
+  OutcomeSlice,
+  TrendSeries,
+  PeriodPreset,
+  RadarProfile,
+  RankedRow,
+  SalesTarget,
+  SegmentInterest,
+  Viewer,
+} from "@observer/readmodels";
+import { repository } from "@/lib/repository";
 
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
@@ -293,4 +314,889 @@ export interface LabScreenProps {
   readonly estate: LabEstate;
   readonly screenName: string;
   readonly variantName: string;
+}
+
+/* ============================================================================
+ * VARIANT D. THE CHART GALLERY: ONE READ, EVERY CARD.
+ *
+ * Variants A, B and C draw the control plane. D draws the product's charts under
+ * one treatment, read from the same repository every Observer screen reads
+ * (`@/lib/repository`), for one project in one period, once. The rule above
+ * holds here too: one loader, the live path, and the variant takes what it needs.
+ *
+ * ## Everything a card states is decided in this file
+ *
+ * Every card has the same anatomy: a title, the drawing, two figures and a
+ * ranking of three rows. Every figure and every row is composed here. The
+ * variant folder draws; it never counts, sums, divides or orders. Where a form
+ * needs an aggregate the read models do not carry — hours collapsed out of the
+ * weekday grid, an agent-by-hour count, a numeric share where the read model
+ * prints a sentence — it is computed here from the port's own session slice
+ * (`getSessionSlice`, which exists so that a consumer computes "from the same
+ * facts every surface reads") and checked against the read model's own figure
+ * before anything is drawn. A mismatch throws: a lab that drew a layout for
+ * figures it could not reproduce would be showing facts that are not there.
+ *
+ * ## What is deliberately not here
+ *
+ * No buyer's name: the slice carries contact ids and nothing here reads them.
+ * No shape, rank or comparison below the agent floor (`AGENT_MIN_SAMPLE`): the
+ * profile is withheld with the read model's own sentence, as Sales Agents does.
+ * No invented value: a card with nothing honest to rank says so instead.
+ * ========================================================================= */
+
+/*
+ * Where the gallery reads, and why it is not the review index's project.
+ *
+ * The lab only exists where the local control plane runs, and there ISTER TOWER
+ * is the control plane's twin: its meetings are the ones the plane delivered,
+ * four of them when this was written, by one presenter below the floor. Every
+ * radar, line and ranking would be withheld, which is the product behaving
+ * correctly and a gallery showing nothing. Northgate has no twin, so it reads
+ * the same on every machine, and over the year to date every one of its four
+ * presenters stands above `AGENT_MIN_SAMPLE` (measured: 42, 33, 32 and 25), so
+ * the forms that compare agents have something to draw without a floor bent.
+ */
+const D_TENANT = "alpha";
+const D_PROJECT = "northgate";
+const D_PERIOD: PeriodPreset = "year_to_date";
+/**
+ * The multiply funnel's two series: the quarter before and this quarter. Not
+ * the main period against the quarter before it — the year to date contains
+ * that quarter, and a comparison of a group with part of itself is not one.
+ */
+const D_EARLIER: PeriodPreset = "last_quarter";
+const D_LATER: PeriodPreset = "quarter_to_date";
+/** Sales Flow's default KPI window, so the KPI card says what that page says. */
+const D_WINDOW: KpiWindowId = "month";
+export interface DFigure {
+  readonly label: string;
+  readonly value: string;
+  /** What the value is out of, or its qualifier, in words. */
+  readonly of: string | null;
+  /** A read model's own delta and tone, carried untouched; null where it states none. */
+  readonly delta: string | null;
+  readonly tone: "good" | "bad" | "flat" | null;
+}
+
+export interface DRankRow {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+}
+
+export interface DFacts {
+  readonly figures: readonly [DFigure, DFigure];
+  readonly rankingTitle: string;
+  readonly ranking: readonly DRankRow[];
+  /** What orders the ranking, or why it holds fewer than three rows. */
+  readonly rankingNote: string | null;
+}
+
+export interface DWithheld {
+  readonly id: string;
+  readonly label: string;
+  readonly note: string;
+}
+
+export interface DRadarCard {
+  readonly axes: readonly string[];
+  readonly axisNotes: readonly string[];
+  readonly profiles: readonly RadarProfile[];
+  readonly withheld: readonly DWithheld[];
+  readonly facts: DFacts;
+}
+
+export interface DDumbbellRow {
+  readonly id: string;
+  readonly label: string;
+  /** This behaviour on its own, in the group. The read model prints it as `note`. */
+  readonly share: number;
+  readonly shareDisplay: string;
+  /** The same behaviour among every other recorded meeting. The read model prints it as `comparisonNote`. */
+  readonly comparisonShare: number;
+  readonly comparisonDisplay: string;
+}
+
+export interface DScatterCard {
+  readonly points: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly index: number;
+    readonly share: number;
+    readonly decided: number;
+    readonly quadrant: string;
+    /** "1.45× · 37% of 114": the point's position, and the decided meetings its rate is out of. */
+    readonly display: string;
+  }[];
+  readonly withheld: readonly DWithheld[];
+  readonly projectShare: number | null;
+  readonly projectShareDisplay: string | null;
+  /** The attention axis runs from nought to here: at least 2.00×, else the largest index, rounded up to a half. */
+  readonly indexMax: number;
+  readonly facts: DFacts;
+}
+
+export interface LabChartsD {
+  readonly projectName: string;
+  readonly period: PeriodPreset;
+  readonly periodLabel: string;
+  /** The multiply funnel's two periods, earlier first. */
+  readonly earlierLabel: string;
+  readonly laterLabel: string;
+  readonly windowLabel: string;
+  readonly minimum: number;
+  readonly radarBasic: DRadarCard;
+  readonly radarSimple: DRadarCard;
+  readonly radarMultiply: DRadarCard;
+  readonly sankey: { readonly journey: JourneyFlowModel; readonly facts: DFacts };
+  readonly scatter: DScatterCard;
+  readonly ring: {
+    readonly slices: readonly OutcomeSlice[];
+    readonly total: number;
+    readonly facts: DFacts;
+  };
+  readonly funnelBasic: { readonly funnel: BehaviourFunnel; readonly facts: DFacts };
+  readonly funnelDetailed: { readonly funnel: BehaviourFunnel; readonly facts: DFacts };
+  readonly funnelMultiply: {
+    readonly now: BehaviourFunnel;
+    readonly earlier: BehaviourFunnel;
+    readonly facts: DFacts;
+  };
+  readonly heatmapBasic: { readonly activity: ActivityMatrix; readonly facts: DFacts };
+  readonly heatmapGradient: { readonly activity: ActivityMatrix; readonly facts: DFacts };
+  readonly heatmapHex: { readonly activity: ActivityMatrix; readonly facts: DFacts };
+  readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
+  readonly stacked: { readonly composition: OutcomeComposition; readonly facts: DFacts };
+  readonly trend: {
+    readonly agentLabel: string;
+    /** Null below the floor: a line is read as a direction whatever is written under it. */
+    readonly series: TrendSeries | null;
+    readonly note: string | null;
+    readonly facts: DFacts;
+  };
+  readonly sparkline: { readonly series: TrendSeries; readonly facts: DFacts };
+  readonly ranked: { readonly rows: readonly RankedRow[]; readonly facts: DFacts };
+  readonly kpi: { readonly figure: KpiFigure; readonly facts: DFacts };
+  readonly sequence: {
+    readonly agentLabel: string;
+    readonly sections: AgentDetailView["profile"]["sections"];
+    readonly showTeam: boolean;
+    readonly note: string | null;
+    readonly facts: DFacts;
+  } | null;
+}
+
+/**
+ * The behaviours the Sales Flow funnel tests, one per step id.
+ *
+ * Written out again because the read model keeps its list private to the
+ * synthetic package, which nothing outside the composition root may import.
+ * The copy is held to the original by `behaviourShares`: every share computed
+ * here must print exactly as the read model printed it, or the gallery refuses.
+ * An id this map does not know is refused the same way rather than guessed at.
+ */
+const D_BEHAVIOURS: Readonly<Record<string, (s: ShowroomSession) => boolean>> = {
+  reached_surroundings: (s) => s.steps.some((x) => x.sectionId === "surroundings"),
+  opened_amenities: (s) => s.steps.some((x) => x.sectionId === "amenities"),
+  three_units: (s) => s.units.length >= 3,
+  shortlisted: (s) => s.units.some((u) => u.favourited),
+  used_compare: (s) => s.steps.some((x) => x.sectionId === "compare"),
+  returned: (s) => s.steps.some((x) => x.isReturn),
+};
+
+function refuse(what: string): never {
+  throw new Error(`Design lab D could not reproduce ${what}; nothing is drawn.`);
+}
+
+function same(what: string, ours: unknown, theirs: unknown): void {
+  if (ours !== theirs) {
+    refuse(`${what} (computed ${String(ours)}, the read model says ${String(theirs)})`);
+  }
+}
+
+function figure(
+  label: string,
+  value: string,
+  of: string | null = null,
+  delta: string | null = null,
+  tone: DFigure["tone"] = null,
+): DFigure {
+  return { label, value, of, delta, tone };
+}
+
+/** The three largest by `value`, largest first; ties keep the input's order. Zeros are not a ranking. */
+function topThree<T>(
+  items: readonly T[],
+  value: (item: T) => number,
+  row: (item: T) => DRankRow,
+): DRankRow[] {
+  return items
+    .map((item, i) => ({ item, i, v: value(item) }))
+    .filter((e) => e.v > 0)
+    .sort((a, b) => b.v - a.v || a.i - b.i)
+    .slice(0, 3)
+    .map((e) => row(e.item));
+}
+
+interface BehaviourShares {
+  readonly cohort: number;
+  readonly rest: number;
+  readonly rows: readonly DDumbbellRow[];
+}
+
+/**
+ * The funnel's two printed rates per behaviour, as numbers.
+ *
+ * The group is the meetings that ended "not interested"; the comparison is every
+ * other meeting with an outcome recorded. Both are recomputed from the slice,
+ * and each must format to the read model's own `note` and `comparisonNote`.
+ */
+function behaviourShares(
+  funnel: BehaviourFunnel,
+  sessions: readonly ShowroomSession[],
+  pct: (v: number) => string,
+  what: string,
+): BehaviourShares {
+  const cohort = sessions.filter((s) => s.outcome === "not_interested");
+  const rest = sessions.filter(
+    (s) => s.outcome !== "not_interested" && !outcomeIsUnknown(s.outcome),
+  );
+  if (funnel.steps.length > 0) {
+    same(`${what}: the group's size`, cohort.length, funnel.steps[0]?.count);
+  }
+
+  const rows: DDumbbellRow[] = [];
+  for (const step of funnel.steps) {
+    if (step.id === "all") continue;
+    const test = D_BEHAVIOURS[step.id];
+    if (test === undefined) refuse(`${what}: a behaviour this gallery does not know, "${step.id}"`);
+    if (cohort.length === 0 || rest.length === 0) continue;
+    const share = cohort.filter(test).length / cohort.length;
+    const comparisonShare = rest.filter(test).length / rest.length;
+    same(`${what}: "${step.label}" in the group`, pct(share), step.note);
+    same(`${what}: "${step.label}" elsewhere`, pct(comparisonShare), step.comparisonNote);
+    rows.push({
+      id: step.id,
+      label: step.label,
+      share,
+      shareDisplay: pct(share),
+      comparisonShare,
+      comparisonDisplay: pct(comparisonShare),
+    });
+  }
+  return { cohort: cohort.length, rest: rest.length, rows };
+}
+
+/** Where a journey loses people, stage to stage, the way `JourneyFlow` draws the gap. */
+function journeyDrops(journey: JourneyFlowModel): { id: string; label: string; lost: number }[] {
+  const carried = new Map(journey.links.map((l) => [`${l.from}|${l.to}`, l.count]));
+  return journey.stages.slice(0, -1).flatMap((from, i) => {
+    const to = journey.stages[i + 1];
+    if (to === undefined) return [];
+    const kept = carried.get(`${from.id}|${to.id}`) ?? to.count;
+    return [
+      { id: `${from.id}-${to.id}`, label: `${from.label} to ${to.label}`, lost: from.count - kept },
+    ];
+  });
+}
+
+/**
+ * Variant D's whole read.
+ *
+ * The viewer is the lab's own: the layout has already refused anybody who is
+ * not MADSPACE, and the repository applies that viewer's grants like any page.
+ */
+export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
+  const query = { viewer, tenantSlug: D_TENANT, projectSlug: D_PROJECT, period: D_PERIOD };
+  const earlierQuery = { ...query, period: D_EARLIER };
+  const laterQuery = { ...query, period: D_LATER };
+
+  const [
+    flow,
+    charts,
+    earlierCharts,
+    laterCharts,
+    projectCharts,
+    projectView,
+    agentCharts,
+    slice,
+    earlierSlice,
+    laterSlice,
+  ] = await Promise.all([
+    repository.getSalesFlow(query),
+    repository.getFlowCharts(query, D_WINDOW),
+    repository.getFlowCharts(earlierQuery, D_WINDOW),
+    repository.getFlowCharts(laterQuery, D_WINDOW),
+    repository.getProjectCharts(query),
+    repository.getProjectView(query, null),
+    repository.getAgentCharts(query),
+    repository.getSessionSlice(query),
+    repository.getSessionSlice(earlierQuery),
+    repository.getSessionSlice(laterQuery),
+  ]);
+
+  const { locale, name: projectName } = flow.context.project;
+  const periodLabel = flow.context.period.label;
+  const earlierLabel = earlierCharts.context.period.label;
+  const laterLabel = laterCharts.context.period.label;
+  const period = periodLabel.toLowerCase();
+  const number = new Intl.NumberFormat(locale);
+  const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
+  const n = (v: number) => number.format(v);
+  const pct = (v: number) => percent.format(v);
+  const meetings = (v: number) => `${n(v)} ${v === 1 ? "meeting" : "meetings"}`;
+
+  const sessions = slice.sessions;
+  same("the period's meetings", sessions.length, flow.meetingCount);
+
+  /* --- who presented, by workload ------------------------------------------- */
+
+  const nameOf = new Map(flow.rings.map((r) => [r.agentId, r.name]));
+  const byWorkload: readonly AgentOutcomeRing[] = [...flow.rings].sort(
+    (a, b) => b.meetings - a.meetings,
+  );
+  const workloadRows = topThree(
+    byWorkload,
+    (r) => r.meetings,
+    (r) => ({ id: r.agentId, label: r.name, value: meetings(r.meetings) }),
+  );
+  const workloadNote = "Ordered by how many they presented, never by how they ended.";
+
+  /* --- the radar, three ways ---------------------------------------------------- */
+
+  const meetingsOf = new Map(agentCharts.ranked.map((r) => [r.id, r.value]));
+  const radar = agentCharts.radar;
+  const drawn = radar.profiles
+    .filter((p) => !p.belowMinimum)
+    .sort((a, b) => (meetingsOf.get(b.id) ?? 0) - (meetingsOf.get(a.id) ?? 0));
+  const withheld: DWithheld[] = radar.profiles
+    .filter((p) => p.belowMinimum)
+    .map((p) => ({ id: p.id, label: nameOf.get(p.id) ?? p.label, note: p.note ?? "" }));
+
+  const withheldFigure = figure(
+    "Below the floor",
+    n(withheld.length),
+    `under ${n(AGENT_MIN_SAMPLE)} meetings, so not drawn`,
+  );
+  const radarNote =
+    "Each spoke is scaled to the strongest agent on it. Wider is a different way of presenting, not a better one.";
+
+  const profileCard = (profile: RadarProfile | undefined): DRadarCard => {
+    if (profile === undefined) {
+      return {
+        axes: radar.axes,
+        axisNotes: radar.axisNotes,
+        profiles: [],
+        withheld,
+        facts: {
+          figures: [
+            figure("Profiles drawn", n(0), `of ${n(radar.profiles.length)} agents`),
+            withheldFigure,
+          ],
+          rankingTitle: "Where this profile reaches furthest",
+          ranking: [],
+          rankingNote: `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`,
+        },
+      };
+    }
+    const name = nameOf.get(profile.id) ?? profile.label;
+    return {
+      axes: radar.axes,
+      axisNotes: radar.axisNotes,
+      profiles: [profile],
+      withheld,
+      facts: {
+        figures: [
+          figure("Meetings", n(meetingsOf.get(profile.id) ?? 0), `${name}, ${period}`),
+          withheldFigure,
+        ],
+        rankingTitle: "Where this profile reaches furthest",
+        ranking: topThree(
+          radar.axes.map((axis, i) => ({ axis, v: profile.values[i] ?? 0 })),
+          (e) => e.v,
+          (e) => ({ id: e.axis, label: e.axis, value: `${pct(e.v)} of the strongest` }),
+        ),
+        rankingNote: radarNote,
+      },
+    };
+  };
+
+  const radarMultiply: DRadarCard = {
+    axes: radar.axes,
+    axisNotes: radar.axisNotes,
+    profiles: drawn,
+    withheld,
+    facts: {
+      figures: [
+        figure("Profiles overlaid", n(drawn.length), `of ${n(radar.profiles.length)} agents`),
+        withheldFigure,
+      ],
+      rankingTitle: "Presentations given",
+      ranking: workloadRows,
+      rankingNote: workloadNote,
+    },
+  };
+
+  /* --- the journey --------------------------------------------------------------- */
+
+  const journey = projectCharts.journey;
+  const firstStage = journey.stages[0];
+  const lastStage = journey.stages[journey.stages.length - 1];
+  const sankey = {
+    journey,
+    facts: {
+      figures: [
+        figure(firstStage?.label ?? "First stage", n(firstStage?.count ?? 0), periodLabel),
+        figure(
+          lastStage?.label ?? "Last stage",
+          n(lastStage?.count ?? 0),
+          firstStage === undefined || firstStage.count === 0 || lastStage === undefined
+            ? null
+            : `${pct(lastStage.count / firstStage.count)} of ${firstStage.label.toLowerCase()}`,
+        ),
+      ] as const,
+      rankingTitle: "Where journeys stop",
+      ranking: topThree(
+        journeyDrops(journey),
+        (d) => d.lost,
+        (d) => ({ id: d.id, label: d.label, value: `−${n(d.lost)}` }),
+      ),
+      rankingNote: journey.note,
+    },
+  };
+
+  /* --- attention against conversion, as points ---------------------------------- */
+
+  const segments: readonly SegmentInterest[] = projectView.segments;
+  const projectShares = [...new Set(segments.map((s) => s.conversion.projectShare))];
+  if (projectShares.length > 1) refuse("one project conversion share for every segment");
+  const projectShare = projectShares[0] ?? null;
+  const placed = segments.filter(
+    (s) => s.conversion.quadrant !== null && s.conversion.share !== null,
+  );
+  const scatter: DScatterCard = {
+    points: placed.map((s) => ({
+      id: s.id,
+      label: s.label,
+      index: s.index,
+      share: s.conversion.share ?? 0,
+      decided: s.conversion.decided,
+      quadrant: s.conversion.quadrant ?? "",
+      display: `${s.index.toFixed(2)}× · ${pct(s.conversion.share ?? 0)} of ${n(s.conversion.decided)}`,
+    })),
+    withheld: segments
+      .filter((s) => !placed.includes(s))
+      .map((s) => ({ id: s.id, label: s.label, note: s.conversion.withheld ?? "" })),
+    projectShare,
+    projectShareDisplay: projectShare === null ? null : pct(projectShare),
+    indexMax: Math.max(2, Math.ceil(Math.max(0, ...segments.map((s) => s.index)) * 2) / 2),
+    facts: {
+      figures: [
+        figure("Segments placed", n(placed.length), `of ${n(segments.length)}`),
+        figure(
+          "Project conversion",
+          projectShare === null ? "Unavailable" : pct(projectShare),
+          "every decided meeting",
+        ),
+      ],
+      rankingTitle: "Most attention for their stock",
+      ranking: topThree(
+        segments,
+        (s) => s.index,
+        (s) => ({ id: s.id, label: s.label, value: `${s.index.toFixed(2)}×` }),
+      ),
+      rankingNote: "Share of looking time over share of stock; 1.00× is attention matching supply.",
+    },
+  };
+
+  /* --- the outcome ring ------------------------------------------------------------ */
+
+  const recorded = flow.outcomes.filter((s) => !outcomeIsUnknown(s.outcome));
+  const recordedCount = recorded.reduce((a, s) => a + s.count, 0);
+  const ring = {
+    slices: flow.outcomes,
+    total: flow.meetingCount,
+    facts: {
+      figures: [
+        figure("Meetings", n(flow.meetingCount), periodLabel),
+        figure("Outcome recorded", n(recordedCount), `of ${n(flow.meetingCount)}`),
+      ] as const,
+      rankingTitle: "Most frequent outcomes",
+      ranking: topThree(
+        recorded,
+        (s) => s.count,
+        (s) => ({ id: s.outcome, label: s.label, value: `${n(s.count)} · ${pct(s.share)}` }),
+      ),
+      rankingNote: "Shares of every meeting in the period, recorded or not.",
+    },
+  };
+
+  /* --- behaviour: the funnel three ways ------------------------------------------- */
+
+  const funnel = charts.funnel;
+  const now = behaviourShares(funnel, sessions, pct, periodLabel);
+  const earlier = behaviourShares(earlierCharts.funnel, earlierSlice.sessions, pct, earlierLabel);
+  const later = behaviourShares(laterCharts.funnel, laterSlice.sessions, pct, laterLabel);
+  const firstBand = funnel.steps[0];
+  const lastBand = funnel.steps[funnel.steps.length - 1];
+  const bandDrops = funnel.steps.slice(1).map((step, i) => ({
+    id: step.id,
+    label: step.label,
+    lost: (funnel.steps[i]?.count ?? step.count) - step.count,
+  }));
+  const groupFigure = figure("In the group", n(now.cohort), `ended "not interested", ${period}`);
+  const restFigure = figure("Compared with", n(now.rest), "every other recorded meeting");
+
+  const funnelDetailed = {
+    funnel,
+    facts: {
+      figures: [groupFigure, restFigure] as const,
+      rankingTitle: "Where the group narrows most",
+      ranking: topThree(
+        bandDrops,
+        (d) => d.lost,
+        (d) => ({ id: d.id, label: d.label, value: `−${n(d.lost)}` }),
+      ),
+      rankingNote: "Each band is the meetings that did everything above it as well.",
+    },
+  };
+  const funnelBasic = {
+    funnel,
+    facts: {
+      figures: [
+        figure("First band", n(firstBand?.count ?? 0), firstBand?.label ?? null),
+        figure(
+          "Last band",
+          n(lastBand?.count ?? 0),
+          firstBand === undefined || firstBand.count === 0 || lastBand === undefined
+            ? null
+            : `${pct(lastBand.count / firstBand.count)} of the first`,
+        ),
+      ] as const,
+      rankingTitle: "Most common in the group",
+      ranking: topThree(
+        now.rows,
+        (r) => r.share,
+        (r) => ({ id: r.id, label: r.label, value: r.shareDisplay }),
+      ),
+      rankingNote: "Each behaviour on its own, not only after the ones above it.",
+    },
+  };
+  const moved = later.rows.flatMap((r) => {
+    const before = earlier.rows.find((e) => e.id === r.id);
+    return before === undefined ? [] : [{ r, before, v: Math.abs(r.share - before.share) }];
+  });
+  /*
+   * A change between two groups is a trend, and a ranking of changes is a
+   * verdict on which moved: below the floor there is neither. The floor is the
+   * product's documented minimum for a verdict, the same 20 the agent screens
+   * and the segment quadrants read.
+   */
+  const smaller = Math.min(earlier.cohort, later.cohort);
+  const changeRankable = smaller >= AGENT_MIN_SAMPLE;
+  const funnelMultiply = {
+    now: laterCharts.funnel,
+    earlier: earlierCharts.funnel,
+    facts: {
+      figures: [
+        figure(earlierLabel, n(earlier.cohort), `ended "not interested"`),
+        figure(laterLabel, n(later.cohort), `ended "not interested"`),
+      ] as const,
+      rankingTitle: "What changed most between the two",
+      ranking: changeRankable
+        ? topThree(
+            moved,
+            (m) => m.v,
+            (m) => ({
+              id: m.r.id,
+              label: m.r.label,
+              value: `${m.before.shareDisplay} → ${m.r.shareDisplay}`,
+            }),
+          )
+        : [],
+      rankingNote: changeRankable
+        ? `${earlierLabel} to ${laterLabel.toLowerCase()}: each behaviour on its own, within the group.`
+        : `Not ranked: the smaller group holds ${meetings(smaller)}, ${n(AGENT_MIN_SAMPLE - smaller)} short of the ${n(AGENT_MIN_SAMPLE)} a change between two groups needs. The two funnels are shown; which behaviour moved most is not.`,
+    },
+  };
+
+  /* --- when meetings happen: the grid three ways ----------------------------------- */
+
+  const activity = charts.activity;
+  const cell = (r: string, c: string) => activity.cells[`${r}|${c}`] ?? 0;
+  const hourSums = activity.columns.map((c) => ({
+    id: c,
+    hour: Number(c.slice(0, 2)),
+    v: activity.rows.reduce((a, r) => a + cell(r, c), 0),
+  }));
+  const daySums = activity.rows.map((r) => ({
+    id: r,
+    v: activity.columns.reduce((a, c) => a + cell(r, c), 0),
+  }));
+  const slots = activity.rows.flatMap((r) =>
+    activity.columns.map((c) => ({ id: `${r} ${c}`, v: cell(r, c) })),
+  );
+  const gridSpan = `${activity.columns[0] ?? ""} to ${activity.columns[activity.columns.length - 1] ?? ""}`;
+  const inGrid = figure(
+    "Meetings in the grid",
+    n(activity.meetingsCounted),
+    `of ${n(flow.meetingCount)}; the grid runs ${gridSpan}`,
+  );
+  const heatmapBasic = {
+    activity,
+    facts: {
+      figures: [
+        inGrid,
+        activity.busiest === null
+          ? figure("Busiest slot", "None", "no meeting in the grid")
+          : figure(
+              "Busiest slot",
+              `${activity.busiest.weekday} ${activity.busiest.hour}`,
+              meetings(activity.busiest.meetings),
+            ),
+      ] as const,
+      rankingTitle: "Busiest slots",
+      ranking: topThree(
+        slots,
+        (s) => s.v,
+        (s) => ({ id: s.id, label: s.id, value: meetings(s.v) }),
+      ),
+      rankingNote: "Weekday and starting hour, in the project's own time zone.",
+    },
+  };
+  const heatmapGradient = {
+    activity,
+    facts: {
+      figures: [
+        inGrid,
+        activity.quietest === null
+          ? figure("Quietest weekday", "None", null)
+          : figure(
+              "Quietest weekday",
+              activity.quietest.weekday,
+              meetings(activity.quietest.meetings),
+            ),
+      ] as const,
+      rankingTitle: "Busiest hours",
+      ranking: topThree(
+        hourSums,
+        (h) => h.v,
+        (h) => ({ id: h.id, label: h.id, value: meetings(h.v) }),
+      ),
+      rankingNote: "Every weekday added together, hour by hour.",
+    },
+  };
+  const busiestDays = topThree(
+    daySums,
+    (d) => d.v,
+    (d) => ({ id: d.id, label: d.id, value: meetings(d.v) }),
+  );
+  const heatmapHex = {
+    activity,
+    facts: {
+      figures: [
+        inGrid,
+        figure("Busiest weekday", busiestDays[0]?.label ?? "None", busiestDays[0]?.value ?? null),
+      ] as const,
+      rankingTitle: "Busiest weekdays",
+      ranking: busiestDays,
+      rankingNote: "Every hour of the grid added together, day by day.",
+    },
+  };
+
+  /* --- plan, composition, the project's weeks and the KPI panel -------------------- */
+
+  const targets = projectCharts.targets;
+  const firstTarget = targets[0];
+  const bullet = {
+    targets,
+    facts: {
+      figures: [
+        firstTarget === undefined
+          ? figure("Sold", "Unavailable", "the plan holds no target")
+          : figure(
+              firstTarget.label,
+              firstTarget.actual === null ? "Unavailable" : n(firstTarget.actual),
+              `against a target of ${n(firstTarget.target)}`,
+            ),
+        firstTarget === undefined
+          ? figure("Needed by now", "Unavailable", null)
+          : figure("Needed by now", n(Math.round(firstTarget.pace)), "on the plan's own schedule"),
+      ] as const,
+      rankingTitle: "The plan's targets",
+      ranking: targets.slice(0, 3).map((t) => ({
+        id: t.id,
+        label: t.label,
+        value:
+          t.actual === null ? `Unavailable / ${n(t.target)}` : `${n(t.actual)} / ${n(t.target)}`,
+      })),
+      rankingNote:
+        targets.length < 3
+          ? `The plan holds ${n(targets.length)} ${targets.length === 1 ? "target" : "targets"}, in its own order.`
+          : "In the plan's own order.",
+    },
+  };
+
+  const composition = charts.composition;
+  const compositionTotal = composition.columns.reduce((a, c) => a + c.total, 0);
+  const stacked = {
+    composition,
+    facts: {
+      figures: [
+        figure("Meetings", n(compositionTotal), `across ${n(composition.columns.length)} columns`),
+        figure("Columns", n(composition.columns.length), periodLabel),
+      ] as const,
+      rankingTitle: "Largest columns",
+      ranking: topThree(
+        composition.columns,
+        (c) => c.total,
+        (c) => ({ id: c.label, label: c.label, value: meetings(c.total) }),
+      ),
+      rankingNote: "Each column's own total; the colours are the outcome ladder.",
+    },
+  };
+
+  const weekly = charts.trend;
+  const weeklyTotal = weekly.points.reduce((a, p) => a + p.value, 0);
+  same("the weekly series' meetings", weeklyTotal, flow.meetingCount);
+  const lastWeek = weekly.points[weekly.points.length - 1];
+  const sparkline = {
+    series: weekly,
+    facts: {
+      figures: [
+        /* The series' own label is a rate ("per week"); its sum is a count, and says so. */
+        figure("Meetings", n(weeklyTotal), `${periodLabel}, all ${n(weekly.points.length)} weeks`),
+        figure(
+          "Latest week",
+          n(lastWeek?.value ?? 0),
+          lastWeek === undefined ? null : `week of ${lastWeek.label}, the period's last`,
+        ),
+      ] as const,
+      rankingTitle: "Busiest weeks",
+      ranking: topThree(
+        weekly.points,
+        (p) => p.value,
+        (p) => ({ id: p.label, label: p.label, value: n(p.value) }),
+      ),
+      rankingNote:
+        "Calendar weeks in the project's own time zone; a part-week at either end is drawn as what it holds.",
+    },
+  };
+
+  const kpiFigures = charts.kpis.figures;
+  const presentations = kpiFigures.find((f) => f.id === "presentations") ?? kpiFigures[0];
+  if (presentations === undefined) refuse("a KPI figure to draw");
+  const others = kpiFigures.filter((f) => f.id !== presentations.id);
+  const asFigure = (f: KpiFigure | undefined): DFigure =>
+    f === undefined
+      ? figure("Not measured", "None", null)
+      : figure(f.label, f.value, f.qualifier, f.delta, f.tone);
+  const kpi = {
+    figure: presentations,
+    facts: {
+      figures: [asFigure(others[0]), asFigure(others[1])] as const,
+      rankingTitle: "The rest of the panel",
+      ranking: others.slice(2, 5).map((f) => ({ id: f.id, label: f.label, value: f.value })),
+      rankingNote: `${charts.kpis.windowLabel}. Different measures, in the panel's own order: they do not rank against each other.`,
+    },
+  };
+
+  /* --- one presenter: their weeks and their running order ------------------------- */
+
+  const lead = drawn[0];
+  const detail = lead === undefined ? null : await repository.getAgentDetail(query, lead.id);
+  const leadName = detail?.name ?? "No agent above the floor";
+  const leadWeeks = detail?.sessionsOverTime.points ?? [];
+  const trend = {
+    agentLabel: leadName,
+    series: detail === null || detail.belowMinimum ? null : detail.sessionsOverTime,
+    note:
+      detail === null
+        ? `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`
+        : detail.suppressionNote,
+    facts: {
+      figures: [
+        figure("Meetings", n(detail?.sampleSize ?? 0), `${leadName}, ${period}`),
+        figure("Weeks drawn", n(leadWeeks.length), "part-weeks drawn as what they hold"),
+      ] as const,
+      rankingTitle: "Their busiest weeks",
+      ranking: topThree(
+        leadWeeks,
+        (p) => p.value,
+        (p) => ({ id: p.label, label: p.label, value: n(p.value) }),
+      ),
+      rankingNote: "The agent with the most meetings at or above the floor.",
+    },
+  };
+  const sections = detail?.profile.sections ?? [];
+  const sequence =
+    detail === null
+      ? null
+      : {
+          agentLabel: detail.name,
+          sections,
+          showTeam: !detail.belowMinimum,
+          note: detail.belowMinimum ? detail.suppressionNote : null,
+          facts: {
+            figures: [
+              figure("Meetings", n(detail.sampleSize), detail.name),
+              figure("Sections", n(sections.length), "in their usual running order"),
+            ] as const,
+            rankingTitle: "Their longest stops",
+            ranking: topThree(
+              sections,
+              (s) => s.medianDwellSeconds ?? 0,
+              (s) => ({ id: s.sectionId, label: s.label, value: s.dwellDisplay }),
+            ),
+            rankingNote: "Median stay in each section, not the total.",
+          },
+        };
+
+  /* --- workload, as the product ranks it ---------------------------------------- */
+
+  const rankedTotal = agentCharts.ranked.reduce((a, r) => a + r.value, 0);
+  const ranked = {
+    rows: agentCharts.ranked,
+    facts: {
+      figures: [
+        figure("Agents", n(agentCharts.ranked.length), periodLabel),
+        figure("Presentations", n(rankedTotal), "every agent together"),
+      ] as const,
+      rankingTitle: "Longest meetings",
+      ranking: charts.longestMeetings
+        .slice(0, 3)
+        .map((r) => ({ id: r.id, label: r.label, value: r.display })),
+      rankingNote: "Timed meetings only; a legacy import carries no duration.",
+    },
+  };
+
+  return {
+    projectName,
+    period: D_PERIOD,
+    periodLabel,
+    earlierLabel,
+    laterLabel,
+    windowLabel: charts.kpis.windowLabel,
+    minimum: AGENT_MIN_SAMPLE,
+    radarBasic: profileCard(drawn[0]),
+    radarSimple: profileCard(drawn[1] ?? drawn[0]),
+    radarMultiply,
+    sankey,
+    scatter,
+    ring,
+    funnelBasic,
+    funnelDetailed,
+    funnelMultiply,
+    heatmapBasic,
+    heatmapGradient,
+    heatmapHex,
+    bullet,
+    stacked,
+    trend,
+    sparkline,
+    ranked,
+    kpi,
+    sequence,
+  };
 }

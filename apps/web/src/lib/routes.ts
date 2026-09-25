@@ -363,6 +363,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["madspace_admin"],
   },
+  /*
+   * Variant D: the product's charts under the Hyper kit's treatment. Gated
+   * identically, and a route of its own because its subject is the charts, not
+   * the six control-plane screens that A, B and C are three hands on.
+   */
+  {
+    route: "/design-lab/variants/d",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
 
   /*
    * Ask IRIS, the flagship of the approved design — under review, at a real URL.
