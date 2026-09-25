@@ -917,12 +917,24 @@
   color: var(--d-ink-2);
 }
 
+/*
+ * `--t` is where a cell sits between the grid's least count (0) and its most
+ * (1). The product sets `--v`, the count over the peak; `--d-vmin` is the least
+ * count on the same terms, from the loader. A ramp that began at nought spent
+ * its darkest shades on counts no cell holds, and a 1 and a 3 came out alike.
+ *
+ * The count is white on the dark shades and near-black on the bright ones:
+ * white on the kit's brightest green is 1.3 to 1.
+ */
 .dld-root .dld-heat .iris-heat-cell {
+  --t: clamp(0, (var(--v) - var(--d-vmin, 0)) / (1 - var(--d-vmin, 0)), 1);
+  --shade: var(--t);
+  --ink-flip: clamp(0, (var(--shade) - 0.5) * 1000, 1);
   border: 0;
   font-family: var(--d-font-numeric);
   font-size: 12px;
-  color: var(--d-ink);
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+  color: color-mix(in oklab, #04150f calc(var(--ink-flip) * 100%), #ffffff);
+  text-shadow: 0 1px 2px rgb(0 0 0 / calc(0.8 - var(--ink-flip) * 0.8));
 }
 
 /*
@@ -936,24 +948,21 @@
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 
-/* Basic: the kit's rounded cells; the ramp steps in fifths of the busiest slot. */
+/* Basic: the kit's rounded cells; one shade per count across the grid's own range, seven at most. */
 .dld-root .dld-heat[data-variant="basic"] .iris-heat-cell {
+  --shade: calc(round(nearest, var(--t) * (var(--d-steps, 2) - 1), 1) / (var(--d-steps, 2) - 1));
   min-height: 30px;
   border-radius: 8px;
-  background: color-mix(
-    in oklab,
-    var(--d-ramp-hi) calc(round(up, var(--v) * 5, 1) * 20%),
-    var(--d-ramp-lo)
-  );
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--shade) * 100%), var(--d-ramp-lo));
 }
 
-/* Gradient: continuous, and each cell bleeds into its neighbours, as the kit's blurred field does. */
+/* Gradient: continuous over the same range, and each cell bleeds into its neighbours, as the kit's blurred field does. */
 .dld-root .dld-heat[data-variant="gradient"] .iris-heat-cell {
   min-height: 30px;
   border-radius: 3px;
-  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 100%), var(--d-ramp-lo));
-  box-shadow: 0 0 calc(var(--v) * 22px) calc(var(--v) * 4px)
-    color-mix(in oklab, var(--d-ramp-hi) calc(var(--v) * 40%), transparent);
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 100%), var(--d-ramp-lo));
+  box-shadow: 0 0 calc(var(--t) * 22px) calc(var(--t) * 4px)
+    color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 40%), transparent);
 }
 
 .dld-root .dld-heat .iris-meta {

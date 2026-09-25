@@ -436,6 +436,19 @@ export interface DParallelCard {
   readonly facts: DFacts;
 }
 
+export interface DHeatCard {
+  readonly activity: ActivityMatrix;
+  /** The grid's own sentence: what it counts, and how its shade reads. */
+  readonly caption: string;
+  /**
+   * Where the shade starts and how it steps. `floor` is the grid's least count
+   * over its peak, on the terms the product sets each cell's `--v`; `steps` is
+   * how many shades the stepped grid has, one per count where the range allows.
+   */
+  readonly scale: { readonly floor: string; readonly steps: number };
+  readonly facts: DFacts;
+}
+
 export interface DHourCount {
   readonly hour: number;
   readonly label: string;
@@ -557,8 +570,8 @@ export interface LabChartsD {
     readonly facts: DFacts;
   };
   readonly funnelMultiply: DOutcomeFunnelsCard;
-  readonly heatmapBasic: { readonly activity: ActivityMatrix; readonly facts: DFacts };
-  readonly heatmapGradient: { readonly activity: ActivityMatrix; readonly facts: DFacts };
+  readonly heatmapBasic: DHeatCard;
+  readonly heatmapGradient: DHeatCard;
   readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
   readonly stacked: { readonly composition: OutcomeComposition; readonly facts: DFacts };
   readonly trend: {
@@ -650,6 +663,59 @@ function hourLabel(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
+/** "16:00–17:00". A bucket is a span of time, and printed as one; "16:00" names an instant. */
+function hourSpan(hour: number): string {
+  return `${hourLabel(hour)}–${hourLabel((hour + 1) % 24)}`;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEKDAY_FROM_MONDAY: Readonly<Record<string, number>> = {
+  Mon: 0,
+  Tue: 1,
+  Wed: 2,
+  Thu: 3,
+  Fri: 4,
+  Sat: 5,
+  Sun: 6,
+};
+
+/**
+ * The project's calendar date an instant falls on, as midnight UTC of that
+ * date, and its weekday counted from Monday. Whole dates rather than instants,
+ * so that stepping a week is adding seven days and a clock change cannot move
+ * a boundary by an hour.
+ */
+function calendarReader(timeZone: string): (at: Date) => { day: number; weekday: number } {
+  const format = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+  });
+  return (at) => {
+    const parts = new Map(format.formatToParts(at).map((p) => [p.type, p.value]));
+    const weekday = WEEKDAY_FROM_MONDAY[parts.get("weekday") ?? ""];
+    if (weekday === undefined) refuse(`the weekday of ${at.toISOString()}`);
+    return {
+      day: Date.UTC(
+        Number(parts.get("year")),
+        Number(parts.get("month")) - 1,
+        Number(parts.get("day")),
+      ),
+      weekday,
+    };
+  };
+}
+
+/** ISO 8601: a week belongs to the year its Thursday falls in, and week 1 holds that year's first Thursday. */
+function isoWeek(monday: number): string {
+  const thursday = new Date(monday + 3 * DAY_MS);
+  const year = thursday.getUTCFullYear();
+  const week = Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / DAY_MS / 7) + 1;
+  return `${year} W${String(week).padStart(2, "0")}`;
+}
+
 /** The session's own hour in the project's time zone — the office's hour, as the weekday grid reads it. */
 function hourReader(timeZone: string): (iso: string) => number {
   const format = new Intl.DateTimeFormat("en-GB", {
@@ -738,6 +804,39 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
 
   const sessions = slice.sessions;
   same("the period's meetings", sessions.length, flow.meetingCount);
+
+  /*
+   * Days, for printing a week or a span as the interval it is. The dates are
+   * whole days held as midnight UTC, so they are printed in UTC; the zone was
+   * applied when each was read. A running period is read through today, as the
+   * repository reads it, so its last day is today and not the day before.
+   */
+  const calendar = calendarReader(timeZone);
+  const dates = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  const { from: periodFrom, to: periodTo } = flow.context.period;
+  const today = Date.parse(flow.context.generatedAt);
+  const periodRunning = Date.parse(periodTo) >= today - DAY_MS;
+  const periodFirstDay = calendar(new Date(periodFrom)).day;
+  const periodLastDay = calendar(new Date(periodRunning ? today : Date.parse(periodTo) - 1)).day;
+  /** Seven days from `first` as dates, "13–19 Jul", cut to the days the series holds, and how many those are. */
+  const sevenDays = (first: number, lastDay: number) => {
+    const from = Math.max(first, periodFirstDay);
+    const to = Math.min(first + 6 * DAY_MS, lastDay);
+    const held = Math.round((to - from) / DAY_MS) + 1;
+    return {
+      range: dates.formatRange(new Date(from), new Date(to)),
+      part: held < 7 ? `${n(held)} of 7 days` : null,
+    };
+  };
+  /** "2026 W29 (13–19 Jul)", and "2026 W35 (24 Aug, 1 of 7 days)" where the period holds part of the week. */
+  const weekSpan = (monday: number) => {
+    const days = sevenDays(monday, periodLastDay);
+    return `${isoWeek(monday)} (${days.range}${days.part === null ? "" : `, ${days.part}`})`;
+  };
 
   /* --- who presented, by workload ------------------------------------------- */
 
@@ -1212,47 +1311,83 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     v: activity.rows.reduce((a, r) => a + cell(r, c), 0),
   }));
   const slots = activity.rows.flatMap((r) =>
-    activity.columns.map((c) => ({ id: `${r} ${c}`, v: cell(r, c) })),
+    activity.columns.map((c) => ({
+      id: `${r}|${c}`,
+      label: `${r} ${hourSpan(Number(c.slice(0, 2)))}`,
+      v: cell(r, c),
+    })),
   );
-  const gridSpan = `${activity.columns[0] ?? ""} to ${activity.columns[activity.columns.length - 1] ?? ""}`;
+  const firstHour = Number((activity.columns[0] ?? "00").slice(0, 2));
+  const lastHour = Number((activity.columns[activity.columns.length - 1] ?? "00").slice(0, 2));
+  /* The grid's reach as a span: its last column is the hour from 18:00, so it runs to 19:00. */
+  const gridSpan = `${hourLabel(firstHour)}–${hourLabel((lastHour + 1) % 24)}`;
   const inGrid = figure(
     "Meetings in the grid",
     n(activity.meetingsCounted),
     `of ${n(flow.meetingCount)}; the grid runs ${gridSpan}`,
   );
-  const lastColumn = activity.columns[activity.columns.length - 1] ?? "";
   const outsideGrid = flow.meetingCount - activity.meetingsCounted;
-  const gridNote = `Meetings ${period} by weekday and the hour they started, in the project's own time zone (${timeZone}), for starts from ${activity.columns[0] ?? ""} to ${lastColumn.slice(0, 2)}:59. ${outsideGrid === 0 ? "Every meeting started inside those hours." : `The ${meetings(outsideGrid)} that started outside those hours are not in the grid.`} Every cell prints its own count; an outlined empty cell is none.`;
+  const gridNote = `Meetings ${period} by weekday and the hour they started, in the project's own time zone (${timeZone}), for the meetings that started within ${gridSpan}. ${outsideGrid === 0 ? "Every meeting started inside those hours." : `The ${meetings(outsideGrid)} that started outside those hours are not in the grid.`}`;
   const inTheGrid = `${n(activity.meetingsCounted)} of ${meetings(flow.meetingCount)} started inside the grid.`;
-  const heatmapBasic = {
+  const busiestSlot =
+    activity.busiest === null
+      ? null
+      : `${activity.busiest.weekday} ${hourSpan(Number(activity.busiest.hour.slice(0, 2)))}`;
+
+  /*
+   * The shade runs over the counts the grid holds, least to most, not from
+   * nought. A nought is drawn apart, as an outlined cell, and a ramp that began
+   * at nought spent its darkest shades on counts no cell has, which is how a 1
+   * and a 3 came to look alike. The product hands each cell `--v`, its count over
+   * the peak to three places; the floor is the least count on the same terms,
+   * and the stylesheet stretches the ramp between the two.
+   */
+  const heatCounts = Object.values(activity.cells).filter((v) => v > 0);
+  const heatPeak = Math.max(0, ...heatCounts);
+  const heatLeast = heatCounts.length === 0 ? 0 : Math.min(...heatCounts);
+  const heatRange = heatPeak - heatLeast + 1;
+  const heatScale = {
+    floor: heatLeast === heatPeak ? "0" : (heatLeast / heatPeak).toFixed(3),
+    /* One shade per count while the range allows it; past seven counts, seven equal parts of it. */
+    steps: Math.min(7, Math.max(2, heatRange)),
+  };
+  const heatCaption = (shade: string) =>
+    `Meetings by weekday and starting hour, across ${meetings(activity.meetingsCounted)}. ${shade} An outlined cell had none; every other cell prints its count.`;
+  const faintToBright = `from ${n(heatLeast)}, the faintest, to ${n(heatPeak)}, the brightest.`;
+
+  const heatmapBasic: DHeatCard = {
     activity,
+    caption: heatCaption(
+      heatRange <= 7
+        ? `The shade steps once per count, ${faintToBright}`
+        : `The shade steps in seven equal parts of the range, ${faintToBright}`,
+    ),
+    scale: heatScale,
     facts: {
       note: gridNote,
-      summary: `${inTheGrid} By weekday: ${list(activity.rows.map((r) => `${r} ${n(activity.columns.reduce((a, c) => a + cell(r, c), 0))}`))}.${activity.busiest === null ? "" : ` The busiest slot is ${activity.busiest.weekday} ${activity.busiest.hour}, with ${meetings(activity.busiest.meetings)}.`}`,
+      summary: `${inTheGrid} By weekday: ${list(activity.rows.map((r) => `${r} ${n(activity.columns.reduce((a, c) => a + cell(r, c), 0))}`))}.${activity.busiest === null ? "" : ` The busiest slot is ${busiestSlot ?? ""}, with ${meetings(activity.busiest.meetings)}.`}`,
       figures: [
         inGrid,
         activity.busiest === null
-          ? figure("Busiest slot", "None", "no meeting in the grid")
-          : figure(
-              "Busiest slot",
-              `${activity.busiest.weekday} ${activity.busiest.hour}`,
-              meetings(activity.busiest.meetings),
-            ),
-      ] as const,
+          ? figure("Meetings in the busiest slot", "None", "no meeting in the grid")
+          : figure("Meetings in the busiest slot", n(activity.busiest.meetings), busiestSlot),
+      ],
       rankingTitle: "Busiest slots",
       ranking: topThree(
         slots,
         (s) => s.v,
-        (s) => ({ id: s.id, label: s.id, value: meetings(s.v) }),
+        (s) => ({ id: s.id, label: s.label, value: meetings(s.v) }),
       ),
-      rankingNote: "Weekday and starting hour, in the project's own time zone.",
+      rankingNote: "Weekday, and the hour the meetings started in, in the project's own time zone.",
     },
   };
-  const heatmapGradient = {
+  const heatmapGradient: DHeatCard = {
     activity,
+    caption: heatCaption(`Brightness runs continuously ${faintToBright}`),
+    scale: heatScale,
     facts: {
       note: gridNote,
-      summary: `${inTheGrid} By starting hour: ${list(hourSums.map((h) => `${h.id} ${n(h.v)}`))}.${activity.quietest === null ? "" : ` The quietest weekday is ${activity.quietest.weekday}, with ${meetings(activity.quietest.meetings)}.`}`,
+      summary: `${inTheGrid} By starting hour: ${list(hourSums.map((h) => `${hourSpan(h.hour)} ${n(h.v)}`))}.${activity.quietest === null ? "" : ` The quietest weekday is ${activity.quietest.weekday}, with ${meetings(activity.quietest.meetings)}.`}`,
       figures: [
         inGrid,
         activity.quietest === null
@@ -1262,12 +1397,12 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
               activity.quietest.weekday,
               meetings(activity.quietest.meetings),
             ),
-      ] as const,
+      ],
       rankingTitle: "Busiest hours",
       ranking: topThree(
         hourSums,
         (h) => h.v,
-        (h) => ({ id: h.id, label: h.id, value: meetings(h.v) }),
+        (h) => ({ id: h.id, label: hourSpan(h.hour), value: meetings(h.v) }),
       ),
       rankingNote: "Every weekday added together, hour by hour.",
     },
@@ -1295,16 +1430,20 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     total: sessions.length,
     facts: {
       note: `Every meeting ${period} by the hour it started, in the project's own time zone (${timeZone}), round all 24 hours. A bar's length is its count against the busiest hour; an hour with none has no bar.`,
-      summary: `${meetings(sessions.length)} by starting hour: ${list(hours.filter((h) => h.count > 0).map((h) => `${h.label} ${n(h.count)}`))}; no meeting started in any other hour.`,
+      summary: `${meetings(sessions.length)} by starting hour: ${list(hours.filter((h) => h.count > 0).map((h) => `${hourSpan(h.hour)} ${n(h.count)}`))}; no meeting started in any other hour.`,
       figures: [
         figure("Meetings", n(sessions.length), `${periodLabel}, all 24 hours`),
-        figure("Busiest hour", hourLabel(hourCounts.indexOf(radialPeak)), meetings(radialPeak)),
+        figure(
+          "Meetings in the busiest hour",
+          n(radialPeak),
+          `${hourSpan(hourCounts.indexOf(radialPeak))}, every weekday together`,
+        ),
       ],
       rankingTitle: "Busiest hours",
       ranking: topThree(
         hours,
         (h) => h.count,
-        (h) => ({ id: h.label, label: h.label, value: meetings(h.count) }),
+        (h) => ({ id: h.label, label: hourSpan(h.hour), value: meetings(h.count) }),
       ),
       rankingNote: "Starting hour in the project's own time zone, every weekday together.",
     },
@@ -1340,7 +1479,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     (c) => c.count,
     (c) => ({
       id: `${c.agentId}|${c.hour}`,
-      label: `${nameOf.get(c.agentId) ?? c.agentId} · ${hourLabel(c.hour)}`,
+      label: `${nameOf.get(c.agentId) ?? c.agentId} · ${hourSpan(c.hour)}`,
       value: meetings(c.count),
     }),
   );
@@ -1357,18 +1496,18 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
             `${r.name}: ${list(
               punchCells
                 .filter((c) => c.agentId === r.agentId && c.count > 0)
-                .map((c) => `${hourLabel(c.hour)} ${n(c.count)}`),
+                .map((c) => `${hourSpan(c.hour)} ${n(c.count)}`),
             )}.`,
         )
         .join(" ")}`,
       figures: [
         figure("Meetings", n(sessions.length), `${n(byWorkload.length)} agents, ${period}`),
         figure(
-          "Busiest agent-hour",
-          busiestCell === undefined ? "None" : hourLabel(busiestCell.hour),
+          "Meetings in the busiest agent-hour",
+          busiestCell === undefined ? "None" : n(busiestCell.count),
           busiestCell === undefined
             ? null
-            : `${nameOf.get(busiestCell.agentId) ?? busiestCell.agentId}, ${meetings(busiestCell.count)}`,
+            : `${nameOf.get(busiestCell.agentId) ?? busiestCell.agentId}, ${hourSpan(busiestCell.hour)}`,
         ),
       ],
       rankingTitle: "Busiest agent-hours",
@@ -1447,37 +1586,62 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const weekly = charts.trend;
   const weeklyTotal = weekly.points.reduce((a, p) => a + p.value, 0);
   same("the weekly series' meetings", weeklyTotal, flow.meetingCount);
-  const lastWeek = weekly.points[weekly.points.length - 1];
-  const firstWeek = weekly.points[0];
-  const weekValues = weekly.points.map((p) => p.value);
+  /*
+   * The same weeks, as dates. `buildTrend` keeps each week's Monday as an
+   * instant and prints only its day, and a week printed as an interval needs
+   * the Monday as a date; so the weeks are counted again here, from the same
+   * meetings in the same zone, and must match the read model's own week for
+   * week: as many, each labelled as it labels it, each holding what it holds.
+   */
+  const perWeek = new Map<number, number>();
+  for (const s of sessions) {
+    const at = calendar(new Date(s.startedAt));
+    const monday = at.day - at.weekday * DAY_MS;
+    perWeek.set(monday, (perWeek.get(monday) ?? 0) + 1);
+  }
+  const mondays = [...perWeek.keys()].sort((a, b) => a - b);
+  const weeks: { monday: number; count: number }[] = [];
+  const firstMonday = mondays[0];
+  const lastMonday = mondays[mondays.length - 1];
+  if (firstMonday !== undefined && lastMonday !== undefined) {
+    for (let monday = firstMonday; monday <= lastMonday; monday += 7 * DAY_MS) {
+      weeks.push({ monday, count: perWeek.get(monday) ?? 0 });
+    }
+  }
+  same("the weekly series' weeks", weeks.length, weekly.points.length);
+  weeks.forEach((w, i) => {
+    same(`week ${n(i + 1)}'s label`, dates.format(new Date(w.monday)), weekly.points[i]?.label);
+    same(`week ${n(i + 1)}'s meetings`, w.count, weekly.points[i]?.value);
+  });
+  const firstWeek = weeks[0];
+  const lastWeek = weeks[weeks.length - 1];
+  const weekCounts = weeks.map((w) => w.count);
   const sparkline = {
     series: weekly,
     facts: {
-      note: `Meetings started in each week ${period}, Monday to Sunday in the project's own time zone, from the first week with a meeting to the last; a week between them with none is drawn at nought. Every meeting counts once, whatever its outcome. The week the period opens in and the week it closes in can each hold only part of a week.`,
+      note: `Meetings started in each week ${period}, Monday to Sunday in the project's own time zone, from the first week with a meeting to the last; a week between them with none is drawn at nought. Every meeting counts once, whatever its outcome. A week is named by its ISO number and its dates, and where the period holds only part of it, by the days it holds.`,
       summary:
         firstWeek === undefined || lastWeek === undefined
           ? `No meeting ${period}.`
-          : `${meetings(weeklyTotal)} over ${n(weekly.points.length)} weeks: ${n(firstWeek.value)} in the week of ${firstWeek.label}, ${n(lastWeek.value)} in the week of ${lastWeek.label}. The busiest week held ${n(Math.max(...weekValues))}, the quietest ${n(Math.min(...weekValues))}.`,
+          : `${meetings(weeklyTotal)} over ${n(weeks.length)} weeks: ${n(firstWeek.count)} in ${weekSpan(firstWeek.monday)}, and ${n(lastWeek.count)} in ${weekSpan(lastWeek.monday)}. The busiest week held ${n(Math.max(...weekCounts))}, the quietest ${n(Math.min(...weekCounts))}.`,
       figures: [
         /* The series' own label is a rate ("per week"); its sum is a count, and says so. */
-        figure("Meetings", n(weeklyTotal), `${periodLabel}, all ${n(weekly.points.length)} weeks`),
+        figure("Meetings", n(weeklyTotal), `${periodLabel}, all ${n(weeks.length)} weeks`),
         figure(
-          "Latest week",
-          n(lastWeek?.value ?? 0),
-          lastWeek === undefined ? null : `week of ${lastWeek.label}, the period's last`,
+          "Meetings in the latest week",
+          n(lastWeek?.count ?? 0),
+          lastWeek === undefined ? null : weekSpan(lastWeek.monday),
         ),
       ] as const,
       rankingTitle: "Busiest weeks",
       ranking: topThree(
-        weekly.points,
-        (p) => p.value,
-        (p) => ({ id: p.label, label: p.label, value: n(p.value) }),
+        weeks,
+        (w) => w.count,
+        (w) => ({ id: String(w.monday), label: weekSpan(w.monday), value: meetings(w.count) }),
       ),
-      rankingNote:
-        "Calendar weeks in the project's own time zone; a part-week at either end is drawn as what it holds.",
+      rankingNote: "Monday to Sunday, in the project's own time zone.",
     },
   };
-
   const kpiFigures = charts.kpis.figures;
   const presentations = kpiFigures.find((f) => f.id === "presentations") ?? kpiFigures[0];
   if (presentations === undefined) refuse("a KPI figure to draw");
@@ -1520,13 +1684,36 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const leadName = detail?.name ?? "No agent above the floor";
   const leadWeeks = detail?.sessionsOverTime.points ?? [];
   /*
-   * The agent page's weeks are not the Sales Flow's. `sessionsOverTime` counts
-   * seven-day spans from the period's first moment, and keeps the last twelve;
-   * the note says so rather than letting a reader take them for calendar weeks.
+   * The agent page's weeks are not the Sales Flow's. `weeklyBuckets` steps
+   * seven days at a time from the moment the period opens, cuts the last at the
+   * period's end and keeps the last few. The spans are rebuilt here the same
+   * way, to print each as its dates, and each must label as the read model
+   * labels it. The note says what they are, rather than letting a reader take
+   * them for calendar weeks.
    */
-  const periodOpens = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone }).format(
-    new Date(flow.context.period.from),
+  const spanDay = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone });
+  const spanStarts: number[] = [];
+  for (let at = Date.parse(periodFrom); at < Date.parse(periodTo); at += 7 * DAY_MS) {
+    spanStarts.push(at);
+  }
+  const leadSpans = (leadWeeks.length === 0 ? [] : spanStarts.slice(-leadWeeks.length)).map(
+    (start, i) => {
+      const point = leadWeeks[i];
+      same(`the trend's span ${n(i + 1)}`, spanDay.format(new Date(start)), point?.label);
+      const end = Math.min(start + 7 * DAY_MS, Date.parse(periodTo));
+      const days = sevenDays(calendar(new Date(start)).day, calendar(new Date(end - 1)).day);
+      return {
+        id: String(start),
+        label: days.part === null ? days.range : `${days.range} (${days.part})`,
+        value: point?.value ?? 0,
+      };
+    },
   );
+  same("the trend's spans", leadSpans.length, leadWeeks.length);
+  const periodOpens = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone }).format(
+    new Date(periodFrom),
+  );
+  const periodCloses = spanDay.format(new Date(periodTo));
   const trendSeries = detail === null || detail.belowMinimum ? null : detail.sessionsOverTime;
   const trend = {
     agentLabel: leadName,
@@ -1536,21 +1723,21 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         ? `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`
         : detail.suppressionNote,
     facts: {
-      note: `Meetings ${leadName} presented in each of the period's last ${n(leadWeeks.length)} seven-day spans. The spans are counted from the moment the period opens, a ${periodOpens}, so they are not calendar weeks, and the last one closes today and can be short. Every meeting counts once, whatever its outcome. The line is drawn only for an agent with ${n(AGENT_MIN_SAMPLE)} meetings or more.`,
+      note: `Meetings ${leadName} presented in each of the period's last ${n(leadSpans.length)} seven-day spans. The spans are counted from the moment the period opens, a ${periodOpens}, so they are not calendar weeks; the last one ends when the period does, at the start of ${periodCloses}, and can be shorter. Every meeting counts once, whatever its outcome. The line is drawn only for an agent with ${n(AGENT_MIN_SAMPLE)} meetings or more.`,
       summary:
         trendSeries === null
           ? (detail?.suppressionNote ??
             `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`)
-          : `${leadName}, by the day each seven-day span opens: ${list(leadWeeks.map((p) => `${p.label} ${n(p.value)}`))}.`,
+          : `${leadName}, span by span: ${list(leadSpans.map((s) => `${s.label} ${n(s.value)}`))}.`,
       figures: [
         figure("Meetings", n(detail?.sampleSize ?? 0), `${leadName}, ${period}`),
-        figure("Weeks drawn", n(leadWeeks.length), "part-weeks drawn as what they hold"),
+        figure("Spans drawn", n(leadSpans.length), "seven days each; the last can be shorter"),
       ] as const,
-      rankingTitle: "Their busiest weeks",
+      rankingTitle: "Their busiest seven-day spans",
       ranking: topThree(
-        leadWeeks,
-        (p) => p.value,
-        (p) => ({ id: p.label, label: p.label, value: n(p.value) }),
+        leadSpans,
+        (s) => s.value,
+        (s) => ({ id: s.id, label: s.label, value: meetings(s.value) }),
       ),
       rankingNote: "The agent with the most meetings at or above the floor.",
     },

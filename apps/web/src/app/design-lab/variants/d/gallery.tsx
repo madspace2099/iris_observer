@@ -1,3 +1,5 @@
+import type * as React from "react";
+
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import {
   BulletChart,
@@ -11,7 +13,7 @@ import {
   TrendLine,
 } from "@/showroom/charts2";
 
-import type { DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
+import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
 import { DCard, Sized } from "./card";
 import { DDefs } from "./defs";
 import {
@@ -88,6 +90,33 @@ function AxisNotes({
         </div>
       ))}
     </dl>
+  );
+}
+
+/*
+ * The grid's scale arrives from the loader: where the shade starts (the least
+ * count over the peak, on the terms the product sets each cell's `--v`) and
+ * how many shades the stepped grid has. The stylesheet stretches between them.
+ */
+function HeatBody({ card, variant }: { readonly card: DHeatCard; readonly variant: string }) {
+  return (
+    <div
+      className="dld-heat"
+      data-variant={variant}
+      style={
+        {
+          "--d-vmin": card.scale.floor,
+          "--d-steps": card.scale.steps,
+        } as React.CSSProperties
+      }
+    >
+      <Heatmap
+        rows={card.activity.rows}
+        columns={card.activity.columns}
+        cells={card.activity.cells}
+        caption={card.caption}
+      />
+    </div>
   );
 }
 
@@ -190,7 +219,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
           <DCard
             id="trend"
             group="A · Trend line and area"
-            title={`${trend.agentLabel}, week by week`}
+            title={`${trend.agentLabel}, seven days at a time`}
             reads={reads("AgentDetailView.sessionsOverTime")}
             facts={trend.facts}
             kind="sweep"
@@ -296,14 +325,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             kind="bloom"
             wide
           >
-            <div className="dld-heat" data-variant="basic">
-              <Heatmap
-                rows={data.heatmapBasic.activity.rows}
-                columns={data.heatmapBasic.activity.columns}
-                cells={data.heatmapBasic.activity.cells}
-                caption={`Meetings by weekday and starting hour, across ${data.heatmapBasic.activity.meetingsCounted} presentations. The shade steps in fifths of the busiest slot; every cell prints its own count.`}
-              />
-            </div>
+            <HeatBody card={data.heatmapBasic} variant="basic" />
           </DCard>
 
           <DCard
@@ -315,14 +337,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             kind="bloom"
             wide
           >
-            <div className="dld-heat" data-variant="gradient">
-              <Heatmap
-                rows={data.heatmapGradient.activity.rows}
-                columns={data.heatmapGradient.activity.columns}
-                cells={data.heatmapGradient.activity.cells}
-                caption={`Meetings by weekday and starting hour, across ${data.heatmapGradient.activity.meetingsCounted} presentations. Brightness is continuous with the count.`}
-              />
-            </div>
+            <HeatBody card={data.heatmapGradient} variant="gradient" />
           </DCard>
 
           <DCard
