@@ -53,6 +53,8 @@ export function AssistedSales({
           })}
           peak={1}
           measured
+          // R05 item 8. The denominators, "N of M dated sales", are in the headline and the note.
+          collapseAfter={5}
         />
       )}
       <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>

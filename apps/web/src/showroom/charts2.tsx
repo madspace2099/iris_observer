@@ -619,6 +619,7 @@ export function RankedBars({
   valueSuffix = "",
   measured = false,
   peak: scale,
+  collapseAfter,
 }: {
   rows: readonly {
     readonly id: string;
@@ -650,34 +651,55 @@ export function RankedBars({
    * each other. Absent, the longest row fills the track as before.
    */
   peak?: number;
+  /**
+   * Opt-in, and Sales Flow's only (R05 item 8): show this many rows and the
+   * rest behind "Show all". The hidden rows keep their places and the shared
+   * scale, so opening the list changes nothing a row says. A list whose rows
+   * carry their own denominator must not pass this: a denominator stays on
+   * screen. Absent, every row is drawn as before.
+   */
+  collapseAfter?: number;
 }) {
   const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
+  const className = `iris-ranked${measured ? " iris-ranked-measured" : ""}`;
+  const cut =
+    collapseAfter !== undefined && rows.length > collapseAfter ? collapseAfter : rows.length;
 
+  const item = (row: (typeof rows)[number], place: number) => (
+    <li key={row.id}>
+      <span className="iris-ranked-place">{place}</span>
+      <span className="iris-ranked-name">
+        {row.href === undefined || row.href === null ? (
+          row.label
+        ) : (
+          <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
+        )}
+        {/* Truncated visibly, and never unreachable: the full line is the
+            element's own title. */}
+        {row.sub === null ? null : <em title={row.sub}>{row.sub}</em>}
+      </span>
+      <span className="iris-ranked-track">
+        <i style={{ width: `${(row.value / peak) * 100}%` }} />
+      </span>
+      <span className="iris-ranked-value">
+        {row.display}
+        {valueSuffix}
+      </span>
+    </li>
+  );
+
+  const shown = <ol className={className}>{rows.slice(0, cut).map((r, i) => item(r, i + 1))}</ol>;
+  if (cut === rows.length) return shown;
   return (
-    <ol className={`iris-ranked${measured ? " iris-ranked-measured" : ""}`}>
-      {rows.map((row, i) => (
-        <li key={row.id}>
-          <span className="iris-ranked-place">{i + 1}</span>
-          <span className="iris-ranked-name">
-            {row.href === undefined || row.href === null ? (
-              row.label
-            ) : (
-              <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
-            )}
-            {/* Truncated visibly, and never unreachable: the full line is the
-                element's own title. */}
-            {row.sub === null ? null : <em title={row.sub}>{row.sub}</em>}
-          </span>
-          <span className="iris-ranked-track">
-            <i style={{ width: `${(row.value / peak) * 100}%` }} />
-          </span>
-          <span className="iris-ranked-value">
-            {row.display}
-            {valueSuffix}
-          </span>
-        </li>
-      ))}
-    </ol>
+    <>
+      {shown}
+      <details className="iris-ranked-more">
+        <summary className="iris-action">Show all</summary>
+        <ol className={className} start={cut + 1}>
+          {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
+        </ol>
+      </details>
+    </>
   );
 }
 

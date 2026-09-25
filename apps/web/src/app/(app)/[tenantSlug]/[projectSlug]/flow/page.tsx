@@ -279,6 +279,8 @@ export default async function FlowPage({
                       href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
                     }))}
                     measured
+                    // R05 item 8. No row carries a denominator; the count sits in the note below.
+                    collapseAfter={5}
                   />
                   <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
                     {view.ladder.stalledNote}
@@ -514,12 +516,19 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
-            <RankedBars period={query.period} rows={charts.longestMeetings} measured />
+            {/* R05 item 8: a date, a length and a line of context per row, no denominator. */}
+            <RankedBars
+              period={query.period}
+              rows={charts.longestMeetings}
+              measured
+              collapseAfter={5}
+            />
           </div>
           <div className="iris-band-side">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
+            {/* Never collapsed: every row carries its own denominator, "N of M meetings". */}
             <RankedBars period={query.period} rows={charts.rankedAgents} measured />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.

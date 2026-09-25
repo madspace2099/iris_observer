@@ -527,6 +527,22 @@
   gap: 0;
 }
 
+/*
+ * A long list's first rows, and the rest behind "Show all" (R05 item 8). The
+ * control is the page's own action pill (`.iris-action`), with the browser's
+ * disclosure marker taken off rather than a new mark put on.
+ */
+.iris-ranked-more > summary {
+  list-style: none;
+  cursor: pointer;
+  width: fit-content;
+  margin: 0.75rem 0;
+}
+
+.iris-ranked-more > summary::-webkit-details-marker {
+  display: none;
+}
+
 .iris-ranked li {
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 12rem) minmax(0, 1fr) 5rem;
