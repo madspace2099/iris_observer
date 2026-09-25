@@ -67,6 +67,63 @@
   color: var(--ink-2);
 }
 
+/*
+ * The summary row in the plan's four groups (R05 item 2). The live figures
+ * come first, with "Typical length" in the row outside any group. The two
+ * groups nothing measures sit below them, printed empty with what is missing.
+ * The strips are the same joined strips as before, one per group.
+ */
+.iris-kpi-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.375rem 1rem;
+}
+
+/*
+ * Each group takes three rows of the parent, name, definition, figures, so the
+ * names line up, the definitions line up and the figures line up however many
+ * lines a definition wraps to. A figure outside any group puts its strip in
+ * the figure row, under no name.
+ */
+.iris-kpi-group {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  min-width: 0;
+}
+
+.iris-kpi-group > p {
+  margin: 0;
+}
+
+.iris-kpi-group > .iris-kpis:only-child {
+  grid-row: 3;
+}
+
+.iris-kpi-group[data-empty="true"] > .iris-kicker {
+  margin-top: 1.25rem;
+}
+
+.iris-kpi-group[data-empty="true"] + .iris-kpi-group[data-empty="true"] {
+  grid-column: span 2;
+}
+
+.iris-kpi-missing {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+@media (max-width: 60rem) {
+  .iris-kpi-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .iris-kpi-group[data-empty="true"] + .iris-kpi-group[data-empty="true"] {
+    grid-column: auto;
+  }
+}
+
 .iris-spark-fill {
   fill: color-mix(in oklab, var(--accent) 16%, transparent);
 }

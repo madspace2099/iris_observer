@@ -113,6 +113,29 @@ export default async function FlowPage({
     return qs === "" ? base : `${base}?${qs}`;
   };
 
+  /* One summary figure as a card, wherever the groups place it. */
+  const kpiCard = (id: string) => {
+    const figure = charts.kpis.figures.find((f) => f.id === id);
+    return figure === undefined ? null : (
+      <KpiCard
+        key={figure.id}
+        label={figure.label}
+        info={
+          figure.measurementId === null ? (
+            figure.label
+          ) : (
+            <Measure id={figure.measurementId} label={figure.label} />
+          )
+        }
+        value={figure.value}
+        qualifier={figure.qualifier}
+        delta={figure.delta}
+        tone={figure.tone}
+        points={figure.points.length < 2 ? undefined : figure.points}
+      />
+    );
+  };
+
   return (
     <div className="iris-one">
       <section className="iris-plane iris-stack">
@@ -140,25 +163,46 @@ export default async function FlowPage({
             </div>
           </div>
 
-          <div className="iris-kpis" style={{ marginTop: "1rem" }}>
-            {charts.kpis.figures.map((figure) => (
-              <KpiCard
-                key={figure.id}
-                label={figure.label}
-                info={
-                  figure.measurementId === null ? (
-                    figure.label
-                  ) : (
-                    <Measure id={figure.measurementId} label={figure.label} />
-                  )
-                }
-                value={figure.value}
-                qualifier={figure.qualifier}
-                delta={figure.delta}
-                tone={figure.tone}
-                points={figure.points.length < 2 ? undefined : figure.points}
-              />
-            ))}
+          {/*
+           * The plan's four groups (R05 item 2), named and defined, and every
+           * word of them the read model's. A group nothing measures is printed
+           * empty with what is missing, never dropped. "Typical length" stands
+           * in the row outside any group.
+           */}
+          <div className="iris-kpi-groups" style={{ marginTop: "1rem" }}>
+            {[
+              ...charts.kpis.groups.filter((group) => group.missing === null),
+              ...charts.kpis.ungrouped.map((id) => ({ id, ungrouped: true as const })),
+              ...charts.kpis.groups.filter((group) => group.missing !== null),
+            ].map((item) =>
+              "ungrouped" in item ? (
+                <div className="iris-kpi-group" key={item.id}>
+                  <div className="iris-kpis">{kpiCard(item.id)}</div>
+                </div>
+              ) : (
+                <div
+                  className="iris-kpi-group"
+                  key={item.id}
+                  role="group"
+                  aria-labelledby={`kpi-group-${item.id}`}
+                  data-empty={item.missing === null ? undefined : "true"}
+                >
+                  <p className="iris-kicker iris-kicker-measured" id={`kpi-group-${item.id}`}>
+                    {item.label}
+                  </p>
+                  <p className="iris-meta iris-meta-measured">{item.definition}</p>
+                  <div className="iris-kpis">
+                    {item.missing === null ? (
+                      item.figureIds.map(kpiCard)
+                    ) : (
+                      <div className="iris-kpi">
+                        <p className="iris-kpi-missing">{item.missing}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ),
+            )}
           </div>
 
           {charts.kpis.caveat === null ? null : (

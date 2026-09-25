@@ -18,6 +18,7 @@ import type {
   BehaviourStep,
   JourneyFlowModel,
   KpiFigure,
+  KpiGroup,
   KpiPanel,
   KpiWindowId,
   OutcomeComposition,
@@ -78,6 +79,63 @@ function within(sessions: readonly ShowroomSession[], from: number, to: number):
 }
 
 /* --- KPI cards over a chosen window ----------------------------------------- */
+
+/**
+ * The summary row's four groups (R05 item 2, approved by Máté on 2026-09-24).
+ *
+ * Measured before any was built. Two hold a figure this row already draws. Two
+ * hold none, and are printed empty with what is missing:
+ * - Conversion. The deal ladder is stock, not path (`deal-source.ts`), and the
+ *   registry's `flow.stage_conversion` is defined but computed nowhere.
+ *   Progressing is a meeting ratio, which the plan excludes as conversion.
+ * - Cycle time. `sale-cycle.ts` is rendered nowhere, and P2-06 is blocked on
+ *   the inputs named below.
+ *
+ * "Typical length" belongs to none. It measures workload, and under Volume the
+ * group's name would say something untrue about it, so it stays in the row
+ * outside the groups.
+ */
+const KPI_GROUPS: readonly KpiGroup[] = [
+  {
+    id: "volume",
+    label: "Volume",
+    definition:
+      "How much the showroom was used: the presentations given, and the units opened in them.",
+    figureIds: ["presentations", "units"],
+    missing: null,
+  },
+  {
+    id: "progress",
+    label: "Progress",
+    definition:
+      "How far the meetings went: of those with an outcome recorded, the share that ended at a follow-up or better.",
+    figureIds: ["progressed"],
+    missing: null,
+  },
+  {
+    id: "conversion",
+    label: "Conversion",
+    // The registry's own words for `flow.stage_conversion`.
+    definition:
+      "The share of buyers who move forward from each rung to the next, counted by when they entered it rather than when they moved.",
+    figureIds: [],
+    missing:
+      "Not measured yet. The deal ladder counts where each deal stands, not the path it took, and the stage-to-stage figure is defined but not computed. Progress above is about meetings, not deals.",
+  },
+  {
+    id: "cycle_time",
+    label: "Cycle time",
+    /*
+     * End to end, as `flow.sales_cycle_duration` says, and no more. Where the
+     * cycle starts is the open decision: the registry counts from a buyer's
+     * first contact, while P2-06 measured from a unit's first opening.
+     */
+    definition: "How long a sale took, end to end.",
+    figureIds: [],
+    missing:
+      "Blocked. It needs each unit's first opening across its whole history, and a decision on whether the cycle starts at a buyer's first contact or at the unit's first showing.",
+  },
+];
 
 export function buildKpis(
   all: readonly ShowroomSession[],
@@ -263,6 +321,8 @@ export function buildKpis(
         : now.length < 5
           ? `${meetings(now.length, locale)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
+    groups: KPI_GROUPS,
+    ungrouped: ["duration"],
   };
 }
 

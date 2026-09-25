@@ -54,12 +54,33 @@ export interface KpiFigure {
   readonly points: readonly number[];
 }
 
+/**
+ * One of the summary row's four groups (R05, item 2): Volume, Progress,
+ * Conversion, Cycle time, each named and defined.
+ *
+ * A group nothing on the page measures is printed as empty, with what is
+ * missing, rather than dropped. A group quietly left out is the same lie as a
+ * zero standing in for a value nobody measured (`report/page.tsx`).
+ */
+export interface KpiGroup {
+  readonly id: "volume" | "progress" | "conversion" | "cycle_time";
+  readonly label: string;
+  readonly definition: string;
+  /** Ids from `KpiPanel.figures`, in the order drawn. Empty when nothing measures the group. */
+  readonly figureIds: readonly string[];
+  /** For an empty group, what is missing. Null when the group holds figures. */
+  readonly missing: string | null;
+}
+
 export interface KpiPanel {
   readonly window: KpiWindowId;
   readonly windowLabel: string;
   readonly figures: readonly KpiFigure[];
   /** Stated when the window holds too little to read. */
   readonly caveat: string | null;
+  readonly groups: readonly KpiGroup[];
+  /** Figures that belong to none of the groups, drawn in the row beside them. */
+  readonly ungrouped: readonly string[];
 }
 
 /* --- when meetings actually happen ------------------------------------------ */
