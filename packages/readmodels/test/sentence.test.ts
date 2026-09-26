@@ -115,3 +115,32 @@ describe("{az:#name|count}", () => {
     ]);
   });
 });
+
+describe("a counted word inside a counted word", () => {
+  const NESTED: Sentence = {
+    en: {
+      text: "{outer|n}",
+      words: {
+        outer: { one: "O-one", other: "O-other {inner|m}" },
+        inner: { one: "I-one", other: "I-other" },
+      },
+    },
+    sk: { text: "" },
+    hu: { text: "" },
+  };
+
+  it("is chosen by its own count once the outer word is chosen", () => {
+    expect(sentence("en", NESTED, { n: 1, m: 5 })).toBe("O-one");
+    expect(sentence("en", NESTED, { n: 3, m: 1 })).toBe("O-other I-one");
+    expect(sentence("en", NESTED, { n: 3, m: 5 })).toBe("O-other I-other");
+  });
+
+  it("refuses a word that counts itself for ever", () => {
+    const loop: Sentence = {
+      en: { text: "{loop|n}", words: { loop: { one: "{loop|n}", other: "{loop|n}" } } },
+      sk: { text: "" },
+      hu: { text: "" },
+    };
+    expect(() => sentence("en", loop, { n: 1 })).toThrow(/more than three deep/);
+  });
+});

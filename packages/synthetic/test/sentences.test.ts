@@ -12,8 +12,8 @@ import {
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import {
   ASK_PRESENTERS_SENTENCE,
-  ASK_RECORDED_SENTENCE,
-  ASK_TOP_APARTMENT_SENTENCE,
+  askRecordedSentence,
+  askTopApartmentSentence,
 } from "../src/ask-computed";
 import {
   DEAL_LAG_HOURS_SENTENCE,
@@ -79,58 +79,6 @@ const counted = (n: number) => ({ count: count(n, "en-GB"), n });
 const DAY_WORDS: Readonly<Record<Language, string>> = { en: "2 days", sk: "2 dni", hu: "2 nap" };
 
 const CASES: readonly Case[] = [
-  {
-    name: "ask-computed.ts: the presentations recorded, and how many ended with an outcome",
-    entry: ASK_RECORDED_SENTENCE,
-    values: (n) => ({
-      ...counted(n),
-      project: "Northgate Residences",
-      period: "quarter to date",
-      outcomes: count(n, "en-GB"),
-    }),
-    en: [
-      "1 presentation was recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 1 of them.",
-      "3 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 3 of them.",
-      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
-    ],
-    sk: [
-      "Na projekte Northgate Residences bola zaznamenaná v období quarter to date 1 prezentácia a pri 1 z nich maklér na konci zaznamenal výsledok.",
-      "Na projekte Northgate Residences boli zaznamenané v období quarter to date 3 prezentácie a pri 3 z nich maklér na konci zaznamenal výsledok.",
-      "Na projekte Northgate Residences bolo zaznamenaných v období quarter to date 5 prezentácií a pri 5 z nich maklér na konci zaznamenal výsledok.",
-    ],
-    hu: [
-      "A Northgate Residences projekten a quarter to date időszakban 1 prezentáció lett rögzítve, és közülük 1 esetében az értékesítő a végén rögzítette a kimenetelt.",
-      "A Northgate Residences projekten a quarter to date időszakban 3 prezentáció lett rögzítve, és közülük 3 esetében az értékesítő a végén rögzítette a kimenetelt.",
-      "A Northgate Residences projekten a quarter to date időszakban 5 prezentáció lett rögzítve, és közülük 5 esetében az értékesítő a végén rögzítette a kimenetelt.",
-    ],
-  },
-  {
-    name: "ask-computed.ts: the apartment opened most",
-    entry: ASK_TOP_APARTMENT_SENTENCE,
-    values: (n) => ({
-      ...counted(n),
-      top: "A-101",
-      opened: count(n, "en-GB"),
-      period: "quarter to date",
-      apartments: count(n, "en-GB"),
-      m: n,
-    }),
-    en: [
-      "A-101 was opened in 1 of 1 presentation in quarter to date; 1 different apartment was opened in all.",
-      "A-101 was opened in 3 of 3 presentations in quarter to date; 3 different apartments were opened in all.",
-      "A-101 was opened in 5 of 5 presentations in quarter to date; 5 different apartments were opened in all.",
-    ],
-    sk: [
-      "Byt A-101 bol otvorený v 1 z 1 prezentácie v období quarter to date; celkovo 1 rôzny byt bol otvorený.",
-      "Byt A-101 bol otvorený v 3 z 3 prezentácií v období quarter to date; celkovo 3 rôzne byty boli otvorené.",
-      "Byt A-101 bol otvorený v 5 z 5 prezentácií v období quarter to date; celkovo 5 rôznych bytov bolo otvorených.",
-    ],
-    hu: [
-      "Az A-101 lakást a quarter to date időszakban 1 prezentációból 1 alkalommal nyitották meg; összesen 1 különböző lakást nyitottak meg.",
-      "Az A-101 lakást a quarter to date időszakban 3 prezentációból 3 alkalommal nyitották meg; összesen 3 különböző lakást nyitottak meg.",
-      "Az A-101 lakást a quarter to date időszakban 5 prezentációból 5 alkalommal nyitották meg; összesen 5 különböző lakást nyitottak meg.",
-    ],
-  },
   {
     name: "ask-computed.ts: who presented",
     entry: ASK_PRESENTERS_SENTENCE,
@@ -557,6 +505,121 @@ describe.each(CASES)("$name", (c) => {
     COUNTS.forEach((n, i) => {
       expect(sentence(language, c.entry, c.values(n, language))).toBe(c[language][i]);
     });
+  });
+});
+
+/*
+ * The two Ask answers that branch. Each is stated whole through the function
+ * that chooses the branch, at the pairs the approved text was checked
+ * against: presentations / outcomes for the first, opened / presentations /
+ * apartments for the second.
+ */
+describe("ask-computed.ts: the presentations recorded, and how many ended with an outcome", () => {
+  const PAIRS = [
+    [1, 0],
+    [1, 1],
+    [3, 1],
+    [3, 3],
+    [5, 0],
+    [5, 2],
+    [5, 5],
+    [12, 4],
+  ] as const;
+  const expected: Readonly<Record<Language, readonly string[]>> = {
+    en: [
+      "1 presentation was recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 0 of them.",
+      "1 presentation was recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 1 of them.",
+      "3 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 1 of them.",
+      "3 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 3 of them.",
+      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 0 of them.",
+      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 2 of them.",
+      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
+      "12 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 4 of them.",
+    ],
+    sk: [
+      "Pri projekte Northgate Residences bola za obdobie quarter to date zaznamenaná jedna prezentácia. Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
+      "Pri projekte Northgate Residences bola za obdobie quarter to date zaznamenaná jedna prezentácia. Realitný maklér zadal výsledok stretnutia na jej konci.",
+      "Pri projekte Northgate Residences boli za obdobie quarter to date zaznamenané 3 prezentácie. Realitný maklér zadal výsledok stretnutia na konci jednej z nich.",
+      "Pri projekte Northgate Residences boli za obdobie quarter to date zaznamenané 3 prezentácie. Realitný maklér zadal výsledok stretnutia na konci každej z nich.",
+      "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 5 prezentácií. Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
+      "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 5 prezentácií. Realitný maklér zadal výsledok stretnutia na konci dvoch z nich.",
+      "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 5 prezentácií. Realitný maklér zadal výsledok stretnutia na konci každej z nich.",
+      "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 12 prezentácií. Realitný maklér zadal výsledok stretnutia na konci štyroch z nich.",
+    ],
+    hu: [
+      "A Northgate Residences projektnél a quarter to date időszakban egy bemutatót rögzítettek. Az ingatlanértékesítő egyik bemutató végén sem adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban egy bemutatót rögzítettek. Az ingatlanértékesítő a végén megadta a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 3 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 1 bemutató végén adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 3 bemutatót rögzítettek. Az ingatlanértékesítő mindhárom végén adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 5 bemutatót rögzítettek. Az ingatlanértékesítő egyik bemutató végén sem adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 5 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 2 bemutató végén adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 5 bemutatót rögzítettek. Az ingatlanértékesítő mindegyik bemutató végén adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 12 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 4 bemutató végén adta meg a találkozó eredményét.",
+    ],
+  };
+
+  it.each([...LANGUAGES])("%s: NONE, SOME and ALL at every pair", (language) => {
+    expect(
+      PAIRS.map(([n, outcomes]) =>
+        askRecordedSentence(
+          language,
+          "en-GB",
+          n,
+          outcomes,
+          "Northgate Residences",
+          "quarter to date",
+        ),
+      ),
+    ).toEqual(expected[language]);
+  });
+});
+
+describe("ask-computed.ts: the apartment opened most", () => {
+  const TRIPLES = [
+    [1, 1, 1],
+    [2, 5, 7],
+    [3, 3, 4],
+    [5, 5, 5],
+    [7, 9, 12],
+  ] as const;
+  const expected: Readonly<Record<Language, readonly string[]>> = {
+    en: [
+      "A-101 was opened in 1 of 1 presentation in quarter to date; 1 different apartment was opened in all.",
+      "A-101 was opened in 2 of 5 presentations in quarter to date; 7 different apartments were opened in all.",
+      "A-101 was opened in 3 of 3 presentations in quarter to date; 4 different apartments were opened in all.",
+      "A-101 was opened in 5 of 5 presentations in quarter to date; 5 different apartments were opened in all.",
+      "A-101 was opened in 7 of 9 presentations in quarter to date; 12 different apartments were opened in all.",
+    ],
+    sk: [
+      "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Bol to jediný byt, ktorý otvorili.",
+      "Byt A-101 otvorili na dvoch z 5 prezentácií v období quarter to date. Celkovo otvorili 7 rôznych bytov.",
+      "Byt A-101 otvorili na všetkých troch prezentáciách v období quarter to date. Celkovo otvorili 4 rôzne byty.",
+      "Byt A-101 otvorili na všetkých 5 prezentáciách v období quarter to date. Celkovo otvorili 5 rôznych bytov.",
+      "Byt A-101 otvorili na 7 z 9 prezentácií v období quarter to date. Celkovo otvorili 12 rôznych bytov.",
+    ],
+    hu: [
+      "A quarter to date időszak egyetlen bemutatóján megnyitották az A-101-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
+      "A quarter to date időszak 5 bemutatója közül 2 bemutatón megnyitották az A-101-es lakást. Összesen 7 különböző lakást nyitottak meg.",
+      "A quarter to date időszak mindhárom bemutatóján megnyitották az A-101-es lakást. Összesen 4 különböző lakást nyitottak meg.",
+      "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 5 különböző lakást nyitottak meg.",
+      "A quarter to date időszak 9 bemutatója közül 7 bemutatón megnyitották az A-101-es lakást. Összesen 12 különböző lakást nyitottak meg.",
+    ],
+  };
+
+  it.each([...LANGUAGES])("%s: SOME and ALL at every triple", (language) => {
+    expect(
+      TRIPLES.map(([opened, n, apartments]) =>
+        askTopApartmentSentence(
+          language,
+          "en-GB",
+          n,
+          "A-101",
+          opened,
+          apartments,
+          "quarter to date",
+        ),
+      ),
+    ).toEqual(expected[language]);
   });
 });
 

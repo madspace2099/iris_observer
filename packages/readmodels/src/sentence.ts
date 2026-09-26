@@ -28,9 +28,10 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *                   sound takes, "a" or "az"; {Az:name} at a sentence's start
  *   {az:#name|count} the same article, before a numeral
  *
- * A counted word may carry `{name}` and `{#name|count}` placeholders of its
- * own — "one meeting" beside "{count} meetings" — and they are filled once the
- * word is chosen.
+ * A counted word may carry `{name}`, `{#name|count}` and `{word|count}`
+ * placeholders of its own — "one meeting" beside "{count} meetings" — and they
+ * are filled once the word is chosen. A counted word inside a counted word is
+ * how a sentence whose whole wording turns on one count still counts another.
  *
  * A numeral takes two values under two names: `name` is the figure as the
  * locale formatted it, `count` the number it was formatted from. One key
@@ -73,19 +74,7 @@ export type SentenceValues = Readonly<Record<string, string | number>>;
 
 export function sentence(language: Language, entry: Sentence, values: SentenceValues): string {
   const own: SentenceIn<Language> = entry[language];
-  const counted = own.text.replace(/\{(\w+)\|(\w+)\}/g, (_match, word: string, by: string) => {
-    const forms: Readonly<Record<string, string | undefined>> | undefined = own.words?.[word];
-    const n = values[by];
-    if (forms === undefined) {
-      throw new Error(`The ${language} sentence counts "${word}" and has no forms for it.`);
-    }
-    if (typeof n !== "number") {
-      throw new Error(
-        `The ${language} sentence counts "${word}" by "${by}", which is not a number.`,
-      );
-    }
-    return forms[pluralCategory(language, n)] ?? forms["other"] ?? "";
-  });
+  const counted = countedWords(language, own, own.text, values, 0);
   const numbered = counted.replace(
     /\{(?:(az|Az):)?#(\w+)\|(\w+)\}/g,
     (_match, article: string | undefined, name: string, by: string) => {
@@ -106,6 +95,33 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
       return article === undefined ? text : `${hungarianArticle(text, article === "Az")} ${text}`;
     },
   );
+}
+
+/** `{word|count}`, and the counted words the chosen form carries in turn, three deep at most. */
+function countedWords(
+  language: Language,
+  own: SentenceIn<Language>,
+  text: string,
+  values: SentenceValues,
+  depth: number,
+): string {
+  return text.replace(/\{(\w+)\|(\w+)\}/g, (_match, word: string, by: string) => {
+    const forms: Readonly<Record<string, string | undefined>> | undefined = own.words?.[word];
+    const n = values[by];
+    if (forms === undefined) {
+      throw new Error(`The ${language} sentence counts "${word}" and has no forms for it.`);
+    }
+    if (typeof n !== "number") {
+      throw new Error(
+        `The ${language} sentence counts "${word}" by "${by}", which is not a number.`,
+      );
+    }
+    if (depth === 3) {
+      throw new Error(`The ${language} sentence nests counted words more than three deep.`);
+    }
+    const form = forms[pluralCategory(language, n)] ?? forms["other"] ?? "";
+    return countedWords(language, own, form, values, depth + 1);
+  });
 }
 
 /** `{#name|count}`: the sentence's word while `n` is a whole 1 to 4, the formatted figure otherwise. */

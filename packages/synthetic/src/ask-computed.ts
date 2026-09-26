@@ -8,6 +8,7 @@ import {
   type Language,
   type PluralForms,
   type Sentence,
+  type SentenceIn,
   type ViewContext,
 } from "@observer/readmodels";
 
@@ -80,39 +81,216 @@ const meetingsWord = (n: number, locale: string, language: Language): string =>
  * sentence puts in another case takes that case's forms here, as its own.
  */
 
-/** "3 presentations were recorded on Northgate Residences in quarter to date, and …" */
-export const ASK_RECORDED_SENTENCE: Sentence = {
-  en: {
-    text: "{count} {presentations|n} {recorded|n} on {project} in {period}, and the agent recorded an outcome at the end of {outcomes} of them.",
-    words: { presentations: ASK_PRESENTATIONS.en, recorded: ASK_RECORDED.en },
-  },
+/*
+ * THE FIRST ANSWER: HOW MANY PRESENTATIONS WERE RECORDED, AND AT THE END OF
+ * HOW MANY OF THEM THE AGENT RECORDED AN OUTCOME.
+ *
+ * Three sentences — NONE, SOME and ALL — and `askRecordedSentence` chooses
+ * between them, as `unitsViewedSentence` chooses between a shortlist and none.
+ * The two figures are independent, and "at the end of every one of them" is
+ * true only when they are equal. A template cannot branch on equality; the
+ * caller can.
+ *
+ * The first clause is the same in all three. English is today's sentence in
+ * all three: it has no wording of its own for none or for all.
+ */
+
+const RECORDED_EN: SentenceIn<"en"> = {
+  text: "{count} {presentations|n} {recorded|n} on {project} in {period}, and the agent recorded an outcome at the end of {outcomes} of them.",
+  words: { presentations: ASK_PRESENTATIONS.en, recorded: ASK_RECORDED.en },
+};
+
+/* The first clause. In Slovak the count turns the verb, the participle and the noun together. */
+const RECORDED_SK: PluralForms["sk"] = {
+  one: "Pri projekte {project} bola za obdobie {period} zaznamenaná jedna prezentácia.",
+  few: "Pri projekte {project} boli za obdobie {period} zaznamenané {count} prezentácie.",
+  other: "Pri projekte {project} bolo za obdobie {period} zaznamenaných {count} prezentácií.",
+};
+
+const RECORDED_HU: PluralForms["hu"] = {
+  one: "{Az:project} projektnél {az:period} időszakban egy bemutatót rögzítettek.",
+  other: "{Az:project} projektnél {az:period} időszakban {count} bemutatót rögzítettek.",
+};
+
+/** `outcomes === 0`. */
+export const ASK_RECORDED_NONE_SENTENCE: Sentence = {
+  en: RECORDED_EN,
   sk: {
-    text: "Na projekte {project} {recorded|n} v období {period} {count} {presentations|n} a pri {outcomes} z nich maklér na konci zaznamenal výsledok.",
-    words: { presentations: ASK_PRESENTATIONS.sk, recorded: ASK_RECORDED.sk },
+    text: "{recorded|n} Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
+    words: { recorded: RECORDED_SK },
   },
   hu: {
-    text: "{Az:project} projekten {az:period} időszakban {count} prezentáció lett rögzítve, és közülük {outcomes} esetében az értékesítő a végén rögzítette a kimenetelt.",
+    text: "{recorded|n} Az ingatlanértékesítő egyik bemutató végén sem adta meg a találkozó eredményét.",
+    words: { recorded: RECORDED_HU },
   },
 };
 
-/** "A-101 was opened in 3 of 3 presentations in quarter to date; 3 different apartments were opened in all." */
-export const ASK_TOP_APARTMENT_SENTENCE: Sentence = {
-  en: {
-    text: "{top} was opened in {opened} of {count} {presentations|n} in {period}; {apartments} {different|m} in all.",
-    words: { presentations: ASK_PRESENTATIONS.en, different: ASK_APARTMENTS_OPENED.en },
-  },
+/** `0 < outcomes < count`. */
+export const ASK_RECORDED_SOME_SENTENCE: Sentence = {
+  en: RECORDED_EN,
   sk: {
-    text: "Byt {top} bol otvorený v {opened} z {count} {presentations|n} v období {period}; celkovo {apartments} {different|m}.",
+    text: "{recorded|n} Realitný maklér zadal výsledok stretnutia na konci {#outcomesWord|o} z nich.",
+    words: { recorded: RECORDED_SK },
+    numerals: { outcomesWord: ["jednej", "dvoch", "troch", "štyroch"] },
+  },
+  hu: {
+    text: "{recorded|n} Az ingatlanértékesítő ezek közül {outcomes} bemutató végén adta meg a találkozó eredményét.",
+    words: { recorded: RECORDED_HU },
+  },
+};
+
+/** `outcomes === count`. */
+export const ASK_RECORDED_ALL_SENTENCE: Sentence = {
+  en: RECORDED_EN,
+  sk: {
+    text: "{recorded|n} {all|n}",
     words: {
-      /* After "z": the genitive. */
-      presentations: { one: "prezentácie", few: "prezentácií", other: "prezentácií" },
-      different: ASK_APARTMENTS_OPENED.sk,
+      recorded: RECORDED_SK,
+      all: {
+        one: "Realitný maklér zadal výsledok stretnutia na jej konci.",
+        few: "Realitný maklér zadal výsledok stretnutia na konci každej z nich.",
+        other: "Realitný maklér zadal výsledok stretnutia na konci každej z nich.",
+      },
     },
   },
   hu: {
-    text: "{Az:top} lakást {az:period} időszakban {count} prezentációból {opened} alkalommal nyitották meg; összesen {apartments} különböző lakást nyitottak meg.",
+    text: "{recorded|n} {all|n}",
+    words: {
+      recorded: RECORDED_HU,
+      all: {
+        one: "Az ingatlanértékesítő a végén megadta a találkozó eredményét.",
+        few: "Az ingatlanértékesítő {#allWord|n} végén adta meg a találkozó eredményét.",
+        other: "Az ingatlanértékesítő mindegyik bemutató végén adta meg a találkozó eredményét.",
+      },
+    },
+    /* The first cell is never read: at 1 the `one` form runs. */
+    numerals: { allWord: ["", "mindkettő", "mindhárom", "mindegyik"] },
   },
 };
+
+/** The first answer: NONE, SOME or ALL, chosen here by the two figures. */
+export function askRecordedSentence(
+  language: Language,
+  locale: string,
+  n: number,
+  outcomes: number,
+  project: string,
+  period: string,
+): string {
+  const entry =
+    outcomes === 0
+      ? ASK_RECORDED_NONE_SENTENCE
+      : outcomes === n
+        ? ASK_RECORDED_ALL_SENTENCE
+        : ASK_RECORDED_SOME_SENTENCE;
+  return sentence(language, entry, {
+    count: count(n, locale),
+    n,
+    project,
+    period,
+    outcomes: count(outcomes, locale),
+    outcomesWord: count(outcomes, locale),
+    o: outcomes,
+    allWord: count(n, locale),
+  });
+}
+
+/*
+ * THE SECOND ANSWER: THE APARTMENT OPENED MOST.
+ *
+ * Two sentences, and `askTopApartmentSentence` chooses: ALL when the apartment
+ * was opened in every presentation, SOME otherwise. There is no NONE branch,
+ * and there must not be one: the apartment opened most was, by definition,
+ * opened at least once. Do not add a third branch.
+ *
+ * English is today's sentence in both.
+ */
+
+const TOP_APARTMENT_EN: SentenceIn<"en"> = {
+  text: "{top} was opened in {opened} of {count} {presentations|n} in {period}; {apartments} {different|m} in all.",
+  words: { presentations: ASK_PRESENTATIONS.en, different: ASK_APARTMENTS_OPENED.en },
+};
+
+const DIFFERENT_APARTMENTS_SK: PluralForms["sk"] = {
+  one: "rôzny byt",
+  few: "rôzne byty",
+  other: "rôznych bytov",
+};
+
+/** `opened < count`. */
+export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
+  en: TOP_APARTMENT_EN,
+  sk: {
+    text: "Byt {top} otvorili na {#openedWord|o} z {#countWord|n} prezentácií v období {period}. Celkovo otvorili {apartments} {different|m}.",
+    words: { different: DIFFERENT_APARTMENTS_SK },
+    numerals: {
+      openedWord: ["jednej", "dvoch", "troch", "štyroch"],
+      countWord: ["jednej", "dvoch", "troch", "štyroch"],
+    },
+  },
+  hu: {
+    text: "{Az:period} időszak {count} bemutatója közül {opened} bemutatón megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+  },
+};
+
+/** `opened === count`. */
+export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
+  en: TOP_APARTMENT_EN,
+  sk: {
+    text: "{all|n}",
+    words: {
+      all: {
+        one: "Počas jedinej prezentácie v období {period} otvorili byt {top}. Bol to jediný byt, ktorý otvorili.",
+        few: "Byt {top} otvorili na všetkých {#allCount|n} prezentáciách v období {period}. Celkovo otvorili {apartments} {different|m}.",
+        other:
+          "Byt {top} otvorili na všetkých {#allCount|n} prezentáciách v období {period}. Celkovo otvorili {apartments} {different|m}.",
+      },
+      different: DIFFERENT_APARTMENTS_SK,
+    },
+    /* The first cell is never read: at 1 the `one` form runs. */
+    numerals: { allCount: ["", "dvoch", "troch", "štyroch"] },
+  },
+  hu: {
+    text: "{all|n}",
+    words: {
+      all: {
+        one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top}-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
+        few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+        other:
+          "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+      },
+    },
+    /* The first cell is never read: at 1 the `one` form runs. Attributive, as a noun follows. */
+    numerals: { allWord: ["", "mindkét", "mindhárom", "mindegyik"] },
+  },
+};
+
+/** The second answer: SOME or ALL, chosen here by the two figures. */
+export function askTopApartmentSentence(
+  language: Language,
+  locale: string,
+  n: number,
+  top: string,
+  opened: number,
+  apartments: number,
+  period: string,
+): string {
+  const entry = opened === n ? ASK_TOP_APARTMENT_ALL_SENTENCE : ASK_TOP_APARTMENT_SOME_SENTENCE;
+  return sentence(language, entry, {
+    top,
+    opened: count(opened, locale),
+    openedWord: count(opened, locale),
+    o: opened,
+    count: count(n, locale),
+    countWord: count(n, locale),
+    allCount: count(n, locale),
+    allWord: count(n, locale),
+    n,
+    period,
+    apartments: count(apartments, locale),
+    m: apartments,
+  });
+}
 
 /** "2 people presented the 3 presentations in quarter to date." */
 export const ASK_PRESENTERS_SENTENCE: Sentence = {
@@ -199,13 +377,7 @@ export function buildDeliveredAskSession(
     answer:
       n === 0
         ? `No presentation was recorded on ${context.project.name} in ${period}.`
-        : sentence(language, ASK_RECORDED_SENTENCE, {
-            count: count(n, locale),
-            n,
-            project: context.project.name,
-            period,
-            outcomes: count(recorded.length, locale),
-          }),
+        : askRecordedSentence(language, locale, n, recorded.length, context.project.name, period),
     figures: [...byOutcome.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -238,15 +410,7 @@ export function buildDeliveredAskSession(
         ? n === 0
           ? `No presentation was recorded in ${period}, so no apartment was opened.`
           : `No apartment was opened in any of the ${meetingsWord(n, locale, language)} in ${period}.`
-        : sentence(language, ASK_TOP_APARTMENT_SENTENCE, {
-            top: top[0],
-            opened: count(top[1], locale),
-            count: count(n, locale),
-            n,
-            period,
-            apartments: count(ranked.length, locale),
-            m: ranked.length,
-          }),
+        : askTopApartmentSentence(language, locale, n, top[0], top[1], ranked.length, period),
     figures: ranked.slice(0, 3).map(([code, k]) => ({
       label: code,
       value: `${count(k, locale)} of ${count(n, locale)}`,
