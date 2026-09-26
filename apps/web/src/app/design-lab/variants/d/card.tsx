@@ -66,7 +66,8 @@ export function DCard({
 
         <div className="dld-plot">
           <DrawIn kind={kind}>{children}</DrawIn>
-          <p className="dld-card-note">{facts.note}</p>
+          {/* A full card gives the room under its drawing to the drawing; its definition closes the card. */}
+          {full ? null : <p className="dld-card-note">{facts.note}</p>}
           <p className="dld-sr">{facts.summary}</p>
         </div>
 
@@ -97,6 +98,12 @@ export function DCard({
             />
           )}
         </div>
+
+        {full ? (
+          <p className="dld-card-note" data-place="end">
+            {facts.note}
+          </p>
+        ) : null}
       </div>
     </article>
   );

@@ -263,6 +263,11 @@
   text-wrap: pretty;
 }
 
+/* At the card's foot, the grid's own gap already parts it from the facts. */
+.dld-card-note[data-place="end"] {
+  margin-top: 0;
+}
+
 /* What a screen reader is told instead of the drawing: present, and out of sight. */
 .dld-sr {
   position: absolute;

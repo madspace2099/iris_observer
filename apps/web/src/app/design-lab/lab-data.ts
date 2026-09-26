@@ -687,18 +687,20 @@ const D_RADAR_WORDS: Readonly<Record<string, string>> = {
 
 /**
  * The bubble rule, as it was given: one bubble per meeting, its size the
- * meeting's recorded outcome — the further up the ladder, the larger, at the
- * sizes the kit's bubbles are drawn. A purchase is a closed deal and "not
- * interested" has no chance left, so neither is drawn. The rule gives
- * "presentation only" and an unrecorded outcome no size, so they are counted
- * beside the chart rather than drawn. The sizes follow the ladder's order;
- * they are not a computed likelihood.
+ * meeting's recorded outcome — the further up the ladder, the larger, and
+ * "not interested" the smallest, in red. A purchase is a closed deal, so it is
+ * not drawn. The rule gives "presentation only" and an unrecorded outcome no
+ * size, so they are counted beside the chart rather than drawn. The sizes
+ * follow the ladder's order; they are not a computed likelihood.
  */
 const D_BUBBLE_DIAMETER: Readonly<Record<string, number>> = {
-  reservation: 120,
+  reservation: 100,
   interested: 70,
   follow_up_needed: 50,
+  not_interested: 25,
 };
+/** The bubble chart always shows this many whole months, the current one last. */
+const D_BUBBLE_MONTHS = 6;
 
 function refuse(what: string): never {
   throw new Error(`Design lab D could not reproduce ${what}; nothing is drawn.`);
@@ -1463,22 +1465,53 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- one bubble per meeting still open to a purchase ----------------------------- */
+  /* --- one bubble per meeting, over the last six months --------------------------- */
 
   const keyOf = new Map(charts.composition.keys.map((k) => [k.id, k]));
-  const open = sessions.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
   const recordedAs = (id: string) => flow.outcomes.find((o) => o.outcome === id)?.count ?? 0;
+  const sized = sessions.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
   same(
-    "the meetings still open to a purchase",
-    open.length,
+    "the meetings the bubble rule sizes",
+    sized.length,
     Object.keys(D_BUBBLE_DIAMETER).reduce((a, id) => a + recordedAs(id), 0),
   );
+  /*
+   * Across: always the last six whole months, the current one last and cut at
+   * today, whatever span the period covers. Every count on the card is taken
+   * over the same six months, so the chart and its words describe one set.
+   */
+  const nextMonth = (day: number) => {
+    const d = new Date(day);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+  };
+  const lastMonth = (() => {
+    const d = new Date(periodLastDay);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  })();
+  const windowFrom = (() => {
+    const d = new Date(periodLastDay);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - (D_BUBBLE_MONTHS - 1), 1);
+  })();
+  const windowTo = periodLastDay + DAY_MS;
+  const monthName = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
+  const monthWords = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const months: { day: number; label: string }[] = [];
+  for (let day = windowFrom; day < windowTo; day = nextMonth(day)) {
+    months.push({ day, label: monthName.format(new Date(day)) });
+  }
+  const dayOf = (s: ShowroomSession) => calendar(new Date(s.startedAt)).day;
+  const windowSessions = sessions.filter((s) => dayOf(s) >= windowFrom && dayOf(s) < windowTo);
+  const inWindow = windowSessions.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
   /* The placing order is the loader's: the largest first and, within a size, the latest meeting first. */
-  const bubbles: DBubble[] = open
+  const bubbles: DBubble[] = inWindow
     .map((s) => {
       const key = keyOf.get(s.outcome);
       if (key === undefined) refuse(`the name of the "${s.outcome}" outcome`);
-      const day = calendar(new Date(s.startedAt)).day;
+      const day = dayOf(s);
       const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
       return {
         at: Date.parse(s.startedAt),
@@ -1496,26 +1529,6 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     })
     .sort((a, b) => b.bubble.diameter - a.bubble.diameter || b.at - a.at)
     .map((e) => e.bubble);
-  /* Across: whole months, from the earliest bubble's to the one after the latest. */
-  const monthOf = (day: number) => {
-    const d = new Date(day);
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-  };
-  const nextMonth = (day: number) => {
-    const d = new Date(day);
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-  };
-  const bubbleFrom =
-    bubbles.length === 0 ? periodFirstDay : monthOf(Math.min(...bubbles.map((b) => b.day)));
-  const bubbleTo =
-    bubbles.length === 0
-      ? nextMonth(periodLastDay)
-      : nextMonth(Math.max(...bubbles.map((b) => b.day)));
-  const monthName = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
-  const months: { day: number; label: string }[] = [];
-  for (let day = bubbleFrom; day < bubbleTo; day = nextMonth(day)) {
-    months.push({ day, label: monthName.format(new Date(day)) });
-  }
   const sizes = charts.composition.keys.flatMap((k) => {
     const diameter = D_BUBBLE_DIAMETER[k.id];
     return diameter === undefined
@@ -1530,40 +1543,55 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         ];
   });
   const labelOf = (id: MeetingOutcome) => keyOf.get(id)?.label ?? id;
-  const unrecordedCount = flow.outcomes
-    .filter((o) => outcomeIsUnknown(o.outcome))
-    .reduce((a, o) => a + o.count, 0);
-  const notDrawn = `Not drawn: ${meetings(recordedAs("purchase"))} that ended "${labelOf("purchase")}", a deal already closed; ${n(recordedAs("not_interested"))} "${labelOf("not_interested")}", with no chance left; and, because the rule gives them no size, ${n(recordedAs("presentation_only"))} "${labelOf("presentation_only")}" and ${n(unrecordedCount)} with no outcome recorded.`;
-  const reservations = open
+  const inWindowAs = (id: MeetingOutcome) => windowSessions.filter((s) => s.outcome === id).length;
+  const unrecordedInWindow = windowSessions.filter((s) => outcomeIsUnknown(s.outcome)).length;
+  const lost = bubbles.filter((b) => b.outcome === "not_interested").length;
+  const sixMonths = `${monthWords.format(new Date(windowFrom))} to ${monthWords.format(new Date(lastMonth))}`;
+  const notDrawn = `Not drawn: ${meetings(inWindowAs("purchase"))} that ended "${labelOf("purchase")}", a deal already closed; and, because the rule gives them no size, ${n(inWindowAs("presentation_only"))} "${labelOf("presentation_only")}" and ${n(unrecordedInWindow)} with no outcome recorded.`;
+  const beforeWindow = sessions.length - windowSessions.length;
+  const outsideWords =
+    beforeWindow === 0
+      ? ""
+      : ` ${meetings(beforeWindow)} ${period} fell before the six months and are not drawn.`;
+  const unreadWords =
+    windowFrom < periodFirstDay
+      ? ` The period opens on ${dates.format(new Date(periodFirstDay))}; nothing before it is read, so its months stand empty.`
+      : "";
+  const reservations = inWindow
     .filter((s) => s.outcome === "reservation")
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
   const nearest = sizes[0];
   const bubble: DBubbleCard = {
     agents: byWorkload.map((r) => ({ id: r.agentId, label: r.name })),
     bubbles,
-    from: bubbleFrom,
-    to: bubbleTo,
+    from: windowFrom,
+    to: windowTo,
     months,
     sizes,
     facts: {
       lead:
         nearest === undefined || nearest.count === 0
           ? undefined
-          : `${n(bubbles.length)} of the ${meetings(sessions.length)} ${period} are still open to a purchase by the outcome recorded at their end. The largest bubbles, the ${meetings(nearest.count)} that ended "${nearest.label}", are the nearest.`,
-      note: `Each bubble is one meeting ${period}, sized and coloured by the outcome recorded at its end: ${list(sizes.map((s) => `"${s.label}" ${n(s.diameter)} px across`))} on a wide card, in the same proportion on a narrow one. The sizes follow the order of the outcome ladder; they are not a computed likelihood. Across is the day the meeting was held, in the project's own time zone; down is the agent who presented it. A pointer resting on a bubble reads its meeting. ${notDrawn}`,
-      summary: `${n(bubbles.length)} bubbles, one per meeting still open to a purchase. ${byWorkload
+          : `Of the ${meetings(bubbles.length)} drawn from the last six months, ${n(bubbles.length - lost)} are still open to a purchase and ${n(lost)} ended "${labelOf("not_interested")}". The largest bubbles, the ${meetings(nearest.count)} that ended "${nearest.label}", are the nearest.`,
+      note: `Each bubble is one meeting from the last six months, ${sixMonths}, sized and coloured by the outcome recorded at its end, from the largest: ${list(sizes.map((s) => `"${s.label}"`))}, the last in red. The sizes follow the order of the outcome ladder; they are not a computed likelihood. Across is the day the meeting was held, in the project's own time zone; down is the agent who presented it. A pointer resting on a bubble reads its meeting. ${notDrawn}${outsideWords}${unreadWords}`,
+      summary: `${n(bubbles.length)} bubbles, one per meeting drawn from ${sixMonths}. ${byWorkload
         .map((r) => {
           const theirs = sizes
             .map((s) => ({
               s,
-              count: open.filter((m) => m.agentId === r.agentId && m.outcome === s.outcome).length,
+              count: bubbles.filter((b) => b.agentId === r.agentId && b.outcome === s.outcome)
+                .length,
             }))
             .filter((e) => e.count > 0);
           return `${r.name}: ${theirs.length === 0 ? "none" : list(theirs.map((e) => `${e.s.label} ${n(e.count)}`))}.`;
         })
         .join(" ")}`,
       figures: [
-        figure("Meetings drawn", n(bubbles.length), `of ${n(sessions.length)}; one bubble each`),
+        figure(
+          "Meetings drawn",
+          n(bubbles.length),
+          `of ${n(windowSessions.length)} in the last six months; one bubble each`,
+        ),
         figure(
           "Nearest a purchase",
           n(nearest?.count ?? 0),
@@ -1575,7 +1603,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
         return {
           id: s.meetingId,
-          label: `${dates.format(new Date(calendar(new Date(s.startedAt)).day))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
+          label: `${dates.format(new Date(dayOf(s)))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
           value:
             shortlisted.length === 0
               ? "none shortlisted"

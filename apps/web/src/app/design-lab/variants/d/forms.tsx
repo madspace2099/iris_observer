@@ -565,7 +565,8 @@ export function BubbleChart({ data, size }: { readonly data: DBubbleCard; readon
   const width = size === "xl" ? 1240 : 327;
   const labelW = size === "xl" ? 150 : 104;
   const biggest = Math.max(1, ...data.sizes.map((s) => s.diameter)) * scale;
-  const rowH = biggest + (size === "xl" ? 16 : 8);
+  /* Room in each row beyond the largest sphere, so the smaller ones can step aside from it. */
+  const rowH = biggest * 1.3;
   const top = 8;
   const foot = 30;
   const height = top + data.agents.length * rowH + foot;
@@ -591,7 +592,7 @@ export function BubbleChart({ data, size }: { readonly data: DBubbleCard; readon
       width={width}
       height={height}
       role="img"
-      aria-label={`${data.bubbles.length} meetings still open to a purchase, one bubble each, by the day they were held and the agent who presented them`}
+      aria-label={`${data.bubbles.length} meetings, one bubble each, sized by outcome, by the day they were held and the agent who presented them`}
     >
       {data.months.map((m) => (
         <g key={m.day}>
@@ -625,12 +626,12 @@ export function BubbleChart({ data, size }: { readonly data: DBubbleCard; readon
   );
 }
 
-/** The sizes, each with its outcome and how many bubbles it has; the swatch is the sphere itself, small. */
+/** Each outcome and how many bubbles it has; the swatch is the sphere itself, small, never below legibility. */
 export function BubbleKey({ data }: { readonly data: DBubbleCard }) {
   return (
     <ul className="dld-bubble-key">
       {data.sizes.map((s) => {
-        const side = Math.round(s.diameter * 0.3);
+        const side = Math.max(12, Math.round(s.diameter * 0.3));
         return (
           <li key={s.outcome}>
             <svg
@@ -643,9 +644,7 @@ export function BubbleKey({ data }: { readonly data: DBubbleCard }) {
             >
               <Sphere outcome={s.outcome} r={side / 2} />
             </svg>
-            <span>
-              {s.label} · {s.diameter} px
-            </span>
+            <span>{s.label}</span>
             <b>{s.count}</b>
           </li>
         );
