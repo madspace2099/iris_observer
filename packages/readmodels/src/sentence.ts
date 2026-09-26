@@ -17,10 +17,11 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *                   one word in two cases is two words.
  *   {#name|count}   the figure `name` as a numeral. While the number `count`
  *                   is a whole 1 to 4, it is this sentence's own word for it,
- *                   from `numerals[name]`, one entry per number; otherwise —
- *                   5 and above, and 0 or a fraction — it is the figure `name`
- *                   exactly as the site passed it, which the project's locale
- *                   has already formatted, grouping and all. An entry may be a
+ *                   from `numerals[name]`, one entry per number; at 5 it is
+ *                   the table's fifth word where the table has one; otherwise
+ *                   — 6 and above, and 0 or a fraction — it is the figure
+ *                   `name` exactly as the site passed it, which the project's
+ *                   locale has already formatted, grouping and all. An entry may be a
  *                   whole phrase: in Slovak the preposition before a numeral
  *                   can change with the numeral, "z" before one and "zo"
  *                   before another, so the preposition belongs in the entry.
@@ -39,8 +40,8 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *
  * THE ARTICLE BEFORE A NUMERAL IS CHOSEN AFTER THE NUMERAL IS WRITTEN. The
  * passes run in this order: counted words, numerals, values. An article
- * follows the first sound of what the reader reads, and from 1 to 4 the reader
- * reads the sentence's word, not the figure — a word, or a whole phrase, whose
+ * follows the first sound of what the reader reads, and while the table has a
+ * word for the count the reader reads that word, not the figure — a word, or a whole phrase, whose
  * first sound the figure does not decide. The value pass reads `values[name]`,
  * which for a numeral is the figure, so an article chosen there would be the
  * figure's. The numeral pass therefore writes the numeral first and gives
@@ -62,7 +63,23 @@ export interface SentenceIn<L extends Language> {
 }
 
 /** A numeral's words for 1, 2, 3 and 4, in that order. */
-export type Numerals = readonly [one: string, two: string, three: string, four: string];
+/**
+ * A numeral's words for 1, 2, 3 and 4, and for 5 where the sentence has one.
+ *
+ * The fifth cell may be left out, and leaving it out is not a mistake: it is
+ * the behaviour every table had before there was a fifth cell — from 5 the
+ * figure. Where the product writes digits is a grammatical boundary, not a
+ * numeric one, and the sentence decides it: in an inflected position Slovak
+ * writes five as a word too (piatich, piati), so the Slovak tables take their
+ * fifth cell in the round that writes their text.
+ */
+export type Numerals = readonly [
+  one: string,
+  two: string,
+  three: string,
+  four: string,
+  five?: string,
+];
 
 export interface Sentence {
   readonly en: SentenceIn<"en">;
@@ -124,7 +141,7 @@ function countedWords(
   });
 }
 
-/** `{#name|count}`: the sentence's word while `n` is a whole 1 to 4, the formatted figure otherwise. */
+/** `{#name|count}`: the sentence's word for a whole 1 to 4, and 5 if it has one; the formatted figure otherwise. */
 function numeral(
   language: Language,
   own: SentenceIn<Language>,
@@ -153,7 +170,7 @@ function numeral(
       `The ${language} sentence writes "${name}" as a numeral: its figure must arrive formatted, as text.`,
     );
   }
-  const word = Number.isInteger(n) && n >= 1 && n <= 4 ? words[n - 1] : undefined;
+  const word = Number.isInteger(n) && n >= 1 && n <= 5 ? words[n - 1] : undefined;
   return word ?? figure;
 }
 

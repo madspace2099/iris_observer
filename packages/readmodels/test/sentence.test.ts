@@ -5,8 +5,9 @@ import { sentence, type Sentence } from "../src/sentence";
 /**
  * THE NUMERAL PLACEHOLDER, `{#name|count}`.
  *
- * From 1 to 4 a sentence writes its own word for a count; from 5 it writes
- * the figure exactly as the site formatted it. The words here are markers —
+ * From 1 to 4 a sentence writes its own word for a count, and at 5 where its
+ * table has a fifth cell; otherwise it writes the figure exactly as the site
+ * formatted it. The words here are markers —
  * E for English, S for Slovak, X and B for Hungarian — because no Slovak or
  * Hungarian numeral has been approved yet, and none is written in this file.
  */
@@ -35,6 +36,24 @@ describe("{#name|count}", () => {
       ).toEqual(expected[language]);
     },
   );
+
+  it("reads a fifth cell at 5 where the table has one, and the figure from 6", () => {
+    const five: Sentence = {
+      en: { text: "<{#count|n}>", numerals: { count: ["E1", "E2", "E3", "E4", "E5"] } },
+      sk: { text: "" },
+      hu: { text: "" },
+    };
+    expect(COUNTS.map((n) => sentence("en", five, { count: FIGURE.format(n), n }))).toEqual([
+      "<E1>",
+      "<E2>",
+      "<E3>",
+      "<E4>",
+      "<E5>",
+      "<11>",
+      "<100>",
+    ]);
+    expect(sentence("en", five, { count: "6", n: 6 })).toBe("<6>");
+  });
 
   it("writes the figure exactly as the site formatted it, and refuses a bare number", () => {
     expect(sentence("en", NUMERAL, { count: "12,345", n: 12345 })).toBe("<12,345>");
