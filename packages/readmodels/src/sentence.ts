@@ -210,12 +210,18 @@ export function hungarianArticle(value: string, capital = false): string {
  *
  * A code takes the suffix its last number is said with: "A-103-as" (három),
  * "A-105-ös" (öt), "B-302-es" (kettő). The last digit decides; where it is a
- * nought, the digit before it does, and a second nought makes it a hundred.
+ * nought, the digit before it does, a second nought makes it a hundred, and
+ * a nought standing alone is "-ás" (nulla).
+ *
+ * A number ending in "…000" would take "-es" (ezer), and this table would read
+ * it as a hundred. A unit code cannot end so: the two digits after the floor
+ * start at 01, so no code ends even in "00".
  *
  * This table is the one place the suffixes are written, and it is still being
  * checked: correct it here and nowhere else.
  */
 const HUNGARIAN_NUMBER_SUFFIX: Readonly<Record<string, string>> = {
+  "0": "-ás",
   "1": "-es",
   "2": "-es",
   "3": "-as",
@@ -242,7 +248,7 @@ export function hungarianNumberSuffix(value: string): string {
   const digits = /\d+$/.exec(value)?.[0] ?? "";
   const last = digits.at(-1);
   const tens = digits.at(-2);
-  const key = last !== "0" ? last : tens !== undefined && tens !== "0" ? `${tens}0` : "100";
+  const key = last !== "0" ? last : tens === undefined ? "0" : tens !== "0" ? `${tens}0` : "100";
   const suffix = key === undefined ? undefined : HUNGARIAN_NUMBER_SUFFIX[key];
   if (suffix === undefined) {
     throw new Error(

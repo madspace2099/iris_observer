@@ -210,6 +210,10 @@ describe("hungarianNumberSuffix, and {az:name-s}", () => {
     ]);
   });
 
+  it("takes -ás on a nought standing alone", () => {
+    expect(hungarianNumberSuffix("0")).toBe("-ás");
+  });
+
   it("refuses a value that does not end in a number", () => {
     expect(() => hungarianNumberSuffix("Penthouse")).toThrow(/does not end in a number/);
   });
