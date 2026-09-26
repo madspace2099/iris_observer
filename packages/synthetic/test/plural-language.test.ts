@@ -317,7 +317,7 @@ describe("the sites print through their entries", () => {
       "the same 2 days of the previous quarter",
     );
     expect(periodsAt(at, "Europe/Bratislava", "sk").quarter_to_date.baselineLabel).toBe(
-      "rovnaké 2 dni predchádzajúceho štvrťroka",
+      "rovnaké dva dni predchádzajúceho štvrťroka",
     );
   });
 });

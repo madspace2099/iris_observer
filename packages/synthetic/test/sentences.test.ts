@@ -477,21 +477,21 @@ const CASES: readonly Case[] = [
   {
     name: "time.ts: the part-quarter's baseline",
     entry: TIME_BASELINE_SENTENCE,
-    values: (n) => ({ count: n }),
+    values: (n) => ({ count: n, days: String(n) }),
     en: [
       "the same 1 day of the previous quarter",
       "the same 3 days of the previous quarter",
       "the same 5 days of the previous quarter",
     ],
     sk: [
-      "rovnaký 1 deň predchádzajúceho štvrťroka",
-      "rovnaké 3 dni predchádzajúceho štvrťroka",
-      "rovnakých 5 dní predchádzajúceho štvrťroka",
+      "rovnaký deň predchádzajúceho štvrťroka",
+      "rovnaké tri dni predchádzajúceho štvrťroka",
+      "rovnakých päť dní predchádzajúceho štvrťroka",
     ],
     hu: [
-      "az előző negyedév ugyanazon 1 napja",
-      "az előző negyedév ugyanazon 3 napja",
-      "az előző negyedév ugyanazon 5 napja",
+      "az előző negyedévnek ugyanaz a napja",
+      "az előző negyedévnek ugyanaz a három napja",
+      "az előző negyedévnek ugyanaz az öt napja",
     ],
   },
 ];

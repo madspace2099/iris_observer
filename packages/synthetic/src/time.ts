@@ -203,10 +203,29 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const TIME_BASELINE_SENTENCE: Sentence = {
   en: { text: "the same {count} {days|count} of the previous quarter", words: { days: DAYS.en } },
   sk: {
-    text: "{same|count} {count} {days|count} predchádzajúceho štvrťroka",
-    words: { same: { one: "rovnaký", few: "rovnaké", other: "rovnakých" }, days: DAYS.sk },
+    text: "{baseline|count}",
+    words: {
+      baseline: {
+        one: "rovnaký deň predchádzajúceho štvrťroka",
+        few: "{same|count} {#days|count} dni predchádzajúceho štvrťroka",
+        other: "{same|count} {#days|count} dní predchádzajúceho štvrťroka",
+      },
+      same: { one: "rovnaký", few: "rovnaké", other: "rovnakých" },
+    },
+    /* The first cell is never read: one day is the `one` form, with no numeral. */
+    numerals: { days: ["", "dva", "tri", "štyri", "päť"] },
   },
-  hu: { text: "az előző negyedév ugyanazon {count} napja" },
+  hu: {
+    text: "{baseline|count}",
+    words: {
+      baseline: {
+        one: "az előző negyedévnek ugyanaz a napja",
+        /* The article follows the numeral as written: "a három", "az öt", "a 6". */
+        other: "az előző negyedévnek ugyanaz {az:#days|count} napja",
+      },
+    },
+    numerals: { days: ["", "két", "három", "négy", "öt"] },
+  },
 };
 
 export function periodsAt(
@@ -250,7 +269,10 @@ export function periodsAt(
       label: "Quarter to date",
       from: iso(quarterStart),
       to: iso(thisMorning),
-      baselineLabel: sentence(language, TIME_BASELINE_SENTENCE, { count: elapsedDays }),
+      baselineLabel: sentence(language, TIME_BASELINE_SENTENCE, {
+        count: elapsedDays,
+        days: String(elapsedDays),
+      }),
       baselineFrom: iso(midnight(p.year, quarterMonth - 3, 1)),
       baselineTo: iso(midnight(p.year, quarterMonth - 3, 1 + elapsedDays)),
       baselineClipped: true,
