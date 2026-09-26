@@ -525,7 +525,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
       "1 presentation was recorded on Northgate Residences in quarter to date. The agent did not record an outcome at the end of any of them.",
-      "1 presentation was recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of every presentation.",
+      "1 presentation was recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of it.",
       "3 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of 1 of them.",
       "3 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of every presentation.",
       "5 presentations were recorded on Northgate Residences in quarter to date. The agent did not record an outcome at the end of any of them.",

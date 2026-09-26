@@ -148,8 +148,14 @@ export const ASK_RECORDED_SOME_SENTENCE: Sentence = {
 /** `outcomes === count`. */
 export const ASK_RECORDED_ALL_SENTENCE: Sentence = {
   en: {
-    text: `${RECORDED_EN} The agent recorded an outcome at the end of every presentation.`,
-    words: RECORDED_EN_WORDS,
+    text: `${RECORDED_EN} {allEn|n}`,
+    words: {
+      ...RECORDED_EN_WORDS,
+      allEn: {
+        one: "The agent recorded an outcome at the end of it.",
+        other: "The agent recorded an outcome at the end of every presentation.",
+      },
+    },
   },
   sk: {
     text: "{recorded|n} {all|n}",

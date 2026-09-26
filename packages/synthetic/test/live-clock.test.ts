@@ -128,7 +128,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
       "How many presentations were recorded, and how did they end?",
     );
     expect(session.answers[0]?.answer).toBe(
-      "1 presentation was recorded on Akhilesh Demo Source in last 28 days. The agent recorded an outcome at the end of every presentation.",
+      "1 presentation was recorded on Akhilesh Demo Source in last 28 days. The agent recorded an outcome at the end of it.",
     );
     expect(session.answers[0]?.figures).toEqual([
       { label: "Interested", value: "1 of 1", note: null },
