@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION_KIND_DEFINITIONS, NotFoundError } from "@observer/readmodels";
+import { ATTENTION_KIND_DEFINITIONS, NotFoundError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { AlertSeverity, MeetingFilters, OverviewQuery, Viewer } from "@observer/readmodels";
 import { AGENT_MIN_SAMPLE, UNIT_MIN_SAMPLE } from "@observer/metrics";
 import { SyntheticObserverRepository, SYNTHETIC_AGENTS, VIEWERS } from "../src/index";
@@ -24,7 +24,7 @@ const repo = new SyntheticObserverRepository();
 const NO_FILTERS: MeetingFilters = { agentId: null, channel: null, outcome: null };
 
 function query(viewer: Viewer, tenantSlug: string, projectSlug: string): OverviewQuery {
-  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date" };
+  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date", language: DEFAULT_LANGUAGE };
 }
 
 const ISTER = query(VIEWERS.developer as Viewer, "alpha", "ister-tower");

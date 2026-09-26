@@ -6,7 +6,14 @@ import {
   type InsightSource,
   type ProducibleEvidenceTier,
 } from "@observer/contracts";
-import type { EvidenceRef, PeriodPreset } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type EvidenceRef,
+  type Language,
+  type PeriodPreset,
+  type PluralForms,
+} from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -156,19 +163,29 @@ export function Sources({ sources }: { readonly sources: readonly InsightSource[
  * the reader comes back to, and a link that quietly resets the reader's scope is
  * the defect whether or not the destination cares.
  */
+/** What an evidence link counts. The Slovak and Hungarian forms are the ones a count takes standing alone. */
+export const PROVENANCE_RECORDS: PluralForms = {
+  en: { one: "record", other: "records" },
+  sk: { one: "záznam", few: "záznamy", other: "záznamov" },
+  hu: { one: "bejegyzés", other: "bejegyzés" },
+};
+
 export function Evidence({
   evidence,
   period,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly evidence: EvidenceRef | null;
   readonly period: PeriodPreset;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   if (evidence === null) {
     return <span className="ox-n">No evidence</span>;
   }
 
   const tier = isProducibleTier(evidence.tier) ? TIER_LABELS[evidence.tier] : null;
-  const noun = evidence.observationCount === 1 ? "record" : "records";
+  const noun = plural(language, evidence.observationCount, PROVENANCE_RECORDS);
   const words =
     tier === null
       ? `${evidence.observationCount} ${noun}`

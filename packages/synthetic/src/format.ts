@@ -1,4 +1,12 @@
-import type { EvidenceRef, MetricValue, MetricComparison } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type EvidenceRef,
+  type Language,
+  type MetricValue,
+  type MetricComparison,
+  type PluralForms,
+} from "@observer/readmodels";
 import { EvidenceIdSchema, type EvidenceTier } from "@observer/contracts";
 
 /**
@@ -99,9 +107,16 @@ export function movement(
   return { direction: delta > 0 ? "up" : "down", deltaDisplay };
 }
 
-export function days(value: number): string {
+/** A span of days. It is printed to a tenth, so a fraction takes Slovak's fourth form. */
+export const FORMAT_DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", many: "dňa", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
+export function days(value: number, language: Language = DEFAULT_LANGUAGE): string {
   const rounded = Math.round(value * 10) / 10;
-  return `${rounded} ${rounded === 1 ? "day" : "days"}`;
+  return `${rounded} ${plural(language, rounded, FORMAT_DAYS)}`;
 }
 
 /* --- dates and times, in the project's own zone --------------------------- */

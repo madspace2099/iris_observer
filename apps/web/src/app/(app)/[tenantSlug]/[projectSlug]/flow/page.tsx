@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { KPI_WINDOWS, type KpiWindowId, type PeriodPreset } from "@observer/readmodels";
+import {
+  KPI_WINDOWS,
+  type KpiWindowId,
+  type PeriodPreset,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -81,6 +86,7 @@ export default async function FlowPage({
     tenantSlug,
     projectSlug,
     period: presetFrom(period) as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
   const kpiWindow = windowFrom(windowParam);
 

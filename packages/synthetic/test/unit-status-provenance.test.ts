@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import type { OverviewQuery, Viewer } from "@observer/readmodels";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * A catalogue status claims what it is: a stated fact, from the catalogue.
  *
@@ -29,6 +30,7 @@ const NORTHGATE: OverviewQuery = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "year_to_date",
+  language: DEFAULT_LANGUAGE,
 };
 
 const repo = new SyntheticObserverRepository();

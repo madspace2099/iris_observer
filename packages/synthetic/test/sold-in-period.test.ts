@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { OverviewQuery, Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * No project reports more sales inside the period than it has made in total.
  *
@@ -39,6 +40,7 @@ function query(
     tenantSlug: t,
     projectSlug: p,
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   };
 }
 
@@ -75,6 +77,7 @@ describe("sold in the period, against sold in total", () => {
             tenantSlug: tenant.slug,
             projectSlug: p.slug,
             period: "quarter_to_date",
+            language: DEFAULT_LANGUAGE,
           });
           if (totals.soldInPeriod !== null && totals.soldInPeriod > totals.sold) {
             const line = `${tenant.slug}/${p.slug}: ${totals.soldInPeriod} in the period, ${totals.sold} in all`;

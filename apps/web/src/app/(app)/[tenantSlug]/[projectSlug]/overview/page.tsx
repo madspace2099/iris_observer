@@ -19,6 +19,7 @@ import {
   NotPermittedError,
   type AgentOverview,
   type ExecutiveOverview,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 import { presetFrom, withPeriod, withPeriodOnLinks } from "@/lib/period";
 import { repository } from "@/lib/repository";
@@ -56,7 +57,13 @@ export default async function OverviewPage({
   const { tenantSlug, projectSlug } = await params;
   const { period } = await searchParams;
 
-  const query = { viewer, tenantSlug, projectSlug, period: presetFrom(period) };
+  const query = {
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period: presetFrom(period),
+    language: DEFAULT_LANGUAGE,
+  };
   const root = `/${tenantSlug}/${projectSlug}`;
 
   let read:

@@ -39,7 +39,14 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { actionWorthTaking, nothingReceivedYet } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  actionWorthTaking,
+  nothingReceivedYet,
+  plural,
+  type Language,
+  type PluralForms,
+} from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
   catalogueFor,
@@ -70,9 +77,22 @@ const WITH_OUTCOME = [
   "CRM_OUTCOME_CONTEXT",
 ] as const;
 
+/*
+ * The words these views count in, beside the sentences that use them. The
+ * Slovak and Hungarian forms are the ones a count takes standing alone or as a
+ * subject; a sentence that governs another case chooses its forms when it is
+ * translated.
+ */
+
+export const VIEWS3_MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
-export function meetings(n: number, locale: string): string {
-  return `${count(n, locale)} meeting${n === 1 ? "" : "s"}`;
+export function meetings(n: number, locale: string, language: Language = DEFAULT_LANGUAGE): string {
+  return `${count(n, locale)} ${plural(language, n, VIEWS3_MEETINGS)}`;
 }
 
 /**
@@ -94,9 +114,10 @@ export function suppressionNoteFor(
   held: number,
   locale: string,
   form: "sentence" | "short" = "sentence",
+  language: Language = DEFAULT_LANGUAGE,
 ): string {
   if (form === "short") return `${count(held, locale)} of ${String(AGENT_MIN_SAMPLE)} meetings`;
-  return `${meetings(held, locale)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
+  return `${meetings(held, locale, language)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
 /**
@@ -109,8 +130,13 @@ export function suppressionNoteFor(
  * "41% over 21 where it was 7 of 17", a fourth time. This names the set it
  * measured, so the reader is not told twenty when the habit stands on fifteen.
  */
-export function timedSetNoteFor(timed: number, held: number, locale: string): string {
-  return `${meetings(timed, locale)} of the ${count(held, locale)} held could be timed end to end, ${count(AGENT_MIN_SAMPLE - timed, locale)} short of the ${String(AGENT_MIN_SAMPLE)} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
+export function timedSetNoteFor(
+  timed: number,
+  held: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
+  return `${meetings(timed, locale, language)} of the ${count(held, locale)} held could be timed end to end, ${count(AGENT_MIN_SAMPLE - timed, locale)} short of the ${String(AGENT_MIN_SAMPLE)} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
 /* --- helpers ----------------------------------------------------------------- */
@@ -232,7 +258,14 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * no project (the tests hand-place sessions at UTC midnights) keeps its
  * arithmetic literal.
  */
-export function bucketBounds(today: Date, timeZone = "UTC") {
+/** "Last week, first 3 days". */
+export const VIEWS3_DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
+export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
   const day = 24 * 60 * 60 * 1000;
   const t0 = startOfDayIn(today, timeZone).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
@@ -269,7 +302,7 @@ export function bucketBounds(today: Date, timeZone = "UTC") {
       label:
         elapsedDays === 7
           ? "Last week"
-          : `Last week, first ${elapsedDays} day${elapsedDays === 1 ? "" : "s"}`,
+          : `Last week, first ${elapsedDays} ${plural(language, elapsedDays, VIEWS3_DAYS)}`,
       from: thisWeek - 7 * day,
       to: thisWeek - 7 * day + elapsedDays * day,
     },
@@ -286,7 +319,7 @@ export function bucketBounds(today: Date, timeZone = "UTC") {
       label:
         lastMonthElapsed === lastMonthLength
           ? "Last month"
-          : `Last month, first ${lastMonthElapsed} day${lastMonthElapsed === 1 ? "" : "s"}`,
+          : `Last month, first ${lastMonthElapsed} ${plural(language, lastMonthElapsed, VIEWS3_DAYS)}`,
       from: lastMonth,
       to: lastMonth + lastMonthElapsed * day,
     },
@@ -297,8 +330,9 @@ function buildPeriods(
   sessions: readonly ShowroomSession[],
   today: Date,
   timeZone: string,
+  language: Language,
 ): FlowPeriod[] {
-  return bucketBounds(today, timeZone).map((b) => {
+  return bucketBounds(today, timeZone, language).map((b) => {
     const inside = sessions.filter((s) => {
       const at = Date.parse(s.startedAt);
       return at >= b.from && at < b.to;
@@ -437,13 +471,18 @@ function summarizePeriod(sessions: readonly ShowroomSession[], label: string): P
  * produce it the same way, from the same two-summary shape, rather than
  * duplicating four states and a deadbanded signal twice.
  */
-function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: string): string {
+function verdictFrom(
+  current: PeriodSummary,
+  prior: PeriodSummary,
+  locale: string,
+  language: Language,
+): string {
   const outcomesRecorded = current.outcomeRecorded > 0;
   const hasBaseline = prior.meetings > 0;
 
   const volumeClause = hasBaseline
-    ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
-    : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
+    ? `${meetings(current.meetings, locale, language)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
+    : `${meetings(current.meetings, locale, language)} ${current.label.toLowerCase()}`;
 
   if (!outcomesRecorded) {
     /*
@@ -502,7 +541,7 @@ export function buildSalesFlow(
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const periods = buildPeriods(sessions, today, context.project.timeZone);
+  const periods = buildPeriods(sessions, today, context.project.timeZone, context.language);
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const teamProgressed = share(
     decided.filter((s) => hasProgressed(s.outcome)).length,
@@ -626,6 +665,7 @@ export function buildSalesFlow(
         weekIsReadable ? week : month,
         weekIsReadable ? lastWeek : lastMonth,
         locale,
+        context.language,
       );
     }
   } else {
@@ -633,6 +673,7 @@ export function buildSalesFlow(
       summarizePeriod(sessions, context.period.label),
       summarizePeriod(previous, context.period.baselineLabel),
       locale,
+      context.language,
     );
   }
   verdict = nothingReceivedYet(context) ?? verdict;
@@ -657,7 +698,7 @@ export function buildSalesFlow(
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
-    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref),
+    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref, context.language),
     assisted: buildAssistedSales(
       deals,
       projectSessions,
@@ -666,6 +707,7 @@ export function buildSalesFlow(
       context.project.timeZone,
       unitHref,
       (meetingId) => `${base}/meetings/${encodeURIComponent(meetingId)}`,
+      context.language,
     ),
   };
 }
@@ -1076,7 +1118,7 @@ export function buildProjectView(
     context,
     verdict:
       lead === undefined
-        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale)}.`)
+        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale, context.language)}.`)
         : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
     segments,
     matrixNote: context.project.connectedSources.includes("crm")
@@ -1240,14 +1282,16 @@ export function buildAgentsView(
       /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
       timedMeetings: timedMine.length,
       belowMinimum,
-      suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
+      suppressionNote: belowMinimum
+        ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
+        : null,
       /*
        * The habit's own floor, on the set the habit stands on. Null above it;
        * null too under `belowMinimum`, whose note already speaks for the card.
        */
       signatureNote:
         !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
-          ? timedSetNoteFor(timedMine.length, mine.length, locale)
+          ? timedSetNoteFor(timedMine.length, mine.length, locale, context.language)
           : null,
       medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
@@ -1327,7 +1371,7 @@ export function buildAgentsView(
   ) {
     findings.push({
       id: "agents-signature-withheld",
-      statement: `No presenter's habit is read as a finding: the most anyone presented that the source could time end to end was ${meetings(largest.timedMeetings, locale)} of ${count(largest.meetings, locale)} held, ${count(AGENT_MIN_SAMPLE - largest.timedMeetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
+      statement: `No presenter's habit is read as a finding: the most anyone presented that the source could time end to end was ${meetings(largest.timedMeetings, locale, context.language)} of ${count(largest.meetings, locale)} held, ${count(AGENT_MIN_SAMPLE - largest.timedMeetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
       baseline: `${count(agents.length, locale)} agents`,
       soWhat:
         "A habit read from fewer meetings than the floor would be a verdict about a person drawn from a handful. The cards above carry every figure with its count.",
@@ -1376,8 +1420,8 @@ export function buildAgentsView(
           (nothingReceivedYet(context) ??
           `Nobody presented in ${context.period.label.toLowerCase()}.`)
         : agents.length === 1
-          ? `One agent presented ${meetings(sessions.length, locale)}.`
-          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
+          ? `One agent presented ${meetings(sessions.length, locale, context.language)}.`
+          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale, context.language)}, and they do not present alike.`,
     agents,
     repeats,
     findings,
@@ -1578,7 +1622,7 @@ export function buildHome(
     previousDecided.length,
   );
 
-  const periods = buildPeriods(sessions, today, context.project.timeZone);
+  const periods = buildPeriods(sessions, today, context.project.timeZone, context.language);
   const week = periods.find((p) => p.id === "this_week")?.meetings ?? 0;
   const lastWeek = periods.find((p) => p.id === "last_week")?.meetings ?? 0;
 
@@ -1688,9 +1732,9 @@ export function buildHome(
    */
   const volumeClause = hasBaseline
     ? weekIsReadable
-      ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week`
-      : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month`
-    : `${meetings(weekIsReadable ? week : month, locale)} ${weekIsReadable ? "this week" : "this month"}`;
+      ? `${meetings(week, locale, context.language)} this week against ${count(lastWeek, locale)} last week`
+      : `${meetings(month, locale, context.language)} this month against ${count(lastMonth, locale)} last month`
+    : `${meetings(weekIsReadable ? week : month, locale, context.language)} ${weekIsReadable ? "this week" : "this month"}`;
 
   const because = weekIsReadable
     ? `${volumeClause}${progressClause}`
@@ -1819,7 +1863,7 @@ export function buildHome(
         id: "flow",
         label: "Sales Flow",
         question: "How is the process performing?",
-        headline: `${meetings(sessions.length, locale)} · ${percent(progressed, locale)} progressing`,
+        headline: `${meetings(sessions.length, locale, context.language)} · ${percent(progressed, locale)} progressing`,
         href: `${base}/flow`,
       },
       {

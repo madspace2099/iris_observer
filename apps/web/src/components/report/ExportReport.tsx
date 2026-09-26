@@ -3,7 +3,15 @@
 import Link from "next/link";
 
 import { useId, useState } from "react";
-import type { ReportGeneration, ReportScope, ReportSection } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type Language,
+  type PluralForms,
+  type ReportGeneration,
+  type ReportScope,
+  type ReportSection,
+} from "@observer/readmodels";
 
 /** What the trigger and the dialog call themselves, by whose report it is. */
 const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
@@ -113,10 +121,18 @@ function formatLabel(id: FormatId): string {
   return FORMATS.find((format) => format.id === id)?.label ?? id;
 }
 
+/** The sections a report would leave blank. The Slovak and Hungarian forms are the ones a count takes standing alone. */
+export const EXPORT_SECTIONS: PluralForms = {
+  en: { one: "section", other: "sections" },
+  sk: { one: "sekcia", few: "sekcie", other: "sekcií" },
+  hu: { one: "szakasz", other: "szakasz" },
+};
+
 export function ExportReport({
   report,
   pageHref,
   weight = "quiet",
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly report: ExportReportView;
   /**
@@ -127,6 +143,8 @@ export function ExportReport({
   readonly pageHref: string;
   /** `quiet` beside other page controls; `primary` where export is the point. */
   readonly weight?: "primary" | "quiet";
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   const title = TITLES[report.scope.kind];
 
@@ -262,9 +280,7 @@ export function ExportReport({
               {report.scope.label}.
               {report.unavailableCount === 0
                 ? ""
-                : ` ${report.unavailableCount} ${
-                    report.unavailableCount === 1 ? "section" : "sections"
-                  } would be blank and cannot be included.`}
+                : ` ${report.unavailableCount} ${plural(language, report.unavailableCount, EXPORT_SECTIONS)} would be blank and cannot be included.`}
             </span>
           </p>
         </div>

@@ -486,7 +486,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
         {
           metricId: "people.follow_up_delay",
           label: "Longest gap since a meeting",
-          display: days(danielDaysSinceMeeting),
+          display: days(danielDaysSinceMeeting, context.language),
           rule: `No buyer left without a recorded contact for more than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
           outcome: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "fail" : "pass",
         },
@@ -532,7 +532,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       ok({
         metricId: "people.follow_up_delay",
         label: "Your follow-up delay",
-        display: days(6),
+        display: days(6, context.language),
         raw: 6,
         qualifier: "median, 80th percentile 13",
         sampleSize: 14,

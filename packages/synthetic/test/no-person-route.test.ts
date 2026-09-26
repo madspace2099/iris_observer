@@ -8,6 +8,7 @@ import {
   VIKTORIA_MEETING_ID,
 } from "../src/index";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * NO READ MODEL LINKS TO A PERSON PAGE, BECAUSE THERE IS NONE.
  *
@@ -75,7 +76,12 @@ describe("no read model links to a person page that does not exist", () => {
         if (!viewer.projectIds.includes(project.id)) continue;
         const tenant = TENANTS.find((t) => t.id === project.tenantId);
         if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
-        const where = { viewer, tenantSlug: tenant.slug, projectSlug: project.slug };
+        const where = {
+          viewer,
+          tenantSlug: tenant.slug,
+          projectSlug: project.slug,
+          language: DEFAULT_LANGUAGE,
+        };
         const query = { ...where, period: "quarter_to_date" as const };
 
         const views: Record<string, unknown> = {

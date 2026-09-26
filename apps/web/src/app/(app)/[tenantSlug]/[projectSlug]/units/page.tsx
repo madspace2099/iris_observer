@@ -12,6 +12,7 @@ import {
   type RegisterSearch,
 } from "@/components/units";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Units" };
 
 /**
@@ -87,7 +88,7 @@ export default async function UnitsPage({
   const search = await searchParams;
 
   const period = presetFrom(search.period);
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
 
   const [view, pulse, attention] = await Promise.all([
     /*

@@ -9,12 +9,21 @@
  * a zero, a dash or the string "null".
  */
 
+import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "./language";
+
 export const NOT_STATED = "Not stated";
 
+/** A room count's noun. "1,5" rooms is a real Slovak flat, so the fraction's form is here too. */
+export const ROOMS_WORD: PluralForms = {
+  en: { one: "room", other: "rooms" },
+  sk: { one: "izba", few: "izby", many: "izby", other: "izieb" },
+  hu: { one: "szoba", other: "szoba" },
+};
+
 /** "2 rooms", "1 room", or the word for a count the catalogue did not state. */
-export function roomsWord(rooms: number | null): string {
+export function roomsWord(rooms: number | null, language: Language = DEFAULT_LANGUAGE): string {
   if (rooms === null) return "Rooms not stated";
-  return `${String(rooms)} ${rooms === 1 ? "room" : "rooms"}`;
+  return `${String(rooms)} ${plural(language, rooms, ROOMS_WORD)}`;
 }
 
 /** "63 m²", or the word for an area the catalogue did not state. */

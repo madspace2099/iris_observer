@@ -57,6 +57,7 @@ import { repository } from "@/lib/repository";
 /* The rehearsal only: never a read of the project, so never through `repository`. See the bubble lens. */
 import { showroomPaceRehearsal } from "@observer/synthetic";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
  *
@@ -889,7 +890,13 @@ function behaviourShares(
  * not MADSPACE, and the repository applies that viewer's grants like any page.
  */
 export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
-  const query = { viewer, tenantSlug: D_TENANT, projectSlug: D_PROJECT, period: D_PERIOD };
+  const query = {
+    viewer,
+    tenantSlug: D_TENANT,
+    projectSlug: D_PROJECT,
+    period: D_PERIOD,
+    language: DEFAULT_LANGUAGE,
+  };
 
   const [flow, charts, projectCharts, projectView, agentCharts, slice] = await Promise.all([
     repository.getSalesFlow(query),

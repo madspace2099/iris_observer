@@ -49,8 +49,10 @@ import {
   AGENT_REGISTER_ROLES,
   areaWord,
   nothingReceivedYet,
+  plural,
   roomsWord,
   visitorLabel,
+  type PluralForms,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
@@ -72,6 +74,26 @@ import { startOfWeekIn } from "../time";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView, meetings as meetingsWord, suppressionNoteFor } from "./views3";
+
+/*
+ * The words the unit page counts in, beside the sentences that use them. The
+ * Slovak and Hungarian forms are the ones a count takes standing alone or as a
+ * subject; a sentence that governs another case chooses its forms when it is
+ * translated.
+ */
+
+export const SCREENS_MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
+/** "Opened 3 times": Slovak counts occasions as "raz", "razy", "ráz". */
+export const SCREENS_TIMES: PluralForms = {
+  en: { one: "time", other: "times" },
+  sk: { one: "raz", few: "razy", other: "ráz" },
+  hu: { one: "alkalommal", other: "alkalommal" },
+};
 
 /**
  * The drill-down surfaces, projected from the same session stream.
@@ -554,6 +576,7 @@ export function buildUnitDetail(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const currency = context.project.currency;
+  const language = context.language;
   const root = base(context);
 
   const raw = catalogueFor(context.project.id as string).find((u) => u.code === unitCode);
@@ -689,7 +712,7 @@ export function buildUnitDetail(
 
     add(
       "viewed",
-      `Opened ${count(touch.views, locale)} time${touch.views === 1 ? "" : "s"}`,
+      `Opened ${count(touch.views, locale)} ${plural(language, touch.views, SCREENS_TIMES)}`,
       `${duration(touch.dwellSeconds)} in total, longest look ${duration(touch.longestViewSeconds)}`,
       "observed_sequence",
       OBSERVED,
@@ -983,7 +1006,7 @@ export function buildUnitDetail(
   if (row.favourites > 0 && followUpIn.length === 0) {
     findings.push({
       id: `unit-${unitCode}-shortlist-no-follow-up`,
-      statement: `${unitCode} was shortlisted in ${count(row.favourites, locale)} meeting${row.favourites === 1 ? "" : "s"}, none of which recorded a follow-up.`,
+      statement: `${unitCode} was shortlisted in ${count(row.favourites, locale)} ${plural(language, row.favourites, SCREENS_MEETINGS)}, none of which recorded a follow-up.`,
       baseline: `${count(row.meetings, locale)} meetings opened it`,
       soWhat:
         "Shortlisting is the strongest interest signal the showroom produces. A shortlist with nothing recorded after it is a call somebody may still owe.",
@@ -1014,6 +1037,7 @@ export function buildUnitDetail(
     locale,
     timeZone,
     (meetingId) => `${root}/meetings/${encodeURIComponent(meetingId)}`,
+    context.language,
   );
   if (sale !== null) {
     findings.push({
@@ -1041,8 +1065,8 @@ export function buildUnitDetail(
 
   const headline =
     row.meetings === 0
-      ? `${unit.unitCode} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay}`
-      : `${unit.unitCode} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay} · opened in ${count(row.meetings, locale)} meeting${row.meetings === 1 ? "" : "s"}`;
+      ? `${unit.unitCode} · ${roomsWord(unit.rooms, language)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay}`
+      : `${unit.unitCode} · ${roomsWord(unit.rooms, language)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay} · opened in ${count(row.meetings, locale)} ${plural(language, row.meetings, SCREENS_MEETINGS)}`;
 
   return {
     context,
@@ -1400,7 +1424,7 @@ export function buildAgentDetail(
   if (belowMinimum) {
     findings.push({
       id: `agent-${agentId}-sample`,
-      statement: `${agent.name} presented ${meetingsWord(mine.length, locale)} in ${context.period.label.toLowerCase()}, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} this product requires before it will read a figure as a verdict.`,
+      statement: `${agent.name} presented ${meetingsWord(mine.length, locale, context.language)} in ${context.period.label.toLowerCase()}, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} this product requires before it will read a figure as a verdict.`,
       baseline: `${count(sessions.length, locale)} meetings on the project`,
       soWhat:
         "The counts on this page are real and the rates are shown as raw figures. No rank, verdict or trend is drawn from them at this sample size.",
@@ -1473,7 +1497,9 @@ export function buildAgentDetail(
     minimumSampleSize: AGENT_MIN_SAMPLE,
     belowMinimum,
     /* One builder for the floor's sentence, shared with the roster and the charts. */
-    suppressionNote: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
+    suppressionNote: belowMinimum
+      ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
+      : null,
     activity,
     profile,
     projects,

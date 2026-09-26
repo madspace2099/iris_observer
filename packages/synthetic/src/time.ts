@@ -50,6 +50,7 @@
  * matters to any actual Observer date: every generated meeting sits inside
  * ordinary working hours, nowhere near a transition.
  */
+import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "@observer/readmodels";
 
 export interface ZoneParts {
   readonly year: number;
@@ -192,9 +193,17 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * because comparing a part-quarter with a whole one is the commonest false
  * alarm a dashboard raises.
  */
+/** "The same 12 days of the previous quarter". */
+export const TIME_DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
 export function periodsAt(
   today: Date,
   timeZone: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): Record<
   "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date",
   {
@@ -232,7 +241,7 @@ export function periodsAt(
       label: "Quarter to date",
       from: iso(quarterStart),
       to: iso(thisMorning),
-      baselineLabel: `the same ${String(elapsedDays)} ${elapsedDays === 1 ? "day" : "days"} of the previous quarter`,
+      baselineLabel: `the same ${String(elapsedDays)} ${plural(language, elapsedDays, TIME_DAYS)} of the previous quarter`,
       baselineFrom: iso(midnight(p.year, quarterMonth - 3, 1)),
       baselineTo: iso(midnight(p.year, quarterMonth - 3, 1 + elapsedDays)),
       baselineClipped: true,

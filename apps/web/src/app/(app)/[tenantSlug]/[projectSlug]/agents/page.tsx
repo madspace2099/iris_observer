@@ -12,6 +12,7 @@ import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
 
 /**
@@ -54,6 +55,7 @@ export default async function AgentsPage({
     tenantSlug,
     projectSlug,
     period: period as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
 
   const [view, charts] = await Promise.all([

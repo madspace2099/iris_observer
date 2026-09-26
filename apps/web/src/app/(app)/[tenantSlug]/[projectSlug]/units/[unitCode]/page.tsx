@@ -7,6 +7,7 @@ import {
   NotPermittedError,
   aspectWord,
   floorWord,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 import type { UnitAttentionDetail, UnitDetailView } from "@observer/readmodels";
 
@@ -115,7 +116,7 @@ export default async function UnitPage({
 
   const search = await searchParams;
   const period = presetFrom(search.period);
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
 
   let detail: UnitDetailView;
   let comparison: UnitAttentionDetail | null;

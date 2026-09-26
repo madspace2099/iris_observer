@@ -8,6 +8,7 @@ import {
   type PeriodPreset,
   type ShowroomSessionSource,
   type Viewer,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 import type { ShowroomSession } from "@observer/contracts";
 
@@ -41,7 +42,7 @@ function viewer(name: string): Viewer {
 const PERIOD: PeriodPreset = "quarter_to_date";
 
 function query(v: Viewer, tenantSlug: string, projectSlug: string) {
-  return { viewer: v, tenantSlug, projectSlug, period: PERIOD };
+  return { viewer: v, tenantSlug, projectSlug, period: PERIOD, language: DEFAULT_LANGUAGE };
 }
 
 describe("every session belongs to exactly one project", () => {
@@ -267,6 +268,7 @@ describe("figures read together count the same meetings", () => {
         tenantSlug,
         projectSlug,
         period: "quarter_to_date" as const,
+        language: DEFAULT_LANGUAGE,
       };
       const home = await syntheticRepository.getHome(query);
       const overview = await syntheticRepository.getShowroomOverview(query);
@@ -280,6 +282,7 @@ describe("figures read together count the same meetings", () => {
         tenantSlug,
         projectSlug,
         period: "quarter_to_date" as const,
+        language: DEFAULT_LANGUAGE,
       };
       const flow = await syntheticRepository.getSalesFlow(query);
       const overview = await syntheticRepository.getShowroomOverview(query);
@@ -306,6 +309,7 @@ describe("a project with no history claims no comparison", () => {
     tenantSlug: "beta",
     projectSlug: "kingsford",
     period: "quarter_to_date" as const,
+    language: DEFAULT_LANGUAGE,
   };
 
   it("does not compare volume against a period that does not exist", async () => {
@@ -329,6 +333,7 @@ describe("a project with no history claims no comparison", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "quarter_to_date" as const,
+      language: DEFAULT_LANGUAGE,
     });
     const volume = home.figures.find((f) => f.id === "meetings");
 
@@ -359,6 +364,7 @@ describe("every surface counts the same period identically", () => {
         tenantSlug: "alpha",
         projectSlug: "northgate",
         period,
+        language: DEFAULT_LANGUAGE,
       };
       const counts = await Promise.all([
         syntheticRepository.getHome(query).then((v) => v.meetingCount),
@@ -378,6 +384,7 @@ describe("every surface counts the same period identically", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "last_quarter" as const,
+      language: DEFAULT_LANGUAGE,
     };
     const completed = await syntheticRepository.getHome(query);
     const everything = showroomSessions().filter((s) => s.projectId === "prj_northgate01");
@@ -407,7 +414,13 @@ describe("the summary window ignores the period, never the project", () => {
 
   async function kpis(tenantSlug: string, projectSlug: string, viewer: Viewer, window: string) {
     const charts = await syntheticRepository.getFlowCharts(
-      { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+      {
+        viewer,
+        tenantSlug,
+        projectSlug,
+        period: "quarter_to_date" as const,
+        language: DEFAULT_LANGUAGE,
+      },
       window as never,
     );
     return charts.kpis.figures;
@@ -482,7 +495,13 @@ describe("a meeting belongs to exactly one project — replay and report-scope",
   }
 
   function replayQuery(v: Viewer, tenantSlug: string, projectSlug: string, meetingId: string) {
-    return { viewer: v, tenantSlug, projectSlug, meetingId: meetingId as never };
+    return {
+      viewer: v,
+      tenantSlug,
+      projectSlug,
+      meetingId: meetingId as never,
+      language: DEFAULT_LANGUAGE,
+    };
   }
 
   it("a valid meeting, inside the project that actually holds it, replays", async () => {
@@ -511,6 +530,7 @@ describe("a meeting belongs to exactly one project — replay and report-scope",
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "quarter_to_date" as PeriodPreset,
+      language: DEFAULT_LANGUAGE,
     };
     await expect(
       syntheticRepository.getReportScope(query, { meetingId: riversideMeetingId }),
@@ -652,7 +672,13 @@ describe("a project shows its own stock", () => {
   for (const [tenantSlug, projectSlug, viewer, codePattern] of CASES) {
     it(`${projectSlug} lists only its own units`, async () => {
       const view = await syntheticRepository.getUnitAttention(
-        { viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const },
+        {
+          viewer,
+          tenantSlug,
+          projectSlug,
+          period: "quarter_to_date" as const,
+          language: DEFAULT_LANGUAGE,
+        },
         null,
       );
 
@@ -667,7 +693,13 @@ describe("a project shows its own stock", () => {
     const plans = await Promise.all(
       CASES.map(([tenantSlug, projectSlug, viewer]) =>
         syntheticRepository
-          .getProjectCharts({ viewer, tenantSlug, projectSlug, period: "quarter_to_date" as const })
+          .getProjectCharts({
+            viewer,
+            tenantSlug,
+            projectSlug,
+            period: "quarter_to_date" as const,
+            language: DEFAULT_LANGUAGE,
+          })
           .then((c) => c.targets.map((t) => `${t.actual}/${t.total}`).join(" ")),
       ),
     );
@@ -682,12 +714,14 @@ describe("a project shows its own stock", () => {
         tenantSlug: "alpha",
         projectSlug: "northgate",
         period: "quarter_to_date" as const,
+        language: DEFAULT_LANGUAGE,
       }),
       syntheticRepository.getProjectCharts({
         viewer: VIEWERS.agencyManager,
         tenantSlug: "beta",
         projectSlug: "kingsford",
         period: "quarter_to_date" as const,
+        language: DEFAULT_LANGUAGE,
       }),
     ]);
 

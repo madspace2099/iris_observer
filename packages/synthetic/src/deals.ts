@@ -5,14 +5,18 @@ import {
   type ShowroomSession,
 } from "@observer/contracts";
 import type { IrisAssistPolicy } from "@observer/metrics";
-import type {
-  AssistVerdict,
-  AssistedSale,
-  AssistedSales,
-  DealLadder,
-  DealLadderStage,
-  DeliveredDeals,
-  StalledDeal,
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type AssistVerdict,
+  type AssistedSale,
+  type AssistedSales,
+  type DealLadder,
+  type DealLadderStage,
+  type DeliveredDeals,
+  type Language,
+  type PluralForms,
+  type StalledDeal,
 } from "@observer/readmodels";
 import { dayLabel, percent } from "./format";
 
@@ -79,7 +83,74 @@ function median(values: readonly number[]): number | null {
     : ((sorted[mid - 1] ?? 0) + (sorted[mid] ?? 0)) / 2;
 }
 
-const days = (n: number): string => (n === 1 ? "1 day" : `${String(Math.round(n))} days`);
+/*
+ * The words this file counts in, each beside the sentences that use it. The
+ * Slovak and Hungarian forms are the ones a count takes standing alone or as a
+ * subject; a sentence that governs another case chooses its forms when it is
+ * translated.
+ */
+
+/** Days on a rung, or between a showing and a sale. Printed whole, so the form is chosen for the whole number. */
+export const DEAL_DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
+export const DEAL_HOURS: PluralForms = {
+  en: { one: "hour", other: "hours" },
+  sk: { one: "hodina", few: "hodiny", other: "hodín" },
+  hu: { one: "óra", other: "óra" },
+};
+
+export const DEAL_DEALS: PluralForms = {
+  en: { one: "deal", other: "deals" },
+  sk: { one: "obchod", few: "obchody", other: "obchodov" },
+  hu: { one: "ügylet", other: "ügylet" },
+};
+
+export const DEAL_OPEN_DEALS: PluralForms = {
+  en: { one: "open deal", other: "open deals" },
+  sk: { one: "otvorený obchod", few: "otvorené obchody", other: "otvorených obchodov" },
+  hu: { one: "nyitott ügylet", other: "nyitott ügylet" },
+};
+
+export const DEAL_SALES: PluralForms = {
+  en: { one: "sale", other: "sales" },
+  sk: { one: "predaj", few: "predaje", other: "predajov" },
+  hu: { one: "eladás", other: "eladás" },
+};
+
+export const DEAL_SALES_NEEDED: PluralForms = {
+  en: { one: "more dated sale is needed", other: "more dated sales are needed" },
+  sk: {
+    one: "ďalší datovaný predaj je potrebný",
+    few: "ďalšie datované predaje sú potrebné",
+    other: "ďalších datovaných predajov je potrebných",
+  },
+  hu: { one: "további datált eladás szükséges", other: "további datált eladás szükséges" },
+};
+
+export const DEAL_SHOWN_EARLIER: PluralForms = {
+  en: { one: "more was shown earlier", other: "more were shown earlier" },
+  sk: {
+    one: "ďalší bol ukázaný skôr",
+    few: "ďalšie boli ukázané skôr",
+    other: "ďalších bolo ukázaných skôr",
+  },
+  hu: { one: "további korábban lett megmutatva", other: "további korábban lett megmutatva" },
+};
+
+export const DEAL_NOT_OPENED: PluralForms = {
+  en: { one: "was not opened", other: "were not opened" },
+  sk: { one: "nebol otvorený", few: "neboli otvorené", other: "nebolo otvorených" },
+  hu: { one: "nem lett megnyitva", other: "nem lett megnyitva" },
+};
+
+const days = (n: number, language: Language): string => {
+  const whole = Math.round(n);
+  return `${String(whole)} ${plural(language, whole, DEAL_DAYS)}`;
+};
 
 /** The stages a deal can be stuck on: not the terminal two. */
 const OPEN_STAGES: ReadonlySet<DealStage> = new Set(
@@ -174,6 +245,8 @@ export function buildDealLadder(
   /** The project's zone: the day a deal entered its stage is the office's day. */
   timeZone: string,
   unitHref: (unitCode: string) => string | null = () => null,
+  /** The words' language; `locale` still formats the figures. */
+  language: Language = DEFAULT_LANGUAGE,
 ): DealLadder {
   if (deals === null) return { source: "not_connected", note: NOT_CONNECTED_NOTE };
 
@@ -200,7 +273,7 @@ export function buildDealLadder(
       medianDaysInStage,
       daysDisplay:
         medianDaysInStage !== null
-          ? `${days(medianDaysInStage)} on this rung`
+          ? `${days(medianDaysInStage, language)} on this rung`
           : standing.length === 0
             ? "none standing here"
             : "no stage date stated",
@@ -227,7 +300,7 @@ export function buildDealLadder(
           stageLabel: STAGE_LABELS[d.stage],
           unitCode: d.unitCode,
           daysInStage: n,
-          daysDisplay: days(n),
+          daysDisplay: days(n, language),
           enteredDisplay: dayLabel(d.stageEnteredAt, locale, timeZone),
           unitHref: d.unitCode === null ? null : unitHref(d.unitCode),
         },
@@ -242,17 +315,17 @@ export function buildDealLadder(
           `${String(stalled.length)} of ${String(open.length)} open deals, longest on their rung first, by the stage date the CRM stated.`,
           undated === 0
             ? null
-            : `${String(undated)} open deal${undated === 1 ? "" : "s"} carry no stage date and cannot be placed.`,
+            : `${String(undated)} ${plural(language, undated, DEAL_OPEN_DEALS)} carry no stage date and cannot be placed.`,
         ]
           .filter((w): w is string => w !== null)
           .join(" ");
 
   const words = [
-    `Stated by ${CONNECTOR_WORDS[deals.connector]}: ${String(deals.deals.length)} deal${deals.deals.length === 1 ? "" : "s"} as they stand now.`,
+    `Stated by ${CONNECTOR_WORDS[deals.connector]}: ${String(deals.deals.length)} ${plural(language, deals.deals.length, DEAL_DEALS)} as they stand now.`,
     "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
     unmapped === 0
       ? null
-      : `${String(unmapped)} deal${unmapped === 1 ? "" : "s"} carry a stage word not mapped yet and sit on no rung.`,
+      : `${String(unmapped)} ${plural(language, unmapped, DEAL_DEALS)} carry a stage word not mapped yet and sit on no rung.`,
     lost === 0 ? null : `${String(lost)} lost, counted beside the ladder.`,
   ].filter((w): w is string => w !== null);
 
@@ -283,11 +356,13 @@ const VERDICT_LABELS: Readonly<Record<AssistVerdict, string>> = {
   not_shown: "Not shown in IRIS",
 };
 
-function lagWords(hours: number): string {
+function lagWords(hours: number, language: Language): string {
   if (hours < 1) return "under an hour before";
-  if (hours < 48)
-    return `${String(Math.floor(hours))} hour${Math.floor(hours) === 1 ? "" : "s"} before`;
-  return `${days(Math.floor(hours / 24))} before`;
+  if (hours < 48) {
+    const whole = Math.floor(hours);
+    return `${String(whole)} ${plural(language, whole, DEAL_HOURS)} before`;
+  }
+  return `${days(Math.floor(hours / 24), language)} before`;
 }
 
 type PlacedSale = AssistedSale & { readonly at: number };
@@ -308,6 +383,7 @@ function placeSales(
   timeZone: string,
   unitHref: (unitCode: string) => string | null,
   meetingHref: (meetingId: string) => string,
+  language: Language,
 ): PlacedSale[] {
   const window = `${String(policy.windowHours)} hours`;
   return sold.flatMap((d) => {
@@ -337,7 +413,7 @@ function placeSales(
         : lagHours <= policy.windowHours
           ? "shown_in_window"
           : "shown_earlier";
-    const lagDisplay = lagHours === null ? "not shown in IRIS" : lagWords(lagHours);
+    const lagDisplay = lagHours === null ? "not shown in IRIS" : lagWords(lagHours, language);
     return [
       {
         at,
@@ -378,6 +454,7 @@ export function assistedSaleOf(
   locale: string,
   timeZone: string,
   meetingHref: (meetingId: string) => string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AssistedSale | null {
   if (deals === null) return null;
   const sold = deals.deals.filter(
@@ -392,6 +469,7 @@ export function assistedSaleOf(
     timeZone,
     () => null,
     meetingHref,
+    language,
   ).sort((a, b) => b.at - a.at);
   return newest === undefined ? null : withoutInstant(newest);
 }
@@ -419,6 +497,8 @@ export function buildAssistedSales(
   timeZone: string,
   unitHref: (unitCode: string) => string | null,
   meetingHref: (meetingId: string) => string,
+  /** The words' language; `locale` still formats the figures. */
+  language: Language = DEFAULT_LANGUAGE,
 ): AssistedSales {
   if (deals === null) return { source: "not_connected", note: NOT_CONNECTED_NOTE };
 
@@ -433,6 +513,7 @@ export function buildAssistedSales(
     timeZone,
     unitHref,
     meetingHref,
+    language,
   );
 
   const datedSales = sales.length;
@@ -448,7 +529,7 @@ export function buildAssistedSales(
       ? "The CRM dates no reservation or purchase yet, so there is no sale to place against a showing."
       : enough
         ? `${String(assisted)} of ${String(datedSales)} dated sales (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
-        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${String(policy.minimumSales - datedSales)} more dated sale${policy.minimumSales - datedSales === 1 ? " is" : "s are"} needed before a share is stated.`;
+        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${String(policy.minimumSales - datedSales)} ${plural(language, policy.minimumSales - datedSales, DEAL_SALES_NEEDED)} before a share is stated.`;
 
   /* A duration is read by its median, never its mean. */
   const earlierMedian = median(earlier.map((s) => (s.lagHours ?? 0) / 24));
@@ -457,16 +538,16 @@ export function buildAssistedSales(
     "It says the showing came first and by how long. The buyer of a deal is not linked to the visitor in the room, so it does not say the buyer saw the unit, and it does not say the showing produced the sale.",
     earlier.length === 0 || earlierMedian === null
       ? null
-      : `${String(earlier.length)} more ${earlier.length === 1 ? "was" : "were"} shown earlier than that, a median of ${days(earlierMedian)} before the date.`,
+      : `${String(earlier.length)} ${plural(language, earlier.length, DEAL_SHOWN_EARLIER)} than that, a median of ${days(earlierMedian, language)} before the date.`,
     notShown === 0
       ? null
-      : `${String(notShown)} ${notShown === 1 ? "was" : "were"} not opened in IRIS before the date at all.`,
+      : `${String(notShown)} ${plural(language, notShown, DEAL_NOT_OPENED)} in IRIS before the date at all.`,
     observedCount === 0
       ? null
       : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
     unplaced === 0
       ? null
-      : `${String(unplaced)} sale${unplaced === 1 ? "" : "s"} carry no stage date Observer could use or name no unit, and cannot be placed.`,
+      : `${String(unplaced)} ${plural(language, unplaced, DEAL_SALES)} carry no stage date Observer could use or name no unit, and cannot be placed.`,
   ]
     .filter((w): w is string => w !== null)
     .join(" ");

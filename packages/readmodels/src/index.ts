@@ -24,3 +24,4 @@ export * from "./deal-source";
 export * from "./session-source";
 export * from "./project-directory";
 export * from "./words";
+export * from "./language";

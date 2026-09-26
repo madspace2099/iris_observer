@@ -6,7 +6,7 @@ import {
   PLACE_CATEGORY_LABELS,
   type PlaceCategory,
 } from "@observer/contracts";
-import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
+import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -72,7 +72,13 @@ export default async function AudiencePage({
   const favouritedOnly = search.all !== "1";
 
   const view = await repository.getAudience(
-    { viewer, tenantSlug, projectSlug, period: presetFrom(search.period) as PeriodPreset },
+    {
+      viewer,
+      tenantSlug,
+      projectSlug,
+      period: presetFrom(search.period) as PeriodPreset,
+      language: DEFAULT_LANGUAGE,
+    },
     { rooms, favouritedOnly, placeCategory: category, minimumPlaceSeconds: seconds },
   );
 

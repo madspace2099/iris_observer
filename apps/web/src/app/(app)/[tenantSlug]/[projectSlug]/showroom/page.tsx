@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { defineMeasurement, type ShowroomSignal } from "@observer/readmodels";
+import { defineMeasurement, type ShowroomSignal, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
 import {
   Evidence,
@@ -114,7 +114,7 @@ export default async function BriefingPage({
   requireSurface(viewer, "showroom", root);
   const period = presetFrom((await searchParams).period);
 
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
   const [home, pulse] = await Promise.all([
     repository.getHome(query),
     repository.getProjectPulse(query),

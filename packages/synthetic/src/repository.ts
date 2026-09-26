@@ -16,7 +16,12 @@ import type {
   ViewContext,
   Viewer,
 } from "@observer/readmodels";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  NotFoundError,
+  NotPermittedError,
+  type Language,
+} from "@observer/readmodels";
 import type { ReportScopeSelector } from "@observer/readmodels";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "@observer/readmodels";
 import type {
@@ -277,7 +282,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
     if (project === undefined) throw new NotFoundError("This project");
     const live = await this.overlaySessions(project);
     const real = live || world.own.has(project.id as string);
-    return this.periodFor(project, preset, real ? this.clock() : null);
+    /* `resolvePeriod` is asked without a query, so it has no language to pass: its labels are the default's. */
+    return this.periodFor(project, preset, real ? this.clock() : null, DEFAULT_LANGUAGE);
   }
 
   /**
@@ -302,8 +308,13 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   /** `now` is the real clock's reading for a delivered project, and null for a synthetic one. */
-  private periodFor(project: ProjectSummary, preset: PeriodPreset, now: Date | null): Period {
-    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone);
+  private periodFor(
+    project: ProjectSummary,
+    preset: PeriodPreset,
+    now: Date | null,
+    language: Language,
+  ): Period {
+    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone, language);
     return { preset, ...periods[preset] };
   }
 
@@ -318,7 +329,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const live = await this.overlaySessions(project);
     await this.overlayDeals(project);
     const now = live || own ? this.clock() : null;
-    const period = this.periodFor(project, preset, now);
+    const period = this.periodFor(project, preset, now, query.language);
     /*
      * One policy governs the synthetic world, so the period and its baseline
      * are always comparable; the refusal is computed rather than assumed, so
@@ -339,6 +350,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       project,
       period,
       generatedAt: now === null ? TODAY : now.toISOString(),
+      language: query.language,
       sessionsDelivered: live,
       ownDataOnly: own,
       attribution,
@@ -599,7 +611,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     // one page, so they must count the same meetings.
     const { context, current } = await this.slices(query);
     const base = `/${context.tenant.slug}/${context.project.slug}`;
-    return buildAgentCharts(current, base, context.project.locale);
+    return buildAgentCharts(current, base, context.project.locale, context.language);
   }
 
   async getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView> {

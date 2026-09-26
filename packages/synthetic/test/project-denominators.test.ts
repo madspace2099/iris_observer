@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VIEWERS, syntheticRepository } from "@observer/synthetic";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * The project view carries what its figures are of, and how they read.
  *
@@ -18,6 +19,7 @@ const QUERY = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "quarter_to_date" as const,
+  language: DEFAULT_LANGUAGE,
 };
 
 const view = await syntheticRepository.getProjectView(QUERY, "rooms-2");

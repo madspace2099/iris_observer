@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { FOLLOW_UP_LABELS, visitorLabel } from "@observer/readmodels";
+import { FOLLOW_UP_LABELS, visitorLabel, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 
 /**
@@ -89,6 +89,7 @@ describe("what a missing follow-up means", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     });
 
     expect(overview.followUps.length).toBeGreaterThan(0);

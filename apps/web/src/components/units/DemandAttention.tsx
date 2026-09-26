@@ -1,9 +1,13 @@
 import Link from "next/link";
-import type {
-  AttentionCheck,
-  AttentionKind,
-  AttentionState,
-  PeriodPreset,
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type AttentionCheck,
+  type AttentionKind,
+  type AttentionState,
+  type Language,
+  type PeriodPreset,
+  type PluralForms,
 } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -57,12 +61,30 @@ const SAMPLE_NOUNS: Readonly<Record<string, string>> = {
   high_interest_no_follow_up: "meetings that shortlisted a unit",
 };
 
+/*
+ * "Asked of one meeting" spells a single meeting out; that is a choice of how
+ * to write the figure, per language, and stays one. Every other count takes
+ * its plural form from the language's own rules.
+ */
+export const DEMAND_ATTENTION_ONE_MEETING: Readonly<Record<Language, string>> = {
+  en: "one meeting",
+  sk: "jedno stretnutie",
+  hu: "egy találkozó",
+};
+
+export const DEMAND_ATTENTION_MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
 export function DemandAttention({
   states,
   checks,
   period,
   meetingCount,
   periodLabel,
+  language = DEFAULT_LANGUAGE,
 }: {
   /** Every raised state from `getAttention`. Filtered here, never recomputed. */
   readonly states: readonly AttentionState[];
@@ -71,6 +93,8 @@ export function DemandAttention({
   /** Meetings the checks were asked of. The denominator for the whole region. */
   readonly meetingCount: number;
   readonly periodLabel: string;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   const mine = states.filter((state) => KINDS.includes(state.kind));
   const asked = checks.filter((check) => KINDS.includes(check.kind));
@@ -80,8 +104,11 @@ export function DemandAttention({
       <div className="ox-section-head">
         <h2 className="ox-section-title">High interest, low conversion</h2>
         <p className="ox-section-note">
-          Asked of {meetingCount === 1 ? "one meeting" : `${meetingCount} meetings`} in{" "}
-          {periodLabel}. A unit opened repeatedly and never kept, and a unit kept with nothing
+          Asked of{" "}
+          {meetingCount === 1
+            ? DEMAND_ATTENTION_ONE_MEETING[language]
+            : `${meetingCount} ${plural(language, meetingCount, DEMAND_ATTENTION_MEETINGS)}`}{" "}
+          in {periodLabel}. A unit opened repeatedly and never kept, and a unit kept with nothing
           recorded afterwards, are two ends of one question the register cannot show in a column.
         </p>
       </div>

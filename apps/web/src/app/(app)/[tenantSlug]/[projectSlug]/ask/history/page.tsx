@@ -9,6 +9,7 @@ import { requireViewer } from "@/lib/session";
 import { Empty, FilterBar, PageHead, Synthetic, Unavailable } from "@/components/product";
 import { ThreadList } from "@/components/ask/ThreadList";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Earlier questions" };
 
 /**
@@ -86,7 +87,13 @@ export default async function AskHistoryPage({
   const term = (search.q ?? "").trim();
 
   const { project } = await repository.resolveProject(viewer, tenantSlug, projectSlug);
-  const history = await repository.getAskHistory({ viewer, tenantSlug, projectSlug, period });
+  const history = await repository.getAskHistory({
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period,
+    language: DEFAULT_LANGUAGE,
+  });
 
   const needle = term.toLowerCase();
   const matches = (thread: (typeof history.threads)[number]): boolean =>

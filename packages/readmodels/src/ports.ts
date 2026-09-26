@@ -1,5 +1,6 @@
 import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contracts";
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
+import type { Language } from "./language";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskHistoryView, AskSession, AskThread, ProjectPulse } from "./pulse";
 import type { ReportScopeSelector, ReportScopeView } from "./report";
@@ -46,6 +47,8 @@ export interface OverviewQuery {
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly period: PeriodPreset;
+  /** The words' language. Never derived from the project's locale, which formats the figures. */
+  readonly language: Language;
 }
 
 export interface BriefQuery {
@@ -53,6 +56,8 @@ export interface BriefQuery {
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly meetingId: MeetingId;
+  /** As on `OverviewQuery`. */
+  readonly language: Language;
 }
 
 /** Raised when a viewer asks for something outside their grants. */

@@ -12,6 +12,7 @@ import { CONTACT_DIRECTORY } from "../src/contacts";
 import { SyntheticObserverRepository } from "../src/repository";
 import { VIEWERS } from "../src/world";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * THE NAME DISAPPEARS WHEN THE CONSENT IS WITHDRAWN, AND THE LABEL STAYS.
  *
@@ -133,6 +134,7 @@ describe("the buyer's name beside the label", () => {
         tenantSlug: tenant.slug,
         projectSlug: project.slug,
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       } as const;
       const register = (await repo.getAgentDetail(query, "AG-1")).recentMeetings;
       const list = (await repo.getMeetings(query, NO_FILTERS)).rows;

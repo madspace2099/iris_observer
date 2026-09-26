@@ -1,4 +1,12 @@
-import type { AskSession, PeriodPreset, Viewer } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type AskSession,
+  type Language,
+  type PeriodPreset,
+  type PluralForms,
+  type Viewer,
+} from "@observer/readmodels";
 
 import { repository } from "@/lib/repository";
 import { Empty, Failure } from "@/components/product";
@@ -6,6 +14,13 @@ import { AnswerSheet } from "./AnswerSheet";
 import { AskComposer } from "./AskComposer";
 import { AskOpenings } from "./AskOpenings";
 import { answerableQuestions, findAnswer } from "./questions";
+
+/** The questions offered. The Slovak and Hungarian forms are the ones a count takes standing alone. */
+export const ASK_CONSOLE_PREPARED: PluralForms = {
+  en: { one: "prepared question", other: "prepared questions" },
+  sk: { one: "pripravená otázka", few: "pripravené otázky", other: "pripravených otázok" },
+  hu: { one: "előkészített kérdés", other: "előkészített kérdés" },
+};
 
 /**
  * THE ASK IRIS CONSOLE — the prompt, the openings, and whatever was asked.
@@ -64,6 +79,7 @@ export async function AskConsole({
   question,
   demo,
   root,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly viewer: Viewer;
   readonly tenantSlug: string;
@@ -79,6 +95,8 @@ export async function AskConsole({
   readonly demo: string | null;
   /** The project root, `/{tenant}/{project}`. */
   readonly root: string;
+  /** The words' language, asked of the repository and used here alike. */
+  readonly language?: Language;
 }) {
   const askPath = `${root}/ask`;
 
@@ -86,7 +104,7 @@ export async function AskConsole({
   try {
     if (demo === "error") throw new Error("Held open for review.");
     session = await repository.getAskSession(
-      { viewer, tenantSlug, projectSlug, period },
+      { viewer, tenantSlug, projectSlug, period, language },
       selection,
     );
   } catch {
@@ -161,7 +179,7 @@ export async function AskConsole({
           {answer === undefined ? "What this project can answer" : "Ask something else"}
         </h2>
         <span className="ox-n">
-          {offered.length} prepared {offered.length === 1 ? "question" : "questions"}
+          {offered.length} {plural(language, offered.length, ASK_CONSOLE_PREPARED)}
         </span>
       </div>
       <p className="ox-section-note">

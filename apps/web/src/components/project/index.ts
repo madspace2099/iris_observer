@@ -26,7 +26,7 @@
  */
 
 export { Plane, Plate } from "./Section";
-export { Count, Ratio, TrendMark, plural, shareText } from "./Reading";
+export { Count, Ratio, TrendMark, counted, shareText } from "./Reading";
 export { Building } from "./Building";
 export { Movement } from "./Movement";
 export { DemandSignals } from "./DemandSignals";

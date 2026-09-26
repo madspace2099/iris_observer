@@ -13,6 +13,7 @@ import {
   type MeetingSearch,
 } from "@/components/meetings";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Meetings" };
 
 /**
@@ -70,7 +71,10 @@ export default async function MeetingsPage({
   const period = presetFrom(search.period);
   const filters = parseMeetingFilters(search);
 
-  const view = await repository.getMeetings({ viewer, tenantSlug, projectSlug, period }, filters);
+  const view = await repository.getMeetings(
+    { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+    filters,
+  );
 
   const { context } = view;
   const periodLabel = context.period.label.toLowerCase();

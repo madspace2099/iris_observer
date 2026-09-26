@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
+import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -52,6 +52,7 @@ export default async function ProjectPage({
     tenantSlug,
     projectSlug,
     period: presetFrom(search.period) as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
 
   const [view, charts, report] = await Promise.all([

@@ -34,7 +34,14 @@ import type {
   EnvironmentUsage,
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
-import { areaWord, aspectWord, roomsWord } from "@observer/readmodels";
+import {
+  areaWord,
+  aspectWord,
+  plural,
+  roomsWord,
+  type Language,
+  type PluralForms,
+} from "@observer/readmodels";
 import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
 import type { ShowroomUnitInteraction } from "@observer/contracts";
 import {
@@ -52,6 +59,52 @@ import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
 import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
 /* The one definition of "time the source could time" — the agent lane's, not a second one. */
 import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
+
+/*
+ * The words this file counts in, beside the sentences that use them. The
+ * Slovak and Hungarian forms are the ones a count takes standing alone or as a
+ * subject; a sentence that governs another case chooses its forms when it is
+ * translated.
+ */
+
+export const PROJECT_MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
+/** The two verbs of one clause, agreeing with the same count, so they are one entry. */
+export const PROJECT_NO_OUTCOME: PluralForms = {
+  en: { one: "has no recorded outcome and stands", other: "have no recorded outcome and stand" },
+  sk: {
+    one: "nemá zaznamenaný výsledok a nepatrí",
+    few: "nemajú zaznamenaný výsledok a nepatria",
+    other: "nemá zaznamenaný výsledok a nepatrí",
+  },
+  hu: {
+    one: "nincs rögzített kimenetele, és nem tartozik",
+    other: "nincs rögzített kimenetele, és nem tartozik",
+  },
+};
+
+export const PROJECT_UNITS_OPENED: PluralForms = {
+  en: { one: "unit opened", other: "units opened" },
+  sk: { one: "jednotka otvorená", few: "jednotky otvorené", other: "jednotiek otvorených" },
+  hu: { one: "egység megnyitva", other: "egység megnyitva" },
+};
+
+export const PROJECT_VIEWS: PluralForms = {
+  en: { one: "view", other: "views" },
+  sk: { one: "zobrazenie", few: "zobrazenia", other: "zobrazení" },
+  hu: { one: "megtekintés", other: "megtekintés" },
+};
+
+/** "Shortlisted 3 times": Slovak counts occasions as "raz", "razy", "ráz". */
+export const PROJECT_TIMES: PluralForms = {
+  en: { one: "time", other: "times" },
+  sk: { one: "raz", few: "razy", other: "ráz" },
+  hu: { one: "alkalommal", other: "alkalommal" },
+};
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -663,6 +716,7 @@ export function buildPresentationIntelligence(
 ): PresentationIntelligence {
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const locale = context.project.locale;
+  const language = context.language;
 
   const lanes = presentersIn(sessions)
     .map((agent) =>
@@ -762,9 +816,7 @@ export function buildPresentationIntelligence(
         "statistical_association",
         unknown === 0
           ? null
-          : `${count(unknown, locale)} meeting${unknown === 1 ? "" : "s"} in the period ${
-              unknown === 1 ? "has" : "have"
-            } no recorded outcome and stand${unknown === 1 ? "s" : ""} in neither cohort.`,
+          : `${count(unknown, locale)} ${plural(language, unknown, PROJECT_MEETINGS)} in the period ${plural(language, unknown, PROJECT_NO_OUTCOME)} in neither cohort.`,
       );
     }
   } else if (mode === "periods") {
@@ -1002,6 +1054,7 @@ function orientationInterestOf(
 function unitsViewedOf(
   units: readonly ShowroomUnitInteraction[],
   catalogue: ReadonlyMap<string, RawUnit>,
+  language: Language,
 ): UnitsViewedSummary {
   const bands = new Map<number, number>();
   let roomsUnstated = 0;
@@ -1026,7 +1079,14 @@ function unitsViewedOf(
     roomsUnstated,
     notInCatalogue,
     shortlisted,
-    sentence: unitsViewedSentence(opened, byRooms, roomsUnstated, notInCatalogue, shortlisted),
+    sentence: unitsViewedSentence(
+      opened,
+      byRooms,
+      roomsUnstated,
+      notInCatalogue,
+      shortlisted,
+      language,
+    ),
     interest: orientationInterestOf(units, catalogue),
   };
 }
@@ -1043,21 +1103,25 @@ function unitsViewedSentence(
   roomsUnstated: number,
   notInCatalogue: number,
   shortlisted: number,
+  language: Language,
 ): string {
   if (opened === 0) return "No unit was opened.";
 
-  const parts = byRooms.map(({ rooms, count }) => `${String(count)} with ${roomsWord(rooms)}`);
+  const parts = byRooms.map(
+    ({ rooms, count }) => `${String(count)} with ${roomsWord(rooms, language)}`,
+  );
   if (roomsUnstated > 0) parts.push(`${String(roomsUnstated)} with rooms not stated`);
   if (notInCatalogue > 0) parts.push(`${String(notInCatalogue)} not in the catalogue`);
 
   const shortlist =
     shortlisted === 0 ? "nothing was shortlisted" : `${String(shortlisted)} shortlisted`;
 
-  return `${String(opened)} unit${opened === 1 ? "" : "s"} opened: ${parts.join(", ")}; ${shortlist}.`;
+  return `${String(opened)} ${plural(language, opened, PROJECT_UNITS_OPENED)}: ${parts.join(", ")}; ${shortlist}.`;
 }
 
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
+  const language = context.language;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
@@ -1098,7 +1162,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
         push({
           kind: "unit",
           label: unit.unitCode,
-          detail: `${unit.views} view${unit.views === 1 ? "" : "s"} · ${formatDuration(unit.dwellSeconds)}`,
+          detail: `${unit.views} ${plural(language, unit.views, PROJECT_VIEWS)} · ${formatDuration(unit.dwellSeconds)}`,
           atDisplay: null,
           dwellDisplay: formatDuration(unit.longestViewSeconds),
           sectionId: "residences",
@@ -1233,7 +1297,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
      * breakdown; the headline keeps what nothing else on the screen says.
      */
     headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps.`,
-    unitsViewed: unitsViewedOf(session.units, catalogue),
+    unitsViewed: unitsViewedOf(session.units, catalogue, language),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
@@ -1310,6 +1374,7 @@ export function buildUnitAttention(
   selectedCode: string | null,
 ): UnitAttentionView {
   const locale = context.project.locale;
+  const language = context.language;
   const currency = context.project.currency;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
 
@@ -1395,7 +1460,7 @@ export function buildUnitAttention(
     if (selected.meetings > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-attention`,
-        statement: `${selected.unitCode} was opened in ${count(selected.meetings, locale)} meeting${selected.meetings === 1 ? "" : "s"}, with a median look of ${formatDuration(selected.medianDwellSeconds)}.`,
+        statement: `${selected.unitCode} was opened in ${count(selected.meetings, locale)} ${plural(language, selected.meetings, PROJECT_MEETINGS)}, with a median look of ${formatDuration(selected.medianDwellSeconds)}.`,
         baseline: `the project median is ${formatDuration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))))}`,
         soWhat:
           selected.medianDwellSeconds >= 60
@@ -1416,7 +1481,7 @@ export function buildUnitAttention(
     if (selected.favourites > 0 || selected.pdfOpens > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-intent`,
-        statement: `Shortlisted ${count(selected.favourites, locale)} time${selected.favourites === 1 ? "" : "s"}, floor plan opened ${count(selected.pdfOpens, locale)} time${selected.pdfOpens === 1 ? "" : "s"}.`,
+        statement: `Shortlisted ${count(selected.favourites, locale)} ${plural(language, selected.favourites, PROJECT_TIMES)}, floor plan opened ${count(selected.pdfOpens, locale)} ${plural(language, selected.pdfOpens, PROJECT_TIMES)}.`,
         baseline: null,
         soWhat:
           "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",
@@ -1435,7 +1500,7 @@ export function buildUnitAttention(
 
     detail = {
       row: selected,
-      headline: `${selected.unitCode} · ${roomsWord(selected.rooms)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
+      headline: `${selected.unitCode} · ${roomsWord(selected.rooms, language)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
       findings,
       competitors: [...together.entries()]
         .map(([unitCode, v]) => ({ unitCode, together: v.together, keptOther: v.keptOther }))

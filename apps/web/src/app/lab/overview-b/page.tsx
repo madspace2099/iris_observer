@@ -3,6 +3,7 @@ import { Workspace } from "@/lab/Workspace";
 import { repository } from "@/lib/repository";
 import { viewerFor } from "@/lib/session";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Concept B — spatial-first" };
 
 /**
@@ -18,6 +19,7 @@ export default async function Page() {
     tenantSlug: "alpha",
     projectSlug: "northgate",
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   } as const;
 
   const [overview, pulse, ask] = await Promise.all([

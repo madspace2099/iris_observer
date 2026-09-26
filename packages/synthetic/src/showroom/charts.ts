@@ -29,7 +29,7 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { KPI_WINDOWS } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, KPI_WINDOWS, type Language } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -144,6 +144,7 @@ export function buildKpis(
   windowId: KpiWindowId,
   locale: string,
   timeZone: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
@@ -320,7 +321,7 @@ export function buildKpis(
       now.length === 0
         ? `No meetings fall inside ${spec.label.toLowerCase()}. That is an observation about the window, not a gap in the data.`
         : now.length < 5
-          ? `${meetings(now.length, locale)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
+          ? `${meetings(now.length, locale, language)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
     groups: KPI_GROUPS,
     ungrouped: ["duration"],
@@ -415,6 +416,7 @@ const BEHAVIOURS = [
 export function buildBehaviourFunnel(
   sessions: readonly ShowroomSession[],
   locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): BehaviourFunnel {
   const cohort = sessions.filter((s) => s.outcome === "not_interested");
   const rest = sessions.filter(
@@ -443,12 +445,12 @@ export function buildBehaviourFunnel(
    */
   if (cohort.length === 0) {
     return {
-      cohortLabel: `Ended "not interested" · ${meetings(0, locale)}`,
+      cohortLabel: `Ended "not interested" · ${meetings(0, locale, language)}`,
       steps: [],
       empty:
         sessions.length === 0
           ? "No meeting was recorded in this period, so there is no group to describe."
-          : `None of the ${meetings(sessions.length, locale)} in this period ended "not interested", so there is no group to describe.`,
+          : `None of the ${meetings(sessions.length, locale, language)} in this period ended "not interested", so there is no group to describe.`,
       comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
       disclaimer: "",
     };
@@ -477,7 +479,7 @@ export function buildBehaviourFunnel(
   }
 
   return {
-    cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale)}`,
+    cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale, language)}`,
     steps,
     empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
@@ -525,6 +527,7 @@ export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentCharts {
   const raw = presentersIn(sessions).flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
@@ -584,11 +587,11 @@ export function buildAgentCharts(
        * in this period, 1 short of the 20…" — so the label is the name alone,
        * or the card read "19 meetings — 19 meetings in this period".
        */
-      label: r.belowMinimum ? r.label : `${r.label} · ${meetings(r.meetings, locale)}`,
+      label: r.belowMinimum ? r.label : `${r.label} · ${meetings(r.meetings, locale, language)}`,
       tone: RADAR_TONES[i % RADAR_TONES.length] ?? "var(--accent)",
       values: r.values.map((v, axis) => v / (peaks[axis] ?? 1)),
       belowMinimum: r.belowMinimum,
-      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale) : null,
+      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale, "sentence", language) : null,
     })),
   };
 
@@ -610,7 +613,7 @@ export function buildAgentCharts(
         label: r.label,
         /* The slot is one line wide: the short form, "8 of 20 meetings". The sentence stands on the card. */
         sub: r.belowMinimum
-          ? suppressionNoteFor(r.meetings, locale, "short")
+          ? suppressionNoteFor(r.meetings, locale, "short", language)
           : timed.length === 0
             ? "no timed session"
             : `median ${duration(median(timed))}`,
@@ -621,7 +624,7 @@ export function buildAgentCharts(
     })
     .sort((a, b) => b.value - a.value);
 
-  return { radar, ranked, featureUsage: buildFeatureUsage(sessions, locale) };
+  return { radar, ranked, featureUsage: buildFeatureUsage(sessions, locale, language) };
 }
 
 /* --- which parts of the showroom an agent uses ------------------------------------- */
@@ -722,6 +725,7 @@ const FEATURE_AXES: readonly {
 export function buildFeatureUsage(
   sessions: readonly ShowroomSession[],
   locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): FeatureUsage {
   return {
     axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
@@ -738,7 +742,7 @@ export function buildFeatureUsage(
             axis.used === null ? null : share(mine.filter(axis.used).length, mine.length),
           ),
           belowMinimum,
-          note: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
+          note: belowMinimum ? suppressionNoteFor(mine.length, locale, "sentence", language) : null,
         },
       ];
     }),
@@ -1006,15 +1010,15 @@ export function buildFlowCharts(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const charts = buildAgentCharts(sessions, base, locale);
+  const charts = buildAgentCharts(sessions, base, locale, context.language);
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale, timeZone),
+    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
     activity: buildActivity(sessions, timeZone),
     composition: buildComposition(sessions, locale, timeZone),
     trend: buildTrend(sessions, locale, timeZone),
-    funnel: buildBehaviourFunnel(sessions, locale),
+    funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
     longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),

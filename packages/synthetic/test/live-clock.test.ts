@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { ShowroomSession } from "@observer/contracts";
-import { PRESENTER_NOT_NAMED, type ShowroomSessionSource, type Viewer } from "@observer/readmodels";
+import {
+  PRESENTER_NOT_NAMED,
+  type ShowroomSessionSource,
+  type Viewer,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
 import { PROJECTS, VIEWERS } from "../src/world";
@@ -59,6 +64,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
         tenantSlug: "madspace-integration",
         projectSlug: "akhilesh-demo-source",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       NO_FILTERS,
     );
@@ -83,6 +89,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
       tenantSlug: "madspace-integration",
       projectSlug: "akhilesh-demo-source",
       period: "last_28_days",
+      language: DEFAULT_LANGUAGE,
     } as const;
     /*
      * The showroom's own id, and nothing names it yet — so the row says that
@@ -110,6 +117,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
         tenantSlug: "madspace-integration",
         projectSlug: "akhilesh-demo-source",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       null,
     );
@@ -140,6 +148,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
         tenantSlug: "alpha",
         projectSlug: "northgate",
         period: "quarter_to_date",
+        language: DEFAULT_LANGUAGE,
       },
       null,
     );
@@ -157,7 +166,13 @@ describe("a project a real source delivers for runs on the real clock", () => {
 
   it("leaves a synthetic project on the synthetic day", async () => {
     const view = await repository.getMeetings(
-      { viewer: madspace, tenantSlug: "alpha", projectSlug: "northgate", period: "last_28_days" },
+      {
+        viewer: madspace,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
+      },
       NO_FILTERS,
     );
     expect(view.context.generatedAt).toBe("2026-08-24T09:00:00.000+02:00");

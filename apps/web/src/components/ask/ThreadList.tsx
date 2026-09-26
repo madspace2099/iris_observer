@@ -1,5 +1,12 @@
 import Link from "next/link";
-import type { AskThreadSummary, PeriodPreset } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type AskThreadSummary,
+  type Language,
+  type PeriodPreset,
+  type PluralForms,
+} from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -40,15 +47,25 @@ import { withPeriod } from "@/lib/period";
  * component draws no "real" variant, and the screen states the origin in words
  * from the read model's own `demonstrationNotice`.
  */
+/** A conversation's length. The Slovak and Hungarian forms are the ones a count takes standing alone. */
+export const THREAD_TURNS: PluralForms = {
+  en: { one: "turn", other: "turns" },
+  sk: { one: "výmena", few: "výmeny", other: "výmen" },
+  hu: { one: "forduló", other: "forduló" },
+};
+
 export function ThreadList({
   threads,
   period,
   label,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly threads: readonly AskThreadSummary[];
   readonly period: PeriodPreset;
   /** The accessible name of the register. */
   readonly label: string;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   if (threads.length === 0) return null;
 
@@ -70,7 +87,7 @@ export function ThreadList({
           <span className="ox-thread-context">
             {thread.projectLabel} · {thread.periodLabel}
             {thread.selectionLabel === null ? null : <> · {thread.selectionLabel}</>} ·{" "}
-            {thread.turnCount} {thread.turnCount === 1 ? "turn" : "turns"}
+            {thread.turnCount} {plural(language, thread.turnCount, THREAD_TURNS)}
             {thread.pinned ? (
               <>
                 {" "}

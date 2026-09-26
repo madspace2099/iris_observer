@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionWorthTaking } from "@observer/readmodels";
+import { actionWorthTaking, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { OverviewQuery, Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 
@@ -36,6 +36,7 @@ function query(tenantSlug: string, projectSlug: string): OverviewQuery {
     tenantSlug,
     projectSlug,
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   };
 }
 

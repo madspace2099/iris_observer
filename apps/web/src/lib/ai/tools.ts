@@ -9,7 +9,7 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
-import { NotPermittedError, areaWord, roomsWord } from "@observer/readmodels";
+import { NotPermittedError, areaWord, roomsWord, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { maySeeSurface } from "@/lib/routes";
 
@@ -75,6 +75,7 @@ function query(context: ToolContext) {
     tenantSlug: context.tenantSlug,
     projectSlug: context.projectSlug,
     period: context.period,
+    language: DEFAULT_LANGUAGE,
   };
 }
 
@@ -398,6 +399,7 @@ const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString
       tenantSlug: context.tenantSlug,
       projectSlug: context.projectSlug,
       meetingId: args.meetingId as never,
+      language: DEFAULT_LANGUAGE,
     });
     const sections = replay.steps.filter((s) => s.kind === "section");
     return {
@@ -646,6 +648,7 @@ const prepareMeeting: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = 
       tenantSlug: context.tenantSlug,
       projectSlug: context.projectSlug,
       meetingId: args.meetingId as never,
+      language: DEFAULT_LANGUAGE,
     });
 
     const b = brief.brief;

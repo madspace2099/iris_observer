@@ -2,12 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
-import {
-  NotFoundError,
-  NotPermittedError,
-  type PeriodPreset,
-  type Viewer,
-} from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, type OverviewQuery } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
@@ -70,7 +65,7 @@ export async function AgentReport({
   query,
   agentId,
 }: {
-  readonly query: { viewer: Viewer; tenantSlug: string; projectSlug: string; period: PeriodPreset };
+  readonly query: OverviewQuery;
   readonly agentId: string;
 }) {
   /*

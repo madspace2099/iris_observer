@@ -1,11 +1,37 @@
 import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
-import type { PeriodPreset, PlaceInterest, ProjectView, PulseSegment } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  type Language,
+  type PeriodPreset,
+  type PlaceInterest,
+  type PluralForms,
+  type ProjectView,
+  type PulseSegment,
+} from "@observer/readmodels";
 
 import { ChartFrame, Evidence } from "@/components/product";
 import { ParityScale } from "@/showroom/charts";
 import { RankedBars } from "@/showroom/charts2";
-import { plural, shareText } from "./Reading";
+import { counted, shareText } from "./Reading";
 import { Plane } from "./Section";
+
+/*
+ * The words these charts count in. The Slovak and Hungarian forms are the ones
+ * a count takes standing alone or as a subject; a sentence that governs another
+ * case chooses its forms when it is translated.
+ */
+
+export const DEMAND_MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
+export const DEMAND_MINUTES: PluralForms = {
+  en: { one: "minute", other: "minutes" },
+  sk: { one: "minúta", few: "minúty", other: "minút" },
+  hu: { one: "perc", other: "perc" },
+};
 
 /**
  * WHERE THE ATTENTION GOES — demand read against supply, on four axes.
@@ -53,6 +79,7 @@ export function DemandSignals({
   meetingCount,
   evidence,
   period,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly segments: readonly PulseSegment[];
   readonly placeCategories: ProjectView["placeCategories"];
@@ -63,6 +90,8 @@ export function DemandSignals({
   readonly meetingCount: number;
   readonly evidence: ProjectView["evidence"];
   readonly period: PeriodPreset;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   const belowFloor = meetingCount < AGENT_MIN_SAMPLE;
   const topCategories = placeCategories.slice(0, 7);
@@ -147,7 +176,7 @@ export function DemandSignals({
                 summary={topCategories
                   .map(
                     (category) =>
-                      `${category.label}: ${shareText(category.share, locale)} of place time, reached in ${plural(category.meetings, "meeting")}`,
+                      `${category.label}: ${shareText(category.share, locale)} of place time, reached in ${counted(category.meetings, DEMAND_MEETINGS, language)}`,
                   )
                   .join(". ")}
               >
@@ -156,7 +185,7 @@ export function DemandSignals({
                   rows={topCategories.map((category) => ({
                     id: category.category,
                     label: category.label,
-                    sub: `reached in ${plural(category.meetings, "meeting")}`,
+                    sub: `reached in ${counted(category.meetings, DEMAND_MEETINGS, language)}`,
                     value: category.share,
                     display: shareText(category.share, locale),
                   }))}
@@ -172,7 +201,7 @@ export function DemandSignals({
                 summary={topPlaces
                   .map(
                     (place) =>
-                      `${place.name}: ${plural(Math.round(place.totalDwellSeconds / 60), "minute")} across ${plural(place.meetings, "meeting")}`,
+                      `${place.name}: ${counted(Math.round(place.totalDwellSeconds / 60), DEMAND_MINUTES, language)} across ${counted(place.meetings, DEMAND_MEETINGS, language)}`,
                   )
                   .join(". ")}
               >
@@ -181,7 +210,7 @@ export function DemandSignals({
                   rows={topPlaces.map((place) => ({
                     id: place.placeId,
                     label: place.name,
-                    sub: `${plural(place.meetings, "meeting")} · median ${place.medianDwellSeconds}s each`,
+                    sub: `${counted(place.meetings, DEMAND_MEETINGS, language)} · median ${place.medianDwellSeconds}s each`,
                     value: place.totalDwellSeconds,
                     display: `${Math.round(place.totalDwellSeconds / 60)}m`,
                   }))}

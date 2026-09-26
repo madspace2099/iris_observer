@@ -1,7 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NotFoundError, NotPermittedError, type Viewer } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type Viewer,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 
 import { maySeeSurface } from "../src/lib/routes";
@@ -154,6 +159,7 @@ describe("the address gate", () => {
       tenantSlug: cell.tenantSlug,
       projectSlug: cell.projectSlug,
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     });
     if (cell.error === "none") {
       await expect(call, cell.note).resolves.toBeDefined();
@@ -172,7 +178,13 @@ describe("the address gate", () => {
       ["beta", "kingsford"],
     ] as const) {
       await expect(
-        repo().getHome({ viewer: nobody, tenantSlug, projectSlug, period: "quarter_to_date" }),
+        repo().getHome({
+          viewer: nobody,
+          tenantSlug,
+          projectSlug,
+          period: "quarter_to_date",
+          language: DEFAULT_LANGUAGE,
+        }),
         `${tenantSlug}/${projectSlug}`,
       ).rejects.toBeInstanceOf(NotPermittedError);
     }
@@ -192,6 +204,7 @@ describe("the gates compose, and the middle one actually removes data", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     } as const;
 
     expect(maySeeSurface("developer", "project")).toBe(true);

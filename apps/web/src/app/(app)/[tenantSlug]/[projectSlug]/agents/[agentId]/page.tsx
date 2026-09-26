@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NotFoundError, NotPermittedError, type PeriodPreset } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { maySeeSurface } from "@/lib/routes";
@@ -117,7 +122,7 @@ export default async function AgentPage({
   let view;
   let report;
   try {
-    const query = { viewer, tenantSlug, projectSlug, period };
+    const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
     [view, report] = await Promise.all([
       repository.getAgentDetail(query, agentId),
       /* The same person, as a report scope, for the export in the aside. */

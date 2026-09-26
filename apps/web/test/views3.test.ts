@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AMENITIES, PLACE_CATEGORIES, SURROUNDINGS } from "@observer/contracts";
 import { VIEWERS, showroomSessions, syntheticRepository } from "@observer/synthetic";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * The three views, and the opening screen that leads to them.
  *
@@ -15,6 +16,7 @@ const QUERY = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "quarter_to_date" as const,
+  language: DEFAULT_LANGUAGE,
 };
 
 describe("the opening screen", () => {

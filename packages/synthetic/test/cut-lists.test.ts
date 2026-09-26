@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PeriodPreset } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * A LIST CUT WITHOUT SAYING SO, AND A FOOT THAT COUNTS WHAT IS NOT THERE.
  *
@@ -31,7 +32,12 @@ describe("the unit page lists every meeting that opened the unit", () => {
     let pastEight = 0;
     for (const where of PROJECTS) {
       for (const period of PERIODS) {
-        const query = { viewer: VIEWERS.agencyManager, ...where, period };
+        const query = {
+          viewer: VIEWERS.agencyManager,
+          ...where,
+          period,
+          language: DEFAULT_LANGUAGE,
+        };
         const register = await repo.getUnitAttention(query, null);
         /* Every unit the cut could bite, and a few it could not, so over-listing is caught too. */
         const opened = register.rows.filter((row) => row.meetings > 0);
@@ -66,7 +72,12 @@ describe("the unit page lists every meeting that opened the unit", () => {
     const silent: string[] = [];
     let capped = 0;
     for (const where of PROJECTS) {
-      const query = { viewer: VIEWERS.agencyManager, ...where, period: "year_to_date" as const };
+      const query = {
+        viewer: VIEWERS.agencyManager,
+        ...where,
+        period: "year_to_date" as const,
+        language: DEFAULT_LANGUAGE,
+      };
       const register = await repo.getUnitAttention(query, null);
       for (const row of register.rows.filter((r) => r.meetings > 8)) {
         const detail = await repo.getUnitDetail(query, row.unitCode);
@@ -95,6 +106,7 @@ describe("a register section left blank counts nothing as listed", () => {
     tenantSlug: "alpha",
     projectSlug: "northgate",
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   } as const;
 
   it("prints no listed-meetings foot on the section a developer is not shown", async () => {

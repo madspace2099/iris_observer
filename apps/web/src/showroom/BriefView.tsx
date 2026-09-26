@@ -1,4 +1,4 @@
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { EvidenceRef, PeriodPreset, PreMeetingBriefView } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
 import { ActionLink, Badge, Card, EvidenceLink, SectionHead, StateMessage } from "@observer/ui";
@@ -39,6 +39,7 @@ export async function BriefView({
         tenantSlug,
         projectSlug,
         meetingId: meetingId as MeetingId,
+        language: DEFAULT_LANGUAGE,
       }),
       period,
     );

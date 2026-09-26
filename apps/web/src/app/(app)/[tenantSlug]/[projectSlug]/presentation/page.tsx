@@ -8,6 +8,7 @@ import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { DnaLane, Finding, Gaps, SourceChips } from "@/showroom/parts";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Presentation" };
 
 /**
@@ -46,6 +47,7 @@ export default async function PresentationPage({
     tenantSlug,
     projectSlug,
     period: presetFrom(search.period) as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
 
   const agents = await repository.listAgents(query);

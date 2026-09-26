@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
 import {
   PROJECTS,
@@ -11,10 +11,27 @@ import {
 import { sessionsForProject } from "../src/showroom/sessions";
 
 const repo = new SyntheticObserverRepository();
-const NORTHGATE = { tenantSlug: "alpha", projectSlug: "northgate" } as const;
-const KINGSFORD = { tenantSlug: "beta", projectSlug: "kingsford" } as const;
-const RIVERSIDE = { tenantSlug: "alpha", projectSlug: "riverside" } as const;
-const ISTER_TOWER = { tenantSlug: "alpha", projectSlug: "ister-tower" } as const;
+/* Where each request is addressed, and in which language its words are asked for. */
+const NORTHGATE = {
+  tenantSlug: "alpha",
+  projectSlug: "northgate",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const KINGSFORD = {
+  tenantSlug: "beta",
+  projectSlug: "kingsford",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const RIVERSIDE = {
+  tenantSlug: "alpha",
+  projectSlug: "riverside",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const ISTER_TOWER = {
+  tenantSlug: "alpha",
+  projectSlug: "ister-tower",
+  language: DEFAULT_LANGUAGE,
+} as const;
 
 describe("tenant and project scoping", () => {
   it("lists only the tenants a viewer holds", async () => {
@@ -190,6 +207,7 @@ describe("tenant and project scoping", () => {
             tenantSlug: tenant.slug,
             projectSlug: project.slug,
             meetingId: VIKTORIA_MEETING_ID,
+            language: DEFAULT_LANGUAGE,
           }),
           `${viewer.displayName} was served the brief on ${project.slug}`,
         ).rejects.toBeInstanceOf(NotFoundError);
@@ -268,7 +286,13 @@ describe("tenant and project scoping", () => {
         const tenant = TENANTS.find((t) => t.id === project.tenantId);
         if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
         const session = await repo.getAskSession(
-          { viewer, tenantSlug: tenant.slug, projectSlug: project.slug, period: "quarter_to_date" },
+          {
+            viewer,
+            tenantSlug: tenant.slug,
+            projectSlug: project.slug,
+            period: "quarter_to_date",
+            language: DEFAULT_LANGUAGE,
+          },
           null,
         );
         asked += 1;

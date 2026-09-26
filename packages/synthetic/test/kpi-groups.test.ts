@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { KPI_WINDOWS } from "@observer/readmodels";
+import { KPI_WINDOWS, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { KpiPanel, OverviewQuery, Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 
@@ -31,6 +31,7 @@ function query(projectSlug: string): OverviewQuery {
     tenantSlug: "alpha",
     projectSlug,
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   };
 }
 

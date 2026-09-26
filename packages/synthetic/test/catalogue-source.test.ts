@@ -4,6 +4,7 @@ import type { CatalogueSource, DealSource, OverviewQuery, Viewer } from "@observ
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import { rawUnitsFromCatalogue } from "../src/catalogue-overlay";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * A connector's catalogue standing in for the synthetic one.
  *
@@ -14,7 +15,7 @@ import { rawUnitsFromCatalogue } from "../src/catalogue-overlay";
  */
 
 function query(viewer: Viewer, tenantSlug: string, projectSlug: string): OverviewQuery {
-  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date" };
+  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date", language: DEFAULT_LANGUAGE };
 }
 
 const ISTER = query(VIEWERS.developer as Viewer, "alpha", "ister-tower");

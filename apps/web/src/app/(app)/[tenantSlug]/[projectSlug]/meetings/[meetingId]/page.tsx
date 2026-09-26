@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
 
 import { repository } from "@/lib/repository";
@@ -79,9 +79,10 @@ export default async function MeetingPage({
       tenantSlug,
       projectSlug,
       meetingId: meetingId as MeetingId,
+      language: DEFAULT_LANGUAGE,
     });
     const report = await repository.getReportScope(
-      { viewer, tenantSlug, projectSlug, period },
+      { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
       { meetingId },
     );
 

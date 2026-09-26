@@ -96,7 +96,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
     ok({
       metricId: "exec.avg_days_to_close",
       label: "Average Days to Close",
-      display: days(68),
+      display: days(68, context.language),
       raw: 68,
       qualifier: "80th percentile 104",
       sampleSize: 12,
@@ -209,7 +209,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
       {
         metricId: "exec.avg_days_to_close",
         label: "Days to close",
-        display: days(68),
+        display: days(68, context.language),
         rule: "At or below the project's 80th percentile (104)",
         outcome: "pass",
       },

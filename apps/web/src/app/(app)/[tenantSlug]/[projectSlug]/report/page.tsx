@@ -7,8 +7,8 @@ import type { MeetingId } from "@observer/contracts";
 import {
   NotFoundError,
   NotPermittedError,
-  type PeriodPreset,
-  type Viewer,
+  type OverviewQuery,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
@@ -90,7 +90,7 @@ export default async function ReportPage({
   const search = await searchParams;
 
   const period = presetFrom(search.period);
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
   const meetingId =
     typeof search.meeting === "string" && search.meeting.length > 0 ? search.meeting : null;
   /*
@@ -368,7 +368,7 @@ async function MeetingReport({
   query,
   meetingId,
 }: {
-  readonly query: { viewer: Viewer; tenantSlug: string; projectSlug: string; period: PeriodPreset };
+  readonly query: OverviewQuery;
   readonly meetingId: string;
 }) {
   /*

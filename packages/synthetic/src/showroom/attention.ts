@@ -17,9 +17,57 @@ import type {
   ProjectSource,
   ViewContext,
 } from "@observer/readmodels";
-import { ATTENTION_KIND_DEFINITIONS } from "@observer/readmodels";
+import { ATTENTION_KIND_DEFINITIONS, plural, type PluralForms } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import { count, dayLabel, evidenceRef, percent } from "../format";
+
+/*
+ * The words the attention findings count in, beside the findings that use
+ * them. The Slovak and Hungarian forms are the ones a count takes standing
+ * alone or as a subject; a sentence that governs another case chooses its
+ * forms when it is translated.
+ */
+
+export const ATTENTION_UNITS: PluralForms = {
+  en: { one: "unit", other: "units" },
+  sk: { one: "jednotka", few: "jednotky", other: "jednotiek" },
+  hu: { one: "egység", other: "egység" },
+};
+
+export const ATTENTION_SOURCES_SILENT: PluralForms = {
+  en: { one: "connected source has sent nothing", other: "connected sources have sent nothing" },
+  sk: {
+    one: "pripojený zdroj neposlal nič",
+    few: "pripojené zdroje neposlali nič",
+    other: "pripojených zdrojov neposlalo nič",
+  },
+  hu: {
+    one: "csatlakoztatott forrás nem küldött semmit",
+    other: "csatlakoztatott forrás nem küldött semmit",
+  },
+};
+
+export const ATTENTION_SOURCES_LISTED: PluralForms = {
+  en: { one: "source is listed", other: "sources are listed" },
+  sk: { one: "zdroj je uvedený", few: "zdroje sú uvedené", other: "zdrojov je uvedených" },
+  hu: { one: "forrás szerepel", other: "forrás szerepel" },
+};
+
+export const ATTENTION_NEVER_REPORTED: PluralForms = {
+  en: { one: "has never reported", other: "have never reported" },
+  sk: { one: "sa nikdy neozval", few: "sa nikdy neozvali", other: "sa nikdy neozvalo" },
+  hu: { one: "soha nem jelentkezett", other: "soha nem jelentkezett" },
+};
+
+export const ATTENTION_NEVER_SHORTLISTED: PluralForms = {
+  en: { one: "was never shortlisted", other: "were never shortlisted" },
+  sk: {
+    one: "nebola nikdy vybraná",
+    few: "neboli nikdy vybrané",
+    other: "nebolo nikdy vybraných",
+  },
+  hu: { one: "soha nem került kiválasztásra", other: "soha nem került kiválasztásra" },
+};
 
 /**
  * What is worth a person's attention, across every screen at once.
@@ -100,6 +148,7 @@ export function buildAttention(
   previous: readonly ShowroomSession[],
 ): AttentionView {
   const locale = context.project.locale;
+  const language = context.language;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const crm = context.project.connectedSources.includes("crm");
 
@@ -204,7 +253,7 @@ export function buildAttention(
         kind: "demand_dropping",
         severity: falling.length >= 3 ? "warning" : "info",
         title: "Attention falling on units that used to draw it",
-        detail: `${count(falling.length, locale)} unit${falling.length === 1 ? "" : "s"} drew materially fewer views than in ${context.period.baselineLabel}.`,
+        detail: `${count(falling.length, locale)} ${plural(language, falling.length, ATTENTION_UNITS)} drew materially fewer views than in ${context.period.baselineLabel}.`,
         subjects: falling.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.before, locale)} → ${count(u.now, locale)}`,
@@ -336,8 +385,8 @@ export function buildAttention(
       title: quiet.length > 0 ? "A connected source has gone quiet" : "A source has never reported",
       detail:
         quiet.length > 0
-          ? `${count(quiet.length, locale)} connected source${quiet.length === 1 ? " has" : "s have"} sent nothing for more than ${QUIET_AFTER_HOURS} hours.`
-          : `${count(neverSeen.length, locale)} source${neverSeen.length === 1 ? " is" : "s are"} listed on this project and ${neverSeen.length === 1 ? "has" : "have"} never reported.`,
+          ? `${count(quiet.length, locale)} ${plural(language, quiet.length, ATTENTION_SOURCES_SILENT)} for more than ${QUIET_AFTER_HOURS} hours.`
+          : `${count(neverSeen.length, locale)} ${plural(language, neverSeen.length, ATTENTION_SOURCES_LISTED)} on this project and ${plural(language, neverSeen.length, ATTENTION_NEVER_REPORTED)}.`,
       subjects: [...quiet, ...neverSeen].map((s) => ({
         id: s.id,
         label:
@@ -404,7 +453,7 @@ export function buildAttention(
         kind: "viewed_never_shortlisted",
         severity: never.length >= 3 ? "warning" : "info",
         title: "Opened repeatedly, never shortlisted",
-        detail: `${count(never.length, locale)} unit${never.length === 1 ? "" : "s"} with at least ${UNIT_MIN_SAMPLE} observations ${never.length === 1 ? "was" : "were"} never shortlisted in this period.`,
+        detail: `${count(never.length, locale)} ${plural(language, never.length, ATTENTION_UNITS)} with at least ${UNIT_MIN_SAMPLE} observations ${plural(language, never.length, ATTENTION_NEVER_SHORTLISTED)} in this period.`,
         subjects: never.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.views, locale)} views, ${count(u.meetings, locale)} meetings`,
