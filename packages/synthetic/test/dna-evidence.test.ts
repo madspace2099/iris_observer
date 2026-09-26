@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MeetingOutcome, ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
 import { buildPresentationIntelligence } from "../src/showroom/project";
 
 /**
@@ -78,6 +78,7 @@ const CONTEXT = {
     connectedSources: [],
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
+  language: DEFAULT_LANGUAGE,
 } as unknown as ViewContext;
 
 const many = (n: number, make: (i: number) => ShowroomSession) =>

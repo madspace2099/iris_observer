@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { MeetingId } from "@observer/contracts";
 import {
   DEFAULT_LANGUAGE,
   LANGUAGES,
@@ -7,6 +8,7 @@ import {
   roomsWord,
   type Language,
   type PluralForms,
+  type ReplayStep,
 } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import {
@@ -386,9 +388,9 @@ describe("the request carries the language to the words", () => {
   it("chooses a replay's words by it, and English by default", async () => {
     expect(meeting).toBeDefined();
     const ask = (language: Language) =>
-      repo.getMeetingReplay({ ...northgate, meetingId: meeting!.meetingId, language });
-    const units = (steps: readonly { readonly kind: string; readonly detail: string }[]) =>
-      steps.filter((s) => s.kind === "unit").map((s) => s.detail);
+      repo.getMeetingReplay({ ...northgate, meetingId: meeting!.meetingId as MeetingId, language });
+    const units = (steps: readonly ReplayStep[]) =>
+      steps.filter((s) => s.kind === "unit").map((s) => s.detail ?? "");
 
     const english = units((await ask(DEFAULT_LANGUAGE)).steps);
     const slovak = units((await ask("sk")).steps);

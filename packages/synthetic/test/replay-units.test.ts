@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomUnitInteraction } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
 import { buildMeetingReplay } from "../src/showroom/project";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
@@ -92,6 +92,7 @@ function raw(code: string, rooms: number | null): RawUnit {
 const CONTEXT = {
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
+  language: DEFAULT_LANGUAGE,
 } as unknown as ViewContext;
 
 /** A catalogue of four: three with a room count, one that states none. */

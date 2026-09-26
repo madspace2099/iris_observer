@@ -5,7 +5,7 @@ import type {
   ShowroomStep,
   ShowroomUnitInteraction,
 } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
 import { provideCatalogue } from "../src/pulse";
 import { buildAgentDetail, buildMeetingRows, buildUnitDetail } from "../src/showroom/screens";
 
@@ -110,6 +110,7 @@ const NO_CRM = {
     baselineLabel: "last quarter",
   },
   ownDataOnly: false,
+  language: DEFAULT_LANGUAGE,
 } as unknown as ViewContext;
 
 const many = (
