@@ -91,14 +91,13 @@ const meetingsWord = (n: number, locale: string, language: Language): string =>
  * true only when they are equal. A template cannot branch on equality; the
  * caller can.
  *
- * The first clause is the same in all three. English is today's sentence in
- * all three: it has no wording of its own for none or for all.
+ * The first clause is the same in all three. The second is a sentence of its
+ * own in every language, English too: none, some, or every presentation. A
+ * count of nought is never written as "0 of them".
  */
 
-const RECORDED_EN: SentenceIn<"en"> = {
-  text: "{count} {presentations|n} {recorded|n} on {project} in {period}, and the agent recorded an outcome at the end of {outcomes} of them.",
-  words: { presentations: ASK_PRESENTATIONS.en, recorded: ASK_RECORDED.en },
-};
+const RECORDED_EN = "{count} {presentations|n} {recorded|n} on {project} in {period}.";
+const RECORDED_EN_WORDS = { presentations: ASK_PRESENTATIONS.en, recorded: ASK_RECORDED.en };
 
 /* The first clause. In Slovak the count turns the verb, the participle and the noun together. */
 const RECORDED_SK: PluralForms["sk"] = {
@@ -114,7 +113,10 @@ const RECORDED_HU: PluralForms["hu"] = {
 
 /** `outcomes === 0`. */
 export const ASK_RECORDED_NONE_SENTENCE: Sentence = {
-  en: RECORDED_EN,
+  en: {
+    text: `${RECORDED_EN} The agent did not record an outcome at the end of any of them.`,
+    words: RECORDED_EN_WORDS,
+  },
   sk: {
     text: "{recorded|n} Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
     words: { recorded: RECORDED_SK },
@@ -127,7 +129,10 @@ export const ASK_RECORDED_NONE_SENTENCE: Sentence = {
 
 /** `0 < outcomes < count`. */
 export const ASK_RECORDED_SOME_SENTENCE: Sentence = {
-  en: RECORDED_EN,
+  en: {
+    text: `${RECORDED_EN} The agent recorded an outcome at the end of {outcomes} of them.`,
+    words: RECORDED_EN_WORDS,
+  },
   sk: {
     text: "{recorded|n} Realitný maklér zadal výsledok stretnutia na konci {#outcomesWord|o} z nich.",
     words: { recorded: RECORDED_SK },
@@ -141,7 +146,10 @@ export const ASK_RECORDED_SOME_SENTENCE: Sentence = {
 
 /** `outcomes === count`. */
 export const ASK_RECORDED_ALL_SENTENCE: Sentence = {
-  en: RECORDED_EN,
+  en: {
+    text: `${RECORDED_EN} The agent recorded an outcome at the end of every presentation.`,
+    words: RECORDED_EN_WORDS,
+  },
   sk: {
     text: "{recorded|n} {all|n}",
     words: {

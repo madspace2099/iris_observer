@@ -529,15 +529,15 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
   ] as const;
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
-      "1 presentation was recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 0 of them.",
-      "1 presentation was recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 1 of them.",
-      "3 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 1 of them.",
-      "3 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 3 of them.",
-      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 0 of them.",
-      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 2 of them.",
-      "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
-      "12 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 4 of them.",
-      "7 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
+      "1 presentation was recorded on Northgate Residences in quarter to date. The agent did not record an outcome at the end of any of them.",
+      "1 presentation was recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of every presentation.",
+      "3 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of 1 of them.",
+      "3 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of every presentation.",
+      "5 presentations were recorded on Northgate Residences in quarter to date. The agent did not record an outcome at the end of any of them.",
+      "5 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of 2 of them.",
+      "5 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of every presentation.",
+      "12 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of 4 of them.",
+      "7 presentations were recorded on Northgate Residences in quarter to date. The agent recorded an outcome at the end of 5 of them.",
     ],
     sk: [
       "Pri projekte Northgate Residences bola za obdobie quarter to date zaznamenaná jedna prezentácia. Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
