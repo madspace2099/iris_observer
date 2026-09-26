@@ -29,7 +29,7 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { DEFAULT_LANGUAGE, KPI_WINDOWS, type Language } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -63,13 +63,6 @@ function median(values: readonly number[]): number {
 
 function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
-}
-
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  return m === 0
-    ? `${Math.round(seconds)}s`
-    : `${m}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
 }
 
 function within(sessions: readonly ShowroomSession[], from: number, to: number): ShowroomSession[] {
@@ -250,11 +243,11 @@ export function buildKpis(
       label: "Typical length",
       measurementId: null,
       // Null, not zero: a window with no timed session has no median to report.
-      value: medNow === null ? "—" : duration(medNow),
+      value: medNow === null ? "—" : duration(medNow, language),
       qualifier:
         medBefore === null
           ? `${windowWords} · no earlier median`
-          : `${windowWords} · ${duration(medBefore)} before`,
+          : `${windowWords} · ${duration(medBefore, language)} before`,
       delta:
         medNow === null || medBefore === null || medBefore === 0
           ? null
@@ -616,7 +609,7 @@ export function buildAgentCharts(
           ? suppressionNoteFor(r.meetings, locale, "short", language)
           : timed.length === 0
             ? "no timed session"
-            : `median ${duration(median(timed))}`,
+            : `median ${duration(median(timed), language)}`,
         value: mine.length,
         display: count(mine.length, locale),
         href: `${base}/agents/${r.id}`,
@@ -756,6 +749,7 @@ export function buildLongestMeetings(
   base: string,
   locale: string,
   timeZone: string,
+  language: Language,
 ): RankedRow[] {
   return [...sessions]
     .filter((s) => !s.timingUnavailable)
@@ -766,7 +760,7 @@ export function buildLongestMeetings(
       label: dayLabel(s.startedAt, locale, timeZone),
       sub: `${presenterName(s.projectId, s.agentId)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
-      display: duration(s.durationSeconds),
+      display: duration(s.durationSeconds, language),
       href: `${base}/meetings/${s.meetingId}`,
     }));
 }
@@ -1020,7 +1014,7 @@ export function buildFlowCharts(
     trend: buildTrend(sessions, locale, timeZone),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone),
+    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }

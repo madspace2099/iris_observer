@@ -44,6 +44,7 @@ import {
   DEFAULT_LANGUAGE,
   MEETINGS,
   actionWorthTaking,
+  duration,
   nothingReceivedYet,
   plural,
   sentence,
@@ -173,12 +174,6 @@ export function trend(ratio: number, floor: number): Trend {
   if (ratio < floor - DEADBAND) return "down";
   if (ratio >= floor) return "up";
   return "flat";
-}
-
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
 /**
@@ -366,7 +361,7 @@ function buildPeriods(
       medianDurationSeconds: med,
       // Never "0m 00s" for a period with no meetings: there is no duration to
       // report, which is a different statement from a duration of zero.
-      medianDurationDisplay: med === null ? "—" : duration(med),
+      medianDurationDisplay: med === null ? "—" : duration(med, language),
       outcomeRecorded: inside.filter((s) => !outcomeIsUnknown(s.outcome)).length,
       progressed: inside.filter((s) => hasProgressed(s.outcome)).length,
     } satisfies FlowPeriod;
@@ -1208,6 +1203,7 @@ function sectionUses(
   sessions: readonly ShowroomSession[],
   teamSectionSecs: ReadonlyMap<SectionId, number>,
   teamTotal: number,
+  language: Language,
 ): AgentSectionUse[] {
   /* The set a share of time stands on, at this scope: every step timed. */
   const timedMine = mine.filter(fullyTimed);
@@ -1225,10 +1221,10 @@ function sectionUses(
         medianDwellSeconds: dwell,
         // Null, never zero: a section nobody's session could time has no median,
         // and printing 0s would claim they passed through it instantly.
-        dwellDisplay: dwell === null ? "—" : duration(dwell),
+        dwellDisplay: dwell === null ? "—" : duration(dwell, language),
         timeShare: share(secs, myTotal),
         teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
-        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
+        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell, language),
         reachRate: share(
           mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
           mine.length,
@@ -1287,7 +1283,7 @@ export function buildAgentsView(
     /* The same set, at the agent's scope. */
     const timedMine = mine.filter(fullyTimed);
     /* One row per section, carrying the whole answer: `sectionUses`, at the agent's scope. */
-    const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal);
+    const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal, context.language);
 
     const over = [...sections]
       .filter((s) => s.teamShare > 0.02)
@@ -1315,7 +1311,8 @@ export function buildAgentsView(
         !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
           ? timedSetNoteFor(timedMine.length, mine.length, locale, context.language)
           : null,
-      medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
+      medianDurationDisplay:
+        timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
       ring: buildRing(mine, a.id, a.name, base, teamProgressed),
       repeats: repeatDistribution(mine),
       sections,
@@ -1452,7 +1449,7 @@ export function buildAgentsView(
     /* The team's section shares stand on these, not on `meetingCount`. */
     timedMeetingCount: sessions.filter(fullyTimed).length,
     /* Every meeting, not the first agent's rows: a section only somebody else opened is here. */
-    teamSections: sectionUses(sessions, sessions, teamSectionSecs, teamTotal),
+    teamSections: sectionUses(sessions, sessions, teamSectionSecs, teamTotal, context.language),
     evidence: evidenceRef("agents-view", "observed_sequence", `${base}/agents`, sessions.length),
   };
 }

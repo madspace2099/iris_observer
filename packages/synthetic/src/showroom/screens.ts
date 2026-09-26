@@ -50,6 +50,7 @@ import {
   MEETINGS,
   TIMES,
   areaWord,
+  duration,
   nothingReceivedYet,
   roomsWord,
   sentence,
@@ -185,12 +186,6 @@ function median(values: readonly number[]): number {
 
 function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
-}
-
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
 function reached(session: ShowroomSession, sectionId: SectionId): boolean {
@@ -754,7 +749,7 @@ export function buildUnitDetail(
         count: count(touch.views, locale),
         n: touch.views,
       }),
-      `${duration(touch.dwellSeconds)} in total, longest look ${duration(touch.longestViewSeconds)}`,
+      `${duration(touch.dwellSeconds, language)} in total, longest look ${duration(touch.longestViewSeconds, language)}`,
       "observed_sequence",
       OBSERVED,
     );
@@ -1251,7 +1246,7 @@ export function buildAgentDetail(
       : agentFigure(
           "agent.duration",
           "Median presentation",
-          duration(Math.round(median(timed))),
+          duration(Math.round(median(timed)), context.language),
           Math.round(median(timed)),
           `${count(timed.length, locale)} timed meetings`,
           sampleSize,

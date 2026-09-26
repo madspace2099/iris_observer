@@ -39,6 +39,7 @@ import {
   TIMES,
   areaWord,
   aspectWord,
+  duration,
   plural,
   roomsWord,
   sentence,
@@ -260,12 +261,6 @@ function usedCompare(session: ShowroomSession): boolean {
 
 function returnedBeforeEnd(session: ShowroomSession): boolean {
   return session.steps.some((s) => s.isReturn);
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
 /* --- coverage -------------------------------------------------------------- */
@@ -779,7 +774,7 @@ export function buildShowroomOverview(
   return {
     context,
     verdict,
-    verdictDetail: `Median presentation ${formatDuration(median(sessions.map((s) => s.durationSeconds)))}, ${coverage.medianDepth} steps, ${count(unitOpens, locale)} unit openings. Outcome mix is shown as context, not as the finding.`,
+    verdictDetail: `Median presentation ${duration(median(sessions.map((s) => s.durationSeconds)), context.language)}, ${coverage.medianDepth} steps, ${count(unitOpens, locale)} unit openings. Outcome mix is shown as context, not as the finding.`,
     verdictSources: DERIVED,
     figures,
     findings,
@@ -1249,7 +1244,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
       label: sectionLabel(step.sectionId),
       detail: step.itemLabel,
       atDisplay: step.enteredAt === null ? null : clockLabel(step.enteredAt, locale, timeZone),
-      dwellDisplay: step.dwellSeconds === null ? null : formatDuration(step.dwellSeconds),
+      dwellDisplay: step.dwellSeconds === null ? null : duration(step.dwellSeconds, language),
       sectionId: step.sectionId,
       unitCode: null,
       isReturn: step.isReturn,
@@ -1270,9 +1265,9 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
         push({
           kind: "unit",
           label: unit.unitCode,
-          detail: `${unit.views} ${plural(language, unit.views, PROJECT_VIEWS)} · ${formatDuration(unit.dwellSeconds)}`,
+          detail: `${unit.views} ${plural(language, unit.views, PROJECT_VIEWS)} · ${duration(unit.dwellSeconds, language)}`,
           atDisplay: null,
-          dwellDisplay: formatDuration(unit.longestViewSeconds),
+          dwellDisplay: duration(unit.longestViewSeconds, language),
           sectionId: "residences",
           unitCode: unit.unitCode,
           isReturn: false,
@@ -1404,13 +1399,13 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
      * unit register in prose. The sentence beneath carries the count and its
      * breakdown; the headline keeps what nothing else on the screen says.
      */
-    headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps.`,
+    headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} steps.`,
     unitsViewed: unitsViewedOf(session.units, catalogue, language),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
     startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
-    durationDisplay: formatDuration(session.durationSeconds),
+    durationDisplay: duration(session.durationSeconds, language),
     outcome: session.outcome,
     outcomeLabel: OUTCOME_LABELS[session.outcome],
     steps,
@@ -1464,7 +1459,7 @@ export function buildMeetingList(
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
       agentName: presenterName(s.projectId, s.agentId),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-      durationDisplay: formatDuration(s.durationSeconds),
+      durationDisplay: duration(s.durationSeconds, context.language),
       outcome: s.outcome,
       outcomeLabel: OUTCOME_LABELS[s.outcome],
       sectionCount: new Set(orderOf(s)).size,
@@ -1572,9 +1567,9 @@ export function buildUnitAttention(
           unit: selected.unitCode,
           count: count(selected.meetings, locale),
           n: selected.meetings,
-          look: formatDuration(selected.medianDwellSeconds),
+          look: duration(selected.medianDwellSeconds, language),
         }),
-        baseline: `the project median is ${formatDuration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))))}`,
+        baseline: `the project median is ${duration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))), language)}`,
         soWhat:
           selected.medianDwellSeconds >= 60
             ? "Long enough to be an examination rather than a glance."
@@ -1815,7 +1810,7 @@ export function buildStorytelling(
     findings.push({
       id: "glanced_section",
       statement: `${glanced.label} is opened in ${percent(glanced.reachRate, locale)} of meetings but left within ${MEANINGFUL_DWELL_SECONDS} seconds ${percent(glanced.glanceRate, locale)} of the time.`,
-      baseline: `median dwell ${glanced.medianDwellSeconds === null ? "unknown" : formatDuration(glanced.medianDwellSeconds)}`,
+      baseline: `median dwell ${glanced.medianDwellSeconds === null ? "unknown" : duration(glanced.medianDwellSeconds, context.language)}`,
       soWhat:
         "Either the section is not carrying an argument, or it is being opened by accident on the way somewhere else.",
       nextStep: { label: "See the transitions", href: `${base}/presentation` },
