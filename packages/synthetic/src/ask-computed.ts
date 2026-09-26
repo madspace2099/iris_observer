@@ -217,7 +217,11 @@ export function askRecordedSentence(
 
 const TOP_APARTMENT_EN: SentenceIn<"en"> = {
   text: "{top} was opened in {opened} of {count} {presentations|n} in {period}; {apartments} {different|m} in all.",
-  words: { presentations: ASK_PRESENTATIONS.en, different: ASK_APARTMENTS_OPENED.en },
+  words: {
+    presentations: ASK_PRESENTATIONS.en,
+    /* The sentence's own forms: one apartment is not "different". */
+    different: { one: "apartment was opened", other: "different apartments were opened" },
+  },
 };
 
 /* One apartment is not "different": "Összesen 1 lakást nyitottak meg." */

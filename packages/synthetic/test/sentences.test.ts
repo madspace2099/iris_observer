@@ -579,7 +579,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
   ] as const;
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
-      "A-101 was opened in 1 of 1 presentation in quarter to date; 1 different apartment was opened in all.",
+      "A-101 was opened in 1 of 1 presentation in quarter to date; 1 apartment was opened in all.",
       "A-101 was opened in 1 of 1 presentation in quarter to date; 3 different apartments were opened in all.",
       "A-101 was opened in 2 of 5 presentations in quarter to date; 7 different apartments were opened in all.",
       "A-101 was opened in 3 of 3 presentations in quarter to date; 4 different apartments were opened in all.",
@@ -588,7 +588,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A-101 was opened in 5 of 9 presentations in quarter to date; 12 different apartments were opened in all.",
       "A-101 was opened in 2 of 4 presentations in quarter to date; 5 different apartments were opened in all.",
       "A-101 was opened in 3 of 7 presentations in quarter to date; 4 different apartments were opened in all.",
-      "A-101 was opened in 4 of 4 presentations in quarter to date; 1 different apartment was opened in all.",
+      "A-101 was opened in 4 of 4 presentations in quarter to date; 1 apartment was opened in all.",
     ],
     sk: [
       "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Bol to jediný byt, ktorý otvorili.",
