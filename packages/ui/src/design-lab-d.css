@@ -1600,6 +1600,55 @@
   }
 }
 
+/* --- bubbles: one per meeting still open to a purchase ---------------------------- */
+
+/*
+ * The outcome's own colour, filled at half strength so an overlap still reads,
+ * ringed at full. No glow: OUTCOME_TONE is a meaning, not a treatment.
+ */
+.dld-root .dld-bubble {
+  fill: color-mix(in oklab, var(--d-tone) 45%, transparent);
+  stroke: var(--d-tone);
+  stroke-width: 1.5;
+}
+
+.dld-root .dld-bubble-row {
+  stroke: var(--d-guide);
+  stroke-width: 1;
+}
+
+.dld-bubble-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-bubble-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dld-bubble-key i {
+  width: calc(var(--d-size) * 0.4);
+  aspect-ratio: 1;
+  border: 1.5px solid var(--d-tone);
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--d-tone) 45%, transparent);
+}
+
+.dld-bubble-key b {
+  font-family: var(--d-font-numeric);
+  font-weight: 500;
+  color: var(--d-ink);
+}
+
 /* --- dumbbell: the group against everyone else ------------------------------------ */
 
 .dld-dumbbell {

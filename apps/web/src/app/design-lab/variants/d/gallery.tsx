@@ -17,6 +17,8 @@ import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-dat
 import { DCard, Sized } from "./card";
 import { DDefs } from "./defs";
 import {
+  BubbleChart,
+  BubbleKey,
   Dumbbell,
   JourneyFunnel,
   OutcomeFunnels,
@@ -503,6 +505,22 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             wide
           >
             <OutcomeFunnels data={data.funnelMultiply} />
+          </DCard>
+
+          <DCard
+            id="bubble"
+            group="B · Bubble chart · one bubble per meeting"
+            title="Which meetings are nearest a purchase"
+            reads={reads("the session slice, by the outcome recorded")}
+            facts={data.bubble.facts}
+            kind="bloom"
+            wide
+          >
+            <Sized
+              xl={<BubbleChart data={data.bubble} size="xl" />}
+              l={<BubbleChart data={data.bubble} size="l" />}
+            />
+            <BubbleKey data={data.bubble} />
           </DCard>
 
           <DCard
