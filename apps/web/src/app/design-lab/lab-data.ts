@@ -1728,35 +1728,42 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const leadName = detail?.name ?? "No agent above the floor";
   const leadWeeks = detail?.sessionsOverTime.points ?? [];
   /*
-   * The agent page's weeks are not the Sales Flow's. `weeklyBuckets` steps
-   * seven days at a time from the moment the period opens, cuts the last at the
-   * period's end and keeps the last few. The spans are rebuilt here the same
-   * way, to print each as its dates, and each must label as the read model
-   * labels it. The note says what they are, rather than letting a reader take
-   * them for calendar weeks.
+   * The agent page's weeks are the Sales Flow's: `weeklyBuckets` cuts the
+   * period on the project's Monday grid, as `buildTrend` does, cuts the first
+   * week where the period starts and the last where it ends, and keeps the last
+   * few. They are rebuilt here on the same grid, to print each as its dates,
+   * and each must label as the read model labels it — by its first day inside
+   * the period — or the gallery refuses. The agent's series ends where the
+   * period does, not with today, so its last day is the period's own.
    */
   const spanDay = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone });
-  const spanStarts: number[] = [];
-  for (let at = Date.parse(periodFrom); at < Date.parse(periodTo); at += 7 * DAY_MS) {
-    spanStarts.push(at);
+  const agentLastDay = calendar(new Date(Date.parse(periodTo) - 1)).day;
+  const opening = calendar(new Date(periodFrom));
+  const agentMondays: number[] = [];
+  for (
+    let monday = opening.day - opening.weekday * DAY_MS;
+    monday <= agentLastDay;
+    monday += 7 * DAY_MS
+  ) {
+    agentMondays.push(monday);
   }
-  const leadSpans = (leadWeeks.length === 0 ? [] : spanStarts.slice(-leadWeeks.length)).map(
-    (start, i) => {
+  const leadSpans = (leadWeeks.length === 0 ? [] : agentMondays.slice(-leadWeeks.length)).map(
+    (monday, i) => {
       const point = leadWeeks[i];
-      same(`the trend's span ${n(i + 1)}`, spanDay.format(new Date(start)), point?.label);
-      const end = Math.min(start + 7 * DAY_MS, Date.parse(periodTo));
-      const days = sevenDays(calendar(new Date(start)).day, calendar(new Date(end - 1)).day);
+      same(
+        `the trend's week ${n(i + 1)}`,
+        dates.format(new Date(Math.max(monday, periodFirstDay))),
+        point?.label,
+      );
+      const days = sevenDays(monday, agentLastDay);
       return {
-        id: String(start),
+        id: String(monday),
         label: days.part === null ? days.range : `${days.range} (${days.part})`,
         value: point?.value ?? 0,
       };
     },
   );
-  same("the trend's spans", leadSpans.length, leadWeeks.length);
-  const periodOpens = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone }).format(
-    new Date(periodFrom),
-  );
+  same("the trend's weeks", leadSpans.length, leadWeeks.length);
   const periodCloses = spanDay.format(new Date(periodTo));
   const trendSeries = detail === null || detail.belowMinimum ? null : detail.sessionsOverTime;
   const trend = {
@@ -1767,17 +1774,21 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         ? `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`
         : detail.suppressionNote,
     facts: {
-      note: `Meetings ${leadName} presented in each of the period's last ${n(leadSpans.length)} seven-day spans. The spans are counted from the moment the period opens, a ${periodOpens}, so they are not calendar weeks; the last one ends when the period does, at the start of ${periodCloses}, and can be shorter. Every meeting counts once, whatever its outcome. The line is drawn only for an agent with ${n(AGENT_MIN_SAMPLE)} meetings or more.`,
+      note: `Meetings ${leadName} presented in each of the period's last ${n(leadSpans.length)} weeks. They are calendar weeks, Monday to Sunday in the project's own time zone; the period's first week is cut where the period starts, and its last where it ends, at the start of ${periodCloses}. Every meeting counts once, whatever its outcome. The line is drawn only for an agent with ${n(AGENT_MIN_SAMPLE)} meetings or more.`,
       summary:
         trendSeries === null
           ? (detail?.suppressionNote ??
             `Nobody presented ${n(AGENT_MIN_SAMPLE)} meetings in ${period}.`)
-          : `${leadName}, span by span: ${list(leadSpans.map((s) => `${s.label} ${n(s.value)}`))}.`,
+          : `${leadName}, week by week: ${list(leadSpans.map((s) => `${s.label} ${n(s.value)}`))}.`,
       figures: [
         figure("Meetings", n(detail?.sampleSize ?? 0), `${leadName}, ${period}`),
-        figure("Spans drawn", n(leadSpans.length), "seven days each; the last can be shorter"),
+        figure(
+          "Weeks drawn",
+          n(leadSpans.length),
+          "Monday to Sunday; the first and last can be cut",
+        ),
       ] as const,
-      rankingTitle: "Their busiest seven-day spans",
+      rankingTitle: "Their busiest weeks",
       ranking: topThree(
         leadSpans,
         (s) => s.value,

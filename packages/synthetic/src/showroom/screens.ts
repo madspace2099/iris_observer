@@ -68,6 +68,7 @@ import {
   unavailable,
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
+import { startOfWeekIn } from "../time";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView, meetings as meetingsWord, suppressionNoteFor } from "./views3";
@@ -158,41 +159,62 @@ function unitIdOf(code: string): string {
 
 /* --- weekly buckets -------------------------------------------------------- */
 
-interface Bucket {
+/** A week of the period: from its first instant inside the period (inclusive) to its last (exclusive). */
+export interface Bucket {
   readonly from: number;
   readonly to: number;
   readonly label: string;
 }
 
 /**
- * The period, cut into weeks.
+ * The period, cut into calendar weeks.
  *
  * Weeks rather than days because a project running three appointments a week
  * produces a daily series that is mostly zeros, and a reader cannot tell a
  * genuinely quiet Tuesday from a series drawn at the wrong resolution. Capped at
  * the last twelve, so a year-to-date period stays readable and the label still
  * says which twelve.
+ *
+ * The weeks are `buildTrend`'s (`charts.ts`): Monday to Sunday, from the
+ * project's own midnight. They used to be seven-day steps from the moment the
+ * period opened, so a year opening on a Thursday ran Thursday to Wednesday,
+ * every period put its boundary on a different weekday, and the agent and unit
+ * pages filed a meeting under a different week than the Sales Flow did.
+ *
+ * The first week is cut where the period starts and the last where it ends.
+ * Each is labelled with its first day inside the period — the start for the
+ * first, the Monday for every other — so no label names a day the period does
+ * not hold.
  */
-function weeklyBuckets(
+export function weeklyBuckets(
   fromIso: string,
   toIso: string,
   locale: string,
   timeZone: string,
 ): readonly Bucket[] {
-  const week = 7 * 24 * 60 * 60 * 1000;
+  const day = 24 * 60 * 60 * 1000;
   const from = Date.parse(fromIso);
   const to = Date.parse(toIso);
   if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return [];
 
   const all: Bucket[] = [];
-  for (let start = from; start < to; start += week) {
-    const end = Math.min(start + week, to);
-    all.push({ from: start, to: end, label: dayLabel(new Date(start), locale, timeZone) });
+  for (let monday = startOfWeekIn(from, timeZone).getTime(); monday < to;) {
+    // Seven days on, re-anchored to Monday midnight, as `buildTrend` steps: a
+    // clock change inside the week cannot drift the next start by an hour.
+    const next = startOfWeekIn(monday + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+    const start = Math.max(monday, from);
+    all.push({
+      from: start,
+      to: Math.min(next, to),
+      label: dayLabel(new Date(start), locale, timeZone),
+    });
+    monday = next;
   }
   return all.slice(-12);
 }
 
-function seriesOver(
+/** Each bucket's meetings: closed at the bucket's start, open at its end, so a meeting counts once. */
+export function seriesOver(
   sessions: readonly ShowroomSession[],
   buckets: readonly Bucket[],
 ): readonly { readonly label: string; readonly value: number }[] {
