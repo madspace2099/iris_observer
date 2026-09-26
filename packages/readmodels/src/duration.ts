@@ -9,11 +9,14 @@ import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "./lan
  * second are two counted words, each taking the form its own figure asks for:
  * "2 minúty 1 sekunda", "5 minút 5 sekúnd", "1 perc 45 másodperc".
  *
- * The seconds are always written, as English always writes them, "1m 00s":
- * a nought is Slovak's `other`, "0 sekúnd". The minutes are left out while
- * there are none, as English leaves them out: "45 sekúnd", never "0 minút 45
- * sekúnd". There are no hours; an hour is "60m 00s", and sixty minutes in the
- * other two languages.
+ * A nought is left out of the words. English writes "1m 00s" because that is
+ * a clock's convention: the seconds keep their two places however few they
+ * are. Written-out words have no such convention to keep, so Slovak and
+ * Hungarian leave out a nought of seconds — "1 minúta", "1 perc", never "1
+ * minúta 0 sekúnd" — and, like English, a nought of minutes: "45 sekúnd",
+ * never "0 minút 45 sekúnd". Nothing at all is still written: "0 sekúnd", a
+ * nought in Slovak's `other`. There are no hours; an hour is "60m 00s", and
+ * sixty minutes in the other two languages.
  *
  * The figures are digits. The time is rounded to a whole second before it is
  * split, so a median of 119.5 seconds is "2m 00s" and never "1m 60s".
@@ -42,5 +45,6 @@ export function duration(seconds: number, language: Language = DEFAULT_LANGUAGE)
   if (language === "en") {
     return m === 0 ? `${s}${secs}` : `${m}${minutes} ${String(s).padStart(2, "0")}${secs}`;
   }
-  return m === 0 ? `${s} ${secs}` : `${m} ${minutes} ${s} ${secs}`;
+  if (m === 0) return `${s} ${secs}`;
+  return s === 0 ? `${m} ${minutes}` : `${m} ${minutes} ${s} ${secs}`;
 }

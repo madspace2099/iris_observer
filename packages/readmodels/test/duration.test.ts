@@ -21,10 +21,10 @@ const EXPECTED: Readonly<Record<Language, readonly string[]>> = {
     "5 sekúnd",
     "45 sekúnd",
     "59 sekúnd",
-    "1 minúta 0 sekúnd",
+    "1 minúta",
     "1 minúta 1 sekunda",
     "1 minúta 45 sekúnd",
-    "60 minút 0 sekúnd",
+    "60 minút",
   ],
   hu: [
     "0 másodperc",
@@ -33,10 +33,10 @@ const EXPECTED: Readonly<Record<Language, readonly string[]>> = {
     "5 másodperc",
     "45 másodperc",
     "59 másodperc",
-    "1 perc 0 másodperc",
+    "1 perc",
     "1 perc 1 másodperc",
     "1 perc 45 másodperc",
-    "60 perc 0 másodperc",
+    "60 perc",
   ],
 };
 
@@ -52,7 +52,7 @@ describe("duration", () => {
 
   it("rounds to a whole second before it splits, so a minute never reads 60 seconds", () => {
     expect(duration(119.5, "en")).toBe("2m 00s");
-    expect(duration(119.5, "sk")).toBe("2 minúty 0 sekúnd");
-    expect(duration(119.5, "hu")).toBe("2 perc 0 másodperc");
+    expect(duration(119.5, "sk")).toBe("2 minúty");
+    expect(duration(119.5, "hu")).toBe("2 perc");
   });
 });
