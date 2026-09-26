@@ -24,7 +24,8 @@ export const DEFAULT_LANGUAGE: Language = "en";
  * Each language carries the categories its own plural rules give a count:
  * English two, Slovak three — and a fourth where the count can be a fraction —
  * and Hungarian two, which are the same singular form, for the reason on
- * `plural`.
+ * `plural`, and a third where the words change from 2 to 4, for the reason on
+ * `pluralCategory`.
  */
 export interface PluralForms {
   readonly en: { readonly one: string; readonly other: string };
@@ -35,8 +36,8 @@ export interface PluralForms {
     readonly other: string;
     readonly many?: string;
   };
-  /** Both singular. See `plural`. */
-  readonly hu: { readonly one: string; readonly other: string };
+  /** 1 · 2 to 4, where an entry needs it · everything else. All singular, `few` too. See `plural`. */
+  readonly hu: { readonly one: string; readonly few?: string; readonly other: string };
 }
 
 const RULES: Readonly<Record<Language, Intl.PluralRules>> = {
@@ -56,8 +57,10 @@ const RULES: Readonly<Record<Language, Intl.PluralRules>> = {
  *
  * In Hungarian, after a numeral the noun stays SINGULAR: 5 találkozó, not 5
  * találkozók. Intl.PluralRules gives Hungarian a `one` and an `other` slot,
- * and the Hungarian `other` slot takes the SINGULAR form. If anyone writes the
- * plural there, every count in the product is wrong, and the type check will
+ * and the Hungarian `other` slot takes the SINGULAR form. So does the `few`
+ * slot this product adds for 2 to 4 (see `pluralCategory`): all three
+ * Hungarian slots take the SINGULAR form. If anyone writes the plural in any
+ * of them, every count that slot answers is wrong, and the type check will
  * not notice.
  *
  * The form is chosen for the figure as printed, so a caller that prints a
@@ -71,7 +74,21 @@ export function plural(language: Language, n: number, forms: PluralForms): strin
   return set[pluralCategory(language, n)] ?? forms[language].other;
 }
 
-/** The category a language's own rules put a count in: "one", "few", "many" or "other". */
+/**
+ * The category a language's own rules put a count in: "one", "few", "many" or "other".
+ *
+ * HUNGARIAN DEPARTS FROM CLDR HERE, ON PURPOSE. CLDR gives Hungarian `one` and
+ * `other` only, and as grammatical number that is right: the noun is singular
+ * after every numeral. The distinction this product needs is not grammatical
+ * number but word choice — a count from 1 to 4 is written as a word, and "mind
+ * a …" reads naturally from 2 to 4 and not above — so a whole 2, 3 or 4 is
+ * `few` in Hungarian as it is in Slovak. Everything else is what
+ * `Intl.PluralRules` says.
+ *
+ * Nothing written before this breaks: an entry with no `few` slot answers 2 to
+ * 4 with its `other` form, through the `?? other` in `plural` and `sentence`.
+ */
 export function pluralCategory(language: Language, n: number): Intl.LDMLPluralRule {
+  if (language === "hu" && Number.isInteger(n) && n >= 2 && n <= 4) return "few";
   return RULES[language].select(n);
 }
