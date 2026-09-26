@@ -590,6 +590,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
     [5, 9, 12],
     [2, 4, 5],
     [3, 7, 4],
+    [4, 4, 1],
   ] as const;
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
@@ -602,6 +603,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A-101 was opened in 5 of 9 presentations in quarter to date; 12 different apartments were opened in all.",
       "A-101 was opened in 2 of 4 presentations in quarter to date; 5 different apartments were opened in all.",
       "A-101 was opened in 3 of 7 presentations in quarter to date; 4 different apartments were opened in all.",
+      "A-101 was opened in 4 of 4 presentations in quarter to date; 1 different apartment was opened in all.",
     ],
     sk: [
       "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Bol to jediný byt, ktorý otvorili.",
@@ -613,6 +615,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "Byt A-101 otvorili na piatich z 9 prezentácií v období quarter to date. Celkovo otvorili 12 rôznych bytov.",
       "Byt A-101 otvorili na dvoch zo štyroch prezentácií v období quarter to date. Celkovo otvorili 5 rôznych bytov.",
       "Byt A-101 otvorili na troch zo 7 prezentácií v období quarter to date. Celkovo otvorili 4 rôzne byty.",
+      "Byt A-101 otvorili na všetkých štyroch prezentáciách v období quarter to date. Celkovo otvorili 1 byt.",
     ],
     hu: [
       "A quarter to date időszak egyetlen bemutatóján megnyitották az A-101-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
@@ -624,6 +627,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A quarter to date időszak 9 bemutatója közül 5 bemutatón megnyitották az A-101-es lakást. Összesen 12 különböző lakást nyitottak meg.",
       "A quarter to date időszak 4 bemutatója közül 2 bemutatón megnyitották az A-101-es lakást. Összesen 5 különböző lakást nyitottak meg.",
       "A quarter to date időszak 7 bemutatója közül 3 bemutatón megnyitották az A-101-es lakást. Összesen 4 különböző lakást nyitottak meg.",
+      "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 1 különböző lakást nyitottak meg.",
     ],
   };
 

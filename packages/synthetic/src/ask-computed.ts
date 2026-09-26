@@ -221,7 +221,8 @@ const TOP_APARTMENT_EN: SentenceIn<"en"> = {
 };
 
 const DIFFERENT_APARTMENTS_SK: PluralForms["sk"] = {
-  one: "rôzny byt",
+  /* One apartment: "Celkovo otvorili 1 byt", not "1 rôzny byt". */
+  one: "byt",
   few: "rôzne byty",
   other: "rôznych bytov",
 };
