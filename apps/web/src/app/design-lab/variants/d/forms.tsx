@@ -510,130 +510,129 @@ export function OutcomeFunnels({ data }: { readonly data: DOutcomeFunnelsCard })
   );
 }
 
-/* --- bubbles: one per meeting still open to a purchase ----------------------------- */
+/* --- bubbles: one per meeting still open to a purchase, packed as the kit packs them -- */
 
-interface PlacedBubble {
-  readonly bubble: DBubbleCard["bubbles"][number];
-  readonly cx: number;
-  readonly cy: number;
+interface Spot {
+  readonly x: number;
+  readonly y: number;
   readonly r: number;
 }
 
 /**
- * One agent's row. Each bubble sits over the day it happened and moves up or
- * down its row until it no longer covers one already placed — the largest
- * first, so the smaller ones find room round them. Where the row has none left
- * the bubble keeps the row's line and overlaps; the fill is translucent, so
- * both still read. Geometry only: nothing here counts or orders the meetings.
+ * Packs the bubbles round a centre in the order the loader gives them, the
+ * largest first: each goes where it touches one already placed and clears the
+ * rest, as near the centre as it can — a little nearer across than down, so
+ * the cluster sits wide, like the card. Geometry only: where a bubble sits says
+ * nothing about its meeting; its size and its colour do.
  */
-function placeRow(
-  bubbles: DBubbleCard["bubbles"],
-  x: (day: number) => number,
-  centre: number,
-  rowH: number,
-  scale: number,
-): PlacedBubble[] {
-  const placed: PlacedBubble[] = [];
-  const bySize = [...bubbles].sort((a, b) => b.diameter - a.diameter || a.day - b.day);
-  for (const bubble of bySize) {
-    const r = (bubble.diameter * scale) / 2;
-    const cx = x(bubble.day);
-    const room = Math.max(0, rowH / 2 - r - 1);
-    const clear = (cy: number) =>
-      placed.every((p) => Math.hypot(p.cx - cx, p.cy - cy) >= p.r + r + 1);
-    let cy = centre;
-    for (let step = 0; step <= room; step += 2) {
-      const free = [centre - step, centre + step].find(clear);
-      if (free !== undefined) {
-        cy = free;
-        break;
+function pack(diameters: readonly number[], gap: number): Spot[] {
+  const placed: Spot[] = [];
+  for (const d of diameters) {
+    const r = d / 2;
+    let best: { x: number; y: number; cost: number } | null = null;
+    for (const p of placed) {
+      for (let a = 0; a < 360; a += 4) {
+        const t = (a * Math.PI) / 180;
+        const x = p.x + (p.r + r + gap) * Math.cos(t);
+        const y = p.y + (p.r + r + gap) * Math.sin(t);
+        if (!placed.every((q) => Math.hypot(q.x - x, q.y - y) >= q.r + r + gap - 0.01)) continue;
+        const cost = Math.hypot(x, y * 1.35);
+        if (best === null || cost < best.cost) best = { x, y, cost };
       }
     }
-    placed.push({ bubble, cx, cy, r });
+    placed.push({ x: best?.x ?? 0, y: best?.y ?? 0, r });
   }
   return placed;
 }
 
+/**
+ * The kit's bubble chart, without its words: glossy spheres packed in a
+ * violet glow, two faint orbits behind them. Each sphere is an HTML circle
+ * wearing the kit's own fill, inner shadows and glow, keyed by outcome in the
+ * stylesheet — the box shadows the kit specifies do not exist on an SVG shape.
+ * Positions are percentages of a field that keeps its shape as it shrinks.
+ */
 export function BubbleChart({ data, size }: { readonly data: DBubbleCard; readonly size: DSize }) {
   const scale = size === "xl" ? 1 : 0.45;
   const width = size === "xl" ? 752 : 327;
-  const labelW = size === "xl" ? 132 : 112;
-  const biggest = Math.max(1, ...data.sizes.map((s) => s.diameter)) * scale;
-  const rowH = biggest + 12;
-  const top = 4;
-  const foot = 26;
-  const height = top + data.agents.length * rowH + foot;
-  const left = labelW + biggest / 2;
-  const right = width - biggest / 2;
-  const x = (day: number) =>
-    left + ((day - data.from) / Math.max(1, data.to - data.from)) * (right - left);
-  const rows = data.agents.map((agent, i) => ({ agent, centre: top + rowH * (i + 0.5) }));
-  const placed = rows.flatMap(({ agent, centre }) =>
-    placeRow(
-      data.bubbles.filter((b) => b.agentId === agent.id),
-      x,
-      centre,
-      rowH,
-      scale,
-    ),
+  const spots = pack(
+    data.bubbles.map((b) => b.diameter),
+    4,
   );
+  const left = Math.min(0, ...spots.map((s) => s.x - s.r));
+  const right = Math.max(0, ...spots.map((s) => s.x + s.r));
+  const top = Math.min(0, ...spots.map((s) => s.y - s.r));
+  const bottom = Math.max(0, ...spots.map((s) => s.y + s.r));
+  /* Room round the cluster for the spheres' glow, in the field's own units. */
+  const room = 40 * scale;
+  const height = (bottom - top) * scale + room * 2;
+  const ox = width / 2 - ((left + right) / 2) * scale;
+  const oy = room - top * scale;
+  const reach = Math.max(0, ...spots.map((s) => Math.hypot(s.x, s.y) + s.r)) * scale;
+  const pctX = (v: number) => `${((v / width) * 100).toFixed(3)}%`;
+  const pctY = (v: number) => `${((v / height) * 100).toFixed(3)}%`;
 
   return (
-    <svg
-      className="dld-bubbles"
-      viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
+    <div
+      className="dld-bubble-field"
+      style={{ maxWidth: width, aspectRatio: `${width} / ${height.toFixed(1)}` }}
       role="img"
-      aria-label={`${data.bubbles.length} meetings still open to a purchase, one bubble each, by the day they were held and the agent who presented them`}
+      aria-label={`${data.bubbles.length} meetings still open to a purchase, one bubble each, sized by outcome`}
     >
-      {data.months.map((m) => (
-        <g key={m.day}>
-          <line
-            className="dld-guide"
-            x1={f(x(m.day))}
-            x2={f(x(m.day))}
-            y1={top}
-            y2={top + data.agents.length * rowH}
-          />
-          <text x={f(x(m.day) + 4)} y={height - 8} className="dld-axis-label">
-            {m.label}
-          </text>
-        </g>
-      ))}
-      {rows.map(({ agent, centre }) => (
-        <g key={agent.id}>
-          <line className="dld-bubble-row" x1={labelW} x2={width} y1={f(centre)} y2={f(centre)} />
-          <text x={0} y={f(centre)} dominantBaseline="middle" className="dld-row-label">
-            {agent.label}
-          </text>
-        </g>
-      ))}
-      {placed.map((p) => (
+      <svg
+        className="dld-bubble-ground"
+        viewBox={`0 0 ${width} ${height.toFixed(1)}`}
+        aria-hidden="true"
+        focusable="false"
+      >
+        <ellipse
+          className="dld-bubble-glow"
+          cx={f(ox)}
+          cy={f(oy)}
+          rx={f(((right - left) / 2) * scale * 1.12)}
+          ry={f(((bottom - top) / 2) * scale * 0.98)}
+        />
+        <circle className="dld-bubble-orbit" cx={f(ox)} cy={f(oy)} r={f(reach * 0.66)} />
         <circle
-          key={p.bubble.id}
-          className="dld-bubble"
-          data-outcome={p.bubble.outcome}
-          cx={f(p.cx)}
-          cy={f(p.cy)}
-          r={f(p.r)}
-          style={{ "--d-tone": p.bubble.colour } as React.CSSProperties}
-        >
-          <title>{p.bubble.title}</title>
-        </circle>
-      ))}
-    </svg>
+          className="dld-bubble-orbit"
+          data-outer="true"
+          cx={f(ox)}
+          cy={f(oy)}
+          r={f(reach * 0.9)}
+        />
+      </svg>
+      {data.bubbles.map((b, i) => {
+        const s = spots[i];
+        if (s === undefined) return null;
+        const r = s.r * scale;
+        return (
+          <i
+            key={b.id}
+            className="dld-bubble"
+            data-outcome={b.outcome}
+            title={b.title}
+            style={{
+              left: pctX(ox + s.x * scale - r),
+              top: pctY(oy + s.y * scale - r),
+              width: pctX(r * 2),
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
 
-/** The sizes, each with its outcome and how many bubbles it has; the swatch is the bubble at two-fifths. */
+/** The sizes, each with its outcome and how many bubbles it has; the swatch wears the bubble's own style. */
 export function BubbleKey({ data }: { readonly data: DBubbleCard }) {
   return (
     <ul className="dld-bubble-key">
       {data.sizes.map((s) => (
         <li key={s.outcome}>
           <i
-            style={{ "--d-tone": s.colour, "--d-size": `${s.diameter}px` } as React.CSSProperties}
+            className="dld-bubble"
+            data-outcome={s.outcome}
+            style={{ "--d-size": `${s.diameter}px` } as React.CSSProperties}
           />
           <span>
             {s.label} · {s.diameter} px

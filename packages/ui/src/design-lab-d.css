@@ -1600,29 +1600,96 @@
   }
 }
 
-/* --- bubbles: one per meeting still open to a purchase ---------------------------- */
+/* --- bubbles: the kit's spheres, one per meeting still open to a purchase --------- */
 
-/*
- * The outcome's own colour, filled at half strength so an overlap still reads,
- * ringed at full. No glow: OUTCOME_TONE is a meaning, not a treatment.
- */
-.dld-root .dld-bubble {
-  fill: color-mix(in oklab, var(--d-tone) 45%, transparent);
-  stroke: var(--d-tone);
-  stroke-width: 1.5;
+/* The field keeps its proportion as it shrinks; the spheres sit on it by percentage. */
+.dld-bubble-field {
+  position: relative;
+  width: 100%;
+  margin-inline: auto;
 }
 
-.dld-root .dld-bubble-row {
-  stroke: var(--d-guide);
-  stroke-width: 1;
+.dld-bubble-ground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.dld-root .dld-bubble-glow {
+  fill: url(#dld-bubble-glow);
+  opacity: 0.7;
+}
+
+.dld-root .dld-bubble-orbit {
+  fill: none;
+  stroke: #3d3939;
+  stroke-width: 0.586;
+}
+
+.dld-root .dld-bubble-orbit[data-outer="true"] {
+  stroke: url(#dld-bubble-orbit);
+}
+
+/*
+ * The spheres, in the kit's own terms: a highlight up and to the right over a
+ * deep base, a white rim of light at the top, the colour's own light pooling
+ * low, and on three of them a wide glow. These are the kit's colours, not
+ * OUTCOME_TONE: the review chose them for this chart, and they stay on it.
+ */
+.dld-bubble {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.dld-bubble-field .dld-bubble {
+  position: absolute;
+}
+
+.dld-bubble[data-outcome="reservation"] {
+  background:
+    radial-gradient(102.81% 102.81% at 70.4% 31.2%, #a3e832 0%, rgba(0, 2, 16, 0) 100%), #005d92;
+  box-shadow:
+    0 0.978px 4.889px 0 rgba(255, 255, 255, 0.58) inset,
+    4.889px 7.822px 9.777px 0 rgba(40, 255, 5, 0.46) inset;
+  filter: drop-shadow(0 1.955px 39.109px rgba(0, 248, 99, 0.41));
+}
+
+.dld-bubble[data-outcome="interested"] {
+  background:
+    radial-gradient(102.81% 102.81% at 70.4% 31.2%, #3244e8 0%, rgba(0, 2, 16, 0) 100%), #030092;
+  box-shadow:
+    0 1.083px 5.416px 0 rgba(255, 255, 255, 0.58) inset,
+    5.416px 10.832px 54.158px 0 #db00ff inset;
+}
+
+.dld-bubble[data-outcome="follow_up_needed"] {
+  background:
+    radial-gradient(102.81% 102.81% at 70.4% 31.2%, #e8b532 0%, rgba(0, 2, 16, 0) 100%), #921a00;
+  box-shadow:
+    0 0.978px 4.889px 0 rgba(255, 255, 255, 0.58) inset,
+    4.889px 7.822px 9.777px 0 rgba(255, 125, 5, 0.95) inset;
+  filter: drop-shadow(0 1.955px 39.109px #f83b00);
+}
+
+/* Not drawn under the rule as it stands; the kit's sphere for it, as given, for the day the rule changes. */
+.dld-bubble[data-outcome="not_interested"] {
+  background:
+    radial-gradient(102.81% 102.81% at 70.4% 31.2%, #e83232 0%, rgba(135, 136, 149, 0) 100%),
+    #940000;
+  box-shadow:
+    0 0.978px 4.889px 0 rgba(255, 255, 255, 0.58) inset,
+    4.889px 7.822px 9.777px 0 rgba(255, 5, 5, 0.95) inset;
+  filter: drop-shadow(0 1.955px 39.109px #f80000);
 }
 
 .dld-bubble-key {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 24px;
-  margin: 14px 0 0;
+  gap: 12px 28px;
+  margin: 18px 0 0;
   padding: 0;
   list-style: none;
   font-size: 12px;
@@ -1632,15 +1699,12 @@
 .dld-bubble-key li {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.dld-bubble-key i {
-  width: calc(var(--d-size) * 0.4);
-  aspect-ratio: 1;
-  border: 1.5px solid var(--d-tone);
-  border-radius: 50%;
-  background: color-mix(in oklab, var(--d-tone) 45%, transparent);
+/* The swatch is the sphere at three-tenths of its size. */
+.dld-bubble-key .dld-bubble {
+  width: calc(var(--d-size) * 0.3);
 }
 
 .dld-bubble-key b {

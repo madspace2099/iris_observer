@@ -27,6 +27,18 @@ export function DDefs() {
           <stop offset="1" stopColor="#5cf101" />
         </linearGradient>
 
+        {/* The bubble chart's field: the kit's violet glow, fading to nothing at its rim. */}
+        <radialGradient id="dld-bubble-glow">
+          <stop offset="0" stopColor="#611ed7" />
+          <stop offset="1" stopColor="#2a0e5b" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Its outer orbit: the kit's slate, strongest at the top, gone at the bottom. */}
+        <linearGradient id="dld-bubble-orbit" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#252545" stopOpacity="0.57" />
+          <stop offset="1" stopColor="#252545" stopOpacity="0" />
+        </linearGradient>
+
         {/* The area chart's dot matrix: a 1px dot on a 5px pitch. */}
         <pattern id="dld-dots" width="5" height="5" patternUnits="userSpaceOnUse">
           <rect width="1.2" height="1.2" fill="#15ffab" />
