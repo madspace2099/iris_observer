@@ -54,6 +54,8 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
+/* The rehearsal only: never a read of the project, so never through `repository`. See the bubble lens. */
+import { showroomPaceRehearsal } from "@observer/synthetic";
 
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
@@ -553,37 +555,54 @@ export interface DOutcomeFunnelsCard {
   readonly facts: DFacts;
 }
 
-/** One meeting still open to a purchase: where it falls, and how large the rule draws it. */
-export interface DBubble {
-  readonly id: string;
-  readonly agentId: string;
-  /** The project's calendar date of the meeting, as midnight UTC of that date. */
-  readonly day: number;
-  /** The outcome id: it picks the kit's sphere for the bubble. */
-  readonly outcome: string;
-  /** The rule's size, across, at the XL geometry. */
-  readonly diameter: number;
-  /** What a pointer resting on the bubble reads: outcome, day, agent, shortlisted apartments. */
-  readonly title: string;
+/** One rehearsal meeting the bubble rule sizes, as compact as the lens needs it. */
+export interface DLensMeeting {
+  /** The agent, as an index into `agents`: it picks the row, or the colour. */
+  readonly a: number;
+  /** The day, as an index into `days`. */
+  readonly d: number;
+  /** The outcome, as an index into `outcomes`: it picks the size, and in the outcome view the sphere. */
+  readonly o: number;
+  /** The start on the project's clock, "14:05". */
+  readonly t: string;
+  /** The apartments shortlisted, by code. */
+  readonly u: readonly string[];
 }
 
-export interface DBubbleCard {
-  /** Rows, busiest agent first, as the punch card orders them. */
-  readonly agents: readonly { readonly id: string; readonly label: string }[];
-  /** In placing order: the largest first and, within a size, the latest meeting first. */
-  readonly bubbles: readonly DBubble[];
-  /** The span across: first of the earliest bubble's month to first of the month after the latest. */
-  readonly from: number;
-  readonly to: number;
-  readonly months: readonly { readonly day: number; readonly label: string }[];
-  /** The key: each drawn outcome, its size, and how many bubbles it has. */
-  readonly sizes: readonly {
-    readonly outcome: string;
+/** The bubble lens: six months of a rehearsal at showroom pace, day by day, for two cards to draw. */
+export interface DBubbleLens {
+  /** In the gallery's colour order: the i-th agent wears `--d-series-(i+1)` on every card. */
+  readonly agents: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly short: string;
+  }[];
+  /** The outcomes the rule sizes, largest first: the size at full scale, and how many the rehearsal holds. */
+  readonly outcomes: readonly {
+    readonly id: string;
     readonly label: string;
     readonly diameter: number;
     readonly count: number;
   }[];
-  readonly facts: DFacts;
+  /** The six months, a day an entry, the last of them today. */
+  readonly days: readonly {
+    readonly label: string;
+    readonly weekday: string;
+    readonly date: number;
+  }[];
+  /** Where each month starts among the days, how many of its days they hold, and how long it is. */
+  readonly months: readonly {
+    readonly label: string;
+    readonly long: string;
+    readonly first: number;
+    readonly held: number;
+    readonly length: number;
+  }[];
+  readonly meetings: readonly DLensMeeting[];
+  /** The source line both cards print. */
+  readonly reads: string;
+  readonly outcomeFacts: DFacts;
+  readonly agentFacts: DFacts;
 }
 
 export interface DScatterCard {
@@ -623,7 +642,7 @@ export interface LabChartsD {
     readonly facts: DFacts;
   };
   readonly funnelMultiply: DOutcomeFunnelsCard;
-  readonly bubble: DBubbleCard;
+  readonly bubble: DBubbleLens;
   readonly heatmapBasic: DHeatCard;
   readonly heatmapGradient: DHeatCard;
   readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
@@ -701,6 +720,8 @@ const D_BUBBLE_DIAMETER: Readonly<Record<string, number>> = {
 };
 /** The bubble chart always shows this many whole months, the current one last. */
 const D_BUBBLE_MONTHS = 6;
+/** The pace the bubble lens is drawn for: every agent, every day, this many meetings. */
+const D_BUBBLE_PACE = { min: 3, max: 5 } as const;
 
 function refuse(what: string): never {
   throw new Error(`Design lab D could not reproduce ${what}; nothing is drawn.`);
@@ -1465,153 +1486,186 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  /* --- one bubble per meeting, over the last six months --------------------------- */
+  /* --- the bubble lens: one bubble per meeting, at showroom pace -------------------- */
 
-  const keyOf = new Map(charts.composition.keys.map((k) => [k.id, k]));
-  const recordedAs = (id: string) => flow.outcomes.find((o) => o.outcome === id)?.count ?? 0;
-  const sized = sessions.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
-  same(
-    "the meetings the bubble rule sizes",
-    sized.length,
-    Object.keys(D_BUBBLE_DIAMETER).reduce((a, id) => a + recordedAs(id), 0),
-  );
   /*
-   * Across: always the last six whole months, the current one last and cut at
-   * today, whatever span the period covers. Every count on the card is taken
-   * over the same six months, so the chart and its words describe one set.
+   * A REHEARSAL, AND SAID TO BE ONE.
+   *
+   * The recorded world holds a few meetings a week; a showroom at full pace
+   * holds three to five a day for every agent, and this drawing is meant for
+   * that volume. So it draws the synthetic model's rehearsal of it — the
+   * project's own agents, catalogue and clock, through the outcome model the
+   * recorded meetings go through — imported from the synthetic package rather
+   * than read through `repository`: a rehearsal is not a read of the project,
+   * and no implementation of the port should ever serve one. Every word the two
+   * cards print says rehearsal, and no figure on them is the project's.
    */
-  const nextMonth = (day: number) => {
-    const d = new Date(day);
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
-  };
-  const lastMonth = (() => {
-    const d = new Date(periodLastDay);
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-  })();
-  const windowFrom = (() => {
+  const lensFrom = (() => {
     const d = new Date(periodLastDay);
     return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - (D_BUBBLE_MONTHS - 1), 1);
   })();
-  const windowTo = periodLastDay + DAY_MS;
-  const monthName = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
-  const monthWords = new Intl.DateTimeFormat("en-GB", {
+  const isoDate = (day: number) => new Date(day).toISOString().slice(0, 10);
+  const rehearsal = showroomPaceRehearsal(flow.context.project.id, {
+    from: isoDate(lensFrom),
+    to: isoDate(periodLastDay),
+    ...D_BUBBLE_PACE,
+  });
+  const lensDayCount = Math.round((periodLastDay - lensFrom) / DAY_MS) + 1;
+
+  /* The gallery's colour order — the radar's, then anyone it withheld — so an agent wears one colour on every card. */
+  const colourOrder = [...drawn.map((p) => p.id), ...byWorkload.map((r) => r.agentId)].filter(
+    (id, i, all) => all.indexOf(id) === i,
+  );
+  same(
+    "the rehearsal's agents",
+    [...new Set(rehearsal.map((s) => s.agentId))].sort().join(),
+    [...colourOrder].sort().join(),
+  );
+  const lensAgents = colourOrder.map((id) => {
+    const label = nameOf.get(id) ?? refuse(`the name of the agent "${id}"`);
+    return { id, label, short: label.split(" ")[0] ?? label };
+  });
+  const seatOf = new Map(lensAgents.map((a, i) => [a.id, i]));
+
+  const keyOf = new Map(charts.composition.keys.map((k) => [k.id, k]));
+  const labelOf = (id: MeetingOutcome) =>
+    keyOf.get(id)?.label ?? refuse(`the name of the "${id}" outcome`);
+  const lensCount = (id: string) => rehearsal.filter((s) => s.outcome === id).length;
+  const lensOutcomes = Object.entries(D_BUBBLE_DIAMETER)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, diameter]) => ({
+      id,
+      label: labelOf(id as MeetingOutcome),
+      diameter,
+      count: lensCount(id),
+    }));
+  const sizeOf = new Map(lensOutcomes.map((o, i) => [o.id, i]));
+
+  const weekdayName = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+  const monthShort = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
+  const monthLong = new Intl.DateTimeFormat("en-GB", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   });
-  const months: { day: number; label: string }[] = [];
-  for (let day = windowFrom; day < windowTo; day = nextMonth(day)) {
-    months.push({ day, label: monthName.format(new Date(day)) });
+  const longDates = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const clock = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  });
+  const lensDays = Array.from({ length: lensDayCount }, (_, i) => {
+    const d = new Date(lensFrom + i * DAY_MS);
+    return { label: dates.format(d), weekday: weekdayName.format(d), date: d.getUTCDate() };
+  });
+  const lensMonths: { label: string; long: string; first: number; held: number; length: number }[] =
+    [];
+  for (let i = 0; i < lensDayCount;) {
+    const d = new Date(lensFrom + i * DAY_MS);
+    const length = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const held = Math.min(length - d.getUTCDate() + 1, lensDayCount - i);
+    lensMonths.push({
+      label: monthShort.format(d),
+      long: monthLong.format(d),
+      first: i,
+      held,
+      length,
+    });
+    i += held;
   }
-  const dayOf = (s: ShowroomSession) => calendar(new Date(s.startedAt)).day;
-  const windowSessions = sessions.filter((s) => dayOf(s) >= windowFrom && dayOf(s) < windowTo);
-  const inWindow = windowSessions.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
-  /* The placing order is the loader's: the largest first and, within a size, the latest meeting first. */
-  const bubbles: DBubble[] = inWindow
-    .map((s) => {
-      const key = keyOf.get(s.outcome);
-      if (key === undefined) refuse(`the name of the "${s.outcome}" outcome`);
-      const day = dayOf(s);
+
+  const lensDayOf = (s: ShowroomSession) =>
+    Math.round((calendar(new Date(s.startedAt)).day - lensFrom) / DAY_MS);
+  const sized = rehearsal.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
+  const lensMeetings: DLensMeeting[] = sized.map((s) => {
+    const d = lensDayOf(s);
+    if (d < 0 || d >= lensDayCount)
+      refuse(`a rehearsal meeting inside the six months, not ${s.startedAt}`);
+    return {
+      a: seatOf.get(s.agentId) ?? refuse(`the seat of the agent "${s.agentId}"`),
+      d,
+      o: sizeOf.get(s.outcome) ?? refuse(`the size of the "${s.outcome}" outcome`),
+      t: clock.format(new Date(s.startedAt)),
+      u: s.units.filter((u) => u.favourited).map((u) => u.unitCode),
+    };
+  });
+  const unrecordedRehearsed = rehearsal.filter((s) => outcomeIsUnknown(s.outcome)).length;
+  same(
+    "the rehearsal's bubbles, outcome by outcome",
+    lensMeetings.length,
+    lensOutcomes.reduce((sum, o) => sum + o.count, 0),
+  );
+  same(
+    "the rehearsal, drawn and not drawn",
+    rehearsal.length,
+    lensMeetings.length +
+      lensCount("purchase") +
+      lensCount("presentation_only") +
+      unrecordedRehearsed,
+  );
+
+  const lensSpan = longDates.formatRange(new Date(lensFrom), new Date(periodLastDay));
+  const paceWords = `${n(D_BUBBLE_PACE.min)} to ${n(D_BUBBLE_PACE.max)} a day`;
+  const nearestSize = lensOutcomes[0] ?? refuse("the largest outcome the bubble rule sizes");
+  const rehearsedReservations = sized
+    .filter((s) => s.outcome === nearestSize.id)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+  const rehearsalWords = `A rehearsal, not a record: the synthetic model's meetings for ${projectName}'s ${n(lensAgents.length)} agents at ${paceWords} each, every day from ${lensSpan}, through the outcome model the recorded meetings go through. It rehearses how many; it says nothing about any buyer, agent or day.`;
+  const ladderWords = `from the largest: ${list(lensOutcomes.map((o) => `"${o.label}"`))}. The sizes follow the order of the outcome ladder; they are not a computed likelihood. They are set once for the six months, so a bubble means the same in every week.`;
+  const stripWords =
+    "The strip beneath the lens holds the six months, a column per day as tall as its bubbles; drag it, click it or use the arrow keys on it to move the lens. A pointer resting on a bubble reads its meeting, and a click holds it.";
+  const lensNotDrawn = `Not drawn: ${meetings(lensCount("purchase"))} that ended "${labelOf("purchase")}", a deal already closed; and, because the rule gives them no size, ${n(lensCount("presentation_only"))} "${labelOf("presentation_only")}" and ${n(unrecordedRehearsed)} with no outcome recorded.`;
+  const lensFacts = (lead: string, note: string): DFacts => ({
+    lead,
+    note,
+    summary: `A rehearsal at showroom pace, ${lensSpan}: ${meetings(rehearsal.length)}, ${n(lensMeetings.length)} of them drawn as bubbles — ${list(lensOutcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${list(lensAgents.map((a, i) => `${a.label} ${n(lensMeetings.filter((m) => m.a === i).length)}`))}. ${lensNotDrawn}`,
+    figures: [
+      figure(
+        "Rehearsal meetings",
+        n(rehearsal.length),
+        `${n(lensMeetings.length)} drawn; ${paceWords} for each of ${n(lensAgents.length)} agents`,
+      ),
+      figure(
+        "Nearest a purchase",
+        n(nearestSize.count),
+        `ended "${nearestSize.label}": the largest bubbles`,
+      ),
+    ],
+    rankingTitle: "The nearest, latest first",
+    ranking: rehearsedReservations.slice(0, 3).map((s) => {
       const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
       return {
-        at: Date.parse(s.startedAt),
-        bubble: {
-          id: s.meetingId,
-          agentId: s.agentId,
-          day,
-          outcome: s.outcome,
-          diameter: D_BUBBLE_DIAMETER[s.outcome] ?? 0,
-          title: `${key.label} · ${dates.format(new Date(day))} · ${nameOf.get(s.agentId) ?? s.agentId}${
-            shortlisted.length === 0 ? "" : ` · shortlisted ${list(shortlisted)}`
-          }`,
-        },
+        id: s.meetingId,
+        label: `${dates.format(new Date(calendar(new Date(s.startedAt)).day))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
+        value:
+          shortlisted.length === 0
+            ? "none shortlisted"
+            : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
       };
-    })
-    .sort((a, b) => b.bubble.diameter - a.bubble.diameter || b.at - a.at)
-    .map((e) => e.bubble);
-  const sizes = charts.composition.keys.flatMap((k) => {
-    const diameter = D_BUBBLE_DIAMETER[k.id];
-    return diameter === undefined
-      ? []
-      : [
-          {
-            outcome: k.id,
-            label: k.label,
-            diameter,
-            count: bubbles.filter((b) => b.outcome === k.id).length,
-          },
-        ];
+    }),
+    rankingNote: `Rehearsal meetings that ended "${nearestSize.label}", the latest first, with the apartment shortlisted: rehearsed, never held.`,
   });
-  const labelOf = (id: MeetingOutcome) => keyOf.get(id)?.label ?? id;
-  const inWindowAs = (id: MeetingOutcome) => windowSessions.filter((s) => s.outcome === id).length;
-  const unrecordedInWindow = windowSessions.filter((s) => outcomeIsUnknown(s.outcome)).length;
-  const lost = bubbles.filter((b) => b.outcome === "not_interested").length;
-  const sixMonths = `${monthWords.format(new Date(windowFrom))} to ${monthWords.format(new Date(lastMonth))}`;
-  const notDrawn = `Not drawn: ${meetings(inWindowAs("purchase"))} that ended "${labelOf("purchase")}", a deal already closed; and, because the rule gives them no size, ${n(inWindowAs("presentation_only"))} "${labelOf("presentation_only")}" and ${n(unrecordedInWindow)} with no outcome recorded.`;
-  const beforeWindow = sessions.length - windowSessions.length;
-  const outsideWords =
-    beforeWindow === 0
-      ? ""
-      : ` ${meetings(beforeWindow)} ${period} fell before the six months and are not drawn.`;
-  const unreadWords =
-    windowFrom < periodFirstDay
-      ? ` The period opens on ${dates.format(new Date(periodFirstDay))}; nothing before it is read, so its months stand empty.`
-      : "";
-  const reservations = inWindow
-    .filter((s) => s.outcome === "reservation")
-    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
-  const nearest = sizes[0];
-  const bubble: DBubbleCard = {
-    agents: byWorkload.map((r) => ({ id: r.agentId, label: r.name })),
-    bubbles,
-    from: windowFrom,
-    to: windowTo,
-    months,
-    sizes,
-    facts: {
-      lead:
-        nearest === undefined || nearest.count === 0
-          ? undefined
-          : `Of the ${meetings(bubbles.length)} drawn from the last six months, ${n(bubbles.length - lost)} are still open to a purchase and ${n(lost)} ended "${labelOf("not_interested")}". The largest bubbles, the ${meetings(nearest.count)} that ended "${nearest.label}", are the nearest.`,
-      note: `Each bubble is one meeting from the last six months, ${sixMonths}, sized and coloured by the outcome recorded at its end, from the largest: ${list(sizes.map((s) => `"${s.label}"`))}, the last in red. The sizes follow the order of the outcome ladder; they are not a computed likelihood. Across is the day the meeting was held, in the project's own time zone; down is the agent who presented it. A pointer resting on a bubble reads its meeting. ${notDrawn}${outsideWords}${unreadWords}`,
-      summary: `${n(bubbles.length)} bubbles, one per meeting drawn from ${sixMonths}. ${byWorkload
-        .map((r) => {
-          const theirs = sizes
-            .map((s) => ({
-              s,
-              count: bubbles.filter((b) => b.agentId === r.agentId && b.outcome === s.outcome)
-                .length,
-            }))
-            .filter((e) => e.count > 0);
-          return `${r.name}: ${theirs.length === 0 ? "none" : list(theirs.map((e) => `${e.s.label} ${n(e.count)}`))}.`;
-        })
-        .join(" ")}`,
-      figures: [
-        figure(
-          "Meetings drawn",
-          n(bubbles.length),
-          `of ${n(windowSessions.length)} in the last six months; one bubble each`,
-        ),
-        figure(
-          "Nearest a purchase",
-          n(nearest?.count ?? 0),
-          nearest === undefined ? null : `ended "${nearest.label}": the largest bubbles`,
-        ),
-      ],
-      rankingTitle: "The nearest, latest first",
-      ranking: reservations.slice(0, 3).map((s) => {
-        const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
-        return {
-          id: s.meetingId,
-          label: `${dates.format(new Date(dayOf(s)))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
-          value:
-            shortlisted.length === 0
-              ? "none shortlisted"
-              : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
-        };
-      }),
-      rankingNote: `Meetings that ended "${labelOf("reservation")}", the latest first, with the apartment they shortlisted.`,
-    },
+  const bubble: DBubbleLens = {
+    agents: lensAgents,
+    outcomes: lensOutcomes,
+    days: lensDays,
+    months: lensMonths,
+    meetings: lensMeetings,
+    reads: `showroomPaceRehearsal · ${paceWords} per agent · ${projectName} · ${lensSpan}`,
+    outcomeFacts: lensFacts(
+      `A rehearsal at showroom pace: ${meetings(rehearsal.length)} in six months, ${n(lensMeetings.length)} of them drawn, and the largest bubbles, the ${n(nearestSize.count)} that ended "${nearestSize.label}", are the nearest a purchase.`,
+      `${rehearsalWords} Each bubble is one meeting, sized and coloured by the outcome recorded at its end, ${ladderWords} The lens shows seven days, or at a wide window a month: a row per agent, a column per day, and each day's bubbles resting on one another from the largest up. ${stripWords} The keys above the lens hide an outcome or show it again. ${lensNotDrawn}`,
+    ),
+    agentFacts: lensFacts(
+      `The same rehearsal on one canvas: each agent in a colour of their own and each outcome in a size of its own, ${n(lensMeetings.length)} bubbles over six months.`,
+      `${rehearsalWords} Each bubble is one meeting, coloured by the agent who presented it and sized by the outcome recorded at its end, ${ladderWords} The lens shows seven days, or at a wide window a month, on one canvas: a column per day, and every agent's bubbles of that day resting together, the largest at the foot. ${stripWords} The keys above the lens hide an agent or an outcome, or show it again; a pointer resting on an agent's key lifts their bubbles out of the rest. ${lensNotDrawn}`,
+    ),
   };
 
   /* --- when meetings happen: the grid two ways, the dial, the punch card ---------- */

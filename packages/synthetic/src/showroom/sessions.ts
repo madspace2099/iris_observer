@@ -972,6 +972,136 @@ function chooseOutcome(
   return r() > 0.45 ? "presentation_only" : "not_interested";
 }
 
+/**
+ * ONE SESSION, DRAWN FROM WHERE THE GENERATOR STANDS.
+ *
+ * Everything a session holds once its presenter and its start are known: the
+ * order of the presentation, its timing, the apartments, the outcome, the
+ * contact and the rest, read from the random stream in exactly the order it has
+ * always been read. The recorded world and the rehearsal below both draw a
+ * meeting through here, so they draw it the same way.
+ */
+function sessionAt(
+  r: () => number,
+  dataset: ProjectDataset,
+  catalogue: readonly RawUnit[],
+  agent: SyntheticAgent,
+  at: Date,
+  id: { readonly index: number; readonly stem: string; readonly timingUnavailable: boolean },
+): ShowroomSession {
+  const { index, stem, timingUnavailable } = id;
+  const order = buildSequence(r, agent);
+  const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
+
+  const usedCompare = order.includes("compare");
+  const units = buildUnits(r, agent, catalogue, usedCompare);
+
+  const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
+  const coverage = coreReached / CORE_SECTION_IDS.length;
+  const surroundingsIndex = order.indexOf("surroundings");
+  const surroundingsEarly =
+    surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
+  const returned = steps.some((s) => s.isReturn);
+
+  /*
+   * No CRM means no outcome — not a nil one.
+   *
+   * `skipped` is this product's word for "nothing recorded it". Drawing an
+   * outcome for a project with no CRM connected would invent the one fact
+   * that project cannot have, and every progression rate computed from it
+   * would be fiction presented as measurement.
+   */
+  const outcome = dataset.crmConnected
+    ? chooseOutcome(r, agent, {
+        coverage,
+        surroundingsEarly,
+        compared: usedCompare,
+        returned,
+      })
+    : "skipped";
+
+  // Roughly a third of meetings are with a contact Observer already knows.
+  const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
+
+  /*
+   * A returning buyer is a different sales situation.
+   *
+   * Only a contact Observer knows can be counted as returning; a walk-in has
+   * no history to have. Averaging first and third meetings together hides
+   * the thing an agent most wants to see.
+   */
+  const priorMeetings =
+    contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
+
+  const profile = chooseProfile(r);
+
+  /*
+   * The agent's rating of IRIS, 1-5, taken at the end of the session.
+   * MADSPACE only: it is feedback on the software, not on the meeting.
+   * Agents skip it often, and a skipped rating is null rather than a three.
+   */
+  const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
+
+  /*
+   * The remaining draws are taken here rather than inside the record.
+   *
+   * They used to sit in the object literal, which evaluates in source
+   * order and therefore fixed the order of the random stream to the order
+   * of the fields. Lifting them out changes nothing today — the same
+   * three calls in the same sequence — and means the next field added to
+   * a session cannot silently reshuffle every project's dataset by being
+   * declared in the wrong place.
+   */
+  const environment = buildEnvironment(r, order);
+  const filters = buildFilters(r, profile, catalogue);
+  const places = buildPlaces(r, profile, order);
+
+  /*
+   * WHICH SURFACE THE PRESENTATION RAN ON.
+   *
+   * Drawn last, after every other value, so adding it left the three
+   * existing developments byte-identical: their `webirisShare` is zero
+   * and nothing downstream of this call consumes the stream, so no
+   * figure, finding or screenshot on Northgate, Riverside or Kingsford
+   * moved when this was introduced.
+   *
+   * It is a property of the session and not of the project, because the
+   * same project has both — and the measurements are not interchangeable
+   * (see `SESSION_CHANNELS`). Anything that averages across the two must
+   * say it is doing so.
+   */
+  const channel: SessionChannel = r() < dataset.webirisShare ? "webiris" : "showroom";
+
+  /*
+   * Identifiers carry the project.
+   *
+   * `mtg_0004` existed once under all three developments at the same time.
+   * A meeting id has to name exactly one meeting, or a deep link opens
+   * somebody else's presentation.
+   */
+  return {
+    sessionId: `ses_${stem}`,
+    meetingId: `mtg_${stem}`,
+    projectId: dataset.projectId,
+    agentId: agent.id,
+    channel,
+    contactId,
+    startedAt: at.toISOString(),
+    endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
+    durationSeconds,
+    outcome,
+    steps,
+    units,
+    environment,
+    filters,
+    places,
+    screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
+    irisRating,
+    priorMeetings,
+    timingUnavailable,
+  };
+}
+
 /* --- the dataset ----------------------------------------------------------- */
 
 let cache: readonly ShowroomSession[] | null = null;
@@ -1027,121 +1157,133 @@ export function showroomSessions(): readonly ShowroomSession[] {
         );
 
         const timingUnavailable = phase === "previous" && i < dataset.legacyImports;
-        const order = buildSequence(r, agent);
-        const { steps, durationSeconds } = buildSteps(r, agent, order, at, timingUnavailable);
-
-        const usedCompare = order.includes("compare");
-        const units = buildUnits(r, agent, catalogue, usedCompare);
-
-        const coreReached = CORE_SECTION_IDS.filter((id) => order.includes(id)).length;
-        const coverage = coreReached / CORE_SECTION_IDS.length;
-        const surroundingsIndex = order.indexOf("surroundings");
-        const surroundingsEarly =
-          surroundingsIndex >= 0 && surroundingsIndex < Math.ceil(order.length / 3);
-        const returned = steps.some((s) => s.isReturn);
-
-        /*
-         * No CRM means no outcome — not a nil one.
-         *
-         * `skipped` is this product's word for "nothing recorded it". Drawing an
-         * outcome for a project with no CRM connected would invent the one fact
-         * that project cannot have, and every progression rate computed from it
-         * would be fiction presented as measurement.
-         */
-        const outcome = dataset.crmConnected
-          ? chooseOutcome(r, agent, {
-              coverage,
-              surroundingsEarly,
-              compared: usedCompare,
-              returned,
-            })
-          : "skipped";
-
-        // Roughly a third of meetings are with a contact Observer already knows.
-        const contactId = r() < 0.34 ? `con_${String(1000 + (index % 41))}` : null;
-
-        /*
-         * A returning buyer is a different sales situation.
-         *
-         * Only a contact Observer knows can be counted as returning; a walk-in has
-         * no history to have. Averaging first and third meetings together hides
-         * the thing an agent most wants to see.
-         */
-        const priorMeetings =
-          contactId === null ? 0 : r() < 0.42 ? 0 : r() < 0.78 ? 1 : r() < 0.94 ? 2 : 3;
-
-        const profile = chooseProfile(r);
-
-        /*
-         * The agent's rating of IRIS, 1-5, taken at the end of the session.
-         * MADSPACE only: it is feedback on the software, not on the meeting.
-         * Agents skip it often, and a skipped rating is null rather than a three.
-         */
-        const irisRating = r() < 0.31 ? null : Math.min(5, 3 + Math.round((r() - 0.35) * 3));
-
-        /*
-         * The remaining draws are taken here rather than inside the record.
-         *
-         * They used to sit in the object literal, which evaluates in source
-         * order and therefore fixed the order of the random stream to the order
-         * of the fields. Lifting them out changes nothing today — the same
-         * three calls in the same sequence — and means the next field added to
-         * a session cannot silently reshuffle every project's dataset by being
-         * declared in the wrong place.
-         */
-        const environment = buildEnvironment(r, order);
-        const filters = buildFilters(r, profile, catalogue);
-        const places = buildPlaces(r, profile, order);
-
-        /*
-         * WHICH SURFACE THE PRESENTATION RAN ON.
-         *
-         * Drawn last, after every other value, so adding it left the three
-         * existing developments byte-identical: their `webirisShare` is zero
-         * and nothing downstream of this call consumes the stream, so no
-         * figure, finding or screenshot on Northgate, Riverside or Kingsford
-         * moved when this was introduced.
-         *
-         * It is a property of the session and not of the project, because the
-         * same project has both — and the measurements are not interchangeable
-         * (see `SESSION_CHANNELS`). Anything that averages across the two must
-         * say it is doing so.
-         */
-        const channel: SessionChannel = r() < dataset.webirisShare ? "webiris" : "showroom";
-
-        /*
-         * Identifiers carry the project.
-         *
-         * `mtg_0004` existed once under all three developments at the same time.
-         * A meeting id has to name exactly one meeting, or a deep link opens
-         * somebody else's presentation.
-         */
-        sessions.push({
-          sessionId: `ses_${dataset.code}${String(index).padStart(4, "0")}`,
-          meetingId: `mtg_${dataset.code}${String(index).padStart(4, "0")}`,
-          projectId: dataset.projectId,
-          agentId: agent.id,
-          channel,
-          contactId,
-          startedAt: at.toISOString(),
-          endedAt: new Date(at.getTime() + durationSeconds * 1000).toISOString(),
-          durationSeconds,
-          outcome,
-          steps,
-          units,
-          environment,
-          filters,
-          places,
-          screenshots: units.reduce((sum, u) => sum + u.screenshots, 0),
-          irisRating,
-          priorMeetings,
-          timingUnavailable,
-        });
+        sessions.push(
+          sessionAt(r, dataset, catalogue, agent, at, {
+            index,
+            stem: `${dataset.code}${String(index).padStart(4, "0")}`,
+            timingUnavailable,
+          }),
+        );
       }
     }
   }
 
   cache = sessions;
+  return sessions;
+}
+
+/* --- at showroom pace: a rehearsal of volume, never a record --------------- */
+
+/**
+ * How much a rehearsal draws: every presenter on the project's roster, every
+ * day from `from` to `to` inclusive — the project's calendar dates — at least
+ * `min` and at most `max` meetings each.
+ */
+export interface ShowroomPace {
+  readonly from: string;
+  readonly to: string;
+  readonly min: number;
+  readonly max: number;
+}
+
+const REHEARSAL_SALT = 0x5eed9ace;
+/** 09:00 to 18:00 on the project's clock. */
+const WORKING_MINUTES = 9 * 60;
+const rehearsals = new Map<string, readonly ShowroomSession[]>();
+
+/**
+ * AT SHOWROOM PACE — A REHEARSAL OF VOLUME, NEVER A RECORD.
+ *
+ * The recorded world is thin on purpose: a few meetings a week, enough to
+ * carry a pattern. A showroom at full pace runs three to five meetings a day
+ * for every presenter, and a drawing meant for that volume cannot be judged on
+ * a week that holds four. This draws the volume with the same machinery — the
+ * project's own presenters and their tendencies, its catalogue, its clock, and
+ * the outcome model every recorded meeting went through — at a stated pace
+ * over stated days.
+ *
+ * It is not part of the world. `showroomSessions` never returns it, no
+ * repository reads it, and its identifiers carry an `r` after the project's
+ * code, so none can name a recorded meeting. It rehearses how many; it says
+ * nothing about any buyer, any presenter or any day, and a surface that draws
+ * it must say that it is a rehearsal.
+ *
+ * Each presenter's day is its own stream, seeded from the date and the seat,
+ * so the rehearsal is identical on every machine and any span holding a date
+ * draws that date's meetings the same. The day's working hours are cut into
+ * one slot per meeting and each meeting starts early in its own, so a
+ * presenter never holds two at once.
+ */
+export function showroomPaceRehearsal(
+  projectId: string,
+  pace: ShowroomPace,
+): readonly ShowroomSession[] {
+  const key = `${projectId}|${pace.from}|${pace.to}|${pace.min}|${pace.max}`;
+  const known = rehearsals.get(key);
+  if (known !== undefined) return known;
+
+  const dataset = PROJECT_DATASETS.find((d) => d.projectId === projectId);
+  if (dataset === undefined) throw new Error(`No synthetic dataset for "${projectId}".`);
+  if (
+    !Number.isInteger(pace.min) ||
+    !Number.isInteger(pace.max) ||
+    pace.min < 1 ||
+    pace.max < pace.min
+  ) {
+    throw new Error(
+      `A showroom pace runs from a whole number of meetings to no fewer; ${pace.min} to ${pace.max} does not.`,
+    );
+  }
+  const date = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const [, fy, fm, fd] = date.exec(pace.from) ?? [];
+  const [, ty, tm, td] = date.exec(pace.to) ?? [];
+  const first = Date.UTC(Number(fy), Number(fm) - 1, Number(fd));
+  const last = Date.UTC(Number(ty), Number(tm) - 1, Number(td));
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) {
+    throw new Error(
+      `A showroom pace needs two calendar dates in order; "${pace.from}" to "${pace.to}" is not.`,
+    );
+  }
+
+  const catalogue = syntheticCatalogueFor(projectId);
+  const roster = agentsForProject(projectId);
+  const timeZone = PROJECTS.find((p) => p.id === projectId)?.timeZone ?? "UTC";
+  const sessions: ShowroomSession[] = [];
+
+  for (let offset = 0; ; offset += 1) {
+    const day = new Date(first);
+    day.setUTCDate(day.getUTCDate() + offset);
+    if (day.getTime() > last) break;
+    const y = day.getUTCFullYear();
+    const m = day.getUTCMonth() + 1;
+    const d = day.getUTCDate();
+    const ymd = `${y}${String(m).padStart(2, "0")}${String(d).padStart(2, "0")}`;
+    const dayNumber = Math.round(day.getTime() / 86_400_000);
+
+    roster.forEach((agent, seat) => {
+      const r = rng(
+        dataset.seed ^
+          REHEARSAL_SALT ^
+          Math.imul(dayNumber, 2654435761) ^
+          Math.imul(seat + 1, 40503),
+      );
+      const count = pace.min + Math.floor(r() * (pace.max - pace.min + 1));
+      const slot = WORKING_MINUTES / count;
+      for (let k = 0; k < count; k += 1) {
+        const minute = Math.floor(k * slot + r() * slot * 0.25);
+        const at = zonedInstant(y, m, d, 9 + Math.floor(minute / 60), minute % 60, 0, timeZone);
+        sessions.push(
+          sessionAt(r, dataset, catalogue, agent, at, {
+            index: (dayNumber * 8 + seat) * 8 + k,
+            stem: `${dataset.code}r${ymd}${seat}${k}`,
+            timingUnavailable: false,
+          }),
+        );
+      }
+    });
+  }
+
+  rehearsals.set(key, sessions);
   return sessions;
 }
 

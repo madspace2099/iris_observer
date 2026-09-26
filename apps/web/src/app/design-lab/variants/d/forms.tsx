@@ -2,7 +2,6 @@ import type * as React from "react";
 
 import {
   D_QUADRANT_NAME,
-  type DBubbleCard,
   type DDumbbellCard,
   type DJourneyCard,
   type DOutcomeFunnelsCard,
@@ -11,7 +10,6 @@ import {
   type DRadialCard,
   type DScatterCard,
 } from "../../lab-data";
-import { D_SPHERE_RADIUS } from "./defs";
 
 /**
  * VARIANT D'S NEW FORMS, AND THE ONE OLD QUESTION WITH NO FORM OF ITS OWN.
@@ -508,148 +506,6 @@ export function OutcomeFunnels({ data }: { readonly data: DOutcomeFunnelsCard })
         </section>
       ))}
     </div>
-  );
-}
-
-/* --- bubbles: one per meeting still open to a purchase, the kit's spheres -------- */
-
-interface PlacedBubble {
-  readonly bubble: DBubbleCard["bubbles"][number];
-  readonly cx: number;
-  readonly cy: number;
-  readonly r: number;
-}
-
-/**
- * One agent's row. Each bubble sits over the day it happened and moves up or
- * down its row until it no longer covers one already placed, in the order the
- * loader gives — the largest first, so the smaller ones find room round them.
- * Where the row has none left, the bubble keeps the row's line and overlaps.
- * Geometry only: nothing here counts or orders the meetings.
- */
-function placeRow(
-  bubbles: DBubbleCard["bubbles"],
-  x: (day: number) => number,
-  centre: number,
-  rowH: number,
-  scale: number,
-): PlacedBubble[] {
-  const placed: PlacedBubble[] = [];
-  for (const bubble of bubbles) {
-    const r = (bubble.diameter * scale) / 2;
-    const cx = x(bubble.day);
-    const room = Math.max(0, rowH / 2 - r - 1);
-    const clear = (cy: number) =>
-      placed.every((p) => Math.hypot(p.cx - cx, p.cy - cy) >= p.r + r + 1);
-    let cy = centre;
-    for (let step = 0; step <= room; step += 2) {
-      const free = [centre - step, centre + step].find(clear);
-      if (free !== undefined) {
-        cy = free;
-        break;
-      }
-    }
-    placed.push({ bubble, cx, cy, r });
-  }
-  return placed;
-}
-
-/** One of the kit's spheres, scaled from the radius it was drawn at to the one it is given. */
-function Sphere({ outcome, r }: { readonly outcome: string; readonly r: number }) {
-  const drawnAt = D_SPHERE_RADIUS[outcome] ?? r;
-  return <use href={`#dld-sphere-${outcome}`} transform={`scale(${(r / drawnAt).toFixed(4)})`} />;
-}
-
-export function BubbleChart({ data, size }: { readonly data: DBubbleCard; readonly size: DSize }) {
-  const scale = size === "xl" ? 1 : 0.45;
-  const width = size === "xl" ? 1240 : 327;
-  const labelW = size === "xl" ? 150 : 104;
-  const biggest = Math.max(1, ...data.sizes.map((s) => s.diameter)) * scale;
-  /* Room in each row beyond the largest sphere, so the smaller ones can step aside from it. */
-  const rowH = biggest * 1.3;
-  const top = 8;
-  const foot = 30;
-  const height = top + data.agents.length * rowH + foot;
-  const left = labelW + biggest / 2;
-  const right = width - biggest / 2;
-  const x = (day: number) =>
-    left + ((day - data.from) / Math.max(1, data.to - data.from)) * (right - left);
-  const rows = data.agents.map((agent, i) => ({ agent, centre: top + rowH * (i + 0.5) }));
-  const placed = rows.flatMap(({ agent, centre }) =>
-    placeRow(
-      data.bubbles.filter((b) => b.agentId === agent.id),
-      x,
-      centre,
-      rowH,
-      scale,
-    ),
-  );
-
-  return (
-    <svg
-      className="dld-bubbles"
-      viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
-      role="img"
-      aria-label={`${data.bubbles.length} meetings, one bubble each, sized by outcome, by the day they were held and the agent who presented them`}
-    >
-      {data.months.map((m) => (
-        <g key={m.day}>
-          <line
-            className="dld-guide"
-            x1={f(x(m.day))}
-            x2={f(x(m.day))}
-            y1={top}
-            y2={top + data.agents.length * rowH}
-          />
-          <text x={f(x(m.day) + 4)} y={height - 8} className="dld-axis-label">
-            {m.label}
-          </text>
-        </g>
-      ))}
-      {rows.map(({ agent, centre }) => (
-        <g key={agent.id}>
-          <line className="dld-bubble-row" x1={labelW} x2={width} y1={f(centre)} y2={f(centre)} />
-          <text x={0} y={f(centre)} dominantBaseline="middle" className="dld-row-label">
-            {agent.label}
-          </text>
-        </g>
-      ))}
-      {placed.map((p) => (
-        <g key={p.bubble.id} transform={`translate(${f(p.cx)} ${f(p.cy)})`}>
-          <Sphere outcome={p.bubble.outcome} r={p.r} />
-          <title>{p.bubble.title}</title>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-/** Each outcome and how many bubbles it has; the swatch is the sphere itself, small, never below legibility. */
-export function BubbleKey({ data }: { readonly data: DBubbleCard }) {
-  return (
-    <ul className="dld-bubble-key">
-      {data.sizes.map((s) => {
-        const side = Math.max(12, Math.round(s.diameter * 0.3));
-        return (
-          <li key={s.outcome}>
-            <svg
-              className="dld-bubble-swatch"
-              viewBox={`${-side / 2} ${-side / 2} ${side} ${side}`}
-              width={side}
-              height={side}
-              aria-hidden="true"
-              focusable="false"
-            >
-              <Sphere outcome={s.outcome} r={side / 2} />
-            </svg>
-            <span>{s.label}</span>
-            <b>{s.count}</b>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 

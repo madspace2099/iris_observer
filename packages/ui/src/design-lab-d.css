@@ -1616,48 +1616,331 @@
   }
 }
 
-/* --- bubbles: the kit's spheres, one per meeting still open to a purchase --------- */
+/* --- the bubble lens: seven days of spheres over a strip of six months ------------ */
 
 /*
- * The spheres are the kit's, drawn once in `defs.tsx` and placed with `<use>`;
- * nothing here paints them. These are the kit's colours, not OUTCOME_TONE:
- * the review chose them for this chart, and they stay on it.
+ * The spheres are drawn once in `defs.tsx` and placed with `<use>`; nothing here
+ * paints them. The outcome version wears the kit's four spheres, the colours
+ * the review chose for this chart; the agent version wears the same recipe in
+ * each agent's own colour. The controls sit on a floating rail, as every
+ * control in Observer does, and the keys under it are toggles: pressed shows.
  */
-.dld-size .dld-bubbles {
-  margin-inline: auto;
+.dld-lens {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
 }
 
-.dld-root .dld-bubble-row {
-  stroke: var(--d-guide);
-  stroke-width: 1;
-}
-
-.dld-bubble-key {
+.dld-lens-rail {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px 28px;
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
+  justify-self: start;
+  gap: 6px 14px;
+  max-width: 100%;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--d-control);
+  box-shadow: var(--d-elevation-half);
+}
+
+.dld-lens-rail button {
+  appearance: none;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: var(--d-ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.dld-bubble-key li {
-  display: inline-flex;
+.dld-lens-rail button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--d-ink);
+}
+
+.dld-lens-rail button:disabled {
+  color: var(--d-ink-4);
+  cursor: default;
+}
+
+.dld-lens-step {
+  display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 2px;
 }
 
-.dld-bubble-swatch {
-  flex: none;
+.dld-lens-step button {
+  width: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
 }
 
-.dld-bubble-key b {
+.dld-lens-when {
+  margin: 0;
+  min-width: 15ch;
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  text-align: center;
+  color: var(--d-ink);
+}
+
+.dld-lens-span {
+  display: flex;
+  gap: 2px;
+}
+
+.dld-lens-span button[aria-pressed="true"] {
+  background: var(--d-ink);
+  color: var(--d-card);
+}
+
+.dld-lens-count {
+  margin: 0 12px 0 0;
+  font-size: 12px;
+  color: var(--d-ink-3);
+}
+
+.dld-lens-count b {
   font-family: var(--d-font-numeric);
   font-weight: 500;
   color: var(--d-ink);
+}
+
+.dld-lens-keys {
+  display: grid;
+  gap: 8px;
+}
+
+.dld-lens-keys ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-lens-key {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 3px 12px 3px 8px;
+  border: 1px solid var(--d-hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--d-ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    opacity 160ms linear,
+    border-color 160ms linear;
+}
+
+.dld-lens-key:hover {
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+.dld-lens-key b {
+  font-family: var(--d-font-numeric);
+  font-weight: 500;
+  color: var(--d-ink);
+}
+
+.dld-lens-key[aria-pressed="false"] {
+  opacity: 0.4;
+}
+
+.dld-lens-key[aria-pressed="false"] span {
+  text-decoration: line-through;
+}
+
+.dld-lens-swatch {
+  flex: none;
+}
+
+.dld-lens-rail button:focus-visible,
+.dld-lens-key:focus-visible,
+.dld-lens-strip:focus-visible {
+  outline: 2px solid var(--d-accent-2);
+  outline-offset: 2px;
+}
+
+/* The lens. Nothing in it or in the strip is text to select: a drag across them moves the lens. */
+.dld-lens-canvas,
+.dld-lens-strip {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.dld-lens-canvas text {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+  fill: var(--d-ink-4);
+}
+
+.dld-root .dld-lens-canvas .dld-lens-day {
+  text-anchor: middle;
+}
+
+.dld-root .dld-lens-canvas .dld-lens-day tspan:first-child {
+  fill: var(--d-ink-3);
+}
+
+.dld-root .dld-lens-canvas .dld-lens-row {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  text-anchor: end;
+  fill: var(--d-ink-2);
+}
+
+.dld-root .dld-lens-column {
+  stroke: var(--d-guide);
+}
+
+.dld-root .dld-lens-floor {
+  stroke: var(--d-grid);
+}
+
+.dld-lens-future rect {
+  fill: rgb(255 255 255 / 0.025);
+}
+
+.dld-root .dld-lens-canvas .dld-lens-future text {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  fill: var(--d-ink-4);
+}
+
+.dld-lens-bubble {
+  cursor: pointer;
+  transition:
+    transform 380ms var(--d-ease),
+    opacity 220ms linear;
+}
+
+.dld-root .dld-lens-ring {
+  fill: none;
+  stroke: var(--d-ink);
+  stroke-width: 1.5;
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+
+/* While the strip is dragged, the bubbles follow at once: motion would only trail the pointer. */
+.dld-lens[data-scrub="true"] .dld-lens-bubble {
+  transition: none;
+}
+
+.dld-lens-bubble:hover .dld-lens-ring,
+.dld-lens-bubble[data-held="true"] .dld-lens-ring {
+  opacity: 0.9;
+}
+
+/* The strip: the six months, and the lens's place on them. */
+.dld-lens-strip {
+  margin-top: 14px;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.dld-lens-strip:active {
+  cursor: grabbing;
+}
+
+.dld-root .dld-lens-shade {
+  fill: rgb(0 0 0 / 0.6);
+}
+
+.dld-root .dld-lens-window {
+  fill: rgb(255 255 255 / 0.05);
+  stroke: var(--d-ink);
+  stroke-width: 1;
+}
+
+.dld-root .dld-lens-month line {
+  stroke: var(--d-ink-4);
+}
+
+.dld-root .dld-lens-month text {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+  fill: var(--d-ink-3);
+}
+
+/* What a pointer resting on a bubble reads; a click holds it. */
+.dld-lens-tip {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--d-hairline);
+  border-radius: 8px;
+  background: var(--d-ground);
+  box-shadow: var(--d-elevation-half);
+  transform: translate(-50%, calc(-100% - 10px));
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--d-ink-3);
+}
+
+.dld-lens-tip[data-held="true"] {
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+.dld-lens-tip p {
+  margin: 0;
+}
+
+.dld-lens-tip .dld-lens-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.dld-lens-tip-head i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+@container (width < 34rem) {
+  .dld-lens-span {
+    display: none;
+  }
+
+  .dld-lens-rail {
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dld-lens-bubble,
+  .dld-lens-key,
+  .dld-root .dld-lens-ring {
+    transition: none;
+  }
 }
 
 /* --- dumbbell: the group against everyone else ------------------------------------ */

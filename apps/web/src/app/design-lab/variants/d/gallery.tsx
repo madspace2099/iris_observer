@@ -17,8 +17,6 @@ import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-dat
 import { DCard, Sized } from "./card";
 import { DDefs } from "./defs";
 import {
-  BubbleChart,
-  BubbleKey,
   Dumbbell,
   JourneyFunnel,
   OutcomeFunnels,
@@ -29,6 +27,7 @@ import {
   ScatterKey,
   seriesTone,
 } from "./forms";
+import { BubbleLens } from "./bubble-lens";
 
 /**
  * VARIANT D. THE HYPER KIT'S TREATMENT, ON THE PRODUCT'S OWN CHARTS.
@@ -509,18 +508,26 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
 
           <DCard
             id="bubble"
-            group="B · Bubble chart · one bubble per meeting"
+            group="B · Bubble lens · a rehearsal at showroom pace · outcomes in colour"
             title="Which meetings are nearest a purchase"
-            reads={reads("the session slice, by the outcome recorded")}
-            facts={data.bubble.facts}
+            reads={data.bubble.reads}
+            facts={data.bubble.outcomeFacts}
             kind="bloom"
             full
           >
-            <Sized
-              xl={<BubbleChart data={data.bubble} size="xl" />}
-              l={<BubbleChart data={data.bubble} size="l" />}
-            />
-            <BubbleKey data={data.bubble} />
+            <BubbleLens data={data.bubble} version="outcomes" />
+          </DCard>
+
+          <DCard
+            id="bubble-agents"
+            group="B · Bubble lens · a rehearsal at showroom pace · agents in colour"
+            title="Which meetings are nearest a purchase, and whose"
+            reads={data.bubble.reads}
+            facts={data.bubble.agentFacts}
+            kind="bloom"
+            full
+          >
+            <BubbleLens data={data.bubble} version="agents" />
           </DCard>
 
           <DCard
