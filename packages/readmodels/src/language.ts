@@ -92,3 +92,78 @@ export function pluralCategory(language: Language, n: number): Intl.LDMLPluralRu
   if (language === "hu" && Number.isInteger(n) && n >= 2 && n <= 4) return "few";
   return RULES[language].select(n);
 }
+
+/**
+ * THE SLOVAK "Z" OR "ZO" BEFORE A NUMBER.
+ *
+ * Slovak writes "zo" for "z" before a word that begins with s, z, š or ž: "zo
+ * štyroch", but "z troch". Before a number the word that decides is the one
+ * said first, the genitive of the number's largest part. So 24 takes "z",
+ * said "dvadsiatich štyroch", although 4 alone takes "zo".
+ *
+ * This is not a Slovak number-writer and must not become one. It holds only
+ * the words that can lead a number, in the genitive, to read their first
+ * sound. The thousand stands for every larger power as well — tisíc, milión
+ * and miliarda all take "z" — so a count of thousands is led by whatever
+ * leads that count: 4 000 by "štyroch", 24 000 by "dvadsiatich".
+ */
+const SLOVAK_LEADING_GENITIVE: Readonly<Record<number, string>> = {
+  0: "nuly",
+  1: "jedného",
+  2: "dvoch",
+  3: "troch",
+  4: "štyroch",
+  5: "piatich",
+  6: "šiestich",
+  7: "siedmich",
+  8: "ôsmich",
+  9: "deviatich",
+  10: "desiatich",
+  11: "jedenástich",
+  12: "dvanástich",
+  13: "trinástich",
+  14: "štrnástich",
+  15: "pätnástich",
+  16: "šestnástich",
+  17: "sedemnástich",
+  18: "osemnástich",
+  19: "devätnástich",
+  20: "dvadsiatich",
+  30: "tridsiatich",
+  40: "štyridsiatich",
+  50: "päťdesiatich",
+  60: "šesťdesiatich",
+  70: "sedemdesiatich",
+  80: "osemdesiatich",
+  90: "deväťdesiatich",
+  100: "sto",
+  200: "dvesto",
+  300: "tristo",
+  400: "štyristo",
+  500: "päťsto",
+  600: "šesťsto",
+  700: "sedemsto",
+  800: "osemsto",
+  900: "deväťsto",
+  1000: "tisíc",
+};
+
+/** The part of a whole number said first: 24 → 20, 124 → 100, 4 000 → 4, 1 500 → 1 000. */
+function leadingPart(n: number): number {
+  if (n >= 1000) {
+    const thousands = Math.floor(n / 1000);
+    return thousands === 1 ? 1000 : leadingPart(thousands);
+  }
+  if (n >= 100) return Math.floor(n / 100) * 100;
+  if (n >= 20) return Math.floor(n / 10) * 10;
+  return n;
+}
+
+/** "z" or "zo", the form of the Slovak preposition before the number `n`. */
+export function slovakZForm(n: number): "z" | "zo" {
+  if (!Number.isSafeInteger(n) || n < 0) {
+    throw new RangeError(`The Slovak "z" or "zo" is read before a whole number, not before ${n}.`);
+  }
+  const word = SLOVAK_LEADING_GENITIVE[leadingPart(n)] ?? "";
+  return /^[szšž]/.test(word) ? "zo" : "z";
+}
