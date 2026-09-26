@@ -76,8 +76,9 @@ export interface SentenceIn<L extends Language> {
  * the behaviour every table had before there was a fifth cell — from 5 the
  * figure. Where the product writes digits is a grammatical boundary, not a
  * numeric one, and the sentence decides it: in an inflected position Slovak
- * writes five as a word too (piatich, piati), so the Slovak tables take their
- * fifth cell in the round that writes their text.
+ * writes five as a word too (piatich), so the Slovak tables take their fifth
+ * cell in the round that writes their text. A test will require that cell,
+ * not this type: the requirement belongs where the linguistic data lives.
  */
 export type Numerals = readonly [
   one: string,
