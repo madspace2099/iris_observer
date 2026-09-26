@@ -34,6 +34,7 @@ export function DCard({
   facts,
   kind,
   wide = false,
+  full = false,
   children,
 }: {
   readonly id: string;
@@ -43,10 +44,17 @@ export function DCard({
   readonly facts: DFacts;
   readonly kind: DrawKind;
   readonly wide?: boolean;
+  /** The drawing takes the card's whole width at every size, and the facts go under it. */
+  readonly full?: boolean;
   readonly children: ReactNode;
 }) {
   return (
-    <article className="dld-card" id={id} data-wide={wide ? "true" : undefined}>
+    <article
+      className="dld-card"
+      id={id}
+      data-wide={wide || full ? "true" : undefined}
+      data-full={full ? "true" : undefined}
+    >
       {/* The card is the size container; a container cannot restyle itself, so the grid is one level in. */}
       <div className="dld-card-inner">
         <header className="dld-card-head">

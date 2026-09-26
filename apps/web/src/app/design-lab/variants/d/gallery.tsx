@@ -514,7 +514,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             reads={reads("the session slice, by the outcome recorded")}
             facts={data.bubble.facts}
             kind="bloom"
-            wide
+            full
           >
             <Sized
               xl={<BubbleChart data={data.bubble} size="xl" />}

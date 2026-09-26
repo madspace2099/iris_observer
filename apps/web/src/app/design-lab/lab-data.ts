@@ -553,10 +553,13 @@ export interface DOutcomeFunnelsCard {
   readonly facts: DFacts;
 }
 
-/** One meeting still open to a purchase, and how large the rule draws it. */
+/** One meeting still open to a purchase: where it falls, and how large the rule draws it. */
 export interface DBubble {
   readonly id: string;
-  /** The outcome id: it picks the bubble's style, the kit's, keyed in the stylesheet. */
+  readonly agentId: string;
+  /** The project's calendar date of the meeting, as midnight UTC of that date. */
+  readonly day: number;
+  /** The outcome id: it picks the kit's sphere for the bubble. */
   readonly outcome: string;
   /** The rule's size, across, at the XL geometry. */
   readonly diameter: number;
@@ -565,8 +568,14 @@ export interface DBubble {
 }
 
 export interface DBubbleCard {
-  /** In packing order: the largest first and, within a size, the latest meeting first. */
+  /** Rows, busiest agent first, as the punch card orders them. */
+  readonly agents: readonly { readonly id: string; readonly label: string }[];
+  /** In placing order: the largest first and, within a size, the latest meeting first. */
   readonly bubbles: readonly DBubble[];
+  /** The span across: first of the earliest bubble's month to first of the month after the latest. */
+  readonly from: number;
+  readonly to: number;
+  readonly months: readonly { readonly day: number; readonly label: string }[];
   /** The key: each drawn outcome, its size, and how many bubbles it has. */
   readonly sizes: readonly {
     readonly outcome: string;
@@ -1464,19 +1473,22 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     open.length,
     Object.keys(D_BUBBLE_DIAMETER).reduce((a, id) => a + recordedAs(id), 0),
   );
-  /* The packing order is the loader's: the largest first and, within a size, the latest meeting first. */
+  /* The placing order is the loader's: the largest first and, within a size, the latest meeting first. */
   const bubbles: DBubble[] = open
     .map((s) => {
       const key = keyOf.get(s.outcome);
       if (key === undefined) refuse(`the name of the "${s.outcome}" outcome`);
+      const day = calendar(new Date(s.startedAt)).day;
       const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
       return {
         at: Date.parse(s.startedAt),
         bubble: {
           id: s.meetingId,
+          agentId: s.agentId,
+          day,
           outcome: s.outcome,
           diameter: D_BUBBLE_DIAMETER[s.outcome] ?? 0,
-          title: `${key.label} · ${dates.format(new Date(calendar(new Date(s.startedAt)).day))} · ${nameOf.get(s.agentId) ?? s.agentId}${
+          title: `${key.label} · ${dates.format(new Date(day))} · ${nameOf.get(s.agentId) ?? s.agentId}${
             shortlisted.length === 0 ? "" : ` · shortlisted ${list(shortlisted)}`
           }`,
         },
@@ -1484,6 +1496,26 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     })
     .sort((a, b) => b.bubble.diameter - a.bubble.diameter || b.at - a.at)
     .map((e) => e.bubble);
+  /* Across: whole months, from the earliest bubble's to the one after the latest. */
+  const monthOf = (day: number) => {
+    const d = new Date(day);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  };
+  const nextMonth = (day: number) => {
+    const d = new Date(day);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
+  };
+  const bubbleFrom =
+    bubbles.length === 0 ? periodFirstDay : monthOf(Math.min(...bubbles.map((b) => b.day)));
+  const bubbleTo =
+    bubbles.length === 0
+      ? nextMonth(periodLastDay)
+      : nextMonth(Math.max(...bubbles.map((b) => b.day)));
+  const monthName = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
+  const months: { day: number; label: string }[] = [];
+  for (let day = bubbleFrom; day < bubbleTo; day = nextMonth(day)) {
+    months.push({ day, label: monthName.format(new Date(day)) });
+  }
   const sizes = charts.composition.keys.flatMap((k) => {
     const diameter = D_BUBBLE_DIAMETER[k.id];
     return diameter === undefined
@@ -1507,14 +1539,18 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
   const nearest = sizes[0];
   const bubble: DBubbleCard = {
+    agents: byWorkload.map((r) => ({ id: r.agentId, label: r.name })),
     bubbles,
+    from: bubbleFrom,
+    to: bubbleTo,
+    months,
     sizes,
     facts: {
       lead:
         nearest === undefined || nearest.count === 0
           ? undefined
           : `${n(bubbles.length)} of the ${meetings(sessions.length)} ${period} are still open to a purchase by the outcome recorded at their end. The largest bubbles, the ${meetings(nearest.count)} that ended "${nearest.label}", are the nearest.`,
-      note: `Each bubble is one meeting ${period}, sized and coloured by the outcome recorded at its end: ${list(sizes.map((s) => `"${s.label}" ${n(s.diameter)} px across`))} on a wide card, in the same proportion on a narrow one. The sizes follow the order of the outcome ladder; they are not a computed likelihood. The bubbles are packed round the centre, the largest first and, within a size, the latest meeting first: where a bubble sits says nothing, only its size and colour do. A pointer resting on one reads its meeting. ${notDrawn}`,
+      note: `Each bubble is one meeting ${period}, sized and coloured by the outcome recorded at its end: ${list(sizes.map((s) => `"${s.label}" ${n(s.diameter)} px across`))} on a wide card, in the same proportion on a narrow one. The sizes follow the order of the outcome ladder; they are not a computed likelihood. Across is the day the meeting was held, in the project's own time zone; down is the agent who presented it. A pointer resting on a bubble reads its meeting. ${notDrawn}`,
       summary: `${n(bubbles.length)} bubbles, one per meeting still open to a purchase. ${byWorkload
         .map((r) => {
           const theirs = sizes
