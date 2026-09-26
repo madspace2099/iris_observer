@@ -324,24 +324,87 @@ export function askTopApartmentSentence(
   });
 }
 
-/** "2 people presented the 3 presentations in quarter to date." */
-export const ASK_PRESENTERS_SENTENCE: Sentence = {
-  en: {
-    text: "{people} {presented|p} the {count} {presentations|n} in {period}.",
-    words: { presented: ASK_PEOPLE_PRESENTED.en, presentations: ASK_PRESENTATIONS.en },
-  },
-  sk: {
-    text: "{people} {presented|p} v období {period} {count} {presentations|n}.",
-    words: {
-      presented: ASK_PEOPLE_PRESENTED.sk,
-      /* The object: the accusative. */
-      presentations: { one: "prezentáciu", few: "prezentácie", other: "prezentácií" },
+/*
+ * THE THIRD ANSWER: WHO PRESENTED.
+ *
+ * Two independent figures: the presentations, `n`, and the agents who held
+ * them, `p`. One presentation can be held by several agents, and one agent can
+ * hold five. Slovak says both in one sentence with three counted words: the
+ * first clause agrees with the presentations, the second with the agents, and
+ * the second's pronoun, "ju" or "ich", with the presentations again. From five
+ * agents the `other` form runs, "Viedlo ich 5 realitných maklérov", so no
+ * Slovak form of its own is needed for five.
+ *
+ * Hungarian's single form is true only when both figures are one, which no
+ * plural category can see, so `askPresentersSentence` chooses between SINGLE
+ * and GENERAL, as the first two answers' callers choose. English is today's
+ * sentence in both.
+ */
+
+const PRESENTERS_EN: SentenceIn<"en"> = {
+  text: "{people} {presented|p} the {count} {presentations|n} in {period}.",
+  words: { presented: ASK_PEOPLE_PRESENTED.en, presentations: ASK_PRESENTATIONS.en },
+};
+
+const PRESENTERS_SK: SentenceIn<"sk"> = {
+  text: "{held|n} {led|p}",
+  words: {
+    held: {
+      one: "V období {period} sa uskutočnila jedna prezentácia.",
+      few: "V období {period} sa uskutočnili {count} prezentácie.",
+      other: "V období {period} sa uskutočnilo {count} prezentácií.",
     },
+    led: {
+      one: "Viedol {pronoun|n} jeden realitný maklér.",
+      few: "Viedli {pronoun|n} {#presenters|p} realitní makléri.",
+      other: "Viedlo {pronoun|n} {people} realitných maklérov.",
+    },
+    /* The pronoun stands for the presentations, so it agrees with them. */
+    pronoun: { one: "ju", few: "ich", other: "ich" },
   },
+  /*
+   * Read only from the `few` form, 2 to 4 agents: one agent is the `one` form,
+   * and from five the `other` form writes the figure. So neither the first
+   * cell nor a fifth is ever read.
+   */
+  numerals: { presenters: ["", "dvaja", "traja", "štyria"] },
+};
+
+/** `count === 1 && people === 1`. */
+export const ASK_PRESENTERS_SINGLE_SENTENCE: Sentence = {
+  en: PRESENTERS_EN,
+  sk: PRESENTERS_SK,
+  hu: { text: "{Az:period} időszak egyetlen bemutatóját egy ingatlanértékesítő tartotta." },
+};
+
+/** Every other pair. */
+export const ASK_PRESENTERS_GENERAL_SENTENCE: Sentence = {
+  en: PRESENTERS_EN,
+  sk: PRESENTERS_SK,
   hu: {
-    text: "{Az:period} időszak {count} prezentációját {people} ember tartotta.",
+    text: "{Az:period} időszakban {count} bemutatót összesen {people} ingatlanértékesítő tartott.",
   },
 };
+
+/** The third answer: SINGLE or GENERAL, chosen here by the two figures. */
+export function askPresentersSentence(
+  language: Language,
+  locale: string,
+  n: number,
+  people: number,
+  period: string,
+): string {
+  const entry =
+    n === 1 && people === 1 ? ASK_PRESENTERS_SINGLE_SENTENCE : ASK_PRESENTERS_GENERAL_SENTENCE;
+  return sentence(language, entry, {
+    people: count(people, locale),
+    p: people,
+    presenters: count(people, locale),
+    count: count(n, locale),
+    n,
+    period,
+  });
+}
 
 /** "Which sales followed a showing in IRIS?", or null where no CRM is connected. */
 export function assistedSalesAnswer(context: ViewContext): AskAnswer | null {
@@ -466,13 +529,7 @@ export function buildDeliveredAskSession(
     answer:
       presenters.length === 0
         ? `Nobody presented on ${context.project.name} in ${period}.`
-        : sentence(language, ASK_PRESENTERS_SENTENCE, {
-            people: count(presenters.length, locale),
-            p: presenters.length,
-            count: count(n, locale),
-            n,
-            period,
-          }),
+        : askPresentersSentence(language, locale, n, presenters.length, period),
     figures: presenters.slice(0, 3).map((p) => ({
       label: p.name,
       value: `${count(p.meetings, locale)} of ${count(n, locale)}`,

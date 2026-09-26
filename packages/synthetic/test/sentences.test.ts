@@ -11,7 +11,7 @@ import {
 } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import {
-  ASK_PRESENTERS_SENTENCE,
+  askPresentersSentence,
   askRecordedSentence,
   askTopApartmentSentence,
 } from "../src/ask-computed";
@@ -80,26 +80,6 @@ const counted = (n: number) => ({ count: count(n, "en-GB"), n });
 const DAY_WORDS: Readonly<Record<Language, string>> = { en: "2 days", sk: "2 dni", hu: "2 nap" };
 
 const CASES: readonly Case[] = [
-  {
-    name: "ask-computed.ts: who presented",
-    entry: ASK_PRESENTERS_SENTENCE,
-    values: (n) => ({ ...counted(n), people: count(n, "en-GB"), p: n, period: "quarter to date" }),
-    en: [
-      "1 person presented the 1 presentation in quarter to date.",
-      "3 people presented the 3 presentations in quarter to date.",
-      "5 people presented the 5 presentations in quarter to date.",
-    ],
-    sk: [
-      "1 človek prezentoval v období quarter to date 1 prezentáciu.",
-      "3 ľudia prezentovali v období quarter to date 3 prezentácie.",
-      "5 ľudí prezentovalo v období quarter to date 5 prezentácií.",
-    ],
-    hu: [
-      "A quarter to date időszak 1 prezentációját 1 ember tartotta.",
-      "A quarter to date időszak 3 prezentációját 3 ember tartotta.",
-      "A quarter to date időszak 5 prezentációját 5 ember tartotta.",
-    ],
-  },
   {
     name: "deals.ts: open deals with no stage date",
     entry: DEAL_UNDATED_SENTENCE,
@@ -757,6 +737,59 @@ describe("the sites write through their sentences", () => {
  * Where Slovak writes five as a word, the table must carry it: the fifth cell
  * is optional in the type, so this test is what requires it, beside the data.
  */
+describe("ask-computed.ts: who presented, by two independent figures", () => {
+  const PAIRS = [
+    [1, 1],
+    [1, 2],
+    [3, 1],
+    [3, 3],
+    [5, 5],
+    [9, 1],
+    [9, 2],
+    [12, 7],
+  ] as const;
+  const expected: Readonly<Record<Language, readonly string[]>> = {
+    en: [
+      "1 person presented the 1 presentation in quarter to date.",
+      "2 people presented the 1 presentation in quarter to date.",
+      "1 person presented the 3 presentations in quarter to date.",
+      "3 people presented the 3 presentations in quarter to date.",
+      "5 people presented the 5 presentations in quarter to date.",
+      "1 person presented the 9 presentations in quarter to date.",
+      "2 people presented the 9 presentations in quarter to date.",
+      "7 people presented the 12 presentations in quarter to date.",
+    ],
+    sk: [
+      "V období quarter to date sa uskutočnila jedna prezentácia. Viedol ju jeden realitný maklér.",
+      "V období quarter to date sa uskutočnila jedna prezentácia. Viedli ju dvaja realitní makléri.",
+      "V období quarter to date sa uskutočnili 3 prezentácie. Viedol ich jeden realitný maklér.",
+      "V období quarter to date sa uskutočnili 3 prezentácie. Viedli ich traja realitní makléri.",
+      "V období quarter to date sa uskutočnilo 5 prezentácií. Viedlo ich 5 realitných maklérov.",
+      "V období quarter to date sa uskutočnilo 9 prezentácií. Viedol ich jeden realitný maklér.",
+      "V období quarter to date sa uskutočnilo 9 prezentácií. Viedli ich dvaja realitní makléri.",
+      "V období quarter to date sa uskutočnilo 12 prezentácií. Viedlo ich 7 realitných maklérov.",
+    ],
+    hu: [
+      "A quarter to date időszak egyetlen bemutatóját egy ingatlanértékesítő tartotta.",
+      "A quarter to date időszakban 1 bemutatót összesen 2 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 3 bemutatót összesen 1 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 3 bemutatót összesen 3 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 5 bemutatót összesen 5 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 9 bemutatót összesen 1 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 9 bemutatót összesen 2 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 12 bemutatót összesen 7 ingatlanértékesítő tartott.",
+    ],
+  };
+
+  it.each([...LANGUAGES])("%s: at every presentations / agents pair", (language) => {
+    expect(
+      PAIRS.map(([n, people]) =>
+        askPresentersSentence(language, "en-GB", n, people, "quarter to date"),
+      ),
+    ).toEqual(expected[language]);
+  });
+});
+
 describe("ask-computed.ts: the apartment opened most, on codes whose suffix is not -es", () => {
   it("hu: the suffix is read from the code's number", () => {
     expect(
@@ -772,7 +805,7 @@ describe("ask-computed.ts: the apartment opened most, on codes whose suffix is n
 });
 
 describe("ask-computed.ts: the Slovak numeral tables", () => {
-  it("each carry a fifth cell, and it is piatich", () => {
+  it("carry piatich in the fifth cell wherever five is read from them", () => {
     const tables = Object.entries(ask).flatMap(([name, value]) => {
       const sk = (value as Partial<Sentence>).sk;
       return typeof value === "object" && sk?.numerals !== undefined
@@ -784,6 +817,9 @@ describe("ask-computed.ts: the Slovak numeral tables", () => {
       ["ASK_TOP_APARTMENT_SOME_SENTENCE.openedWord", "piatich"],
       ["ASK_TOP_APARTMENT_SOME_SENTENCE.countWord", "piatich"],
       ["ASK_TOP_APARTMENT_ALL_SENTENCE.allCount", "piatich"],
+      // Read only for 2 to 4 agents: five agents take the `other` form, a figure.
+      ["ASK_PRESENTERS_SINGLE_SENTENCE.presenters", undefined],
+      ["ASK_PRESENTERS_GENERAL_SENTENCE.presenters", undefined],
     ]);
   });
 });
