@@ -3,6 +3,7 @@ import { DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
 import {
   plural,
   sentence,
+  slovakZForm,
   type AskAnswer,
   type AskSession,
   type Language,
@@ -225,11 +226,15 @@ const DIFFERENT_APARTMENTS_SK: PluralForms["sk"] = {
   other: "rôznych bytov",
 };
 
-/** `opened < count`. */
+/**
+ * `opened < count`. In Slovak the preposition before the count is "z" or
+ * "zo", as the count is said: `slovakZForm` reads it and the caller passes
+ * it as `fromWord` — "z piatich", "zo štyroch", "zo 7".
+ */
 export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
   en: TOP_APARTMENT_EN,
   sk: {
-    text: "Byt {top} otvorili na {#openedWord|o} z {#countWord|n} prezentácií v období {period}. Celkovo otvorili {apartments} {different|m}.",
+    text: "Byt {top} otvorili na {#openedWord|o} {fromWord} {#countWord|n} prezentácií v období {period}. Celkovo otvorili {apartments} {different|m}.",
     words: { different: DIFFERENT_APARTMENTS_SK },
     numerals: {
       openedWord: ["jednej", "dvoch", "troch", "štyroch", "piatich"],
@@ -308,6 +313,7 @@ export function askTopApartmentSentence(
     o: opened,
     count: count(n, locale),
     countWord: count(n, locale),
+    fromWord: slovakZForm(n),
     allCount: count(n, locale),
     allWord: count(n, locale),
     n,
