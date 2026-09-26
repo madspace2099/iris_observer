@@ -229,7 +229,7 @@ export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
     },
   },
   hu: {
-    text: "{Az:period} időszak {count} bemutatója közül {opened} bemutatón megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+    text: "{Az:period} időszak {count} bemutatója közül {opened} bemutatón megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
   },
 };
 
@@ -267,10 +267,10 @@ export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
     text: "{all|n}",
     words: {
       all: {
-        one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top}-es lakást. {single|m}",
-        few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+        one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top-s} lakást. {single|m}",
+        few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
         other:
-          "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+          "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
       },
       single: {
         one: "Ez volt az egyetlen lakás, amelyet megnyitottak.",

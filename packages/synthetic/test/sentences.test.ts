@@ -745,6 +745,20 @@ describe("the sites write through their sentences", () => {
  * Where Slovak writes five as a word, the table must carry it: the fifth cell
  * is optional in the type, so this test is what requires it, beside the data.
  */
+describe("ask-computed.ts: the apartment opened most, on codes whose suffix is not -es", () => {
+  it("hu: the suffix is read from the code's number", () => {
+    expect(
+      ["A-103", "A-105", "A-106"].map((top) =>
+        askTopApartmentSentence("hu", "en-GB", 5, top, 2, 7, "quarter to date"),
+      ),
+    ).toEqual([
+      "A quarter to date időszak 5 bemutatója közül 2 bemutatón megnyitották az A-103-as lakást. Összesen 7 különböző lakást nyitottak meg.",
+      "A quarter to date időszak 5 bemutatója közül 2 bemutatón megnyitották az A-105-ös lakást. Összesen 7 különböző lakást nyitottak meg.",
+      "A quarter to date időszak 5 bemutatója közül 2 bemutatón megnyitották az A-106-os lakást. Összesen 7 különböző lakást nyitottak meg.",
+    ]);
+  });
+});
+
 describe("ask-computed.ts: the Slovak numeral tables", () => {
   it("each carry a fifth cell, and it is piatich", () => {
     const tables = Object.entries(ask).flatMap(([name, value]) => {
