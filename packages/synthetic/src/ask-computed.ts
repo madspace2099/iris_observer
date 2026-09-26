@@ -220,6 +220,12 @@ const TOP_APARTMENT_EN: SentenceIn<"en"> = {
   words: { presentations: ASK_PRESENTATIONS.en, different: ASK_APARTMENTS_OPENED.en },
 };
 
+/* One apartment is not "different": "Összesen 1 lakást nyitottak meg." */
+const TOTAL_APARTMENTS_HU: PluralForms["hu"] = {
+  one: "Összesen {apartments} lakást nyitottak meg.",
+  other: "Összesen {apartments} különböző lakást nyitottak meg.",
+};
+
 const DIFFERENT_APARTMENTS_SK: PluralForms["sk"] = {
   /* One apartment: "Celkovo otvorili 1 byt", not "1 rôzny byt". */
   one: "byt",
@@ -243,7 +249,8 @@ export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
     },
   },
   hu: {
-    text: "{Az:period} időszak {count} bemutatója közül {opened} bemutatón megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+    text: "{Az:period} időszak {count} bemutatója közül {opened} bemutatón megnyitották {az:top-s} lakást. {total|m}",
+    words: { total: TOTAL_APARTMENTS_HU },
   },
 };
 
@@ -282,14 +289,15 @@ export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
     words: {
       all: {
         one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top-s} lakást. {single|m}",
-        few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+        few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top-s} lakást. {total|m}",
         other:
-          "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top-s} lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+          "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top-s} lakást. {total|m}",
       },
       single: {
         one: "Ez volt az egyetlen lakás, amelyet megnyitottak.",
-        other: "Összesen {apartments} különböző lakást nyitottak meg.",
+        other: "{total|m}",
       },
+      total: TOTAL_APARTMENTS_HU,
     },
     /* The first cell is never read: at 1 the `one` form runs. Attributive, as a noun follows. */
     numerals: { allWord: ["", "mindkét", "mindhárom", "mindegyik"] },

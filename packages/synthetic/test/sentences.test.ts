@@ -612,7 +612,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A quarter to date időszak 9 bemutatója közül 5 bemutatón megnyitották az A-101-es lakást. Összesen 12 különböző lakást nyitottak meg.",
       "A quarter to date időszak 4 bemutatója közül 2 bemutatón megnyitották az A-101-es lakást. Összesen 5 különböző lakást nyitottak meg.",
       "A quarter to date időszak 7 bemutatója közül 3 bemutatón megnyitották az A-101-es lakást. Összesen 4 különböző lakást nyitottak meg.",
-      "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 1 különböző lakást nyitottak meg.",
+      "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 1 lakást nyitottak meg.",
     ],
   };
 
