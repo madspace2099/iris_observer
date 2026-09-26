@@ -20,6 +20,7 @@ import type {
 import {
   ATTENTION_KIND_DEFINITIONS,
   sentence,
+  slovakZForm,
   type PluralForms,
   type Sentence,
 } from "@observer/readmodels";
@@ -87,32 +88,62 @@ export const ATTENTION_FALLING_SENTENCE: Sentence = {
     words: { units: ATTENTION_UNITS.en },
   },
   sk: {
-    text: "{count} {units|n} {drew|n} výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+    text: "{falling|n}",
     words: {
-      units: ATTENTION_UNITS.sk,
-      drew: { one: "pritiahla", few: "pritiahli", other: "pritiahlo" },
+      falling: {
+        one: "Jeden byt mal výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+        few: "{#units|n} byty mali výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+        other:
+          "{#units|n} bytov malo výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+      },
     },
+    /* Capitalised: the numeral starts the sentence. */
+    numerals: { units: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
   },
   hu: {
-    text: "{count} egység lényegesen kevesebb megtekintést kapott, mint az összehasonlító időszakban ({baseline}).",
+    text: "{falling|n}",
+    words: {
+      falling: {
+        one: "Egy lakást jóval kevesebbszer néztek meg, mint az összehasonlító időszakban ({baseline}).",
+        other:
+          "{#units|n} lakást jóval kevesebbszer néztek meg, mint az összehasonlító időszakban ({baseline}).",
+      },
+    },
+    numerals: { units: ["Egy", "Két", "Három", "Négy", "Öt"] },
   },
 };
 
 /** "3 connected sources have sent nothing for more than 72 hours." */
 export const ATTENTION_SILENT_SENTENCE: Sentence = {
   en: {
-    text: "{count} {silent|n} for more than {hours} {hoursWord|hours}.",
+    text: "{count} {silent|n} for more than {hours} {hoursWord|h}.",
     words: { silent: ATTENTION_SOURCES_SILENT.en, hoursWord: { one: "hour", other: "hours" } },
   },
   sk: {
-    text: "{count} {silent|n} už viac ako {hours} {hoursWord|hours}.",
+    text: "{silent|n}",
     words: {
-      silent: ATTENTION_SOURCES_SILENT.sk,
-      /* After "viac ako": the accusative. */
+      silent: {
+        one: "Jeden pripojený zdroj už viac ako {hours} {hoursWord|h} neposlal žiadne údaje.",
+        few: "{#sources|n} pripojené zdroje už viac ako {hours} {hoursWord|h} neposlali žiadne údaje.",
+        other:
+          "{#sources|n} pripojených zdrojov už viac ako {hours} {hoursWord|h} neposlalo žiadne údaje.",
+      },
+      /* After "viac ako": the accusative. 72 takes `other`, "72 hodín". */
       hoursWord: { one: "hodinu", few: "hodiny", other: "hodín" },
     },
+    numerals: { sources: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
   },
-  hu: { text: "{count} csatlakoztatott forrás nem küldött semmit több mint {hours} órája." },
+  hu: {
+    text: "{silent|n}",
+    words: {
+      silent: {
+        one: "Egy csatlakoztatott adatforrás már több mint {hours} órája nem küldött adatot.",
+        other:
+          "{#sources|n} csatlakoztatott adatforrás már több mint {hours} órája nem küldött adatot.",
+      },
+    },
+    numerals: { sources: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
 };
 
 /** "3 sources are listed on this project and have never reported." */
@@ -122,14 +153,28 @@ export const ATTENTION_NEVER_REPORTED_SENTENCE: Sentence = {
     words: { listed: ATTENTION_SOURCES_LISTED.en, never: ATTENTION_NEVER_REPORTED.en },
   },
   sk: {
-    text: "{count} {listed|n} na tomto projekte a {never|n}.",
+    text: "{reported|n}",
     words: {
-      listed: ATTENTION_SOURCES_LISTED.sk,
-      /* After "a" the clitic follows the first stressed word: "a nikdy sa neozvali". */
-      never: { one: "nikdy sa neozval", few: "nikdy sa neozvali", other: "nikdy sa neozvalo" },
+      reported: {
+        one: "Jeden zdroj priradený k tomuto projektu ešte nikdy neposlal údaje.",
+        few: "{#sources|n} zdroje priradené k tomuto projektu ešte nikdy neposlali údaje.",
+        other: "{#sources|n} zdrojov priradených k tomuto projektu ešte nikdy neposlalo údaje.",
+      },
     },
+    numerals: { sources: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
   },
-  hu: { text: "{count} forrás szerepel ezen a projekten, és soha nem jelentkezett." },
+  hu: {
+    text: "{reported|n}",
+    words: {
+      reported: {
+        one: "Az ehhez a projekthez rendelt adatforrások közül egy még soha nem küldött adatot.",
+        other:
+          "Az ehhez a projekthez rendelt adatforrások közül {#sources|n} még soha nem küldött adatot.",
+      },
+    },
+    /* Lower case: the numeral does not start the sentence. */
+    numerals: { sources: ["egy", "két", "három", "négy", "öt"] },
+  },
 };
 
 /** "3 units with at least 10 observations were never shortlisted in this period." */
@@ -139,11 +184,29 @@ export const ATTENTION_NEVER_SHORTLISTED_SENTENCE: Sentence = {
     words: { units: ATTENTION_UNITS.en, never: ATTENTION_NEVER_SHORTLISTED.en },
   },
   sk: {
-    text: "{count} {units|n} s aspoň {minimum} pozorovaniami {never|n} v tomto období.",
-    words: { units: ATTENTION_UNITS.sk, never: ATTENTION_NEVER_SHORTLISTED.sk },
+    text: "{never|n}",
+    words: {
+      never: {
+        one: "Jeden byt otvorili aspoň {minimum}-krát, no v tomto období sa ani raz nedostal do zoznamu obľúbených.",
+        few: "Každý {fromWord} {#units|n} bytov bol otvorený aspoň {minimum}-krát, no v tomto období sa ani jeden nedostal do zoznamu obľúbených.",
+        other:
+          "Každý {fromWord} {#units|n} bytov bol otvorený aspoň {minimum}-krát, no v tomto období sa ani jeden nedostal do zoznamu obľúbených.",
+      },
+    },
+    /* The first cell is never read: one unit is the `one` form. "z" or "zo" is `fromWord`, from `slovakZForm`. */
+    numerals: { units: ["", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
-    text: "{count} egység, amelyről legalább {minimum} megfigyelés van, soha nem került kiválasztásra ebben az időszakban.",
+    text: "{never|n}",
+    words: {
+      never: {
+        one: "Egy lakást legalább {minimum} alkalommal megnyitottak, de ebben az időszakban egyszer sem került fel a Kedvencek listára.",
+        other:
+          "{#units|n} lakás mindegyikét legalább {minimum} alkalommal megnyitották, de ebben az időszakban egyik sem került fel a Kedvencek listára.",
+      },
+    },
+    /* The first cell is never read. */
+    numerals: { units: ["", "Két", "Három", "Négy", "Öt"] },
   },
 };
 
@@ -333,6 +396,7 @@ export function buildAttention(
         title: "Attention falling on units that used to draw it",
         detail: sentence(language, ATTENTION_FALLING_SENTENCE, {
           count: count(falling.length, locale),
+          units: count(falling.length, locale),
           n: falling.length,
           baseline: context.period.baselineLabel,
         }),
@@ -469,11 +533,14 @@ export function buildAttention(
         quiet.length > 0
           ? sentence(language, ATTENTION_SILENT_SENTENCE, {
               count: count(quiet.length, locale),
+              sources: count(quiet.length, locale),
               n: quiet.length,
-              hours: QUIET_AFTER_HOURS,
+              hours: count(QUIET_AFTER_HOURS, locale),
+              h: QUIET_AFTER_HOURS,
             })
           : sentence(language, ATTENTION_NEVER_REPORTED_SENTENCE, {
               count: count(neverSeen.length, locale),
+              sources: count(neverSeen.length, locale),
               n: neverSeen.length,
             }),
       subjects: [...quiet, ...neverSeen].map((s) => ({
@@ -544,8 +611,10 @@ export function buildAttention(
         title: "Opened repeatedly, never shortlisted",
         detail: sentence(language, ATTENTION_NEVER_SHORTLISTED_SENTENCE, {
           count: count(never.length, locale),
+          units: count(never.length, locale),
           n: never.length,
-          minimum: UNIT_MIN_SAMPLE,
+          fromWord: slovakZForm(never.length),
+          minimum: count(UNIT_MIN_SAMPLE, locale),
         }),
         subjects: never.slice(0, 5).map((u) => ({
           id: u.code,
