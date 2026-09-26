@@ -162,17 +162,29 @@ export const DEAL_UNDATED_SENTENCE: Sentence = {
     words: { deals: DEAL_OPEN_DEALS.en, carry: { one: "carries", other: "carry" } },
   },
   sk: {
-    text: "{count} {deals|count} {rest|count}.",
+    text: "{undated|count}",
     words: {
-      deals: DEAL_OPEN_DEALS.sk,
-      rest: {
-        one: "nemá dátum fázy a nedá sa zaradiť",
-        few: "nemajú dátum fázy a nedajú sa zaradiť",
-        other: "nemá dátum fázy a nedá sa zaradiť",
+      undated: {
+        one: "Pri jednom otvorenom obchode chýba dátum fázy predaja, preto ho nemožno časovo zaradiť.",
+        few: "Pri {#deals|count} otvorených obchodoch chýba dátum fázy predaja, preto ich nemožno časovo zaradiť.",
+        other:
+          "Pri {#deals|count} otvorených obchodoch chýba dátum fázy predaja, preto ich nemožno časovo zaradiť.",
       },
     },
+    numerals: { deals: ["jednom", "dvoch", "troch", "štyroch", "piatich"] },
   },
-  hu: { text: "{count} nyitott ügyletnek nincs szakaszdátuma, ezért nem helyezhető el." },
+  hu: {
+    text: "{undated|count}",
+    words: {
+      undated: {
+        one: "Egy nyitott ügyletnél hiányzik az értékesítési szakasz dátuma, ezért nem lehet időrendbe helyezni.",
+        other:
+          "{#deals|count} nyitott ügyletnél hiányzik az értékesítési szakasz dátuma, ezért ezeket nem lehet időrendbe helyezni.",
+      },
+    },
+    /* Capitalised: the numeral starts the sentence. */
+    numerals: { deals: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
 };
 
 /** "Stated by the demonstration CRM: 3 deals as they stand now." */
@@ -182,10 +194,16 @@ export const DEAL_STATED_SENTENCE: Sentence = {
     words: { deals: DEAL_DEALS.en, stand: { one: "as it stands", other: "as they stand" } },
   },
   sk: {
-    text: "Podľa zdroja {connector}: {count} {deals|count} v aktuálnom stave.",
-    words: { deals: DEAL_DEALS.sk },
+    text: "{stated|count}",
+    words: {
+      stated: {
+        one: "Aktuálne je evidovaný {count} obchod. Zdroj: {connector}.",
+        few: "Aktuálne sú evidované {count} obchody. Zdroj: {connector}.",
+        other: "Aktuálne je evidovaných {count} obchodov. Zdroj: {connector}.",
+      },
+    },
   },
-  hu: { text: "{count} ügylet a jelenlegi állapotában; forrás: {connector}." },
+  hu: { text: "Jelenleg {count} ügylet szerepel. Forrás: {connector}." },
 };
 
 /** "2 deals carry a stage word not mapped yet and sit on no rung." */
@@ -201,18 +219,27 @@ export const DEAL_UNMAPPED_SENTENCE: Sentence = {
     },
   },
   sk: {
-    text: "{count} {deals|count} {rest|count}.",
+    text: "{unmapped|count}",
     words: {
-      deals: DEAL_DEALS.sk,
-      rest: {
-        one: "má názov fázy, ktorý ešte nie je priradený, a nestojí na žiadnom stupni",
-        few: "majú názov fázy, ktorý ešte nie je priradený, a nestoja na žiadnom stupni",
-        other: "má názov fázy, ktorý ešte nie je priradený, a nestojí na žiadnom stupni",
+      unmapped: {
+        one: "Pri jednom obchode názov fázy zatiaľ nie je priradený k žiadnemu kroku predajného procesu, preto ho nemožno zaradiť.",
+        few: "Pri {#deals|count} obchodoch názov fázy zatiaľ nie je priradený k žiadnemu kroku predajného procesu, preto ich nemožno zaradiť.",
+        other:
+          "Pri {#deals|count} obchodoch názov fázy zatiaľ nie je priradený k žiadnemu kroku predajného procesu, preto ich nemožno zaradiť.",
       },
     },
+    numerals: { deals: ["jednom", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
-    text: "{count} ügylet olyan szakasznevet visel, amely még nincs hozzárendelve, ezért egyik fokon sem áll.",
+    text: "{unmapped|count}",
+    words: {
+      unmapped: {
+        one: "Egy ügyletnél a megadott szakasznév még nincs az értékesítési folyamat egyik lépéséhez sem rendelve, ezért az ügyletet nem lehet besorolni.",
+        other:
+          "{#deals|count} ügyletnél a megadott szakasznév még nincs az értékesítési folyamat egyik lépéséhez sem rendelve, ezért ezeket nem lehet besorolni.",
+      },
+    },
+    numerals: { deals: ["Egy", "Két", "Három", "Négy", "Öt"] },
   },
 };
 
@@ -234,23 +261,68 @@ export const DEAL_SALES_NEEDED_SENTENCE: Sentence = {
     words: { needed: DEAL_SALES_NEEDED.en },
   },
   sk: {
-    text: "{count} {needed|count}, kým sa uvedie podiel.",
-    words: { needed: DEAL_SALES_NEEDED.sk },
+    text: "{needed|count}",
+    words: {
+      needed: {
+        one: "Aby sme mohli uviesť podiel, potrebujeme ešte jeden predaj s uvedeným dátumom predaja.",
+        few: "Aby sme mohli uviesť podiel, potrebujeme ešte {#sales|count} predaje s uvedeným dátumom predaja.",
+        other:
+          "Aby sme mohli uviesť podiel, potrebujeme ešte {#sales|count} predajov s uvedeným dátumom predaja.",
+      },
+    },
+    /* The nominative: "potrebujeme" takes an object, and an inanimate masculine's object is its nominative. */
+    numerals: { sales: ["jeden", "dva", "tri", "štyri", "päť"] },
   },
-  hu: { text: "{count} további datált eladás szükséges, mielőtt részarányt közölnénk." },
+  hu: {
+    text: "{needed|count}",
+    words: {
+      needed: {
+        one: "Az arány megadásához még egy olyan eladás kell, amelynél az eladás dátuma is szerepel.",
+        other:
+          "Az arány megadásához még {#sales|count} olyan eladás kell, amelyeknél az eladás dátuma is szerepel.",
+      },
+    },
+    numerals: { sales: ["egy", "két", "három", "négy", "öt"] },
+  },
 };
 
-/** "2 more were shown earlier than that, a median of 3 days before the date." */
+/*
+ * "2 more were shown earlier than that, a median of 3 days before the date."
+ *
+ * Two independent figures: the sales shown earlier, `count`, and the median
+ * lag in whole days, `median`, which Slovak counts in its own right. With one
+ * sale the sentence is one clause; with more it is two, and only then is the
+ * median named. English reads the median already written, `medianDays`.
+ */
 export const DEAL_SHOWN_EARLIER_SENTENCE: Sentence = {
   en: {
-    text: "{count} {shown|count} than that, a median of {median} before the date.",
+    text: "{count} {shown|count} than that, a median of {medianDays} before the date.",
     words: { shown: DEAL_SHOWN_EARLIER.en },
   },
   sk: {
-    text: "{count} {shown|count}, v mediáne {median} pred dátumom.",
-    words: { shown: DEAL_SHOWN_EARLIER.sk },
+    text: "{shown|count}",
+    words: {
+      shown: {
+        one: "Pri jednom ďalšom predaji ukázali byt už pred sledovaným obdobím, {median} {days|median} pred dátumom predaja.",
+        few: "Pri ďalších {#sales|count} predajoch ukázali byty už pred sledovaným obdobím. Medián odstupu od dátumu predaja bol {median} {days|median}.",
+        other:
+          "Pri ďalších {#sales|count} predajoch ukázali byty už pred sledovaným obdobím. Medián odstupu od dátumu predaja bol {median} {days|median}.",
+      },
+      days: { one: "deň", few: "dni", other: "dní" },
+    },
+    numerals: { sales: ["jednom", "dvoch", "troch", "štyroch", "piatich"] },
   },
-  hu: { text: "{count} további korábban lett megmutatva; a medián {median} volt a dátum előtt." },
+  hu: {
+    text: "{shown|count}",
+    words: {
+      shown: {
+        one: "Egy további eladásnál a lakást már a vizsgált időszak előtt bemutatták, {median} nappal az eladás dátuma előtt.",
+        other:
+          "{#sales|count} további eladásnál a lakást már a vizsgált időszak előtt bemutatták. A bemutatás mediánban {median} nappal előzte meg az eladás dátumát.",
+      },
+    },
+    numerals: { sales: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
 };
 
 /** "2 were not opened in IRIS before the date at all." */
@@ -260,10 +332,28 @@ export const DEAL_NOT_OPENED_SENTENCE: Sentence = {
     words: { notOpened: DEAL_NOT_OPENED.en },
   },
   sk: {
-    text: "{count} vôbec {notOpened|count} v IRIS pred dátumom.",
-    words: { notOpened: DEAL_NOT_OPENED.sk },
+    text: "{notOpened|count}",
+    words: {
+      notOpened: {
+        one: "Jeden predaný byt pred dátumom predaja v IRIS ani raz neotvorili.",
+        few: "{#units|count} predané byty pred dátumom predaja v IRIS ani raz neotvorili.",
+        other: "{#units|count} predaných bytov pred dátumom predaja v IRIS ani raz neotvorili.",
+      },
+    },
+    /* Capitalised: the numeral starts the sentence. */
+    numerals: { units: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
   },
-  hu: { text: "{count} egyáltalán nem lett megnyitva az IRIS-ben a dátum előtt." },
+  hu: {
+    text: "{notOpened|count}",
+    words: {
+      notOpened: {
+        one: "Egy eladott lakást az eladás dátuma előtt egyszer sem nyitottak meg az IRIS-ben.",
+        other:
+          "{#units|count} eladott lakást az eladásuk dátuma előtt egyszer sem nyitottak meg az IRIS-ben.",
+      },
+    },
+    numerals: { units: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
 };
 
 /** "2 sales carry no stage date Observer could use or name no unit, and cannot be placed." */
@@ -279,19 +369,27 @@ export const DEAL_UNPLACED_SENTENCE: Sentence = {
     },
   },
   sk: {
-    text: "{count} {sales|count} {rest|count}.",
+    text: "{unplaced|count}",
     words: {
-      sales: DEAL_SALES.sk,
-      rest: {
-        one: "nemá dátum fázy použiteľný pre Observer alebo neuvádza žiadnu jednotku a nedá sa zaradiť",
-        few: "nemajú dátum fázy použiteľný pre Observer alebo neuvádzajú žiadnu jednotku a nedajú sa zaradiť",
+      unplaced: {
+        one: "Pri jednom predaji chýba dátum fázy, ktorý vie Observer použiť, alebo nie je uvedené, ktorého bytu sa týka. Preto ho nemožno zaradiť do analýzy.",
+        few: "Pri {#sales|count} predajoch chýba dátum fázy, ktorý vie Observer použiť, alebo nie je uvedené, ktorých bytov sa týkajú. Preto ich nemožno zaradiť do analýzy.",
         other:
-          "nemá dátum fázy použiteľný pre Observer alebo neuvádza žiadnu jednotku a nedá sa zaradiť",
+          "Pri {#sales|count} predajoch chýba dátum fázy, ktorý vie Observer použiť, alebo nie je uvedené, ktorých bytov sa týkajú. Preto ich nemožno zaradiť do analýzy.",
       },
     },
+    numerals: { sales: ["jednom", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
-    text: "{count} eladásnak nincs az Observer számára használható szakaszdátuma, vagy nem nevez meg egységet, ezért nem helyezhető el.",
+    text: "{unplaced|count}",
+    words: {
+      unplaced: {
+        one: "Egy eladásnál nincs az Observer számára használható szakaszdátum, vagy nem derül ki, melyik lakásról van szó. Ezért az eladást nem lehet elhelyezni az elemzésben.",
+        other:
+          "{#sales|count} eladásnál nincs az Observer számára használható szakaszdátum, vagy nem derül ki, melyik lakásról van szó. Ezért ezeket nem lehet elhelyezni az elemzésben.",
+      },
+    },
+    numerals: { sales: ["Egy", "Két", "Három", "Négy", "Öt"] },
   },
 };
 
@@ -456,7 +554,9 @@ export function buildDealLadder(
       ? "No deal is open on any rung, so nothing is stuck."
       : [
           `${String(stalled.length)} of ${String(open.length)} open deals, longest on their rung first, by the stage date the CRM stated.`,
-          undated === 0 ? null : sentence(language, DEAL_UNDATED_SENTENCE, { count: undated }),
+          undated === 0
+            ? null
+            : sentence(language, DEAL_UNDATED_SENTENCE, { count: undated, deals: String(undated) }),
         ]
           .filter((w): w is string => w !== null)
           .join(" ");
@@ -467,7 +567,9 @@ export function buildDealLadder(
       count: deals.deals.length,
     }),
     "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
-    unmapped === 0 ? null : sentence(language, DEAL_UNMAPPED_SENTENCE, { count: unmapped }),
+    unmapped === 0
+      ? null
+      : sentence(language, DEAL_UNMAPPED_SENTENCE, { count: unmapped, deals: String(unmapped) }),
     lost === 0 ? null : `${String(lost)} lost, counted beside the ladder.`,
   ].filter((w): w is string => w !== null);
 
@@ -670,7 +772,7 @@ export function buildAssistedSales(
       ? "The CRM dates no reservation or purchase yet, so there is no sale to place against a showing."
       : enough
         ? `${String(assisted)} of ${String(datedSales)} dated sales (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
-        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales })}`;
+        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales, sales: String(policy.minimumSales - datedSales) })}`;
 
   /* A duration is read by its median, never its mean. */
   const earlierMedian = median(earlier.map((s) => (s.lagHours ?? 0) / 24));
@@ -681,13 +783,19 @@ export function buildAssistedSales(
       ? null
       : sentence(language, DEAL_SHOWN_EARLIER_SENTENCE, {
           count: earlier.length,
-          median: days(earlierMedian, language),
+          sales: String(earlier.length),
+          median: Math.round(earlierMedian),
+          medianDays: days(earlierMedian, language),
         }),
-    notShown === 0 ? null : sentence(language, DEAL_NOT_OPENED_SENTENCE, { count: notShown }),
+    notShown === 0
+      ? null
+      : sentence(language, DEAL_NOT_OPENED_SENTENCE, { count: notShown, units: String(notShown) }),
     observedCount === 0
       ? null
       : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
-    unplaced === 0 ? null : sentence(language, DEAL_UNPLACED_SENTENCE, { count: unplaced }),
+    unplaced === 0
+      ? null
+      : sentence(language, DEAL_UNPLACED_SENTENCE, { count: unplaced, sales: String(unplaced) }),
   ]
     .filter((w): w is string => w !== null)
     .join(" ");
