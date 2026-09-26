@@ -164,6 +164,11 @@ export function slovakZForm(n: number): "z" | "zo" {
   if (!Number.isSafeInteger(n) || n < 0) {
     throw new RangeError(`The Slovak "z" or "zo" is read before a whole number, not before ${n}.`);
   }
-  const word = SLOVAK_LEADING_GENITIVE[leadingPart(n)] ?? "";
+  const word = SLOVAK_LEADING_GENITIVE[leadingPart(n)];
+  if (word === undefined) {
+    throw new Error(
+      `The Slovak table has no leading word for ${n}, so "z" or "zo" cannot be read.`,
+    );
+  }
   return /^[szšž]/.test(word) ? "zo" : "z";
 }
