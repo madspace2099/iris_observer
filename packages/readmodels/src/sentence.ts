@@ -32,6 +32,10 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  * own — "one meeting" beside "{count} meetings" — and they are filled once the
  * word is chosen.
  *
+ * A numeral takes two values under two names: `name` is the figure as the
+ * locale formatted it, `count` the number it was formatted from. One key
+ * cannot be both, so `{#views|views}` is refused, and says so.
+ *
  * THE ARTICLE BEFORE A NUMERAL IS CHOSEN AFTER THE NUMERAL IS WRITTEN. The
  * passes run in this order: counted words, numerals, values. An article
  * follows the first sound of what the reader reads, and from 1 to 4 the reader
@@ -85,7 +89,7 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
   const numbered = counted.replace(
     /\{(?:(az|Az):)?#(\w+)\|(\w+)\}/g,
     (_match, article: string | undefined, name: string, by: string) => {
-      const written = numeral(language, own, name, values[name], values[by]);
+      const written = numeral(language, own, name, by, values);
       return article === undefined
         ? written
         : `${hungarianArticle(written, article === "Az")} ${written}`;
@@ -109,9 +113,16 @@ function numeral(
   language: Language,
   own: SentenceIn<Language>,
   name: string,
-  figure: string | number | undefined,
-  n: string | number | undefined,
+  by: string,
+  values: SentenceValues,
 ): string {
+  if (name === by) {
+    throw new Error(
+      `The ${language} sentence writes {#${name}|${by}}: a numeral needs two values under two names, the formatted figure and the count.`,
+    );
+  }
+  const figure = values[name];
+  const n = values[by];
   const words = own.numerals?.[name];
   if (words === undefined) {
     throw new Error(

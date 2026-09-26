@@ -48,6 +48,17 @@ describe("{#name|count}", () => {
     expect(() => sentence("en", NUMERAL, { count: "3", n: "3" })).toThrow(/not a number/);
   });
 
+  it("refuses one key for both the figure and the count, and names the real cause", () => {
+    const same: Sentence = {
+      en: { text: "{#views|views}", numerals: { views: ["E1", "E2", "E3", "E4"] } },
+      sk: { text: "" },
+      hu: { text: "" },
+    };
+    const cause = /two values under two names, the formatted figure and the count/;
+    expect(() => sentence("en", same, { views: 3 })).toThrow(cause);
+    expect(() => sentence("en", same, { views: "3" })).toThrow(cause);
+  });
+
   it("sits beside the counted word and the value, and inside a counted word", () => {
     const beside: Sentence = {
       en: {
