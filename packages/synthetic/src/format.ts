@@ -19,10 +19,22 @@ import { EvidenceIdSchema, type EvidenceTier } from "@observer/contracts";
  * feel unfinished.
  */
 
+/**
+ * A price, in the project's locale and currency.
+ *
+ * `currencyDisplay: "narrowSymbol"`, because on a Hungarian locale the euro is
+ * otherwise written "240 000 EUR", not "240 000 €". For the euro on the
+ * Slovak and English locales it changes nothing: "240 000 €", "€240,000". A
+ * currency other than the euro is written with its narrow symbol on every
+ * locale — "Kč 240,000" where it was "CZK 240,000", "$240,000" where it was
+ * "US$240,000"; every synthetic project is priced in euros or pounds, where
+ * nothing changes.
+ */
 export function money(value: number, currency: string, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
+    currencyDisplay: "narrowSymbol",
     maximumFractionDigits: 0,
   }).format(value);
 }
