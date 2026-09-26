@@ -15,20 +15,49 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *                   `count` takes by the language's plural rules. The forms are
  *                   the sentence's, in the case the sentence puts the word in:
  *                   one word in two cases is two words.
+ *   {#name|count}   the figure `name` as a numeral. While the number `count`
+ *                   is a whole 1 to 4, it is this sentence's own word for it,
+ *                   from `numerals[name]`, one entry per number; otherwise —
+ *                   5 and above, and 0 or a fraction — it is the figure `name`
+ *                   exactly as the site passed it, which the project's locale
+ *                   has already formatted, grouping and all. An entry may be a
+ *                   whole phrase: in Slovak the preposition before a numeral
+ *                   can change with the numeral, "z" before one and "zo"
+ *                   before another, so the preposition belongs in the entry.
  *   {az:name}       Hungarian: the value after the definite article its first
  *                   sound takes, "a" or "az"; {Az:name} at a sentence's start
+ *   {az:#name|count} the same article, before a numeral
  *
- * A counted word may carry `{name}` placeholders of its own — "one meeting"
- * beside "{count} meetings" — and they are filled once the word is chosen.
+ * A counted word may carry `{name}` and `{#name|count}` placeholders of its
+ * own — "one meeting" beside "{count} meetings" — and they are filled once the
+ * word is chosen.
+ *
+ * THE ARTICLE BEFORE A NUMERAL IS CHOSEN AFTER THE NUMERAL IS WRITTEN. The
+ * passes run in this order: counted words, numerals, values. An article
+ * follows the first sound of what the reader reads, and from 1 to 4 the reader
+ * reads the sentence's word, not the figure — a word, or a whole phrase, whose
+ * first sound the figure does not decide. The value pass reads `values[name]`,
+ * which for a numeral is the figure, so an article chosen there would be the
+ * figure's. The numeral pass therefore writes the numeral first and gives
+ * `hungarianArticle` exactly the text it will print: a word, read by its first
+ * letter, or a figure, read by the rule for numbers — "az 5", "a 12".
  *
  * Nothing here formats a figure. A value arrives formatted by the site, in the
  * project's locale, so the language chooses the words and the locale the
- * numbers, and neither is read from the other.
+ * numbers, and neither is read from the other. A numeral's figure must arrive
+ * as that formatted text: a number there is refused rather than written as
+ * `String(n)`, which drops the grouping — "12345" where the locale writes
+ * "12,345".
  */
 export interface SentenceIn<L extends Language> {
   readonly text: string;
   readonly words?: Readonly<Record<string, PluralForms[L]>>;
+  /** This sentence's own words for 1, 2, 3 and 4, per numeral: see `{#name|count}`. */
+  readonly numerals?: Readonly<Record<string, Numerals>>;
 }
+
+/** A numeral's words for 1, 2, 3 and 4, in that order. */
+export type Numerals = readonly [one: string, two: string, three: string, four: string];
 
 export interface Sentence {
   readonly en: SentenceIn<"en">;
@@ -53,7 +82,16 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
     }
     return forms[pluralCategory(language, n)] ?? forms["other"] ?? "";
   });
-  return counted.replace(
+  const numbered = counted.replace(
+    /\{(?:(az|Az):)?#(\w+)\|(\w+)\}/g,
+    (_match, article: string | undefined, name: string, by: string) => {
+      const written = numeral(language, own, name, values[name], values[by]);
+      return article === undefined
+        ? written
+        : `${hungarianArticle(written, article === "Az")} ${written}`;
+    },
+  );
+  return numbered.replace(
     /\{(?:(az|Az):)?(\w+)\}/g,
     (_match, article: string | undefined, name: string) => {
       const value = values[name];
@@ -64,6 +102,32 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
       return article === undefined ? text : `${hungarianArticle(text, article === "Az")} ${text}`;
     },
   );
+}
+
+/** `{#name|count}`: the sentence's word while `n` is a whole 1 to 4, the formatted figure otherwise. */
+function numeral(
+  language: Language,
+  own: SentenceIn<Language>,
+  name: string,
+  figure: string | number | undefined,
+  n: string | number | undefined,
+): string {
+  const words = own.numerals?.[name];
+  if (words === undefined) {
+    throw new Error(
+      `The ${language} sentence writes "${name}" as a numeral and has no words for it.`,
+    );
+  }
+  if (typeof n !== "number") {
+    throw new Error(`The ${language} sentence writes "${name}" by a count that is not a number.`);
+  }
+  if (typeof figure !== "string") {
+    throw new Error(
+      `The ${language} sentence writes "${name}" as a numeral: its figure must arrive formatted, as text.`,
+    );
+  }
+  const word = Number.isInteger(n) && n >= 1 && n <= 4 ? words[n - 1] : undefined;
+  return word ?? figure;
 }
 
 /** Letters whose Hungarian names begin with a vowel sound, for a code read letter first: "az F-12". */
