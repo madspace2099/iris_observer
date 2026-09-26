@@ -73,20 +73,27 @@ function Withheld({ rows }: { readonly rows: readonly DWithheld[] }) {
   );
 }
 
-/** The six measures, in the read model's own words (`AgentRadar.axisNotes`): a normalised shape with no definitions is a decoration. */
+/**
+ * What each axis counts, in plain words: a shape with no definitions is a
+ * decoration. An axis the build cannot answer prints why, in the product's
+ * words for it, where its definition would have been the whole story.
+ */
 function AxisNotes({
-  axes,
-  notes,
+  items,
 }: {
-  readonly axes: readonly string[];
-  readonly notes: readonly string[];
+  readonly items: readonly {
+    readonly label: string;
+    readonly note: string;
+    readonly missing: string | null;
+  }[];
 }) {
   return (
     <dl className="dld-axis-notes">
-      {axes.map((axis, i) => (
-        <div key={axis}>
-          <dt>{axis}</dt>
-          <dd>{notes[i]}</dd>
+      {items.map((item) => (
+        <div key={item.label} data-missing={item.missing === null ? undefined : "true"}>
+          <dt>{item.label}</dt>
+          <dd>{item.note}</dd>
+          {item.missing === null ? null : <dd className="dld-axis-missing">{item.missing}</dd>}
         </div>
       ))}
     </dl>
@@ -136,7 +143,13 @@ function RadarBody({
           <Radar axes={card.axes} series={radarSeries(card, order)} size={260} />
         </div>
       )}
-      <AxisNotes axes={card.axes} notes={card.axisNotes} />
+      <AxisNotes
+        items={card.axes.map((label, i) => ({
+          label,
+          note: card.axisNotes[i] ?? "",
+          missing: null,
+        }))}
+      />
       <Withheld rows={card.withheld} />
     </div>
   );
@@ -416,9 +429,9 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
         <div className="dld-grid">
           <DCard
             id="parallel"
-            group="B · Parallel coordinates"
-            title="Every agent across the six axes"
-            reads={reads("AgentRadar.axes, profiles[].values")}
+            group="B · Parallel coordinates · feature use"
+            title="Which parts of the showroom each agent uses"
+            reads={reads("AgentCharts.featureUsage")}
             facts={data.parallel.facts}
             kind="sweep"
             wide
@@ -427,7 +440,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               xl={<Parallel data={data.parallel} size="xl" />}
               l={<Parallel data={data.parallel} size="l" />}
             />
-            <AxisNotes axes={data.parallel.axes} notes={data.parallel.axisNotes} />
+            <AxisNotes items={data.parallel.axes} />
             {data.parallel.cut === null ? null : (
               <p className="dld-note">
                 {data.parallel.cut.drawn} of {data.parallel.cut.of} lines drawn; beyond{" "}

@@ -428,13 +428,21 @@ export interface DRadarCard {
   readonly facts: DFacts;
 }
 
+/** One axis of the parallel plot: what it counts, and, where the build cannot answer it, why not. */
+export interface DParallelAxis {
+  readonly id: string;
+  readonly label: string;
+  readonly note: string;
+  readonly missing: string | null;
+}
+
 export interface DParallelCard {
-  readonly axes: readonly string[];
-  readonly axisNotes: readonly string[];
+  readonly axes: readonly DParallelAxis[];
   readonly lines: readonly {
     readonly id: string;
     readonly label: string;
-    readonly values: readonly number[];
+    /** 0 to 1 on a measured axis; null on one the build cannot answer, which no line crosses. */
+    readonly values: readonly (number | null)[];
   }[];
   readonly withheld: readonly DWithheld[];
   /** Null when every eligible line is drawn. */
@@ -620,6 +628,22 @@ const D_BEHAVIOURS: Readonly<Record<string, (s: ShowroomSession) => boolean>> = 
   shortlisted: (s) => s.units.some((u) => u.favourited),
   used_compare: (s) => s.steps.some((x) => x.sectionId === "compare"),
   returned: (s) => s.steps.some((x) => x.isReturn),
+};
+
+/**
+ * The radar's six measures, in words for a reader who has not met the metric
+ * vocabulary: "typical" where the read model says median, "how often" where it
+ * says share. The read model's own notes stay as they are, because the Sales
+ * Agents page prints them; the lab words them again, and refuses an axis it has
+ * no words for rather than falling back on the vocabulary it set out to avoid.
+ */
+const D_RADAR_WORDS: Readonly<Record<string, string>> = {
+  Coverage: "How many of the main parts of the presentation a typical meeting reached.",
+  Depth: "How many steps a typical meeting took through the presentation.",
+  Units: "How many apartments a typical meeting opened.",
+  Compare: "How often a meeting used the side-by-side comparison.",
+  Returns: "How often a meeting went back to a part it had already shown.",
+  Places: "How many named places a typical meeting stopped at.",
 };
 
 function refuse(what: string): never {
@@ -876,6 +900,11 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   );
   const radarNote =
     "Each spoke is scaled to the strongest agent on it. Wider is a different way of presenting, not a better one.";
+  const radarWords = radar.axes.map((axis) => {
+    const words = D_RADAR_WORDS[axis];
+    if (words === undefined) refuse(`plain words for the radar's "${axis}" axis`);
+    return words;
+  });
   /* The definition all four agent-shape cards print; the six measures themselves are listed under each drawing. */
   const shapeNote = (scale: string) =>
     `Six measures of how an agent presented ${period}, each defined under the drawing. Every value is divided by the highest any agent reached on the same measure, so ${scale}. An agent under ${n(AGENT_MIN_SAMPLE)} meetings is not drawn.`;
@@ -893,7 +922,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     if (profile === undefined) {
       return {
         axes: radar.axes,
-        axisNotes: radar.axisNotes,
+        axisNotes: radarWords,
         profiles: [],
         withheld,
         facts: {
@@ -912,7 +941,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     const name = nameOf.get(profile.id) ?? profile.label;
     return {
       axes: radar.axes,
-      axisNotes: radar.axisNotes,
+      axisNotes: radarWords,
       profiles: [profile],
       withheld,
       facts: {
@@ -935,7 +964,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
 
   const radarMultiply: DRadarCard = {
     axes: radar.axes,
-    axisNotes: radar.axisNotes,
+    axisNotes: radarWords,
     profiles: drawn,
     withheld,
     facts: {
@@ -951,38 +980,74 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     },
   };
 
-  const lines = drawn.slice(0, D_PARALLEL_MAX).map((p) => ({
+  /*
+   * The parallel plot answers another question than the radar: not how an agent
+   * paces a presentation, but which of the showroom's tools they reach for at
+   * all. It reads the feature-usage model, on the same agents and the same
+   * floor. Its axes are already shares of meetings, 0 to 1, so nothing is scaled
+   * to the strongest agent; an axis the build cannot answer carries its own
+   * reason, and no line crosses it.
+   */
+  const usage = agentCharts.featureUsage;
+  same("the feature-usage profiles", usage.profiles.length, radar.profiles.length);
+  const usageDrawn = usage.profiles
+    .filter((p) => !p.belowMinimum)
+    .sort((a, b) => (meetingsOf.get(b.id) ?? 0) - (meetingsOf.get(a.id) ?? 0));
+  const usageWithheld: DWithheld[] = usage.profiles
+    .filter((p) => p.belowMinimum)
+    .map((p) => ({ id: p.id, label: nameOf.get(p.id) ?? p.label, note: p.note ?? "" }));
+  const measuredAxes = usage.axes.flatMap((axis, i) =>
+    axis.missing === null ? [{ axis, i }] : [],
+  );
+  const unmeasuredAxes = usage.axes.filter((axis) => axis.missing !== null);
+  const lines = usageDrawn.slice(0, D_PARALLEL_MAX).map((p) => ({
     id: p.id,
     label: nameOf.get(p.id) ?? p.label,
     values: p.values,
   }));
-  const spread = radar.axes.map((axis, i) => {
-    const values = lines.map((l) => l.values[i] ?? 0);
-    return { axis, v: values.length < 2 ? 0 : Math.max(...values) - Math.min(...values) };
+  const spread = measuredAxes.flatMap(({ axis, i }) => {
+    const values = lines.flatMap((l) => {
+      const v = l.values[i];
+      return v === null || v === undefined ? [] : [v];
+    });
+    if (values.length < 2) return [];
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    return [{ axis, lo, hi, v: hi - lo }];
   });
+  const usageOf = (line: (typeof lines)[number]) =>
+    `${line.label}: ${list(measuredAxes.map(({ axis, i }) => `${axis.label} ${pct(line.values[i] ?? 0)}`))}`;
   const parallel: DParallelCard = {
-    axes: radar.axes,
-    axisNotes: radar.axisNotes,
+    axes: usage.axes,
     lines,
-    withheld,
-    cut: drawn.length > D_PARALLEL_MAX ? { drawn: D_PARALLEL_MAX, of: drawn.length } : null,
+    withheld: usageWithheld,
+    cut:
+      usageDrawn.length > D_PARALLEL_MAX ? { drawn: D_PARALLEL_MAX, of: usageDrawn.length } : null,
     facts: {
-      note: shapeNote("an axis's top is the strongest agent on it and its foot is nought"),
-      summary: `${n(lines.length)} lines, one per agent. ${lines.map((l) => `${shapeOf(l.id, l.values)}.`).join(" ")}${withheldWords}`,
+      note: `Ten ways of using the showroom, each defined under the drawing. On a measured axis the height is the part of the agent's meetings ${period} that used it at least once: the top is every meeting, the foot none. The current build cannot answer ${n(unmeasuredAxes.length)} of the axes; each says why, and no line crosses them. An agent under ${n(AGENT_MIN_SAMPLE)} meetings is not drawn.`,
+      summary: `${n(lines.length)} lines, one per agent. ${lines.map((l) => `${usageOf(l)}.`).join(" ")} Not measured: ${list(unmeasuredAxes.map((a) => a.label))}.${
+        usageWithheld.length === 0
+          ? ""
+          : ` Not drawn, under ${n(AGENT_MIN_SAMPLE)} meetings: ${list(usageWithheld.map((w) => w.label))}.`
+      }`,
       figures: [
-        figure("Lines drawn", n(lines.length), `of ${n(radar.profiles.length)} agents`),
-        withheldFigure,
+        figure("Lines drawn", n(lines.length), `of ${n(usage.profiles.length)} agents`),
+        figure(
+          "Axes measured",
+          n(measuredAxes.length),
+          `of ${n(usage.axes.length)}; the others say why not`,
+        ),
       ],
       rankingTitle: "Where the drawn agents differ most",
       ranking: topThree(
         spread,
         (e) => e.v,
-        (e) => ({ id: e.axis, label: e.axis, value: `${pct(e.v)} apart` }),
+        (e) => ({ id: e.axis.id, label: e.axis.label, value: `${pct(e.lo)} to ${pct(e.hi)}` }),
       ),
       rankingNote:
         lines.length < 2
           ? "One line has nothing to differ from."
-          : "The gap between the highest and lowest drawn line on each axis, as a share of the strongest.",
+          : "The lowest and the highest drawn agent on each measured axis. An axis that is not measured is not ranked.",
     },
   };
 

@@ -14,6 +14,7 @@ import type {
   AgentCharts,
   AgentRadar,
   BehaviourFunnel,
+  FeatureUsage,
   FlowCharts,
   BehaviourStep,
   JourneyFlowModel,
@@ -620,7 +621,128 @@ export function buildAgentCharts(
     })
     .sort((a, b) => b.value - a.value);
 
-  return { radar, ranked };
+  return { radar, ranked, featureUsage: buildFeatureUsage(sessions, locale) };
+}
+
+/* --- which parts of the showroom an agent uses ------------------------------------- */
+
+/*
+ * Ten ways of using the showroom, in the order a reader meets them: the seven
+ * the current build can answer, then the three it cannot.
+ *
+ * A measured axis is the part of an agent's meetings that used the tool at
+ * least once, read from fields every session already carries. An axis the
+ * build cannot answer carries what is missing and why, in the words a KPI
+ * group with nothing to measure uses — and no value at all. A session that
+ * happens to hold something shaped like it (a Surroundings place the build
+ * marks `requires_ue5_v2_event`, a demonstration filter) is not read: that
+ * would be inventing the measurement the axis says does not exist.
+ */
+const FEATURE_AXES: readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly note: string;
+  readonly used: ((s: ShowroomSession) => boolean) | null;
+  readonly missing: string | null;
+}[] = [
+  {
+    id: "locating",
+    label: "Locating",
+    note: "How many of their meetings stopped on a named place in Amenities.",
+    used: (s) => s.places.some((p) => p.section === "amenities"),
+    missing: null,
+  },
+  {
+    id: "comparing",
+    label: "Comparing",
+    note: "How many of their meetings put one apartment beside another in Compare. How long the comparison stayed open is not recorded.",
+    used: (s) => s.units.some((u) => u.comparedWith.length > 0),
+    missing: null,
+  },
+  {
+    id: "shortlisting",
+    label: "Shortlisting",
+    note: "How many of their meetings marked an apartment as a favourite.",
+    used: (s) => s.units.some((u) => u.favourited),
+    missing: null,
+  },
+  {
+    id: "capturing",
+    label: "Capturing",
+    note: "How many of their meetings took a screenshot of an apartment.",
+    used: (s) => s.units.some((u) => u.screenshots > 0),
+    missing: null,
+  },
+  {
+    id: "slicing",
+    label: "Slicing",
+    note: "How many of their meetings opened an apartment's floor cut.",
+    used: (s) => s.units.some((u) => u.floorCutViews > 0),
+    missing: null,
+  },
+  {
+    id: "reading",
+    label: "Reading",
+    note: "How many of their meetings opened an apartment's PDF.",
+    used: (s) => s.units.some((u) => u.pdfOpened),
+    missing: null,
+  },
+  {
+    id: "sharing",
+    label: "Sharing",
+    note: "How many of their meetings shared an apartment.",
+    used: (s) => s.units.some((u) => u.shared),
+    missing: null,
+  },
+  {
+    id: "exploring",
+    label: "Exploring",
+    note: "How many of their meetings stopped on a named place in Surroundings.",
+    used: null,
+    missing:
+      "Not measured yet. Surroundings is recorded only as a section reached, never place by place; the contract's word for it is requires_ue5_v2_event.",
+  },
+  {
+    id: "filtering",
+    label: "Filtering",
+    note: "How many of their meetings filtered the apartments on show.",
+    used: null,
+    missing:
+      "Not measured yet. The contract has a place for a filter, but the current build sends no filter event at all.",
+  },
+  {
+    id: "walking",
+    label: "Walking",
+    note: "How many of their meetings walked the site in spaceman mode.",
+    used: null,
+    missing: "Not measured yet. Spaceman mode is not modelled in the contract at all.",
+  },
+];
+
+export function buildFeatureUsage(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+): FeatureUsage {
+  return {
+    axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
+    profiles: presentersIn(sessions).flatMap((agent) => {
+      const mine = sessions.filter((s) => s.agentId === agent.id);
+      if (mine.length === 0) return [];
+      const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
+      return [
+        {
+          id: agent.id,
+          label: agent.name,
+          meetings: mine.length,
+          values: FEATURE_AXES.map((axis) =>
+            axis.used === null ? null : share(mine.filter(axis.used).length, mine.length),
+          ),
+          belowMinimum,
+          note: belowMinimum ? suppressionNoteFor(mine.length, locale) : null,
+        },
+      ];
+    }),
+  };
 }
 
 /* --- ordered lists -------------------------------------------------------------- */

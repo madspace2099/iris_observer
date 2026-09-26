@@ -73,16 +73,25 @@
   --d-ramp-hi: #15ffab; /* the kit's bright point */
 
   /*
-   * Agent identity: the kit's series colours in its own order, the first two
-   * as its multiply radar pairs them. Red, amber and pink are left out: each
-   * sits beside a verdict colour, and an agent must never read as one.
+   * Agent identity: six hues at least 40° apart on the CIE LCh wheel, the
+   * scale the review measured the old set on — its violet and magenta stood
+   * 14° apart, and its grey sat in the same arc. Red, amber, yellow and pink
+   * are left out: each sits on or beside a verdict colour (loss 30°, watch 80°
+   * on this wheel), and an agent must never read as one.
+   *
+   * With those out, what is left runs from about 115° to 340°, and six hues at
+   * 40° fill it almost exactly: the set is one chain of 40.5° steps from the
+   * kit's lime, the only kit colour a yellow-free chain can hold. The kit's
+   * violet, magenta and cyan sit between its links. Ordered so the first
+   * agents drawn are the furthest apart: 131.7°, 294.3°, 212.9°, 334.5°,
+   * 172.4°, 253.8°; the smallest gap in the set is 40.2°.
    */
-  --d-series-1: #15ffab;
-  --d-series-2: #8338ec;
-  --d-series-3: #0ac5ef;
-  --d-series-4: #db03f2;
-  --d-series-5: #96969d;
-  --d-series-6: #fffc00;
+  --d-series-1: #5cf101;
+  --d-series-2: #406cff;
+  --d-series-3: #1ae8ff;
+  --d-series-4: #ff00dd;
+  --d-series-5: #0dffd1;
+  --d-series-6: #00b7ff;
 
   /* The journey funnel: the kit's funnel violet, one path, one colour. */
   --d-funnel: #8338ec;
@@ -274,8 +283,10 @@
   margin: 18px 0 0;
 }
 
+/* Each entry stacks from the top: stretched to its row's tallest neighbour, a short one's definition drifted off its name. */
 .dld-axis-notes > div {
   display: grid;
+  align-content: start;
   gap: 1px;
   min-width: 0;
 }
@@ -292,6 +303,18 @@
   font-size: 12px;
   line-height: 16px;
   color: var(--d-ink-4);
+}
+
+/* Why an axis has no value: the product's "not measured" sentence, set apart from what the axis would count. */
+.dld-axis-notes dd.dld-axis-missing {
+  margin-top: 2px;
+  padding-left: 8px;
+  border-left: 1px dashed var(--d-hairline);
+  color: var(--d-ink-3);
+}
+
+.dld-axis-notes div[data-missing="true"] dt {
+  color: var(--d-ink-3);
 }
 
 /* The one sentence a drawing has to say: white, above the source line, never louder than the title. */
@@ -884,7 +907,11 @@
   position: absolute;
   inset: 22% 20% 30%;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(21 255 171 / 0.22), transparent);
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--d-series-1) 22%, transparent),
+    transparent
+  );
   filter: blur(18px);
   pointer-events: none;
 }
@@ -965,6 +992,19 @@
   background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 100%), var(--d-ramp-lo));
   box-shadow: 0 0 calc(var(--t) * 22px) calc(var(--t) * 4px)
     color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 40%), transparent);
+}
+
+/*
+ * Wide, a cell is some eighty pixels across, and a 12px count in it read as a
+ * speck under the field's glow. The count grows with the room; the shade and
+ * its ramp do not change.
+ */
+@container (width >= 48rem) {
+  .dld-root .dld-heat[data-variant="gradient"] .iris-heat-cell {
+    min-height: 38px;
+    font-size: 16px;
+    font-weight: 600;
+  }
 }
 
 .dld-root .dld-heat .iris-meta {
@@ -1219,6 +1259,12 @@
   stroke-width: 1;
 }
 
+/* An axis the build cannot answer stands as a dashed rule, and no line crosses it. */
+.dld-root .dld-parallel-axis[data-missing="true"] {
+  stroke-dasharray: 2 5;
+  stroke-opacity: 0.45;
+}
+
 .dld-root .dld-parallel-line {
   fill: none;
   stroke: var(--d-tone);
@@ -1232,25 +1278,51 @@
   stroke-width: 4;
 }
 
+/* Axis names are words, so they take the text face: ten of them share 712 units, and the mono would not fit. */
 .dld-parallel-axes {
   display: grid;
   margin: 8px 0 0;
   padding: 0;
   list-style: none;
-  font-family: var(--d-font-numeric);
-  font-size: 12px;
+  font-family: var(--font-sans);
   color: var(--d-ink);
   text-align: center;
 }
 
 .dld-parallel-axes li {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
   min-width: 0;
+  font-size: 11px;
   white-space: nowrap;
 }
 
-/* On the phone's geometry an axis name is wider than its column: every second name drops a line. */
-.dld-size[data-size="l"] .dld-parallel-axes li:nth-child(even) {
-  padding-top: 18px;
+.dld-parallel-axes li[data-missing="true"] {
+  color: var(--d-ink-4);
+}
+
+.dld-parallel-axes li em {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * On the phone's geometry ten names do not fit ten columns across, so each
+ * stands on its end under its own axis, read upwards.
+ */
+.dld-size[data-size="l"] .dld-parallel-axes li {
+  justify-items: end;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+/* Stood on end, "not measured" would take a second column it does not have; the dashed axis and the list below say it. */
+.dld-size[data-size="l"] .dld-parallel-axes li em {
+  display: none;
 }
 
 .dld-size[data-size="l"] .dld-row-label {
