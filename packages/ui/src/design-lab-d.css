@@ -1620,10 +1620,9 @@
 
 /*
  * The spheres are drawn once in `defs.tsx` and placed with `<use>`; nothing here
- * paints them. The outcome version wears the kit's four spheres, the colours
- * the review chose for this chart; the agent version wears the same recipe in
- * each agent's own colour. The controls sit on a floating rail, as every
- * control in Observer does, and the keys under it are toggles: pressed shows.
+ * paints them. Each wears the kit's sphere recipe in its agent's own colour.
+ * The controls sit on a floating rail, as every control in Observer does, and
+ * the keys under it are toggles: pressed shows.
  */
 .dld-lens {
   position: relative;
@@ -1795,13 +1794,6 @@
 
 .dld-root .dld-lens-canvas .dld-lens-day tspan:first-child {
   fill: var(--d-ink-3);
-}
-
-.dld-root .dld-lens-canvas .dld-lens-row {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  text-anchor: end;
-  fill: var(--d-ink-2);
 }
 
 .dld-root .dld-lens-column {

@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import type { DBubbleLens, DLensMeeting } from "../../lab-data";
-import { D_SPHERE_FLAT, D_SPHERE_RADIUS, D_TINT_RADIUS } from "./defs";
+import { D_TINT_RADIUS } from "./defs";
 
 /**
  * THE BUBBLE LENS: SIX MONTHS AT SHOWROOM PACE, SEVEN DAYS AT A TIME.
@@ -24,12 +24,12 @@ import { D_SPHERE_FLAT, D_SPHERE_RADIUS, D_TINT_RADIUS } from "./defs";
  * click it, or use the arrow keys on it. The keys above the lens hide what the
  * reader does not want to see, and a pointer resting on a bubble reads it.
  *
- * ## Two versions, one machine
+ * ## One canvas, a colour per agent, a size per outcome
  *
- *   outcomes   a row per agent, the kit's sphere for each outcome: colour and
- *              size both say how the meeting ended
- *   agents     one canvas, a colour per agent, a size per outcome: every
- *              agent's meetings of a day rest together in one pile
+ * Every agent's meetings of a day rest together in one pile, each bubble in its
+ * agent's colour and at its outcome's size, the largest at the foot. A pointer
+ * resting on an agent's key lifts that agent's bubbles out of the rest, so
+ * whose the largest are reads at a glance.
  *
  * ## The size is set once
  *
@@ -43,17 +43,12 @@ import { D_SPHERE_FLAT, D_SPHERE_RADIUS, D_TINT_RADIUS } from "./defs";
  * composed and counts what is on screen.
  */
 
-type Version = "outcomes" | "agents";
 type Span = "week" | "month";
 type Geometry = "xl" | "l";
 
 interface Frame {
   readonly width: number;
-  /** The agents' names, left of the rows, in the outcome version. */
-  readonly label: number;
-  /** One agent's row, in the outcome version. */
-  readonly row: number;
-  /** The one canvas, in the agent version. */
+  /** The canvas at its tallest; a span whose fullest pile is shorter draws it shorter. */
   readonly canvas: number;
   /** Room kept above the fullest pile. */
   readonly pad: number;
@@ -65,20 +60,11 @@ interface Frame {
 }
 
 const FRAMES: Readonly<Record<Geometry, Frame>> = {
-  xl: {
-    width: 1240,
-    label: 150,
-    row: 150,
-    canvas: 440,
-    pad: 10,
-    axis: 40,
-    strip: 64,
-    stripAxis: 22,
-  },
-  l: { width: 327, label: 64, row: 92, canvas: 300, pad: 6, axis: 34, strip: 44, stripAxis: 20 },
+  xl: { width: 1240, canvas: 440, pad: 10, axis: 40, strip: 64, stripAxis: 22 },
+  l: { width: 327, canvas: 300, pad: 6, axis: 34, strip: 44, stripAxis: 20 },
 };
 
-/** The floor a pile rests on, above the row's or the canvas's lower edge. */
+/** The floor a pile rests on, above the canvas's lower edge. */
 const FLOOR = 6;
 const WEEK = 7;
 
@@ -141,27 +127,26 @@ function radius(data: DBubbleLens, m: number, scale: number): number {
 /**
  * The one scale for a geometry and a span: the largest the columns allow,
  * brought down only as far as the fullest pile in the six months needs — and
- * how tall that pile then stands, which is how tall the row or the canvas is.
+ * how tall that pile then stands, which is how tall the canvas is.
  */
 function scaleFor(
-  cells: ReadonlyMap<number, readonly number[]>,
+  piles: ReadonlyMap<number, readonly number[]>,
   data: DBubbleLens,
-  rowPerAgent: boolean,
   geometry: Geometry,
   columns: number,
 ): Fit {
   const frame = FRAMES[geometry];
-  const column = (frame.width - (rowPerAgent ? frame.label : 0)) / columns;
-  const room = (rowPerAgent ? frame.row : frame.canvas) - FLOOR - frame.pad;
+  const column = frame.width / columns;
+  const room = frame.canvas - FLOOR - frame.pad;
   const most = Math.min(1, (column - 4) / (data.outcomes[0]?.diameter ?? 100));
   const tallest = (scale: number) => {
     let h = 0;
-    for (const cell of cells.values()) {
+    for (const day of piles.values()) {
       h = Math.max(
         h,
         heightOf(
           pile(
-            cell.map((m) => ({ m, r: radius(data, m, scale) })),
+            day.map((m) => ({ m, r: radius(data, m, scale) })),
             column / 2,
           ),
         ),
@@ -185,13 +170,22 @@ function f(v: number): string {
   return v.toFixed(1);
 }
 
-export function BubbleLens({
-  data,
-  version,
-}: {
-  readonly data: DBubbleLens;
-  readonly version: Version;
-}) {
+/** An agent's colour: the gallery's series, the same on every card. */
+function tone(a: number): string {
+  return `var(--d-series-${(a % 6) + 1})`;
+}
+
+/** An agent's sphere, at a radius. */
+function AgentSphere({ a, r }: { readonly a: number; readonly r: number }) {
+  return (
+    <use
+      href={`#dld-sphere-agent-${(a % 6) + 1}`}
+      transform={`scale(${(r / D_TINT_RADIUS).toFixed(4)})`}
+    />
+  );
+}
+
+export function BubbleLens({ data }: { readonly data: DBubbleLens }) {
   const last = data.days.length - 1;
   const lastMonth = data.months.length - 1;
   const [span, setSpan] = useState<Span>("week");
@@ -209,50 +203,36 @@ export function BubbleLens({
   const root = useRef<HTMLDivElement>(null);
   const drag = useRef<number | null>(null);
 
-  const rowPerAgent = version === "outcomes";
-
-  /*
-   * Which pile each meeting rests in, in the order it is laid: the largest
-   * first, then (on the shared canvas) agent by agent, then by the clock.
-   */
-  const cells = useMemo(() => {
+  /* Each day's pile, in the order it is laid: the largest first, then agent by agent, then by the clock. */
+  const piles = useMemo(() => {
     const out = new Map<number, number[]>();
     data.meetings.forEach((m, i) => {
-      const key = rowPerAgent ? m.a * data.days.length + m.d : m.d;
-      const cell = out.get(key);
-      if (cell === undefined) out.set(key, [i]);
-      else cell.push(i);
+      const day = out.get(m.d);
+      if (day === undefined) out.set(m.d, [i]);
+      else day.push(i);
     });
     const order = (a: DLensMeeting, b: DLensMeeting) =>
-      a.o - b.o || (rowPerAgent ? 0 : a.a - b.a) || a.t.localeCompare(b.t);
-    for (const cell of out.values()) {
-      cell.sort((i, j) => {
+      a.o - b.o || a.a - b.a || a.t.localeCompare(b.t);
+    for (const day of out.values()) {
+      day.sort((i, j) => {
         const a = data.meetings[i];
         const b = data.meetings[j];
         return a === undefined || b === undefined ? 0 : order(a, b);
       });
     }
     return out;
-  }, [data, rowPerAgent]);
+  }, [data]);
 
   const monthSpanWidest = Math.max(...data.months.map((m) => m.length));
   const wantsMonth = span === "month";
-  const xlWeek = useMemo(
-    () => scaleFor(cells, data, rowPerAgent, "xl", WEEK),
-    [cells, data, rowPerAgent],
-  );
-  const lWeek = useMemo(
-    () => scaleFor(cells, data, rowPerAgent, "l", WEEK),
-    [cells, data, rowPerAgent],
-  );
+  const xlWeek = useMemo(() => scaleFor(piles, data, "xl", WEEK), [piles, data]);
+  const lWeek = useMemo(() => scaleFor(piles, data, "l", WEEK), [piles, data]);
   const xlMonth = useMemo(
-    () => (wantsMonth ? scaleFor(cells, data, rowPerAgent, "xl", monthSpanWidest) : null),
-    [cells, data, rowPerAgent, wantsMonth, monthSpanWidest],
+    () => (wantsMonth ? scaleFor(piles, data, "xl", monthSpanWidest) : null),
+    [piles, data, wantsMonth, monthSpanWidest],
   );
-  const radiusOf = (m: number, scale: number) => radius(data, m, scale);
 
-  const shows = (m: DLensMeeting) =>
-    !hiddenOutcomes.has(m.o) && !(rowPerAgent === false && hiddenAgents.has(m.a));
+  const shows = (m: DLensMeeting) => !hiddenOutcomes.has(m.o) && !hiddenAgents.has(m.a);
 
   /* --- the window ---------------------------------------------------------------- */
 
@@ -294,7 +274,7 @@ export function BubbleLens({
     (m) => m.d >= xlWindow.first && m.d < xlWindow.first + xlWindow.held,
   );
   const outcomeCount = (o: number) =>
-    inView.filter((m) => m.o === o && !(rowPerAgent === false && hiddenAgents.has(m.a))).length;
+    inView.filter((m) => m.o === o && !hiddenAgents.has(m.a)).length;
   const agentCount = (a: number) =>
     inView.filter((m) => m.a === a && !hiddenOutcomes.has(m.o)).length;
   const shown = inView.filter(shows).length;
@@ -340,60 +320,29 @@ export function BubbleLens({
 
   /* --- the lens ------------------------------------------------------------------- */
 
-  const sphereOf = (m: DLensMeeting, r: number): ReactNode => {
-    if (rowPerAgent) {
-      const id = data.outcomes[m.o]?.id ?? "";
-      return (
-        <use
-          href={`#dld-sphere-${id}`}
-          transform={`scale(${(r / (D_SPHERE_RADIUS[id] ?? r)).toFixed(4)})`}
-        />
-      );
-    }
-    return (
-      <use
-        href={`#dld-sphere-agent-${(m.a % 6) + 1}`}
-        transform={`scale(${(r / D_TINT_RADIUS).toFixed(4)})`}
-      />
-    );
-  };
-
   const lens = (geometry: Geometry) => {
     const frame = FRAMES[geometry];
     const win = windowOf(geometry);
     const fit = geometry === "l" ? lWeek : span === "month" ? (xlMonth ?? xlWeek) : xlWeek;
-    const scale = fit.scale;
-    /* A row, or the canvas, as tall as the fullest pile of the six months at this scale, and no taller. */
-    const band = Math.ceil(fit.tallest) + FLOOR + frame.pad;
-    const left = rowPerAgent ? frame.label : 0;
-    const column = (frame.width - left) / win.columns;
-    const body = rowPerAgent ? data.agents.length * band : band;
+    /* The canvas as tall as the fullest pile of the six months at this scale, and no taller. */
+    const body = Math.ceil(fit.tallest) + FLOOR + frame.pad;
+    const floor = body - FLOOR;
+    const column = frame.width / win.columns;
     const height = body + frame.axis;
-    const floorOf = (a: number) => (rowPerAgent ? (a + 1) * band : band) - FLOOR;
 
-    const placed: { m: number; x: number; y: number; r: number; a: number }[] = [];
+    const placed: Rest[] = [];
     for (let c = 0; c < win.held; c += 1) {
-      const d = win.first + c;
-      const cx = left + (c + 0.5) * column;
-      const rows = rowPerAgent ? data.agents.map((_, a) => a) : [0];
-      for (const a of rows) {
-        const cell = cells.get(rowPerAgent ? a * data.days.length + d : d) ?? [];
-        const drawn = cell.filter((m) => {
-          const meeting = data.meetings[m];
-          return meeting !== undefined && shows(meeting);
-        });
-        for (const p of pile(
-          drawn.map((m) => ({ m, r: radiusOf(m, scale) })),
-          column / 2,
-        )) {
-          placed.push({
-            m: p.m,
-            x: cx + p.x,
-            y: floorOf(a) - p.y,
-            r: p.r,
-            a: data.meetings[p.m]?.a ?? 0,
-          });
-        }
+      const day = piles.get(win.first + c) ?? [];
+      const drawn = day.filter((m) => {
+        const meeting = data.meetings[m];
+        return meeting !== undefined && shows(meeting);
+      });
+      const cx = (c + 0.5) * column;
+      for (const p of pile(
+        drawn.map((m) => ({ m, r: radius(data, m, fit.scale) })),
+        column / 2,
+      )) {
+        placed.push({ m: p.m, x: cx + p.x, y: floor - p.y, r: p.r });
       }
     }
 
@@ -416,9 +365,8 @@ export function BubbleLens({
         onClick={onClick}
       >
         {Array.from({ length: win.columns }, (_, c) => {
-          const d = win.first + c;
-          const x = left + c * column;
-          const day = c < win.held ? data.days[d] : undefined;
+          const x = c * column;
+          const day = c < win.held ? data.days[win.first + c] : undefined;
           return (
             <g key={`c${c}`}>
               {c === 0 ? null : (
@@ -439,40 +387,17 @@ export function BubbleLens({
         })}
         {future === 0 ? null : (
           <g className="dld-lens-future">
-            <rect x={f(left + win.held * column)} y={0} width={f(future * column)} height={body} />
-            <text x={f(left + (win.held + future / 2) * column)} y={body / 2}>
+            <rect x={f(win.held * column)} y={0} width={f(future * column)} height={body} />
+            <text x={f((win.held + future / 2) * column)} y={body / 2}>
               to come
             </text>
           </g>
         )}
-        {rowPerAgent ? (
-          data.agents.map((agent, a) => (
-            <g key={agent.id}>
-              <line
-                className="dld-lens-floor"
-                x1={left}
-                x2={frame.width}
-                y1={floorOf(a)}
-                y2={floorOf(a)}
-              />
-              <text className="dld-lens-row" x={left - 12} y={floorOf(a) - 6}>
-                {geometry === "l" ? agent.short : agent.label}
-              </text>
-            </g>
-          ))
-        ) : (
-          <line
-            className="dld-lens-floor"
-            x1={0}
-            x2={frame.width}
-            y1={floorOf(0)}
-            y2={floorOf(0)}
-          />
-        )}
+        <line className="dld-lens-floor" x1={0} x2={frame.width} y1={floor} y2={floor} />
         {placed.map((p) => {
           const meeting = data.meetings[p.m];
           if (meeting === undefined) return null;
-          const dim = lifted !== null && p.a !== lifted;
+          const dim = lifted !== null && meeting.a !== lifted;
           return (
             <g
               key={p.m}
@@ -481,7 +406,7 @@ export function BubbleLens({
               data-held={tip?.held === true && tip.m === p.m ? "true" : undefined}
               style={{ transform: `translate(${f(p.x)}px, ${f(p.y)}px)`, opacity: dim ? 0.14 : 1 }}
             >
-              {sphereOf(meeting, p.r)}
+              <AgentSphere a={meeting.a} r={p.r} />
               <circle className="dld-lens-ring" r={f(p.r + 3)} />
             </g>
           );
@@ -492,37 +417,40 @@ export function BubbleLens({
 
   /* --- the strip: the six months, and the lens on them ----------------------------- */
 
-  const groups = rowPerAgent ? data.outcomes.length : data.agents.length;
-  const toneOf = (g: number) =>
-    rowPerAgent
-      ? (D_SPHERE_FLAT[data.outcomes[g]?.id ?? ""] ?? "currentColor")
-      : `var(--d-series-${(g % 6) + 1})`;
-  const perDay = useMemo(() => {
-    const out = Array.from({ length: data.days.length }, () => new Array<number>(groups).fill(0));
+  /* How tall the fullest day stands, from every bubble: hiding a key shortens columns, never rescales them. */
+  const fullest = useMemo(() => {
+    const perDay = new Array<number>(data.days.length).fill(0);
+    for (const m of data.meetings) perDay[m.d] = (perDay[m.d] ?? 0) + 1;
+    return Math.max(1, ...perDay);
+  }, [data]);
+  /* Each day's column, agent by agent, of what the keys leave shown. */
+  const columns = useMemo(() => {
+    const out = Array.from({ length: data.days.length }, () =>
+      new Array<number>(data.agents.length).fill(0),
+    );
     for (const m of data.meetings) {
-      const row = out[m.d];
-      if (row !== undefined) row[rowPerAgent ? m.o : m.a] = (row[rowPerAgent ? m.o : m.a] ?? 0) + 1;
+      const day = out[m.d];
+      if (day !== undefined && !hiddenOutcomes.has(m.o) && !hiddenAgents.has(m.a)) {
+        day[m.a] = (day[m.a] ?? 0) + 1;
+      }
     }
     return out;
-  }, [data, rowPerAgent, groups]);
-  const fullest = Math.max(1, ...perDay.map((row) => row.reduce((a, b) => a + b, 0)));
+  }, [data, hiddenOutcomes, hiddenAgents]);
 
   const strip = (geometry: Geometry) => {
     const frame = FRAMES[geometry];
     const dayW = frame.width / data.days.length;
     const unit = frame.strip / fullest;
     const barW = Math.max(1, dayW - (dayW > 4 ? 1.4 : 0));
-    const paths = Array.from({ length: groups }, () => "");
-    perDay.forEach((row, d) => {
+    const paths = data.agents.map(() => "");
+    columns.forEach((day, d) => {
       let y = frame.strip;
-      for (let g = 0; g < groups; g += 1) {
-        const hidden = rowPerAgent ? hiddenOutcomes.has(g) : hiddenAgents.has(g);
-        const count = hidden ? 0 : (row[g] ?? 0);
-        if (count === 0) continue;
+      day.forEach((count, a) => {
+        if (count === 0) return;
         const h = count * unit;
         y -= h;
-        paths[g] += `M${f(d * dayW)} ${f(y)}h${f(barW)}v${f(h)}h${f(-barW)}z`;
-      }
+        paths[a] += `M${f(d * dayW)} ${f(y)}h${f(barW)}v${f(h)}h${f(-barW)}z`;
+      });
     });
     const win = windowOf(geometry);
     const x0 = win.first * dayW;
@@ -594,9 +522,7 @@ export function BubbleLens({
         onPointerCancel={onUp}
         onKeyDown={onKey}
       >
-        {paths.map((d, g) =>
-          d === "" ? null : <path key={g} d={d} style={{ fill: toneOf(g) }} />,
-        )}
+        {paths.map((d, a) => (d === "" ? null : <path key={a} d={d} style={{ fill: tone(a) }} />))}
         <rect className="dld-lens-shade" x={0} y={0} width={f(x0)} height={frame.strip} />
         <rect
           className="dld-lens-shade"
@@ -644,17 +570,35 @@ export function BubbleLens({
       {content}
     </svg>
   );
-  const outcomeKeys = data.outcomes.map((o, i) => {
-    const side = Math.max(10, Math.round(o.diameter * (rowPerAgent ? 0.3 : 0.24)));
-    const r = side / 2;
-    const sphere = rowPerAgent ? (
-      <use
-        href={`#dld-sphere-${o.id}`}
-        transform={`scale(${(r / (D_SPHERE_RADIUS[o.id] ?? r)).toFixed(4)})`}
-      />
-    ) : (
-      <use href="#dld-sphere-neutral" transform={`scale(${(r / D_TINT_RADIUS).toFixed(4)})`} />
+  const agentKeys = data.agents.map((agent, a) => {
+    const hidden = hiddenAgents.has(a);
+    return (
+      <li key={agent.id}>
+        <button
+          type="button"
+          className="dld-lens-key"
+          aria-pressed={!hidden}
+          onClick={() => {
+            setTip(null);
+            setHiddenAgents((s) => toggle(s, a));
+            /* Hidden, an agent has nothing to lift; shown again under the pointer, they lift. */
+            setLifted(hidden ? a : null);
+          }}
+          onPointerEnter={() => setLifted(hidden ? null : a)}
+          onPointerLeave={() => setLifted(null)}
+          onFocus={() => setLifted(hidden ? null : a)}
+          onBlur={() => setLifted(null)}
+        >
+          {swatch(<AgentSphere a={a} r={7} />, 14)}
+          <span>{agent.label}</span>
+          <b>{agentCount(a)}</b>
+        </button>
+      </li>
     );
+  });
+  /* The sizes are no agent's, so their key is the same sphere in grey. */
+  const outcomeKeys = data.outcomes.map((o, i) => {
+    const side = Math.max(10, Math.round(o.diameter * 0.24));
     const hidden = hiddenOutcomes.has(i);
     return (
       <li key={o.id}>
@@ -667,47 +611,19 @@ export function BubbleLens({
             setHiddenOutcomes((s) => toggle(s, i));
           }}
         >
-          {swatch(sphere, side)}
+          {swatch(
+            <use
+              href="#dld-sphere-neutral"
+              transform={`scale(${(side / 2 / D_TINT_RADIUS).toFixed(4)})`}
+            />,
+            side,
+          )}
           <span>{o.label}</span>
           <b>{outcomeCount(i)}</b>
         </button>
       </li>
     );
   });
-  const agentKeys = rowPerAgent
-    ? null
-    : data.agents.map((agent, a) => {
-        const hidden = hiddenAgents.has(a);
-        return (
-          <li key={agent.id}>
-            <button
-              type="button"
-              className="dld-lens-key"
-              aria-pressed={!hidden}
-              onClick={() => {
-                setTip(null);
-                setHiddenAgents((s) => toggle(s, a));
-                /* Hidden, an agent has nothing to lift; shown again under the pointer, they lift. */
-                setLifted(hidden ? a : null);
-              }}
-              onPointerEnter={() => setLifted(hidden ? null : a)}
-              onPointerLeave={() => setLifted(null)}
-              onFocus={() => setLifted(hidden ? null : a)}
-              onBlur={() => setLifted(null)}
-            >
-              {swatch(
-                <use
-                  href={`#dld-sphere-agent-${(a % 6) + 1}`}
-                  transform={`scale(${(7 / D_TINT_RADIUS).toFixed(4)})`}
-                />,
-                14,
-              )}
-              <span>{agent.label}</span>
-              <b>{agentCount(a)}</b>
-            </button>
-          </li>
-        );
-      });
 
   /* --- the tip's words -------------------------------------------------------------- */
 
@@ -723,15 +639,11 @@ export function BubbleLens({
             tipMeeting.u.length === 0
               ? "Nothing shortlisted"
               : `Shortlisted ${tipMeeting.u.join(", ")}`,
-          tone: rowPerAgent
-            ? (D_SPHERE_FLAT[data.outcomes[tipMeeting.o]?.id ?? ""] ?? "currentColor")
-            : `var(--d-series-${(tipMeeting.a % 6) + 1})`,
         };
 
   return (
     <div
       className="dld-lens"
-      data-version={version}
       ref={root}
       onKeyDown={(e) => {
         if (e.key === "Escape") setTip(null);
@@ -776,7 +688,7 @@ export function BubbleLens({
       </div>
 
       <div className="dld-lens-keys">
-        {agentKeys === null ? null : <ul aria-label="Agents: show or hide">{agentKeys}</ul>}
+        <ul aria-label="Agents: show or hide">{agentKeys}</ul>
         <ul aria-label="Outcomes: show or hide">{outcomeKeys}</ul>
       </div>
 
@@ -789,7 +701,7 @@ export function BubbleLens({
         {strip("l")}
       </div>
 
-      {tip === null || tipWords === null ? null : (
+      {tip === null || tipMeeting === undefined || tipWords === null ? null : (
         <div
           className="dld-lens-tip"
           data-held={tip.held ? "true" : undefined}
@@ -797,7 +709,7 @@ export function BubbleLens({
           role="status"
         >
           <p className="dld-lens-tip-head">
-            <i style={{ background: tipWords.tone }} />
+            <i style={{ background: tone(tipMeeting.a) }} />
             {tipWords.outcome}
           </p>
           <p>{tipWords.when}</p>

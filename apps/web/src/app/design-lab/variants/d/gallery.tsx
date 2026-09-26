@@ -508,26 +508,14 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
 
           <DCard
             id="bubble"
-            group="B · Bubble lens · a rehearsal at showroom pace · outcomes in colour"
-            title="Which meetings are nearest a purchase"
-            reads={data.bubble.reads}
-            facts={data.bubble.outcomeFacts}
-            kind="bloom"
-            full
-          >
-            <BubbleLens data={data.bubble} version="outcomes" />
-          </DCard>
-
-          <DCard
-            id="bubble-agents"
             group="B · Bubble lens · a rehearsal at showroom pace · agents in colour"
             title="Which meetings are nearest a purchase, and whose"
             reads={data.bubble.reads}
-            facts={data.bubble.agentFacts}
+            facts={data.bubble.facts}
             kind="bloom"
             full
           >
-            <BubbleLens data={data.bubble} version="agents" />
+            <BubbleLens data={data.bubble} />
           </DCard>
 
           <DCard

@@ -557,11 +557,11 @@ export interface DOutcomeFunnelsCard {
 
 /** One rehearsal meeting the bubble rule sizes, as compact as the lens needs it. */
 export interface DLensMeeting {
-  /** The agent, as an index into `agents`: it picks the row, or the colour. */
+  /** The agent, as an index into `agents`: it picks the colour. */
   readonly a: number;
   /** The day, as an index into `days`. */
   readonly d: number;
-  /** The outcome, as an index into `outcomes`: it picks the size, and in the outcome view the sphere. */
+  /** The outcome, as an index into `outcomes`: it picks the size. */
   readonly o: number;
   /** The start on the project's clock, "14:05". */
   readonly t: string;
@@ -569,7 +569,7 @@ export interface DLensMeeting {
   readonly u: readonly string[];
 }
 
-/** The bubble lens: six months of a rehearsal at showroom pace, day by day, for two cards to draw. */
+/** The bubble lens: six months of a rehearsal at showroom pace, day by day. */
 export interface DBubbleLens {
   /** In the gallery's colour order: the i-th agent wears `--d-series-(i+1)` on every card. */
   readonly agents: readonly {
@@ -599,10 +599,9 @@ export interface DBubbleLens {
     readonly length: number;
   }[];
   readonly meetings: readonly DLensMeeting[];
-  /** The source line both cards print. */
+  /** The source line the card prints. */
   readonly reads: string;
-  readonly outcomeFacts: DFacts;
-  readonly agentFacts: DFacts;
+  readonly facts: DFacts;
 }
 
 export interface DScatterCard {
@@ -1497,8 +1496,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
    * project's own agents, catalogue and clock, through the outcome model the
    * recorded meetings go through — imported from the synthetic package rather
    * than read through `repository`: a rehearsal is not a read of the project,
-   * and no implementation of the port should ever serve one. Every word the two
-   * cards print says rehearsal, and no figure on them is the project's.
+   * and no implementation of the port should ever serve one. Every word the card
+   * prints says rehearsal, and no figure on it is the project's.
    */
   const lensFrom = (() => {
     const d = new Date(periodLastDay);
@@ -1621,36 +1620,6 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const stripWords =
     "The strip beneath the lens holds the six months, a column per day as tall as its bubbles; drag it, click it or use the arrow keys on it to move the lens. A pointer resting on a bubble reads its meeting, and a click holds it.";
   const lensNotDrawn = `Not drawn: ${meetings(lensCount("purchase"))} that ended "${labelOf("purchase")}", a deal already closed; and, because the rule gives them no size, ${n(lensCount("presentation_only"))} "${labelOf("presentation_only")}" and ${n(unrecordedRehearsed)} with no outcome recorded.`;
-  const lensFacts = (lead: string, note: string): DFacts => ({
-    lead,
-    note,
-    summary: `A rehearsal at showroom pace, ${lensSpan}: ${meetings(rehearsal.length)}, ${n(lensMeetings.length)} of them drawn as bubbles — ${list(lensOutcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${list(lensAgents.map((a, i) => `${a.label} ${n(lensMeetings.filter((m) => m.a === i).length)}`))}. ${lensNotDrawn}`,
-    figures: [
-      figure(
-        "Rehearsal meetings",
-        n(rehearsal.length),
-        `${n(lensMeetings.length)} drawn; ${paceWords} for each of ${n(lensAgents.length)} agents`,
-      ),
-      figure(
-        "Nearest a purchase",
-        n(nearestSize.count),
-        `ended "${nearestSize.label}": the largest bubbles`,
-      ),
-    ],
-    rankingTitle: "The nearest, latest first",
-    ranking: rehearsedReservations.slice(0, 3).map((s) => {
-      const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
-      return {
-        id: s.meetingId,
-        label: `${dates.format(new Date(calendar(new Date(s.startedAt)).day))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
-        value:
-          shortlisted.length === 0
-            ? "none shortlisted"
-            : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
-      };
-    }),
-    rankingNote: `Rehearsal meetings that ended "${nearestSize.label}", the latest first, with the apartment shortlisted: rehearsed, never held.`,
-  });
   const bubble: DBubbleLens = {
     agents: lensAgents,
     outcomes: lensOutcomes,
@@ -1658,14 +1627,36 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     months: lensMonths,
     meetings: lensMeetings,
     reads: `showroomPaceRehearsal · ${paceWords} per agent · ${projectName} · ${lensSpan}`,
-    outcomeFacts: lensFacts(
-      `A rehearsal at showroom pace: ${meetings(rehearsal.length)} in six months, ${n(lensMeetings.length)} of them drawn, and the largest bubbles, the ${n(nearestSize.count)} that ended "${nearestSize.label}", are the nearest a purchase.`,
-      `${rehearsalWords} Each bubble is one meeting, sized and coloured by the outcome recorded at its end, ${ladderWords} The lens shows seven days, or at a wide window a month: a row per agent, a column per day, and each day's bubbles resting on one another from the largest up. ${stripWords} The keys above the lens hide an outcome or show it again. ${lensNotDrawn}`,
-    ),
-    agentFacts: lensFacts(
-      `The same rehearsal on one canvas: each agent in a colour of their own and each outcome in a size of its own, ${n(lensMeetings.length)} bubbles over six months.`,
-      `${rehearsalWords} Each bubble is one meeting, coloured by the agent who presented it and sized by the outcome recorded at its end, ${ladderWords} The lens shows seven days, or at a wide window a month, on one canvas: a column per day, and every agent's bubbles of that day resting together, the largest at the foot. ${stripWords} The keys above the lens hide an agent or an outcome, or show it again; a pointer resting on an agent's key lifts their bubbles out of the rest. ${lensNotDrawn}`,
-    ),
+    facts: {
+      lead: `A rehearsal at showroom pace, on one canvas: ${meetings(rehearsal.length)} in six months, ${n(lensMeetings.length)} of them drawn, each agent in a colour of their own and each outcome in a size of its own. The largest bubbles, the ${n(nearestSize.count)} that ended "${nearestSize.label}", are the nearest a purchase.`,
+      note: `${rehearsalWords} Each bubble is one meeting, coloured by the agent who presented it and sized by the outcome recorded at its end, ${ladderWords} The lens shows seven days, or at a wide window a month, on one canvas: a column per day, and every agent's bubbles of that day resting together, the largest at the foot. ${stripWords} The keys above the lens hide an agent or an outcome, or show it again; a pointer resting on an agent's key lifts their bubbles out of the rest. ${lensNotDrawn}`,
+      summary: `A rehearsal at showroom pace, ${lensSpan}: ${meetings(rehearsal.length)}, ${n(lensMeetings.length)} of them drawn as bubbles — ${list(lensOutcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${list(lensAgents.map((a, i) => `${a.label} ${n(lensMeetings.filter((m) => m.a === i).length)}`))}. ${lensNotDrawn}`,
+      figures: [
+        figure(
+          "Rehearsal meetings",
+          n(rehearsal.length),
+          `${n(lensMeetings.length)} drawn; ${paceWords} for each of ${n(lensAgents.length)} agents`,
+        ),
+        figure(
+          "Nearest a purchase",
+          n(nearestSize.count),
+          `ended "${nearestSize.label}": the largest bubbles`,
+        ),
+      ],
+      rankingTitle: "The nearest, latest first",
+      ranking: rehearsedReservations.slice(0, 3).map((s) => {
+        const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
+        return {
+          id: s.meetingId,
+          label: `${dates.format(new Date(calendar(new Date(s.startedAt)).day))} · ${nameOf.get(s.agentId) ?? s.agentId}`,
+          value:
+            shortlisted.length === 0
+              ? "none shortlisted"
+              : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
+        };
+      }),
+      rankingNote: `Rehearsal meetings that ended "${nearestSize.label}", the latest first, with the apartment shortlisted: rehearsed, never held.`,
+    },
   };
 
   /* --- when meetings happen: the grid two ways, the dial, the punch card ---------- */
