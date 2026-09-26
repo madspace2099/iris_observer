@@ -577,6 +577,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
 describe("ask-computed.ts: the apartment opened most", () => {
   const TRIPLES = [
     [1, 1, 1],
+    [1, 1, 3],
     [2, 5, 7],
     [3, 3, 4],
     [5, 5, 5],
@@ -585,6 +586,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
       "A-101 was opened in 1 of 1 presentation in quarter to date; 1 different apartment was opened in all.",
+      "A-101 was opened in 1 of 1 presentation in quarter to date; 3 different apartments were opened in all.",
       "A-101 was opened in 2 of 5 presentations in quarter to date; 7 different apartments were opened in all.",
       "A-101 was opened in 3 of 3 presentations in quarter to date; 4 different apartments were opened in all.",
       "A-101 was opened in 5 of 5 presentations in quarter to date; 5 different apartments were opened in all.",
@@ -592,6 +594,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
     ],
     sk: [
       "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Bol to jediný byt, ktorý otvorili.",
+      "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Celkovo otvorili 3 rôzne byty.",
       "Byt A-101 otvorili na dvoch z 5 prezentácií v období quarter to date. Celkovo otvorili 7 rôznych bytov.",
       "Byt A-101 otvorili na všetkých troch prezentáciách v období quarter to date. Celkovo otvorili 4 rôzne byty.",
       "Byt A-101 otvorili na všetkých 5 prezentáciách v období quarter to date. Celkovo otvorili 5 rôznych bytov.",
@@ -599,6 +602,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
     ],
     hu: [
       "A quarter to date időszak egyetlen bemutatóján megnyitották az A-101-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
+      "A quarter to date időszak egyetlen bemutatóján megnyitották az A-101-es lakást. Összesen 3 különböző lakást nyitottak meg.",
       "A quarter to date időszak 5 bemutatója közül 2 bemutatón megnyitották az A-101-es lakást. Összesen 7 különböző lakást nyitottak meg.",
       "A quarter to date időszak mindhárom bemutatóján megnyitották az A-101-es lakást. Összesen 4 különböző lakást nyitottak meg.",
       "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 5 különböző lakást nyitottak meg.",

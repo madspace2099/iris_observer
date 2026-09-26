@@ -233,17 +233,30 @@ export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
   },
 };
 
-/** `opened === count`. */
+/*
+ * `opened === count`.
+ *
+ * With a single presentation, the second clause turns on the number of
+ * apartments, not of presentations: one presentation can open several, and
+ * "it was the only apartment opened" is true only while `apartments` is 1. It
+ * is chosen by `m`, the apartments, and must not be folded back into the
+ * presentations' `one` — at 1 / 1 / 3 that sentence would be false.
+ */
 export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
   en: TOP_APARTMENT_EN,
   sk: {
     text: "{all|n}",
     words: {
       all: {
-        one: "Počas jedinej prezentácie v období {period} otvorili byt {top}. Bol to jediný byt, ktorý otvorili.",
+        one: "Počas jedinej prezentácie v období {period} otvorili byt {top}. {single|m}",
         few: "Byt {top} otvorili na všetkých {#allCount|n} prezentáciách v období {period}. Celkovo otvorili {apartments} {different|m}.",
         other:
           "Byt {top} otvorili na všetkých {#allCount|n} prezentáciách v období {period}. Celkovo otvorili {apartments} {different|m}.",
+      },
+      single: {
+        one: "Bol to jediný byt, ktorý otvorili.",
+        few: "Celkovo otvorili {apartments} {different|m}.",
+        other: "Celkovo otvorili {apartments} {different|m}.",
       },
       different: DIFFERENT_APARTMENTS_SK,
     },
@@ -254,10 +267,14 @@ export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
     text: "{all|n}",
     words: {
       all: {
-        one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top}-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
+        one: "{Az:period} időszak egyetlen bemutatóján megnyitották {az:top}-es lakást. {single|m}",
         few: "{Az:period} időszak {#allWord|n} bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
         other:
           "{Az:period} időszak mindegyik bemutatóján megnyitották {az:top}-es lakást. Összesen {apartments} különböző lakást nyitottak meg.",
+      },
+      single: {
+        one: "Ez volt az egyetlen lakás, amelyet megnyitottak.",
+        other: "Összesen {apartments} különböző lakást nyitottak meg.",
       },
     },
     /* The first cell is never read: at 1 the `one` form runs. Attributive, as a noun follows. */
