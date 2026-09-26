@@ -777,10 +777,10 @@ describe("ask-computed.ts: who presented, by two independent figures", () => {
     hu: [
       "A quarter to date időszak egyetlen bemutatóját egy ingatlanértékesítő tartotta.",
       "A quarter to date időszakban 1 bemutatót összesen 2 ingatlanértékesítő tartott.",
-      "A quarter to date időszakban 3 bemutatót összesen 1 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 3 bemutatót egyetlen ingatlanértékesítő tartott.",
       "A quarter to date időszakban 3 bemutatót összesen 3 ingatlanértékesítő tartott.",
       "A quarter to date időszakban 5 bemutatót összesen 5 ingatlanértékesítő tartott.",
-      "A quarter to date időszakban 9 bemutatót összesen 1 ingatlanértékesítő tartott.",
+      "A quarter to date időszakban 9 bemutatót egyetlen ingatlanértékesítő tartott.",
       "A quarter to date időszakban 9 bemutatót összesen 2 ingatlanértékesítő tartott.",
       "A quarter to date időszakban 12 bemutatót összesen 7 ingatlanértékesítő tartott.",
     ],

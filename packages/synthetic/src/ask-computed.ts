@@ -394,7 +394,11 @@ export const ASK_PRESENTERS_GENERAL_SENTENCE: Sentence = {
   en: PRESENTERS_EN,
   sk: PRESENTERS_SK,
   hu: {
-    text: "{Az:period} időszakban {count} bemutatót összesen {people} ingatlanértékesítő tartott.",
+    text: "{Az:period} időszakban {count} bemutatót {agents|p} tartott.",
+    /* One agent is "egyetlen", not "összesen 1". */
+    words: {
+      agents: { one: "egyetlen ingatlanértékesítő", other: "összesen {people} ingatlanértékesítő" },
+    },
   },
 };
 
