@@ -131,7 +131,7 @@ export const ASK_RECORDED_SOME_SENTENCE: Sentence = {
   sk: {
     text: "{recorded|n} Realitný maklér zadal výsledok stretnutia na konci {#outcomesWord|o} z nich.",
     words: { recorded: RECORDED_SK },
-    numerals: { outcomesWord: ["jednej", "dvoch", "troch", "štyroch"] },
+    numerals: { outcomesWord: ["jednej", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
     text: "{recorded|n} Az ingatlanértékesítő ezek közül {outcomes} bemutató végén adta meg a találkozó eredményét.",
@@ -224,8 +224,8 @@ export const ASK_TOP_APARTMENT_SOME_SENTENCE: Sentence = {
     text: "Byt {top} otvorili na {#openedWord|o} z {#countWord|n} prezentácií v období {period}. Celkovo otvorili {apartments} {different|m}.",
     words: { different: DIFFERENT_APARTMENTS_SK },
     numerals: {
-      openedWord: ["jednej", "dvoch", "troch", "štyroch"],
-      countWord: ["jednej", "dvoch", "troch", "štyroch"],
+      openedWord: ["jednej", "dvoch", "troch", "štyroch", "piatich"],
+      countWord: ["jednej", "dvoch", "troch", "štyroch", "piatich"],
     },
   },
   hu: {
@@ -261,7 +261,7 @@ export const ASK_TOP_APARTMENT_ALL_SENTENCE: Sentence = {
       different: DIFFERENT_APARTMENTS_SK,
     },
     /* The first cell is never read: at 1 the `one` form runs. */
-    numerals: { allCount: ["", "dvoch", "troch", "štyroch"] },
+    numerals: { allCount: ["", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
     text: "{all|n}",

@@ -15,6 +15,7 @@ import {
   askRecordedSentence,
   askTopApartmentSentence,
 } from "../src/ask-computed";
+import * as ask from "../src/ask-computed";
 import {
   DEAL_LAG_HOURS_SENTENCE,
   DEAL_NOT_OPENED_SENTENCE,
@@ -524,6 +525,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
     [5, 2],
     [5, 5],
     [12, 4],
+    [7, 5],
   ] as const;
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
@@ -535,6 +537,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
       "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 2 of them.",
       "5 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
       "12 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 4 of them.",
+      "7 presentations were recorded on Northgate Residences in quarter to date, and the agent recorded an outcome at the end of 5 of them.",
     ],
     sk: [
       "Pri projekte Northgate Residences bola za obdobie quarter to date zaznamenaná jedna prezentácia. Realitný maklér na konci ani jednej z nich nezadal výsledok stretnutia.",
@@ -545,6 +548,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
       "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 5 prezentácií. Realitný maklér zadal výsledok stretnutia na konci dvoch z nich.",
       "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 5 prezentácií. Realitný maklér zadal výsledok stretnutia na konci každej z nich.",
       "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 12 prezentácií. Realitný maklér zadal výsledok stretnutia na konci štyroch z nich.",
+      "Pri projekte Northgate Residences bolo za obdobie quarter to date zaznamenaných 7 prezentácií. Realitný maklér zadal výsledok stretnutia na konci piatich z nich.",
     ],
     hu: [
       "A Northgate Residences projektnél a quarter to date időszakban egy bemutatót rögzítettek. Az ingatlanértékesítő egyik bemutató végén sem adta meg a találkozó eredményét.",
@@ -555,6 +559,7 @@ describe("ask-computed.ts: the presentations recorded, and how many ended with a
       "A Northgate Residences projektnél a quarter to date időszakban 5 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 2 bemutató végén adta meg a találkozó eredményét.",
       "A Northgate Residences projektnél a quarter to date időszakban 5 bemutatót rögzítettek. Az ingatlanértékesítő mindegyik bemutató végén adta meg a találkozó eredményét.",
       "A Northgate Residences projektnél a quarter to date időszakban 12 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 4 bemutató végén adta meg a találkozó eredményét.",
+      "A Northgate Residences projektnél a quarter to date időszakban 7 bemutatót rögzítettek. Az ingatlanértékesítő ezek közül 5 bemutató végén adta meg a találkozó eredményét.",
     ],
   };
 
@@ -582,6 +587,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
     [3, 3, 4],
     [5, 5, 5],
     [7, 9, 12],
+    [5, 9, 12],
   ] as const;
   const expected: Readonly<Record<Language, readonly string[]>> = {
     en: [
@@ -591,14 +597,16 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A-101 was opened in 3 of 3 presentations in quarter to date; 4 different apartments were opened in all.",
       "A-101 was opened in 5 of 5 presentations in quarter to date; 5 different apartments were opened in all.",
       "A-101 was opened in 7 of 9 presentations in quarter to date; 12 different apartments were opened in all.",
+      "A-101 was opened in 5 of 9 presentations in quarter to date; 12 different apartments were opened in all.",
     ],
     sk: [
       "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Bol to jediný byt, ktorý otvorili.",
       "Počas jedinej prezentácie v období quarter to date otvorili byt A-101. Celkovo otvorili 3 rôzne byty.",
-      "Byt A-101 otvorili na dvoch z 5 prezentácií v období quarter to date. Celkovo otvorili 7 rôznych bytov.",
+      "Byt A-101 otvorili na dvoch z piatich prezentácií v období quarter to date. Celkovo otvorili 7 rôznych bytov.",
       "Byt A-101 otvorili na všetkých troch prezentáciách v období quarter to date. Celkovo otvorili 4 rôzne byty.",
-      "Byt A-101 otvorili na všetkých 5 prezentáciách v období quarter to date. Celkovo otvorili 5 rôznych bytov.",
+      "Byt A-101 otvorili na všetkých piatich prezentáciách v období quarter to date. Celkovo otvorili 5 rôznych bytov.",
       "Byt A-101 otvorili na 7 z 9 prezentácií v období quarter to date. Celkovo otvorili 12 rôznych bytov.",
+      "Byt A-101 otvorili na piatich z 9 prezentácií v období quarter to date. Celkovo otvorili 12 rôznych bytov.",
     ],
     hu: [
       "A quarter to date időszak egyetlen bemutatóján megnyitották az A-101-es lakást. Ez volt az egyetlen lakás, amelyet megnyitottak.",
@@ -607,6 +615,7 @@ describe("ask-computed.ts: the apartment opened most", () => {
       "A quarter to date időszak mindhárom bemutatóján megnyitották az A-101-es lakást. Összesen 4 különböző lakást nyitottak meg.",
       "A quarter to date időszak mindegyik bemutatóján megnyitották az A-101-es lakást. Összesen 5 különböző lakást nyitottak meg.",
       "A quarter to date időszak 9 bemutatója közül 7 bemutatón megnyitották az A-101-es lakást. Összesen 12 különböző lakást nyitottak meg.",
+      "A quarter to date időszak 9 bemutatója közül 5 bemutatón megnyitották az A-101-es lakást. Összesen 12 különböző lakást nyitottak meg.",
     ],
   };
 
@@ -729,5 +738,26 @@ describe("the sites write through their sentences", () => {
       /^\d+ (jednotka otvorená|jednotky otvorené|jednotiek otvorených): /,
     );
     expect(await said("hu")).toMatch(/^\d+ egység megnyitva: /);
+  });
+});
+
+/*
+ * Where Slovak writes five as a word, the table must carry it: the fifth cell
+ * is optional in the type, so this test is what requires it, beside the data.
+ */
+describe("ask-computed.ts: the Slovak numeral tables", () => {
+  it("each carry a fifth cell, and it is piatich", () => {
+    const tables = Object.entries(ask).flatMap(([name, value]) => {
+      const sk = (value as Partial<Sentence>).sk;
+      return typeof value === "object" && sk?.numerals !== undefined
+        ? Object.entries(sk.numerals).map(([key, cells]) => [`${name}.${key}`, cells[4]])
+        : [];
+    });
+    expect(tables).toEqual([
+      ["ASK_RECORDED_SOME_SENTENCE.outcomesWord", "piatich"],
+      ["ASK_TOP_APARTMENT_SOME_SENTENCE.openedWord", "piatich"],
+      ["ASK_TOP_APARTMENT_SOME_SENTENCE.countWord", "piatich"],
+      ["ASK_TOP_APARTMENT_ALL_SENTENCE.allCount", "piatich"],
+    ]);
   });
 });
