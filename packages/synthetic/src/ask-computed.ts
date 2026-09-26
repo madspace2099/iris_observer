@@ -2,10 +2,12 @@ import { OUTCOME_LABELS, outcomeIsUnknown, type ShowroomSession } from "@observe
 import { DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
 import {
   plural,
+  sentence,
   type AskAnswer,
   type AskSession,
   type Language,
   type PluralForms,
+  type Sentence,
   type ViewContext,
 } from "@observer/readmodels";
 
@@ -71,6 +73,65 @@ export const ASK_PEOPLE_PRESENTED: PluralForms = {
 
 const meetingsWord = (n: number, locale: string, language: Language): string =>
   `${count(n, locale)} ${plural(language, n, ASK_PRESENTATIONS)}`;
+
+/*
+ * The answers' sentences, each written once per language in that language's
+ * own order. A count in a subject takes the entries above; a count the
+ * sentence puts in another case takes that case's forms here, as its own.
+ */
+
+/** "3 presentations were recorded on Northgate Residences in quarter to date, and …" */
+export const ASK_RECORDED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {presentations|n} {recorded|n} on {project} in {period}, and the agent recorded an outcome at the end of {outcomes} of them.",
+    words: { presentations: ASK_PRESENTATIONS.en, recorded: ASK_RECORDED.en },
+  },
+  sk: {
+    text: "Na projekte {project} {recorded|n} v období {period} {count} {presentations|n} a pri {outcomes} z nich maklér na konci zaznamenal výsledok.",
+    words: { presentations: ASK_PRESENTATIONS.sk, recorded: ASK_RECORDED.sk },
+  },
+  hu: {
+    text: "{Az:project} projekten {az:period} időszakban {count} prezentáció lett rögzítve, és közülük {outcomes} esetében az értékesítő a végén rögzítette a kimenetelt.",
+  },
+};
+
+/** "A-101 was opened in 3 of 3 presentations in quarter to date; 3 different apartments were opened in all." */
+export const ASK_TOP_APARTMENT_SENTENCE: Sentence = {
+  en: {
+    text: "{top} was opened in {opened} of {count} {presentations|n} in {period}; {apartments} {different|m} in all.",
+    words: { presentations: ASK_PRESENTATIONS.en, different: ASK_APARTMENTS_OPENED.en },
+  },
+  sk: {
+    text: "Byt {top} bol otvorený v {opened} z {count} {presentations|n} v období {period}; celkovo {apartments} {different|m}.",
+    words: {
+      /* After "z": the genitive. */
+      presentations: { one: "prezentácie", few: "prezentácií", other: "prezentácií" },
+      different: ASK_APARTMENTS_OPENED.sk,
+    },
+  },
+  hu: {
+    text: "{Az:top} lakást {az:period} időszakban {count} prezentációból {opened} alkalommal nyitották meg; összesen {apartments} különböző lakást nyitottak meg.",
+  },
+};
+
+/** "2 people presented the 3 presentations in quarter to date." */
+export const ASK_PRESENTERS_SENTENCE: Sentence = {
+  en: {
+    text: "{people} {presented|p} the {count} {presentations|n} in {period}.",
+    words: { presented: ASK_PEOPLE_PRESENTED.en, presentations: ASK_PRESENTATIONS.en },
+  },
+  sk: {
+    text: "{people} {presented|p} v období {period} {count} {presentations|n}.",
+    words: {
+      presented: ASK_PEOPLE_PRESENTED.sk,
+      /* The object: the accusative. */
+      presentations: { one: "prezentáciu", few: "prezentácie", other: "prezentácií" },
+    },
+  },
+  hu: {
+    text: "{Az:period} időszak {count} prezentációját {people} ember tartotta.",
+  },
+};
 
 /** "Which sales followed a showing in IRIS?", or null where no CRM is connected. */
 export function assistedSalesAnswer(context: ViewContext): AskAnswer | null {
@@ -138,7 +199,13 @@ export function buildDeliveredAskSession(
     answer:
       n === 0
         ? `No presentation was recorded on ${context.project.name} in ${period}.`
-        : `${meetingsWord(n, locale, language)} ${plural(language, n, ASK_RECORDED)} on ${context.project.name} in ${period}, and the agent recorded an outcome at the end of ${count(recorded.length, locale)} of them.`,
+        : sentence(language, ASK_RECORDED_SENTENCE, {
+            count: count(n, locale),
+            n,
+            project: context.project.name,
+            period,
+            outcomes: count(recorded.length, locale),
+          }),
     figures: [...byOutcome.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -171,7 +238,15 @@ export function buildDeliveredAskSession(
         ? n === 0
           ? `No presentation was recorded in ${period}, so no apartment was opened.`
           : `No apartment was opened in any of the ${meetingsWord(n, locale, language)} in ${period}.`
-        : `${top[0]} was opened in ${count(top[1], locale)} of ${meetingsWord(n, locale, language)} in ${period}; ${count(ranked.length, locale)} ${plural(language, ranked.length, ASK_APARTMENTS_OPENED)} in all.`,
+        : sentence(language, ASK_TOP_APARTMENT_SENTENCE, {
+            top: top[0],
+            opened: count(top[1], locale),
+            count: count(n, locale),
+            n,
+            period,
+            apartments: count(ranked.length, locale),
+            m: ranked.length,
+          }),
     figures: ranked.slice(0, 3).map(([code, k]) => ({
       label: code,
       value: `${count(k, locale)} of ${count(n, locale)}`,
@@ -195,7 +270,13 @@ export function buildDeliveredAskSession(
     answer:
       presenters.length === 0
         ? `Nobody presented on ${context.project.name} in ${period}.`
-        : `${count(presenters.length, locale)} ${plural(language, presenters.length, ASK_PEOPLE_PRESENTED)} the ${meetingsWord(n, locale, language)} in ${period}.`,
+        : sentence(language, ASK_PRESENTERS_SENTENCE, {
+            people: count(presenters.length, locale),
+            p: presenters.length,
+            count: count(n, locale),
+            n,
+            period,
+          }),
     figures: presenters.slice(0, 3).map((p) => ({
       label: p.name,
       value: `${count(p.meetings, locale)} of ${count(n, locale)}`,

@@ -47,12 +47,14 @@ import type {
 } from "@observer/readmodels";
 import {
   AGENT_REGISTER_ROLES,
+  MEETINGS,
+  TIMES,
   areaWord,
   nothingReceivedYet,
-  plural,
   roomsWord,
+  sentence,
   visitorLabel,
-  type PluralForms,
+  type Sentence,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
@@ -76,23 +78,59 @@ import { buildMeetingList, buildUnitAttention } from "./project";
 import { buildAgentsView, meetings as meetingsWord, suppressionNoteFor } from "./views3";
 
 /*
- * The words the unit page counts in, beside the sentences that use them. The
- * Slovak and Hungarian forms are the ones a count takes standing alone or as a
- * subject; a sentence that governs another case chooses its forms when it is
- * translated.
+ * The unit page's sentences, each written once per language in that
+ * language's own order. Occasions are the shared `TIMES`; a count of meetings
+ * after "in" is a locative in Slovak and a suffix in Hungarian, so those forms
+ * are each sentence's own.
  */
 
-export const SCREENS_MEETINGS: PluralForms = {
-  en: { one: "meeting", other: "meetings" },
-  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
-  hu: { one: "találkozó", other: "találkozó" },
+/** "Opened 5 times": a timeline entry's title. */
+export const SCREENS_OPENED_SENTENCE: Sentence = {
+  en: { text: "Opened {count} {times|n}", words: { times: TIMES.en } },
+  sk: { text: "Otvorená {count} {times|n}", words: { times: TIMES.sk } },
+  hu: { text: "{count} alkalommal megnyitva" },
 };
 
-/** "Opened 3 times": Slovak counts occasions as "raz", "razy", "ráz". */
-export const SCREENS_TIMES: PluralForms = {
-  en: { one: "time", other: "times" },
-  sk: { one: "raz", few: "razy", other: "ráz" },
-  hu: { one: "alkalommal", other: "alkalommal" },
+/** "B-302 was shortlisted in 3 meetings, none of which recorded a follow-up." */
+export const SCREENS_SHORTLISTED_SENTENCE: Sentence = {
+  en: {
+    text: "{unit} was shortlisted in {count} {meetings|n}, none of which recorded a follow-up.",
+    words: { meetings: MEETINGS.en },
+  },
+  sk: {
+    text: "Jednotka {unit} bola zaradená do výberu v {count} {meetings|n} a {none|n}.",
+    words: {
+      /* After "v": the locative. */
+      meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" },
+      none: {
+        one: "pri ňom nebol zaznamenaný žiadny ďalší krok",
+        few: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
+        other: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
+      },
+    },
+  },
+  hu: {
+    text: "{Az:unit} egység {count} találkozón került a kiválasztottak közé, és {none|n}.",
+    words: {
+      none: {
+        one: "azon nem rögzítettek utánkövetést",
+        other: "egyiken sem rögzítettek utánkövetést",
+      },
+    },
+  },
+};
+
+/** "B-302 · 2 rooms · 63 m² · €240,000 · opened in 3 meetings": a unit's headline. */
+export const SCREENS_UNIT_HEADLINE: Sentence = {
+  en: {
+    text: "{unit} · {rooms} · {area} · {price} · opened in {count} {meetings|n}",
+    words: { meetings: MEETINGS.en },
+  },
+  sk: {
+    text: "{unit} · {rooms} · {area} · {price} · otvorená v {count} {meetings|n}",
+    words: { meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" } },
+  },
+  hu: { text: "{unit} · {rooms} · {area} · {price} · {count} találkozón megnyitva" },
 };
 
 /**
@@ -712,7 +750,10 @@ export function buildUnitDetail(
 
     add(
       "viewed",
-      `Opened ${count(touch.views, locale)} ${plural(language, touch.views, SCREENS_TIMES)}`,
+      sentence(language, SCREENS_OPENED_SENTENCE, {
+        count: count(touch.views, locale),
+        n: touch.views,
+      }),
       `${duration(touch.dwellSeconds)} in total, longest look ${duration(touch.longestViewSeconds)}`,
       "observed_sequence",
       OBSERVED,
@@ -1006,7 +1047,11 @@ export function buildUnitDetail(
   if (row.favourites > 0 && followUpIn.length === 0) {
     findings.push({
       id: `unit-${unitCode}-shortlist-no-follow-up`,
-      statement: `${unitCode} was shortlisted in ${count(row.favourites, locale)} ${plural(language, row.favourites, SCREENS_MEETINGS)}, none of which recorded a follow-up.`,
+      statement: sentence(language, SCREENS_SHORTLISTED_SENTENCE, {
+        unit: unitCode,
+        count: count(row.favourites, locale),
+        n: row.favourites,
+      }),
       baseline: `${count(row.meetings, locale)} meetings opened it`,
       soWhat:
         "Shortlisting is the strongest interest signal the showroom produces. A shortlist with nothing recorded after it is a call somebody may still owe.",
@@ -1066,7 +1111,14 @@ export function buildUnitDetail(
   const headline =
     row.meetings === 0
       ? `${unit.unitCode} · ${roomsWord(unit.rooms, language)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay}`
-      : `${unit.unitCode} · ${roomsWord(unit.rooms, language)} · ${areaWord(unit.areaSqm)} · ${unit.priceDisplay} · opened in ${count(row.meetings, locale)} ${plural(language, row.meetings, SCREENS_MEETINGS)}`;
+      : sentence(language, SCREENS_UNIT_HEADLINE, {
+          unit: unit.unitCode,
+          rooms: roomsWord(unit.rooms, language),
+          area: areaWord(unit.areaSqm),
+          price: unit.priceDisplay,
+          count: count(row.meetings, locale),
+          n: row.meetings,
+        });
 
   return {
     context,

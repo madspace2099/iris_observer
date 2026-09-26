@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { MeetingId } from "@observer/contracts";
 import {
+  DAYS,
   DEFAULT_LANGUAGE,
   LANGUAGES,
+  MEETINGS,
   ROOMS_WORD,
+  TIMES,
   plural,
   roomsWord,
   type Language,
@@ -18,7 +21,6 @@ import {
   ASK_RECORDED,
 } from "../src/ask-computed";
 import {
-  DEAL_DAYS,
   DEAL_DEALS,
   DEAL_HOURS,
   DEAL_NOT_OPENED,
@@ -28,7 +30,7 @@ import {
   DEAL_SHOWN_EARLIER,
 } from "../src/deals";
 import { FORMAT_DAYS, days } from "../src/format";
-import { TIME_DAYS, periodsAt } from "../src/time";
+import { periodsAt } from "../src/time";
 import {
   ATTENTION_NEVER_REPORTED,
   ATTENTION_NEVER_SHORTLISTED,
@@ -36,15 +38,8 @@ import {
   ATTENTION_SOURCES_SILENT,
   ATTENTION_UNITS,
 } from "../src/showroom/attention";
-import {
-  PROJECT_MEETINGS,
-  PROJECT_NO_OUTCOME,
-  PROJECT_TIMES,
-  PROJECT_UNITS_OPENED,
-  PROJECT_VIEWS,
-} from "../src/showroom/project";
-import { SCREENS_MEETINGS, SCREENS_TIMES } from "../src/showroom/screens";
-import { VIEWS3_DAYS, VIEWS3_MEETINGS, meetings } from "../src/showroom/views3";
+import { PROJECT_NO_OUTCOME, PROJECT_UNITS_OPENED, PROJECT_VIEWS } from "../src/showroom/project";
+import { meetings } from "../src/showroom/views3";
 import { sessionsForProject } from "../src/showroom/sessions";
 
 /**
@@ -112,8 +107,9 @@ const EXPECTED: readonly Expected[] = [
     hu: "ember prezentált",
   },
   {
-    sites: "deals.ts:82",
-    entry: DEAL_DAYS,
+    sites:
+      "words.ts DAYS: days on a rung (deals.ts), the bucket labels (views3.ts), the baseline label (time.ts)",
+    entry: DAYS,
     en: ["day", "days"],
     sk: ["deň", "dni", "dní"],
     hu: "nap",
@@ -172,6 +168,20 @@ const EXPECTED: readonly Expected[] = [
     hu: "eladás",
   },
   {
+    sites: "words.ts MEETINGS: the count of meetings every screen shares",
+    entry: MEETINGS,
+    en: ["meeting", "meetings"],
+    sk: ["stretnutie", "stretnutia", "stretnutí"],
+    hu: "találkozó",
+  },
+  {
+    sites: "words.ts TIMES: occasions, in project.ts and screens.ts",
+    entry: TIMES,
+    en: ["time", "times"],
+    sk: ["raz", "razy", "ráz"],
+    hu: "alkalommal",
+  },
+  {
     sites: "format.ts:104",
     entry: FORMAT_DAYS,
     en: ["day", "days"],
@@ -218,13 +228,6 @@ const EXPECTED: readonly Expected[] = [
     hu: "soha nem került kiválasztásra",
   },
   {
-    sites: "showroom/project.ts:765, showroom/project.ts:1398",
-    entry: PROJECT_MEETINGS,
-    en: ["meeting", "meetings"],
-    sk: ["stretnutie", "stretnutia", "stretnutí"],
-    hu: "találkozó",
-  },
-  {
     sites: "showroom/project.ts:766 and :767, one clause",
     entry: PROJECT_NO_OUTCOME,
     en: ["has no recorded outcome and stands", "have no recorded outcome and stand"],
@@ -248,48 +251,6 @@ const EXPECTED: readonly Expected[] = [
     en: ["view", "views"],
     sk: ["zobrazenie", "zobrazenia", "zobrazení"],
     hu: "megtekintés",
-  },
-  {
-    sites: "showroom/project.ts:1419, twice",
-    entry: PROJECT_TIMES,
-    en: ["time", "times"],
-    sk: ["raz", "razy", "ráz"],
-    hu: "alkalommal",
-  },
-  {
-    sites: "showroom/screens.ts:692",
-    entry: SCREENS_TIMES,
-    en: ["time", "times"],
-    sk: ["raz", "razy", "ráz"],
-    hu: "alkalommal",
-  },
-  {
-    sites: "showroom/screens.ts:986, showroom/screens.ts:1045",
-    entry: SCREENS_MEETINGS,
-    en: ["meeting", "meetings"],
-    sk: ["stretnutie", "stretnutia", "stretnutí"],
-    hu: "találkozó",
-  },
-  {
-    sites: "showroom/views3.ts:75",
-    entry: VIEWS3_MEETINGS,
-    en: ["meeting", "meetings"],
-    sk: ["stretnutie", "stretnutia", "stretnutí"],
-    hu: "találkozó",
-  },
-  {
-    sites: "showroom/views3.ts:272, showroom/views3.ts:289",
-    entry: VIEWS3_DAYS,
-    en: ["day", "days"],
-    sk: ["deň", "dni", "dní"],
-    hu: "nap",
-  },
-  {
-    sites: "time.ts:235",
-    entry: TIME_DAYS,
-    en: ["day", "days"],
-    sk: ["deň", "dni", "dní"],
-    hu: "nap",
   },
 ];
 
@@ -323,8 +284,8 @@ describe.each(EXPECTED)("$sites", ({ entry, en, sk, hu }) => {
 
 describe("the rules, where n === 1 was wrong", () => {
   it("Slovak keeps 22 in the form of 5, not of 2: its few is 2 to 4 alone", () => {
-    expect(plural("sk", 22, VIEWS3_MEETINGS)).toBe("stretnutí");
-    expect(plural("sk", 0, VIEWS3_MEETINGS)).toBe("stretnutí");
+    expect(plural("sk", 22, MEETINGS)).toBe("stretnutí");
+    expect(plural("sk", 0, MEETINGS)).toBe("stretnutí");
   });
 
   it("a fraction takes Slovak's fourth form where the entry can be counted in halves", () => {
@@ -356,7 +317,7 @@ describe("the sites print through their entries", () => {
       "the same 2 days of the previous quarter",
     );
     expect(periodsAt(at, "Europe/Bratislava", "sk").quarter_to_date.baselineLabel).toBe(
-      "the same 2 dni of the previous quarter",
+      "rovnaké 2 dni predchádzajúceho štvrťroka",
     );
   });
 });

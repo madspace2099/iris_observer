@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  MEETINGS,
   plural,
   type AskThreadSummary,
   type EvidenceRef,
@@ -11,13 +12,9 @@ import { ASK_CONSOLE_PREPARED } from "@/components/ask/AskConsole";
 import { THREAD_TURNS, ThreadList } from "@/components/ask/ThreadList";
 import { Evidence, PROVENANCE_RECORDS } from "@/components/product/Provenance";
 import { STACK_MEANINGFUL_VIEWS, STACK_PEOPLE } from "@/components/product/StackPlan";
-import { DEMAND_MEETINGS, DEMAND_MINUTES } from "@/components/project/DemandSignals";
+import { DEMAND_MINUTES } from "@/components/project/DemandSignals";
 import { counted } from "@/components/project/Reading";
 import { EXPORT_SECTIONS } from "@/components/report/ExportReport";
-import {
-  DEMAND_ATTENTION_MEETINGS,
-  DEMAND_ATTENTION_ONE_MEETING,
-} from "@/components/units/DemandAttention";
 
 /**
  * THE COMPONENTS' PLURAL FORMS.
@@ -74,13 +71,6 @@ const EXPECTED: readonly Expected[] = [
     hu: "ember",
   },
   {
-    sites: "components/project/Reading.tsx:146, for DemandSignals' meetings",
-    entry: DEMAND_MEETINGS,
-    en: ["meeting", "meetings"],
-    sk: ["stretnutie", "stretnutia", "stretnutí"],
-    hu: "találkozó",
-  },
-  {
     sites: "components/project/Reading.tsx:146, for DemandSignals' minutes",
     entry: DEMAND_MINUTES,
     en: ["minute", "minutes"],
@@ -93,13 +83,6 @@ const EXPECTED: readonly Expected[] = [
     en: ["section", "sections"],
     sk: ["sekcia", "sekcie", "sekcií"],
     hu: "szakasz",
-  },
-  {
-    sites: "components/units/DemandAttention.tsx:83",
-    entry: DEMAND_ATTENTION_MEETINGS,
-    en: ["meeting", "meetings"],
-    sk: ["stretnutie", "stretnutia", "stretnutí"],
-    hu: "találkozó",
   },
 ];
 
@@ -122,21 +105,11 @@ describe.each(EXPECTED)("$sites", ({ entry, en, sk, hu }) => {
   });
 });
 
-describe("the one meeting spelled out", () => {
-  it("stays a choice of how to write the figure, per language", () => {
-    expect(DEMAND_ATTENTION_ONE_MEETING).toEqual({
-      en: "one meeting",
-      sk: "jedno stretnutie",
-      hu: "egy találkozó",
-    });
-  });
-});
-
 describe("Reading's count and noun", () => {
   it("prints the count raw and the noun in the language asked for", () => {
-    expect(counted(1, DEMAND_MEETINGS)).toBe("1 meeting");
+    expect(counted(1, MEETINGS)).toBe("1 meeting");
     expect(counted(12, DEMAND_MINUTES)).toBe("12 minutes");
-    expect(counted(3, DEMAND_MEETINGS, "sk")).toBe("3 stretnutia");
+    expect(counted(3, MEETINGS, "sk")).toBe("3 stretnutia");
     expect(counted(7, DEMAND_MINUTES, "hu")).toBe("7 perc");
   });
 });

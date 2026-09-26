@@ -6,8 +6,11 @@ import {
 } from "@observer/contracts";
 import type { IrisAssistPolicy } from "@observer/metrics";
 import {
+  DAYS,
   DEFAULT_LANGUAGE,
   plural,
+  sentence,
+  type Sentence,
   type AssistVerdict,
   type AssistedSale,
   type AssistedSales,
@@ -86,16 +89,9 @@ function median(values: readonly number[]): number | null {
 /*
  * The words this file counts in, each beside the sentences that use it. The
  * Slovak and Hungarian forms are the ones a count takes standing alone or as a
- * subject; a sentence that governs another case chooses its forms when it is
- * translated.
+ * subject; a sentence that puts a count in another case keeps that case's
+ * forms as its own, below. Days on a rung are the shared `DAYS`.
  */
-
-/** Days on a rung, or between a showing and a sale. Printed whole, so the form is chosen for the whole number. */
-export const DEAL_DAYS: PluralForms = {
-  en: { one: "day", other: "days" },
-  sk: { one: "deň", few: "dni", other: "dní" },
-  hu: { one: "nap", other: "nap" },
-};
 
 export const DEAL_HOURS: PluralForms = {
   en: { one: "hour", other: "hours" },
@@ -147,9 +143,156 @@ export const DEAL_NOT_OPENED: PluralForms = {
   hu: { one: "nem lett megnyitva", other: "nem lett megnyitva" },
 };
 
+/* Printed whole, so the form is chosen for the whole number. */
 const days = (n: number, language: Language): string => {
   const whole = Math.round(n);
-  return `${String(whole)} ${plural(language, whole, DEAL_DAYS)}`;
+  return `${String(whole)} ${plural(language, whole, DAYS)}`;
+};
+
+/*
+ * The sentences, each written once per language in that language's own order.
+ * The English of three was a verb that did not agree with a count of one
+ * ("1 open deal carry"); written whole, it does.
+ */
+
+/** "2 open deals carry no stage date and cannot be placed." */
+export const DEAL_UNDATED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {deals|count} {carry|count} no stage date and cannot be placed.",
+    words: { deals: DEAL_OPEN_DEALS.en, carry: { one: "carries", other: "carry" } },
+  },
+  sk: {
+    text: "{count} {deals|count} {rest|count}.",
+    words: {
+      deals: DEAL_OPEN_DEALS.sk,
+      rest: {
+        one: "nemá dátum fázy a nedá sa zaradiť",
+        few: "nemajú dátum fázy a nedajú sa zaradiť",
+        other: "nemá dátum fázy a nedá sa zaradiť",
+      },
+    },
+  },
+  hu: { text: "{count} nyitott ügyletnek nincs szakaszdátuma, ezért nem helyezhető el." },
+};
+
+/** "Stated by the demonstration CRM: 3 deals as they stand now." */
+export const DEAL_STATED_SENTENCE: Sentence = {
+  en: {
+    text: "Stated by {connector}: {count} {deals|count} {stand|count} now.",
+    words: { deals: DEAL_DEALS.en, stand: { one: "as it stands", other: "as they stand" } },
+  },
+  sk: {
+    text: "Podľa zdroja {connector}: {count} {deals|count} v aktuálnom stave.",
+    words: { deals: DEAL_DEALS.sk },
+  },
+  hu: { text: "{count} ügylet a jelenlegi állapotában; forrás: {connector}." },
+};
+
+/** "2 deals carry a stage word not mapped yet and sit on no rung." */
+export const DEAL_UNMAPPED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {deals|count} {rest|count} on no rung.",
+    words: {
+      deals: DEAL_DEALS.en,
+      rest: {
+        one: "carries a stage word not mapped yet and sits",
+        other: "carry a stage word not mapped yet and sit",
+      },
+    },
+  },
+  sk: {
+    text: "{count} {deals|count} {rest|count}.",
+    words: {
+      deals: DEAL_DEALS.sk,
+      rest: {
+        one: "má názov fázy, ktorý ešte nie je priradený, a nestojí na žiadnom stupni",
+        few: "majú názov fázy, ktorý ešte nie je priradený, a nestoja na žiadnom stupni",
+        other: "má názov fázy, ktorý ešte nie je priradený, a nestojí na žiadnom stupni",
+      },
+    },
+  },
+  hu: {
+    text: "{count} ügylet olyan szakasznevet visel, amely még nincs hozzárendelve, ezért egyik fokon sem áll.",
+  },
+};
+
+/** "5 hours before": a showing's lag behind the sale. */
+export const DEAL_LAG_HOURS_SENTENCE: Sentence = {
+  en: { text: "{count} {hours|count} before", words: { hours: DEAL_HOURS.en } },
+  sk: {
+    text: "{count} {hours|count} predtým",
+    /* A span of time: the accusative. */
+    words: { hours: { one: "hodinu", few: "hodiny", other: "hodín" } },
+  },
+  hu: { text: "{count} órával előtte" },
+};
+
+/** "2 more dated sales are needed before a share is stated." */
+export const DEAL_SALES_NEEDED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {needed|count} before a share is stated.",
+    words: { needed: DEAL_SALES_NEEDED.en },
+  },
+  sk: {
+    text: "{count} {needed|count}, kým sa uvedie podiel.",
+    words: { needed: DEAL_SALES_NEEDED.sk },
+  },
+  hu: { text: "{count} további datált eladás szükséges, mielőtt részarányt közölnénk." },
+};
+
+/** "2 more were shown earlier than that, a median of 3 days before the date." */
+export const DEAL_SHOWN_EARLIER_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {shown|count} than that, a median of {median} before the date.",
+    words: { shown: DEAL_SHOWN_EARLIER.en },
+  },
+  sk: {
+    text: "{count} {shown|count}, v mediáne {median} pred dátumom.",
+    words: { shown: DEAL_SHOWN_EARLIER.sk },
+  },
+  hu: { text: "{count} további korábban lett megmutatva; a medián {median} volt a dátum előtt." },
+};
+
+/** "2 were not opened in IRIS before the date at all." */
+export const DEAL_NOT_OPENED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {notOpened|count} in IRIS before the date at all.",
+    words: { notOpened: DEAL_NOT_OPENED.en },
+  },
+  sk: {
+    text: "{count} vôbec {notOpened|count} v IRIS pred dátumom.",
+    words: { notOpened: DEAL_NOT_OPENED.sk },
+  },
+  hu: { text: "{count} egyáltalán nem lett megnyitva az IRIS-ben a dátum előtt." },
+};
+
+/** "2 sales carry no stage date Observer could use or name no unit, and cannot be placed." */
+export const DEAL_UNPLACED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {sales|count} {rest|count}, and cannot be placed.",
+    words: {
+      sales: DEAL_SALES.en,
+      rest: {
+        one: "carries no stage date Observer could use or names no unit",
+        other: "carry no stage date Observer could use or name no unit",
+      },
+    },
+  },
+  sk: {
+    text: "{count} {sales|count} {rest|count}.",
+    words: {
+      sales: DEAL_SALES.sk,
+      rest: {
+        one: "nemá dátum fázy použiteľný pre Observer alebo neuvádza žiadnu jednotku a nedá sa zaradiť",
+        few: "nemajú dátum fázy použiteľný pre Observer alebo neuvádzajú žiadnu jednotku a nedajú sa zaradiť",
+        other:
+          "nemá dátum fázy použiteľný pre Observer alebo neuvádza žiadnu jednotku a nedá sa zaradiť",
+      },
+    },
+  },
+  hu: {
+    text: "{count} eladásnak nincs az Observer számára használható szakaszdátuma, vagy nem nevez meg egységet, ezért nem helyezhető el.",
+  },
 };
 
 /** The stages a deal can be stuck on: not the terminal two. */
@@ -313,19 +456,18 @@ export function buildDealLadder(
       ? "No deal is open on any rung, so nothing is stuck."
       : [
           `${String(stalled.length)} of ${String(open.length)} open deals, longest on their rung first, by the stage date the CRM stated.`,
-          undated === 0
-            ? null
-            : `${String(undated)} ${plural(language, undated, DEAL_OPEN_DEALS)} carry no stage date and cannot be placed.`,
+          undated === 0 ? null : sentence(language, DEAL_UNDATED_SENTENCE, { count: undated }),
         ]
           .filter((w): w is string => w !== null)
           .join(" ");
 
   const words = [
-    `Stated by ${CONNECTOR_WORDS[deals.connector]}: ${String(deals.deals.length)} ${plural(language, deals.deals.length, DEAL_DEALS)} as they stand now.`,
+    sentence(language, DEAL_STATED_SENTENCE, {
+      connector: CONNECTOR_WORDS[deals.connector],
+      count: deals.deals.length,
+    }),
     "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
-    unmapped === 0
-      ? null
-      : `${String(unmapped)} ${plural(language, unmapped, DEAL_DEALS)} carry a stage word not mapped yet and sit on no rung.`,
+    unmapped === 0 ? null : sentence(language, DEAL_UNMAPPED_SENTENCE, { count: unmapped }),
     lost === 0 ? null : `${String(lost)} lost, counted beside the ladder.`,
   ].filter((w): w is string => w !== null);
 
@@ -359,8 +501,7 @@ const VERDICT_LABELS: Readonly<Record<AssistVerdict, string>> = {
 function lagWords(hours: number, language: Language): string {
   if (hours < 1) return "under an hour before";
   if (hours < 48) {
-    const whole = Math.floor(hours);
-    return `${String(whole)} ${plural(language, whole, DEAL_HOURS)} before`;
+    return sentence(language, DEAL_LAG_HOURS_SENTENCE, { count: Math.floor(hours) });
   }
   return `${days(Math.floor(hours / 24), language)} before`;
 }
@@ -529,7 +670,7 @@ export function buildAssistedSales(
       ? "The CRM dates no reservation or purchase yet, so there is no sale to place against a showing."
       : enough
         ? `${String(assisted)} of ${String(datedSales)} dated sales (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
-        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${String(policy.minimumSales - datedSales)} ${plural(language, policy.minimumSales - datedSales, DEAL_SALES_NEEDED)} before a share is stated.`;
+        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales })}`;
 
   /* A duration is read by its median, never its mean. */
   const earlierMedian = median(earlier.map((s) => (s.lagHours ?? 0) / 24));
@@ -538,16 +679,15 @@ export function buildAssistedSales(
     "It says the showing came first and by how long. The buyer of a deal is not linked to the visitor in the room, so it does not say the buyer saw the unit, and it does not say the showing produced the sale.",
     earlier.length === 0 || earlierMedian === null
       ? null
-      : `${String(earlier.length)} ${plural(language, earlier.length, DEAL_SHOWN_EARLIER)} than that, a median of ${days(earlierMedian, language)} before the date.`,
-    notShown === 0
-      ? null
-      : `${String(notShown)} ${plural(language, notShown, DEAL_NOT_OPENED)} in IRIS before the date at all.`,
+      : sentence(language, DEAL_SHOWN_EARLIER_SENTENCE, {
+          count: earlier.length,
+          median: days(earlierMedian, language),
+        }),
+    notShown === 0 ? null : sentence(language, DEAL_NOT_OPENED_SENTENCE, { count: notShown }),
     observedCount === 0
       ? null
       : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
-    unplaced === 0
-      ? null
-      : `${String(unplaced)} ${plural(language, unplaced, DEAL_SALES)} carry no stage date Observer could use or name no unit, and cannot be placed.`,
+    unplaced === 0 ? null : sentence(language, DEAL_UNPLACED_SENTENCE, { count: unplaced }),
   ]
     .filter((w): w is string => w !== null)
     .join(" ");

@@ -20,6 +20,35 @@ export const ROOMS_WORD: PluralForms = {
   hu: { one: "szoba", other: "szoba" },
 };
 
+/*
+ * THE COUNTED WORDS MORE THAN ONE SCREEN SHARES.
+ *
+ * Each was once written out word for word in several files; one entry each
+ * now, so the three languages' forms are edited in one place. A sentence that
+ * puts one of these in another case keeps that case's forms as its own.
+ */
+
+/** A count of meetings. Replaces the identical five of views3, project, screens, DemandSignals and DemandAttention. */
+export const MEETINGS: PluralForms = {
+  en: { one: "meeting", other: "meetings" },
+  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
+  hu: { one: "találkozó", other: "találkozó" },
+};
+
+/** A count of whole days. Replaces the identical three of deals, views3 and time. */
+export const DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
+/** "Opened 3 times". Replaces the identical two of project and screens. */
+export const TIMES: PluralForms = {
+  en: { one: "time", other: "times" },
+  sk: { one: "raz", few: "razy", other: "ráz" },
+  hu: { one: "alkalommal", other: "alkalommal" },
+};
+
 /** "2 rooms", "1 room", or the word for a count the catalogue did not state. */
 export function roomsWord(rooms: number | null, language: Language = DEFAULT_LANGUAGE): string {
   if (rooms === null) return "Rooms not stated";

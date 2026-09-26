@@ -1,6 +1,7 @@
 import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
 import {
   DEFAULT_LANGUAGE,
+  MEETINGS,
   type Language,
   type PeriodPreset,
   type PlaceInterest,
@@ -17,15 +18,9 @@ import { Plane } from "./Section";
 
 /*
  * The words these charts count in. The Slovak and Hungarian forms are the ones
- * a count takes standing alone or as a subject; a sentence that governs another
- * case chooses its forms when it is translated.
+ * a count takes standing alone or as a subject; meetings are the shared
+ * `MEETINGS`.
  */
-
-export const DEMAND_MEETINGS: PluralForms = {
-  en: { one: "meeting", other: "meetings" },
-  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
-  hu: { one: "találkozó", other: "találkozó" },
-};
 
 export const DEMAND_MINUTES: PluralForms = {
   en: { one: "minute", other: "minutes" },
@@ -176,7 +171,7 @@ export function DemandSignals({
                 summary={topCategories
                   .map(
                     (category) =>
-                      `${category.label}: ${shareText(category.share, locale)} of place time, reached in ${counted(category.meetings, DEMAND_MEETINGS, language)}`,
+                      `${category.label}: ${shareText(category.share, locale)} of place time, reached in ${counted(category.meetings, MEETINGS, language)}`,
                   )
                   .join(". ")}
               >
@@ -185,7 +180,7 @@ export function DemandSignals({
                   rows={topCategories.map((category) => ({
                     id: category.category,
                     label: category.label,
-                    sub: `reached in ${counted(category.meetings, DEMAND_MEETINGS, language)}`,
+                    sub: `reached in ${counted(category.meetings, MEETINGS, language)}`,
                     value: category.share,
                     display: shareText(category.share, locale),
                   }))}
@@ -201,7 +196,7 @@ export function DemandSignals({
                 summary={topPlaces
                   .map(
                     (place) =>
-                      `${place.name}: ${counted(Math.round(place.totalDwellSeconds / 60), DEMAND_MINUTES, language)} across ${counted(place.meetings, DEMAND_MEETINGS, language)}`,
+                      `${place.name}: ${counted(Math.round(place.totalDwellSeconds / 60), DEMAND_MINUTES, language)} across ${counted(place.meetings, MEETINGS, language)}`,
                   )
                   .join(". ")}
               >
@@ -210,7 +205,7 @@ export function DemandSignals({
                   rows={topPlaces.map((place) => ({
                     id: place.placeId,
                     label: place.name,
-                    sub: `${counted(place.meetings, DEMAND_MEETINGS, language)} · median ${place.medianDwellSeconds}s each`,
+                    sub: `${counted(place.meetings, MEETINGS, language)} · median ${place.medianDwellSeconds}s each`,
                     value: place.totalDwellSeconds,
                     display: `${Math.round(place.totalDwellSeconds / 60)}m`,
                   }))}

@@ -50,7 +50,13 @@
  * matters to any actual Observer date: every generated meeting sits inside
  * ordinary working hours, nowhere near a transition.
  */
-import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "@observer/readmodels";
+import {
+  DAYS,
+  DEFAULT_LANGUAGE,
+  sentence,
+  type Language,
+  type Sentence,
+} from "@observer/readmodels";
 
 export interface ZoneParts {
   readonly year: number;
@@ -193,11 +199,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * because comparing a part-quarter with a whole one is the commonest false
  * alarm a dashboard raises.
  */
-/** "The same 12 days of the previous quarter". */
-export const TIME_DAYS: PluralForms = {
-  en: { one: "day", other: "days" },
-  sk: { one: "deň", few: "dni", other: "dní" },
-  hu: { one: "nap", other: "nap" },
+/** "the same 12 days of the previous quarter": the part-quarter's baseline, as a label. */
+export const TIME_BASELINE_SENTENCE: Sentence = {
+  en: { text: "the same {count} {days|count} of the previous quarter", words: { days: DAYS.en } },
+  sk: {
+    text: "{same|count} {count} {days|count} predchádzajúceho štvrťroka",
+    words: { same: { one: "rovnaký", few: "rovnaké", other: "rovnakých" }, days: DAYS.sk },
+  },
+  hu: { text: "az előző negyedév ugyanazon {count} napja" },
 };
 
 export function periodsAt(
@@ -241,7 +250,7 @@ export function periodsAt(
       label: "Quarter to date",
       from: iso(quarterStart),
       to: iso(thisMorning),
-      baselineLabel: `the same ${String(elapsedDays)} ${plural(language, elapsedDays, TIME_DAYS)} of the previous quarter`,
+      baselineLabel: sentence(language, TIME_BASELINE_SENTENCE, { count: elapsedDays }),
       baselineFrom: iso(midnight(p.year, quarterMonth - 3, 1)),
       baselineTo: iso(midnight(p.year, quarterMonth - 3, 1 + elapsedDays)),
       baselineClipped: true,

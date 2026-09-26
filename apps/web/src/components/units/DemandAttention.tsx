@@ -1,13 +1,13 @@
 import Link from "next/link";
 import {
   DEFAULT_LANGUAGE,
-  plural,
+  sentence,
   type AttentionCheck,
   type AttentionKind,
   type AttentionState,
   type Language,
   type PeriodPreset,
-  type PluralForms,
+  type Sentence,
 } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -62,20 +62,24 @@ const SAMPLE_NOUNS: Readonly<Record<string, string>> = {
 };
 
 /*
- * "Asked of one meeting" spells a single meeting out; that is a choice of how
- * to write the figure, per language, and stays one. Every other count takes
- * its plural form from the language's own rules.
+ * "Asked of 3 meetings in quarter to date." A single meeting is spelled out,
+ * in each language; after "z" Slovak takes the genitive.
  */
-export const DEMAND_ATTENTION_ONE_MEETING: Readonly<Record<Language, string>> = {
-  en: "one meeting",
-  sk: "jedno stretnutie",
-  hu: "egy találkozó",
-};
-
-export const DEMAND_ATTENTION_MEETINGS: PluralForms = {
-  en: { one: "meeting", other: "meetings" },
-  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
-  hu: { one: "találkozó", other: "találkozó" },
+export const DEMAND_ATTENTION_ASKED_SENTENCE: Sentence = {
+  en: {
+    text: "Asked of {meetings|count} in {period}.",
+    words: { meetings: { one: "one meeting", other: "{count} meetings" } },
+  },
+  sk: {
+    text: "Vyhodnotené z {meetings|count} v období {period}.",
+    words: {
+      meetings: { one: "jedného stretnutia", few: "{count} stretnutí", other: "{count} stretnutí" },
+    },
+  },
+  hu: {
+    text: "{meetings|count} alapján vizsgálva, {az:period} időszakban.",
+    words: { meetings: { one: "Egy találkozó", other: "{count} találkozó" } },
+  },
 };
 
 export function DemandAttention({
@@ -104,12 +108,12 @@ export function DemandAttention({
       <div className="ox-section-head">
         <h2 className="ox-section-title">High interest, low conversion</h2>
         <p className="ox-section-note">
-          Asked of{" "}
-          {meetingCount === 1
-            ? DEMAND_ATTENTION_ONE_MEETING[language]
-            : `${meetingCount} ${plural(language, meetingCount, DEMAND_ATTENTION_MEETINGS)}`}{" "}
-          in {periodLabel}. A unit opened repeatedly and never kept, and a unit kept with nothing
-          recorded afterwards, are two ends of one question the register cannot show in a column.
+          {sentence(language, DEMAND_ATTENTION_ASKED_SENTENCE, {
+            count: meetingCount,
+            period: periodLabel,
+          })}{" "}
+          A unit opened repeatedly and never kept, and a unit kept with nothing recorded afterwards,
+          are two ends of one question the register cannot show in a column.
         </p>
       </div>
 

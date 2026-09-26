@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import {
   DEFAULT_LANGUAGE,
-  plural,
+  sentence,
   type Language,
   type PluralForms,
   type ReportGeneration,
   type ReportScope,
   type ReportSection,
+  type Sentence,
 } from "@observer/readmodels";
 
 /** What the trigger and the dialog call themselves, by whose report it is. */
@@ -126,6 +127,26 @@ export const EXPORT_SECTIONS: PluralForms = {
   en: { one: "section", other: "sections" },
   sk: { one: "sekcia", few: "sekcie", other: "sekcií" },
   hu: { one: "szakasz", other: "szakasz" },
+};
+
+/** "2 sections would be blank and cannot be included." */
+export const EXPORT_BLANK_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {sections|count} would be blank and cannot be included.",
+    words: { sections: EXPORT_SECTIONS.en },
+  },
+  sk: {
+    text: "{count} {sections|count} {rest|count}.",
+    words: {
+      sections: EXPORT_SECTIONS.sk,
+      rest: {
+        one: "by bola prázdna a nemožno ju zahrnúť",
+        few: "by boli prázdne a nemožno ich zahrnúť",
+        other: "by bolo prázdnych a nemožno ich zahrnúť",
+      },
+    },
+  },
+  hu: { text: "{count} szakasz üres lenne, ezért nem vehető fel." },
 };
 
 export function ExportReport({
@@ -280,7 +301,7 @@ export function ExportReport({
               {report.scope.label}.
               {report.unavailableCount === 0
                 ? ""
-                : ` ${report.unavailableCount} ${plural(language, report.unavailableCount, EXPORT_SECTIONS)} would be blank and cannot be included.`}
+                : ` ${sentence(language, EXPORT_BLANK_SENTENCE, { count: report.unavailableCount })}`}
             </span>
           </p>
         </div>

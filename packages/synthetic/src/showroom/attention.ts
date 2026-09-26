@@ -17,7 +17,12 @@ import type {
   ProjectSource,
   ViewContext,
 } from "@observer/readmodels";
-import { ATTENTION_KIND_DEFINITIONS, plural, type PluralForms } from "@observer/readmodels";
+import {
+  ATTENTION_KIND_DEFINITIONS,
+  sentence,
+  type PluralForms,
+  type Sentence,
+} from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import { count, dayLabel, evidenceRef, percent } from "../format";
 
@@ -67,6 +72,79 @@ export const ATTENTION_NEVER_SHORTLISTED: PluralForms = {
     other: "nebolo nikdy vybraných",
   },
   hu: { one: "soha nem került kiválasztásra", other: "soha nem került kiválasztásra" },
+};
+
+/*
+ * The findings' sentences, each written once per language in that language's
+ * own order. A baseline label is given in parentheses, where it reads whatever
+ * language it was written in.
+ */
+
+/** "3 units drew materially fewer views than in the previous quarter." */
+export const ATTENTION_FALLING_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {units|n} drew materially fewer views than in {baseline}.",
+    words: { units: ATTENTION_UNITS.en },
+  },
+  sk: {
+    text: "{count} {units|n} {drew|n} výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+    words: {
+      units: ATTENTION_UNITS.sk,
+      drew: { one: "pritiahla", few: "pritiahli", other: "pritiahlo" },
+    },
+  },
+  hu: {
+    text: "{count} egység lényegesen kevesebb megtekintést kapott, mint az összehasonlító időszakban ({baseline}).",
+  },
+};
+
+/** "3 connected sources have sent nothing for more than 72 hours." */
+export const ATTENTION_SILENT_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {silent|n} for more than {hours} {hoursWord|hours}.",
+    words: { silent: ATTENTION_SOURCES_SILENT.en, hoursWord: { one: "hour", other: "hours" } },
+  },
+  sk: {
+    text: "{count} {silent|n} už viac ako {hours} {hoursWord|hours}.",
+    words: {
+      silent: ATTENTION_SOURCES_SILENT.sk,
+      /* After "viac ako": the accusative. */
+      hoursWord: { one: "hodinu", few: "hodiny", other: "hodín" },
+    },
+  },
+  hu: { text: "{count} csatlakoztatott forrás nem küldött semmit több mint {hours} órája." },
+};
+
+/** "3 sources are listed on this project and have never reported." */
+export const ATTENTION_NEVER_REPORTED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {listed|n} on this project and {never|n}.",
+    words: { listed: ATTENTION_SOURCES_LISTED.en, never: ATTENTION_NEVER_REPORTED.en },
+  },
+  sk: {
+    text: "{count} {listed|n} na tomto projekte a {never|n}.",
+    words: {
+      listed: ATTENTION_SOURCES_LISTED.sk,
+      /* After "a" the clitic follows the first stressed word: "a nikdy sa neozvali". */
+      never: { one: "nikdy sa neozval", few: "nikdy sa neozvali", other: "nikdy sa neozvalo" },
+    },
+  },
+  hu: { text: "{count} forrás szerepel ezen a projekten, és soha nem jelentkezett." },
+};
+
+/** "3 units with at least 10 observations were never shortlisted in this period." */
+export const ATTENTION_NEVER_SHORTLISTED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {units|n} with at least {minimum} observations {never|n} in this period.",
+    words: { units: ATTENTION_UNITS.en, never: ATTENTION_NEVER_SHORTLISTED.en },
+  },
+  sk: {
+    text: "{count} {units|n} s aspoň {minimum} pozorovaniami {never|n} v tomto období.",
+    words: { units: ATTENTION_UNITS.sk, never: ATTENTION_NEVER_SHORTLISTED.sk },
+  },
+  hu: {
+    text: "{count} egység, amelyről legalább {minimum} megfigyelés van, soha nem került kiválasztásra ebben az időszakban.",
+  },
 };
 
 /**
@@ -253,7 +331,11 @@ export function buildAttention(
         kind: "demand_dropping",
         severity: falling.length >= 3 ? "warning" : "info",
         title: "Attention falling on units that used to draw it",
-        detail: `${count(falling.length, locale)} ${plural(language, falling.length, ATTENTION_UNITS)} drew materially fewer views than in ${context.period.baselineLabel}.`,
+        detail: sentence(language, ATTENTION_FALLING_SENTENCE, {
+          count: count(falling.length, locale),
+          n: falling.length,
+          baseline: context.period.baselineLabel,
+        }),
         subjects: falling.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.before, locale)} → ${count(u.now, locale)}`,
@@ -385,8 +467,15 @@ export function buildAttention(
       title: quiet.length > 0 ? "A connected source has gone quiet" : "A source has never reported",
       detail:
         quiet.length > 0
-          ? `${count(quiet.length, locale)} ${plural(language, quiet.length, ATTENTION_SOURCES_SILENT)} for more than ${QUIET_AFTER_HOURS} hours.`
-          : `${count(neverSeen.length, locale)} ${plural(language, neverSeen.length, ATTENTION_SOURCES_LISTED)} on this project and ${plural(language, neverSeen.length, ATTENTION_NEVER_REPORTED)}.`,
+          ? sentence(language, ATTENTION_SILENT_SENTENCE, {
+              count: count(quiet.length, locale),
+              n: quiet.length,
+              hours: QUIET_AFTER_HOURS,
+            })
+          : sentence(language, ATTENTION_NEVER_REPORTED_SENTENCE, {
+              count: count(neverSeen.length, locale),
+              n: neverSeen.length,
+            }),
       subjects: [...quiet, ...neverSeen].map((s) => ({
         id: s.id,
         label:
@@ -453,7 +542,11 @@ export function buildAttention(
         kind: "viewed_never_shortlisted",
         severity: never.length >= 3 ? "warning" : "info",
         title: "Opened repeatedly, never shortlisted",
-        detail: `${count(never.length, locale)} ${plural(language, never.length, ATTENTION_UNITS)} with at least ${UNIT_MIN_SAMPLE} observations ${plural(language, never.length, ATTENTION_NEVER_SHORTLISTED)} in this period.`,
+        detail: sentence(language, ATTENTION_NEVER_SHORTLISTED_SENTENCE, {
+          count: count(never.length, locale),
+          n: never.length,
+          minimum: UNIT_MIN_SAMPLE,
+        }),
         subjects: never.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.views, locale)} views, ${count(u.meetings, locale)} meetings`,

@@ -67,7 +67,11 @@ const RULES: Readonly<Record<Language, Intl.PluralRules>> = {
  * of meetings is never a fraction, and its entry carries three.
  */
 export function plural(language: Language, n: number, forms: PluralForms): string {
-  const category = RULES[language].select(n);
   const set: Readonly<Record<string, string>> = forms[language];
-  return set[category] ?? forms[language].other;
+  return set[pluralCategory(language, n)] ?? forms[language].other;
+}
+
+/** The category a language's own rules put a count in: "one", "few", "many" or "other". */
+export function pluralCategory(language: Language, n: number): Intl.LDMLPluralRule {
+  return RULES[language].select(n);
 }

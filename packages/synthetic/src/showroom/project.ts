@@ -35,12 +35,16 @@ import type {
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
 import {
+  MEETINGS,
+  TIMES,
   areaWord,
   aspectWord,
   plural,
   roomsWord,
+  sentence,
   type Language,
   type PluralForms,
+  type Sentence,
 } from "@observer/readmodels";
 import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
 import type { ShowroomUnitInteraction } from "@observer/contracts";
@@ -66,12 +70,6 @@ import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
  * subject; a sentence that governs another case chooses its forms when it is
  * translated.
  */
-
-export const PROJECT_MEETINGS: PluralForms = {
-  en: { one: "meeting", other: "meetings" },
-  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
-  hu: { one: "találkozó", other: "találkozó" },
-};
 
 /** The two verbs of one clause, agreeing with the same count, so they are one entry. */
 export const PROJECT_NO_OUTCOME: PluralForms = {
@@ -99,11 +97,104 @@ export const PROJECT_VIEWS: PluralForms = {
   hu: { one: "megtekintés", other: "megtekintés" },
 };
 
-/** "Shortlisted 3 times": Slovak counts occasions as "raz", "razy", "ráz". */
-export const PROJECT_TIMES: PluralForms = {
-  en: { one: "time", other: "times" },
-  sk: { one: "raz", few: "razy", other: "ráz" },
-  hu: { one: "alkalommal", other: "alkalommal" },
+/*
+ * The sentences, each written once per language in that language's own order.
+ * A count of meetings in a subject is the shared `MEETINGS`, occasions the
+ * shared `TIMES`; a count the sentence puts in another case takes that case's
+ * forms here, as its own.
+ */
+
+/** "3 meetings in the period have no recorded outcome and stand in neither cohort." */
+export const PROJECT_NO_OUTCOME_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {meetings|n} in the period {noOutcome|n} in neither cohort.",
+    words: { meetings: MEETINGS.en, noOutcome: PROJECT_NO_OUTCOME.en },
+  },
+  sk: {
+    text: "{count} {meetings|n} v tomto období {noOutcome|n} do žiadnej kohorty.",
+    words: { meetings: MEETINGS.sk, noOutcome: PROJECT_NO_OUTCOME.sk },
+  },
+  hu: {
+    text: "{count} találkozónak ebben az időszakban nincs rögzített kimenetele, és nem tartozik egyik csoportba sem.",
+  },
+};
+
+/** "3 units opened: 2 with 2 rooms, 1 not in the catalogue; 1 shortlisted." Its parts follow it. */
+export const PROJECT_UNITS_VIEWED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {opened|count}: {parts}; {shortlist}.",
+    words: { opened: PROJECT_UNITS_OPENED.en },
+  },
+  sk: {
+    text: "{count} {opened|count}: {parts}; {shortlist}.",
+    words: { opened: PROJECT_UNITS_OPENED.sk },
+  },
+  hu: { text: "{count} egység megnyitva: {parts}; {shortlist}." },
+};
+
+/** A band of opened units by room count: "2 with 2 rooms". Slovak and Hungarian name the flat by its rooms. */
+export const PROJECT_UNITS_BY_ROOMS: Sentence = {
+  en: { text: "{count} with {rooms}" },
+  sk: { text: "{count} × {r}-izbová" },
+  hu: { text: "{count} db {r} szobás" },
+};
+
+export const PROJECT_UNITS_ROOMS_UNSTATED: Sentence = {
+  en: { text: "{count} with rooms not stated" },
+  sk: { text: "{count} bez uvedeného počtu izieb" },
+  hu: { text: "{count} db szobaszám nélkül" },
+};
+
+export const PROJECT_UNITS_NOT_IN_CATALOGUE: Sentence = {
+  en: { text: "{count} not in the catalogue" },
+  sk: { text: "{count} mimo katalógu" },
+  hu: { text: "{count} db nem szerepel a katalógusban" },
+};
+
+export const PROJECT_UNITS_SHORTLISTED: Sentence = {
+  en: { text: "{count} shortlisted" },
+  sk: {
+    text: "{count} {chosen|count}",
+    words: { chosen: { one: "vybraná", few: "vybrané", other: "vybraných" } },
+  },
+  hu: { text: "{count} kiválasztva" },
+};
+
+export const PROJECT_UNITS_NONE_SHORTLISTED: Sentence = {
+  en: { text: "nothing was shortlisted" },
+  sk: { text: "nič nebolo vybrané" },
+  hu: { text: "semmi sem került kiválasztásra" },
+};
+
+/** "A-101 was opened in 3 meetings, with a median look of 1m 45s." */
+export const PROJECT_UNIT_OPENED_SENTENCE: Sentence = {
+  en: {
+    text: "{unit} was opened in {count} {meetings|n}, with a median look of {look}.",
+    words: { meetings: MEETINGS.en },
+  },
+  sk: {
+    text: "Jednotka {unit} bola otvorená v {count} {meetings|n}, medián dĺžky pohľadu bol {look}.",
+    /* After "v": the locative. */
+    words: { meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" } },
+  },
+  hu: {
+    text: "{Az:unit} egységet {count} találkozón nyitották meg, a megtekintés hosszának mediánja {look} volt.",
+  },
+};
+
+/** "Shortlisted 3 times, floor plan opened 5 times." */
+export const PROJECT_INTENT_SENTENCE: Sentence = {
+  en: {
+    text: "Shortlisted {favourites} {times|f}, floor plan opened {pdfOpens} {times|p}.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Zaradená do výberu {favourites} {times|f}, pôdorys otvorený {pdfOpens} {times|p}.",
+    words: { times: TIMES.sk },
+  },
+  hu: {
+    text: "{favourites} alkalommal került a kiválasztottak közé, az alaprajzot {pdfOpens} alkalommal nyitották meg.",
+  },
 };
 
 /**
@@ -816,7 +907,10 @@ export function buildPresentationIntelligence(
         "statistical_association",
         unknown === 0
           ? null
-          : `${count(unknown, locale)} ${plural(language, unknown, PROJECT_MEETINGS)} in the period ${plural(language, unknown, PROJECT_NO_OUTCOME)} in neither cohort.`,
+          : sentence(language, PROJECT_NO_OUTCOME_SENTENCE, {
+              count: count(unknown, locale),
+              n: unknown,
+            }),
       );
     }
   } else if (mode === "periods") {
@@ -1097,7 +1191,7 @@ function unitsViewedOf(
  * silent on a fifth of the smallest scheme's meetings, and the reader would be
  * left to guess whether nothing was chosen or nothing was measured.
  */
-function unitsViewedSentence(
+export function unitsViewedSentence(
   opened: number,
   byRooms: readonly { readonly rooms: number; readonly count: number }[],
   roomsUnstated: number,
@@ -1107,16 +1201,30 @@ function unitsViewedSentence(
 ): string {
   if (opened === 0) return "No unit was opened.";
 
-  const parts = byRooms.map(
-    ({ rooms, count }) => `${String(count)} with ${roomsWord(rooms, language)}`,
+  const parts = byRooms.map(({ rooms, count }) =>
+    sentence(language, PROJECT_UNITS_BY_ROOMS, {
+      count,
+      rooms: roomsWord(rooms, language),
+      r: rooms,
+    }),
   );
-  if (roomsUnstated > 0) parts.push(`${String(roomsUnstated)} with rooms not stated`);
-  if (notInCatalogue > 0) parts.push(`${String(notInCatalogue)} not in the catalogue`);
+  if (roomsUnstated > 0) {
+    parts.push(sentence(language, PROJECT_UNITS_ROOMS_UNSTATED, { count: roomsUnstated }));
+  }
+  if (notInCatalogue > 0) {
+    parts.push(sentence(language, PROJECT_UNITS_NOT_IN_CATALOGUE, { count: notInCatalogue }));
+  }
 
   const shortlist =
-    shortlisted === 0 ? "nothing was shortlisted" : `${String(shortlisted)} shortlisted`;
+    shortlisted === 0
+      ? sentence(language, PROJECT_UNITS_NONE_SHORTLISTED, {})
+      : sentence(language, PROJECT_UNITS_SHORTLISTED, { count: shortlisted });
 
-  return `${String(opened)} ${plural(language, opened, PROJECT_UNITS_OPENED)}: ${parts.join(", ")}; ${shortlist}.`;
+  return sentence(language, PROJECT_UNITS_VIEWED_SENTENCE, {
+    count: opened,
+    parts: parts.join(", "),
+    shortlist,
+  });
 }
 
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
@@ -1460,7 +1568,12 @@ export function buildUnitAttention(
     if (selected.meetings > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-attention`,
-        statement: `${selected.unitCode} was opened in ${count(selected.meetings, locale)} ${plural(language, selected.meetings, PROJECT_MEETINGS)}, with a median look of ${formatDuration(selected.medianDwellSeconds)}.`,
+        statement: sentence(language, PROJECT_UNIT_OPENED_SENTENCE, {
+          unit: selected.unitCode,
+          count: count(selected.meetings, locale),
+          n: selected.meetings,
+          look: formatDuration(selected.medianDwellSeconds),
+        }),
         baseline: `the project median is ${formatDuration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))))}`,
         soWhat:
           selected.medianDwellSeconds >= 60
@@ -1481,7 +1594,12 @@ export function buildUnitAttention(
     if (selected.favourites > 0 || selected.pdfOpens > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-intent`,
-        statement: `Shortlisted ${count(selected.favourites, locale)} ${plural(language, selected.favourites, PROJECT_TIMES)}, floor plan opened ${count(selected.pdfOpens, locale)} ${plural(language, selected.pdfOpens, PROJECT_TIMES)}.`,
+        statement: sentence(language, PROJECT_INTENT_SENTENCE, {
+          favourites: count(selected.favourites, locale),
+          f: selected.favourites,
+          pdfOpens: count(selected.pdfOpens, locale),
+          p: selected.pdfOpens,
+        }),
         baseline: null,
         soWhat:
           "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",

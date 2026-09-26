@@ -6,10 +6,11 @@ import {
   areaWord,
   aspectWord,
   floorWord,
-  plural,
   roomsWord,
+  sentence,
   type Language,
   type PluralForms,
+  type Sentence,
 } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -216,6 +217,23 @@ export const STACK_PEOPLE: PluralForms = {
   hu: { one: "ember", other: "ember" },
 };
 
+/** "5 meaningful views from 3 people, rising": one part of a cell's accessible name. */
+export const STACK_VIEWS_SENTENCE: Sentence = {
+  en: {
+    text: "{views} {viewsWord|views} from {people} {peopleWord|people}, {trend}",
+    words: { viewsWord: STACK_MEANINGFUL_VIEWS.en, peopleWord: STACK_PEOPLE.en },
+  },
+  sk: {
+    text: "{views} {viewsWord|views} od {people} {peopleWord|people}, {trend}",
+    words: {
+      viewsWord: STACK_MEANINGFUL_VIEWS.sk,
+      /* After "od": the genitive. */
+      peopleWord: { one: "človeka", few: "ľudí", other: "ľudí" },
+    },
+  },
+  hu: { text: "{views} érdemi megtekintés {people} embertől, {trend}" },
+};
+
 function Cell({
   unit,
   href,
@@ -253,7 +271,11 @@ function Cell({
     unit.priceDisplay,
     STATUS_WORDS[unit.status],
     /* A real project's first meeting is one view by one person, and that is when this is read. */
-    `${unit.meaningfulViews} ${plural(language, unit.meaningfulViews, STACK_MEANINGFUL_VIEWS)} from ${unit.uniqueContacts} ${plural(language, unit.uniqueContacts, STACK_PEOPLE)}, ${TREND_WORDS[unit.trend]}`,
+    sentence(language, STACK_VIEWS_SENTENCE, {
+      views: unit.meaningfulViews,
+      people: unit.uniqueContacts,
+      trend: TREND_WORDS[unit.trend],
+    }),
     ...(change === null ? [] : [change]),
   ].join(" · ");
 

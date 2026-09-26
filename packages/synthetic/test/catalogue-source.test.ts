@@ -265,7 +265,9 @@ describe("a repository composed with a deal source", () => {
     ]);
     expect(flow.ladder.stages[3]?.rate).toBe("75%");
     expect(flow.ladder).toMatchObject({ connector: "csv", unmapped: 1, lost: 1, total: 6 });
-    expect(flow.ladder.note).toContain("1 deal carry a stage word not mapped yet");
+    expect(flow.ladder.note).toContain(
+      "1 deal carries a stage word not mapped yet and sits on no rung.",
+    );
     expect(flow.ladder.note).toContain("1 lost");
   });
 

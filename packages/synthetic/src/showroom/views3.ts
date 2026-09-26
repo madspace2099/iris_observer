@@ -40,12 +40,15 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import {
+  DAYS,
   DEFAULT_LANGUAGE,
+  MEETINGS,
   actionWorthTaking,
   nothingReceivedYet,
   plural,
+  sentence,
   type Language,
-  type PluralForms,
+  type Sentence,
 } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
@@ -78,22 +81,25 @@ const WITH_OUTCOME = [
 ] as const;
 
 /*
- * The words these views count in, beside the sentences that use them. The
- * Slovak and Hungarian forms are the ones a count takes standing alone or as a
- * subject; a sentence that governs another case chooses its forms when it is
- * translated.
+ * A count of meetings standing alone or as a subject: the shared `MEETINGS`.
+ * A sentence that puts a count in another case keeps that case's forms as its
+ * own, below.
  */
-
-export const VIEWS3_MEETINGS: PluralForms = {
-  en: { one: "meeting", other: "meetings" },
-  sk: { one: "stretnutie", few: "stretnutia", other: "stretnutí" },
-  hu: { one: "találkozó", other: "találkozó" },
-};
 
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
 export function meetings(n: number, locale: string, language: Language = DEFAULT_LANGUAGE): string {
-  return `${count(n, locale)} ${plural(language, n, VIEWS3_MEETINGS)}`;
+  return `${count(n, locale)} ${plural(language, n, MEETINGS)}`;
 }
+
+/** "12 meetings this period.": the verdict where the buckets are not all present. */
+export const VIEWS3_PERIOD_MEETINGS: Sentence = {
+  en: { text: "{count} {meetings|n} this period.", words: { meetings: MEETINGS.en } },
+  sk: {
+    text: "V tomto období {was|n} {count} {meetings|n}.",
+    words: { was: { one: "bolo", few: "boli", other: "bolo" }, meetings: MEETINGS.sk },
+  },
+  hu: { text: "Ebben az időszakban {count} találkozó volt." },
+};
 
 /**
  * The sentence a figure prints under the agent floor, built once.
@@ -258,11 +264,24 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * no project (the tests hand-place sessions at UTC midnights) keeps its
  * arithmetic literal.
  */
-/** "Last week, first 3 days". */
-export const VIEWS3_DAYS: PluralForms = {
-  en: { one: "day", other: "days" },
-  sk: { one: "deň", few: "dni", other: "dní" },
-  hu: { one: "nap", other: "nap" },
+/** "Last week, first 3 days": a bucket's label where the week is still running. */
+export const VIEWS3_LAST_WEEK_SENTENCE: Sentence = {
+  en: { text: "Last week, first {count} {days|count}", words: { days: DAYS.en } },
+  sk: {
+    text: "Minulý týždeň, {first|count} {count} {days|count}",
+    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
+  },
+  hu: { text: "Előző hét, első {count} nap" },
+};
+
+/** "Last month, first 24 days". */
+export const VIEWS3_LAST_MONTH_SENTENCE: Sentence = {
+  en: { text: "Last month, first {count} {days|count}", words: { days: DAYS.en } },
+  sk: {
+    text: "Minulý mesiac, {first|count} {count} {days|count}",
+    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
+  },
+  hu: { text: "Előző hónap, első {count} nap" },
 };
 
 export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
@@ -302,7 +321,7 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
       label:
         elapsedDays === 7
           ? "Last week"
-          : `Last week, first ${elapsedDays} ${plural(language, elapsedDays, VIEWS3_DAYS)}`,
+          : sentence(language, VIEWS3_LAST_WEEK_SENTENCE, { count: elapsedDays }),
       from: thisWeek - 7 * day,
       to: thisWeek - 7 * day + elapsedDays * day,
     },
@@ -319,7 +338,7 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
       label:
         lastMonthElapsed === lastMonthLength
           ? "Last month"
-          : `Last month, first ${lastMonthElapsed} ${plural(language, lastMonthElapsed, VIEWS3_DAYS)}`,
+          : sentence(language, VIEWS3_LAST_MONTH_SENTENCE, { count: lastMonthElapsed }),
       from: lastMonth,
       to: lastMonth + lastMonthElapsed * day,
     },
@@ -658,7 +677,10 @@ export function buildSalesFlow(
       month === undefined ||
       lastMonth === undefined
     ) {
-      verdict = `${count(sessions.length, locale)} meetings this period.`;
+      verdict = sentence(context.language, VIEWS3_PERIOD_MEETINGS, {
+        count: count(sessions.length, locale),
+        n: sessions.length,
+      });
     } else {
       const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
       verdict = verdictFrom(
