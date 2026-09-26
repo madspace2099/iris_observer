@@ -28,6 +28,12 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *   {az:name}       Hungarian: the value after the definite article its first
  *                   sound takes, "a" or "az"; {Az:name} at a sentence's start
  *   {az:#name|count} the same article, before a numeral
+ *   {az:name-s}     Hungarian: the value with its article before it and its
+ *                   "-s" suffix after it, both read from the same value — "az
+ *                   A-103-as lakást", "a B-302-es lakást". The suffix follows
+ *                   the number at the value's end (`hungarianNumberSuffix`).
+ *                   {Az:name-s} at a sentence's start; {name-s} without the
+ *                   article.
  *
  * A counted word may carry `{name}`, `{#name|count}` and `{word|count}`
  * placeholders of its own — "one meeting" beside "{count} meetings" — and they
@@ -102,14 +108,17 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
     },
   );
   return numbered.replace(
-    /\{(?:(az|Az):)?(\w+)\}/g,
-    (_match, article: string | undefined, name: string) => {
+    /\{(?:(az|Az):)?(\w+)(-s)?\}/g,
+    (_match, article: string | undefined, name: string, suffix: string | undefined) => {
       const value = values[name];
       if (value === undefined) {
         throw new Error(`The ${language} sentence has no value for {${name}}.`);
       }
       const text = String(value);
-      return article === undefined ? text : `${hungarianArticle(text, article === "Az")} ${text}`;
+      const written = suffix === undefined ? text : `${text}${hungarianNumberSuffix(text)}`;
+      return article === undefined
+        ? written
+        : `${hungarianArticle(text, article === "Az")} ${written}`;
     },
   );
 }
@@ -193,4 +202,51 @@ export function hungarianArticle(value: string, capital = false): string {
         : /^[aáeéiíoóöőuúüű]/i.test(text);
   const article = vowel ? "az" : "a";
   return capital ? `A${article.slice(1)}` : article;
+}
+
+/**
+ * THE HUNGARIAN "-s" SUFFIX AFTER A NUMBER, AS IT IS SAID.
+ *
+ * A code takes the suffix its last number is said with: "A-103-as" (három),
+ * "A-105-ös" (öt), "B-302-es" (kettő). The last digit decides; where it is a
+ * nought, the digit before it does, and a second nought makes it a hundred.
+ *
+ * This table is the one place the suffixes are written, and it is still being
+ * checked: correct it here and nowhere else.
+ */
+const HUNGARIAN_NUMBER_SUFFIX: Readonly<Record<string, string>> = {
+  "1": "-es",
+  "2": "-es",
+  "3": "-as",
+  "4": "-es",
+  "5": "-ös",
+  "6": "-os",
+  "7": "-es",
+  "8": "-as",
+  "9": "-es",
+  "10": "-es",
+  "20": "-as",
+  "30": "-as",
+  "40": "-es",
+  "50": "-es",
+  "60": "-as",
+  "70": "-es",
+  "80": "-as",
+  "90": "-es",
+  "100": "-as",
+};
+
+/** "-as" for "A-103": the suffix the number at the end of `value` takes. */
+export function hungarianNumberSuffix(value: string): string {
+  const digits = /\d+$/.exec(value)?.[0] ?? "";
+  const last = digits.at(-1);
+  const tens = digits.at(-2);
+  const key = last !== "0" ? last : tens !== undefined && tens !== "0" ? `${tens}0` : "100";
+  const suffix = key === undefined ? undefined : HUNGARIAN_NUMBER_SUFFIX[key];
+  if (suffix === undefined) {
+    throw new Error(
+      `"${value}" does not end in a number, so no Hungarian suffix can be read from it.`,
+    );
+  }
+  return suffix;
 }

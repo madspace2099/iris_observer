@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANGUAGES, type Language } from "../src/language";
-import { sentence, type Sentence } from "../src/sentence";
+import { hungarianNumberSuffix, sentence, type Sentence } from "../src/sentence";
 
 /**
  * THE NUMERAL PLACEHOLDER, `{#name|count}`.
@@ -161,5 +161,56 @@ describe("a counted word inside a counted word", () => {
       hu: { text: "" },
     };
     expect(() => sentence("en", loop, { n: 1 })).toThrow(/more than three deep/);
+  });
+});
+
+/*
+ * The Hungarian "-s" suffix after a number: the last digit decides, and where
+ * it is a nought the digit before it. Endings are read on the three-digit
+ * codes the catalogue writes; the tens stand alone.
+ */
+describe("hungarianNumberSuffix, and {az:name-s}", () => {
+  it("takes the suffix of every ending from nought to nine", () => {
+    expect(
+      [
+        "A-100",
+        "A-101",
+        "A-102",
+        "A-103",
+        "A-104",
+        "A-105",
+        "A-106",
+        "A-107",
+        "A-108",
+        "A-109",
+      ].map(hungarianNumberSuffix),
+    ).toEqual(["-as", "-es", "-es", "-as", "-es", "-ös", "-os", "-es", "-as", "-es"]);
+  });
+
+  it("takes the suffix of every ten, from ten to a hundred", () => {
+    expect(
+      ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].map(hungarianNumberSuffix),
+    ).toEqual(["-es", "-as", "-as", "-es", "-es", "-as", "-es", "-as", "-es", "-as"]);
+  });
+
+  it("writes the article, the code and its suffix at once, on the real codes", () => {
+    const code: Sentence = {
+      en: { text: "" },
+      sk: { text: "" },
+      hu: { text: "<{az:top-s}> <{Az:top-s}> <{top-s}> <{top}>" },
+    };
+    expect(
+      ["A-101", "A-103", "A-105", "A-106", "B-302"].map((top) => sentence("hu", code, { top })),
+    ).toEqual([
+      "<az A-101-es> <Az A-101-es> <A-101-es> <A-101>",
+      "<az A-103-as> <Az A-103-as> <A-103-as> <A-103>",
+      "<az A-105-ös> <Az A-105-ös> <A-105-ös> <A-105>",
+      "<az A-106-os> <Az A-106-os> <A-106-os> <A-106>",
+      "<a B-302-es> <A B-302-es> <B-302-es> <B-302>",
+    ]);
+  });
+
+  it("refuses a value that does not end in a number", () => {
+    expect(() => hungarianNumberSuffix("Penthouse")).toThrow(/does not end in a number/);
   });
 });
