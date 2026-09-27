@@ -262,7 +262,8 @@ Recorded, not changed — each needs a decision or touches a frozen surface:
   month's, and Sales Flow's sentence for the month says 45% against 36% (`views3.ts:1996`).
 - **The unit page's "Verified outcome"** re-prints the catalogue status (R07 above).
 - **The agent's `/overview` hard-codes 14 meetings** for Monika where her detail page computes 19
-  (`packages/synthetic/src/agent.ts:419-421`).
+  (`packages/synthetic/src/agent.ts:515-528, 579`; the lines this cited, `:419-421`, are the
+  overview's project gate).
 - **A count in the Ask answer is formatted with a literal `en-GB`** (`AskScreen.tsx:1025, 1035`) —
   latent, since every project is `en-GB` today.
 - **R01's inline history panel draws inert rename / share / pin / delete controls** that R03 has
