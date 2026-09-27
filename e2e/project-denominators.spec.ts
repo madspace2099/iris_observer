@@ -32,8 +32,9 @@ test("the parity scale prints, beside each index, the two shares it is a quotien
 }) => {
   await open(page);
   const rows = await page.locator(".iris-parity-row").allInnerTexts();
+  /* The stock is the unsold stock since the index took one population (decided 2026-09-27). */
   const bare = rows.filter(
-    (text) => !new RegExp(`${SHARE} of looking time on ${SHARE} of stock`).test(text),
+    (text) => !new RegExp(`${SHARE} of looking time on ${SHARE} of the unsold stock`).test(text),
   );
   expect(bare, "an index with its shares in a tooltip, or nowhere").toEqual([]);
 });
