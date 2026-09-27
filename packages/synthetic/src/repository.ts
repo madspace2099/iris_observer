@@ -81,6 +81,7 @@ import {
   buildHome,
   buildProjectView,
   buildSalesFlow,
+  sliceSpan,
 } from "./showroom/views3";
 import {
   buildMeetingList,
@@ -530,14 +531,10 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * So the period's window is extended through today when the period is
      * still running, and left alone when it is not. A period that ended within
      * the last day is still running; anything older is history and does not
-     * grow.
+     * grow. `sliceSpan` decides it, the same function the builders name their
+     * buckets with, and today ends where the project is.
      */
-    const endOfToday = new Date(today);
-    endOfToday.setUTCHours(23, 59, 59, 999);
-
-    const stillRunning =
-      new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
-    const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
+    const periodEnd = new Date(sliceSpan(context, today).to).toISOString();
 
     /*
      * Every slice is scoped to the project the viewer resolved.

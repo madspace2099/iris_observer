@@ -73,7 +73,7 @@ import {
 } from "@observer/metrics";
 import { buildAssistedSales, buildDealLadder } from "../deals";
 import { count, dayLabel, evidenceRef, percent, shareDisplay } from "../format";
-import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
+import { endOfDayIn, startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { agentById, presenterName, presentersIn } from "./sessions";
 
 /**
@@ -413,18 +413,23 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
 }
 
 /**
- * The instants the period's meetings were sliced from, both ends included.
+ * The instants the period's meetings are sliced from, both ends included.
  *
- * The repository's `slices()` decides this; it is mirrored here the way
- * `stillRunning` in `buildSalesFlow` already mirrors it: a period still running
- * reaches the end of today, a closed one stops at its own end.
+ * One function for the repository's `slices()`, which cuts the period's
+ * meetings with it, and for the builders that name its buckets: a period still
+ * running reaches the end of today, a closed one stops at its own end.
+ *
+ * "The end of today" is the project's. It was the UTC end of the day, which
+ * east of UTC ran two hours into tomorrow and west of it cut the local evening
+ * off: a meeting at 21:00 in a New York showroom fell outside its own running
+ * period, and Sales Flow's Today read "Not in this period". Every project
+ * today is at or east of UTC, so nothing on screen moves.
  */
 export function sliceSpan(
   context: ViewContext,
   today: Date,
 ): { readonly from: number; readonly to: number } {
-  const endOfToday = new Date(today);
-  endOfToday.setUTCHours(23, 59, 59, 999);
+  const endOfToday = endOfDayIn(today, context.project.timeZone);
   const stillRunning =
     new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
   return {

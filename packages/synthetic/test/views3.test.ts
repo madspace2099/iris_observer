@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { CrmDeal, ShowroomSession } from "@observer/contracts";
 import type { ViewContext } from "@observer/readmodels";
-import { buildSalesFlow, bucketBounds, trend, DEADBAND } from "../src/showroom/views3";
+import { buildSalesFlow, bucketBounds, sliceSpan, trend, DEADBAND } from "../src/showroom/views3";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
 /**
@@ -59,7 +59,8 @@ function session(startedAt: Date, outcome: ShowroomSession["outcome"]): Showroom
 // further down, with its own context.
 const CONTEXT = {
   tenant: { slug: "test-tenant" },
-  project: { slug: "test-project", locale: "en-GB" },
+  /* The dates below are UTC days, so the project keeps UTC days: today ends where it does. */
+  project: { slug: "test-project", locale: "en-GB", timeZone: "UTC" },
   period: {
     from: utc(1970, 0, 1).toISOString(),
     to: utc(9999, 0, 1).toISOString(),
@@ -308,6 +309,41 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     expect(view.verdict).toBe(
       "Meetings are holding up and progressing well: 20 meetings this month against 20 last month, first 12 days, and 60% of recorded meetings progressed, against 30% before.",
     );
+  });
+});
+
+/*
+ * A running period ends at the end of today WHERE THE PROJECT IS. It ended at
+ * the UTC end of the day: west of UTC that falls in the local afternoon, so at
+ * noon in New York the windows that end tonight — today, this week, this
+ * month — were not held whole by the period and read "Not in this period".
+ */
+describe("a running period's end of today", () => {
+  const westContext = (timeZone: string) =>
+    ({ ...CONTEXT, project: { ...CONTEXT.project, timeZone } }) as unknown as ViewContext;
+
+  it("is the project's own midnight, west and east of UTC", () => {
+    const noonInNewYork = new Date("2026-08-24T16:00:00Z");
+    expect(
+      new Date(sliceSpan(westContext("America/New_York"), noonInNewYork).to).toISOString(),
+    ).toBe("2026-08-25T03:59:59.999Z");
+    expect(
+      new Date(sliceSpan(westContext("Europe/Bratislava"), noonInNewYork).to).toISOString(),
+    ).toBe("2026-08-24T21:59:59.999Z");
+  });
+
+  it("holds today's window whole at noon in New York", () => {
+    const noonInNewYork = new Date("2026-08-24T16:00:00Z");
+    const thisMorning = new Date("2026-08-24T14:00:00Z"); // 10:00 in New York
+    const view = buildSalesFlow(
+      westContext("America/New_York"),
+      [session(thisMorning, "purchase")],
+      noonInNewYork,
+      [],
+    );
+    const today = view.periods.find((p) => p.id === "today");
+    expect(today?.inPeriod).toBe(true);
+    expect(today?.meetings).toBe(1);
   });
 });
 
