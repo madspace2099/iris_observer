@@ -168,7 +168,12 @@ async function inspect(page, account, url, expectation) {
         bodyText: (document.body.innerText ?? "").trim(),
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         title: document.title,
-        refused: /not available to your account|Not available/i.test(text.slice(0, 400)),
+        /*
+         * The refusal's own words, and only those. A bare "Not available" also
+         * matched "Name not available", the label a presenter outside the
+         * directory carries, and flagged 69 pages that had rendered.
+         */
+        refused: /not available to your account/i.test(text.slice(0, 400)),
       };
     });
     record.mainChars = probe.text.length;
