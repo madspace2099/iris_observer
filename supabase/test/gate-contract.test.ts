@@ -88,8 +88,9 @@ const cleanProcess = { ok: true, status: 0, signal: null, errorCode: null };
  * "the contract is broken" rather than "this fixture is stale". Only the counts
  * this file actually asserts on are stated locally.
  */
-function greenRecord(): GateRecord {
-  const base = greenGateRecord(HEAD);
+function greenRecord(platform?: string): GateRecord {
+  /* The host's platform unless a test declares its own; every caller but one leaves it. */
+  const base = greenGateRecord(HEAD, platform === undefined ? {} : { platform });
   /*
    * The counts, the inventory, its digest and the skips all describe ONE run.
    * Each of these used to be stated independently, so a change to the contract
@@ -663,8 +664,14 @@ describe("the verdict string must be the canonical rendering", () => {
      * RETAINED PLUS OMITTED, against the measurement. The list is bounded and
      * the count is not, so the length alone was never the claim — an emptied
      * list beside a declared zero omissions cannot account for the skips.
+     *
+     * The record declares win32, where one approved skip exists, instead of
+     * inheriting the host's platform: on Linux it carried no skip, nought plus
+     * nought for nought was true, and the case asserted nothing. It measures the
+     * contract now, not the machine, the same rule `release-boundary.test.ts`
+     * holds: a test must not depend on the machine it runs on.
      */
-    const r = greenRecord();
+    const r = greenRecord("win32");
     const bad = {
       ...r,
       testGate: { ...r.testGate, skippedTests: [], skippedTestsOmitted: 0 },
