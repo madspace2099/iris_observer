@@ -240,6 +240,7 @@ Corrected, each with a test:
 - **Section codes readable only by hovering** — `40957fa`.
 - **Windows outside the period counted as zero** — `633bf12`. Sales Flow under Last 28 days printed "Last month: 0" and "there's no earlier comparable period yet" above a 28-day baseline; the Briefing read "32 meetings this month against 0 last month"; under Last completed quarter six zeros and "0 meetings this month". Now the windows outside the period are marked, and both verdicts read the period against its baseline.
 - **A part-week marked as a week-on-week change** — `6556ba1`. "Presentations week by week" drew the week still running, one day old on the synthetic Monday, and marked it "±9 against the week before" under three periods; a completed quarter ended on a two-day week marked "±4". Only weeks the period holds whole are drawn now.
+- **A flagged agent set against the team's progression, whatever the flag counted** — `43affea`. On Riverside and Kingsford, which record no outcome, "10 of 10 meetings ended with no outcome recorded" stood "against 0% for the team"; a "not interested" flag stood against progression too. Each flag now names what it counts, and the finding prints the team's share of that ("against 100% for the team").
 - **A figure under the floor that lost its denominator** — `d2331d5`. Every surface that draws a `Figure` below its sample now keeps the denominator beside the shortfall.
 
 Recorded, not changed — each needs a decision or touches a frozen surface:
