@@ -709,12 +709,12 @@ export interface RedGateAttempt {
 export const RED_GATE_ATTEMPTS: readonly RedGateAttempt[] = [
   {
     commit: "abeca3a",
-    record: ".release/gate-results-FAILED-abeca3a-3064e88a1d30bd14.json",
+    record: "docs/release/red-gate-records/gate-results-FAILED-abeca3a-3064e88a1d30bd14.json",
     why: "a tracked test file carried a forbidden secret-shaped assignment",
   },
   {
     commit: "ebeb916",
-    record: ".release/gate-results-FAILED-ebeb916-94ad69855e655aaf.json",
+    record: "docs/release/red-gate-records/gate-results-FAILED-ebeb916-94ad69855e655aaf.json",
     why: "the commit message describing the fix reproduced the same shape",
   },
 ];
