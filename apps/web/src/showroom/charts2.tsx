@@ -208,7 +208,8 @@ export function TrendLine({
             x={x(i)}
             y={height - 8}
             className="iris-trend-tick"
-            textAnchor="middle"
+            /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
+            textAnchor={i === points.length - 1 ? "end" : "middle"}
           >
             {p.label}
           </text>
