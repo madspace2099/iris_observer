@@ -5100,6 +5100,7 @@ Closed after the first measurement, pushed:
 - `c10616f` — a comparison's evidence opens the comparison it rests on, the pair included.
 - `aeb1946` — the agents roster no longer credits a CRM it did not read.
 - `40957fa` — the compact DNA lanes' codes got a key; their names were only in titles.
+- `d2331d5` — a figure below its minimum sample keeps its denominator beside the shortfall.
 
 **Verification at `aeb1946`:** `pnpm test` 213 files, 4,323 passed, 1 skipped.
 
