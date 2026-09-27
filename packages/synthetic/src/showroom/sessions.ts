@@ -312,6 +312,18 @@ export function presenterName(
   return presenterWord(named, agentId, language);
 }
 
+/* Where a presenter's agency is not known, in each language a report can be printed in; drafts (P2-17). */
+const NOT_IN_DIRECTORY: Readonly<Record<Language, string>> = {
+  en: "Not in the directory",
+  sk: "Nie je v adresári",
+  hu: "Nem szerepel a címtárban",
+};
+const AGENCY_NOT_STATED: Readonly<Record<Language, string>> = {
+  en: "Agency not stated",
+  sk: "Agentúra neuvedená",
+  hu: "Ügynökség nincs megadva",
+};
+
 /** What a read model needs of somebody who presents: who they are, never how the generator drives them. */
 export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">;
 
@@ -346,8 +358,12 @@ export function presentersIn(
     ...beyond.map((id) => {
       const name = names?.get(id);
       return name === undefined
-        ? { id, name: presenterWord(null, id, language), organisationName: "Not in the directory" }
-        : { id, name, organisationName: "Agency not stated" };
+        ? {
+            id,
+            name: presenterWord(null, id, language),
+            organisationName: NOT_IN_DIRECTORY[language],
+          }
+        : { id, name, organisationName: AGENCY_NOT_STATED[language] };
     }),
   ];
 }

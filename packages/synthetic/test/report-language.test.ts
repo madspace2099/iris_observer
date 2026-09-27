@@ -111,3 +111,73 @@ describe("the Slovak 'z' or 'zo' before a count", () => {
     expect(at(40)).toBe("1 zo 40 stretnutí sa skončilo bez zaznamenaného výsledku.");
   });
 });
+
+describe("an agent summary in each language", () => {
+  /* One agent above the floor and one below it, so both branches of every caption are read. */
+  const AGENTS = ["agt_akhilesh", "agt_monika"] as const;
+  const detail = (language: Language, agentId: string) =>
+    repo.getAgentDetail(where(language), agentId);
+
+  it("has the same figures, stages, rows and findings as the English one", async () => {
+    const shape = (view: Awaited<ReturnType<typeof detail>>) => ({
+      /* The raw figure, not its display: a duration is written in words, "18 minút" or "18 perc". */
+      activity: view.activity.map((m) => [m.metricId, m.state, m.raw]),
+      funnel: view.funnel.map((s) => [s.metric.metricId, s.fromCount, s.toCount]),
+      outcomes: view.recordedOutcomes.map((o) => [o.outcome, o.metric.state, o.metric.raw]),
+      buyers: view.buyerInterest.map((b) => [b.id, b.meetings, b.share, b.teamShare]),
+      units: view.commonUnits.map((u) => [u.unitCode, u.meetings, u.favourites]),
+      rows: view.recentMeetings.map((r) => [
+        r.meetingId,
+        r.followUp,
+        r.visitor.kind,
+        r.visitor.priorMeetings,
+      ]),
+      findings: view.findings.map((f) => [f.id, f.sampleSize]),
+    });
+    for (const agentId of AGENTS) {
+      const english = shape(await detail("en", agentId));
+      for (const language of LANGUAGES) {
+        expect(shape(await detail(language, agentId)), `${agentId} ${language}`).toEqual(english);
+      }
+    }
+  });
+
+  it("leaves no English label, note, finding or row word standing in Slovak or Hungarian", async () => {
+    const words = (view: Awaited<ReturnType<typeof detail>>) => [
+      ...view.activity.flatMap((m) => [m.label, m.qualifier, m.message]),
+      ...view.funnel.map((s) => s.label),
+      view.followUp.recorded.label,
+      view.followUp.completed.label,
+      view.followUp.completed.message,
+      view.followUp.note,
+      ...view.recordedOutcomes.map((o) => o.label),
+      ...view.buyerInterest.map((b) => b.label),
+      ...view.findings.flatMap((f) => [f.statement, f.baseline, f.soWhat, f.caveat]),
+      ...view.recentMeetings.flatMap((r) => [r.visitor.display, r.followUpLabel, r.outcomeLabel]),
+    ];
+    for (const agentId of AGENTS) {
+      const english = new Set(words(await detail("en", agentId)).filter((w) => w !== null));
+      for (const language of ["sk", "hu"] as const) {
+        for (const word of words(await detail(language, agentId))) {
+          if (word === null) continue;
+          expect(english.has(word), `${agentId} ${language}: ${word}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("and its manifest has the same sections, states and samples", async () => {
+    for (const agentId of AGENTS) {
+      const shape = async (language: Language) =>
+        (await repo.getReportScope(where(language), { agentId })).sections.map((s) => [
+          s.id,
+          s.availability,
+          s.sampleSize,
+        ]);
+      const english = await shape("en");
+      for (const language of LANGUAGES) {
+        expect(await shape(language), `${agentId} ${language}`).toEqual(english);
+      }
+    }
+  });
+});

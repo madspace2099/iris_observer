@@ -16,6 +16,7 @@ import type {
 } from "./metric-value";
 import type { MeetingSummary, ShowroomFinding, UnitAttentionRow } from "./showroom";
 import type { AgentProfile, OutcomeSlice } from "./views3";
+import { DEFAULT_LANGUAGE, type Language } from "./language";
 
 /**
  * The drill-down surfaces, as read models.
@@ -119,24 +120,63 @@ function ordinal(n: number): string {
   return `${n}${unit === 1 ? "st" : unit === 2 ? "nd" : unit === 3 ? "rd" : "th"}`;
 }
 
+/*
+ * The label's words in each language a report can be printed in. Slovak and
+ * Hungarian write an ordinal as the number and a full stop, "3. stretnutie",
+ * "3. találkozó". Drafts for review (P2-17).
+ */
+const VISITOR_WORDS: Readonly<
+  Record<
+    Language,
+    {
+      readonly unlinked: string;
+      readonly first: string;
+      readonly returning: (nth: number) => string;
+    }
+  >
+> = {
+  en: {
+    unlinked: "Not linked to a contact",
+    first: "First meeting",
+    returning: (nth) => `Returning · ${ordinal(nth)} meeting`,
+  },
+  sk: {
+    unlinked: "Nie je prepojené s kontaktom",
+    first: "Prvé stretnutie",
+    returning: (nth) => `Opakovaná návšteva · ${String(nth)}. stretnutie`,
+  },
+  hu: {
+    unlinked: "Nincs kapcsolathoz kötve",
+    first: "Első találkozó",
+    returning: (nth) => `Visszatérő · ${String(nth)}. találkozó`,
+  },
+};
+
 /**
  * The only supported way to build a `VisitorLabel`.
  *
- * A pure function of a closed enum and an integer, which is what makes the
+ * A pure function of two closed enums and an integer, which is what makes the
  * privacy guarantee structural: there is no parameter a name, an email or a
  * phone number could be passed in, so no call site can leak one by accident.
+ * The language is one of three literals, like the kind, and carries nothing
+ * else.
  */
-export function visitorLabel(kind: VisitorLabelKind, priorMeetings: number | null): VisitorLabel {
+export function visitorLabel(
+  kind: VisitorLabelKind,
+  priorMeetings: number | null,
+  language: Language = DEFAULT_LANGUAGE,
+): VisitorLabel {
+  const words = VISITOR_WORDS[language];
   if (kind === "unlinked") {
-    return { kind, priorMeetings: null, display: "Not linked to a contact" };
+    return { kind, priorMeetings: null, display: words.unlinked };
   }
   if (kind === "known_first_meeting" || priorMeetings === null || priorMeetings <= 0) {
-    return { kind, priorMeetings: priorMeetings ?? 0, display: "First meeting" };
+    return { kind, priorMeetings: priorMeetings ?? 0, display: words.first };
   }
   return {
     kind,
     priorMeetings,
-    display: `Returning · ${ordinal(priorMeetings + 1)} meeting`,
+    display: words.returning(priorMeetings + 1),
   };
 }
 

@@ -47,14 +47,21 @@ import type {
 } from "@observer/readmodels";
 import {
   AGENT_REGISTER_ROLES,
+  DEFAULT_LANGUAGE,
   MEETINGS,
+  OUTCOME_WORDS,
   TIMES,
   areaWord,
   duration,
+  hungarianArticle,
   nothingReceivedYet,
+  plural,
   roomsWord,
   sentence,
+  slovakZForm,
   visitorLabel,
+  type Language,
+  type PluralForms,
   type Sentence,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
@@ -76,7 +83,12 @@ import { assistedSaleOf, dealsFor } from "../deals";
 import { startOfWeekIn } from "../time";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
-import { buildAgentsView, meetings as meetingsWord, suppressionNoteFor } from "./views3";
+import {
+  buildAgentsView,
+  meetings as meetingsWord,
+  segmentName,
+  suppressionNoteFor,
+} from "./views3";
 
 /*
  * The unit page's sentences, each written once per language in that
@@ -314,6 +326,25 @@ function visitorKindFor(session: ShowroomSession): VisitorLabelKind {
  * place, so the meeting list, a unit's related meetings and an agent's recent
  * meetings cannot render the same meeting three different ways.
  */
+/* What each follow-up state means, as a register row's title says it; Slovak and Hungarian are drafts (P2-17). */
+const FOLLOW_UP_SENTENCES: Readonly<Record<Language, Readonly<Record<FollowUpState, string>>>> = {
+  en: {
+    not_recorded: "No outcome was recorded for this meeting.",
+    required: "The recorded outcome asks for a follow-up.",
+    not_required: "The recorded outcome does not ask for a follow-up.",
+  },
+  sk: {
+    not_recorded: "Na tomto stretnutí sa nezaznamenal žiadny výsledok.",
+    required: "Zaznamenaný výsledok si vyžaduje ďalší kontakt.",
+    not_required: "Zaznamenaný výsledok si nevyžaduje ďalší kontakt.",
+  },
+  hu: {
+    not_recorded: "Ezen a találkozón nem rögzítettek eredményt.",
+    required: "A rögzített eredmény utánkövetést kér.",
+    not_required: "A rögzített eredmény nem kér utánkövetést.",
+  },
+};
+
 export function buildMeetingRows(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -334,6 +365,7 @@ export function buildMeetingRows(
    * since withdrawn a flat, both leave codes with no page behind them.
    */
   const catalogueCodes = new Set(catalogueFor(context.project.id as string).map((u) => u.code));
+  const language = context.language ?? DEFAULT_LANGUAGE;
 
   return buildMeetingList(context, sessions).flatMap<MeetingRow>((summary) => {
     const session = byId.get(summary.meetingId);
@@ -348,6 +380,7 @@ export function buildMeetingRows(
         visitor: visitorLabel(
           visitorKindFor(session),
           session.contactId === null ? null : session.priorMeetings,
+          language,
         ),
         /*
          * The gate first, then the directory. A viewer outside the roles never
@@ -367,12 +400,7 @@ export function buildMeetingRows(
         })),
         favourites: session.units.filter((u) => u.favourited).length,
         followUp,
-        followUpLabel:
-          followUp === "not_recorded"
-            ? "No outcome was recorded for this meeting."
-            : followUp === "required"
-              ? "The recorded outcome asks for a follow-up."
-              : "The recorded outcome does not ask for a follow-up.",
+        followUpLabel: FOLLOW_UP_SENTENCES[language][followUp],
         timingAvailable: !session.timingUnavailable,
       },
     ];
@@ -1155,6 +1183,229 @@ export function buildUnitDetail(
  * as `insufficient` with the raw figure still in it. `docs/10-policies.md` §6:
  * show the number, say how far short it falls, draw no conclusion.
  */
+/*
+ * ONE AGENT'S SCREEN, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what the agent's screen always said, and the screens stay
+ * English; the printed summary is drawn from the same read model, so it
+ * carries these words in the reader's language. Slovak avoids the past tense
+ * and the possessive where either would name the agent's gender, which the
+ * product does not hold. Slovak and Hungarian are drafts for review (P2-17).
+ */
+interface AgentDetailWords {
+  readonly presentations: string;
+  readonly ofProject: (total: string, n: number) => string;
+  readonly median: string;
+  readonly legacyOnly: string;
+  readonly timed: (display: string, n: number) => string;
+  readonly unitsPerMeeting: string;
+  readonly mean: string;
+  readonly coreReached: string;
+  readonly ofCore: (n: number) => string;
+  readonly followUpsRecorded: string;
+  readonly noFollowUp: string;
+  readonly ofMeetings: (display: string, n: number) => string;
+  readonly followUpsCompleted: string;
+  readonly completedWhy: string;
+  readonly followUpNote: string;
+  readonly noOutcome: (outcome: string) => string;
+  readonly funnel: readonly [string, string, string, string, string];
+  readonly funnelNone: (stage: string) => string;
+  readonly funnelOf: (display: string, n: number) => string;
+  readonly shortOfSample: string;
+  readonly belowStatement: (
+    name: string,
+    meetings: string,
+    period: string,
+    short: string,
+    minimum: string,
+  ) => string;
+  readonly projectMeetings: (display: string, n: number) => string;
+  readonly belowSoWhat: string;
+  readonly seeMeetings: string;
+  readonly belowCaveat: string;
+  readonly signatureStatement: (name: string, index: string, section: string) => string;
+  readonly signatureBaseline: (timed: string, held: string, total: string, heldN: number) => string;
+  readonly signatureSoWhat: string;
+  readonly comparePresentations: string;
+  readonly signatureCaveat: string;
+  readonly unrecordedStatement: (unrecorded: string, total: string, totalN: number) => string;
+  readonly unrecordedBaseline: (share: string) => string;
+  readonly unrecordedSoWhat: string;
+}
+
+/* "22 timed meetings", in Slovak with the count's own form. */
+const TIMED_MEETINGS: PluralForms = {
+  en: { one: "timed meeting", other: "timed meetings" },
+  sk: {
+    one: "stretnutie s meraným časom",
+    few: "stretnutia s meraným časom",
+    other: "stretnutí s meraným časom",
+  },
+  hu: { one: "mért idejű találkozó", other: "mért idejű találkozó" },
+};
+
+const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
+  en: {
+    presentations: "Presentations",
+    ofProject: (total) => `of ${total} on this project`,
+    median: "Median presentation",
+    legacyOnly:
+      "Every meeting of theirs in this period came from the legacy import, which records order but not timing.",
+    timed: (display) => `${display} timed meetings`,
+    unitsPerMeeting: "Units opened per meeting",
+    mean: "mean across their meetings",
+    coreReached: "Core sections reached",
+    ofCore: (n) => `of ${String(n)} core sections`,
+    followUpsRecorded: "Follow-ups recorded as needed",
+    noFollowUp: "No meeting of theirs in this period recorded a follow-up as needed.",
+    ofMeetings: (display) => `of ${display} meetings`,
+    followUpsCompleted: "Follow-ups completed",
+    completedWhy:
+      "No source records whether a follow-up happened. Observer holds the meeting; the activity after it belongs to the CRM.",
+    followUpNote:
+      "Recorded as needed and actually done are two questions. Observer can answer the first one only, and the second is shown as unavailable rather than assumed.",
+    noOutcome: (outcome) =>
+      `No meeting of theirs in this period was recorded as a ${outcome.toLowerCase()}.`,
+    funnel: [
+      "Presentations",
+      "Opened a unit",
+      "Shortlisted a unit",
+      "Outcome recorded",
+      "Progressed further",
+    ],
+    funnelNone: (stage) => `No meeting of theirs reached ${stage.toLowerCase()}.`,
+    funnelOf: (display) => `of ${display}`,
+    shortOfSample: shortOfSample(AGENT_MIN_SAMPLE, "meetings for this agent"),
+    belowStatement: (name, meetings, period, short, minimum) =>
+      `${name} presented ${meetings} in ${period.toLowerCase()}, ${short} short of the ${minimum} this product requires before it will read a figure as a verdict.`,
+    projectMeetings: (display) => `${display} meetings on the project`,
+    belowSoWhat:
+      "The counts on this page are real and the rates are shown as raw figures. No rank, verdict or trend is drawn from them at this sample size.",
+    seeMeetings: "See their meetings",
+    belowCaveat: "A small sample is a small sample. It is not a statement about the person.",
+    signatureStatement: (name, index, section) =>
+      `${name} spends ${index}× the team's share of presentation time in ${section}.`,
+    signatureBaseline: (timed, held, total) =>
+      `${timed} of ${held} meetings the source could time end to end, against ${total} on the project`,
+    signatureSoWhat:
+      "A habit is visible long before its result is. Whether it is worth copying or worth changing is a conversation this figure can open.",
+    comparePresentations: "Compare presentations",
+    signatureCaveat: "An association across their meetings, not an account of any one of them.",
+    unrecordedStatement: (unrecorded, total) =>
+      `${unrecorded} of their ${total} meetings ended with no outcome recorded.`,
+    unrecordedBaseline: (share) => `${share} of their meetings`,
+    unrecordedSoWhat:
+      "Every rate on this page that uses an outcome silently drops those meetings. The remedy is a habit at the end of the meeting rather than a change to the data.",
+  },
+  sk: {
+    presentations: "Prezentácie",
+    ofProject: (total, n) => `${slovakZForm(n)} ${total} na tomto projekte`,
+    median: "Medián dĺžky prezentácie",
+    legacyOnly:
+      "Všetky stretnutia v tomto období pochádzajú zo staršieho importu, ktorý zaznamenáva poradie, nie čas.",
+    timed: (display, n) => `${display} ${plural("sk", n, TIMED_MEETINGS)}`,
+    unitsPerMeeting: "Otvorené byty na stretnutie",
+    mean: "priemer zo stretnutí",
+    coreReached: "Dosiahnuté základné sekcie",
+    ofCore: (n) =>
+      `${slovakZForm(n)} ${String(n)} ${n === 1 ? "základnej sekcie" : "základných sekcií"}`,
+    followUpsRecorded: "Ďalšie kontakty zaznamenané ako potrebné",
+    noFollowUp: "Žiadne stretnutie v tomto období nezaznamenalo potrebu ďalšieho kontaktu.",
+    ofMeetings: (display, n) =>
+      `${slovakZForm(n)} ${display} ${n === 1 ? "stretnutia" : "stretnutí"}`,
+    followUpsCompleted: "Uskutočnené ďalšie kontakty",
+    completedWhy:
+      "Žiadny zdroj nezaznamenáva, či sa ďalší kontakt uskutočnil. Observer má stretnutie; činnosť po ňom patrí CRM.",
+    followUpNote:
+      "Zaznamenané ako potrebné a skutočne vykonané sú dve otázky. Observer vie odpovedať iba na prvú; druhá je uvedená ako nedostupná, nie domyslená.",
+    noOutcome: (outcome) =>
+      `Žiadne stretnutie v tomto období nemá zaznamenaný výsledok „${outcome}“.`,
+    funnel: [
+      "Prezentácie",
+      "Otvorený byt",
+      "Byt v obľúbených",
+      "Zaznamenaný výsledok",
+      "Pokročilo ďalej",
+    ],
+    funnelNone: (stage) => `Žiadne stretnutie nedosiahlo stav „${stage}“.`,
+    funnelOf: (display, n) => `${slovakZForm(n)} ${display}`,
+    shortOfSample: `Menej ako ${String(AGENT_MIN_SAMPLE)} stretnutí — zobrazené ako surové číslo, nie ako hodnotenie.`,
+    belowStatement: (name, meetings, period, short, minimum) =>
+      `${name}: ${meetings} (${period.toLowerCase()}), o ${short} menej ako ${minimum}, ktoré produkt vyžaduje, kým prečíta číslo ako hodnotenie.`,
+    projectMeetings: (display, n) => `${display} ${plural("sk", n, MEETINGS)} na projekte`,
+    belowSoWhat:
+      "Počty na tejto stránke sú skutočné a miery sú uvedené ako surové čísla. Pri tejto veľkosti vzorky sa z nich neodvodzuje poradie, hodnotenie ani trend.",
+    seeMeetings: "Zobraziť stretnutia",
+    belowCaveat: "Malá vzorka je malá vzorka. Nie je to výrok o človeku.",
+    signatureStatement: (name, index, section) =>
+      `${name} venuje sekcii ${section} ${index}× väčší podiel času prezentácie ako tím.`,
+    signatureBaseline: (timed, held, total, heldN) =>
+      `${timed} ${slovakZForm(heldN)} ${held} stretnutí, ktoré zdroj dokázal zmerať od začiatku do konca, oproti ${total} na projekte`,
+    signatureSoWhat:
+      "Zvyk je viditeľný dávno pred svojím výsledkom. Či sa oplatí ho napodobniť, alebo zmeniť, je rozhovor, ktorý toto číslo môže otvoriť.",
+    comparePresentations: "Porovnať prezentácie",
+    signatureCaveat: "Súvislosť naprieč stretnutiami, nie opis ktoréhokoľvek z nich.",
+    unrecordedStatement: (unrecorded, total, totalN) =>
+      `Bez zaznamenaného výsledku: ${unrecorded} ${slovakZForm(totalN)} ${total} stretnutí.`,
+    unrecordedBaseline: (share) => `${share} stretnutí`,
+    unrecordedSoWhat:
+      "Každá miera na tejto stránke, ktorá používa výsledok, tieto stretnutia potichu vynecháva. Náprava je zvyk na konci stretnutia, nie zmena údajov.",
+  },
+  hu: {
+    presentations: "Bemutatók",
+    ofProject: (total) => `${total} közül ezen a projekten`,
+    median: "Bemutatók medián hossza",
+    legacyOnly:
+      "Az időszak minden találkozója a korábbi importból származik, amely a sorrendet rögzíti, az időzítést nem.",
+    timed: (display) => `${display} mért idejű találkozó`,
+    unitsPerMeeting: "Megnyitott lakások találkozónként",
+    mean: "átlag a találkozói alapján",
+    coreReached: "Elért alapszakaszok",
+    ofCore: (n) => `${String(n)} alapszakasz közül`,
+    followUpsRecorded: "Szükségesként rögzített utánkövetések",
+    noFollowUp: "Az időszakban egyetlen találkozóján sem rögzítettek szükséges utánkövetést.",
+    ofMeetings: (display) => `${display} találkozó közül`,
+    followUpsCompleted: "Elvégzett utánkövetések",
+    completedWhy:
+      "Egyetlen forrás sem rögzíti, megtörtént-e az utánkövetés. Az Observer a találkozót látja; ami utána történik, az a CRM-hez tartozik.",
+    followUpNote:
+      "A szükségesként rögzített és a ténylegesen elvégzett két külön kérdés. Az Observer csak az elsőre tud felelni; a második nem elérhetőként szerepel, nem feltételezve.",
+    noOutcome: (outcome) =>
+      `Az időszakban egyetlen találkozóját sem rögzítették „${outcome}” eredménnyel.`,
+    funnel: [
+      "Bemutatók",
+      "Lakást nyitottak meg",
+      "Lakás a kedvencek között",
+      "Rögzített eredmény",
+      "Továbblépett",
+    ],
+    funnelNone: (stage) => `Egyetlen találkozója sem jutott el ide: „${stage}”.`,
+    funnelOf: (display) => `${display} közül`,
+    shortOfSample: `Kevesebb mint ${String(AGENT_MIN_SAMPLE)} találkozó — nyers számként látható, nem értékelésként.`,
+    belowStatement: (name, meetings, period, short, minimum) =>
+      `${name}: ${meetings} (${period.toLowerCase()}); a termék ${minimum} találkozót kér, mielőtt egy számot értékelésként olvasna, ebből ${short} hiányzik.`,
+    projectMeetings: (display) => `${display} találkozó a projekten`,
+    belowSoWhat:
+      "Az oldalon szereplő darabszámok valósak, az arányok nyers számként szerepelnek. Ekkora mintából nem készül rangsor, értékelés vagy trend.",
+    seeMeetings: "Találkozók megtekintése",
+    belowCaveat: "A kis minta kis minta. Nem állítás az emberről.",
+    signatureStatement: (name, index, section) =>
+      `${name} a csapatnál ${index}× nagyobb arányban tölti a bemutatási idejét ${hungarianArticle(section)} ${section} szakaszban.`,
+    signatureBaseline: (timed, held, total) =>
+      `${held} találkozóból ${timed}, amelyet a forrás elejétől végéig mérni tudott, szemben a projekt ${total} találkozójával`,
+    signatureSoWhat:
+      "Egy szokás jóval előbb látszik, mint az eredménye. Hogy érdemes-e átvenni vagy változtatni rajta, arról ez a szám beszélgetést nyithat.",
+    comparePresentations: "Bemutatók összehasonlítása",
+    signatureCaveat: "Összefüggés a találkozói között, nem egyetlen találkozó leírása.",
+    unrecordedStatement: (unrecorded, total) =>
+      `Rögzített eredmény nélkül zárult: ${total} találkozóból ${unrecorded}.`,
+    unrecordedBaseline: (share) => `${share} a találkozói közül`,
+    unrecordedSoWhat:
+      "Az oldal minden aránya, amely eredményt használ, csendben kihagyja ezeket a találkozókat. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
+  },
+};
+
 function agentFigure(
   metricId: string,
   label: string,
@@ -1162,6 +1413,7 @@ function agentFigure(
   raw: number,
   qualifier: string,
   sampleSize: number,
+  shortfall: string = AGENT_DETAIL_WORDS.en.shortOfSample,
 ): MetricValue {
   const input = {
     metricId,
@@ -1172,9 +1424,7 @@ function agentFigure(
     sampleSize,
     minimumSampleSize: AGENT_MIN_SAMPLE,
   };
-  return sampleSize < AGENT_MIN_SAMPLE
-    ? insufficient(input, shortOfSample(AGENT_MIN_SAMPLE, "meetings for this agent"))
-    : ok(input);
+  return sampleSize < AGENT_MIN_SAMPLE ? insufficient(input, shortfall) : ok(input);
 }
 
 export function buildAgentDetail(
@@ -1185,9 +1435,11 @@ export function buildAgentDetail(
 ): AgentDetailView | null {
   const locale = context.project.locale;
   const root = base(context);
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = AGENT_DETAIL_WORDS[language];
 
   /* The roster, or whoever this project's meetings name: a delivered project's agents are on no roster. */
-  const agent = presentersIn(sessions).find((a) => a.id === agentId);
+  const agent = presentersIn(sessions, language).find((a) => a.id === agentId);
   if (agent === undefined) return null;
 
   const mine = sessions.filter((s) => s.agentId === agentId);
@@ -1228,44 +1480,42 @@ export function buildAgentDetail(
     // the thing the reader most needs to see when it is small.
     ok({
       metricId: "agent.meetings",
-      label: "Presentations",
+      label: words.presentations,
       display: count(mine.length, locale),
       raw: mine.length,
-      qualifier: `of ${count(sessions.length, locale)} on this project`,
+      qualifier: words.ofProject(count(sessions.length, locale), sessions.length),
       sampleSize,
       minimumSampleSize: AGENT_MIN_SAMPLE,
       drillHref: `${root}/meetings?agent=${agentId}`,
     }),
     timed.length === 0
-      ? unavailable(
-          "agent.duration",
-          "Median presentation",
-          AGENT_MIN_SAMPLE,
-          "Every meeting of theirs in this period came from the legacy import, which records order but not timing.",
-        )
+      ? unavailable("agent.duration", words.median, AGENT_MIN_SAMPLE, words.legacyOnly)
       : agentFigure(
           "agent.duration",
-          "Median presentation",
-          duration(Math.round(median(timed)), context.language),
+          words.median,
+          duration(Math.round(median(timed)), language),
           Math.round(median(timed)),
-          `${count(timed.length, locale)} timed meetings`,
+          words.timed(count(timed.length, locale), timed.length),
           sampleSize,
+          words.shortOfSample,
         ),
     agentFigure(
       "agent.units",
-      "Units opened per meeting",
+      words.unitsPerMeeting,
       unitsPerMeeting.toFixed(1),
       unitsPerMeeting,
-      "mean across their meetings",
+      words.mean,
       sampleSize,
+      words.shortOfSample,
     ),
     agentFigure(
       "agent.coverage",
-      "Core sections reached",
+      words.coreReached,
       percent(coverage, locale),
       coverage,
-      `of ${CORE_SECTION_IDS.length} core sections`,
+      words.ofCore(CORE_SECTION_IDS.length),
       sampleSize,
+      words.shortOfSample,
     ),
   ];
 
@@ -1298,29 +1548,24 @@ export function buildAgentDetail(
     /* The room's record, on every project; it was withheld without a CRM as though the CRM had made it. */
     recorded:
       followUpRecorded === 0
-        ? empty(
-            "agent.followup",
-            "Follow-ups recorded as needed",
-            AGENT_MIN_SAMPLE,
-            "No meeting of theirs in this period recorded a follow-up as needed.",
-          )
+        ? empty("agent.followup", words.followUpsRecorded, AGENT_MIN_SAMPLE, words.noFollowUp)
         : ok({
             metricId: "agent.followup",
-            label: "Follow-ups recorded as needed",
+            label: words.followUpsRecorded,
             display: count(followUpRecorded, locale),
             raw: followUpRecorded,
-            qualifier: `of ${count(mine.length, locale)} meetings`,
+            qualifier: words.ofMeetings(count(mine.length, locale), mine.length),
             sampleSize,
             minimumSampleSize: AGENT_MIN_SAMPLE,
             drillHref: `${root}/meetings?agent=${agentId}`,
           }),
     completed: unavailable(
       "agent.followup.completed",
-      "Follow-ups completed",
+      words.followUpsCompleted,
       AGENT_MIN_SAMPLE,
-      "No source records whether a follow-up happened. Observer holds the meeting; the activity after it belongs to the CRM.",
+      words.completedWhy,
     ),
-    note: "Recorded as needed and actually done are two questions. Observer can answer the first one only, and the second is shown as unavailable rather than assumed.",
+    note: words.followUpNote,
   };
 
   /* --- the outcomes they recorded, by their commercial word ------------------ */
@@ -1340,23 +1585,19 @@ export function buildAgentDetail(
     ["purchase", "reservation"] as const
   ).map<AgentRecordedOutcome>((outcome) => {
     const n = mine.filter((s) => s.outcome === outcome).length;
+    const outcomeWord = OUTCOME_WORDS[language][outcome];
     return {
       outcome,
-      label: OUTCOME_LABELS[outcome],
+      label: outcomeWord,
       metric:
         n === 0
-          ? empty(
-              `agent.${outcome}`,
-              OUTCOME_LABELS[outcome],
-              AGENT_MIN_SAMPLE,
-              `No meeting of theirs in this period was recorded as a ${OUTCOME_LABELS[outcome].toLowerCase()}.`,
-            )
+          ? empty(`agent.${outcome}`, outcomeWord, AGENT_MIN_SAMPLE, words.noOutcome(outcomeWord))
           : ok({
               metricId: `agent.${outcome}`,
-              label: OUTCOME_LABELS[outcome],
+              label: outcomeWord,
               display: count(n, locale),
               raw: n,
-              qualifier: `of ${count(mine.length, locale)} meetings`,
+              qualifier: words.ofMeetings(count(mine.length, locale), mine.length),
               sampleSize,
               minimumSampleSize: AGENT_MIN_SAMPLE,
               drillHref: `${root}/meetings?agent=${agentId}&outcome=${outcome}`,
@@ -1382,18 +1623,13 @@ export function buildAgentDetail(
     label,
     metric:
       value === 0
-        ? empty(
-            metricId,
-            label,
-            AGENT_MIN_SAMPLE,
-            `No meeting of theirs reached ${label.toLowerCase()}.`,
-          )
+        ? empty(metricId, label, AGENT_MIN_SAMPLE, words.funnelNone(label))
         : ok({
             metricId,
             label,
             display: count(value, locale),
             raw: value,
-            qualifier: from === null ? undefined : `of ${count(from, locale)}`,
+            qualifier: from === null ? undefined : words.funnelOf(count(from, locale), from),
             sampleSize,
             minimumSampleSize: AGENT_MIN_SAMPLE,
           }),
@@ -1408,11 +1644,11 @@ export function buildAgentDetail(
    * the shortlist.
    */
   const funnel: readonly FunnelStep[] = [
-    funnelStep("agent.funnel.meetings", "Presentations", mine.length, null),
-    funnelStep("agent.funnel.units", "Opened a unit", openedUnit, mine.length),
-    funnelStep("agent.funnel.shortlist", "Shortlisted a unit", shortlisted, openedUnit),
-    funnelStep("agent.funnel.recorded", "Outcome recorded", recorded, mine.length),
-    funnelStep("agent.funnel.progressed", "Progressed further", progressed, recorded),
+    funnelStep("agent.funnel.meetings", words.funnel[0], mine.length, null),
+    funnelStep("agent.funnel.units", words.funnel[1], openedUnit, mine.length),
+    funnelStep("agent.funnel.shortlist", words.funnel[2], shortlisted, openedUnit),
+    funnelStep("agent.funnel.recorded", words.funnel[3], recorded, mine.length),
+    funnelStep("agent.funnel.progressed", words.funnel[4], progressed, recorded),
   ];
 
   /* --- what their buyers were looking at ----------------------------------- */
@@ -1434,7 +1670,7 @@ export function buildAgentDetail(
         list.filter((s) => s.units.some((u) => codes.has(u.unitCode))).length;
       return {
         id: `rooms-${rooms}`,
-        label: `${rooms}-room`,
+        label: language === "en" ? `${rooms}-room` : segmentName(rooms, language),
         meetings: touched(mine),
         share: share(touched(mine), mine.length),
         teamShare: share(touched(sessions), sessions.length),
@@ -1471,11 +1707,16 @@ export function buildAgentDetail(
   if (belowMinimum) {
     findings.push({
       id: `agent-${agentId}-sample`,
-      statement: `${agent.name} presented ${meetingsWord(mine.length, locale, context.language)} in ${context.period.label.toLowerCase()}, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${AGENT_MIN_SAMPLE} this product requires before it will read a figure as a verdict.`,
-      baseline: `${count(sessions.length, locale)} meetings on the project`,
-      soWhat:
-        "The counts on this page are real and the rates are shown as raw figures. No rank, verdict or trend is drawn from them at this sample size.",
-      nextStep: { label: "See their meetings", href: `${root}/meetings?agent=${agentId}` },
+      statement: words.belowStatement(
+        agent.name,
+        meetingsWord(mine.length, locale, language),
+        context.period.label,
+        count(AGENT_MIN_SAMPLE - mine.length, locale),
+        String(AGENT_MIN_SAMPLE),
+      ),
+      baseline: words.projectMeetings(count(sessions.length, locale), sessions.length),
+      soWhat: words.belowSoWhat,
+      nextStep: { label: words.seeMeetings, href: `${root}/meetings?agent=${agentId}` },
       evidence: evidenceRef(
         `agent-sample-${agentId}`,
         "observed_sequence",
@@ -1484,17 +1725,25 @@ export function buildAgentDetail(
       ),
       sampleSize: mine.length,
       sources: OBSERVED,
-      caveat: "A small sample is a small sample. It is not a statement about the person.",
+      caveat: words.belowCaveat,
     });
   } else if (profile.signature !== null) {
     findings.push({
       id: `agent-${agentId}-signature`,
-      statement: `${agent.name} spends ${profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${profile.signature.label}.`,
+      statement: words.signatureStatement(
+        agent.name,
+        profile.signature.overIndex.toFixed(1),
+        profile.signature.label,
+      ),
       /* The set the share stands on, then the project it is set against. */
-      baseline: `${count(profile.timedMeetings, locale)} of ${count(mine.length, locale)} meetings the source could time end to end, against ${count(sessions.length, locale)} on the project`,
-      soWhat:
-        "A habit is visible long before its result is. Whether it is worth copying or worth changing is a conversation this figure can open.",
-      nextStep: { label: "Compare presentations", href: `${root}/presentation` },
+      baseline: words.signatureBaseline(
+        count(profile.timedMeetings, locale),
+        count(mine.length, locale),
+        count(sessions.length, locale),
+        mine.length,
+      ),
+      soWhat: words.signatureSoWhat,
+      nextStep: { label: words.comparePresentations, href: `${root}/presentation` },
       evidence: evidenceRef(
         `agent-signature-${agentId}`,
         "statistical_association",
@@ -1503,7 +1752,7 @@ export function buildAgentDetail(
       ),
       sampleSize: mine.length,
       sources: DERIVED,
-      caveat: "An association across their meetings, not an account of any one of them.",
+      caveat: words.signatureCaveat,
     });
   }
 
@@ -1511,11 +1760,14 @@ export function buildAgentDetail(
   if (unrecorded > 0) {
     findings.push({
       id: `agent-${agentId}-unrecorded`,
-      statement: `${count(unrecorded, locale)} of their ${count(mine.length, locale)} meetings ended with no outcome recorded.`,
-      baseline: `${percent(share(unrecorded, mine.length), locale)} of their meetings`,
-      soWhat:
-        "Every rate on this page that uses an outcome silently drops those meetings. The remedy is a habit at the end of the meeting rather than a change to the data.",
-      nextStep: { label: "See their meetings", href: `${root}/meetings?agent=${agentId}` },
+      statement: words.unrecordedStatement(
+        count(unrecorded, locale),
+        count(mine.length, locale),
+        mine.length,
+      ),
+      baseline: words.unrecordedBaseline(percent(share(unrecorded, mine.length), locale)),
+      soWhat: words.unrecordedSoWhat,
+      nextStep: { label: words.seeMeetings, href: `${root}/meetings?agent=${agentId}` },
       evidence: evidenceRef(
         `agent-unrecorded-${agentId}`,
         "observed_sequence",
@@ -1545,7 +1797,7 @@ export function buildAgentDetail(
     belowMinimum,
     /* One builder for the floor's sentence, shared with the roster and the charts. */
     suppressionNote: belowMinimum
-      ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
+      ? suppressionNoteFor(mine.length, locale, "sentence", language)
       : null,
     activity,
     profile,
@@ -1558,7 +1810,7 @@ export function buildAgentDetail(
     sessionsOverTime: {
       points: seriesOver(mine, buckets),
       annotation: null,
-      valueLabel: "Presentations",
+      valueLabel: words.presentations,
     },
     funnel,
     buyerInterest,

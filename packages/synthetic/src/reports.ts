@@ -5,6 +5,7 @@ import {
   DEFAULT_LANGUAGE,
   MEETINGS,
   plural,
+  pluralCategory,
   sentence,
   type Language,
   type Sentence,
@@ -680,6 +681,215 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
  * "Where else they present" is scoped to the reader's own grants and never
  * to the agent's, for the reason the screen states under the list.
  */
+/*
+ * THE AGENT SUMMARY'S MANIFEST, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what the manifest always said. Slovak avoids the past tense and
+ * the possessive where either would name the agent's gender, which the
+ * product does not hold. Slovak and Hungarian are drafts for review (P2-17).
+ */
+interface AgentScopeWords {
+  readonly activity: SectionWords;
+  readonly funnel: SectionWords;
+  readonly presentation: SectionWords;
+  readonly buyers: SectionWords;
+  readonly units: SectionWords;
+  readonly projects: SectionWords;
+  readonly meetings: SectionWords;
+  readonly findings: SectionWords;
+  readonly appendix: SectionWords;
+  readonly notCarried: string;
+  readonly noUnits: string;
+  readonly registerKept: string;
+  readonly noFindings: string;
+  readonly generation: string;
+  readonly timedNoun: (n: number) => string;
+  readonly listedNoun: (n: number) => string;
+}
+
+const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
+  en: {
+    activity: {
+      label: "Activity in this period",
+      summary:
+        "Presentations, the median length, units opened per meeting and core sections reached; follow-ups recorded as needed, and the half no source records; and the outcomes they recorded, each with the count it is a fraction of.",
+    },
+    funnel: {
+      label: "Where their meetings reached",
+      summary:
+        "Five observed states, each a count of meetings that reached it against the count it is a fraction of. Nothing here says one stage produced the next.",
+    },
+    presentation: {
+      label: "How they present",
+      summary:
+        "Their running order, with the median stay in each section. Above the floor, the share of their timed presentation time each section takes and the team's median beside it; below the floor, neither.",
+    },
+    buyers: {
+      label: "What it met",
+      summary:
+        "What their buyers opened, by apartment size, and how their meetings ended: counts of their own meetings, with the share above the floor and the project's own rate beside it.",
+    },
+    units: {
+      label: "The apartments they keep opening",
+      summary:
+        "Units opened in the largest share of their meetings, at most six, with how often each was shortlisted. An association with their habit and nothing more.",
+    },
+    projects: {
+      label: "Where else they present",
+      summary:
+        "The projects this account holds on which they also presented in the period, with the meeting count on each.",
+    },
+    meetings: {
+      label: "Their most recent meetings",
+      summary:
+        "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column names the buyer where the contact gave consent to be named, beside a privacy-safe label; otherwise the label alone.",
+    },
+    findings: {
+      label: "What this period found",
+      summary:
+        "The findings their own screen states, each with its baseline, its evidence and its caveat.",
+    },
+    appendix: {
+      label: "Evidence appendix",
+      summary:
+        "Every section of this summary with its state, its sample in its own noun, and the reference that resolves to the records underneath it.",
+    },
+    notCarried:
+      "Not in this document: the week-by-week series of their presentations, because a line is read as a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a shape, whose slices are printed as a table under What it met; and the screen's reading guide. Everything else on their screen is here, from the same read model.",
+    noUnits: "No meeting of theirs in the period opened an apartment in the catalogue.",
+    registerKept:
+      "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
+    noFindings: "Nothing on their screen reached a finding in the period.",
+    generation:
+      "Nothing generates a document yet. This screen states what one agent's summary would contain, from the read model their own screen draws.",
+    timedNoun: () => "timed meetings",
+    listedNoun: () => "meetings listed",
+  },
+  sk: {
+    activity: {
+      label: "Aktivita v tomto období",
+      summary:
+        "Prezentácie, medián dĺžky, otvorené byty na stretnutie a dosiahnuté základné sekcie; ďalšie kontakty zaznamenané ako potrebné a polovica, ktorú žiadny zdroj nezaznamenáva; a zaznamenané výsledky, každý s počtom, z ktorého je podielom.",
+    },
+    funnel: {
+      label: "Kam sa stretnutia dostali",
+      summary:
+        "Päť pozorovaných stavov, každý ako počet stretnutí, ktoré ho dosiahli, oproti počtu, z ktorého sú podielom. Nič tu netvrdí, že jedna fáza spôsobila ďalšiu.",
+    },
+    presentation: {
+      label: "Ako prezentuje",
+      summary:
+        "Poradie sekcií s mediánom času v každej z nich. Nad hranicou aj podiel na meranom čase prezentácie, ktorý každá sekcia zaberá, a vedľa neho medián tímu; pod hranicou ani jedno.",
+    },
+    buyers: {
+      label: "Kupujúci a výsledky",
+      summary:
+        "Čo kupujúci otvárali podľa veľkosti bytu a ako sa stretnutia skončili: počty vlastných stretnutí, nad hranicou s podielom a vedľa neho s mierou celého projektu.",
+    },
+    units: {
+      label: "Byty, ku ktorým sa opakovane vracia",
+      summary:
+        "Byty otvorené v najväčšom podiele stretnutí, najviac šesť, s tým, ako často bol každý pridaný do obľúbených. Súvislosť so zvykom, nič viac.",
+    },
+    projects: {
+      label: "Kde ešte prezentuje",
+      summary:
+        "Ďalšie projekty tohto konta s prezentáciami v tomto období a s počtom stretnutí na každom.",
+    },
+    meetings: {
+      label: "Posledné stretnutia",
+      summary:
+        "Najviac osem, od najnovšieho, každé s dĺžkou, sekciami, otvorenými bytmi, obľúbenými, zaznamenaným výsledkom a stavom ďalšieho kontaktu. Stĺpec návštevníka uvádza meno kupujúceho tam, kde kontakt súhlasil s uvedením mena, vedľa označenia bezpečného pre súkromie; inak iba označenie.",
+    },
+    findings: {
+      label: "Zistenia za obdobie",
+      summary: "Zistenia z maklérskej obrazovky, každé s porovnaním, podkladmi a výhradou.",
+    },
+    appendix: {
+      label: "Príloha s podkladmi",
+      summary:
+        "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na záznamy pod ňou.",
+    },
+    notCarried:
+      "V tomto dokumente nie je: týždenný priebeh prezentácií, pretože čiara sa číta ako smer, nech je pod ňou napísané čokoľvek, a papier to nevie povedať inak; prstenec výsledkov ako tvar, ktorého výseky sú vytlačené ako tabuľka v sekcii Kupujúci a výsledky; a návod na čítanie z obrazovky. Všetko ostatné z obrazovky je tu, z toho istého dátového modelu.",
+    noUnits: "Žiadne stretnutie v tomto období neotvorilo byt z katalógu.",
+    registerKept:
+      "Vyhradené pre obchodný tím: riadky tohto registra patria k detailu stretnutia, ktorý toto konto neotvára. Každé z týchto stretnutí je započítané v sekciách vyššie.",
+    noFindings: "Nič na maklérskej obrazovke v tomto období nedosiahlo úroveň zistenia.",
+    generation:
+      "Dokument zatiaľ nič negeneruje. Táto obrazovka uvádza, čo by obsahovalo zhrnutie jedného makléra, z dátového modelu, ktorý kreslí maklérska obrazovka.",
+    timedNoun: (n) =>
+      pluralCategory("sk", n) === "one"
+        ? "stretnutie s meraným časom"
+        : pluralCategory("sk", n) === "few"
+          ? "stretnutia s meraným časom"
+          : "stretnutí s meraným časom",
+    listedNoun: (n) =>
+      pluralCategory("sk", n) === "one"
+        ? "uvedené stretnutie"
+        : pluralCategory("sk", n) === "few"
+          ? "uvedené stretnutia"
+          : "uvedených stretnutí",
+  },
+  hu: {
+    activity: {
+      label: "Aktivitás ebben az időszakban",
+      summary:
+        "Bemutatók, a medián hossz, a találkozónként megnyitott lakások és az elért alapszakaszok; a szükségesként rögzített utánkövetések, és a fele, amit egyetlen forrás sem rögzít; és a rögzített eredményei, mindegyik azzal a számmal, amelynek a része.",
+    },
+    funnel: {
+      label: "Meddig jutottak a találkozói",
+      summary:
+        "Öt megfigyelt állapot, mindegyik azoknak a találkozóknak a száma, amelyek elérték, szemben azzal a számmal, amelynek a részei. Semmi sem állítja itt, hogy egyik szakasz hozta létre a következőt.",
+    },
+    presentation: {
+      label: "Hogyan mutat be",
+      summary:
+        "A sorrendje, az egyes szakaszokban töltött medián idővel. A küszöb felett az is, mekkora részt visz el egy-egy szakasz a mért bemutatási idejéből, mellette a csapat mediánjával; a küszöb alatt egyik sem.",
+    },
+    buyers: {
+      label: "Vevők és eredmények",
+      summary:
+        "Mit nyitottak meg a vevői lakásméret szerint, és hogyan zárultak a találkozói: a saját találkozóinak száma, a küszöb felett a részaránnyal, mellette a projekt saját arányával.",
+    },
+    units: {
+      label: "A lakások, amelyeket újra meg újra megnyit",
+      summary:
+        "A találkozói legnagyobb részében megnyitott lakások, legfeljebb hat, azzal, hogy melyiket hányszor adták a kedvencekhez. Összefüggés a szokásával, semmi több.",
+    },
+    projects: {
+      label: "Hol mutat még be",
+      summary:
+        "Azok a projektek, amelyekhez ennek a fióknak hozzáférése van, és amelyeken az időszakban szintén bemutatott, mindegyiken a találkozók számával.",
+    },
+    meetings: {
+      label: "A legutóbbi találkozói",
+      summary:
+        "Legfeljebb nyolc, a legújabbal kezdve, mindegyik a hosszával, a szakaszokkal, a megnyitott lakásokkal, a kedvencekkel, a rögzített eredménnyel és az utánkövetés állapotával. A látogató oszlopa megnevezi a vevőt, ahol a kapcsolat hozzájárult a nevéhez, egy adatvédelmileg biztonságos címke mellett; egyébként csak a címkét.",
+    },
+    findings: {
+      label: "Az időszak megállapításai",
+      summary:
+        "A saját képernyőjén szereplő megállapítások, mindegyik az összevetéssel, a bizonyítékkal és a kikötéssel.",
+    },
+    appendix: {
+      label: "Bizonyíték-függelék",
+      summary:
+        "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a hivatkozással az alatta lévő rekordokra.",
+    },
+    notCarried:
+      "Ebben a dokumentumban nem szerepel: a bemutatók hétről hétre futó sora, mert egy vonalat iránynak olvasnak, bármi áll is alatta, és a papír ezt nem tudja másként mondani; az eredménygyűrű mint alakzat, amelynek szeletei táblázatként szerepelnek a Vevők és eredmények alatt; és a képernyő olvasási útmutatója. Minden más, ami a képernyőjén van, itt van, ugyanabból az adatmodellből.",
+    noUnits: "Egyetlen találkozója sem nyitott meg katalógusbeli lakást az időszakban.",
+    registerKept:
+      "Az értékesítői csapatnak fenntartva: a lista sorai a találkozó részletnézetéhez tartoznak, amelyet ez a fiók nem nyit meg. Mindegyik találkozó szerepel a fenti szakaszok számaiban.",
+    noFindings: "A képernyőjén semmi sem ért el megállapítást az időszakban.",
+    generation:
+      "Dokumentumot még semmi sem állít elő. Ez a képernyő azt mutatja meg, mit tartalmazna egy értékesítő összefoglalója, abból az adatmodellből, amelyet a saját képernyője rajzol.",
+    timedNoun: () => "mért idejű találkozó",
+    listedNoun: () => "listázott találkozó",
+  },
+};
+
 export function buildAgentReportScope(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -690,6 +900,9 @@ export function buildAgentReportScope(
   if (view === null) return null;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const n = view.sampleSize;
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = AGENT_SCOPE_WORDS[language];
+  const scopeWords = SCOPE_WORDS[language];
   const evidence = (id: string, observations: number) =>
     evidenceRef(
       `report-${context.project.slug}-agent-${agentId}-${id}`,
@@ -712,129 +925,115 @@ export function buildAgentReportScope(
   };
 
   /* What the document does not carry of the screen, said once and in full. */
-  const notCarried =
-    "Not in this document: the week-by-week series of their presentations, because a line is read as a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a shape, whose slices are printed as a table under What it met; and the screen's reading guide. Everything else on their screen is here, from the same read model.";
+  const notCarried = words.notCarried;
 
   const sections: readonly ReportSection[] = [
     {
       id: "agent-activity",
-      label: "Activity in this period",
-      summary:
-        "Presentations, the median length, units opened per meeting and core sections reached; follow-ups recorded as needed, and the half no source records; and the outcomes they recorded, each with the count it is a fraction of.",
+      label: words.activity.label,
+      summary: words.activity.summary,
       ...rates(),
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: evidence("activity", n),
     },
     {
       id: "agent-funnel",
-      label: "Where their meetings reached",
-      summary:
-        "Five observed states, each a count of meetings that reached it against the count it is a fraction of. Nothing here says one stage produced the next.",
+      label: words.funnel.label,
+      summary: words.funnel.summary,
       availability: "ready",
       reason: null,
       sources: OBSERVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: evidence("funnel", n),
     },
     {
       id: "agent-presentation",
-      label: "How they present",
-      summary:
-        "Their running order, with the median stay in each section. Above the floor, the share of their timed presentation time each section takes and the team's median beside it; below the floor, neither.",
+      label: words.presentation.label,
+      summary: words.presentation.summary,
       ...rates(notCarried),
       sources: DERIVED,
       sampleSize: view.profile.timedMeetings,
-      sampleNoun: "timed meetings",
+      sampleNoun: words.timedNoun(view.profile.timedMeetings),
       evidence: evidence("presentation", view.profile.timedMeetings),
     },
     {
       id: "agent-buyers",
-      label: "What it met",
-      summary:
-        "What their buyers opened, by apartment size, and how their meetings ended: counts of their own meetings, with the share above the floor and the project's own rate beside it.",
+      label: words.buyers.label,
+      summary: words.buyers.summary,
       ...rates(),
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: evidence("buyers", n),
     },
     {
       id: "agent-units",
-      label: "The apartments they keep opening",
-      summary:
-        "Units opened in the largest share of their meetings, at most six, with how often each was shortlisted. An association with their habit and nothing more.",
+      label: words.units.label,
+      summary: words.units.summary,
       ...(view.commonUnits.length === 0
         ? {
             availability: "unavailable" as const,
-            reason: "No meeting of theirs in the period opened an apartment in the catalogue.",
+            reason: words.noUnits,
           }
         : rates()),
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: view.commonUnits.length === 0 ? null : evidence("units", n),
     },
     {
       id: "agent-projects",
-      label: "Where else they present",
-      summary:
-        "The projects this account holds on which they also presented in the period, with the meeting count on each.",
+      label: words.projects.label,
+      summary: words.projects.summary,
       availability: "ready",
       reason: null,
       sources: OBSERVED,
       sampleSize: null,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, null),
       evidence: evidence("projects", view.projects.length),
     },
     {
       id: "agent-meetings",
-      label: "Their most recent meetings",
-      summary:
-        "At most eight, newest first, each with its length, sections, units opened, shortlist, recorded outcome and follow-up state. The visitor column names the buyer where the contact gave consent to be named, beside a privacy-safe label; otherwise the label alone.",
+      label: words.meetings.label,
+      summary: words.meetings.summary,
       /* The register is the meeting drill-down's material, and it keeps the drill-down's audience. */
       ...(AGENT_REGISTER_ROLES.includes(context.viewer.role)
         ? { availability: "ready" as const, reason: null }
         : {
             availability: "unavailable" as const,
-            reason:
-              "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
+            reason: words.registerKept,
           }),
       sources: OBSERVED,
       /* A section drawn blank lists nothing, so it counts nothing as listed (P2-16). */
       sampleSize: AGENT_REGISTER_ROLES.includes(context.viewer.role)
         ? view.recentMeetings.length
         : null,
-      sampleNoun: "meetings listed",
+      sampleNoun: words.listedNoun(view.recentMeetings.length),
       evidence: evidence("meetings", view.recentMeetings.length),
     },
     {
       id: "agent-findings",
-      label: "What this period found",
-      summary:
-        "The findings their own screen states, each with its baseline, its evidence and its caveat.",
+      label: words.findings.label,
+      summary: words.findings.summary,
       availability: view.findings.length === 0 ? "unavailable" : "ready",
-      reason:
-        view.findings.length === 0
-          ? "Nothing on their screen reached a finding in the period."
-          : null,
+      reason: view.findings.length === 0 ? words.noFindings : null,
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: view.findings.length === 0 ? null : evidence("findings", view.findings.length),
     },
     {
       id: "evidence-appendix",
-      label: "Evidence appendix",
-      summary:
-        "Every section of this summary with its state, its sample in its own noun, and the reference that resolves to the records underneath it.",
+      label: words.appendix.label,
+      summary: words.appendix.summary,
       availability: "ready",
       reason: null,
       sources: DERIVED,
       sampleSize: null,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, null),
       evidence: evidence("appendix", n),
     },
   ];
@@ -852,9 +1051,8 @@ export function buildAgentReportScope(
     sections,
     generation: {
       state: "preview_only",
-      statement:
-        "Nothing generates a document yet. This screen states what one agent's summary would contain, from the read model their own screen draws.",
-      milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+      statement: words.generation,
+      milestone: scopeWords.milestone,
     },
     unavailableCount: sections.filter((s) => s.availability === "unavailable").length,
     evidence: evidence("scope", n),

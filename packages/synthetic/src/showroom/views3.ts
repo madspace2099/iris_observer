@@ -995,7 +995,7 @@ function capitalised(word: string): string {
   return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 }
 
-function segmentName(rooms: number, language: Language): string {
+export function segmentName(rooms: number, language: Language): string {
   if (language === "sk") return capitalised(slovakRoomAdjective(rooms, 2));
   if (language === "hu") return capitalised(hungarianRoomAdjective(rooms));
   return roomLabel(rooms);
