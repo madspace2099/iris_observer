@@ -1,7 +1,7 @@
 import type { UnitStatus } from "@observer/readmodels";
 
 /**
- * ONE FIELD, AND THE ONE PLACE THAT STILL PRINTS IT TWICE.
+ * ONE FIELD, PRINTED ONCE.
  *
  * `available | reserved | sold` is one field on one row, read by two different
  * people asking two different things:
@@ -28,19 +28,14 @@ import type { UnitStatus } from "@observer/readmodels";
  * keeps an authoritative stage away from a signal; what was missing was never
  * the fact, only a place to put it.
  *
- * ## Where it survives, and that this is not settled
+ * ## Where it survived, and how that was settled
  *
- * `VerifiedOutcome` now has one caller: the unit's own page, where it sits in a
- * tally beside a `StatusChip` reading the same `unit.status`. That pair is the
- * removed column's argument at closer range, and it has not been decided. It is
- * recorded as open rather than quietly fixed, because the column's removal was
- * a product decision and this is the same decision.
- *
- * For as long as it is drawn: "verified outcome" means exactly what the
- * catalogue states and nothing more, and an available unit says **None
- * recorded** — a genuine zero and a real answer, not a missing measurement.
- * Rendering it as the missing mark would claim a source had failed to answer;
- * rendering it as a blank would let the reader supply their own meaning.
+ * `VerifiedOutcome` kept one caller after the column went: the unit's own
+ * page, in a tally beside a `StatusChip` reading the same `unit.status`. That
+ * pair was the removed column's argument at closer range, and it was decided
+ * the same way (2026-09-27): the row said what Status already says, so it is
+ * gone, and with it the component. Status is the catalogue's word, printed
+ * once.
  *
  * ## Never a colour alone
  *
@@ -49,18 +44,6 @@ import type { UnitStatus } from "@observer/readmodels";
  * also carries its word. Availability takes the settled-good circle, a
  * reservation takes the waiting ring, and a sale takes the closed square: the
  * three shapes say the same three things the three words do.
- *
- * `VerifiedOutcome` takes the human diamond, which in this system means "a
- * person decided this, and a person can change it". A reservation and a sale
- * are exactly that — decisions recorded by people in a system of record — and
- * marking them with the diamond rather than with a green tick is the difference
- * between saying "this is confirmed" and saying "this is confirmed by somebody
- * who could confirm it".
- *
- * The diamond is also the strongest claim on this pair, and it is the reason
- * the surviving tally item is a live question rather than a leftover: a mark
- * meaning "somebody decided this" on a field its neighbour already printed is
- * the same overstatement the column was removed for.
  */
 
 const STATUS_TONE: Readonly<Record<UnitStatus, string>> = {
@@ -79,37 +62,6 @@ const STATUS_WORD: Readonly<Record<UnitStatus, string>> = {
 export function StatusChip({ status }: { readonly status: UnitStatus }) {
   return (
     <span className="ox-chip" data-tone={STATUS_TONE[status]}>
-      <span className="ox-chip-mark" aria-hidden="true" />
-      {STATUS_WORD[status]}
-    </span>
-  );
-}
-
-/**
- * What a system of record confirms about this unit, and what it does not.
- *
- * `title` carries the source rather than a second visible line: the column is
- * one of thirteen and the sentence is the same on every row, so repeating it
- * forty-eight times would be the defect the visual autopsy recorded for
- * unavailable sources wearing a different costume. The table's own notes state
- * it once for the column.
- */
-export function VerifiedOutcome({ status }: { readonly status: UnitStatus }) {
-  if (status === "available") {
-    return (
-      <span className="ox-chip" data-tone="none" title="No commercial outcome recorded.">
-        <span className="ox-chip-mark" aria-hidden="true" />
-        None recorded
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="ox-chip"
-      data-tone="human"
-      title="Stated by the unit catalogue, which is a system of record about this unit."
-    >
       <span className="ox-chip-mark" aria-hidden="true" />
       {STATUS_WORD[status]}
     </span>

@@ -24,7 +24,7 @@
 
 export { UnitRegister } from "./UnitRegister";
 export { UnitFunnel } from "./UnitFunnel";
-export { StatusChip, VerifiedOutcome } from "./UnitStatus";
+export { StatusChip } from "./UnitStatus";
 export { DemandAttention } from "./DemandAttention";
 export {
   REGISTER_PAGE,

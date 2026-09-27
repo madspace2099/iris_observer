@@ -39,7 +39,6 @@ import {
 import {
   StatusChip,
   UnitFunnel,
-  VerifiedOutcome,
   readRegisterQuery,
   registerHref,
   type RegisterSearch,
@@ -243,10 +242,6 @@ export default async function UnitPage({
 
             <Tally>
               <TallyItem label="Status" value={<StatusChip status={unit.status} />} />
-              <TallyItem
-                label="Verified outcome"
-                value={<VerifiedOutcome status={unit.status} />}
-              />
               <TallyItem
                 label="Price"
                 value={<span className="ox-figure">{unit.priceDisplay}</span>}
