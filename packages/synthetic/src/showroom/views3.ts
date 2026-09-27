@@ -2233,7 +2233,11 @@ export function buildHome(
         id: "flow",
         label: "Sales Flow",
         question: "How is the process performing?",
-        headline: `${meetings(sessions.length, locale, context.language)} · ${percent(progressed, locale)} progressing`,
+        // Where nothing records an outcome there is no rate: not "0% progressing",
+        // the reading the "Progressing" figure above was already corrected from.
+        headline: `${meetings(sessions.length, locale, context.language)} · ${
+          outcomesRecorded ? `${percent(progressed, locale)} progressing` : "no outcome recorded"
+        }`,
         href: `${base}/flow`,
       },
       {
