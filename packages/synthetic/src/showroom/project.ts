@@ -87,24 +87,19 @@ import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
  * translated.
  */
 
+/*
+ * English only, these two. Slovak and Hungarian write the sentences that use
+ * them with forms of their own, in the sentences' frames below, and nothing
+ * read their Slovak and Hungarian forms: round L5d removed them.
+ */
+
 /** The two verbs of one clause, agreeing with the same count, so they are one entry. */
-export const PROJECT_NO_OUTCOME: PluralForms = {
+export const PROJECT_NO_OUTCOME: Pick<PluralForms, "en"> = {
   en: { one: "has no recorded outcome and stands", other: "have no recorded outcome and stand" },
-  sk: {
-    one: "nemá zaznamenaný výsledok a nepatrí",
-    few: "nemajú zaznamenaný výsledok a nepatria",
-    other: "nemá zaznamenaný výsledok a nepatrí",
-  },
-  hu: {
-    one: "nincs rögzített kimenetele, és nem tartozik",
-    other: "nincs rögzített kimenetele, és nem tartozik",
-  },
 };
 
-export const PROJECT_UNITS_OPENED: PluralForms = {
+export const PROJECT_UNITS_OPENED: Pick<PluralForms, "en"> = {
   en: { one: "unit opened", other: "units opened" },
-  sk: { one: "jednotka otvorená", few: "jednotky otvorené", other: "jednotiek otvorených" },
-  hu: { one: "egység megnyitva", other: "egység megnyitva" },
 };
 
 export const PROJECT_VIEWS: PluralForms = {

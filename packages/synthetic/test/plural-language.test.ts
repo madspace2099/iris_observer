@@ -38,7 +38,7 @@ import {
   ATTENTION_SOURCES_SILENT,
   ATTENTION_UNITS,
 } from "../src/showroom/attention";
-import { PROJECT_NO_OUTCOME, PROJECT_UNITS_OPENED, PROJECT_VIEWS } from "../src/showroom/project";
+import { PROJECT_VIEWS } from "../src/showroom/project";
 import { meetings } from "../src/showroom/views3";
 import { sessionsForProject } from "../src/showroom/sessions";
 
@@ -226,24 +226,6 @@ const EXPECTED: readonly Expected[] = [
     en: ["was never shortlisted", "were never shortlisted"],
     sk: ["nebola nikdy vybraná", "neboli nikdy vybrané", "nebolo nikdy vybraných"],
     hu: "soha nem került kiválasztásra",
-  },
-  {
-    sites: "showroom/project.ts:766 and :767, one clause",
-    entry: PROJECT_NO_OUTCOME,
-    en: ["has no recorded outcome and stands", "have no recorded outcome and stand"],
-    sk: [
-      "nemá zaznamenaný výsledok a nepatrí",
-      "nemajú zaznamenaný výsledok a nepatria",
-      "nemá zaznamenaný výsledok a nepatrí",
-    ],
-    hu: "nincs rögzített kimenetele, és nem tartozik",
-  },
-  {
-    sites: "showroom/project.ts:1056",
-    entry: PROJECT_UNITS_OPENED,
-    en: ["unit opened", "units opened"],
-    sk: ["jednotka otvorená", "jednotky otvorené", "jednotiek otvorených"],
-    hu: "egység megnyitva",
   },
   {
     sites: "showroom/project.ts:1101",
