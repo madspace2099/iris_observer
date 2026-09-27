@@ -6,7 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { DnaLane, Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { DnaLane, Finding, Gaps, SourceChips, shortCode } from "@/showroom/parts";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Presentation" };
@@ -165,6 +165,21 @@ export default async function PresentationPage({
               <DnaLane lane={comparison.left} compact />
               <DnaLane lane={comparison.right} compact />
             </div>
+            {/*
+             * The key the compact lanes are read by. They print codes, and a
+             * title is no answer on a touch screen: the plan's R11 asks that no
+             * reading hang on an abbreviation, and the lane's own comment
+             * promised this key.
+             */}
+            <p className="iris-meta" style={{ marginTop: ".25rem" }}>
+              {[
+                ...new Set(
+                  [...comparison.left.steps, ...comparison.right.steps].map((s) => s.label),
+                ),
+              ]
+                .map((label) => `${shortCode(label)} ${label}`)
+                .join(" · ")}
+            </p>
 
             <hr className="iris-rule" />
 

@@ -29,6 +29,10 @@ describe("the Presentation DNA page", () => {
     expect(PAGE).toMatch(/right: search\.right/);
   });
 
+  it("prints the key the compact lanes' codes are read by", () => {
+    expect(PAGE).toContain("`${shortCode(label)} ${label}`");
+  });
+
   it("says the first lane is the team's mean order, not one presenter's sequence", () => {
     expect(PAGE).not.toMatch(/Each lane is one presenter/);
     expect(PAGE).toMatch(/The first lane is the team&rsquo;s/);
