@@ -15,18 +15,18 @@ import { DataTable, type DataColumn, type DataRow } from "@/components/product";
  * when it is quiet. A panel that shows only what was raised renders two very
  * different situations identically — as empty space:
  *
- *   "we asked six questions and none of them came back raised"
- *   "we could not ask four of them, and the two we could came back clean"
+ *   "we asked every question and none of them came back raised"
+ *   "we could not ask most of them, and the few we could came back clean"
  *
  * The second is the more urgent, and the reader has no way to tell them apart
- * from an empty panel. `AttentionView.checks` returns all six answers in
+ * from an empty panel. `AttentionView.checks` returns every answer in
  * declaration order — deliberately not in the order things were raised, so the
  * register does not reshuffle itself between periods — and this renders every
  * one of them with the sentence that says why it is what it is.
  *
  * ## Why a real table, and why it is the paper region of the screen
  *
- * Six rows of three short columns is a register, and ADR-0034 puts a register
+ * A few rows of three short columns is a register, and ADR-0034 puts a register
  * on paper: above the seam what we conclude, below it what we measured. The
  * raised states are a conclusion and stay on graphite; this is the working out.
  *
@@ -36,7 +36,7 @@ import { DataTable, type DataColumn, type DataRow } from "@/components/product";
  *
  * ## No column is sortable, on purpose
  *
- * `DataColumn.sort` is left absent rather than set to `none`. Six rows in a
+ * `DataColumn.sort` is left absent rather than set to `none`. A few rows in a
  * fixed declaration order is the whole content, and a sort control on it would
  * be a control whose only effect is to make the reader lose their place.
  */

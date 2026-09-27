@@ -340,9 +340,47 @@ describe("getAttention", () => {
     const view = await repo.getAttention(RIVERSIDE);
     const verification = view.states.find((s) => s.kind === "crm_verification_missing");
     expect(verification?.alert.severity).toBe("warning");
+    const recorded = view.states.find((s) => s.kind === "outcome_not_recorded");
+    expect(recorded?.alert.severity).toBe("warning");
     expect(view.checks.find((c) => c.kind === "high_interest_no_follow_up")?.state).toBe(
       "unavailable",
     );
+  });
+
+  /*
+   * Two checks, two counters (decided 2026-09-27). The recorded outcome is
+   * counted against the meeting register's own filter, a second path to the
+   * same meetings; verification is raised only where no CRM is connected and
+   * is never called clear where one is, because no deal is linked to a meeting.
+   */
+  it("asks the recorded outcome and its verification as two checks", async () => {
+    for (const project of [NORTHGATE, RIVERSIDE]) {
+      const view = await repo.getAttention(project);
+      const where = project.projectSlug;
+      const skipped = (await repo.getMeetings(project, { ...NO_FILTERS, outcome: "skipped" })).rows
+        .length;
+      expect(skipped, `${where}: the fixture has unrecorded meetings`).toBeGreaterThan(0);
+      const recorded = view.states.find((s) => s.kind === "outcome_not_recorded");
+      expect(recorded?.alert.evidence?.observationCount, where).toBe(skipped);
+
+      const verification = view.checks.find((c) => c.kind === "crm_verification_missing");
+      const crm = view.context.project.connectedSources.includes("crm");
+      expect(verification?.state, where).toBe(crm ? "unavailable" : "raised");
+    }
+    const riverside = await repo.getAttention(RIVERSIDE);
+    expect(riverside.states.find((s) => s.kind === "crm_verification_missing")?.sampleSize).toBe(
+      riverside.meetingCount,
+    );
+  });
+
+  it("asks about lateness and answers Not evaluated, never late or clear", async () => {
+    for (const project of EVERY_PROJECT) {
+      const view = await repo.getAttention(project);
+      const lateness = view.checks.find((c) => c.kind === "follow_up_lateness");
+      expect(lateness?.label, project.projectSlug).toBe("Lateness");
+      expect(lateness?.state, project.projectSlug).toBe("unavailable");
+      expect(view.states.some((s) => s.kind === "follow_up_lateness")).toBe(false);
+    }
   });
 
   it("cannot ask about falling demand on a project with no baseline", async () => {

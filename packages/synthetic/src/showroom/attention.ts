@@ -369,6 +369,20 @@ export function buildAttention(
     }
   }
 
+  /* --- 1b. lateness -------------------------------------------------------- */
+
+  /*
+   * Asked, and not evaluated. A follow-up is late only against a task, the
+   * deadline it was given and whether it was done, and none of the three
+   * reaches Observer: the room records that a follow-up was asked for, never
+   * by when, nor whether it happened. Days since the meeting are not a
+   * deadline, so no follow-up is called late, on time or clear.
+   */
+  cannotAsk(
+    "follow_up_lateness",
+    "Lateness needs a follow-up task, the deadline it was given and whether it was done. None of the three is recorded, so no follow-up is called late, on time or clear.",
+  );
+
   /* --- 2. demand falling --------------------------------------------------- */
 
   const catalogue = catalogueFor(context.project.id as string);
@@ -425,6 +439,17 @@ export function buildAttention(
 
   /* --- 3. outcomes nothing verifies ---------------------------------------- */
 
+  /*
+   * Two checks, two counters (decided 2026-09-27). This one asks whether a
+   * system of record can confirm what a presentation ended in; the next asks
+   * whether the room recorded an outcome at all. They were one check with two
+   * mutually exclusive branches, so a project with a CRM was only ever asked
+   * the second question, under the first one's name.
+   *
+   * It is raised before the recorded check on purpose: where both are raised
+   * at the same size, the ranking keeps the order they were raised in, and
+   * the missing CRM is the cause the reader can act on.
+   */
   const unrecorded = sessions.filter((s) => outcomeIsUnknown(s.outcome)).length;
   if (sessions.length === 0) {
     cannotAsk(
@@ -472,22 +497,44 @@ export function buildAttention(
       actionHref: null,
       observationCount: sessions.length,
     });
+  } else {
+    /*
+     * Connected, and still not evaluated. The CRM's deals are joined to units
+     * and contacts, never to a meeting, so no presentation's outcome can be
+     * confirmed by it one meeting at a time. Calling that Clear would claim a
+     * verification that never ran.
+     */
+    cannotAsk(
+      "crm_verification_missing",
+      `The CRM is connected, but its deals are not linked to meetings, so none of the ${count(sessions.length, locale)} presentations in this period can have its outcome confirmed by it.`,
+    );
+  }
+
+  /* --- 3b. outcomes nobody recorded ---------------------------------------- */
+
+  if (sessions.length === 0) {
+    cannotAsk(
+      "outcome_not_recorded",
+      "No presentations were recorded in this period, so there is no outcome to look for.",
+    );
   } else if (unrecorded === 0) {
     clear(
-      "crm_verification_missing",
+      "outcome_not_recorded",
       `Every one of the ${count(sessions.length, locale)} presentations in this period carries a recorded outcome.`,
     );
   } else {
     const rate = share(unrecorded, sessions.length);
     raise({
-      kind: "crm_verification_missing",
+      kind: "outcome_not_recorded",
       /*
-       * Red here, and only here. The CRM is connected, the meetings happened,
-       * and more than half of them left no record — the source exists and the
-       * facts are being lost, which is the one situation on this surface that a
-       * reader has to act on today.
+       * Red only with a CRM connected: the meetings happened, the source that
+       * carries their outcomes exists, and more than half of them left no
+       * record — facts are being lost, which a reader has to act on today.
+       * Without a CRM no presentation here carries an outcome at all, a
+       * configuration state every surface already says out loud, so it stays
+       * at warning, as the verification check beside it does.
        */
-      severity: rate > 0.5 ? "critical" : rate > 0.25 ? "warning" : "info",
+      severity: rate > 0.5 && crm ? "critical" : rate > 0.25 ? "warning" : "info",
       title: "Meetings ending without a recorded outcome",
       detail: `${count(unrecorded, locale)} of ${count(sessions.length, locale)} presentations (${percent(rate, locale)}) ended with no outcome recorded.`,
       subjects: sessions
@@ -502,7 +549,7 @@ export function buildAttention(
       minimumSampleSize: UNIT_MIN_SAMPLE,
       belowMinimum: false,
       tier: "observed_sequence",
-      sources: WITH_OUTCOME,
+      sources: crm ? WITH_OUTCOME : OBSERVED,
       actionLabel: "See the meetings",
       /*
        * The meetings this state counts, and no others: the register filtered to

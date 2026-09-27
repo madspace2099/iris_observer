@@ -662,16 +662,24 @@ export interface AgentDetailView {
 /* --- 4. attention ---------------------------------------------------------- */
 
 /**
- * The six things worth a person's attention, named once.
+ * The things worth a person's attention, named once.
  *
  * They are states rather than alerts in the monitoring sense: each is a
  * question the product asks of the period, and the answer is raised, clear, or
  * unanswerable. A dashboard that only ever shows the raised ones cannot tell a
  * quiet project from a project whose checks never ran.
+ *
+ * A missing recorded outcome and an outcome no CRM verifies are two checks
+ * with two counters (decided 2026-09-27): what the agent recorded in the room
+ * and what a system of record confirms are independent facts, and one check
+ * with two branches could only ever report one of them. Lateness is declared
+ * so that it is asked — and answered Not evaluated — rather than left out.
  */
 export const ATTENTION_KINDS = [
   "high_interest_no_follow_up",
+  "follow_up_lateness",
   "demand_dropping",
+  "outcome_not_recorded",
   "crm_verification_missing",
   "source_offline",
   "analytics_queue_pressure",
@@ -711,16 +719,28 @@ export const ATTENTION_KIND_DEFINITIONS: readonly AttentionKindDefinition[] = [
     maxSeverity: "warning",
   },
   {
+    kind: "follow_up_lateness",
+    label: "Lateness",
+    question: "Is a follow-up past the deadline it was given?",
+    maxSeverity: "warning",
+  },
+  {
     kind: "demand_dropping",
     label: "Demand falling",
     question: "Is any unit drawing materially less attention than in the baseline period?",
     maxSeverity: "warning",
   },
   {
+    kind: "outcome_not_recorded",
+    label: "Outcome not recorded",
+    question: "Are presentations ending without an outcome recorded in the room?",
+    maxSeverity: "critical",
+  },
+  {
     kind: "crm_verification_missing",
     label: "Outcomes not verified",
-    question: "Are meetings ending without an outcome the CRM can confirm?",
-    maxSeverity: "critical",
+    question: "Can a CRM confirm what the presentations ended in?",
+    maxSeverity: "warning",
   },
   {
     kind: "source_offline",

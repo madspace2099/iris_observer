@@ -95,10 +95,10 @@ const SEVERITY_LABEL: Readonly<Record<AlertSeverity, string>> = {
  *
  * Each one is the denominator the read model actually counted, not a guess:
  * the follow-up state counts the meetings that shortlisted something, the two
- * unit states count observations, the verification state counts presentations,
- * and the source state counts the installations listed on the project. Printing
- * "meetings" against all six would be a false denominator on four of them,
- * which is worse than a verbose map.
+ * unit states count observations, the recorded-outcome and verification states
+ * count presentations, and the source state counts the installations listed on
+ * the project. Printing "meetings" against all of them would be a false
+ * denominator on most, which is worse than a verbose map.
  *
  * This is reported as a gap: `AttentionState` should carry its own noun, the
  * way `MetricValue` carries its own `qualifier`, so that a change to what a
@@ -106,7 +106,9 @@ const SEVERITY_LABEL: Readonly<Record<AlertSeverity, string>> = {
  */
 const SAMPLE_NOUNS: Readonly<Record<AttentionKind, string>> = {
   high_interest_no_follow_up: "meetings that shortlisted a unit",
+  follow_up_lateness: "follow-ups",
   demand_dropping: "baseline observations",
+  outcome_not_recorded: "presentations",
   crm_verification_missing: "presentations",
   source_offline: "sources on this project",
   analytics_queue_pressure: "observations",

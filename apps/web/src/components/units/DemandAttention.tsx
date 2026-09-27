@@ -23,7 +23,7 @@ import { AttentionList, Sample } from "@/components/product";
  * is invisible in a table sorted by views, because the two columns that
  * disagree sit ten inches apart.
  *
- * Two of the six checks in `ATTENTION_KIND_DEFINITIONS` ask exactly that pair
+ * Two of the checks in `ATTENTION_KIND_DEFINITIONS` ask exactly that pair
  * of questions, from the two ends:
  *
  *   viewed_never_shortlisted     opened again and again, never kept.
