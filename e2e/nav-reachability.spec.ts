@@ -233,6 +233,8 @@ test.describe("the demoted CRM-led surface is reachable, as ADR-0023 said it wou
   test("it is not a primary-nav item, which is what demotion meant", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/attention`);
+    // On a phone the primary nav is inside the Menu; closed, there is no nav to read.
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("navigation", { name: "Sections" })).not.toContainText("Overview");
   });
 });

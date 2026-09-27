@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn } from "./sign-in";
 import { credentialStoreMissing, gateRefusal } from "./secrets";
+import { openMobileMenuIfPresent } from "./switcher";
 
 /**
  * THE OPENAI CONNECTION, THROUGH THE BROWSER.
@@ -272,6 +273,8 @@ test.describe("settings can be reached and left", () => {
 
   test("is offered from the dark Observer surface", async ({ page }) => {
     await page.goto("/alpha/northgate/showroom");
+    // On a phone the account links sit in the Menu; the light Projects surface draws them open.
+    await openMobileMenuIfPresent(page);
     const entry = page.getByRole("link", { name: "Settings" });
     await expect(entry).toHaveCount(1);
     await entry.click();

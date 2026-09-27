@@ -18,6 +18,29 @@ export function switcherButton(page: Page, label: string, scope = ""): Locator {
   return page.locator(`${scope} summary[aria-label="${label}"]`.trim());
 }
 
+/**
+ * Below 1199px the header's navigation, account links and context band sit
+ * behind one Menu trigger (`Shell.tsx`, "THE MOBILE MENU"). Opening it is a
+ * no-op wherever the wide header is what renders.
+ */
+export async function openMobileMenuIfPresent(page: Page): Promise<boolean> {
+  const trigger = page.locator(".irs-mobile-menu-trigger");
+  if ((await trigger.count()) > 0 && (await trigger.isVisible())) {
+    await trigger.click();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Where the switchers a reader can press are: the band under the header on a
+ * wide screen, the phone sheet (`.irs-mobile-context`) on a narrow one — which
+ * this opens. A case written against `.ox-context` passes this scope instead.
+ */
+export async function contextScope(page: Page): Promise<string> {
+  return (await openMobileMenuIfPresent(page)) ? ".irs-mobile-context" : ".ox-context";
+}
+
 /** Press the control and hand back its open panel. */
 export async function openSwitcher(page: Page, label: string, scope = ""): Promise<Locator> {
   await switcherButton(page, label, scope).click();

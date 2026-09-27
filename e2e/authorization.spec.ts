@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 import { signInAs } from "./sign-in";
-import { chooseInSwitcher, expectPeriod, PERIOD_LABEL, switcherButton } from "./switcher";
+import {
+  chooseInSwitcher,
+  contextScope,
+  expectPeriod,
+  openMobileMenuIfPresent,
+  PERIOD_LABEL,
+  switcherButton,
+} from "./switcher";
 
 /**
  * The role matrix, and the period, exercised through the browser.
@@ -65,13 +72,15 @@ test.describe("a sales agent sees the team on their own project", () => {
      * the landing surface; the briefing is a link on it, not a nav item),
      * and her own presentation patterns behind Sales Agents.
      */
+    await openMobileMenuIfPresent(page);
     const nav = page.getByRole("navigation", { name: "Sections" }).first();
     for (const name of ["ASK IRIS", "Sales Flow", "Project", "Sales Agents"]) {
       await expect(nav.getByRole("link", { name })).toBeVisible();
     }
     await nav.getByRole("link", { name: "Sales Agents" }).click();
     await page.waitForURL(/\/agents/);
-    await expect(page.getByText("Monika Kováčová").first()).toBeVisible();
+    // In the page, not the header: on a phone the header's name sits in the closed Menu.
+    await expect(page.locator("main").getByText("Monika Kováčová").first()).toBeVisible();
   });
 });
 
@@ -84,13 +93,13 @@ test.describe("an agency manager can reach both developers", () => {
      * The grant existed and the navigation did not; the only route was a URL.
      */
     await page.goto("/alpha/northgate/flow");
-    await expect(switcherButton(page, "Developer", ".ox-context")).toBeVisible();
+    await expect(switcherButton(page, "Developer", await contextScope(page))).toBeVisible();
   });
 
   test("switching developer opens that developer's project", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await page.goto("/alpha/northgate/flow");
-    await chooseInSwitcher(page, "Developer", "Beta", ".ox-context");
+    await chooseInSwitcher(page, "Developer", "Beta", await contextScope(page));
     await page.waitForURL(/\/beta\//);
     await expect(switcherButton(page, "Project", ".ox-context")).toContainText(/Kingsford/);
     await expect(page.locator("h1").first()).toContainText(/meeting|presentation|record/i);
@@ -160,7 +169,12 @@ test.describe("the period selector tells the truth", () => {
   test("changing it stays on the current surface", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/units");
-    await chooseInSwitcher(page, "Period", PERIOD_LABEL["last_28_days"] ?? "", ".ox-context");
+    await chooseInSwitcher(
+      page,
+      "Period",
+      PERIOD_LABEL["last_28_days"] ?? "",
+      await contextScope(page),
+    );
     await page.waitForURL(/period=last_28_days/);
     // It used to return to the briefing, discarding the surface the reader chose.
     expect(page.url()).toContain("/units");
@@ -169,7 +183,11 @@ test.describe("the period selector tells the truth", () => {
   test("navigation carries it", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom?period=last_28_days");
-    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Project" }).click();
+    await openMobileMenuIfPresent(page);
+    await page
+      .getByRole("navigation", { name: "Sections" })
+      .getByRole("link", { name: "Project" })
+      .click();
     await page.waitForURL(/\/project/);
     expect(page.url()).toContain("period=last_28_days");
     await expectPeriod(page, "last_28_days");
@@ -181,7 +199,12 @@ test.describe("the period selector tells the truth", () => {
     await page.reload();
     await expectPeriod(page, "last_quarter");
 
-    await chooseInSwitcher(page, "Period", PERIOD_LABEL["year_to_date"] ?? "", ".ox-context");
+    await chooseInSwitcher(
+      page,
+      "Period",
+      PERIOD_LABEL["year_to_date"] ?? "",
+      await contextScope(page),
+    );
     await page.waitForURL(/year_to_date/);
     await page.goBack();
     await expectPeriod(page, "last_quarter");
