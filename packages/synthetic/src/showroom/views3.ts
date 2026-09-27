@@ -1503,26 +1503,42 @@ export function buildProjectView(
 
 /* --- 3. Sales Agents --------------------------------------------------------- */
 
+/*
+ * A meeting whose visitor is not linked to a contact is not a first meeting
+ * (decided 2026-09-27): a walk-in has no history, so whether it was their first
+ * cannot be said. It is counted apart, in the meeting register's own words,
+ * and every row keeps all meetings as its denominator, so the rows still add
+ * up to the whole.
+ */
 function repeatDistribution(sessions: readonly ShowroomSession[]): RepeatDistribution[] {
+  const linked = sessions.filter((s) => s.contactId !== null);
   const buckets = [0, 1, 2, 3];
-  return buckets
-    .map((visits) => {
-      const inside = sessions.filter((s) =>
-        visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
-      );
-      return {
-        visits,
-        label:
-          visits === 0
-            ? "First meeting"
-            : visits === 3
-              ? "Fourth or later"
-              : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
-        meetings: inside.length,
-        share: share(inside.length, sessions.length),
-      };
-    })
-    .filter((b) => b.meetings > 0);
+  const rows: RepeatDistribution[] = buckets.map((visits) => {
+    const inside = linked.filter((s) =>
+      visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
+    );
+    return {
+      visits,
+      label:
+        visits === 0
+          ? "First meeting"
+          : visits === 3
+            ? "Fourth or later"
+            : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
+      meetings: inside.length,
+      share: share(inside.length, sessions.length),
+    };
+  });
+  const unlinked = sessions.length - linked.length;
+  return [
+    ...rows,
+    {
+      visits: null,
+      label: "Not linked to a contact",
+      meetings: unlinked,
+      share: share(unlinked, sessions.length),
+    },
+  ].filter((b) => b.meetings > 0);
 }
 
 /**
@@ -1771,7 +1787,7 @@ export function buildAgentsView(
       sampleSize: sessions.length,
       sources: [...DERIVED],
       caveat:
-        "Only a contact Observer already knows can be counted as returning; a walk-in has no history.",
+        "Only a contact Observer already knows is counted as a first or a returning visit; a meeting not linked to a contact is counted apart.",
     });
   }
 

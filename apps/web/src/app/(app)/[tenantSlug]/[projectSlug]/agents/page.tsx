@@ -247,7 +247,7 @@ export default async function AgentsPage({
             </p>
             <div className="iris-bars">
               {view.repeats.map((r) => (
-                <div className="iris-bar" key={r.visits}>
+                <div className="iris-bar" key={r.visits ?? "unlinked"}>
                   <span className="iris-bar-label" title={r.label}>
                     {r.label}
                   </span>

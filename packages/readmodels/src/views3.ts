@@ -358,7 +358,12 @@ export interface ProjectView {
  * project whose meetings are all first meetings is not building a pipeline.
  */
 export interface RepeatDistribution {
-  readonly visits: number;
+  /**
+   * Meetings the buyer had here before, 3 for three or more. Null for the
+   * meetings not linked to a contact: a walk-in has no history, so it is
+   * neither a first meeting nor a return, and is counted apart.
+   */
+  readonly visits: number | null;
   readonly label: string;
   readonly meetings: number;
   readonly share: number;
