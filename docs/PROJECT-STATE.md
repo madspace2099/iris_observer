@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `876e986`** · Latest: **Máté's fifteen decisions of 2026-09-27,
+`origin`; the last code commit is `8cbda0e`, the last commit `7138e0e`** · Latest: **Máté's fifteen decisions of 2026-09-27,
 built** — one attention index over the unsold stock on every surface (the gate's failing clause now
 holds), R04's two outcome checks, R12's unknown visitors, the Briefing's one window and no verdict
 below the sample, the report formatted by its language. **Phase 2 is still not accepted**
@@ -5183,6 +5183,31 @@ the project average" while `/project` computes 41% against 40% for the same quar
 "Presentation only" and "Not interested" as missed follow-ups (41 on Northgate's quarter, 7 without
 them).
 
-**Next recommended action.** The block report `_review/blokk-0927b/report.md` and its questions;
-then the measurement again before P2-21 is ticked. The L5d brief still waits in `_review/_inbox/`
-for "következő".
+**Later the same day**, each with a test, pushed:
+
+- `4d01f3a` — the Briefing's door read "1 agents · outcome mix side by side" on ISTER TOWER's live
+  twin, which has one presenter; it reads "1 agent · outcome mix" (a proven bug on R02).
+- `8cbda0e` — a running period ends at the end of today in the project's time zone, not UTC's:
+  west of UTC, at noon, today's, this week's and this month's windows read "Not in this period".
+  `slices()` now calls `sliceSpan`, one decision for the cut and the windows. Every project today
+  is at or east of UTC, and nothing on screen moved (compared on four projects in four periods).
+- `7138e0e` — the lab's copy-control e2e check waits for the control before it skips; a cold
+  compile made it skip once in three runs.
+
+The user's own case, checked on real data: ISTER TOWER's live twin (four delivered meetings, the
+lab's control plane on) read "The showroom is on course." and now reads "4 recorded outcomes this
+month; 20 needed for a verdict." under "No verdict". A text sweep of 60 pages on the lab server
+(five account, project and period combinations) found no "1 <plural>", no `NaN`, `undefined` or
+`null`, and no "against 0% before".
+
+**Verification at `7138e0e`:** `pnpm test` 226 files, 4,384 passed, 1 skipped; all four e2e
+projects at `8cbda0e`: 1,146 passed, 406 skipped, 0 failed (the extra skip was the lab flake
+`7138e0e` closes; 12 of 12 after it); `audit:frozen` 0, `audit:secrets` 0.
+
+**The L5d brief will stop at its preflight**: it asks for HEAD `0f54fab`, and two of its six
+allow-listed files changed today (`showroom/project.ts` for decision 1, `plural-language.test.ts`
+for decision 3). The brief's HEAD needs refreshing before "következő".
+
+**Next recommended action.** The block report `_review/blokk-0927b/report.md` and its seven
+questions — first the executive and agent overviews, which are fixed scenarios whose figures
+contradict Sales Flow's; then the measurement again before P2-21 is ticked.

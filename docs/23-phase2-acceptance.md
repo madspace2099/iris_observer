@@ -57,7 +57,10 @@ the checklist is not complete, and the measurement has to run again before the t
     `94cee08`. All four projects at `876e986`: 1,144 passed, 405 skipped, 3 failed — one spec on
     three projects, whose guard still looked for the parity row's old denominator, "of stock", where
     the row now says "of the unsold stock"; the guard was corrected in `e9b44c3` and passes 15 of 15
-    on the three projects.
+    on the three projects. All four projects again at `8cbda0e`: 1,146 passed, 406 skipped, 0
+    failed; the one extra skip was a lab check that read the page before its control rendered,
+    closed in `7138e0e` (12 of 12 after it). `pnpm test` at `7138e0e`: 226 files, 4,384 passed,
+    1 skipped.
 
 ## The gate's own clauses
 
@@ -279,6 +282,12 @@ Corrected, each with a test:
   — `63123c0`, the Briefing's rule applied to R05. Short of 20 recorded outcomes a side it states the
   figures and the shortfall and makes no call. No synthetic project reads differently: all 48
   verdicts (four projects, four periods, three languages) are byte-identical before and after.
+- **"1 agents · outcome mix side by side"** on the Briefing's door for a project with one presenter —
+  `4d01f3a`, found on ISTER TOWER's live twin; it reads "1 agent · outcome mix".
+- **A running period ended at the UTC end of today** — `8cbda0e`. West of UTC the day ended in the
+  local afternoon, and today's, this week's and this month's windows read "Not in this period"; it
+  ends at the project's own midnight now, in one function for the slice and the windows. Every
+  project today is at or east of UTC, and nothing on screen moved.
 
 Recorded, not changed — each needs a decision or touches a frozen surface:
 
