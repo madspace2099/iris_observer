@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `633bf12`** · Latest: **P2-17 — the report prints in Slovak, English
+`origin`; the last code commit is `6556ba1`** · Latest: **P2-17 — the report prints in Slovak, English
 and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
 the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
 (`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
@@ -5104,8 +5104,10 @@ Closed after the first measurement, pushed:
 - `633bf12` — Sales Flow's windows outside the selected period read "Not in this period", not 0, and
   Sales Flow and the Briefing compare such a period with its baseline ("0 last month" and "no
   earlier comparable period" under Last 28 days were false).
+- `6556ba1` — "Presentations week by week" draws only the weeks the period holds whole; the week
+  still running was marked "±9 against the week before".
 
-**Verification at `633bf12`:** `pnpm test` 217 files, 4,340 passed, 1 skipped.
+**Verification at `6556ba1`:** `pnpm test` 217 files, 4,342 passed, 1 skipped.
 
 **Next recommended action.** Máté's decisions, in the order the document lists them: the index's
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On

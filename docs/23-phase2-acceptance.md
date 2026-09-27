@@ -239,6 +239,7 @@ Corrected, each with a test:
 - **A CRM source chip on the roster that read no CRM** — `aeb1946`.
 - **Section codes readable only by hovering** — `40957fa`.
 - **Windows outside the period counted as zero** — `633bf12`. Sales Flow under Last 28 days printed "Last month: 0" and "there's no earlier comparable period yet" above a 28-day baseline; the Briefing read "32 meetings this month against 0 last month"; under Last completed quarter six zeros and "0 meetings this month". Now the windows outside the period are marked, and both verdicts read the period against its baseline.
+- **A part-week marked as a week-on-week change** — `6556ba1`. "Presentations week by week" drew the week still running, one day old on the synthetic Monday, and marked it "±9 against the week before" under three periods; a completed quarter ended on a two-day week marked "±4". Only weeks the period holds whole are drawn now.
 - **A figure under the floor that lost its denominator** — `d2331d5`. Every surface that draws a `Figure` below its sample now keeps the denominator beside the shortfall.
 
 Recorded, not changed — each needs a decision or touches a frozen surface:
