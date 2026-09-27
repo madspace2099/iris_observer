@@ -498,7 +498,13 @@ export function buildAttention(
       tier: "observed_sequence",
       sources: WITH_OUTCOME,
       actionLabel: "See the meetings",
-      actionHref: `${root}/meetings`,
+      /*
+       * The meetings this state counts, and no others: the register filtered to
+       * the recorded outcome it names, so the list it opens holds as many rows
+       * as the card says. It opened the whole register, 74 rows under a card
+       * about nine.
+       */
+      actionHref: `${root}/meetings?outcome=skipped`,
       observationCount: unrecorded,
     });
   }
