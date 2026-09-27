@@ -682,6 +682,44 @@ describe("project.ts: the units a replay opened, stated whole", () => {
   }
 
   const OPENED: readonly Opened[] = [
+    /*
+     * L5d: to ten rooms the word, from eleven the figure — and in a Hungarian
+     * band "db" between the count and the figure, so two figures never meet —
+     * and a half room is a flat, worded rather than refused.
+     */
+    {
+      name: "two eleven-room units: the figure, and db between two figures",
+      opened: 2,
+      byRooms: [{ rooms: 11, count: 2 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "2 units opened: 2 with 11 rooms; nothing was shortlisted.",
+      sk: "Otvorili 2 byty: 2 sú 11-izbové. Ani jeden nebol pridaný do zoznamu obľúbených.",
+      hu: "2 lakást nyitottak meg: 2 db 11 szobás. Egyetlen lakás sem került fel a Kedvencek listára.",
+    },
+    {
+      name: "two seven-room units: the word, written out",
+      opened: 2,
+      byRooms: [{ rooms: 7, count: 2 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "2 units opened: 2 with 7 rooms; nothing was shortlisted.",
+      sk: "Otvorili 2 byty: 2 sú sedemizbové. Ani jeden nebol pridaný do zoznamu obľúbených.",
+      hu: "2 lakást nyitottak meg: 2 hétszobás. Egyetlen lakás sem került fel a Kedvencek listára.",
+    },
+    {
+      name: "one unit of a room and a half, not added to favourites",
+      opened: 1,
+      byRooms: [{ rooms: 1.5, count: 1 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "1 unit opened: 1 with 1.5 rooms; nothing was shortlisted.",
+      sk: "Otvorili jeden 1,5-izbový byt. Nebol pridaný do zoznamu obľúbených.",
+      hu: "Egy 1,5 szobás lakást nyitottak meg. Nem került fel a Kedvencek listára.",
+    },
     {
       name: "two units, one band of rooms, one added to favourites",
       opened: 2,

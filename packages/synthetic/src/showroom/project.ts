@@ -45,6 +45,7 @@ import {
   duration,
   hungarianArticle,
   hungarianRoomAdjective,
+  hungarianRoomAdjectiveAfterCount,
   plural,
   roomsWord,
   sectionWord,
@@ -1455,10 +1456,21 @@ export function unitsViewedSentence(
 ): string {
   if (opened === 0) return sentence(language, PROJECT_UNITS_NONE_OPENED_SENTENCE, {});
 
-  /* The adjective Slovak and Hungarian name a flat by. English names the rooms, through `roomsWord`. */
-  const adjective = (rooms: number, units: number): SentenceValues =>
+  /*
+   * The adjective Slovak and Hungarian name a flat by. English names the rooms,
+   * through `roomsWord`. In a band it follows the band's count, and Hungarian
+   * puts "db" between the count and a figure ("2 db 11 szobás"); a single unit
+   * has a word before it ("Egy 11 szobás lakást") and takes the plain adjective.
+   */
+  const inBand = (rooms: number, units: number): SentenceValues =>
     language === "sk"
       ? { roomAdjective: slovakRoomAdjective(rooms, units) }
+      : language === "hu"
+        ? { roomAdjective: hungarianRoomAdjectiveAfterCount(rooms) }
+        : {};
+  const alone = (rooms: number): SentenceValues =>
+    language === "sk"
+      ? { roomAdjective: slovakRoomAdjective(rooms, 1) }
       : language === "hu"
         ? { roomAdjective: hungarianRoomAdjective(rooms) }
         : {};
@@ -1468,7 +1480,7 @@ export function unitsViewedSentence(
       count: count(units, locale),
       n: units,
       rooms: roomsWord(rooms, language),
-      ...adjective(rooms, units),
+      ...inBand(rooms, units),
     }),
   );
   if (roomsUnstated > 0) {
@@ -1508,7 +1520,7 @@ export function unitsViewedSentence(
       return sentence(language, PROJECT_UNITS_VIEWED_SINGLE_SENTENCE, {
         ...frame,
         shortlist,
-        ...adjective(band.rooms, 1),
+        ...alone(band.rooms),
       });
     }
     return sentence(

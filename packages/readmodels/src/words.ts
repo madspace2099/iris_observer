@@ -81,11 +81,17 @@ export function roomsWord(rooms: number | null, language: Language = DEFAULT_LAN
  * the Slovak word turns on two numbers, the Hungarian on one. English has none;
  * it counts the rooms through `roomsWord`.
  *
- * Neither guesses. A room count or a count of flats that is not a whole number
- * above nought is refused: a wrong word in a sentence reads as a fact.
+ * To ten rooms the word is written out. From eleven, and for a half room — a
+ * real flat, "1,5 izby", as `ROOMS_WORD` says — the figure stands in the word,
+ * with the decimal comma both languages write and the catalogue's own value,
+ * never a locale's: "11-izbový", "1,5 szobás". A read model does not throw on
+ * the catalogue's lawful data, so a room count is refused only where it is
+ * impossible: not a number, infinite, nought or below. A count of flats is
+ * still a whole number above nought, or it is refused: a wrong word in a
+ * sentence reads as a fact.
  */
 
-/** The Slovak stem for one to six rooms. From seven, the figure: "7-izbový". */
+/** The Slovak stem for one to ten rooms. From eleven, and for a fraction, the figure: "11-izbový". */
 const SLOVAK_ROOM_STEMS: Readonly<Record<number, string>> = {
   1: "jedno",
   2: "dvoj",
@@ -93,6 +99,10 @@ const SLOVAK_ROOM_STEMS: Readonly<Record<number, string>> = {
   4: "štvor",
   5: "päť",
   6: "šesť",
+  7: "sedem",
+  8: "osem",
+  9: "deväť",
+  10: "desať",
 };
 
 /** The Slovak ending, by the category the count of flats takes. */
@@ -102,7 +112,7 @@ const SLOVAK_ROOM_ENDINGS: Readonly<Record<string, string>> = {
   other: "izbových",
 };
 
-/** The Hungarian adjective for one to six rooms. From seven, the figure: "7 szobás". */
+/** The Hungarian adjective for one to ten rooms. From eleven, and for a fraction, the figure: "11 szobás". */
 const HUNGARIAN_ROOM_ADJECTIVES: Readonly<Record<number, string>> = {
   1: "egyszobás",
   2: "kétszobás",
@@ -110,6 +120,10 @@ const HUNGARIAN_ROOM_ADJECTIVES: Readonly<Record<number, string>> = {
   4: "négyszobás",
   5: "ötszobás",
   6: "hatszobás",
+  7: "hétszobás",
+  8: "nyolcszobás",
+  9: "kilencszobás",
+  10: "tízszobás",
 };
 
 function wholeAboveNought(value: number, what: string): void {
@@ -118,21 +132,49 @@ function wholeAboveNought(value: number, what: string): void {
   }
 }
 
+/** A half room is a flat; a room count that is not a number, is infinite, or is nought or less is not. */
+function possibleRoomCount(rooms: number): void {
+  if (!Number.isFinite(rooms) || rooms <= 0) {
+    throw new RangeError(`A room count must be a number above nought, not ${rooms}.`);
+  }
+}
+
+/** The figure as the catalogue states it, with the decimal comma: "11", "1,5". */
+function roomFigure(rooms: number): string {
+  return String(rooms).replace(".", ",");
+}
+
 /** "dvojizbový" for one two-room flat, "dvojizbové" for two, "dvojizbových" for five. */
 export function slovakRoomAdjective(rooms: number, unitCount: number): string {
-  wholeAboveNought(rooms, "A room count");
+  possibleRoomCount(rooms);
   wholeAboveNought(unitCount, "A count of flats");
   const ending = SLOVAK_ROOM_ENDINGS[pluralCategory("sk", unitCount)];
   if (ending === undefined) {
     throw new RangeError(`No Slovak room ending agrees with ${unitCount} flats.`);
   }
-  return `${SLOVAK_ROOM_STEMS[rooms] ?? `${rooms}-`}${ending}`;
+  const stem = Number.isInteger(rooms) ? SLOVAK_ROOM_STEMS[rooms] : undefined;
+  return `${stem ?? `${roomFigure(rooms)}-`}${ending}`;
 }
 
 /** "kétszobás", whatever the count of flats: the Hungarian adjective turns on the rooms alone. */
 export function hungarianRoomAdjective(rooms: number): string {
-  wholeAboveNought(rooms, "A room count");
-  return HUNGARIAN_ROOM_ADJECTIVES[rooms] ?? `${rooms} szobás`;
+  possibleRoomCount(rooms);
+  const word = Number.isInteger(rooms) ? HUNGARIAN_ROOM_ADJECTIVES[rooms] : undefined;
+  return word ?? `${roomFigure(rooms)} szobás`;
+}
+
+/**
+ * The Hungarian adjective where a count of flats stands before it.
+ *
+ * From eleven rooms, and for a half room, the adjective begins with a figure,
+ * and two figures side by side read as one number: "2 11 szobás". So "db"
+ * stands between them, "2 db 11 szobás", "2 db 1,5 szobás"; the written-out
+ * word needs none, "2 kétszobás". Where a word stands before it — "Egy …
+ * lakást" — the plain adjective is the one to use.
+ */
+export function hungarianRoomAdjectiveAfterCount(rooms: number): string {
+  const adjective = hungarianRoomAdjective(rooms);
+  return /^\d/.test(adjective) ? `db ${adjective}` : adjective;
 }
 
 /** "63 m²", or the word for an area the catalogue did not state. */
