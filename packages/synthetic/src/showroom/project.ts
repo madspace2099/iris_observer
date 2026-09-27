@@ -70,7 +70,7 @@ import {
   signedPercent,
 } from "../format";
 import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
-import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
+import { agentById, agentsForProject, presenterName, presentersIn } from "./sessions";
 /* The one definition of "time the source could time" — the agent lane's, not a second one. */
 import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
 
@@ -1150,15 +1150,34 @@ export function buildPresentationIntelligence(
      */
     const presenters = presentersIn(sessions);
     const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
+    /*
+     * WHO MAY BE NAMED HERE AT ALL: this project's own roster, and whoever
+     * presented on it.
+     *
+     * `presentersIn` returns the whole synthetic roster, and the scenario's
+     * pair was looked up there, so Kingsford's page — a Beta project — said
+     * "Monika Kováčová and Akhilesh Undev presented no meeting in this period":
+     * two of another developer's agents, named on this one's screen, which the
+     * dataset's own rule forbids ("An Alpha agent must never appear on a Beta
+     * project"). A key typed into the address is held to the same list, so a
+     * hand-made one cannot reach further. Where the scenario's pair works here,
+     * as on Northgate, it is still the pair.
+     */
+    const roster = agentsForProject(context.project.id as string);
+    const eligible = [...roster, ...presented.filter((p) => !roster.some((a) => a.id === p.id))];
     /* A project that shows only its own data has no roster to fall back on, with meetings or without. */
     const onRoster =
       !context.ownDataOnly &&
       (sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined));
-    const pick = (key: string | null, scenario: string, index: number) =>
-      (key === null ? undefined : presenters.find((p) => p.id === key)) ??
-      (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
-    const leftAgent = pick(leftKey, "agt_monika", 0);
-    const rightAgent = pick(rightKey, "agt_akhilesh", 1);
+    const fallback = (scenario: string, other: string | undefined) =>
+      eligible.find((p) => p.id === scenario && p.id !== other) ??
+      eligible.find((p) => p.id !== other);
+    const chosen = (key: string | null) =>
+      key === null ? undefined : eligible.find((p) => p.id === key);
+    const leftAgent =
+      chosen(leftKey) ?? (onRoster ? fallback("agt_monika", undefined) : presented[0]);
+    const rightAgent =
+      chosen(rightKey) ?? (onRoster ? fallback("agt_akhilesh", leftAgent?.id) : presented[1]);
     if (leftAgent === undefined || rightAgent === undefined) {
       noComparison = `${
         presented.length === 0 ? "Nobody" : "Only one person"

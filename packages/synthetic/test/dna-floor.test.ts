@@ -109,9 +109,13 @@ describe("a side with no meetings is an absence, not a rate", () => {
     expect(absent.noComparison).toMatch(/no meetings in last quarter/i);
   });
 
-  /* The review project's own shape: Monika presented, the roster still names Akhilesh beside her. */
+  /*
+   * Monika presented, and the roster names Akhilesh beside her. Only a project's own roster may name
+   * anyone (dna-roster.test.ts): the context borrows the one project whose roster holds them both,
+   * and the sessions are still these constructed ones.
+   */
   const roster = buildPresentationIntelligence(
-    CONTEXT,
+    { ...CONTEXT, project: { ...CONTEXT.project, id: "prj_northgate01" } } as ViewContext,
     many(25, (i) => compares(i, "agt_monika")),
     [],
     "agents",
