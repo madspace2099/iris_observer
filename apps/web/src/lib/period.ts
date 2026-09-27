@@ -40,10 +40,13 @@ export const PERIOD_LABELS = [
  */
 export function withPeriod(href: string, preset: PeriodPreset): string {
   if (preset === "quarter_to_date") return href;
-  const [path, query] = href.split("?");
+  // A fragment ends the address: the period goes before it, or it would be read as part of the anchor.
+  const hashAt = href.indexOf("#");
+  const fragment = hashAt < 0 ? "" : href.slice(hashAt);
+  const [path, query] = (hashAt < 0 ? href : href.slice(0, hashAt)).split("?");
   const params = new URLSearchParams(query ?? "");
   params.set("period", preset);
-  return `${path}?${params.toString()}`;
+  return `${path}?${params.toString()}${fragment}`;
 }
 
 /**

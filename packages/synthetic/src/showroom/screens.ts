@@ -1078,7 +1078,15 @@ export function buildUnitDetail(
       baseline: `${count(row.meetings, locale)} meetings opened it`,
       soWhat:
         "Shortlisting is the strongest interest signal the showroom produces. A shortlist with nothing recorded after it is a call somebody may still owe.",
-      nextStep: { label: "See those meetings", href: `${root}/meetings` },
+      /*
+       * The unit's own table of the meetings that opened it, with their
+       * Shortlisted and Follow-up columns. "See those meetings" opened the
+       * whole register, which has no filter by unit.
+       */
+      nextStep: {
+        label: "See the meetings that opened it",
+        href: `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
+      },
       evidence: evidenceRef(
         `unit-${unitCode}-follow-up`,
         "observed_sequence",

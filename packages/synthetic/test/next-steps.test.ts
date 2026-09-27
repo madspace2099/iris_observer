@@ -40,7 +40,7 @@ describe("Sales Flow's unrecorded-outcome finding", () => {
       );
       if (finding === undefined) continue;
       raised += 1;
-      expect(finding.nextStep.href, period).toBe("/alpha/northgate/meetings?outcome=skipped");
+      expect(finding.nextStep?.href, period).toBe("/alpha/northgate/meetings?outcome=skipped");
       const register = await repo.getMeetings(query(period), {
         agentId: null,
         channel: null,
@@ -62,7 +62,7 @@ describe("the showroom overview's cohort finding", () => {
         );
         if (finding === undefined) continue;
         seen += 1;
-        const url = new URL(finding.nextStep.href, "http://observer.test");
+        const url = new URL(finding.nextStep?.href ?? "", "http://observer.test");
         expect(url.pathname).toMatch(/\/presentation$/);
         expect(PRESENTATION_MODES).toContain(url.searchParams.get("mode"));
         expect(url.searchParams.get("mode")).toBe("cohorts");

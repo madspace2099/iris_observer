@@ -930,6 +930,15 @@
   color: var(--ox-ink);
 }
 
+/*
+ * A section a link lands on stops below the sticky header and context band,
+ * not under them: a finding's step to "Meetings that opened it" scrolled the
+ * heading to the top of the viewport, behind both.
+ */
+.ox-section-title[id] {
+  scroll-margin-top: calc(var(--iris-header-height, 70px) + 4.5rem);
+}
+
 .ox-section-note {
   max-width: 58ch;
   margin: 0;

@@ -418,7 +418,10 @@ export default async function UnitPage({
             )}
 
             <div className="ox-section-head">
-              <h2 className="ox-section-title">Meetings that opened it</h2>
+              {/* The shortlist finding below links here: this table has the Shortlisted and Follow-up columns it rests on. */}
+              <h2 className="ox-section-title" id="meetings-that-opened-it">
+                Meetings that opened it
+              </h2>
               <p className="ox-section-note">
                 No buyer is named here. The visitor column is a privacy-safe label built from a
                 closed vocabulary and a count of previous meetings; the type it comes from has no
