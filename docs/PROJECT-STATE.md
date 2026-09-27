@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `77b1be8`** · Latest: **P2-17 — the report prints in Slovak, English
+`origin`; the last code commit is `ab981c9`** · Latest: **P2-17 — the report prints in Slovak, English
 and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
 the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
 (`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
@@ -5121,8 +5121,9 @@ Closed after the first measurement, pushed:
   desktop e2e specs failing since before the block pass again (the whole desktop project was run).
 - `77b1be8` — the mobile e2e cases open the Menu the shell puts its controls behind (eight failed and
   eighteen could not run: the plan's "mobile (ii)" class, a P2-21 gate item). Test code only.
+- `ab981c9` — "What those meetings became" names the days of a month the period cuts ("Aug 1–24").
 
-**Verification at `4e03140`:** `pnpm test` 223 files, 4,356 passed, 1 skipped.
+**Verification at `ab981c9`:** `pnpm test` 223 files, 4,359 passed, 1 skipped.
 
 **Next recommended action.** Máté's decisions, in the order the document lists them: the index's
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
