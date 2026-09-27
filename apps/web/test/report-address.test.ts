@@ -44,17 +44,17 @@ describe("the language on a report's address", () => {
     expect(LANGUAGE_NAMES).toEqual({ en: "English", sk: "Slovenčina", hu: "Magyar" });
   });
 
-  it("gives a scope only a language it is written in whole, and English otherwise", () => {
+  it("gives a scope only a language it is written in whole", () => {
     expect(WRITTEN_IN).toEqual({
       project: ["en", "sk", "hu"],
       meeting: ["en", "sk", "hu"],
-      agent: ["en"],
+      agent: ["en", "sk", "hu"],
     });
     expect(writtenLanguage("project", "sk")).toBe("sk");
     expect(writtenLanguage("meeting", "hu")).toBe("hu");
-    /* An agent summary asked for in Slovak by a hand-typed address: English, whole, not a mixture. */
-    expect(writtenLanguage("agent", "sk")).toBe("en");
-    expect(writtenLanguage("agent", "en")).toBe("en");
+    expect(writtenLanguage("agent", "sk")).toBe("sk");
+    /* A language the product does not write reaches the gate as the default, and stays it. */
+    expect(writtenLanguage("agent", languageFrom("de"))).toBe("en");
   });
 });
 

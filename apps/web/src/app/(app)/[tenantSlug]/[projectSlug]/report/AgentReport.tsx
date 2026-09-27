@@ -2,7 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { NotFoundError, NotPermittedError, type OverviewQuery } from "@observer/readmodels";
+import {
+  MEETINGS,
+  NotFoundError,
+  NotPermittedError,
+  plural,
+  sentence,
+  slovakZForm,
+  type OverviewQuery,
+} from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
@@ -33,7 +41,14 @@ import {
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
 import { printedSections } from "@/components/report/omit";
-import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
+import {
+  AGENT_REPORT_WORDS,
+  REPORT_BLANK_SECTIONS,
+  REPORT_LEFT_OUT_SECTIONS,
+  REPORT_PARTIAL_SECTIONS,
+  REPORT_WORDS,
+} from "@/components/report/words";
+import { ReportPlane } from "./ReportPlane";
 
 /**
  * ONE SALES AGENT'S SUMMARY, ON THE REPORT PAGE.
@@ -61,6 +76,9 @@ import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
  * series, the outcome ring as a shape, the reading guide. The audience is
  * internal, like the rest of the report; a buyer-facing document is a
  * separate contract (ADR-0018) and none of this is it.
+ *
+ * The page's own words are `AGENT_REPORT_WORDS`, in the language the export
+ * dialog chose; the read model writes the rest in the same language.
  */
 export async function AgentReport({
   query,
@@ -92,7 +110,9 @@ export async function AgentReport({
     throw error;
   }
 
-  const { viewer, tenantSlug, projectSlug, period } = query;
+  const { viewer, tenantSlug, projectSlug, period, language } = query;
+  const words = AGENT_REPORT_WORDS[language];
+  const reportWords = REPORT_WORDS[language];
   const root = `/${tenantSlug}/${projectSlug}`;
   const locale = view.context.project.locale;
   const periodLabel = view.context.period.label;
@@ -103,18 +123,19 @@ export async function AgentReport({
     sampleSize: view.sampleSize,
     minimumSampleSize: view.minimumSampleSize,
     locale,
+    language,
   };
-  const short = `${view.minimumSampleSize - view.sampleSize} short of ${view.minimumSampleSize}`;
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
   const partialCount = report.sections.filter((s) => s.availability === "partial").length;
   const printed = printedSections(report.sections, omitted);
   const leftOut = report.sections.filter((section) => !printed.includes(section));
+  const total = report.sections.length;
 
   /* A count of their own meetings, with the count it is a fraction of. */
   const ofTheirs = (n: number) => (
     <span className="ox-value">
       <span className="ox-figure">{n}</span>
-      <span className="ox-of">of {view.sampleSize} meetings</span>
+      <span className="ox-of">{words.ofMeetings(view.sampleSize)}</span>
     </span>
   );
 
@@ -130,20 +151,20 @@ export async function AgentReport({
   const runningOrder = [...view.profile.sections].sort((a, b) => a.order - b.order);
 
   const unitColumns: readonly DataColumn[] = [
-    { key: "unit", label: "Unit" },
-    { key: "meetings", label: "Meetings that opened it", numeric: true },
-    ...shareColumns("Share of their meetings"),
-    { key: "favourites", label: "Shortlisted", numeric: true },
+    { key: "unit", label: words.unitColumns[0] },
+    { key: "meetings", label: words.unitColumns[1], numeric: true },
+    ...shareColumns(words.unitColumns[2]),
+    { key: "favourites", label: words.unitColumns[3], numeric: true },
   ];
   const unitRows: readonly DataRow[] = view.commonUnits.map((unit) => ({
     key: unit.unitCode,
     cells: {
       unit: <Link href={link(unit.href)}>{unit.unitCode}</Link>,
       meetings: ofTheirs(unit.meetings),
-      share: <ShareFigure share={unit.share} {...floor} qualifier="of their meetings" />,
+      share: <ShareFigure share={unit.share} {...floor} qualifier={words.ofTheirMeetings} />,
       favourites:
         unit.favourites === 0 ? (
-          <Missing what="Never shortlisted" />
+          <Missing what={words.neverShortlisted} />
         ) : (
           <span className="ox-value">
             <span className="ox-figure">{unit.favourites}</span>
@@ -160,51 +181,47 @@ export async function AgentReport({
             <TallyItem
               key={metric.metricId}
               label={metric.label}
-              value={<Figure value={metric} />}
+              value={<Figure value={metric} language={language} />}
             />
           ))}
         </Tally>
 
-        <p className="ox-subhead">Follow-up</p>
+        <p className="ox-subhead">{words.followUp}</p>
         <Tally>
           <TallyItem
             label={view.followUp.recorded.label}
-            value={<Figure value={view.followUp.recorded} />}
+            value={<Figure value={view.followUp.recorded} language={language} />}
           />
           <TallyItem
             label={view.followUp.completed.label}
-            value={<Figure value={view.followUp.completed} />}
+            value={<Figure value={view.followUp.completed} language={language} />}
           />
         </Tally>
         <Unavailable
-          what="Follow-ups completed"
-          why={view.followUp.completed.message ?? "No source records whether a follow-up happened."}
+          what={view.followUp.completed.label}
+          why={view.followUp.completed.message ?? words.noFollowUpSource}
           action={null}
           period={period}
         />
         <p className="ox-section-note">{view.followUp.note}</p>
 
-        <p className="ox-subhead">Outcomes they recorded</p>
+        <p className="ox-subhead">{words.outcomesTheyRecorded}</p>
         <Tally>
           {view.recordedOutcomes.map((outcome) => (
             <TallyItem
               key={outcome.outcome}
               label={outcome.label}
-              value={<Figure value={outcome.metric} />}
+              value={<Figure value={outcome.metric} language={language} />}
               evidence={
                 <>
-                  <Tier tier={outcome.tier} />
-                  <Sources sources={outcome.sources} />
+                  <Tier tier={outcome.tier} language={language} />
+                  <Sources sources={outcome.sources} language={language} />
                 </>
               }
             />
           ))}
         </Tally>
-        <p className="ox-section-note">
-          What {view.name} entered on the showroom&rsquo;s outcome widget as a purchase or a
-          reservation. It is the agent&rsquo;s own record — not a reservation and not a sale, and no
-          CRM or other system of record has confirmed it: Observer links no deal to a meeting.
-        </p>
+        <p className="ox-section-note">{words.recordedNote(view.name)}</p>
       </>
     ),
 
@@ -213,24 +230,28 @@ export async function AgentReport({
         <StageFunnel
           steps={view.funnel}
           period={period}
-          label={`Stages ${view.name}'s meetings reached`}
+          label={words.funnelLabel(view.name)}
+          language={language}
         />
       </>
     ),
 
     "agent-presentation": (
       <DataTable
-        caption={
-          view.belowMinimum
-            ? `${view.name}'s running order: where each section falls on average across their meetings, not one meeting's path, with their median stay in it. Neither the share of their timed time nor the team's median is printed beside their stops: at ${view.sampleSize} meetings, ${short}, a share would be a rate read as a verdict and the comparison a judgement about how somebody works, drawn from a sample too thin to carry either.`
-            : `${view.name}'s running order: where each section falls on average across their meetings, not one meeting's path, with their median stay in it, the share of their timed presentation time it takes, and the team's median beside it, since a section time on its own has no scale.`
-        }
+        caption={words.presentationCaption(
+          view.name,
+          view.belowMinimum,
+          view.sampleSize,
+          view.minimumSampleSize,
+        )}
         columns={[
-          { key: "order", label: "Order", numeric: true },
-          { key: "section", label: "Section" },
-          { key: "dwell", label: "Their median stay", numeric: true },
-          ...shareColumns("Share of their timed time"),
-          ...(view.belowMinimum ? [] : [{ key: "team", label: "Team median stay", numeric: true }]),
+          { key: "order", label: words.presentationColumns[0], numeric: true },
+          { key: "section", label: words.presentationColumns[1] },
+          { key: "dwell", label: words.presentationColumns[2], numeric: true },
+          ...shareColumns(words.presentationColumns[3]),
+          ...(view.belowMinimum
+            ? []
+            : [{ key: "team", label: words.presentationColumns[4], numeric: true }]),
         ]}
         rows={runningOrder.map((section) => ({
           key: section.sectionId,
@@ -238,7 +259,7 @@ export async function AgentReport({
             order: String(section.order),
             section: section.label,
             dwell: isDash(section.dwellDisplay) ? (
-              <Missing what="Not timed" />
+              <Missing what={words.notTimed} />
             ) : (
               section.dwellDisplay
             ),
@@ -246,11 +267,11 @@ export async function AgentReport({
               <ShareFigure
                 share={section.timeShare}
                 {...floor}
-                qualifier={`of ${view.profile.timedMeetings} timed meetings`}
+                qualifier={words.ofTimed(view.profile.timedMeetings)}
               />
             ),
             team: isDash(section.teamDwellDisplay) ? (
-              <Missing what="Not timed" />
+              <Missing what={words.notTimed} />
             ) : (
               section.teamDwellDisplay
             ),
@@ -263,28 +284,31 @@ export async function AgentReport({
     "agent-buyers": (
       <>
         <DataTable
-          caption={
-            view.belowMinimum
-              ? `Meetings of ${view.name}'s in which at least one apartment of that size was opened. A meeting that showed a one-room flat and a four-room penthouse counts in both, so these do not sum to the meeting count. The project's own rate is not set beside them: at ${view.sampleSize} meetings, ${short}, that comparison would be a judgement about how somebody works drawn from a sample too thin to carry one.`
-              : `Each row is one size of apartment: the share of ${view.name}'s meetings in which at least one unit of that size was opened, and the same rate over every meeting on the project in the period. The rows do not sum to one and this is not a mix — a meeting that showed a one-room flat and a four-room penthouse counts in both.`
-          }
+          caption={words.buyersCaption(
+            view.name,
+            view.belowMinimum,
+            view.sampleSize,
+            view.minimumSampleSize,
+          )}
           columns={[
-            { key: "size", label: "Apartments" },
-            { key: "meetings", label: "Meetings that opened one", numeric: true },
-            ...shareColumns("Share of their meetings"),
-            ...(view.belowMinimum ? [] : [{ key: "team", label: "Project", numeric: true }]),
+            { key: "size", label: words.buyersColumns[0] },
+            { key: "meetings", label: words.buyersColumns[1], numeric: true },
+            ...shareColumns(words.buyersColumns[2]),
+            ...(view.belowMinimum
+              ? []
+              : [{ key: "team", label: words.buyersColumns[3], numeric: true }]),
           ]}
           rows={view.buyerInterest.map((row) => ({
             key: row.id,
             cells: {
               size: row.label,
               meetings:
-                row.meetings === 0 ? <Missing what="None opened" /> : ofTheirs(row.meetings),
-              share: <ShareFigure share={row.share} {...floor} qualifier="of their meetings" />,
+                row.meetings === 0 ? <Missing what={words.noneOpened} /> : ofTheirs(row.meetings),
+              share: <ShareFigure share={row.share} {...floor} qualifier={words.ofTheirMeetings} />,
               team: (
                 <span className="ox-value">
                   <span className="ox-figure">{pct.format(row.teamShare)}</span>
-                  <span className="ox-of">of every meeting on the project</span>
+                  <span className="ox-of">{words.ofEveryMeeting}</span>
                 </span>
               ),
             },
@@ -292,11 +316,16 @@ export async function AgentReport({
           period={period}
         />
         <DataTable
-          caption={`How ${view.name}'s meetings ended: parts of one whole, every meeting of theirs in the period, by the outcome recorded at the end of it. ${view.sampleSize} meetings is the denominator. Meetings with no outcome recorded are a row of their own rather than being folded into one that says something happened.${view.belowMinimum ? ` No share is printed beside the counts: at ${view.sampleSize} meetings, ${short}, a rate over this person's meetings is not a figure to act on, and each count already carries the denominator it is a fraction of.` : ""}`}
+          caption={words.outcomeCaption(
+            view.name,
+            view.belowMinimum,
+            view.sampleSize,
+            view.minimumSampleSize,
+          )}
           columns={[
-            { key: "outcome", label: "Outcome" },
-            { key: "count", label: "Meetings", numeric: true },
-            ...shareColumns("Share"),
+            { key: "outcome", label: words.outcomeColumns[0] },
+            { key: "count", label: words.outcomeColumns[1], numeric: true },
+            ...shareColumns(words.outcomeColumns[2]),
           ]}
           rows={view.outcomeMix.map((slice) => ({
             key: slice.outcome,
@@ -307,7 +336,7 @@ export async function AgentReport({
                 <ShareFigure
                   share={slice.share}
                   {...floor}
-                  qualifier={`of ${view.sampleSize} meetings`}
+                  qualifier={words.ofMeetings(view.sampleSize)}
                 />
               ),
             },
@@ -319,7 +348,7 @@ export async function AgentReport({
 
     "agent-units": (
       <DataTable
-        caption={`Units opened in the largest share of ${view.name}'s meetings in ${periodLabel.toLowerCase()}, at most six. An association with this presenter's habit and nothing more: a unit opened in most of somebody's meetings may be the one the buyers ask for or the one the agent reaches for.`}
+        caption={words.unitsCaption(view.name, periodLabel)}
         columns={unitColumns}
         rows={unitRows}
         codeColumn="unit"
@@ -331,9 +360,7 @@ export async function AgentReport({
       <>
         {view.projects.length === 0 ? (
           <p className="ox-result">
-            <span>
-              No other project this account may open holds a meeting of theirs in this period.
-            </span>
+            <span>{words.noOtherProject}</span>
           </p>
         ) : (
           <ul className="ox-list">
@@ -348,17 +375,14 @@ export async function AgentReport({
                     )}
                   </h3>
                   <p className="ox-row-meta">
-                    <span>
-                      {project.meetings} meeting{project.meetings === 1 ? "" : "s"} in{" "}
-                      {periodLabel.toLowerCase()}
-                    </span>
+                    <span>{words.projectMeetings(project.meetings, periodLabel)}</span>
                   </p>
                 </div>
                 <div className="ox-row-states">
                   {project.isCurrent ? (
                     <span className="ox-chip" data-tone="settled">
                       <span className="ox-chip-mark" aria-hidden="true" />
-                      This project
+                      {words.thisProject}
                     </span>
                   ) : null}
                 </div>
@@ -366,11 +390,7 @@ export async function AgentReport({
             ))}
           </ul>
         )}
-        <p className="ox-section-note">
-          Scoped to the projects this account holds, never to the projects the agent holds. An
-          agency selling for two developers is the ordinary arrangement, and a list that showed the
-          rest of it would be a commercial fact about somebody else read off a staff page.
-        </p>
+        <p className="ox-section-note">{words.projectsNote}</p>
       </>
     ),
 
@@ -380,35 +400,36 @@ export async function AgentReport({
           rows={view.recentMeetings}
           period={period}
           canOpen={maySeeSurface(viewer.role, "[meetingId]")}
-          caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight.`}
-          emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
+          caption={words.registerCaption(view.name, periodLabel)}
+          emptyNote={words.registerEmpty(view.name, periodLabel)}
+          language={language}
         />
         <p className="ox-section-note">
-          <Link href={link(meetingsHref)}>Every meeting of theirs in this period</Link> is the
-          register these eight are taken from.
+          <Link href={link(meetingsHref)}>{words.registerLink}</Link>
+          {words.registerRest}
         </p>
       </>
     ),
 
-    "agent-findings": <FindingList findings={view.findings} period={period} />,
+    "agent-findings": <FindingList findings={view.findings} period={period} language={language} />,
 
     "evidence-appendix": (
       <DataTable
-        caption="Every section of this summary with its state, its sample in its own noun, and the evidence reference it rests on."
+        caption={words.appendixCaption}
         columns={[
-          { key: "section", label: "Section" },
-          { key: "state", label: "State" },
-          { key: "sample", label: "Sample", numeric: true },
-          { key: "evidence", label: "Evidence" },
+          { key: "section", label: reportWords.appendixColumns[0] },
+          { key: "state", label: reportWords.appendixColumns[1] },
+          { key: "sample", label: reportWords.appendixColumns[2], numeric: true },
+          { key: "evidence", label: reportWords.appendixColumns[3] },
         ]}
         rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
-            state: AVAILABILITY_WORDS[section.availability],
+            state: reportWords.availability[section.availability],
             sample:
               section.sampleSize === null ? "—" : `${section.sampleSize} ${section.sampleNoun}`,
-            evidence: <Evidence evidence={section.evidence} period={period} />,
+            evidence: <Evidence evidence={section.evidence} period={period} language={language} />,
           },
         }))}
         period={period}
@@ -417,26 +438,30 @@ export async function AgentReport({
   };
 
   return (
-    <div className="ox-page ox-report" lang={query.language}>
+    <div className="ox-page ox-report" lang={language}>
       <PageHead
-        kicker={`${report.context.project.name} · Agent summary · ${report.scope.label}`}
+        kicker={`${report.context.project.name} · ${words.kicker} · ${report.scope.label}`}
         title={view.name}
-        answer={agentAnswer(view)}
-        lede={`Presenting for ${view.organisationName}. One agent's summary, drawn from the read model their own screen draws, with the same figures at the same sample and the same floor. The audience is internal: nothing here is a score, and a buyer-facing document is a separate contract that is not assembled here.`}
+        answer={agentAnswer(view, language)}
+        lede={words.lede(view.organisationName)}
         crumbs={[
           { label: report.context.project.name, href: `${root}/project` },
-          { label: "Sales Agents", href: `${root}/agents` },
+          { label: words.crumbAgents, href: `${root}/agents` },
           { label: view.name, href: `${root}/agents/${view.agentId}` },
-          { label: "Summary" },
+          { label: words.crumbSummary },
         ]}
         aside={
           <>
-            <Synthetic />
-            <Sample n={view.sampleSize} noun="meetings" />
-            <PrintPage />
+            <Synthetic language={language} />
+            <Sample
+              n={view.sampleSize}
+              noun={language === "en" ? "meetings" : plural(language, view.sampleSize, MEETINGS)}
+            />
+            <PrintPage label={reportWords.print} />
           </>
         }
         period={period}
+        language={language}
       />
 
       <div className="ox-body">
@@ -446,16 +471,31 @@ export async function AgentReport({
               {report.scope.label}
             </h2>
             <p className="ox-section-note">
-              Audience: internal.{" "}
+              {reportWords.audience}{" "}
               {report.unavailableCount === 0
-                ? "Every section can be written from what this agent's screen has."
-                : `${report.unavailableCount} of ${report.sections.length} sections would be blank, and each says why.`}
+                ? words.everyWritable
+                : sentence(language, REPORT_BLANK_SECTIONS, {
+                    count: String(report.unavailableCount),
+                    total: String(total),
+                    from: slovakZForm(total),
+                    n: report.unavailableCount,
+                  })}
               {partialCount === 0
                 ? ""
-                : ` ${partialCount} of ${report.sections.length} carry a stated gap, and each says what it is.`}
+                : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
+                    count: String(partialCount),
+                    total: String(total),
+                    from: slovakZForm(total),
+                    n: partialCount,
+                  })}`}
               {leftOut.length === 0
                 ? ""
-                : ` ${leftOut.length} of ${report.sections.length} left out at the reader's request.`}
+                : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+                    count: String(leftOut.length),
+                    total: String(total),
+                    from: slovakZForm(total),
+                    n: leftOut.length,
+                  })}`}
             </p>
           </div>
           <ol className="ox-report-contents">
@@ -463,12 +503,12 @@ export async function AgentReport({
               leftOut.includes(section) ? (
                 <li key={section.id}>
                   {section.label}
-                  <span className="ox-n"> · Left out at the reader&rsquo;s request</span>
+                  <span className="ox-n"> · {reportWords.leftOut}</span>
                 </li>
               ) : (
                 <li key={section.id}>
                   <a href={`#${section.id}`}>{section.label}</a>
-                  <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
+                  <span className="ox-n"> · {reportWords.availability[section.availability]}</span>
                 </li>
               ),
             )}
@@ -476,7 +516,7 @@ export async function AgentReport({
         </section>
 
         {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period}>
+          <ReportPlane key={section.id} section={section} period={period} language={language}>
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
         ))}

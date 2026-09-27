@@ -27,10 +27,6 @@ import { REPORT_WORDS } from "@/components/report/words";
  * the one where the difference is the finding.
  */
 
-/** The state words, in English; `REPORT_WORDS` holds them in every language a report is printed in. */
-export const AVAILABILITY_WORDS: Readonly<Record<ReportSectionAvailability, string>> =
-  REPORT_WORDS.en.availability;
-
 export const AVAILABILITY_TONES: Readonly<Record<ReportSectionAvailability, string>> = {
   ready: "good",
   partial: "watch",

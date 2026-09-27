@@ -1,4 +1,12 @@
-import type { Language, ReportSectionAvailability, Sentence } from "@observer/readmodels";
+import {
+  MEETINGS,
+  hungarianArticle,
+  plural,
+  slovakZForm,
+  type Language,
+  type ReportSectionAvailability,
+  type Sentence,
+} from "@observer/readmodels";
 
 /**
  * EVERY WORD THE PRINTED REPORT WRITES ITSELF, IN EACH LANGUAGE IT CAN BE ASKED FOR.
@@ -286,4 +294,256 @@ export const REPORT_MEETINGS_NEEDED: Sentence = {
   en: { text: "{count} of {minimum} meetings needed" },
   sk: { text: "{count} z potrebných {minimum} stretnutí" },
   hu: { text: "{count} a szükséges {minimum} találkozóból" },
+};
+
+/** "1 of 9 carry a stated gap, and each says what it is." */
+export const REPORT_PARTIAL_SECTIONS: Sentence = {
+  en: { text: "{count} of {total} carry a stated gap, and each says what it is." },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{count} {from} {total} má uvedenú medzeru a každá uvádza, o akú ide.",
+        few: "{count} {from} {total} majú uvedenú medzeru a každá uvádza, o akú ide.",
+        other: "{count} {from} {total} má uvedenú medzeru a každá uvádza, o akú ide.",
+      },
+    },
+  },
+  hu: { text: "{total} szakaszból {count} kimondott hiányt hordoz, és mindegyik megmondja, mit." },
+};
+
+/**
+ * ONE AGENT'S SUMMARY: THE PAGE'S OWN WORDS, IN EACH LANGUAGE.
+ *
+ * The agent summary draws its figures and sentences from `AgentDetailView`,
+ * which writes them in the request's language; what is left is the page's
+ * frame, and it lives here. Slovak avoids the past tense and the possessive
+ * where either would name the agent's gender, which the product does not
+ * hold; a name stands after a dash instead. Drafts for review (P2-17).
+ */
+export interface AgentReportWords {
+  readonly kicker: string;
+  readonly lede: (organisation: string) => string;
+  readonly crumbAgents: string;
+  readonly crumbSummary: string;
+  readonly everyWritable: string;
+  readonly ofMeetings: (total: number) => string;
+  readonly unitColumns: readonly [string, string, string, string];
+  readonly ofTheirMeetings: string;
+  readonly neverShortlisted: string;
+  readonly followUp: string;
+  readonly noFollowUpSource: string;
+  readonly outcomesTheyRecorded: string;
+  readonly recordedNote: (name: string) => string;
+  readonly funnelLabel: (name: string) => string;
+  readonly presentationCaption: (
+    name: string,
+    below: boolean,
+    n: number,
+    minimum: number,
+  ) => string;
+  readonly presentationColumns: readonly [string, string, string, string, string];
+  readonly notTimed: string;
+  readonly ofTimed: (n: number) => string;
+  readonly buyersCaption: (name: string, below: boolean, n: number, minimum: number) => string;
+  readonly buyersColumns: readonly [string, string, string, string];
+  readonly noneOpened: string;
+  readonly ofEveryMeeting: string;
+  readonly outcomeCaption: (name: string, below: boolean, n: number, minimum: number) => string;
+  readonly outcomeColumns: readonly [string, string, string];
+  readonly unitsCaption: (name: string, period: string) => string;
+  readonly noOtherProject: string;
+  readonly projectMeetings: (n: number, period: string) => string;
+  readonly thisProject: string;
+  readonly projectsNote: string;
+  readonly registerCaption: (name: string, period: string) => string;
+  readonly registerEmpty: (name: string, period: string) => string;
+  readonly registerLink: string;
+  readonly registerRest: string;
+  readonly appendixCaption: string;
+}
+
+/* "8 stretnutí", "8 találkozó": a count of meetings in the language's own form. */
+const meetingsIn = (language: Language, n: number) =>
+  `${String(n)} ${plural(language, n, MEETINGS)}`;
+
+export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = {
+  en: {
+    kicker: "Agent summary",
+    lede: (organisation) =>
+      `Presenting for ${organisation}. One agent's summary, drawn from the read model their own screen draws, with the same figures at the same sample and the same floor. The audience is internal: nothing here is a score, and a buyer-facing document is a separate contract that is not assembled here.`,
+    crumbAgents: "Sales Agents",
+    crumbSummary: "Summary",
+    everyWritable: "Every section can be written from what this agent's screen has.",
+    ofMeetings: (total) => `of ${String(total)} meetings`,
+    unitColumns: ["Unit", "Meetings that opened it", "Share of their meetings", "Shortlisted"],
+    ofTheirMeetings: "of their meetings",
+    neverShortlisted: "Never shortlisted",
+    followUp: "Follow-up",
+    noFollowUpSource: "No source records whether a follow-up happened.",
+    outcomesTheyRecorded: "Outcomes they recorded",
+    recordedNote: (name) =>
+      `What ${name} entered on the showroom’s outcome widget as a purchase or a reservation. It is the agent’s own record — not a reservation and not a sale, and no CRM or other system of record has confirmed it: Observer links no deal to a meeting.`,
+    funnelLabel: (name) => `Stages ${name}'s meetings reached`,
+    presentationCaption: (name, below, n, minimum) =>
+      below
+        ? `${name}'s running order: where each section falls on average across their meetings, not one meeting's path, with their median stay in it. Neither the share of their timed time nor the team's median is printed beside their stops: at ${String(n)} meetings, ${String(minimum - n)} short of ${String(minimum)}, a share would be a rate read as a verdict and the comparison a judgement about how somebody works, drawn from a sample too thin to carry either.`
+        : `${name}'s running order: where each section falls on average across their meetings, not one meeting's path, with their median stay in it, the share of their timed presentation time it takes, and the team's median beside it, since a section time on its own has no scale.`,
+    presentationColumns: [
+      "Order",
+      "Section",
+      "Their median stay",
+      "Share of their timed time",
+      "Team median stay",
+    ],
+    notTimed: "Not timed",
+    ofTimed: (n) => `of ${String(n)} timed meetings`,
+    buyersCaption: (name, below, n, minimum) =>
+      below
+        ? `Meetings of ${name}'s in which at least one apartment of that size was opened. A meeting that showed a one-room flat and a four-room penthouse counts in both, so these do not sum to the meeting count. The project's own rate is not set beside them: at ${String(n)} meetings, ${String(minimum - n)} short of ${String(minimum)}, that comparison would be a judgement about how somebody works drawn from a sample too thin to carry one.`
+        : `Each row is one size of apartment: the share of ${name}'s meetings in which at least one unit of that size was opened, and the same rate over every meeting on the project in the period. The rows do not sum to one and this is not a mix — a meeting that showed a one-room flat and a four-room penthouse counts in both.`,
+    buyersColumns: ["Apartments", "Meetings that opened one", "Share of their meetings", "Project"],
+    noneOpened: "None opened",
+    ofEveryMeeting: "of every meeting on the project",
+    outcomeCaption: (name, below, n, minimum) =>
+      `How ${name}'s meetings ended: parts of one whole, every meeting of theirs in the period, by the outcome recorded at the end of it. ${String(n)} meetings is the denominator. Meetings with no outcome recorded are a row of their own rather than being folded into one that says something happened.${below ? ` No share is printed beside the counts: at ${String(n)} meetings, ${String(minimum - n)} short of ${String(minimum)}, a rate over this person's meetings is not a figure to act on, and each count already carries the denominator it is a fraction of.` : ""}`,
+    outcomeColumns: ["Outcome", "Meetings", "Share"],
+    unitsCaption: (name, period) =>
+      `Units opened in the largest share of ${name}'s meetings in ${period.toLowerCase()}, at most six. An association with this presenter's habit and nothing more: a unit opened in most of somebody's meetings may be the one the buyers ask for or the one the agent reaches for.`,
+    noOtherProject:
+      "No other project this account may open holds a meeting of theirs in this period.",
+    projectMeetings: (n, period) =>
+      `${String(n)} meeting${n === 1 ? "" : "s"} in ${period.toLowerCase()}`,
+    thisProject: "This project",
+    projectsNote:
+      "Scoped to the projects this account holds, never to the projects the agent holds. An agency selling for two developers is the ordinary arrangement, and a list that showed the rest of it would be a commercial fact about somebody else read off a staff page.",
+    registerCaption: (name, period) =>
+      `${name}'s most recent meetings in ${period.toLowerCase()}, newest first, at most eight.`,
+    registerEmpty: (name, period) =>
+      `No meeting of ${name}'s falls inside ${period.toLowerCase()}.`,
+    registerLink: "Every meeting of theirs in this period",
+    registerRest: " is the register these eight are taken from.",
+    appendixCaption:
+      "Every section of this summary with its state, its sample in its own noun, and the evidence reference it rests on.",
+  },
+  sk: {
+    kicker: "Zhrnutie makléra",
+    lede: (organisation) =>
+      `Prezentuje pre ${organisation}. Zhrnutie jedného makléra z toho istého dátového modelu, ktorý kreslí maklérska obrazovka, s rovnakými číslami pri rovnakej vzorke a rovnakej hranici. Určené na interné použitie: nič tu nie je skóre a dokument pre kupujúceho je samostatná zmluva, ktorá sa tu nezostavuje.`,
+    crumbAgents: "Makléri",
+    crumbSummary: "Zhrnutie",
+    everyWritable: "Každú sekciu možno napísať z toho, čo má maklérska obrazovka.",
+    ofMeetings: (total) =>
+      `${slovakZForm(total)} ${String(total)} ${total === 1 ? "stretnutia" : "stretnutí"}`,
+    unitColumns: ["Byt", "Stretnutia, ktoré ho otvorili", "Podiel stretnutí", "Obľúbené"],
+    ofTheirMeetings: "zo stretnutí",
+    neverShortlisted: "Nikdy nepridaný do obľúbených",
+    followUp: "Ďalší kontakt",
+    noFollowUpSource: "Žiadny zdroj nezaznamenáva, či sa ďalší kontakt uskutočnil.",
+    outcomesTheyRecorded: "Zaznamenané výsledky",
+    recordedNote: (name) =>
+      `Záznamy z widgetu výsledkov v showroome, kde ${name} označuje kúpu alebo rezerváciu. Je to vlastný záznam makléra — nie rezervácia ani predaj, a žiadne CRM ani iný systém záznamov ho nepotvrdil: Observer nespája žiadny obchod so stretnutím.`,
+    funnelLabel: (name) => `Fázy, ktoré dosiahli stretnutia – ${name}`,
+    presentationCaption: (name, below, n, minimum) =>
+      below
+        ? `Poradie sekcií – ${name}: kde každá sekcia v priemere padne naprieč stretnutiami, nie cesta jedného stretnutia, s mediánom času v nej. Podiel na meranom čase ani medián tímu sa vedľa zastávok netlačí: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by podiel bol mierou čítanou ako hodnotenie a porovnanie úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky na oboje.`
+        : `Poradie sekcií – ${name}: kde každá sekcia v priemere padne naprieč stretnutiami, nie cesta jedného stretnutia, s mediánom času v nej, podielom na meranom čase prezentácie a vedľa neho mediánom tímu, pretože čas sekcie sám osebe nemá mierku.`,
+    presentationColumns: [
+      "Poradie",
+      "Sekcia",
+      "Medián času",
+      "Podiel meraného času",
+      "Medián tímu",
+    ],
+    notTimed: "Bez merania času",
+    ofTimed: (n) =>
+      `${slovakZForm(n)} ${String(n)} ${n === 1 ? "stretnutia s meraným časom" : "stretnutí s meraným časom"}`,
+    buyersCaption: (name, below, n, minimum) =>
+      below
+        ? `Stretnutia – ${name}, na ktorých sa otvoril aspoň jeden byt danej veľkosti. Stretnutie, ktoré ukázalo jednoizbový byt aj štvorizbový penthouse, sa počíta v oboch, takže súčet nedáva počet stretnutí. Miera celého projektu sa vedľa neuvádza: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by také porovnanie bolo úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky.`
+        : `Každý riadok je jedna veľkosť bytu: podiel stretnutí – ${name}, na ktorých sa otvoril aspoň jeden byt tej veľkosti, a rovnaká miera za všetky stretnutia na projekte v období. Riadky nedávajú súčet jedna a nejde o skladbu — stretnutie, ktoré ukázalo jednoizbový byt aj štvorizbový penthouse, sa počíta v oboch.`,
+    buyersColumns: ["Byty", "Stretnutia, ktoré nejaký otvorili", "Podiel stretnutí", "Projekt"],
+    noneOpened: "Žiadny otvorený",
+    ofEveryMeeting: "zo všetkých stretnutí na projekte",
+    outcomeCaption: (name, below, n, minimum) =>
+      `Ako sa skončili stretnutia – ${name}: časti jedného celku, všetky stretnutia v období podľa výsledku zaznamenaného na ich konci. Menovateľ: ${meetingsIn("sk", n)}. Stretnutia bez zaznamenaného výsledku majú vlastný riadok, namiesto toho, aby sa zlúčili s riadkom, ktorý tvrdí, že sa niečo stalo.${below ? ` Vedľa počtov sa netlačí podiel: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, miera nad stretnutiami tohto človeka nie je číslo, podľa ktorého konať, a každý počet už nesie menovateľa, ktorého je podielom.` : ""}`,
+    outcomeColumns: ["Výsledok", "Stretnutia", "Podiel"],
+    unitsCaption: (name, period) =>
+      `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac šesť. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
+    noOtherProject:
+      "V tomto období nie je na žiadnom inom projekte tohto konta žiadna ďalšia prezentácia.",
+    projectMeetings: (n, period) => `${meetingsIn("sk", n)} (${period.toLowerCase()})`,
+    thisProject: "Tento projekt",
+    projectsNote:
+      "Obmedzené na projekty tohto konta, nikdy nie na projekty makléra. Agentúra, ktorá predáva pre dvoch developerov, je bežné usporiadanie, a zoznam, ktorý by ukázal zvyšok, by bol obchodným faktom o niekom inom vyčítaným zo stránky zamestnanca.",
+    registerCaption: (name, period) =>
+      `Posledné stretnutia – ${name} (${period.toLowerCase()}), od najnovšieho, najviac osem.`,
+    registerEmpty: (name, period) =>
+      `V období (${period.toLowerCase()}) nie je žiadne stretnutie – ${name}.`,
+    registerLink: "Všetky stretnutia v tomto období",
+    registerRest: " sú register, z ktorého je týchto osem vybraných.",
+    appendixCaption:
+      "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na podklady, na ktorých stojí.",
+  },
+  hu: {
+    kicker: "Értékesítői összefoglaló",
+    lede: (organisation) =>
+      `${hungarianArticle(organisation, true)} ${organisation} megbízásából mutat be. Egy értékesítő összefoglalója, ugyanabból az adatmodellből, amelyet a saját képernyője rajzol, ugyanazokkal a számokkal, ugyanakkora mintán és ugyanazzal a küszöbbel. Belső használatra: semmi sem pontszám itt, a vevőnek szóló dokumentum pedig külön szerződés, amely itt nem készül.`,
+    crumbAgents: "Értékesítők",
+    crumbSummary: "Összefoglaló",
+    everyWritable: "Minden szakasz megírható abból, ami az értékesítő képernyőjén van.",
+    ofMeetings: (total) => `${String(total)} találkozó közül`,
+    unitColumns: ["Lakás", "Találkozók, amelyek megnyitották", "A találkozói aránya", "Kedvencek"],
+    ofTheirMeetings: "a találkozói közül",
+    neverShortlisted: "Soha nem került a kedvencek közé",
+    followUp: "Utánkövetés",
+    noFollowUpSource: "Egyetlen forrás sem rögzíti, megtörtént-e az utánkövetés.",
+    outcomesTheyRecorded: "Rögzített eredményei",
+    recordedNote: (name) =>
+      `Amit ${name} a showroom eredménymezőjében vásárlásként vagy foglalásként rögzített. Ez az értékesítő saját bejegyzése — nem foglalás és nem eladás, és sem CRM, sem más nyilvántartó rendszer nem erősítette meg: az Observer egyetlen ügyletet sem köt találkozóhoz.`,
+    funnelLabel: (name) => `${name} találkozóinak elért szakaszai`,
+    presentationCaption: (name, below, n, minimum) =>
+      below
+        ? `${name} sorrendje: hol áll átlagosan az egyes szakasz a találkozói során — nem egyetlen találkozó útja —, a benne töltött medián idővel. A mért idejéből való részarány és a csapat mediánja nem szerepel a megállók mellett: ${meetingsIn("hu", n)} mellett (a szükséges szám ${String(minimum)}, ${String(minimum - n)} hiányzik) egy részarány értékelésként olvasott arány lenne, az összevetés pedig ítélet arról, hogyan dolgozik valaki, túl vékony mintából bármelyikhez.`
+        : `${name} sorrendje: hol áll átlagosan az egyes szakasz a találkozói során — nem egyetlen találkozó útja —, a benne töltött medián idővel, a mért bemutatási idejéből való részarányával és mellette a csapat mediánjával, mert egy szakaszidőnek önmagában nincs mércéje.`,
+    presentationColumns: [
+      "Sorrend",
+      "Szakasz",
+      "Medián idő",
+      "A mért idő aránya",
+      "A csapat mediánja",
+    ],
+    notTimed: "Nincs időmérés",
+    ofTimed: (n) => `${String(n)} mért idejű találkozó közül`,
+    buyersCaption: (name, below, n, minimum) =>
+      below
+        ? `${name} találkozói, amelyeken legalább egy ilyen méretű lakást megnyitottak. Egy találkozó, amely egyszobás lakást és négyszobás penthouse-t is mutatott, mindkettőben számít, így ezek összege nem adja ki a találkozók számát. A projekt saját aránya nem áll mellettük: ${meetingsIn("hu", n)} mellett (a szükséges szám ${String(minimum)}, ${String(minimum - n)} hiányzik) ez az összevetés ítélet lenne arról, hogyan dolgozik valaki, túl vékony mintából.`
+        : `Minden sor egy lakásméret: ${name} találkozóinak az a része, amelyen legalább egy ilyen méretű lakást megnyitottak, és ugyanez az arány a projekt összes találkozóján az időszakban. A sorok összege nem egy, és ez nem összetétel — egy találkozó, amely egyszobás lakást és négyszobás penthouse-t is mutatott, mindkettőben számít.`,
+    buyersColumns: [
+      "Lakások",
+      "Találkozók, amelyek megnyitottak egyet",
+      "A találkozói aránya",
+      "Projekt",
+    ],
+    noneOpened: "Egyet sem nyitottak meg",
+    ofEveryMeeting: "a projekt összes találkozójából",
+    outcomeCaption: (name, below, n, minimum) =>
+      `Hogyan zárultak ${name} találkozói: egy egész részei, az időszak összes találkozója a végén rögzített eredmény szerint. A nevező: ${meetingsIn("hu", n)}. A rögzített eredmény nélküli találkozók külön sort kapnak, ahelyett hogy beolvadnának egy olyanba, amely azt állítja, hogy történt valami.${below ? ` A darabszámok mellett nincs részarány: ${meetingsIn("hu", n)} mellett (a szükséges szám ${String(minimum)}, ${String(minimum - n)} hiányzik) az ember találkozóin számolt arány nem olyan szám, amely alapján cselekedni lehet, és minden darabszám már hordozza a nevezőjét.` : ""}`,
+    outcomeColumns: ["Eredmény", "Találkozók", "Arány"],
+    unitsCaption: (name, period) =>
+      `A lakások, amelyeket ${name} találkozóinak legnagyobb részében megnyitottak (${period.toLowerCase()}), legfeljebb hat. Összefüggés a bemutató szokásával, semmi több: egy lakás, amelyet valakinek a legtöbb találkozóján megnyitnak, lehet az, amelyet a vevők kérnek, vagy az, amelyhez az értékesítő nyúl.`,
+    noOtherProject: "Ebben az időszakban a fiók egyetlen másik projektjén sincs találkozója.",
+    projectMeetings: (n, period) => `${meetingsIn("hu", n)} (${period.toLowerCase()})`,
+    thisProject: "Ez a projekt",
+    projectsNote:
+      "Csak a fiók projektjeire szűkítve, soha nem az értékesítőéire. Egy ügynökség, amely két fejlesztőnek értékesít, a megszokott felállás, és egy lista, amely a többit is megmutatná, egy másik félről szóló üzleti tény lenne, egy munkatársi oldalról kiolvasva.",
+    registerCaption: (name, period) =>
+      `${name} legutóbbi találkozói (${period.toLowerCase()}), a legújabbal kezdve, legfeljebb nyolc.`,
+    registerEmpty: (name, period) =>
+      `${name} egyetlen találkozója sem esik az időszakba (${period.toLowerCase()}).`,
+    registerLink: "Az időszak összes találkozója",
+    registerRest: " az a lista, amelyből ez a nyolc származik.",
+    appendixCaption:
+      "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a bizonyíték hivatkozásával, amelyen áll.",
+  },
 };

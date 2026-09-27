@@ -48,7 +48,7 @@ export function withLanguage(href: string, language: Language): string {
 export const WRITTEN_IN: Readonly<Record<ReportScope["kind"], readonly Language[]>> = {
   project: ["en", "sk", "hu"],
   meeting: ["en", "sk", "hu"],
-  agent: ["en"],
+  agent: ["en", "sk", "hu"],
 };
 
 /** `language` where `kind` is written in it; otherwise the default, whole, rather than a mixture. */

@@ -1,4 +1,10 @@
-import type { FunnelStep, PeriodPreset } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  slovakZForm,
+  type FunnelStep,
+  type Language,
+  type PeriodPreset,
+} from "@observer/readmodels";
 
 import { Evidence, Figure } from "@/components/product";
 
@@ -37,15 +43,25 @@ import { Evidence, Figure } from "@/components/product";
  * reported as a gap rather than guessed at from whether a CRM happens to be
  * connected.
  */
+/* "of 14" beside a stage whose figure carries no denominator of its own. */
+const FROM: Readonly<Record<Language, (n: number) => string>> = {
+  en: (n) => `of ${String(n)}`,
+  sk: (n) => `${slovakZForm(n)} ${String(n)}`,
+  hu: (n) => `${String(n)} közül`,
+};
+
 export function StageFunnel({
   steps,
   period,
   label,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly steps: readonly FunnelStep[];
   readonly period: PeriodPreset;
   /** The accessible name of the list of stages. */
   readonly label: string;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
   if (steps.length === 0) return null;
 
@@ -94,7 +110,7 @@ export function StageFunnel({
             )}
 
             <span className="ox-stage-figures">
-              <Figure value={step.metric} />
+              <Figure value={step.metric} language={language} />
 
               {/*
                * The denominator is printed ONCE.
@@ -109,7 +125,7 @@ export function StageFunnel({
                * metric came back empty.
                */}
               {step.metric.qualifier === null && step.fromCount !== null ? (
-                <span className="ox-stage-drop">of {step.fromCount}</span>
+                <span className="ox-stage-drop">{FROM[language](step.fromCount)}</span>
               ) : null}
 
               {/*
@@ -119,7 +135,7 @@ export function StageFunnel({
                * is stated once for its region, which is the surface's job.
                */}
               {step.metric.evidence === null ? null : (
-                <Evidence evidence={step.metric.evidence} period={period} />
+                <Evidence evidence={step.metric.evidence} period={period} language={language} />
               )}
             </span>
           </div>

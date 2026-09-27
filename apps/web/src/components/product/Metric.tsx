@@ -1,5 +1,55 @@
 import type { ReactNode } from "react";
-import type { MetricComparison, MetricValue } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  slovakZForm,
+  type Language,
+  type MetricComparison,
+  type MetricValue,
+} from "@observer/readmodels";
+
+/*
+ * A figure's own words, in each language a report can be printed in. The
+ * screens are English; a printed report passes the reader's language. Slovak
+ * and Hungarian are drafts for review (P2-17).
+ */
+const FIGURE_WORDS: Readonly<
+  Record<
+    Language,
+    {
+      readonly against: (baseline: string) => string;
+      readonly belowMinimum: (minimum: number) => string;
+      readonly needed: (n: number, minimum: number) => string;
+      readonly unavailable: string;
+      readonly didNotLoad: string;
+      readonly notRecorded: string;
+    }
+  >
+> = {
+  en: {
+    against: (baseline) => `against ${baseline}`,
+    belowMinimum: (minimum) => `below the minimum of ${String(minimum)}`,
+    needed: (n, minimum) => `${String(n)} of ${String(minimum)} needed`,
+    unavailable: "Unavailable",
+    didNotLoad: "Did not load",
+    notRecorded: "Not recorded",
+  },
+  sk: {
+    against: (baseline) => `porovnanie: ${baseline}`,
+    belowMinimum: (minimum) => `pod minimom ${String(minimum)}`,
+    needed: (n, minimum) => `${String(n)} ${slovakZForm(minimum)} ${String(minimum)} potrebných`,
+    unavailable: "Nedostupné",
+    didNotLoad: "Nenačítalo sa",
+    notRecorded: "Nezaznamenané",
+  },
+  hu: {
+    against: (baseline) => `összevetés: ${baseline}`,
+    belowMinimum: (minimum) => `a ${String(minimum)} fős minimum alatt`,
+    needed: (n, minimum) => `${String(minimum)} szükségesből ${String(n)}`,
+    unavailable: "Nem elérhető",
+    didNotLoad: "Nem töltődött be",
+    notRecorded: "Nincs rögzítve",
+  },
+};
 
 /**
  * THE FIGURE. The single most load-bearing component in this layer.
@@ -70,7 +120,13 @@ import type { MetricComparison, MetricValue } from "@observer/readmodels";
  * is a smaller cost than printing a red improvement, and the gap is reported
  * rather than papered over.
  */
-function Delta({ comparison }: { readonly comparison: MetricComparison }) {
+function Delta({
+  comparison,
+  language,
+}: {
+  readonly comparison: MetricComparison;
+  readonly language: Language;
+}) {
   /*
    * A refused comparison is stated, never silently dropped. `refusedReason` is
    * set when the two periods are not comparable — an attribution policy changed
@@ -87,10 +143,10 @@ function Delta({ comparison }: { readonly comparison: MetricComparison }) {
     <span
       className="ox-delta"
       {...(paintable ? { "data-direction": comparison.direction } : {})}
-      title={`against ${comparison.baselineLabel}`}
+      title={FIGURE_WORDS[language].against(comparison.baselineLabel)}
     >
       {comparison.deltaDisplay}
-      <span className="ox-sr"> against {comparison.baselineLabel}</span>
+      <span className="ox-sr"> {FIGURE_WORDS[language].against(comparison.baselineLabel)}</span>
     </span>
   );
 }
@@ -102,14 +158,24 @@ function Delta({ comparison }: { readonly comparison: MetricComparison }) {
  * of the sheet's baseline-aligned rows without the caller knowing which state
  * came back.
  */
-export function Figure({ value }: { readonly value: MetricValue }) {
+export function Figure({
+  value,
+  language = DEFAULT_LANGUAGE,
+}: {
+  readonly value: MetricValue;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
+}) {
+  const words = FIGURE_WORDS[language];
   switch (value.state) {
     case "ok":
       return (
         <span className="ox-value">
           <span className="ox-figure">{value.display}</span>
           {value.qualifier === null ? null : <span className="ox-of">{value.qualifier}</span>}
-          {value.comparison === null ? null : <Delta comparison={value.comparison} />}
+          {value.comparison === null ? null : (
+            <Delta comparison={value.comparison} language={language} />
+          )}
         </span>
       );
 
@@ -136,8 +202,8 @@ export function Figure({ value }: { readonly value: MetricValue }) {
       const shortfall =
         value.message ??
         (value.sampleSize === null
-          ? `below the minimum of ${value.minimumSampleSize}`
-          : `${value.sampleSize} of ${value.minimumSampleSize} needed`);
+          ? words.belowMinimum(value.minimumSampleSize)
+          : words.needed(value.sampleSize, value.minimumSampleSize));
       return (
         <span className="ox-insufficient">
           <span className="ox-figure">{value.display}</span>
@@ -155,7 +221,7 @@ export function Figure({ value }: { readonly value: MetricValue }) {
        */
       return (
         <span className="ox-value" data-missing="true" {...titleOf(value.message)}>
-          Unavailable
+          {words.unavailable}
         </span>
       );
 
@@ -168,14 +234,14 @@ export function Figure({ value }: { readonly value: MetricValue }) {
        */
       return (
         <span className="ox-value" data-missing="true" {...titleOf(value.message)}>
-          {value.message ?? "Did not load"}
+          {value.message ?? words.didNotLoad}
         </span>
       );
   }
 
   return (
     <span className="ox-value" data-missing="true">
-      Not recorded
+      {words.notRecorded}
     </span>
   );
 }

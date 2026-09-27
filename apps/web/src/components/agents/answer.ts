@@ -1,4 +1,23 @@
-import type { AgentDetailView } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  hungarianArticle,
+  slovakZForm,
+  type AgentDetailView,
+  type Language,
+} from "@observer/readmodels";
+
+/* The habit's sentence in the other languages a report can be printed in; drafts for review (P2-17). */
+const HABIT: Readonly<
+  Record<
+    Exclude<Language, "en">,
+    (name: string, index: string, section: string, timed: number, held: number) => string
+  >
+> = {
+  sk: (name, index, section, timed, held) =>
+    `${name} venuje sekcii ${section} ${index}× väčší podiel času prezentácie ako tím (${String(timed)} ${slovakZForm(held)} ${String(held)} stretnutí, ktoré zdroj dokázal zmerať od začiatku do konca).`,
+  hu: (name, index, section, timed, held) =>
+    `${name} a csapatnál ${index}× nagyobb arányban tölti a bemutatási idejét ${hungarianArticle(section)} ${section} szakaszban (${String(held)} találkozóból ${String(timed)}, amelyet a forrás elejétől végéig mérni tudott).`,
+};
 
 /**
  * THE TEN-SECOND ANSWER OF ONE AGENT'S SCREEN, AND THE TWO THINGS IT MAY BE.
@@ -14,13 +33,24 @@ import type { AgentDetailView } from "@observer/readmodels";
  * screen and their printed summary — and two copies of a sentence about a
  * named person is how the two come to say different things about them.
  */
-export function agentAnswer(view: AgentDetailView): string | null {
+export function agentAnswer(
+  view: AgentDetailView,
+  language: Language = DEFAULT_LANGUAGE,
+): string | null {
   return (
     view.suppressionNote ??
     /* The habit's own floor, on the timed set: the read model's reason, not the habit. */
     view.profile.signatureNote ??
     (view.profile.signature === null
       ? null
-      : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}, across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end.`)
+      : language === "en"
+        ? `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}, across the ${view.profile.timedMeetings} of ${view.sampleSize} meetings the source could time end to end.`
+        : HABIT[language](
+            view.name,
+            view.profile.signature.overIndex.toFixed(1),
+            view.profile.signature.label,
+            view.profile.timedMeetings,
+            view.sampleSize,
+          ))
   );
 }
