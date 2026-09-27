@@ -439,8 +439,11 @@ export default async function FlowPage({
               measured
             />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
-              The marked week is the largest single change in the series. What moved it is not in
-              this data.
+              {charts.trend.annotation === null
+                ? null
+                : "The marked week is the largest single change in the series. What moved it is not in this data. "}
+              Only the weeks the period holds whole are drawn: a week still running, or one the
+              period cuts, is not set against a full one.
             </p>
           </div>
 

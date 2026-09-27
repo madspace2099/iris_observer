@@ -102,6 +102,60 @@ describe("Sales Flow's windows inside the quarter to date", () => {
 });
 
 /*
+ * The same rule for "Presentations week by week". The week still running was a
+ * point — one day old on the synthetic Monday — and was marked "±9 against the
+ * week before"; a quarter ending on a Wednesday ended on a two-day week marked
+ * "±4". Weeks are Monday to Monday in Bratislava; the labels are written out.
+ */
+describe("the weekly series inside a period", () => {
+  /** Northgate's meetings in the seven days from `monday`, midnight in Bratislava (UTC+2 all summer). */
+  const week = (monday: string) => {
+    const from = Date.parse(`${monday}T00:00:00+02:00`);
+    return showroomSessions().filter(
+      (s) =>
+        s.projectId === "prj_northgate01" &&
+        Date.parse(s.startedAt) >= from &&
+        Date.parse(s.startedAt) < from + 7 * 24 * 60 * 60 * 1000,
+    ).length;
+  };
+  const trendOf = async (period: Parameters<typeof query>[0]) =>
+    (await syntheticRepository.getFlowCharts(query(period), "month")).trend;
+
+  it("draws only the weeks the quarter to date holds whole", async () => {
+    const trend = await trendOf("quarter_to_date");
+    // Not 29 June (the quarter began on the Wednesday) and not 24 August (one day old).
+    expect(trend.points.map((p) => p.label)).toEqual([
+      "6 Jul",
+      "13 Jul",
+      "20 Jul",
+      "27 Jul",
+      "3 Aug",
+      "10 Aug",
+      "17 Aug",
+    ]);
+    expect(trend.points.map((p) => p.value)).toEqual(
+      [
+        "2026-07-06",
+        "2026-07-13",
+        "2026-07-20",
+        "2026-07-27",
+        "2026-08-03",
+        "2026-08-10",
+        "2026-08-17",
+      ].map(week),
+    );
+  });
+
+  it("draws only the weeks a completed quarter holds whole", async () => {
+    const trend = await trendOf("last_quarter");
+    // Not 30 March (1 April was a Wednesday) and not 29 June (the quarter ended on 1 July).
+    expect(trend.points[0]?.label).toBe("6 Apr");
+    expect(trend.points.at(-1)?.label).toBe("22 Jun");
+    expect(trend.points).toHaveLength(12);
+  });
+});
+
+/*
  * A period that cuts a window in two. Friday 13 March 2026 in Bratislava
  * (UTC+1), a period that began on the Wednesday: this week ran from Monday, so
  * the period holds three of its days. Counting those three as "this week"

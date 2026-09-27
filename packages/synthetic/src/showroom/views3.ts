@@ -414,7 +414,7 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
  * `stillRunning` in `buildSalesFlow` already mirrors it: a period still running
  * reaches the end of today, a closed one stops at its own end.
  */
-function sliceSpan(
+export function sliceSpan(
   context: ViewContext,
   today: Date,
 ): { readonly from: number; readonly to: number } {

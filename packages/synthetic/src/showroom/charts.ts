@@ -43,7 +43,7 @@ import {
 import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { meetings, suppressionNoteFor } from "./views3";
+import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
 
 /**
  * The figures behind the chart vocabulary.
@@ -825,6 +825,8 @@ export function buildTrend(
   sessions: readonly ShowroomSession[],
   locale: string,
   timeZone: string,
+  /** The period's slice (`sliceSpan`); without one, every week the meetings fall in is drawn. */
+  span: { readonly from: number; readonly to: number } = { from: -Infinity, to: Infinity },
 ): TrendSeries {
   /*
    * Weeks start on the project's Monday, at its own midnight. They used to
@@ -850,13 +852,23 @@ export function buildTrend(
   if (first !== undefined && last !== undefined) {
     const day = 24 * 60 * 60 * 1000;
     for (let week = first; week <= last;) {
-      points.push({
-        label: dayLabel(new Date(week), locale, timeZone),
-        value: weeks.get(week) ?? 0,
-      });
       // Seven days on, re-anchored to Monday midnight so a clock change inside
       // the week cannot drift the next start by an hour.
-      week = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+      const next = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+      /*
+       * Only a week the period holds whole is a point. The week still running
+       * — one day old on a Monday — was drawn as a week and marked "±9 against
+       * the week before", and a quarter that ends on a Wednesday ended on a
+       * two-day week marked the same way: part-weeks against whole ones, the
+       * comparison Sales Flow says it never makes.
+       */
+      if (week >= span.from && next - 1 <= span.to) {
+        points.push({
+          label: dayLabel(new Date(week), locale, timeZone),
+          value: weeks.get(week) ?? 0,
+        });
+      }
+      week = next;
     }
   }
 
@@ -1011,7 +1023,7 @@ export function buildFlowCharts(
     kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
     activity: buildActivity(sessions, timeZone),
     composition: buildComposition(sessions, locale, timeZone),
-    trend: buildTrend(sessions, locale, timeZone),
+    trend: buildTrend(sessions, locale, timeZone, sliceSpan(context, today)),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
     longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),
