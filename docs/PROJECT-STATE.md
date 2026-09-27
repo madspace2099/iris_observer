@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `1c58eaf`** · Latest: **P2-17 — the report prints in Slovak, English
+`origin`; the last code commit is `786b396`** · Latest: **P2-17 — the report prints in Slovak, English
 and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
 the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
 (`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
@@ -5112,8 +5112,10 @@ Closed after the first measurement, pushed:
   on the projects that record none (R02, as a proven bug).
 - `0c45214` — an empty period's two Sales Flow sections say what they cannot draw.
 - `1c58eaf` — the trend line's last x label ends at its point; centred, it ran past the frame ("17 Au").
+- `786b396` — the shortlisted follow-up state's action says it opens the meeting register; "Open those
+  meetings" opened all 74 for 41 counted. The matching filtered list needs an R08 filter (approval).
 
-**Verification at `1c58eaf`:** `pnpm test` 220 files, 4,348 passed, 1 skipped.
+**Verification at `786b396`:** `pnpm test` 220 files, 4,350 passed, 1 skipped.
 
 **Next recommended action.** Máté's decisions, in the order the document lists them: the index's
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On

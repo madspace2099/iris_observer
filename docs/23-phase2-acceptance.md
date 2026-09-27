@@ -244,6 +244,7 @@ Corrected, each with a test:
 - **The Briefing's door to Sales Flow read "0% progressing" where no outcome is recorded** — `ec24669`. Riverside and Kingsford; the figure beside it had long since been corrected from this reading, the door had not. It now says "no outcome recorded". On the frozen R02, as a proven bug.
 - **An empty period's Sales Flow sections** — `0c45214`. Under a quarter Kingsford did not exist in, "Its 0 meetings are counted by outcome" and a weekly heading over a caption alone; both now say what they cannot draw.
 - **The trend line's last label cut by its frame** — `1c58eaf`. Centred on a point 16 units from the right edge, the last week's label read "17 Au" under Sales Flow's weekly line at every width; it now ends at its point, as the flow chart's end labels already do.
+- **"Open those meetings" that opened every meeting** — `786b396`. "Units shortlisted with no follow-up recorded" counted 41 of 67 and its action opened the whole register (74 rows). The register has no filter for that set, so the action now says it opens the register; a filtered list whose count matches needs a new R08 filter control, which waits for approval (R04 above).
 - **A figure under the floor that lost its denominator** — `d2331d5`. Every surface that draws a `Figure` below its sample now keeps the denominator beside the shortfall.
 
 Recorded, not changed — each needs a decision or touches a frozen surface:
