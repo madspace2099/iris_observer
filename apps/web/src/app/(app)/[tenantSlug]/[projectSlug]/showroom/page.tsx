@@ -92,12 +92,14 @@ const SIGNAL_LABELS: Readonly<Record<ShowroomSignal, string>> = {
   good: "On course",
   attention: "Needs a look",
   poor: "Going the wrong way",
+  no_verdict: "No verdict",
 };
 
 const SIGNAL_TONES: Readonly<Record<ShowroomSignal, string>> = {
   good: "good",
   attention: "watch",
   poor: "poor",
+  no_verdict: "none",
 };
 
 export default async function BriefingPage({

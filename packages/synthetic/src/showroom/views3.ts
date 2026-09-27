@@ -2076,6 +2076,44 @@ export function buildHome(
   const hasBaseline = previous.length > 0;
 
   /*
+   * ONE WINDOW (decided 2026-09-27).
+   *
+   * The progression beside a month's meetings is that month's. The sentence
+   * read "32 meetings this month against 32 last month, and 40% of recorded
+   * meetings progressing against 34% before": the 40% was the whole period's,
+   * and Sales Flow gave the same month 45%. Volume, progression and the signal
+   * now read the window the volume names, against that window's own pair.
+   */
+  const [nowBucket, beforeBucket] = pair;
+  const windowDecided = spanned ? decided.length : (nowBucket?.outcomeRecorded ?? 0);
+  const windowProgressed = spanned
+    ? decided.filter((s) => hasProgressed(s.outcome)).length
+    : (nowBucket?.progressed ?? 0);
+  const beforeDecided = !hasBaseline
+    ? 0
+    : spanned
+      ? previousDecided.length
+      : (beforeBucket?.outcomeRecorded ?? 0);
+  const beforeProgressed = !hasBaseline
+    ? 0
+    : spanned
+      ? previousDecided.filter((s) => hasProgressed(s.outcome)).length
+      : (beforeBucket?.progressed ?? 0);
+  const rate = share(windowProgressed, windowDecided);
+  const beforeRate = share(beforeProgressed, beforeDecided);
+
+  /*
+   * NO VERDICT BELOW THE SAMPLE (decided 2026-09-27).
+   *
+   * The signal is a comparison, so it needs both sides of one: an earlier
+   * period, and at least `AGENT_MIN_SAMPLE` recorded outcomes on each side of
+   * the window. Short of that there is no verdict. Four meetings with no
+   * earlier period read "on course" here, from thresholds nobody had named.
+   */
+  const readable =
+    hasBaseline && windowDecided >= AGENT_MIN_SAMPLE && beforeDecided >= AGENT_MIN_SAMPLE;
+
+  /*
    * Down, flat, or up — not a boolean.
    *
    * `trend()`'s deadband is what keeps one extra meeting from flipping the
@@ -2087,25 +2125,18 @@ export function buildHome(
   const volumeTrend: Trend =
     volume.before === 0 ? (volume.now > 0 ? "up" : "flat") : trend(volume.now / volume.before, 0.8);
   const progressTrend: Trend =
-    previousProgressed === 0
-      ? progressed > 0.3
-        ? "up"
-        : "flat"
-      : trend(progressed / previousProgressed, 0.9);
+    beforeRate === 0 ? (rate > 0 ? "up" : "flat") : trend(rate / beforeRate, 0.9);
 
-  /*
-   * Without outcomes the signal rests on volume alone, and says so.
-   *
-   * Grading a project on a rate it cannot measure would put a confident colour
-   * on the screen with nothing behind it.
-   */
-  const signal: ShowroomSignal = !outcomesRecorded
-    ? "attention"
+  const signal: ShowroomSignal = !readable
+    ? "no_verdict"
     : volumeTrend === "up" && progressTrend === "up"
       ? "good"
       : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
+
+  const outcomes = (n: number) =>
+    `${count(n, locale)} recorded ${n === 1 ? "outcome" : "outcomes"}`;
 
   /*
    * "The showroom is running" is a claim, and with no meeting at all it was made
@@ -2117,11 +2148,17 @@ export function buildHome(
       (sessions.length === 0
         ? `No presentations were recorded in ${context.period.label.toLowerCase()}.`
         : "The showroom is running; no outcomes are being recorded."))
-    : signal === "good"
-      ? "The showroom is on course."
-      : signal === "poor"
-        ? "The showroom is going the wrong way."
-        : "The showroom needs a look.";
+    : readable
+      ? signal === "good"
+        ? "The showroom is on course."
+        : signal === "poor"
+          ? "The showroom is going the wrong way."
+          : "The showroom needs a look."
+      : windowDecided < AGENT_MIN_SAMPLE
+        ? `${outcomes(windowDecided)} ${volume.nowWords}; ${count(AGENT_MIN_SAMPLE, locale)} needed for a verdict.`
+        : !hasBaseline
+          ? "There is no earlier period to compare against, so there is no verdict."
+          : `${outcomes(beforeDecided)} ${volume.beforeWords} to compare against; ${count(AGENT_MIN_SAMPLE, locale)} needed for a verdict.`;
 
   /*
    * The progression clause, or an honest statement that there is none.
@@ -2134,9 +2171,13 @@ export function buildHome(
     ? `. No meeting outcome has been recorded on this project, so no progression rate can be computed.${
         hasBaseline ? "" : " There is no earlier period to compare against either."
       }`
-    : hasBaseline
-      ? `, and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
-      : `, and ${percent(progressed, locale)} of recorded meetings progressing. There is no earlier period to compare against.`;
+    : windowDecided === 0
+      ? `. No meeting ${volume.nowWords} carries a recorded outcome, so no progression rate can be computed for it.`
+      : !hasBaseline
+        ? `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing. There is no earlier period to compare against.`
+        : beforeDecided === 0
+          ? `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing. No meeting ${volume.beforeWords} carries a recorded outcome to compare against.`
+          : `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing against ${percent(beforeRate, locale)} ${volume.beforeWords}.`;
 
   /*
    * A project with no history is not a project that did badly.

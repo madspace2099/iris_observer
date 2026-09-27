@@ -29,9 +29,12 @@ import type { ShowroomFinding } from "./showroom";
  * Whether things are going well.
  *
  * Three states, not a score. A number between 0 and 100 invites the reader to
- * watch it move by a point; a word makes them ask why.
+ * watch it move by a point; a word makes them ask why. And a fourth that is not
+ * a state of the showroom at all: `no_verdict`, below the minimum sample or
+ * with nothing earlier to compare against, where any of the three would be a
+ * verdict the figures cannot carry.
  */
-export type ShowroomSignal = "good" | "attention" | "poor";
+export type ShowroomSignal = "good" | "attention" | "poor" | "no_verdict";
 
 export interface HomeFigure {
   readonly id: string;
