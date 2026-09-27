@@ -917,7 +917,8 @@ export function buildShowroomOverview(
       baseline: `${percent(scored(both), locale)} of ${count(both.length, locale)} against ${percent(scored(rest), locale)} of ${count(rest.length, locale)}`,
       soWhat:
         "Worth looking at in Presentation Intelligence, where the two groups can be put side by side and the exceptions inspected.",
-      nextStep: { label: "Compare the cohorts", href: `${base}/presentation?compare=cohorts` },
+      // `mode` is what Presentation DNA reads; `compare` opened its default, two agents.
+      nextStep: { label: "Compare the cohorts", href: `${base}/presentation?mode=cohorts` },
       evidence: evidenceRef(
         "behaviour-outcome",
         "statistical_association",

@@ -890,8 +890,14 @@ export function buildSalesFlow(
       }),
       baseline: flowWords.periodBaseline(percent(share(unrecorded, sessions.length), locale)),
       soWhat: flowWords.unrecordedSoWhat,
-      nextStep: { label: flowWords.seeMeetings, href: `${base}/meetings` },
-      evidence: evidenceRef("flow-unrecorded", "observed_sequence", `${base}/meetings`, unrecorded),
+      // The meetings it counts, as What needs attention's same state opens them (24e573e).
+      nextStep: { label: flowWords.seeMeetings, href: `${base}/meetings?outcome=skipped` },
+      evidence: evidenceRef(
+        "flow-unrecorded",
+        "observed_sequence",
+        `${base}/meetings?outcome=skipped`,
+        unrecorded,
+      ),
       sampleSize: sessions.length,
       sources: [...WITH_OUTCOME],
       caveat: null,
