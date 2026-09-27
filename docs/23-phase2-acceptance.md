@@ -37,6 +37,10 @@ whole meetings register instead of the meetings it counted (`24e573e`). A fourth
   - End to end, `desktop` (1440): `observer-product` — 34 passed, 1 skipped ("08 on a handset": no
     screen has that id), 0 failed. It includes the link crawl ("draws no link that does not resolve",
     12.8 s), the layout check at 1280, 1024 and 768, and axe on thirteen screens.
+  - **After the corrections**, 2026-09-27 morning: `pnpm test` 223 files, 4,356 passed, 1 skipped at
+    `4e03140`. The whole `wide` project: 321 passed, 151 skipped, 0 failed. The whole `desktop`
+    project: 391 passed, 81 skipped, 0 failed at `3db2d9b`; its first whole run found two
+    failures older than this document, corrected in `4e03140`. The whole `mobile` project: 300 passed, 172 skipped, 0 failed at `77b1be8`, after eight cases that pressed controls the phone keeps behind the Menu were corrected (they had failed, and stopped eighteen more from running).
 
 ## The gate's own clauses
 
@@ -247,6 +251,7 @@ Corrected, each with a test:
 - **"Open those meetings" that opened every meeting** — `786b396`. "Units shortlisted with no follow-up recorded" counted 41 of 67 and its action opened the whole register (74 rows). The register has no filter for that set, so the action now says it opens the register; a filtered list whose count matches needs a new R08 filter control, which waits for approval (R04 above).
 - **Next steps that did not open what they named** — `bf14119`, `f83b26d`, `db2adb5`. Sales Flow's "5 of 39 meetings ended with no outcome recorded" opened all 39 (its What-needs-attention twin was corrected in `24e573e`); it opens `?outcome=skipped`. "Compare the cohorts" asked Presentation DNA for `?compare=cohorts`, which it does not read; it asks for `?mode=cohorts`. A unit's "See those meetings" and its evidence opened the whole register; both open the unit's own table of the meetings that opened it, for which `withPeriod` now keeps the period before a fragment and the heading stops below the sticky band.
 - **The executive overview's foot claimed every sentence links to its records** — `4e03140`. Since `bd8e59a` the follow-up sentence names its 31 records in text (no page lists them); the foot now says so, and the two desktop e2e specs that had been failing since before this block (that claim, and a KPI count from before the approved regrouping) pass again.
+- **The mobile e2e project failed eight cases and could not run eighteen** — `77b1be8`. The plan's "mobile (ii)" class: each case pressed a control of the wide header that a phone keeps behind the Menu. The cases now open the Menu and read the phone sheet's switchers (test code only).
 - **A figure under the floor that lost its denominator** — `d2331d5`. Every surface that draws a `Figure` below its sample now keeps the denominator beside the shortfall.
 
 Recorded, not changed — each needs a decision or touches a frozen surface:
