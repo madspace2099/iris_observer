@@ -60,6 +60,16 @@ export default async function PresentationPage({
   const root = `/${tenantSlug}/${projectSlug}/presentation`;
   const qs = (extra: Record<string, string>) =>
     `${root}?${new URLSearchParams({ period: presetFrom(search.period), ...extra }).toString()}`;
+  /*
+   * The chosen pair is part of the scope (the plan's R11: a selection may not be
+   * lost by moving between screens). A mode switch dropped it, so "Two agents"
+   * came back as the default pair; it now travels through the other two modes,
+   * which ignore it, and returns with the reader.
+   */
+  const pair: Record<string, string> = {
+    ...(search.left === undefined ? {} : { left: search.left }),
+    ...(search.right === undefined ? {} : { right: search.right }),
+  };
 
   const comparison = view.comparison;
   const timingBlind = view.lanes.some((lane) =>
@@ -85,7 +95,7 @@ export default async function PresentationPage({
                 key={m.id}
                 role="tab"
                 aria-selected={mode === m.id}
-                href={dynamicRoute(qs({ mode: m.id }))}
+                href={dynamicRoute(qs({ mode: m.id, ...pair }))}
               >
                 {m.label}
               </Link>
@@ -258,10 +268,12 @@ export default async function PresentationPage({
         <p className="iris-kicker">Presentation DNA · {view.context.period.label}</p>
         <h1 className="iris-section">How the story is told, in the order it was told.</h1>
         <p className="iris-meta" style={{ maxWidth: "62ch" }}>
-          Each lane is one presenter&rsquo;s sequence. Width is how often their meetings reached
-          that section at all; fill is how long they stayed. A hatched, dashed block means the
-          source records that the section was reached but not for how long — which is a different
-          statement from no time at all.
+          The first lane is the team&rsquo;s and each lane under it one presenter&rsquo;s: every
+          section stands at its mean position across that lane&rsquo;s meetings in the period, not
+          on one meeting&rsquo;s path. Width is how often those meetings reached that section at
+          all; fill is how long they stayed. A hatched, dashed block means the source records that
+          the section was reached but not for how long — which is a different statement from no time
+          at all.
         </p>
 
         <div className="iris-dna" style={{ marginTop: "1rem" }}>
