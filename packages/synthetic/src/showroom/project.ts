@@ -1087,7 +1087,19 @@ export function buildPresentationIntelligence(
       verdictRefusal: underFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings on a side") : null,
       withheld: compared.withheld,
       excluded,
-      evidence: evidenceRef(evidenceId, tier, `${base}/presentation`, observations),
+      /*
+       * The comparison it rests on, as the reader chose it: the mode, and for two
+       * agents the pair. The bare page reset both, so following the evidence of a
+       * finding about Ján and Lucia opened the default pair instead.
+       */
+      evidence: evidenceRef(
+        evidenceId,
+        tier,
+        kind === "agents"
+          ? `${base}/presentation?mode=agents&left=${encodeURIComponent(left.id)}&right=${encodeURIComponent(right.id)}`
+          : `${base}/presentation?mode=${kind}`,
+        observations,
+      ),
       disclaimer: DISCLAIMER,
     };
   };

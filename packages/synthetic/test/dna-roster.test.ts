@@ -57,3 +57,12 @@ describe("a presentation comparison on one developer's project", () => {
     ]);
   });
 });
+
+describe("a comparison's evidence", () => {
+  it("opens the comparison as the reader chose it, the pair included", async () => {
+    const view = await dna("northgate", "alpha", "agt_jan", "agt_lucia");
+    expect(view.comparison?.evidence.href).toBe(
+      "/alpha/northgate/presentation?mode=agents&left=agt_jan&right=agt_lucia",
+    );
+  });
+});
