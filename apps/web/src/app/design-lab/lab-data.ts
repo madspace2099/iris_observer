@@ -1235,8 +1235,13 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const projectShares = [...new Set(segments.map((s) => s.conversion.projectShare))];
   if (projectShares.length > 1) refuse("one project conversion share for every segment");
   const projectShare = projectShares[0] ?? null;
+  /* A segment is placed by its index; one with none (all sold, or no looking time) never is. */
   const placed = segments.filter(
-    (s) => s.conversion.quadrant !== null && s.conversion.share !== null,
+    (s): s is SegmentInterest & { readonly index: number } =>
+      s.index !== null && s.conversion.quadrant !== null && s.conversion.share !== null,
+  );
+  const indexed = segments.filter(
+    (s): s is SegmentInterest & { readonly index: number } => s.index !== null,
   );
   /*
    * The segments off the chart, by name, and why, in plain words rather than
@@ -1245,7 +1250,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
    * decided meeting more or less moves a segment's rate by more than a
    * twentieth, enough to carry it across the project's line.
    */
-  const offChart = segments.filter((s) => !placed.includes(s));
+  const offChart = segments.filter((s) => !placed.some((p) => p === s));
   const floorWhy = `The system leaves a segment off below ${n(AGENT_MIN_SAMPLE)} decided meetings, where one meeting more or less would move its rate by more than ${n(Math.round(100 / AGENT_MIN_SAMPLE))} percentage points.`;
   const offChartWords =
     offChart.length === 0
@@ -1270,7 +1275,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     offChart: offChartWords,
     projectShare,
     projectShareDisplay: projectShare === null ? null : pct(projectShare),
-    indexMax: Math.max(2, Math.ceil(Math.max(0, ...segments.map((s) => s.index)) * 2) / 2),
+    indexMax: Math.max(2, Math.ceil(Math.max(0, ...indexed.map((s) => s.index)) * 2) / 2),
     facts: {
       note: `${projectView.matrixNote} A decided meeting is one that opened a unit of the segment and recorded an outcome. The upright line is parity, 1.00×; the level line is the project's share.`,
       summary: `${placed
@@ -1289,11 +1294,12 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       ],
       rankingTitle: "Most attention for their stock",
       ranking: topThree(
-        segments,
+        indexed,
         (s) => s.index,
         (s) => ({ id: s.id, label: s.label, value: `${s.index.toFixed(2)}×` }),
       ),
-      rankingNote: "Share of looking time over share of stock; 1.00× is attention matching supply.",
+      rankingNote:
+        "Share of looking time on the unsold stock over share of that stock; 1.00× is attention matching supply.",
     },
   };
 

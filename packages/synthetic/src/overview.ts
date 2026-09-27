@@ -11,7 +11,13 @@ import {
   type Verdict,
   type ViewContext,
 } from "@observer/readmodels";
-import { DEFAULT_ATTRIBUTION_POLICY } from "@observer/metrics";
+import type { ShowroomSession } from "@observer/contracts";
+import {
+  DEFAULT_ATTRIBUTION_POLICY,
+  attentionIndex,
+  attentionIndexDisplay,
+} from "@observer/metrics";
+import { catalogueFor, type ObservedMeetings, type RawUnit } from "./pulse";
 import {
   comparison,
   compactMoney,
@@ -65,8 +71,42 @@ function base(context: ViewContext) {
 
 /* --- Northgate: the complete case ---------------------------------------- */
 
-function northgate(context: ViewContext): ExecutiveOverview {
+/**
+ * A segment's attention index over some meetings: the registry's one
+ * implementation, over the stock the period ends with unsold. The overviews are
+ * hand-written scenarios, and their index was hand-written with them — 2.1 for
+ * Northgate's two-room units, 1.7 for Riverside's high south-facing flats —
+ * while `/project` computed another figure for the same units (decision
+ * 2026-09-27). Null where there is nothing to index.
+ */
+function indexOver(
+  projectId: string,
+  sessions: readonly ShowroomSession[],
+  inSegment: (unit: RawUnit) => boolean,
+): number | null {
+  return attentionIndex(
+    catalogueFor(projectId),
+    sessions.flatMap((s) => s.units),
+    inSegment,
+  ).index;
+}
+
+/** A relative change as the changes list prints it: "+34%", "−8%". */
+function signedPercent(change: number): string {
+  return `${change >= 0 ? "+" : "−"}${String(Math.round(Math.abs(change) * 100))}%`;
+}
+
+function northgate(context: ViewContext, meetings: ObservedMeetings): ExecutiveOverview {
   const { root, locale, currency } = base(context);
+
+  const twoRoom = (u: RawUnit) => u.rooms === 2;
+  const twoRoomNow = indexOver(context.project.id as string, meetings.current, twoRoom);
+  const twoRoomBefore = indexOver(context.project.id as string, meetings.previous, twoRoom);
+  /* The sentence the scenario makes about two-room attention, at the index the period gives it. */
+  const twoRoomDraws =
+    twoRoomNow === null
+      ? "Two-room units have no attention index in this period"
+      : `Two-room units draw ${attentionIndexDisplay(twoRoomNow)} their share of attention`;
 
   const headline: MetricValue[] = [
     ok({
@@ -187,8 +227,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
     state: "attention_needed",
     headline:
       "Northgate sold 7 units this quarter against 9 in the last — 22% slower, and the loss is entirely between viewing and offer.",
-    supporting:
-      "Two-room units draw 2.1× their share of attention and convert at half the project average. The interest is real; the price probably is not.",
+    supporting: `${twoRoomDraws} and convert at half the project average. The interest is real; the price probably is not.`,
     evidence: evidenceRef("northgate.verdict", "observed_sequence", `${root}/flow`, 46),
     rulesetVersion: VERDICT_RULESET,
     components: [
@@ -223,6 +262,25 @@ function northgate(context: ViewContext): ExecutiveOverview {
     ],
   };
 
+  /*
+   * The change in two-room attention, from the same implementation over the
+   * baseline period's meetings. It was a fixed "+34%" beside a fixed 2.1;
+   * where either end has no index, no change is stated.
+   */
+  const twoRoomChange: ChangeItem | null =
+    twoRoomNow === null || twoRoomBefore === null
+      ? null
+      : {
+          id: "two-room-attention",
+          label: "Two-room attention",
+          deltaDisplay: signedPercent(twoRoomNow / twoRoomBefore - 1),
+          direction: twoRoomNow >= twoRoomBefore ? "up" : "down",
+          better: "up",
+          detail: `Attention index now ${attentionIndexDisplay(twoRoomNow)}, but conversion is half the project average.`,
+          evidence: evidenceRef("northgate.tworoom", "observed_sequence", `${root}/project`, 61),
+          href: `${root}/project`,
+        };
+
   const changes: ChangeItem[] = [
     {
       id: "velocity",
@@ -234,16 +292,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
       evidence: evidenceRef("northgate.velocity", "observed_sequence", `${root}/flow`, 16),
       href: `${root}/flow`,
     },
-    {
-      id: "two-room-attention",
-      label: "Two-room attention",
-      deltaDisplay: "+34%",
-      direction: "up",
-      better: "up",
-      detail: "Attention index now 2.1, but conversion is half the project average.",
-      evidence: evidenceRef("northgate.tworoom", "observed_sequence", `${root}/project`, 61),
-      href: `${root}/project`,
-    },
+    ...(twoRoomChange === null ? [] : [twoRoomChange]),
     {
       id: "follow-up",
       label: "Follow-up delay",
@@ -297,7 +346,7 @@ function northgate(context: ViewContext): ExecutiveOverview {
         evidence: evidenceRef("northgate.brief.1", "observed_sequence", `${root}/flow`, 46),
       },
       {
-        text: "Two-room units take 2.1× their share of attention and convert at half the project average — the pattern of a segment priced above what buyers will pay for it.",
+        text: `${twoRoomDraws.replace("draw ", "take ")} and convert at half the project average — the pattern of a segment priced above what buyers will pay for it.`,
         tier: "statistical_association",
         evidence: evidenceRef(
           "northgate.brief.2",
@@ -367,8 +416,19 @@ function northgate(context: ViewContext): ExecutiveOverview {
 
 const NO_CRM = "The CRM is not connected, so outcomes below the meeting are unknown.";
 
-function riverside(context: ViewContext): ExecutiveOverview {
+function riverside(context: ViewContext, meetings: ObservedMeetings): ExecutiveOverview {
   const { root, locale } = base(context);
+  /*
+   * The scenario's high south-facing flats, at the index the period's meetings
+   * give them. The catalogue has none — every Riverside unit faces east or north
+   * — so the reading says that rather than printing the 1.7× the scenario was
+   * written with.
+   */
+  const southHigh = attentionIndex(
+    catalogueFor(context.project.id as string),
+    meetings.current.flatMap((s) => s.units),
+    (u) => u.orientation === "S" && u.floor !== null && u.floor >= 4,
+  );
 
   return {
     context,
@@ -439,7 +499,12 @@ function riverside(context: ViewContext): ExecutiveOverview {
           evidence: evidenceRef("riverside.brief.1", "observed_sequence", NO_PAGE, 38),
         },
         {
-          text: "South-facing units above the third floor take 1.7× their share of attention. Whether that converts cannot be seen from here.",
+          text:
+            southHigh.segmentUnits === 0
+              ? "No unsold unit faces south above the third floor, so there is no attention index to state for them."
+              : southHigh.index === null
+                ? "Nobody looked at the unsold stock in this period, so there is no attention index to state."
+                : `South-facing units above the third floor take ${attentionIndexDisplay(southHigh.index)} their share of attention. Whether that converts cannot be seen from here.`,
           tier: "statistical_association",
           evidence: evidenceRef(
             "riverside.brief.2",
@@ -494,7 +559,7 @@ function riverside(context: ViewContext): ExecutiveOverview {
 
 /* --- Kingsford: too new to judge ------------------------------------------ */
 
-function kingsford(context: ViewContext): ExecutiveOverview {
+function kingsford(context: ViewContext, _meetings: ObservedMeetings): ExecutiveOverview {
   const { root, locale, currency } = base(context);
   const thin = "Fewer than 20 meetings — shown as a raw figure, not as a verdict.";
 
@@ -668,7 +733,10 @@ function kingsford(context: ViewContext): ExecutiveOverview {
   };
 }
 
-const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
+const BUILDERS: Record<
+  string,
+  (context: ViewContext, meetings: ObservedMeetings) => ExecutiveOverview
+> = {
   prj_northgate01: northgate,
   prj_riversidew1: riverside,
   prj_beta0000001: kingsford,
@@ -701,12 +769,15 @@ const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
  * existing `error.tsx` boundary, which already exists to say a screen could
  * not be produced — that is a true sentence here. A wrong one is not.
  */
-export function buildExecutiveOverview(context: ViewContext): ExecutiveOverview {
+export function buildExecutiveOverview(
+  context: ViewContext,
+  meetings: ObservedMeetings,
+): ExecutiveOverview {
   const builder = BUILDERS[context.project.id];
   if (builder === undefined) {
     throw new NotFoundError(`an executive overview for ${context.project.name}`);
   }
-  return builder(context);
+  return builder(context, meetings);
 }
 
 /** Exposed for the money formatter used by the units read model. */

@@ -380,10 +380,14 @@ export const attentionIndex = defineMetric({
     "Whether a segment draws more attention than its size in the inventory would justify.",
   kind: "ratio",
   calculation:
-    "The segment's share of total active dwell divided by its share of available units. Above one means over-indexed interest. This is what makes segments of different sizes comparable, which a raw view count never does.",
-  numerator: "segment share of active dwell",
-  denominator: "segment share of available units",
-  exclusions: ["segments with fewer than three units", "units missing the segment attribute"],
+    "The segment's share of the active dwell on the stock the period ends with unsold, divided by its share of that stock. The same units stand in both shares: available, reserved and pre-reserved; a sold unit is in neither. Above one means over-indexed interest. This is what makes segments of different sizes comparable, which a raw view count never does. Computed once, by `attentionIndex` in this package, and read by every surface that states it. The status is the catalogue's, which is the status now: exact for a period that runs to today, and for a completed period the stock as the catalogue states it now.",
+  numerator: "segment share of active dwell on the unsold stock",
+  denominator: "segment share of the unsold stock",
+  exclusions: [
+    "sold units, on both sides",
+    "a segment with no unsold unit, or a period with no looking time on the unsold stock: no index, never zero",
+    "units missing the segment attribute",
+  ],
   dimensions: [
     "project",
     "period",

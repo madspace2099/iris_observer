@@ -182,7 +182,9 @@ describe("a repository composed with a catalogue source", () => {
   it("lets no invented session touch a delivered unit", async () => {
     // The synthetic sessions still exist — the showroom surfaces keep their
     // demonstration — but they touch synthetic units, so every delivered
-    // segment shows the attention it has actually earned: none.
+    // segment shows the attention it has actually earned: none. With no
+    // looking time on the unsold stock there is no index at all, and an absent
+    // index is not 0× (the registry's exclusion, decided 2026-09-27).
     const flow = await repo.getSalesFlow(ISTER);
     expect(flow.meetingCount).toBeGreaterThan(0);
 
@@ -190,7 +192,7 @@ describe("a repository composed with a catalogue source", () => {
     for (const segment of view.segments) {
       expect(segment.meetings).toBe(0);
       expect(segment.attentionShare).toBe(0);
-      expect(segment.index).toBe(0);
+      expect(segment.index).toBeNull();
     }
     expect(view.verdict).toMatch(/meetings?/);
   });

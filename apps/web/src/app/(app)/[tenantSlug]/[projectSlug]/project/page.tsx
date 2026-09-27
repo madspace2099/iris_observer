@@ -66,6 +66,11 @@ export default async function ProjectPage({
   const qs = (segment: string) =>
     `${root}?${new URLSearchParams({ period: presetFrom(search.period), segment }).toString()}`;
   const segment = view.selectedSegment;
+  /* The frames place a segment by its index; one with none is stated under them instead. */
+  const indexed = view.segments.filter(
+    (s): s is (typeof view.segments)[number] & { readonly index: number } => s.index !== null,
+  );
+  const unindexed = view.segments.filter((s) => s.index === null);
   const unmet = view.demand.filter((d) => d.matches === 0);
   /*
    * The search register's two count heads, each built once: the column head
@@ -218,14 +223,28 @@ export default async function ProjectPage({
                 Does attention match supply?
               </p>
               <ParityScale
-                rows={view.segments.map((s) => ({
+                rows={indexed.map((s) => ({
                   id: s.id,
                   label: s.label,
                   index: s.index,
                   /* The read model's own display strings: locale, and "<1%" for a share that rounds away. */
-                  note: `${s.attentionShareDisplay} of looking time on ${s.stockShareDisplay} of stock`,
+                  note: `${s.attentionShareDisplay} of looking time on ${s.stockShareDisplay} of the unsold stock`,
                 }))}
               />
+              {/*
+               * A segment with no index is named with the reason, never drawn at
+               * zero and never dropped without a word: all its units sold, or
+               * nobody looked at the unsold stock in the period.
+               */}
+              {unindexed.map((s) => (
+                <p
+                  key={s.id}
+                  className="iris-meta"
+                  style={{ marginTop: ".5rem", maxWidth: "70ch" }}
+                >
+                  {s.soWhat}
+                </p>
+              ))}
             </div>
 
             <hr className="iris-rule" />
@@ -242,7 +261,7 @@ export default async function ProjectPage({
               </p>
               <QuadrantMatrix
                 locale={view.context.project.locale}
-                rows={view.segments.map((s) => ({
+                rows={indexed.map((s) => ({
                   id: s.id,
                   label: s.label,
                   index: s.index,

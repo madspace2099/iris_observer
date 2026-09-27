@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { AGENT_MIN_SAMPLE, attentionIndexDisplay } from "@observer/metrics";
 import type { PeriodPreset, SegmentInterest } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -132,7 +132,7 @@ export function SegmentDetail({
 
           <Tally>
             <TallyItem
-              label="Share of available stock"
+              label="Share of the unsold stock"
               value={
                 <Ratio
                   value={selected.stockShare}
@@ -191,39 +191,25 @@ export function SegmentDetail({
           </Tally>
 
           {/*
-           * THE INDEX, AND THE SENTENCE THAT STOPS IT BEING READ AS THE OTHER
-           * ONE.
-           *
-           * Two read models on this screen publish an index against parity for
-           * the same segment label and they are not the same number.
-           * `PulseSegment.attentionIndex`, drawn on the scales above, is the
-           * segment's share of MEANINGFUL VIEWS on units over its share of the
-           * stock. `SegmentInterest.index`, stated here, is its share of DWELL
-           * TIME inside meetings over the same denominator. On Northgate they
-           * read 0.68× and 0.51× for three-room units, three inches apart, both
-           * correct and neither reconcilable by a reader who is not told which
-           * quantity each counts.
-           *
-           * That is the defect this codebase has already fixed twice in other
-           * costumes — two panels answering "how many meetings are in this
-           * period" differently — and the fix available to a screen is not to
-           * hide one of them but to say what each measures in the sentence next
-           * to it. Reported as a read-model gap: two indices with one word for
-           * them belong under two words.
+           * THE INDEX. `SegmentInterest.index` and `PulseSegment.attentionIndex`
+           * are one reading: the registry's `attentionIndex`, the segment's
+           * share of the looking time on the unsold stock over its share of
+           * that stock. They used to be two figures under one word (meaningful
+           * views over the whole building against dwell over the available
+           * stock); the population decision made them one.
            *
            * It is also a rank, so it is stated only above the sample floor, and
            * as a sentence rather than a seventh figure in the tally: it is
            * derived from two figures already standing there, and repeating it as
            * their peer would invite the reader to take it as a third
-           * measurement.
+           * measurement. With no index there is no sentence; an absent index is
+           * not 0×.
            */}
-          {belowFloor ? null : (
+          {belowFloor || selected.index === null ? null : (
             <p className="ox-section-note">
               {selected.label} units take {shareText(selected.attentionShare, locale)} of the time
-              buyers spent on any unit, on {shareText(selected.stockShare, locale)} of the available
-              stock — {selected.index.toFixed(2)}× their share of it. The scales above index a
-              different quantity, openings of a unit rather than time spent on one, so the two
-              figures are not the same reading and will not agree.
+              buyers spent on the unsold stock, on {shareText(selected.stockShare, locale)} of that
+              stock — {attentionIndexDisplay(selected.index)} their share of it.
             </p>
           )}
 

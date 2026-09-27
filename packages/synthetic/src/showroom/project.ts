@@ -69,7 +69,12 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
+import {
+  AGENT_MIN_SAMPLE,
+  attentionIndex,
+  attentionIndexDisplay,
+  insufficient,
+} from "@observer/metrics";
 import { agentById, agentsForProject, presenterName, presentersIn } from "./sessions";
 /* The one definition of "time the source could time" — the agent lane's, not a second one. */
 import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
@@ -2111,18 +2116,24 @@ export function buildUnitAttention(
 
   const busiest = [...scaled].sort((a, b) => b.totalDwellSeconds - a.totalDwellSeconds)[0];
   const findings: ShowroomFinding[] = [];
-  if (busiest !== undefined && busiest.meetings > 0) {
-    const available = scaled.filter((r) => r.status === "available");
-    const twoRoom = available.filter((r) => r.rooms === 2);
-    const attentionShare = share(
-      twoRoom.reduce((a, r) => a + r.totalDwellSeconds, 0),
-      available.reduce((a, r) => a + r.totalDwellSeconds, 0),
-    );
-    const stockShare = share(twoRoom.length, available.length);
+  /*
+   * The registry's one implementation over the unsold stock (decision
+   * 2026-09-27). This read available units only, on both sides, and printed
+   * 1.39× where `/project` printed 1.41× for the same units and period. A
+   * project with no unsold two-room unit, or no looking time on its unsold
+   * stock, has no index to state, and the finding is not made.
+   */
+  const twoRoomReading = attentionIndex(
+    scaled.map((r) => ({ code: r.unitCode, status: r.status, rooms: r.rooms })),
+    scaled.map((r) => ({ unitCode: r.unitCode, dwellSeconds: r.totalDwellSeconds })),
+    (u) => u.rooms === 2,
+  );
+  if (busiest !== undefined && busiest.meetings > 0 && twoRoomReading.index !== null) {
+    const { stockShare, attentionShare } = twoRoomReading;
     findings.push({
       id: "unit-segment-attention",
-      statement: `Two-room units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`,
-      baseline: `an index of ${(attentionShare / Math.max(0.01, stockShare)).toFixed(2)}× their share`,
+      statement: `Two-room units are ${percent(stockShare, locale)} of the unsold stock and take ${percent(attentionShare, locale)} of the time spent looking at it.`,
+      baseline: `an index of ${attentionIndexDisplay(twoRoomReading.index)} their share`,
       soWhat:
         "A segment drawing more attention than its size is either priced right or priced wrong; the unit list tells which.",
       nextStep: { label: "Open the busiest unit", href: `${base}/units?unit=${busiest.unitCode}` },

@@ -414,14 +414,15 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getExecutiveOverview(query: OverviewQuery): Promise<ExecutiveOverview> {
-    const context = await this.context(query);
+    /* The period's meetings go with it: the index it states is computed from them. */
+    const { context, current, previous } = await this.slices(query);
     if (context.viewer.role === "sales_agent") {
       // Not a 404 and not an empty screen: agents have their own Overview, and
       // routing them here would either leak agency-wide figures or show them a
       // page of blanks.
       throw new NotPermittedError("the executive overview");
     }
-    return buildExecutiveOverview(context);
+    return buildExecutiveOverview(context, { current, previous });
   }
 
   async getAgentOverview(query: OverviewQuery): Promise<AgentOverview> {
@@ -452,7 +453,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
-    const { context, current } = await this.slices(query);
+    const { context, current, previous } = await this.slices(query);
     /*
      * The prepared answers are the synthetic scenario's own prose. Printed over a
      * project whose meetings are its own showroom's they are a fabrication, so a
@@ -471,7 +472,12 @@ export class SyntheticObserverRepository implements ObserverRepository {
     )
       return buildDeliveredAskSession(context, current, selectionLabel);
 
-    const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    /* The period's meetings go to the pulse: the index an answer states is computed from them. */
+    const scripted = buildAskSession(
+      context,
+      buildProjectPulse(context, { current, previous }),
+      selectionLabel,
+    );
     /* Never scripted, so offered here too: the fifth opening, where a CRM is connected. */
     const assisted = assistedSalesAnswer(context);
     return assisted === null

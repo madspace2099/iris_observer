@@ -65,7 +65,12 @@ import {
   roomCounts,
   roomLabel,
 } from "../pulse";
-import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
+import {
+  AGENT_MIN_SAMPLE,
+  DEFAULT_IRIS_ASSIST_POLICY,
+  attentionIndex,
+  attentionIndexDisplay,
+} from "@observer/metrics";
 import { buildAssistedSales, buildDealLadder } from "../deals";
 import { count, dayLabel, evidenceRef, percent, shareDisplay } from "../format";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
@@ -1097,8 +1102,11 @@ function roomSegments(
  */
 const SEGMENT_SENTENCE_FLOOR = 5;
 
-function leadSegment(segments: readonly SegmentInterest[]): SegmentInterest | undefined {
+function leadSegment(
+  segments: readonly SegmentInterest[],
+): (SegmentInterest & { readonly index: number }) | undefined {
   return [...segments]
+    .filter((s): s is SegmentInterest & { readonly index: number } => s.index !== null)
     .filter((s) => s.meetings > SEGMENT_SENTENCE_FLOOR)
     .sort((a, b) => Math.abs(b.index - 1) - Math.abs(a.index - 1))[0];
 }
@@ -1120,13 +1128,17 @@ function buildSegment(
   const catalogue = catalogueFor(context.project.id as string);
   const inSegment = new Set(catalogue.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
   const available = catalogue.filter((u) => u.rooms === spec.rooms && u.status === "available");
-  const allAvailable = catalogue.filter((u) => u.status === "available");
 
   const touches = sessions.flatMap((s) => s.units);
   const mine = touches.filter((t) => inSegment.has(t.unitCode));
 
-  const totalDwell = touches.reduce((a, t) => a + t.dwellSeconds, 0);
-  const myDwell = mine.reduce((a, t) => a + t.dwellSeconds, 0);
+  /*
+   * The index, from the registry's one implementation: the segment's share of
+   * the looking time on the unsold stock over its share of that stock. It was
+   * looking time on every unit against available units here, a third
+   * population beside `/units` and the Ask pulse (decision 2026-09-27).
+   */
+  const reading = attentionIndex(catalogue, touches, (u) => u.rooms === spec.rooms);
 
   const favAll = touches.filter((t) => t.favourited).length;
   const cmpAll = touches.filter((t) => t.comparedWith.length > 0).length;
@@ -1156,9 +1168,7 @@ function buildSegment(
   }));
   const sectionTotal = sectionSecs.reduce((a, s) => a + s.secs, 0);
 
-  const stockShare = share(available.length, allAvailable.length);
-  const attentionShare = share(myDwell, totalDwell);
-  const index = stockShare === 0 ? 0 : attentionShare / stockShare;
+  const { stockShare, attentionShare, index } = reading;
 
   const topPlace = [...placeSeconds.values()].sort((a, b) => b.secs - a.secs)[0];
 
@@ -1187,7 +1197,11 @@ function buildSegment(
     ? "No CRM is connected, so no outcome is recorded and conversion cannot be read."
     : decidedMeetings.length < AGENT_MIN_SAMPLE
       ? `Not enough decided meetings yet (${String(decidedMeetings.length)} of ${String(AGENT_MIN_SAMPLE)}).`
-      : null;
+      : index === null
+        ? reading.segmentUnits === 0
+          ? "Every unit of the segment is sold, and the index is taken over the unsold stock."
+          : "Nobody looked at the unsold stock in this period, so there is no index to place."
+        : null;
   const conversion: SegmentConversion = {
     decided: decidedMeetings.length,
     progressed,
@@ -1195,7 +1209,7 @@ function buildSegment(
     projectShare,
     minimum: AGENT_MIN_SAMPLE,
     quadrant:
-      withheld !== null || conversionShare === null || projectShare === null
+      withheld !== null || index === null || conversionShare === null || projectShare === null
         ? null
         : index >= 1
           ? conversionShare >= projectShare
@@ -1275,9 +1289,13 @@ function buildSegment(
     otherUnitsOpened: others.length,
     conversion,
     soWhat:
-      topPlace === undefined
-        ? `${spec.label} units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`
-        : `${spec.label} units take ${percent(attentionShare, locale)} of looking time on ${percent(stockShare, locale)} of the stock. The buyers who opened them spent longest on ${topPlace.label}, and ${percent(examinedHow[0]?.rate ?? 0, locale)} of the units they opened got a ${(examinedHow[0]?.label ?? "closer look").toLowerCase()}.`,
+      index === null
+        ? reading.segmentUnits === 0
+          ? `${spec.label} units are all sold, and the attention index is taken over the unsold stock, so this segment has none.`
+          : `Nobody looked at the unsold stock in this period, so ${spec.label} units have no attention index.`
+        : topPlace === undefined
+          ? `${spec.label} units are ${percent(stockShare, locale)} of the unsold stock and take ${percent(attentionShare, locale)} of the time spent looking at it.`
+          : `${spec.label} units take ${percent(attentionShare, locale)} of looking time on ${percent(stockShare, locale)} of the unsold stock. The buyers who opened them spent longest on ${topPlace.label}, and ${percent(examinedHow[0]?.rate ?? 0, locale)} of the units they opened got a ${(examinedHow[0]?.label ?? "closer look").toLowerCase()}.`,
   };
 }
 
@@ -1391,8 +1409,8 @@ export function buildProjectView(
   if (lead !== undefined) {
     findings.push({
       id: "project-segment",
-      statement: `${lead.label} units draw ${lead.index.toFixed(2)}× their share of looking time, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
-      baseline: `${percent(lead.stockShare, locale)} of available stock`,
+      statement: `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of looking time on the unsold stock, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
+      baseline: `${percent(lead.stockShare, locale)} of the unsold stock`,
       soWhat: lead.soWhat,
       nextStep: { label: `Open ${lead.label}`, href: `${base}/project?segment=${lead.id}` },
       evidence: evidenceRef(
@@ -1460,10 +1478,10 @@ export function buildProjectView(
     verdict:
       lead === undefined
         ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale, context.language)}.`)
-        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
+        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the unsold stock and take ${percent(lead.attentionShare, locale)} of the time spent looking at it.`,
     segments,
     matrixNote: context.project.connectedSources.includes("crm")
-      ? `Attention is the segment's share of looking time against its share of available stock; conversion is the share of decided meetings that progressed, against ${percent(
+      ? `Attention is the segment's share of the looking time on the unsold stock (available, reserved and pre-reserved) against its share of that stock; conversion is the share of decided meetings that progressed, against ${percent(
           share(
             sessions.filter((s) => !outcomeIsUnknown(s.outcome) && hasProgressed(s.outcome)).length,
             sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
@@ -2253,7 +2271,7 @@ export function buildHome(
         headline:
           lead === undefined
             ? "Segments, filters and places"
-            : `${lead.label} units draw ${lead.index.toFixed(1)}× their share of attention`,
+            : `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of attention`,
         href: `${base}/project`,
       },
       {

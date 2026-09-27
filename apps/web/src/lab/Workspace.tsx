@@ -428,13 +428,17 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
       };
     }
     if (segment !== null) {
-      const over = segment.attentionIndex >= 1;
+      const index = segment.attentionIndex;
+      const over = index !== null && index >= 1;
       const conv = segment.conversionRatio;
       return {
         kicker: `${segment.label} · ${segment.unitIds.length} units`,
-        text: `${segment.label} units draw ${segment.attentionIndex}× their share of attention${
-          conv === null ? "." : ` and convert at ${conv}× the project average.`
-        }`,
+        text:
+          index === null
+            ? `${segment.label} units have no attention index in this period.`
+            : `${segment.label} units draw ${index.toFixed(2)}× their share of attention${
+                conv === null ? "." : ` and convert at ${conv}× the project average.`
+              }`,
         lede:
           over && conv !== null && conv < 1
             ? `The interest is real; the price probably is not. ${segment.available} of them are still available.`
@@ -484,7 +488,7 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
             setUnit(null);
           }}
         >
-          {s.label} <b>{s.attentionIndex}×</b>
+          {s.label} <b>{s.attentionIndex === null ? "—" : `${s.attentionIndex.toFixed(2)}×`}</b>
         </button>
       ))}
     </div>

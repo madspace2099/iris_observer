@@ -228,8 +228,13 @@ export interface SegmentInterest {
   readonly favouriteShare: number;
   readonly compareShare: number;
   readonly shareShare: number;
-  /** Attention share over stock share. Above one is disproportionate interest. */
-  readonly index: number;
+  /**
+   * Attention share over stock share, both taken over the stock the period
+   * ends with unsold (`attentionIndex` in `@observer/metrics`). Above one is
+   * disproportionate interest. Null where the segment holds no unsold unit or
+   * nobody looked at the unsold stock: an index of nothing is not zero.
+   */
+  readonly index: number | null;
   readonly meetings: number;
   /** What buyers looking at this segment attended to, in order. */
   readonly attendedTo: readonly {

@@ -10,7 +10,11 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { ProjectIdSchema, type ShowroomSession } from "@observer/contracts";
-import { meaningfulDwellThresholdMs } from "@observer/metrics";
+import {
+  attentionIndex,
+  attentionIndexDisplay,
+  meaningfulDwellThresholdMs,
+} from "@observer/metrics";
 import { NO_PAGE, evidenceRef, moneyOr } from "./format";
 import { unitsForProject } from "./world";
 
@@ -618,7 +622,14 @@ export function buildProjectPulse(
         floorUnits.reduce((sum, u) => sum + u.attention, 0) / Math.max(1, floorUnits.length),
     }));
 
-  const totalAttention = units.reduce((sum, u) => sum + u.attention, 0);
+  /*
+   * The period's looking time, unit by unit, for the index. The index used to
+   * be taken here from the scoring above — opening scores over the whole
+   * building, a third population beside `/project` and `/units` — so one
+   * segment had three figures. It is now the registry's one implementation
+   * over the period's meetings; without them there is no index to state.
+   */
+  const looks = meetings === null ? null : meetings.current.flatMap((s) => s.units);
 
   function segment(
     id: string,
@@ -628,15 +639,12 @@ export function buildProjectPulse(
     conversionRatio: number | null,
   ): PulseSegment {
     const members = units.filter(predicate);
-    const share =
-      members.reduce((sum, u) => sum + u.attention, 0) / Math.max(0.0001, totalAttention);
-    const inventoryShare = members.length / Math.max(1, units.length);
     return {
       id,
       dimension,
       label,
       unitIds: members.map((u) => u.unitId),
-      attentionIndex: inventoryShare === 0 ? 0 : Number((share / inventoryShare).toFixed(2)),
+      attentionIndex: looks === null ? null : attentionIndex(units, looks, predicate).index,
       conversionRatio,
       available: members.filter((u) => u.status === "available").length,
     };
@@ -759,6 +767,11 @@ export function buildProjectPulse(
 
 /* --- Ask Observer, deterministic ------------------------------------------ */
 
+/** An index as an answer prints it: the registry's two decimals, or a dash where there is none. */
+function indexWords(index: number | null | undefined): string {
+  return index === null || index === undefined ? "—" : attentionIndexDisplay(index);
+}
+
 /**
  * Deterministic answers behind the interface a model will later call.
  *
@@ -785,7 +798,7 @@ export function buildAskSession(
         { label: "Offers", value: "12", note: "was 17" },
         {
           label: "Two-room attention index",
-          value: String(twoRoom?.attentionIndex ?? "—"),
+          value: indexWords(twoRoom?.attentionIndex),
           note: "above 1 means over-indexed",
         },
       ],
@@ -859,17 +872,18 @@ export function buildAskSession(
     },
     {
       question: "Which apartment attributes are gaining demand?",
-      answer: `South-facing units draw ${
-        pulse.segments.find((s) => s.id === "aspect-s")?.attentionIndex ?? "—"
-      }× their share of attention, and floors 4 to 6 draw ${
-        pulse.segments.find((s) => s.id === "floors-mid")?.attentionIndex ?? "—"
-      }×.`,
+      answer: `South-facing units draw ${indexWords(
+        pulse.segments.find((s) => s.id === "aspect-s")?.attentionIndex,
+      )} their share of attention, and floors 4 to 6 draw ${indexWords(
+        pulse.segments.find((s) => s.id === "floors-mid")?.attentionIndex,
+      )}.`,
       figures: pulse.segments
+        .filter((s): s is PulseSegment & { attentionIndex: number } => s.attentionIndex !== null)
         .filter((s) => s.attentionIndex >= 1)
         .slice(0, 3)
         .map((s) => ({
           label: s.label,
-          value: `${s.attentionIndex}×`,
+          value: attentionIndexDisplay(s.attentionIndex),
           note: `${s.available} available`,
         })),
       evidence: evidenceRef("ask.attributes", "statistical_association", `${root}/project`, 48),

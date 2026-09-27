@@ -33,9 +33,11 @@ export const DEMAND_MINUTES: PluralForms = {
  *
  * The question a developer actually asks of a scheme is not "how many views"
  * but "are the flats we still have the flats people want". `PulseSegment`
- * answers it directly: `attentionIndex` is the segment's share of observed
- * attention divided by its share of inventory, so 1.00× is attention exactly
- * matching supply and everything else is a mismatch with a direction.
+ * answers it directly: `attentionIndex` is the segment's share of the looking
+ * time on the unsold stock divided by its share of that stock — the registry's
+ * one implementation — so 1.00× is attention exactly matching supply and
+ * everything else is a mismatch with a direction. A segment with no index
+ * (all of it sold, or nobody looked) is not drawn: an absent index is not 0×.
  *
  * That is why the shape is a parity scale rather than a bar chart. A bar from
  * zero answers "how big is this index", which is the wrong question; a marker
@@ -115,7 +117,10 @@ export function DemandSignals({
         <>
           <div className="ox-cols" data-cols="2">
             {DIMENSIONS.map((dimension) => {
-              const rows = segments.filter((segment) => segment.dimension === dimension.id);
+              const rows = segments.filter(
+                (segment): segment is PulseSegment & { readonly attentionIndex: number } =>
+                  segment.dimension === dimension.id && segment.attentionIndex !== null,
+              );
               if (rows.length === 0) return null;
               return (
                 <ChartFrame
