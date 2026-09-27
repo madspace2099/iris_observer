@@ -204,9 +204,17 @@ export function Figure({
         (value.sampleSize === null
           ? words.belowMinimum(value.minimumSampleSize)
           : words.needed(value.sampleSize, value.minimumSampleSize));
+      /*
+       * The denominator stays under the floor too. A median over "19 timed
+       * meetings" or a coverage "of 4 core sections" used to lose that phrase
+       * the moment its sample fell short, and the shortfall stood in its place:
+       * a figure with no denominator, which is the first page rule broken by the
+       * very state that exists to be careful.
+       */
       return (
         <span className="ox-insufficient">
           <span className="ox-figure">{value.display}</span>
+          {value.qualifier === null ? null : <span className="ox-of">{value.qualifier}</span>}
           <span className="ox-shortfall">{shortfall}</span>
         </span>
       );
