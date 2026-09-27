@@ -1658,10 +1658,14 @@
   box-shadow: 0 -1px 0 var(--ox-line-hair);
 }
 
+/*
+ * No sticky header (decided 2026-09-27, R08 option c). The table always sits
+ * in `.ox-table-scroll`, a sideways scroller, and a header cannot stick to the
+ * page from inside one: `position: sticky` here stuck to a box that never
+ * scrolls vertically, so it never held. Sideways scrolling stays; the header
+ * scrolls away with its rows.
+ */
 .ox-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--ox-panel);
   font-size: var(--ox-micro);
   font-weight: var(--weight-semibold);
