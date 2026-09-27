@@ -44,6 +44,7 @@ import {
   roomsWord,
   sentence,
   type Language,
+  type Numerals,
   type PluralForms,
   type Sentence,
 } from "@observer/readmodels";
@@ -112,59 +113,184 @@ export const PROJECT_NO_OUTCOME_SENTENCE: Sentence = {
     words: { meetings: MEETINGS.en, noOutcome: PROJECT_NO_OUTCOME.en },
   },
   sk: {
-    text: "{count} {meetings|n} v tomto období {noOutcome|n} do žiadnej kohorty.",
-    words: { meetings: MEETINGS.sk, noOutcome: PROJECT_NO_OUTCOME.sk },
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Pri jednom stretnutí v tomto období nie je zaznamenaný výsledok, preto ho nemožno zaradiť ani do jednej z dvoch skupín.",
+        few: "Pri {#meetingsWord|n} {place|n} v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
+        other:
+          "Pri {#meetingsWord|n} {place|n} v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
+      },
+      /* After "pri": the locative. */
+      place: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetingsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
-    text: "{count} találkozónak ebben az időszakban nincs rögzített kimenetele, és nem tartozik egyik csoportba sem.",
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Ebben az időszakban egy találkozó eredményét nem rögzítették, így a két csoport egyikébe sem sorolható.",
+        other:
+          "Ebben az időszakban {#meetings|n} találkozó eredményét nem rögzítették, így ezek a két csoport egyikébe sem sorolhatók.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetings: ["", "két", "három", "négy", "öt"] },
   },
 };
 
-/** "3 units opened: 2 with 2 rooms, 1 not in the catalogue; 1 shortlisted." Its parts follow it. */
+/*
+ * THE UNITS A MEETING OPENED, AS ONE SENTENCE.
+ *
+ * Two or more units take the frame below, their parts joined into it: in
+ * English "3 units opened: 2 with 2 rooms, 1 not in the catalogue; 1
+ * shortlisted.", in Slovak and Hungarian a frame that ends in a full closing
+ * sentence about the favourites. A single unit is a different sentence in
+ * Slovak and Hungarian — the count and the rooms fold into one clause, "Egy
+ * háromszobás lakást nyitottak meg." — so it has three entries of its own, one
+ * per band the unit can be in. English says a single unit with the frame it has
+ * for any count, so the three share it. `unitsViewedSentence` chooses.
+ */
+
+/** Two or more units opened. Its parts follow it. */
 export const PROJECT_UNITS_VIEWED_SENTENCE: Sentence = {
   en: {
-    text: "{count} {opened|count}: {parts}; {shortlist}.",
+    text: "{count} {opened|n}: {parts}; {shortlist}.",
     words: { opened: PROJECT_UNITS_OPENED.en },
   },
   sk: {
-    text: "{count} {opened|count}: {parts}; {shortlist}.",
-    words: { opened: PROJECT_UNITS_OPENED.sk },
+    text: "{frame|n}",
+    words: {
+      frame: {
+        /* Never read: a single unit is one of the three entries that follow. */
+        one: "",
+        few: "Otvorili {count} byty: {parts}. {shortlist}",
+        other: "Otvorili {count} bytov: {parts}. {shortlist}",
+      },
+    },
   },
-  hu: { text: "{count} egység megnyitva: {parts}; {shortlist}." },
+  hu: { text: "{count} lakást nyitottak meg: {parts}. {shortlist}" },
 };
 
-/** A band of opened units by room count: "2 with 2 rooms". Slovak and Hungarian name the flat by its rooms. */
+/** One unit opened, its room count known. `roomAdjective` is the site's: `slovakRoomAdjective(rooms, 1)`. */
+export const PROJECT_UNITS_VIEWED_SINGLE_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden {roomAdjective} byt. {shortlist}" },
+  hu: { text: "Egy {roomAdjective} lakást nyitottak meg. {shortlist}" },
+};
+
+/** One unit opened, in the catalogue with no room count stated. */
+export const PROJECT_UNITS_VIEWED_SINGLE_UNSTATED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden byt. Nie je uvedené, koľko má izieb. {shortlist}" },
+  hu: { text: "Egy lakást nyitottak meg. Nincs megadva, hány szobás. {shortlist}" },
+};
+
+/** One unit opened, not in the catalogue. */
+export const PROJECT_UNITS_VIEWED_SINGLE_UNLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden byt, ktorý nie je v katalógu. {shortlist}" },
+  hu: { text: "Egy olyan lakást nyitottak meg, amely nem szerepel a katalógusban. {shortlist}" },
+};
+
+/**
+ * A band of opened units by room count: "2 with 2 rooms". Slovak and Hungarian
+ * name the flat by its rooms, in the adjective the site makes from the band's
+ * rooms and, in Slovak, the band's own count.
+ */
 export const PROJECT_UNITS_BY_ROOMS: Sentence = {
   en: { text: "{count} with {rooms}" },
-  sk: { text: "{count} × {r}-izbová" },
-  hu: { text: "{count} db {r} szobás" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "{count} je {roomAdjective}",
+        few: "{count} sú {roomAdjective}",
+        other: "{count} je {roomAdjective}",
+      },
+    },
+  },
+  hu: { text: "{count} {roomAdjective}" },
 };
 
 export const PROJECT_UNITS_ROOMS_UNSTATED: Sentence = {
   en: { text: "{count} with rooms not stated" },
-  sk: { text: "{count} bez uvedeného počtu izieb" },
-  hu: { text: "{count} db szobaszám nélkül" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "pri jednom byte nie je uvedený počet izieb",
+        few: "pri {#unitsWord|n} {place|n} nie je uvedený počet izieb",
+        other: "pri {#unitsWord|n} {place|n} nie je uvedený počet izieb",
+      },
+      /* After "pri": the locative. */
+      place: { one: "byte", few: "bytoch", other: "bytoch" },
+    },
+    /* The first cell is never read: one unit is the `one` form. */
+    numerals: { unitsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
+  },
+  hu: { text: "{count} lakásnál nincs megadva a szobaszám" },
 };
 
 export const PROJECT_UNITS_NOT_IN_CATALOGUE: Sentence = {
   en: { text: "{count} not in the catalogue" },
-  sk: { text: "{count} mimo katalógu" },
-  hu: { text: "{count} db nem szerepel a katalógusban" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "{count} nie je v katalógu",
+        few: "{count} nie sú v katalógu",
+        other: "{count} nie je v katalógu",
+      },
+    },
+  },
+  hu: { text: "{count} nem szerepel a katalógusban" },
 };
 
+/** The favourites after two or more units: a fragment in English, a closing sentence in Slovak and Hungarian. */
 export const PROJECT_UNITS_SHORTLISTED: Sentence = {
   en: { text: "{count} shortlisted" },
   sk: {
-    text: "{count} {chosen|count}",
-    words: { chosen: { one: "vybraná", few: "vybrané", other: "vybraných" } },
+    text: "{closing|n}",
+    words: {
+      closing: {
+        one: "Jeden z nich bol pridaný do zoznamu obľúbených.",
+        few: "{#unitsWord|n} z nich boli pridané do zoznamu obľúbených.",
+        other: "{#unitsWord|n} z nich bolo pridaných do zoznamu obľúbených.",
+      },
+    },
+    /* The first cell is never read: one unit is the `one` form. Capitalised: the numeral opens the sentence. */
+    numerals: { unitsWord: ["", "Dva", "Tri", "Štyri", "Päť"] },
   },
-  hu: { text: "{count} kiválasztva" },
+  hu: { text: "Közülük {count} felkerült a Kedvencek listára." },
 };
 
 export const PROJECT_UNITS_NONE_SHORTLISTED: Sentence = {
   en: { text: "nothing was shortlisted" },
-  sk: { text: "nič nebolo vybrané" },
-  hu: { text: "semmi sem került kiválasztásra" },
+  sk: { text: "Ani jeden nebol pridaný do zoznamu obľúbených." },
+  hu: { text: "Egyetlen lakás sem került fel a Kedvencek listára." },
+};
+
+/** The favourites after a single unit: "z nich" and "Közülük" speak of several, so the singular has its own. */
+export const PROJECT_UNIT_SHORTLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_SHORTLISTED.en,
+  sk: { text: "Bol pridaný do zoznamu obľúbených." },
+  hu: { text: "Felkerült a Kedvencek listára." },
+};
+
+export const PROJECT_UNIT_NONE_SHORTLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_NONE_SHORTLISTED.en,
+  sk: { text: "Nebol pridaný do zoznamu obľúbených." },
+  hu: { text: "Nem került fel a Kedvencek listára." },
+};
+
+/** No unit opened: the whole answer. */
+export const PROJECT_UNITS_NONE_OPENED_SENTENCE: Sentence = {
+  en: { text: "No unit was opened." },
+  sk: { text: "Neotvorili ani jeden byt." },
+  hu: { text: "Egyetlen lakást sem nyitottak meg." },
 };
 
 /** "A-101 was opened in 3 meetings, with a median look of 1m 45s." */
@@ -174,27 +300,102 @@ export const PROJECT_UNIT_OPENED_SENTENCE: Sentence = {
     words: { meetings: MEETINGS.en },
   },
   sk: {
-    text: "Jednotka {unit} bola otvorená v {count} {meetings|n}, medián dĺžky pohľadu bol {look}.",
-    /* After "v": the locative. */
-    words: { meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" } },
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Byt {unit} otvorili počas jedného stretnutia. Medián času prezerania bol {look}.",
+        few: "Byt {unit} otvorili počas {#meetingsWord|n} stretnutí. Medián času prezerania bol {look}.",
+        other:
+          "Byt {unit} otvorili počas {#meetingsWord|n} stretnutí. Medián času prezerania bol {look}.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. After "počas": the genitive. */
+    numerals: { meetingsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
   },
   hu: {
-    text: "{Az:unit} egységet {count} találkozón nyitották meg, a megtekintés hosszának mediánja {look} volt.",
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{Az:unit-s} lakást egy találkozón nyitották meg. A megtekintési idő mediánja {look} volt.",
+        other:
+          "{Az:unit-s} lakást {#meetings|n} találkozón nyitották meg. A megtekintési idő mediánja {look} volt.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetings: ["", "két", "három", "négy", "öt"] },
   },
 };
 
-/** "Shortlisted 3 times, floor plan opened 5 times." */
+/*
+ * HOW MANY TIMES A UNIT WAS ADDED TO FAVOURITES, AND ITS PLAN OPENED.
+ *
+ * Two independent figures, and the finding speaks when either is above nought,
+ * so one of them can be nought: the three entries below are both above, the
+ * favourites alone, and the plan alone. Slovak and Hungarian write how many
+ * times as a word to five, from the tables here, and from six as the figure and
+ * the word after it, "6-krát" and "6 alkalommal". A numeral table ends at five
+ * and hands over to the figure the site passed, so the site passes
+ * `PROJECT_TIMES_FROM_SIX`: a figure alone would read "6".
+ */
+
+/** How many times, one to five: "raz" … "päťkrát". */
+const PROJECT_TIMES_SK: Numerals = ["raz", "dvakrát", "trikrát", "štyrikrát", "päťkrát"];
+
+/** How many times, one to five: "egyszer" … "ötször". */
+const PROJECT_TIMES_HU: Numerals = ["egyszer", "kétszer", "háromszor", "négyszer", "ötször"];
+
+/** How many times, from six: the figure and the word after it. English writes its own count. */
+export const PROJECT_TIMES_FROM_SIX: Sentence = {
+  en: { text: "{figure}" },
+  sk: { text: "{figure}-krát" },
+  hu: { text: "{figure} alkalommal" },
+};
+
+/** Both above nought: "Shortlisted 3 times, floor plan opened 5 times." */
 export const PROJECT_INTENT_SENTENCE: Sentence = {
   en: {
     text: "Shortlisted {favourites} {times|f}, floor plan opened {pdfOpens} {times|p}.",
     words: { times: TIMES.en },
   },
   sk: {
-    text: "Zaradená do výberu {favourites} {times|f}, pôdorys otvorený {pdfOpens} {times|p}.",
-    words: { times: TIMES.sk },
+    text: "Byt pridali do zoznamu obľúbených {#favWord|f} a jeho pôdorys otvorili {#planWord|p}.",
+    numerals: { favWord: PROJECT_TIMES_SK, planWord: PROJECT_TIMES_SK },
   },
   hu: {
-    text: "{favourites} alkalommal került a kiválasztottak közé, az alaprajzot {pdfOpens} alkalommal nyitották meg.",
+    text: "A lakást {#favWord|f} felvették a Kedvencek listára, az alaprajzát pedig {#planWord|p} megnyitották.",
+    numerals: { favWord: PROJECT_TIMES_HU, planWord: PROJECT_TIMES_HU },
+  },
+};
+
+/** Added to favourites, the plan never opened. */
+export const PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE: Sentence = {
+  en: {
+    text: "Shortlisted {favourites} {times|f}, floor plan opened not once.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Byt pridali do zoznamu obľúbených {#favWord|f}, ale jeho pôdorys neotvorili ani raz.",
+    numerals: { favWord: PROJECT_TIMES_SK },
+  },
+  hu: {
+    text: "A lakást {#favWord|f} felvették a Kedvencek listára, az alaprajzát viszont egyszer sem nyitották meg.",
+    numerals: { favWord: PROJECT_TIMES_HU },
+  },
+};
+
+/** The plan opened, never added to favourites. */
+export const PROJECT_INTENT_PLAN_ONLY_SENTENCE: Sentence = {
+  en: {
+    text: "Shortlisted not once, floor plan opened {pdfOpens} {times|p}.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Pôdorys bytu otvorili {#planWord|p}, ale byt do zoznamu obľúbených nepridali ani raz.",
+    numerals: { planWord: PROJECT_TIMES_SK },
+  },
+  hu: {
+    text: "A lakás alaprajzát {#planWord|p} megnyitották, de a lakást egyszer sem vették fel a Kedvencek listára.",
+    numerals: { planWord: PROJECT_TIMES_HU },
   },
 };
 
