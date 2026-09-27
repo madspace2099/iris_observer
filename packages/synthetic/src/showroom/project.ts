@@ -1,6 +1,5 @@
 import {
   CORE_SECTION_IDS,
-  OUTCOME_LABELS,
   SECTION_IDS,
   SHOWROOM_SECTIONS,
   hasProgressed,
@@ -10,6 +9,8 @@ import {
   type MeetingOutcome,
   type SectionId,
   type ShowroomSession,
+  type TimeOfDayPreset,
+  type WeatherPreset,
 } from "@observer/contracts";
 import type {
   BehaviourChange,
@@ -35,14 +36,18 @@ import type {
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
 import {
+  DEFAULT_LANGUAGE,
   MEETINGS,
+  OUTCOME_WORDS,
   TIMES,
   areaWord,
   aspectWord,
   duration,
+  hungarianArticle,
   hungarianRoomAdjective,
   plural,
   roomsWord,
+  sectionWord,
   sentence,
   slovakRoomAdjective,
   type Language,
@@ -985,7 +990,11 @@ export function buildShowroomOverview(
     changes,
     coverage,
     outcomeContext: [...outcomeCounts.entries()]
-      .map(([outcome, n2]) => ({ outcome, label: OUTCOME_LABELS[outcome], count: n2 }))
+      .map(([outcome, n2]) => ({
+        outcome,
+        label: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][outcome],
+        count: n2,
+      }))
       .sort((a, b) => b.count - a.count),
     meetingCount: n,
     evidence: evidenceRef("showroom-overview", "observed_sequence", `${base}/presentation`, n),
@@ -1522,9 +1531,149 @@ export function unitIntentSentence(
   });
 }
 
+/*
+ * THE REPLAY'S OWN WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what the replay always said. The storytelling presets print as
+ * the showroom sent them in English — "evening · clear" — and by their names
+ * in the others. Slovak and Hungarian are drafts for review (P2-17).
+ */
+type ReplayInteraction = "favourite" | "pdf" | "balcony" | "floor_cut" | "screenshot" | "share";
+
+interface ReplayWords {
+  readonly steps: PluralForms;
+  readonly interactions: Readonly<Record<ReplayInteraction, string>>;
+  readonly compared: (codes: string) => string;
+  readonly noneKept: string;
+  readonly kept: (code: string) => string;
+  readonly timeOfDay: Readonly<Record<TimeOfDayPreset, string>>;
+  readonly weather: Readonly<Record<WeatherPreset, string>>;
+  readonly environmentChanged: string;
+  readonly during: (section: string) => string;
+  readonly recordedByAgent: string;
+  readonly gapLegacy: string;
+  readonly gapInteractions: string;
+  readonly gapFiltersNotEmitted: string;
+  readonly gapNoFilter: string;
+  readonly gapNoComparison: string;
+}
+
+const REPLAY_STEPS: PluralForms = {
+  en: { one: "step", other: "steps" },
+  sk: { one: "krok", few: "kroky", other: "krokov" },
+  hu: { one: "lépés", other: "lépés" },
+};
+
+const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
+  en: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Shortlisted",
+      pdf: "Floor plan opened",
+      balcony: "Balcony view",
+      floor_cut: "Floor cut",
+      screenshot: "Screenshot taken",
+      share: "Shared",
+    },
+    compared: (codes) => `Compared ${codes}`,
+    noneKept: "No unit was kept",
+    kept: (code) => `${code} was kept`,
+    timeOfDay: {
+      morning: "morning",
+      afternoon: "afternoon",
+      golden: "golden",
+      evening: "evening",
+      night: "night",
+    },
+    weather: { clear: "clear", cloudy: "cloudy", rain: "rain", snow: "snow", fog: "fog" },
+    environmentChanged: "Environment changed",
+    during: (section) => `during ${section}`,
+    recordedByAgent: "Recorded by the agent at the end of the meeting",
+    gapLegacy:
+      "This session came from the legacy analytics, which records the order of sections but not when each was entered. The sequence is real; the pacing is unknown.",
+    gapInteractions:
+      "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
+    gapFiltersNotEmitted:
+      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+    gapNoFilter: "No filter was applied in this meeting, so there is no search to read.",
+    gapNoComparison:
+      "No comparison was recorded. Compare mode is only measured when the agent opens it.",
+  },
+  sk: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Pridané do obľúbených",
+      pdf: "Otvorený pôdorys",
+      balcony: "Výhľad z balkóna",
+      floor_cut: "Rez podlažím",
+      screenshot: "Snímka obrazovky",
+      share: "Zdieľané",
+    },
+    compared: (codes) => `Porovnané: ${codes}`,
+    noneKept: "Žiadny byt nezostal vybraný",
+    kept: (code) => `${code} zostal vybraný`,
+    timeOfDay: {
+      morning: "ráno",
+      afternoon: "popoludnie",
+      golden: "zlatá hodinka",
+      evening: "večer",
+      night: "noc",
+    },
+    weather: { clear: "jasno", cloudy: "oblačno", rain: "dážď", snow: "sneh", fog: "hmla" },
+    environmentChanged: "Prostredie sa zmenilo",
+    during: (section) => `v sekcii ${section}`,
+    recordedByAgent: "Zaznamenal maklér na konci stretnutia",
+    gapLegacy:
+      "Toto stretnutie pochádza zo staršej analytiky, ktorá zaznamenáva poradie sekcií, ale nie čas vstupu do každej z nich. Poradie je skutočné; tempo nie je známe.",
+    gapInteractions:
+      "Interakcie v rámci sekcie — pridanie do obľúbených, otvorenie pôdorysu, výhľad z balkóna — sú zaznamenané ako súčasť danej sekcie, nie však okamih, keď nastali. Čas nesú iba vstupy do sekcií.",
+    gapFiltersNotEmitted:
+      "Súčasná verzia showroomu neposiela stav filtrov, preto nie je známe, čo kupujúci hľadal.",
+    gapNoFilter:
+      "Na tomto stretnutí sa nepoužil žiadny filter, takže nie je čo čítať z vyhľadávania.",
+    gapNoComparison:
+      "Nezaznamenalo sa žiadne porovnanie. Režim porovnania sa meria, len keď ho maklér otvorí.",
+  },
+  hu: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Kedvencekhez adva",
+      pdf: "Alaprajz megnyitva",
+      balcony: "Kilátás az erkélyről",
+      floor_cut: "Szintmetszet",
+      screenshot: "Képernyőkép készült",
+      share: "Megosztva",
+    },
+    compared: (codes) => `Összehasonlítva: ${codes}`,
+    noneKept: "Egyik lakás sem maradt meg",
+    kept: (code) => `${code} maradt meg`,
+    timeOfDay: {
+      morning: "reggel",
+      afternoon: "délután",
+      golden: "aranyóra",
+      evening: "este",
+      night: "éjszaka",
+    },
+    weather: { clear: "derült", cloudy: "felhős", rain: "eső", snow: "havazás", fog: "köd" },
+    environmentChanged: "A környezet megváltozott",
+    during: (section) => `${hungarianArticle(section)} ${section} szakasz alatt`,
+    recordedByAgent: "Az értékesítő rögzítette a találkozó végén",
+    gapLegacy:
+      "Ez a találkozó a korábbi analitikából származik, amely a szakaszok sorrendjét rögzíti, azt viszont nem, hogy mikor léptek be az egyes szakaszokba. A sorrend valós, a tempó ismeretlen.",
+    gapInteractions:
+      "Egy szakaszon belüli interakciók — kedvencekhez adás, alaprajz megnyitása, kilátás az erkélyről — a szakasz részeként rögzülnek, a pillanatuk viszont nem. Időpontja csak a szakaszba lépésnek van.",
+    gapFiltersNotEmitted:
+      "A showroom jelenlegi változata nem küldi el a szűrők állapotát, ezért nem tudni, mit keresett a vevő.",
+    gapNoFilter: "Ezen a találkozón nem használtak szűrőt, így nincs mit kiolvasni a keresésből.",
+    gapNoComparison:
+      "Összehasonlítás nem rögzült. Az összehasonlító mód csak akkor mérhető, ha az értékesítő megnyitja.",
+  },
+};
+
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
-  const language = context.language;
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = REPLAY_WORDS[language];
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
@@ -1541,7 +1690,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
   for (const step of session.steps) {
     push({
       kind: "section",
-      label: sectionLabel(step.sectionId),
+      label: sectionWord(language, step.sectionId),
       detail: step.itemLabel,
       atDisplay: step.enteredAt === null ? null : clockLabel(step.enteredAt, locale, timeZone),
       dwellDisplay: step.dwellSeconds === null ? null : duration(step.dwellSeconds, language),
@@ -1579,18 +1728,18 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
             unit.views,
           ),
         });
-        for (const [kind, active, label] of [
-          ["favourite", unit.favourited, "Shortlisted"],
-          ["pdf", unit.pdfOpened, "Floor plan opened"],
-          ["balcony", unit.balconyViews > 0, "Balcony view"],
-          ["floor_cut", unit.floorCutViews > 0, "Floor cut"],
-          ["screenshot", unit.screenshots > 0, "Screenshot taken"],
-          ["share", unit.shared, "Shared"],
+        for (const [kind, active] of [
+          ["favourite", unit.favourited],
+          ["pdf", unit.pdfOpened],
+          ["balcony", unit.balconyViews > 0],
+          ["floor_cut", unit.floorCutViews > 0],
+          ["screenshot", unit.screenshots > 0],
+          ["share", unit.shared],
         ] as const) {
           if (!active) continue;
           push({
             kind,
-            label,
+            label: words.interactions[kind],
             detail: unit.unitCode,
             atDisplay: null,
             dwellDisplay: null,
@@ -1610,8 +1759,8 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
         const keeper = set.find((u) => u.keptFromComparison === true);
         push({
           kind: "compare",
-          label: `Compared ${set.map((u) => u.unitCode).join(", ")}`,
-          detail: keeper === undefined ? "No unit was kept" : `${keeper.unitCode} was kept`,
+          label: words.compared(set.map((u) => u.unitCode).join(", ")),
+          detail: keeper === undefined ? words.noneKept : words.kept(keeper.unitCode),
           atDisplay: null,
           dwellDisplay: null,
           sectionId: "compare",
@@ -1632,8 +1781,17 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
   for (const env of session.environment) {
     push({
       kind: "environment",
-      label: [env.timeOfDay, env.weather].filter(Boolean).join(" · ") || "Environment changed",
-      detail: env.duringSectionId === null ? null : `during ${sectionLabel(env.duringSectionId)}`,
+      label:
+        [
+          env.timeOfDay === null ? null : words.timeOfDay[env.timeOfDay],
+          env.weather === null ? null : words.weather[env.weather],
+        ]
+          .filter(Boolean)
+          .join(" · ") || words.environmentChanged,
+      detail:
+        env.duringSectionId === null
+          ? null
+          : words.during(sectionWord(language, env.duringSectionId)),
       atDisplay: null,
       dwellDisplay: null,
       sectionId: env.duringSectionId,
@@ -1646,8 +1804,8 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
 
   push({
     kind: "outcome",
-    label: OUTCOME_LABELS[session.outcome],
-    detail: "Recorded by the agent at the end of the meeting",
+    label: OUTCOME_WORDS[language][session.outcome],
+    detail: words.recordedByAgent,
     atDisplay: clockLabel(session.endedAt, locale, timeZone),
     dwellDisplay: null,
     sectionId: null,
@@ -1666,27 +1824,19 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
 
   const gaps: string[] = [];
   if (session.timingUnavailable) {
-    gaps.push(
-      "This session came from the legacy analytics, which records the order of sections but not when each was entered. The sequence is real; the pacing is unknown.",
-    );
+    gaps.push(words.gapLegacy);
   }
-  gaps.push(
-    "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
-  );
+  gaps.push(words.gapInteractions);
   if (session.filters.length === 0) {
     /*
      * Two different absences. The legacy analytics never carried filter state; a
      * source that times its steps does, so an empty list there means nobody
      * filtered, and saying the build cannot emit it would be false.
      */
-    gaps.push(
-      session.timingUnavailable
-        ? "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown."
-        : "No filter was applied in this meeting, so there is no search to read.",
-    );
+    gaps.push(session.timingUnavailable ? words.gapFiltersNotEmitted : words.gapNoFilter);
   }
   if (!session.units.some((u) => u.comparedWith.length > 0)) {
-    gaps.push("No comparison was recorded. Compare mode is only measured when the agent opens it.");
+    gaps.push(words.gapNoComparison);
   }
 
   return {
@@ -1699,15 +1849,15 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
      * unit register in prose. The sentence beneath carries the count and its
      * breakdown; the headline keeps what nothing else on the screen says.
      */
-    headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} steps.`,
+    headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} ${plural(language, session.steps.length, words.steps)}.`,
     unitsViewed: unitsViewedOf(session.units, catalogue, language, locale),
-    agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
+    agentName: agent?.name ?? presenterName(session.projectId, session.agentId, language),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
     startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
     durationDisplay: duration(session.durationSeconds, language),
     outcome: session.outcome,
-    outcomeLabel: OUTCOME_LABELS[session.outcome],
+    outcomeLabel: OUTCOME_WORDS[language][session.outcome],
     steps,
     coverage: coverageOf([session]),
     gaps,
@@ -1757,11 +1907,11 @@ export function buildMeetingList(
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
-      agentName: presenterName(s.projectId, s.agentId),
+      agentName: presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: duration(s.durationSeconds, context.language),
       outcome: s.outcome,
-      outcomeLabel: OUTCOME_LABELS[s.outcome],
+      outcomeLabel: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][s.outcome],
       sectionCount: new Set(orderOf(s)).size,
       unitCount: s.units.length,
       href: `${base}/meetings/${s.meetingId}`,

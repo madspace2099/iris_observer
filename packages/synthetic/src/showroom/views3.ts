@@ -43,11 +43,17 @@ import {
   DAYS,
   DEFAULT_LANGUAGE,
   MEETINGS,
+  OUTCOME_WORDS,
   actionWorthTaking,
   duration,
+  hungarianArticle,
+  hungarianRoomAdjective,
   nothingReceivedYet,
   plural,
+  pluralCategory,
+  sectionWord,
   sentence,
+  slovakRoomAdjective,
   type Language,
   type Sentence,
 } from "@observer/readmodels";
@@ -123,8 +129,20 @@ export function suppressionNoteFor(
   form: "sentence" | "short" = "sentence",
   language: Language = DEFAULT_LANGUAGE,
 ): string {
-  if (form === "short") return `${count(held, locale)} of ${String(AGENT_MIN_SAMPLE)} meetings`;
-  return `${meetings(held, locale, language)} in this period, ${count(AGENT_MIN_SAMPLE - held, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
+  const minimum = String(AGENT_MIN_SAMPLE);
+  const short = count(AGENT_MIN_SAMPLE - held, locale);
+  if (language === "sk") {
+    return form === "short"
+      ? `${count(held, locale)} z ${minimum} stretnutí`
+      : `${meetings(held, locale, language)} v tomto období; na hodnotenie treba ${minimum}, chýba ${short}. Čísla sú zobrazené, poradie ani trend sa neurčuje.`;
+  }
+  if (language === "hu") {
+    return form === "short"
+      ? `${minimum} találkozóból ${count(held, locale)}`
+      : `Ebben az időszakban ${meetings(held, locale, language)}; az értékeléshez ${minimum} kell, ${short} hiányzik. Az adatok láthatók, rangsor és trend nem készül.`;
+  }
+  if (form === "short") return `${count(held, locale)} of ${minimum} meetings`;
+  return `${meetings(held, locale, language)} in this period, ${short} short of the ${minimum} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
 /**
@@ -143,7 +161,16 @@ export function timedSetNoteFor(
   locale: string,
   language: Language = DEFAULT_LANGUAGE,
 ): string {
-  return `${meetings(timed, locale, language)} of the ${count(held, locale)} held could be timed end to end, ${count(AGENT_MIN_SAMPLE - timed, locale)} short of the ${String(AGENT_MIN_SAMPLE)} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
+  const minimum = String(AGENT_MIN_SAMPLE);
+  const short = count(AGENT_MIN_SAMPLE - timed, locale);
+  const heldFigure = count(held, locale);
+  if (language === "sk") {
+    return `Z ${heldFigure} stretnutí sa dalo od začiatku do konca zmerať ${count(timed, locale)}; zvyk potrebuje ${minimum}, aby sa dal čítať ako hodnotenie, chýba ${short}. Čísla sú zobrazené, poradie ani trend sa neurčuje.`;
+  }
+  if (language === "hu") {
+    return `${hungarianArticle(heldFigure, true)} ${heldFigure} megtartott találkozóból ${count(timed, locale)} volt végig mérhető; egy szokás értékeléséhez ${minimum} kell, ${short} hiányzik. Az adatok láthatók, rangsor és trend nem készül.`;
+  }
+  return `${meetings(timed, locale, language)} of the ${heldFigure} held could be timed end to end, ${short} short of the ${minimum} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
 /* --- helpers ----------------------------------------------------------------- */
@@ -279,7 +306,46 @@ export const VIEWS3_LAST_MONTH_SENTENCE: Sentence = {
   hu: { text: "Előző hónap, első {count} nap" },
 };
 
+/** The recency windows by name, in each language a report can be printed in. Slovak and Hungarian are drafts (P2-17). */
+const WINDOW_WORDS: Readonly<
+  Record<
+    Language,
+    Readonly<
+      Record<
+        "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month",
+        string
+      >
+    >
+  >
+> = {
+  en: {
+    today: "Today",
+    yesterday: "Yesterday",
+    this_week: "This week",
+    last_week: "Last week",
+    this_month: "This month",
+    last_month: "Last month",
+  },
+  sk: {
+    today: "Dnes",
+    yesterday: "Včera",
+    this_week: "Tento týždeň",
+    last_week: "Minulý týždeň",
+    this_month: "Tento mesiac",
+    last_month: "Minulý mesiac",
+  },
+  hu: {
+    today: "Ma",
+    yesterday: "Tegnap",
+    this_week: "Ez a hét",
+    last_week: "Előző hét",
+    this_month: "Ez a hónap",
+    last_month: "Előző hónap",
+  },
+};
+
 export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
+  const windows = WINDOW_WORDS[language];
   const day = 24 * 60 * 60 * 1000;
   const t0 = startOfDayIn(today, timeZone).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
@@ -301,9 +367,9 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
   const lastMonthElapsed = Math.min(elapsedDaysInMonth, lastMonthLength);
 
   return [
-    { id: "today" as const, label: "Today", from: t0, to: t0 + day },
-    { id: "yesterday" as const, label: "Yesterday", from: t0 - day, to: t0 },
-    { id: "this_week" as const, label: "This week", from: thisWeek, to: t0 + day },
+    { id: "today" as const, label: windows.today, from: t0, to: t0 + day },
+    { id: "yesterday" as const, label: windows.yesterday, from: t0 - day, to: t0 },
+    { id: "this_week" as const, label: windows.this_week, from: thisWeek, to: t0 + day },
     /*
      * Last week is clipped to the same number of days.
      *
@@ -315,12 +381,12 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
       id: "last_week" as const,
       label:
         elapsedDays === 7
-          ? "Last week"
+          ? windows.last_week
           : sentence(language, VIEWS3_LAST_WEEK_SENTENCE, { count: elapsedDays }),
       from: thisWeek - 7 * day,
       to: thisWeek - 7 * day + elapsedDays * day,
     },
-    { id: "this_month" as const, label: "This month", from: thisMonth, to: t0 + day },
+    { id: "this_month" as const, label: windows.this_month, from: thisMonth, to: t0 + day },
     /*
      * Last month gets the same clipping last week already has, above.
      *
@@ -332,7 +398,7 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
       id: "last_month" as const,
       label:
         lastMonthElapsed === lastMonthLength
-          ? "Last month"
+          ? windows.last_month
           : sentence(language, VIEWS3_LAST_MONTH_SENTENCE, { count: lastMonthElapsed }),
       from: lastMonth,
       to: lastMonth + lastMonthElapsed * day,
@@ -370,7 +436,10 @@ function buildPeriods(
 
 /* --- outcome rings ----------------------------------------------------------- */
 
-function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
+function outcomeSlices(
+  sessions: readonly ShowroomSession[],
+  language: Language = DEFAULT_LANGUAGE,
+): OutcomeSlice[] {
   const counts = new Map<MeetingOutcome, number>();
   for (const s of sessions) counts.set(s.outcome, (counts.get(s.outcome) ?? 0) + 1);
   const order: MeetingOutcome[] = [
@@ -386,7 +455,7 @@ function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
     .filter((o) => (counts.get(o) ?? 0) > 0)
     .map((o) => ({
       outcome: o,
-      label: OUTCOME_LABELS[o],
+      label: OUTCOME_WORDS[language][o],
       count: counts.get(o) ?? 0,
       share: share(counts.get(o) ?? 0, sessions.length),
     }));
@@ -403,13 +472,23 @@ function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
 function outcomeFlag(
   sessions: readonly ShowroomSession[],
   teamProgressed: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentOutcomeRing["flag"] {
   if (sessions.length < 8) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
+  /* Slovak agrees the verb with the count before "z": 1 and 5 "skončilo", 2 to 4 "skončili". */
+  const ended = (n: number) => (pluralCategory("sk", n) === "few" ? "skončili" : "skončilo");
   if (decided.length < 6) {
+    const unrecorded = sessions.length - decided.length;
     return {
       severity: "watch",
-      text: `${sessions.length - decided.length} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
+      text:
+        language === "sk"
+          ? `${unrecorded} z ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku, takže väčšinu z nich nemožno vôbec vyhodnotiť.`
+          : language === "hu"
+            ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult, így ezek többsége egyáltalán nem értékelhető.`
+            : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
       sampleSize: sessions.length,
     };
   }
@@ -419,14 +498,24 @@ function outcomeFlag(
   if (share(notInterested, decided.length) > 0.35) {
     return {
       severity: "concern",
-      text: `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
+      text:
+        language === "sk"
+          ? `${notInterested} z ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“ — oplatí sa sledovať samotnú prezentáciu, nielen obchodný lievik.`
+          : language === "hu"
+            ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult — érdemes magát a bemutatót is figyelni, nem csak az értékesítési folyamatot.`
+            : `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
       sampleSize: decided.length,
     };
   }
   if (progressed < teamProgressed * 0.75) {
     return {
       severity: "watch",
-      text: `${percent(progressed, "en-GB")} progressed against ${percent(teamProgressed, "en-GB")} for the team, over ${decided.length} recorded meetings.`,
+      text:
+        language === "sk"
+          ? `${percent(progressed, locale)} pokročilo ďalej oproti ${percent(teamProgressed, locale)} v tíme, zo ${decided.length} zaznamenaných stretnutí.`
+          : language === "hu"
+            ? `${decided.length} rögzített találkozóból ${percent(progressed, locale)} lépett tovább, szemben a csapat ${percent(teamProgressed, locale)}-os arányával.`
+            : `${percent(progressed, locale)} progressed against ${percent(teamProgressed, locale)} for the team, over ${decided.length} recorded meetings.`,
       sampleSize: decided.length,
     };
   }
@@ -439,6 +528,8 @@ function buildRing(
   name: string,
   base: string,
   teamProgressed: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentOutcomeRing {
   const decided = session.filter((s) => !outcomeIsUnknown(s.outcome));
   return {
@@ -447,9 +538,9 @@ function buildRing(
     meetings: session.length,
     /* The rate's own denominator, on the read model, so no screen has to count it. */
     decidedMeetings: decided.length,
-    slices: outcomeSlices(session),
+    slices: outcomeSlices(session, language),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
-    flag: outcomeFlag(session, teamProgressed),
+    flag: outcomeFlag(session, teamProgressed, locale, language),
     href: `${base}/agents/${agentId}`,
   };
 }
@@ -485,31 +576,153 @@ function summarizePeriod(sessions: readonly ShowroomSession[], label: string): P
  * produce it the same way, from the same two-summary shape, rather than
  * duplicating four states and a deadbanded signal twice.
  */
+/*
+ * THE VERDICT'S AND THE FINDINGS' WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what these sentences always said. A window's name is a value in
+ * them, and Slovak and Hungarian carry it in parentheses, since no one case
+ * fits every name the window can have. Slovak and Hungarian are drafts for
+ * review (P2-17).
+ */
+interface VerdictWords {
+  readonly volume: (
+    meetings: string,
+    current: string,
+    prior: { readonly count: string; readonly label: string } | null,
+  ) => string;
+  readonly nothingRecorded: (current: string) => string;
+  readonly noOutcomes: string;
+  readonly tooEarly: (volume: string, now: string, current: string) => string;
+  readonly signal: (
+    signal: "good" | "poor" | "attention",
+    volume: string,
+    now: string,
+    before: string,
+  ) => string;
+}
+
+const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
+  en: {
+    volume: (m, current, prior) =>
+      prior === null ? `${m} ${current}` : `${m} ${current} against ${prior.count} ${prior.label}`,
+    nothingRecorded: (current) => `No presentations were recorded ${current}.`,
+    noOutcomes: "The showroom is running; no outcomes are being recorded.",
+    tooEarly: (volume, now, current) =>
+      `Too early to call: ${volume}, and ${now} of recorded meetings progressed ${current}. There's no earlier comparable period yet.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "Meetings are holding up and progressing well" : signal === "poor" ? "Worth a look" : "A mixed signal"}: ${volume}, and ${now} of recorded meetings progressed, against ${before} before.`,
+  },
+  sk: {
+    volume: (m, current, prior) =>
+      prior === null
+        ? `${m} (${current})`
+        : `${m} (${current}) oproti ${prior.count} (${prior.label})`,
+    nothingRecorded: (current) => `Nezaznamenala sa žiadna prezentácia (${current}).`,
+    noOutcomes: "Showroom funguje, ale výsledky stretnutí sa nezaznamenávajú.",
+    tooEarly: (volume, now, current) =>
+      `Na hodnotenie je priskoro: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej (${current}). Porovnateľné skoršie obdobie zatiaľ nie je.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "Stretnutia sa držia a dobre napredujú" : signal === "poor" ? "Stojí za pozornosť" : "Nejednoznačný signál"}: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým.`,
+  },
+  hu: {
+    volume: (m, current, prior) =>
+      prior === null
+        ? `${m} (${current})`
+        : `${m} (${current}), szemben ${prior.count} találkozóval (${prior.label})`,
+    nothingRecorded: (current) => `Nem rögzítettek bemutatót (${current}).`,
+    noOutcomes: "A showroom működik, de az eredményeket nem rögzítik.",
+    tooEarly: (volume, now, current) =>
+      `Még korai megítélni: ${volume}, és a rögzített találkozók ${now}-a lépett tovább (${current}). Korábbi összehasonlítható időszak még nincs.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "A találkozók száma tartja magát, és jól haladnak" : signal === "poor" ? "Érdemes megnézni" : "Vegyes jelzés"}: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal.`,
+  },
+};
+
+interface FlowWords {
+  readonly teamBaseline: (share: string) => string;
+  readonly periodBaseline: (share: string) => string;
+  readonly flagSoWhat: string;
+  readonly unrecordedSoWhat: string;
+  readonly open: (firstName: string) => string;
+  readonly seeMeetings: string;
+}
+
+const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
+  en: {
+    teamBaseline: (share) => `${share} for the team`,
+    periodBaseline: (share) => `${share} of the period`,
+    flagSoWhat:
+      "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
+    unrecordedSoWhat:
+      "Every comparison that uses outcome silently drops these. The fix is a habit at the end of the meeting, not a change to the data.",
+    open: (firstName) => `Open ${firstName}`,
+    seeMeetings: "See the meetings",
+  },
+  sk: {
+    teamBaseline: (share) => `${share} v tíme`,
+    periodBaseline: (share) => `${share} obdobia`,
+    flagSoWhat:
+      "Vzorec v tom, ako sa stretnutia končia, je podnetom pozrieť sa, ako prebiehajú — na prezentáciu, tempo a to, čo sa ukazuje. Nie je to hodnotenie človeka.",
+    unrecordedSoWhat:
+      "Každé porovnanie, ktoré pracuje s výsledkom, ich potichu vynecháva. Riešením je návyk na konci stretnutia, nie zmena údajov.",
+    open: (firstName) => `Otvoriť: ${firstName}`,
+    seeMeetings: "Zobraziť stretnutia",
+  },
+  hu: {
+    teamBaseline: (share) => `a csapatban ${share}`,
+    periodBaseline: (share) => `az időszak ${share}-a`,
+    flagSoWhat:
+      "Az, ahogyan a találkozók végződnek, arra ösztönöz, hogy megnézzük, hogyan zajlanak — a bemutatót, a tempót, azt, hogy mi kerül elő. Ez nem ítélet a személyről.",
+    unrecordedSoWhat:
+      "Minden eredményalapú összevetés szó nélkül kihagyja ezeket. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
+    open: (firstName) => `${firstName} megnyitása`,
+    seeMeetings: "A találkozók megtekintése",
+  },
+};
+
+/** "9 of 74 meetings ended with no outcome recorded." */
+export const FLOW_UNRECORDED_SENTENCE: Sentence = {
+  en: { text: "{count} of {total} meetings ended with no outcome recorded." },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{count} z {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+        few: "{count} z {total} stretnutí sa skončili bez zaznamenaného výsledku.",
+        other: "{count} z {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+      },
+    },
+  },
+  hu: { text: "{total} találkozóból {count} eredmény rögzítése nélkül zárult." },
+};
+
 function verdictFrom(
   current: PeriodSummary,
   prior: PeriodSummary,
   locale: string,
-  language: Language,
+  language: Language = DEFAULT_LANGUAGE,
 ): string {
   const outcomesRecorded = current.outcomeRecorded > 0;
   const hasBaseline = prior.meetings > 0;
 
-  const volumeClause = hasBaseline
-    ? `${meetings(current.meetings, locale, language)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
-    : `${meetings(current.meetings, locale, language)} ${current.label.toLowerCase()}`;
+  const words = VERDICT_WORDS[language];
+  const currentLabel = current.label.toLowerCase();
+  const volumeClause = words.volume(
+    meetings(current.meetings, locale, language),
+    currentLabel,
+    hasBaseline ? { count: count(prior.meetings, locale), label: prior.label.toLowerCase() } : null,
+  );
 
   if (!outcomesRecorded) {
     /*
      * Same fact as the opening screen's equivalent state; same sentence. And the
      * same limit on it: a showroom is running only if meetings came.
      */
-    return current.meetings === 0
-      ? `No presentations were recorded ${current.label.toLowerCase()}.`
-      : "The showroom is running; no outcomes are being recorded.";
+    return current.meetings === 0 ? words.nothingRecorded(currentLabel) : words.noOutcomes;
   }
   if (!hasBaseline) {
     const currentProgressed = share(current.progressed, current.outcomeRecorded);
-    return `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+    return words.tooEarly(volumeClause, percent(currentProgressed, locale), currentLabel);
   }
 
   const currentProgressed = share(current.progressed, current.outcomeRecorded);
@@ -531,11 +744,12 @@ function verdictFrom(
 
   // "Against", never "up from" or "down from" -- see the docblock this
   // reasoning was moved from, immediately below in `buildSalesFlow`.
-  return signal === "good"
-    ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-    : signal === "poor"
-      ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-      : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
+  return words.signal(
+    signal,
+    volumeClause,
+    percent(currentProgressed, locale),
+    percent(priorProgressed, locale),
+  );
 }
 
 /* --- 1. Sales Flow ----------------------------------------------------------- */
@@ -570,12 +784,17 @@ export function buildSalesFlow(
         a.name,
         base,
         teamProgressed,
+        locale,
+        context.language,
       ),
     )
     .filter((r) => r.meetings > 0);
 
   const unrecorded = sessions.length - decided.length;
   const findings: ShowroomFinding[] = [];
+  /* A context built without a language — a test's, say — reads as English, like every word helper. */
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const flowWords = FLOW_WORDS[language];
 
   const flagged = rings.filter((r) => r.flag !== null);
   if (flagged[0]?.flag != null) {
@@ -586,10 +805,12 @@ export function buildSalesFlow(
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: `${percent(teamProgressed, locale)} for the team`,
-      soWhat:
-        "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
-      nextStep: { label: `Open ${flagged[0].name.split(" ")[0]}`, href: flagged[0].href },
+      baseline: flowWords.teamBaseline(percent(teamProgressed, locale)),
+      soWhat: flowWords.flagSoWhat,
+      nextStep: {
+        label: flowWords.open(flagged[0].name.split(" ")[0] ?? ""),
+        href: flagged[0].href,
+      },
       evidence: evidenceRef(
         `flow-${flagged[0].agentId}`,
         "statistical_association",
@@ -605,11 +826,14 @@ export function buildSalesFlow(
   if (unrecorded > 0) {
     findings.push({
       id: "flow-unrecorded",
-      statement: `${count(unrecorded, locale)} of ${count(sessions.length, locale)} meetings ended with no outcome recorded.`,
-      baseline: `${percent(share(unrecorded, sessions.length), locale)} of the period`,
-      soWhat:
-        "Every comparison that uses outcome silently drops these. The fix is a habit at the end of the meeting, not a change to the data.",
-      nextStep: { label: "See the meetings", href: `${base}/meetings` },
+      statement: sentence(language, FLOW_UNRECORDED_SENTENCE, {
+        count: count(unrecorded, locale),
+        total: count(sessions.length, locale),
+        n: unrecorded,
+      }),
+      baseline: flowWords.periodBaseline(percent(share(unrecorded, sessions.length), locale)),
+      soWhat: flowWords.unrecordedSoWhat,
+      nextStep: { label: flowWords.seeMeetings, href: `${base}/meetings` },
       evidence: evidenceRef("flow-unrecorded", "observed_sequence", `${base}/meetings`, unrecorded),
       sampleSize: sessions.length,
       sources: [...WITH_OUTCOME],
@@ -710,7 +934,7 @@ export function buildSalesFlow(
     context,
     verdict,
     periods,
-    outcomes: outcomeSlices(sessions),
+    outcomes: outcomeSlices(sessions, context.language),
     rings,
     findings,
     meetingCount: sessions.length,
@@ -752,18 +976,42 @@ interface RoomSegmentSpec {
  * catalogue did not state — its own row, never folded into a guess, so the
  * scale still covers the stock (ADR-0036).
  */
+/*
+ * A room-count segment by name, in each language a report can be printed in.
+ * English is `roomLabel`, "Two-room". Slovak and Hungarian name the flats by
+ * the adjective their rooms make, in the plural a segment of several takes —
+ * "Dvojizbové", "Kétszobás" — from the same helpers the replay's sentence
+ * uses. The unstated row's name is a draft for review (P2-17), like the rest.
+ */
+const UNSTATED_ROOMS_WORDS: Readonly<Record<Language, string>> = {
+  en: UNSTATED_ROOMS_SEGMENT.label,
+  sk: "Počet izieb neuvedený",
+  hu: "Szobaszám nincs megadva",
+};
+
+function capitalised(word: string): string {
+  return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+}
+
+function segmentName(rooms: number, language: Language): string {
+  if (language === "sk") return capitalised(slovakRoomAdjective(rooms, 2));
+  if (language === "hu") return capitalised(hungarianRoomAdjective(rooms));
+  return roomLabel(rooms);
+}
+
 function roomSegments(
   catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
+  language: Language = DEFAULT_LANGUAGE,
 ): RoomSegmentSpec[] {
   const stated = roomCounts(catalogue).map((rooms) => ({
     id: `rooms-${rooms}`,
-    label: roomLabel(rooms),
+    label: segmentName(rooms, language),
     rooms,
   }));
   return hasUnstatedRooms(catalogue)
     ? [
         ...stated,
-        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_SEGMENT.label, rooms: null },
+        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_WORDS[language], rooms: null },
       ]
     : stated;
 }
@@ -967,7 +1215,9 @@ export function buildProjectView(
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const catalogue = catalogueFor(context.project.id as string);
-  const segments = roomSegments(catalogue).map((spec) => buildSegment(context, sessions, spec));
+  const segments = roomSegments(catalogue, context.language ?? DEFAULT_LANGUAGE).map((spec) =>
+    buildSegment(context, sessions, spec),
+  );
   /*
    * No segment asked for opens the first one — the band below the tabs is
    * the point of the page, and "first" is the smallest count, the same
@@ -1215,7 +1465,7 @@ function sectionUses(
       const teamDwell = sectionDwell(sessions, id);
       return {
         sectionId: id,
-        label: sectionLabel(id),
+        label: sectionWord(language, id),
         order: 0,
         position: meanPosition(mine, id),
         medianDwellSeconds: dwell,
@@ -1274,7 +1524,10 @@ export function buildAgentsView(
   }
   const teamTotal = [...teamSectionSecs.values()].reduce((a, b) => a + b, 0);
 
-  const agents: AgentProfile[] = presentersIn(sessions).flatMap<AgentProfile>((a) => {
+  const agents: AgentProfile[] = presentersIn(
+    sessions,
+    context.language ?? DEFAULT_LANGUAGE,
+  ).flatMap<AgentProfile>((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
 
@@ -1313,7 +1566,7 @@ export function buildAgentsView(
           : null,
       medianDurationDisplay:
         timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
-      ring: buildRing(mine, a.id, a.name, base, teamProgressed),
+      ring: buildRing(mine, a.id, a.name, base, teamProgressed, locale, context.language),
       repeats: repeatDistribution(mine),
       sections,
       signature:
@@ -1556,7 +1809,9 @@ export function buildAudience(
       return {
         meetingId: s.meetingId,
         startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-        agentName: agent?.name ?? presenterName(s.projectId, s.agentId),
+        agentName:
+          agent?.name ??
+          presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
           places.length === 0

@@ -9,6 +9,7 @@ import {
   DAYS,
   DEFAULT_LANGUAGE,
   plural,
+  pluralCategory,
   sentence,
   type Sentence,
   type AssistVerdict,
@@ -470,6 +471,88 @@ export function syntheticDeals(
 export const NOT_CONNECTED_NOTE =
   "The CRM is not connected. The deal ladder is the CRM's, and no deal fact reaches this product until a connector delivers one.";
 
+/*
+ * THE LADDER'S WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * The stage names and the connector's name are English above, and stay the
+ * English here; the proper names — REALPAD, Monday, Lomnio — are the same in
+ * every language. Slovak and Hungarian are drafts for review (P2-17).
+ */
+const STAGE_WORDS: Readonly<Record<Language, Readonly<Record<DealStage, string>>>> = {
+  en: STAGE_LABELS,
+  sk: {
+    lead: "Záujemca",
+    meeting: "Stretnutie",
+    negotiation: "Rokovanie",
+    offer: "Ponuka",
+    reservation: "Rezervácia",
+    purchase: "Kúpa",
+    lost: "Stratené",
+  },
+  hu: {
+    lead: "Érdeklődő",
+    meeting: "Találkozó",
+    negotiation: "Tárgyalás",
+    offer: "Ajánlat",
+    reservation: "Foglalás",
+    purchase: "Vásárlás",
+    lost: "Elveszett",
+  },
+};
+
+const CONNECTOR_PHRASES: Readonly<
+  Record<Language, Readonly<Record<DeliveredDeals["connector"], string>>>
+> = {
+  en: CONNECTOR_WORDS,
+  sk: {
+    realpad: "REALPAD",
+    monday: "Monday",
+    lomnio: "Lomnio",
+    csv: "tabuľka obchodov",
+    synthetic: "demonštračné CRM",
+  },
+  hu: {
+    realpad: "REALPAD",
+    monday: "Monday",
+    lomnio: "Lomnio",
+    csv: "az ügyletek táblázata",
+    synthetic: "a bemutató CRM",
+  },
+};
+
+interface LadderNoteWords {
+  readonly notConnected: string;
+  readonly rung: string;
+  readonly lost: (n: number) => string;
+}
+
+const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
+  en: {
+    notConnected: NOT_CONNECTED_NOTE,
+    rung: "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
+    lost: (n) => `${String(n)} lost, counted beside the ladder.`,
+  },
+  sk: {
+    notConnected:
+      "CRM nie je pripojené. Rebrík obchodov patrí CRM a žiadny údaj o obchode sa do tohto produktu nedostane, kým ho nedodá konektor.",
+    rung: "Stupeň počíta obchody v danej fáze alebo ďalej; ukazuje, kde každý obchod stojí, nie cestu, ktorou prešiel.",
+    lost: (n) => {
+      const category = pluralCategory("sk", n);
+      return category === "one"
+        ? `${String(n)} stratený obchod, počítaný mimo rebríka.`
+        : category === "few"
+          ? `${String(n)} stratené obchody, počítané mimo rebríka.`
+          : `${String(n)} stratených obchodov, počítaných mimo rebríka.`;
+    },
+  },
+  hu: {
+    notConnected:
+      "A CRM nincs csatlakoztatva. Az ügyletek lépcsője a CRM-é, és egyetlen ügyleti adat sem jut el ebbe a termékbe, amíg egy csatlakozó nem szállítja.",
+    rung: "Egy lépcsőfok azokat az ügyleteket számolja, amelyek abban a szakaszban vagy azon túl tartanak; azt mutatja, hol áll most az egyes ügylet, nem azt, milyen úton jutott oda.",
+    lost: (n) => `${String(n)} elveszett ügylet, a lépcsőn kívül számolva.`,
+  },
+};
+
 /**
  * The ladder from a snapshot of the CRM's deals.
  *
@@ -489,7 +572,8 @@ export function buildDealLadder(
   /** The words' language; `locale` still formats the figures. */
   language: Language = DEFAULT_LANGUAGE,
 ): DealLadder {
-  if (deals === null) return { source: "not_connected", note: NOT_CONNECTED_NOTE };
+  const noteWords = LADDER_NOTE_WORDS[language];
+  if (deals === null) return { source: "not_connected", note: noteWords.notConnected };
 
   const rank = new Map<DealStage, number>(LADDER_STAGES.map((s, i) => [s, i]));
   const unmapped = deals.deals.filter((d) => d.stage === null).length;
@@ -506,7 +590,7 @@ export function buildDealLadder(
     const medianDaysInStage = median(dated);
     return {
       id: stage,
-      label: STAGE_LABELS[stage],
+      label: STAGE_WORDS[language][stage],
       count,
       verified: true,
       rate: first === 0 ? null : percent(count / first, locale),
@@ -563,14 +647,14 @@ export function buildDealLadder(
 
   const words = [
     sentence(language, DEAL_STATED_SENTENCE, {
-      connector: CONNECTOR_WORDS[deals.connector],
+      connector: CONNECTOR_PHRASES[language][deals.connector],
       count: deals.deals.length,
     }),
-    "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
+    noteWords.rung,
     unmapped === 0
       ? null
       : sentence(language, DEAL_UNMAPPED_SENTENCE, { count: unmapped, deals: String(unmapped) }),
-    lost === 0 ? null : `${String(lost)} lost, counted beside the ladder.`,
+    lost === 0 ? null : noteWords.lost(lost),
   ].filter((w): w is string => w !== null);
 
   return {

@@ -57,7 +57,7 @@ import type {
   ShowroomSessionSource,
 } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
-import { periodsAt } from "./time";
+import { periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
@@ -108,42 +108,41 @@ import { buildAgentReportScope, buildReportScope } from "./reports";
  *    before it is backed by real rows.
  */
 
-const PERIODS: Record<PeriodPreset, Omit<Period, "preset">> = {
+/*
+ * The synthetic world's periods: its bounds here, its words from `periodWords`
+ * — the table the real clock reads — so the two cannot name a period apart.
+ * Its quarter to date has run 54 days.
+ */
+const SYNTHETIC_QUARTER_DAYS = 54;
+
+const PERIODS: Record<PeriodPreset, Omit<Period, "preset" | "label" | "baselineLabel">> = {
   last_28_days: {
-    label: "Last 28 days",
     from: "2026-07-27T00:00:00.000+02:00",
     to: "2026-08-24T00:00:00.000+02:00",
-    baselineLabel: "the previous 28 days",
     baselineFrom: "2026-06-29T00:00:00.000+02:00",
     baselineTo: "2026-07-27T00:00:00.000+02:00",
     baselineClipped: false,
   },
   quarter_to_date: {
-    label: "Quarter to date",
     from: "2026-07-01T00:00:00.000+02:00",
     to: "2026-08-24T00:00:00.000+02:00",
     // 54 days elapsed, so the baseline is clipped to the same 54 days.
     // Comparing a part-quarter with a whole one is the commonest false alarm
     // a dashboard raises.
-    baselineLabel: "the same 54 days of the previous quarter",
     baselineFrom: "2026-04-01T00:00:00.000+02:00",
     baselineTo: "2026-05-25T00:00:00.000+02:00",
     baselineClipped: true,
   },
   last_quarter: {
-    label: "Last completed quarter",
     from: "2026-04-01T00:00:00.000+02:00",
     to: "2026-07-01T00:00:00.000+02:00",
-    baselineLabel: "the quarter before it",
     baselineFrom: "2026-01-01T00:00:00.000+01:00",
     baselineTo: "2026-04-01T00:00:00.000+02:00",
     baselineClipped: false,
   },
   year_to_date: {
-    label: "Year to date",
     from: "2026-01-01T00:00:00.000+01:00",
     to: "2026-08-24T00:00:00.000+02:00",
-    baselineLabel: "the same period last year",
     baselineFrom: "2025-01-01T00:00:00.000+01:00",
     baselineTo: "2025-08-24T00:00:00.000+02:00",
     baselineClipped: true,
@@ -314,8 +313,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
     now: Date | null,
     language: Language,
   ): Period {
-    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone, language);
-    return { preset, ...periods[preset] };
+    if (now === null) {
+      return {
+        preset,
+        ...PERIODS[preset],
+        ...periodWords(preset, SYNTHETIC_QUARTER_DAYS, language),
+      };
+    }
+    return { preset, ...periodsAt(now, project.timeZone, language)[preset] };
   }
 
   private async context(query: OverviewQuery | BriefQuery): Promise<ViewContext> {

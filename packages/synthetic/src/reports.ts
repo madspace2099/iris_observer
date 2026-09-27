@@ -1,6 +1,14 @@
 import { outcomeIsUnknown, type InsightSource, type ShowroomSession } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { AGENT_REGISTER_ROLES } from "@observer/readmodels";
+import {
+  AGENT_REGISTER_ROLES,
+  DEFAULT_LANGUAGE,
+  MEETINGS,
+  plural,
+  sentence,
+  type Language,
+  type Sentence,
+} from "@observer/readmodels";
 import type {
   ProjectSummary,
   ReportScopeView,
@@ -28,6 +36,363 @@ import { presentersIn } from "./showroom/sessions";
  * been let down by a product that knew on Monday.
  */
 
+/*
+ * THE MANIFEST'S OWN WORDS, IN EACH LANGUAGE A REPORT CAN BE ASKED FOR.
+ *
+ * A report is printed in the language the export dialog chose, and the
+ * manifest's labels, summaries and reasons are the report's own text: nobody
+ * else's read model writes them. One record per language, typed alike, so a
+ * word missing in one of them is a compile error rather than an English phrase
+ * in the middle of a Slovak page. A sentence that counts is a `Sentence`.
+ *
+ * The Slovak and Hungarian here are DRAFTS for review (P2-17), not approved
+ * text: the review sheet states each of them whole, and an approved round
+ * replaces them as the earlier rounds replaced the first drafts.
+ */
+interface SectionWords {
+  readonly label: string;
+  readonly summary: string;
+}
+
+interface ScopeWords {
+  readonly periodSummary: SectionWords;
+  readonly coverage: SectionWords;
+  readonly unitDemand: SectionWords;
+  readonly salesAgents: SectionWords;
+  readonly outcomes: SectionWords;
+  readonly channelSplit: SectionWords;
+  readonly singleMeeting: SectionWords;
+  readonly appendix: SectionWords;
+  readonly noPresentations: string;
+  readonly noCatalogue: string;
+  readonly noUnitOpened: string;
+  readonly nobodyPresented: string;
+  readonly noCrm: string;
+  readonly allShowroom: string;
+  readonly allWebIris: string;
+  readonly generation: string;
+  readonly milestone: string;
+  readonly meetingSequence: SectionWords;
+  readonly meetingAppendix: SectionWords;
+  readonly meetingLegacy: string;
+  readonly meetingGeneration: string;
+}
+
+const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
+  en: {
+    periodSummary: {
+      label: "Period summary",
+      summary:
+        "The verdict for the period, the presentation figures behind it, and what moved against the baseline.",
+    },
+    coverage: {
+      label: "Presentation coverage",
+      summary:
+        "Which sections of IRIS the presentations reached, which were routinely skipped, and how deep a typical meeting went.",
+    },
+    unitDemand: {
+      label: "Unit demand",
+      summary:
+        "Attention unit by unit, which segments draw more interest than their share of stock, and what buyers examined on the units they opened.",
+    },
+    salesAgents: {
+      label: "Sales agents",
+      summary:
+        "How each person presents, how their meetings end, and where their running order differs from the team's.",
+    },
+    outcomes: {
+      label: "Outcomes and conversion",
+      summary:
+        "What the recorded outcomes were, and how many meetings progressed further after them.",
+    },
+    channelSplit: {
+      label: "Showroom and WEB IRIS",
+      summary:
+        "How the period divides between the installation and the browser, and what each channel can and cannot say about dwell.",
+    },
+    singleMeeting: {
+      label: "A single meeting",
+      summary:
+        "One presentation reconstructed as a sequence: what was shown, in what order, which units were opened and what the meeting recorded at the end.",
+    },
+    appendix: {
+      label: "Evidence appendix",
+      summary:
+        "Every figure in the report with its period, its filters, its sample size and the reference that resolves to the records underneath it.",
+    },
+    noPresentations: "No presentations in the period.",
+    noCatalogue:
+      "No unit catalogue is connected to this project, so units cannot be named or segmented.",
+    noUnitOpened: "No presentations in the period, so no unit was opened.",
+    nobodyPresented: "Nobody presented on this project in the period.",
+    noCrm:
+      "No CRM is connected to this project, so no meeting carries an outcome. The section would be blank rather than nil.",
+    allShowroom:
+      "Every presentation on this project ran on the showroom installation, so there is no split to report.",
+    allWebIris:
+      "Every presentation on this project ran on WEB IRIS, so there is no split to report.",
+    generation:
+      "Nothing generates a document yet. This screen states what a report would contain, section by section, from the sources this project actually has.",
+    milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+    meetingSequence: {
+      label: "The meeting, as a sequence",
+      summary:
+        "What was shown, in what order, which units were opened and what the meeting recorded at the end.",
+    },
+    meetingAppendix: {
+      label: "Evidence appendix",
+      summary:
+        "The session record this summary rests on, with its source, its step count and the reference that resolves to it.",
+    },
+    meetingLegacy:
+      "This meeting came from the legacy import, which records the order of sections and not their timing. The sequence is written; the pacing is not.",
+    meetingGeneration:
+      "Nothing generates a document yet. This screen states what a meeting summary would contain from the session record.",
+  },
+  sk: {
+    periodSummary: {
+      label: "Zhrnutie obdobia",
+      summary:
+        "Hodnotenie obdobia, čísla prezentácií, na ktorých stojí, a čo sa zmenilo oproti porovnávaciemu obdobiu.",
+    },
+    coverage: {
+      label: "Pokrytie prezentácií",
+      summary:
+        "Ku ktorým sekciám IRIS sa prezentácie dostali, ktoré sa bežne preskakovali a ako hlboko išlo typické stretnutie.",
+    },
+    unitDemand: {
+      label: "Dopyt po bytoch",
+      summary:
+        "Pozornosť byt po byte, ktoré segmenty priťahujú viac záujmu, než zodpovedá ich podielu na ponuke, a čo si kupujúci prezerali na bytoch, ktoré otvorili.",
+    },
+    salesAgents: {
+      label: "Realitní makléri",
+      summary:
+        "Ako kto prezentuje, ako sa končia jeho stretnutia a v čom sa jeho poradie líši od poradia tímu.",
+    },
+    outcomes: {
+      label: "Výsledky a konverzia",
+      summary: "Aké výsledky stretnutí boli zaznamenané a koľko stretnutí po nich pokročilo ďalej.",
+    },
+    channelSplit: {
+      label: "Showroom a WEB IRIS",
+      summary:
+        "Ako sa obdobie delí medzi inštaláciu v showroome a prehliadač a čo každý kanál vie a nevie povedať o čase prezerania.",
+    },
+    singleMeeting: {
+      label: "Jedno stretnutie",
+      summary:
+        "Jedna prezentácia zrekonštruovaná ako postupnosť: čo sa ukázalo, v akom poradí, ktoré byty sa otvorili a čo stretnutie zaznamenalo na konci.",
+    },
+    appendix: {
+      label: "Príloha s podkladmi",
+      summary:
+        "Každé číslo v správe s jeho obdobím, filtrami, veľkosťou vzorky a odkazom na záznamy, na ktorých stojí.",
+    },
+    noPresentations: "V tomto období neprebehla žiadna prezentácia.",
+    noCatalogue:
+      "K tomuto projektu nie je pripojený katalóg bytov, preto byty nemožno pomenovať ani rozdeliť do segmentov.",
+    noUnitOpened: "V tomto období neprebehla žiadna prezentácia, preto sa neotvoril žiadny byt.",
+    nobodyPresented: "V tomto období na tomto projekte nikto neprezentoval.",
+    noCrm:
+      "K tomuto projektu nie je pripojený žiadny CRM, preto žiadne stretnutie nemá výsledok. Sekcia by bola prázdna, nie nulová.",
+    allShowroom:
+      "Každá prezentácia na tomto projekte prebehla v inštalácii v showroome, takže niet čo rozdeliť.",
+    allWebIris: "Každá prezentácia na tomto projekte prebehla vo WEB IRIS, takže niet čo rozdeliť.",
+    generation:
+      "Dokument zatiaľ nič negeneruje. Táto obrazovka uvádza, čo by správa obsahovala, sekciu po sekcii, zo zdrojov, ktoré tento projekt skutočne má.",
+    milestone: "Generovanie správ je naplánované na M4 (docs/roadmap.md).",
+    meetingSequence: {
+      label: "Stretnutie ako postupnosť",
+      summary:
+        "Čo sa ukázalo, v akom poradí, ktoré byty sa otvorili a čo stretnutie zaznamenalo na konci.",
+    },
+    meetingAppendix: {
+      label: "Príloha s podkladmi",
+      summary:
+        "Záznam zo showroomu, na ktorom toto zhrnutie stojí, s jeho zdrojom, počtom krokov a odkazom naň.",
+    },
+    meetingLegacy:
+      "Toto stretnutie pochádza zo staršieho importu, ktorý zaznamenáva poradie sekcií, ale nie ich časovanie. Poradie je zapísané, tempo nie.",
+    meetingGeneration:
+      "Dokument zatiaľ nič negeneruje. Táto obrazovka uvádza, čo by zhrnutie stretnutia obsahovalo zo záznamu zo showroomu.",
+  },
+  hu: {
+    periodSummary: {
+      label: "Az időszak összefoglalója",
+      summary:
+        "Az időszak értékelése, a mögötte álló bemutatószámok, és hogy mi változott az összehasonlító időszakhoz képest.",
+    },
+    coverage: {
+      label: "A bemutatók lefedettsége",
+      summary:
+        "Az IRIS mely szakaszaiig jutottak el a bemutatók, melyeket hagyták ki rendszeresen, és milyen mélyre ment egy tipikus találkozó.",
+    },
+    unitDemand: {
+      label: "Lakáskereslet",
+      summary:
+        "A figyelem lakásonként: mely szegmensek vonzanak több érdeklődést, mint amekkora a kínálatban a részesedésük, és mit néztek meg a vevők a megnyitott lakásokon.",
+    },
+    salesAgents: {
+      label: "Ingatlanértékesítők",
+      summary:
+        "Ki hogyan mutat be, hogyan végződnek a találkozói, és miben tér el a bemutatási sorrendje a csapatétól.",
+    },
+    outcomes: {
+      label: "Eredmények és konverzió",
+      summary: "Milyen eredményeket rögzítettek, és hány találkozó jutott utána tovább.",
+    },
+    channelSplit: {
+      label: "Showroom és WEB IRIS",
+      summary:
+        "Hogyan oszlik meg az időszak a showroom-telepítés és a böngésző között, és mit tud, illetve mit nem tud elmondani a két csatorna a megtekintési időről.",
+    },
+    singleMeeting: {
+      label: "Egyetlen találkozó",
+      summary:
+        "Egy bemutató lépésről lépésre: mit mutattak meg, milyen sorrendben, mely lakásokat nyitották meg, és mit rögzítettek a találkozó végén.",
+    },
+    appendix: {
+      label: "Bizonyíték-függelék",
+      summary:
+        "A jelentés minden adata az időszakával, a szűrőivel, a mintanagyságával és a mögötte álló rekordokra mutató hivatkozással.",
+    },
+    noPresentations: "Ebben az időszakban nem volt bemutató.",
+    noCatalogue:
+      "Ehhez a projekthez nincs lakáskatalógus csatlakoztatva, ezért a lakásokat nem lehet megnevezni és szegmensekre bontani.",
+    noUnitOpened: "Ebben az időszakban nem volt bemutató, ezért egyetlen lakást sem nyitottak meg.",
+    nobodyPresented: "Ebben az időszakban senki sem tartott bemutatót ezen a projekten.",
+    noCrm:
+      "Ehhez a projekthez nincs CRM csatlakoztatva, ezért egyetlen találkozónak sincs eredménye. A szakasz üres lenne, nem nulla.",
+    allShowroom:
+      "Ezen a projekten minden bemutató a showroom-telepítésen zajlott, így nincs mit megbontani.",
+    allWebIris:
+      "Ezen a projekten minden bemutató a WEB IRIS-ben zajlott, így nincs mit megbontani.",
+    generation:
+      "Dokumentumot egyelőre semmi sem állít elő. Ez a képernyő szakaszonként megmutatja, mit tartalmazna a jelentés azokból a forrásokból, amelyek ehhez a projekthez ténylegesen rendelkezésre állnak.",
+    milestone: "A jelentéskészítés az M4 mérföldkőben esedékes (docs/roadmap.md).",
+    meetingSequence: {
+      label: "A találkozó lépésről lépésre",
+      summary:
+        "Mit mutattak meg, milyen sorrendben, mely lakásokat nyitották meg, és mit rögzítettek a találkozó végén.",
+    },
+    meetingAppendix: {
+      label: "Bizonyíték-függelék",
+      summary:
+        "A showroom-rekord, amelyen ez az összefoglaló alapul, a forrásával, a lépésszámával és a rá mutató hivatkozással.",
+    },
+    meetingLegacy:
+      "Ez a találkozó a régi rendszerből importált adatokból származik, amely a szakaszok sorrendjét rögzíti, az időzítésüket nem. A sorrend megvan, a tempó nincs.",
+    meetingGeneration:
+      "Dokumentumot egyelőre semmi sem állít elő. Ez a képernyő megmutatja, mit tartalmazna a találkozó összefoglalója a showroom-rekordból.",
+  },
+};
+
+/** "No presentations were recorded in quarter to date, so the section would have nothing to summarise." */
+export const REPORT_NOTHING_TO_SUMMARISE: Sentence = {
+  en: {
+    text: "No presentations were recorded in {period}, so the section would have nothing to summarise.",
+  },
+  sk: {
+    text: "V období {period} sa nezaznamenala žiadna prezentácia, preto by táto sekcia nemala čo zhrnúť.",
+  },
+  hu: {
+    text: "{Az:period} időszakban egyetlen bemutatót sem rögzítettek, így a szakasznak nem lenne mit összefoglalnia.",
+  },
+};
+
+/** "3 meetings came from the legacy import, …" */
+export const REPORT_LEGACY_MEETINGS: Sentence = {
+  en: {
+    text: "{count} meetings came from the legacy import, which records the order of sections and not their timing. Their sequence would appear; their pacing would not.",
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{count} stretnutie pochádza zo staršieho importu, ktorý zaznamenáva poradie sekcií, ale nie ich časovanie. Jeho poradie by sa zobrazilo, tempo nie.",
+        few: "{count} stretnutia pochádzajú zo staršieho importu, ktorý zaznamenáva poradie sekcií, ale nie ich časovanie. Ich poradie by sa zobrazilo, tempo nie.",
+        other:
+          "{count} stretnutí pochádza zo staršieho importu, ktorý zaznamenáva poradie sekcií, ale nie ich časovanie. Ich poradie by sa zobrazilo, tempo nie.",
+      },
+    },
+  },
+  hu: {
+    text: "{count} találkozó a régi rendszerből importált adatokból származik, amely a szakaszok sorrendjét rögzíti, az időzítésüket nem. A sorrend megjelenne, a tempó nem.",
+  },
+};
+
+/** "Monika Kováčová, Ján Hruška are below the 20-meeting minimum, …" */
+export const REPORT_BELOW_MINIMUM: Sentence = {
+  en: {
+    text: "{names} {be|n} below the {minimum}-meeting minimum, so their figures would appear as raw counts with no verdict, rank or trend.",
+    words: { be: { one: "is", other: "are" } },
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{names} nedosahuje minimum {minimum} stretnutí, preto by sa čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+        few: "{names} nedosahujú minimum {minimum} stretnutí, preto by sa ich čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+        other:
+          "{names} nedosahujú minimum {minimum} stretnutí, preto by sa ich čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+      },
+    },
+  },
+  hu: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{names} nem éri el {az:minimum} találkozós minimumot, ezért az adatai csak nyers számként jelennének meg, értékelés, rangsor és trend nélkül.",
+        other:
+          "{names} nem érik el {az:minimum} találkozós minimumot, ezért az adataik csak nyers számként jelennének meg, értékelés, rangsor és trend nélkül.",
+      },
+    },
+  },
+};
+
+/** "12% of meetings in the period ended with no outcome recorded, …" */
+export const REPORT_UNRECORDED_SHARE: Sentence = {
+  en: {
+    text: "{share} of meetings in the period ended with no outcome recorded, and every rate in this section would silently drop them.",
+  },
+  sk: {
+    text: "{share} stretnutí v tomto období sa skončilo bez zaznamenaného výsledku a každý pomer v tejto sekcii by ich potichu vynechal.",
+  },
+  hu: {
+    text: "Az időszak találkozóinak {share}-a eredmény rögzítése nélkül zárult, és a szakasz minden aránya szó nélkül kihagyná őket.",
+  },
+};
+
+/** "A summary can be written for any meeting in the period, but 3 of them carry no timing …" */
+export const REPORT_LEGACY_SUMMARY: Sentence = {
+  en: {
+    text: "A summary can be written for any meeting in the period, but {count} of them carry no timing and would be shown as a sequence rather than a timeline.",
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemá časovanie a zobrazilo by sa ako postupnosť, nie ako časová os.",
+        few: "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemajú časovanie a zobrazili by sa ako postupnosť, nie ako časová os.",
+        other:
+          "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemá časovanie a zobrazilo by sa ako postupnosť, nie ako časová os.",
+      },
+    },
+  },
+  hu: {
+    text: "Az időszak bármely találkozójáról írható összefoglaló, de közülük {count} nem hordoz időzítést, ezért lépéssorként jelenne meg, nem idővonalként.",
+  },
+};
+
+/**
+ * The noun a section's sample is counted in. English has always printed
+ * "meetings" whatever the count; Slovak and Hungarian agree with the count.
+ */
+function meetingsNoun(language: Language, n: number | null): string {
+  return language === "en" ? "meetings" : plural(language, n ?? 0, MEETINGS);
+}
+
 const OBSERVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED"];
 const DERIVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"];
 const WITH_OUTCOME: readonly InsightSource[] = [
@@ -47,6 +412,8 @@ export function buildReportScope(
 ): ReportScopeView {
   if (meeting !== null) return buildMeetingReportScope(context, meeting);
   const locale = context.project.locale;
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = SCOPE_WORDS[language];
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const crm = context.project.connectedSources.includes("crm");
   const n = sessions.length;
@@ -76,135 +443,125 @@ export function buildReportScope(
   const sections: readonly ReportSection[] = [
     {
       id: "period-summary",
-      label: "Period summary",
-      summary:
-        "The verdict for the period, the presentation figures behind it, and what moved against the baseline.",
+      ...words.periodSummary,
       availability: n === 0 ? "unavailable" : "ready",
       reason:
         n === 0
-          ? `No presentations were recorded in ${context.period.label.toLowerCase()}, so the section would have nothing to summarise.`
+          ? sentence(language, REPORT_NOTHING_TO_SUMMARISE, {
+              period: context.period.label.toLowerCase(),
+            })
           : null,
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: n === 0 ? null : evidence("summary", n),
     },
     {
       id: "presentation-coverage",
-      label: "Presentation coverage",
-      summary:
-        "Which sections of IRIS the presentations reached, which were routinely skipped, and how deep a typical meeting went.",
+      ...words.coverage,
       availability: n === 0 ? "unavailable" : legacy > 0 ? "partial" : "ready",
       reason:
         n === 0
-          ? "No presentations in the period."
+          ? words.noPresentations
           : legacy > 0
-            ? `${count(legacy, locale)} meetings came from the legacy import, which records the order of sections and not their timing. Their sequence would appear; their pacing would not.`
+            ? sentence(language, REPORT_LEGACY_MEETINGS, {
+                count: count(legacy, locale),
+                n: legacy,
+              })
             : null,
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: n === 0 ? null : evidence("coverage", n),
     },
     {
       id: "unit-demand",
-      label: "Unit demand",
-      summary:
-        "Attention unit by unit, which segments draw more interest than their share of stock, and what buyers examined on the units they opened.",
+      ...words.unitDemand,
       availability: catalogue.length === 0 ? "unavailable" : n === 0 ? "unavailable" : "ready",
-      reason:
-        catalogue.length === 0
-          ? "No unit catalogue is connected to this project, so units cannot be named or segmented."
-          : n === 0
-            ? "No presentations in the period, so no unit was opened."
-            : null,
+      reason: catalogue.length === 0 ? words.noCatalogue : n === 0 ? words.noUnitOpened : null,
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: catalogue.length === 0 || n === 0 ? null : evidence("units", catalogue.length),
     },
     {
       id: "sales-agents",
-      label: "Sales agents",
-      summary:
-        "How each person presents, how their meetings end, and where their running order differs from the team's.",
+      ...words.salesAgents,
       availability: presenting.length === 0 ? "unavailable" : thin.length > 0 ? "partial" : "ready",
       reason:
         presenting.length === 0
-          ? "Nobody presented on this project in the period."
+          ? words.nobodyPresented
           : thin.length > 0
-            ? `${thin.map((a) => a.name).join(", ")} ${thin.length === 1 ? "is" : "are"} below the ${AGENT_MIN_SAMPLE}-meeting minimum, so their figures would appear as raw counts with no verdict, rank or trend.`
+            ? sentence(language, REPORT_BELOW_MINIMUM, {
+                names: thin.map((a) => a.name).join(", "),
+                n: thin.length,
+                minimum: String(AGENT_MIN_SAMPLE),
+              })
             : null,
       sources: DERIVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: presenting.length === 0 ? null : evidence("agents", presenting.length),
     },
     {
       id: "outcomes",
-      label: "Outcomes and conversion",
-      summary:
-        "What the recorded outcomes were, and how many meetings progressed further after them.",
+      ...words.outcomes,
       availability: !crm ? "unavailable" : unrecordedShare > 0.2 ? "partial" : "ready",
       reason: !crm
-        ? "No CRM is connected to this project, so no meeting carries an outcome. The section would be blank rather than nil."
+        ? words.noCrm
         : unrecordedShare > 0.2
-          ? `${percent(unrecordedShare, locale)} of meetings in the period ended with no outcome recorded, and every rate in this section would silently drop them.`
+          ? sentence(language, REPORT_UNRECORDED_SHARE, {
+              share: percent(unrecordedShare, locale),
+            })
           : null,
       sources: WITH_OUTCOME,
       sampleSize: recorded,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, recorded),
       evidence: crm && recorded > 0 ? evidence("outcomes", recorded) : null,
     },
     {
       id: "channel-split",
-      label: "Showroom and WEB IRIS",
-      summary:
-        "How the period divides between the installation and the browser, and what each channel can and cannot say about dwell.",
+      ...words.channelSplit,
       availability:
         n === 0 ? "unavailable" : webiris === 0 || webiris === n ? "unavailable" : "ready",
       reason:
         n === 0
-          ? "No presentations in the period."
+          ? words.noPresentations
           : webiris === 0
-            ? "Every presentation on this project ran on the showroom installation, so there is no split to report."
+            ? words.allShowroom
             : webiris === n
-              ? "Every presentation on this project ran on WEB IRIS, so there is no split to report."
+              ? words.allWebIris
               : null,
       sources: OBSERVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: webiris > 0 && webiris < n ? evidence("channel", n) : null,
     },
     {
       id: "meeting-summary",
-      label: "A single meeting",
-      summary:
-        "One presentation reconstructed as a sequence: what was shown, in what order, which units were opened and what the meeting recorded at the end.",
+      ...words.singleMeeting,
       availability: n === 0 ? "unavailable" : legacy > 0 ? "partial" : "ready",
       reason:
         n === 0
-          ? "No presentations in the period."
+          ? words.noPresentations
           : legacy > 0
-            ? `A summary can be written for any meeting in the period, but ${count(legacy, locale)} of them carry no timing and would be shown as a sequence rather than a timeline.`
+            ? sentence(language, REPORT_LEGACY_SUMMARY, { count: count(legacy, locale), n: legacy })
             : null,
       sources: OBSERVED,
       sampleSize: n,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, n),
       evidence: n === 0 ? null : evidence("meeting", n),
     },
     {
       id: "evidence-appendix",
-      label: "Evidence appendix",
-      summary:
-        "Every figure in the report with its period, its filters, its sample size and the reference that resolves to the records underneath it.",
+      ...words.appendix,
       // The one section that is always writable: it describes the report's own
       // provenance, which exists whether or not any given source does.
       availability: "ready",
       reason: null,
       sources: DERIVED,
       sampleSize: null,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, null),
       evidence: evidence("appendix", n),
     },
   ];
@@ -222,9 +579,8 @@ export function buildReportScope(
     sections,
     generation: {
       state: "preview_only",
-      statement:
-        "Nothing generates a document yet. This screen states what a report would contain, section by section, from the sources this project actually has.",
-      milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+      statement: words.generation,
+      milestone: words.milestone,
     },
     unavailableCount: sections.filter((s) => s.availability === "unavailable").length,
     evidence: evidence("scope", n),
@@ -241,6 +597,8 @@ export function buildReportScope(
  * so rather than drawing a timeline it does not have.
  */
 function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession): ReportScopeView {
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = SCOPE_WORDS[language];
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const summary = buildMeetingList(context, [meeting])[0];
   const label =
@@ -255,28 +613,22 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
   const sections: readonly ReportSection[] = [
     {
       id: "meeting-summary",
-      label: "The meeting, as a sequence",
-      summary:
-        "What was shown, in what order, which units were opened and what the meeting recorded at the end.",
+      ...words.meetingSequence,
       availability: meeting.timingUnavailable ? "partial" : "ready",
-      reason: meeting.timingUnavailable
-        ? "This meeting came from the legacy import, which records the order of sections and not their timing. The sequence is written; the pacing is not."
-        : null,
+      reason: meeting.timingUnavailable ? words.meetingLegacy : null,
       sources: OBSERVED,
       sampleSize: null,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, null),
       evidence: evidence("sequence", meeting.steps.length),
     },
     {
       id: "evidence-appendix",
-      label: "Evidence appendix",
-      summary:
-        "The session record this summary rests on, with its source, its step count and the reference that resolves to it.",
+      ...words.meetingAppendix,
       availability: "ready",
       reason: null,
       sources: OBSERVED,
       sampleSize: null,
-      sampleNoun: "meetings",
+      sampleNoun: meetingsNoun(language, null),
       evidence: evidence("appendix", meeting.steps.length),
     },
   ];
@@ -293,9 +645,8 @@ function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession)
     sections,
     generation: {
       state: "preview_only",
-      statement:
-        "Nothing generates a document yet. This screen states what a meeting summary would contain from the session record.",
-      milestone: "Report generation is scheduled for M4 (docs/roadmap.md).",
+      statement: words.meetingGeneration,
+      milestone: words.milestone,
     },
     unavailableCount: 0,
     evidence: evidence("scope", meeting.steps.length),

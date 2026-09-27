@@ -17,7 +17,7 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
-import { presenterWord } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, presenterWord, type Language } from "@observer/readmodels";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 import { zoneParts, zonedInstant } from "../time";
 import { PROJECTS } from "../world";
@@ -303,9 +303,13 @@ export function provideAgentNames(
  * "agent-guid" in a name's place and has no way to tell it apart from somebody
  * actually called that.
  */
-export function presenterName(projectId: string, agentId: string): string {
+export function presenterName(
+  projectId: string,
+  agentId: string,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
   const named = agentById(agentId)?.name ?? providedNames.get(projectId)?.get(agentId) ?? null;
-  return presenterWord(named, agentId);
+  return presenterWord(named, agentId, language);
 }
 
 /** What a read model needs of somebody who presents: who they are, never how the generator drives them. */
@@ -327,7 +331,10 @@ export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">
  * row is never merged and never dropped.
  * Sorted, so the order never depends on which meeting arrived first.
  */
-export function presentersIn(sessions: readonly ShowroomSession[]): readonly Presenter[] {
+export function presentersIn(
+  sessions: readonly ShowroomSession[],
+  language: Language = DEFAULT_LANGUAGE,
+): readonly Presenter[] {
   const rostered = new Set(SYNTHETIC_AGENTS.map((a) => a.id));
   const beyond = [...new Set(sessions.map((s) => s.agentId))]
     .filter((id) => !rostered.has(id))
@@ -339,7 +346,7 @@ export function presentersIn(sessions: readonly ShowroomSession[]): readonly Pre
     ...beyond.map((id) => {
       const name = names?.get(id);
       return name === undefined
-        ? { id, name: presenterWord(null, id), organisationName: "Not in the directory" }
+        ? { id, name: presenterWord(null, id, language), organisationName: "Not in the directory" }
         : { id, name, organisationName: "Agency not stated" };
     }),
   ];

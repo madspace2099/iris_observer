@@ -10,6 +10,12 @@
  */
 
 import {
+  OUTCOME_LABELS,
+  sectionLabel,
+  type MeetingOutcome,
+  type SectionId,
+} from "@observer/contracts";
+import {
   DEFAULT_LANGUAGE,
   plural,
   pluralCategory,
@@ -155,11 +161,88 @@ export function floorWord(floor: number | null): string {
  */
 export const NOTHING_RECEIVED_YET = "No presentation has arrived from this project's showroom yet.";
 
+/** The same statement in each language a report can be printed in. Slovak and Hungarian are drafts (P2-17). */
+const NOTHING_RECEIVED_YET_WORDS: Readonly<Record<Language, string>> = {
+  en: NOTHING_RECEIVED_YET,
+  sk: "Zo showroomu tohto projektu zatiaľ neprišla žiadna prezentácia.",
+  hu: "A projekt showroomjából még nem érkezett bemutató.",
+};
+
 export function nothingReceivedYet(context: {
   readonly ownDataOnly: boolean;
   readonly sessionsDelivered: boolean;
+  readonly language?: Language;
 }): string | null {
-  return context.ownDataOnly && !context.sessionsDelivered ? NOTHING_RECEIVED_YET : null;
+  return context.ownDataOnly && !context.sessionsDelivered
+    ? NOTHING_RECEIVED_YET_WORDS[context.language ?? DEFAULT_LANGUAGE]
+    : null;
+}
+
+/*
+ * THE CONTRACT'S LABELS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * A meeting's outcome and a showroom section are enums the contract names in
+ * English (`OUTCOME_LABELS`, `SHOWROOM_SECTIONS`), and the contract is frozen:
+ * its words stay the one English spelling, and are the English here. The other
+ * languages are keyed by the same stable values, so no contract file opens to
+ * print them. Slovak and Hungarian are drafts for review (P2-17). The section
+ * names follow the glossary where it has spoken: the favourites list is the
+ * "zoznam obľúbených" and the "Kedvencek listája".
+ */
+export const OUTCOME_WORDS: Readonly<Record<Language, Readonly<Record<MeetingOutcome, string>>>> = {
+  en: OUTCOME_LABELS,
+  sk: {
+    presentation_only: "Iba prezentácia",
+    interested: "Záujem",
+    follow_up_needed: "Potrebný ďalší kontakt",
+    reservation: "Rezervácia",
+    purchase: "Kúpa",
+    not_interested: "Bez záujmu",
+    skipped: "Výsledok nezaznamenaný",
+  },
+  hu: {
+    presentation_only: "Csak bemutató",
+    interested: "Érdeklődik",
+    follow_up_needed: "Utánkövetés szükséges",
+    reservation: "Foglalás",
+    purchase: "Vásárlás",
+    not_interested: "Nem érdeklődik",
+    skipped: "Nincs rögzített eredmény",
+  },
+};
+
+const SECTION_NAMES: Readonly<
+  Record<Exclude<Language, "en">, Readonly<Record<SectionId, string>>>
+> = {
+  sk: {
+    home: "Úvod",
+    residences: "Byty",
+    amenities: "Vybavenie",
+    surroundings: "Okolie",
+    gallery: "Galéria",
+    maps: "Mapy",
+    environment: "Čas a počasie",
+    compare: "Porovnanie",
+    shortlist: "Zoznam obľúbených",
+  },
+  hu: {
+    home: "Kezdőlap",
+    residences: "Lakások",
+    amenities: "Szolgáltatások",
+    surroundings: "Környék",
+    gallery: "Galéria",
+    maps: "Térképek",
+    environment: "Idő és időjárás",
+    compare: "Összehasonlítás",
+    shortlist: "Kedvencek listája",
+  },
+};
+
+/** A showroom section by its name in `language`; English is the contract's own `sectionLabel`. */
+export function sectionWord(language: Language, id: SectionId): string {
+  /* A caller without a language — a test's hand-built context, say — reads English, like every word helper. */
+  const lang = language ?? DEFAULT_LANGUAGE;
+  return lang === "en" ? sectionLabel(id) : SECTION_NAMES[lang][id];
 }
 
 /** "facing S", or the word for an aspect the catalogue did not state. */
@@ -201,6 +284,37 @@ export const DATA_SOURCE_MARKERS = {
 } as const;
 
 /**
+ * The same two markers in each language a report can be printed in. English is
+ * `DATA_SOURCE_MARKERS` itself; Slovak and Hungarian are drafts for review
+ * (P2-17). The screens stay in English and keep reading the one above.
+ */
+export const DATA_SOURCE_MARKER_WORDS: Readonly<
+  Record<
+    Language,
+    {
+      readonly synthetic: { readonly short: string; readonly full: string };
+      readonly delivered: { readonly short: string; readonly full: string };
+    }
+  >
+> = {
+  en: DATA_SOURCE_MARKERS,
+  sk: {
+    synthetic: { short: "Demo údaje", full: "Syntetické demonštračné údaje" },
+    delivered: {
+      short: "Živé stretnutia",
+      full: "Stretnutia pochádzajú z vlastného showroomu tohto projektu. Čokoľvek, čo konektor nedodal, sú demonštračné údaje.",
+    },
+  },
+  hu: {
+    synthetic: { short: "Demóadat", full: "Szintetikus bemutató adatok" },
+    delivered: {
+      short: "Élő találkozók",
+      full: "A találkozók a projekt saját showroomjából érkeznek. Amit egy csatlakozó nem szállított, az bemutató adat.",
+    },
+  },
+};
+
+/**
  * What stands where a presenter's name would, when no directory names them.
  *
  * A showroom mints its own identifier for whoever ran a meeting, and a name for
@@ -223,6 +337,19 @@ export const DATA_SOURCE_MARKERS = {
  */
 export const PRESENTER_NOT_NAMED = "Name not available";
 
-export function presenterWord(name: string | null, agentId: string): string {
-  return name === null || name.trim().length === 0 ? `${PRESENTER_NOT_NAMED} · ${agentId}` : name;
+/* The same words in each language a report can be printed in; drafts for review (P2-17). */
+const PRESENTER_NOT_NAMED_WORDS: Readonly<Record<Language, string>> = {
+  en: PRESENTER_NOT_NAMED,
+  sk: "Meno nie je k dispozícii",
+  hu: "A név nem ismert",
+};
+
+export function presenterWord(
+  name: string | null,
+  agentId: string,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
+  return name === null || name.trim().length === 0
+    ? `${PRESENTER_NOT_NAMED_WORDS[language]} · ${agentId}`
+    : name;
 }
