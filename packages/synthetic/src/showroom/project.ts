@@ -40,13 +40,16 @@ import {
   areaWord,
   aspectWord,
   duration,
+  hungarianRoomAdjective,
   plural,
   roomsWord,
   sentence,
+  slovakRoomAdjective,
   type Language,
   type Numerals,
   type PluralForms,
   type Sentence,
+  type SentenceValues,
 } from "@observer/readmodels";
 import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
 import type { ShowroomUnitInteraction } from "@observer/contracts";
@@ -1105,6 +1108,8 @@ export function buildPresentationIntelligence(
           ? null
           : sentence(language, PROJECT_NO_OUTCOME_SENTENCE, {
               count: count(unknown, locale),
+              meetingsWord: count(unknown, locale),
+              meetings: count(unknown, locale),
               n: unknown,
             }),
       );
@@ -1345,6 +1350,7 @@ function unitsViewedOf(
   units: readonly ShowroomUnitInteraction[],
   catalogue: ReadonlyMap<string, RawUnit>,
   language: Language,
+  locale: string,
 ): UnitsViewedSummary {
   const bands = new Map<number, number>();
   let roomsUnstated = 0;
@@ -1376,6 +1382,7 @@ function unitsViewedOf(
       notInCatalogue,
       shortlisted,
       language,
+      locale,
     ),
     interest: orientationInterestOf(units, catalogue),
   };
@@ -1386,6 +1393,10 @@ function unitsViewedOf(
  * shortlisted" are what happened; a sentence that could not say them would fall
  * silent on a fifth of the smallest scheme's meetings, and the reader would be
  * left to guess whether nothing was chosen or nothing was measured.
+ *
+ * The three bands exclude one another and add up to `opened`: a unit is out of
+ * the catalogue, or in it with no room count, or in a band of rooms. So a single
+ * unit is in exactly one of them, and the band chooses its sentence.
  */
 export function unitsViewedSentence(
   opened: number,
@@ -1394,32 +1405,120 @@ export function unitsViewedSentence(
   notInCatalogue: number,
   shortlisted: number,
   language: Language,
+  locale: string,
 ): string {
-  if (opened === 0) return "No unit was opened.";
+  if (opened === 0) return sentence(language, PROJECT_UNITS_NONE_OPENED_SENTENCE, {});
 
-  const parts = byRooms.map(({ rooms, count }) =>
+  /* The adjective Slovak and Hungarian name a flat by. English names the rooms, through `roomsWord`. */
+  const adjective = (rooms: number, units: number): SentenceValues =>
+    language === "sk"
+      ? { roomAdjective: slovakRoomAdjective(rooms, units) }
+      : language === "hu"
+        ? { roomAdjective: hungarianRoomAdjective(rooms) }
+        : {};
+
+  const parts = byRooms.map(({ rooms, count: units }) =>
     sentence(language, PROJECT_UNITS_BY_ROOMS, {
-      count,
+      count: count(units, locale),
+      n: units,
       rooms: roomsWord(rooms, language),
-      r: rooms,
+      ...adjective(rooms, units),
     }),
   );
   if (roomsUnstated > 0) {
-    parts.push(sentence(language, PROJECT_UNITS_ROOMS_UNSTATED, { count: roomsUnstated }));
+    parts.push(
+      sentence(language, PROJECT_UNITS_ROOMS_UNSTATED, {
+        count: count(roomsUnstated, locale),
+        unitsWord: count(roomsUnstated, locale),
+        n: roomsUnstated,
+      }),
+    );
   }
   if (notInCatalogue > 0) {
-    parts.push(sentence(language, PROJECT_UNITS_NOT_IN_CATALOGUE, { count: notInCatalogue }));
+    parts.push(
+      sentence(language, PROJECT_UNITS_NOT_IN_CATALOGUE, {
+        count: count(notInCatalogue, locale),
+        n: notInCatalogue,
+      }),
+    );
+  }
+
+  const frame = {
+    count: count(opened, locale),
+    n: opened,
+    parts: parts.join(", "),
+  };
+
+  if (opened === 1) {
+    const shortlist = sentence(
+      language,
+      shortlisted === 0
+        ? PROJECT_UNIT_NONE_SHORTLISTED_SENTENCE
+        : PROJECT_UNIT_SHORTLISTED_SENTENCE,
+      { count: count(shortlisted, locale) },
+    );
+    const [band] = byRooms;
+    if (byRooms.length === 1 && band !== undefined) {
+      return sentence(language, PROJECT_UNITS_VIEWED_SINGLE_SENTENCE, {
+        ...frame,
+        shortlist,
+        ...adjective(band.rooms, 1),
+      });
+    }
+    return sentence(
+      language,
+      roomsUnstated === 1
+        ? PROJECT_UNITS_VIEWED_SINGLE_UNSTATED_SENTENCE
+        : PROJECT_UNITS_VIEWED_SINGLE_UNLISTED_SENTENCE,
+      { ...frame, shortlist },
+    );
   }
 
   const shortlist =
     shortlisted === 0
       ? sentence(language, PROJECT_UNITS_NONE_SHORTLISTED, {})
-      : sentence(language, PROJECT_UNITS_SHORTLISTED, { count: shortlisted });
+      : sentence(language, PROJECT_UNITS_SHORTLISTED, {
+          count: count(shortlisted, locale),
+          unitsWord: count(shortlisted, locale),
+          n: shortlisted,
+        });
 
-  return sentence(language, PROJECT_UNITS_VIEWED_SENTENCE, {
-    count: opened,
-    parts: parts.join(", "),
-    shortlist,
+  return sentence(language, PROJECT_UNITS_VIEWED_SENTENCE, { ...frame, shortlist });
+}
+
+/**
+ * The intent finding's statement, by which of its two figures are above
+ * nought. The finding is raised only when one of them is, so both at nought
+ * never reaches here, and is refused rather than worded.
+ */
+export function unitIntentSentence(
+  language: Language,
+  locale: string,
+  favourites: number,
+  pdfOpens: number,
+): string {
+  const entry =
+    favourites > 0 && pdfOpens > 0
+      ? PROJECT_INTENT_SENTENCE
+      : favourites > 0 && pdfOpens === 0
+        ? PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE
+        : favourites === 0 && pdfOpens > 0
+          ? PROJECT_INTENT_PLAN_ONLY_SENTENCE
+          : null;
+  if (entry === null) {
+    throw new RangeError(
+      `An intent statement needs a favourite or a plan opened, not ${favourites} and ${pdfOpens}.`,
+    );
+  }
+  const times = (n: number) =>
+    sentence(language, PROJECT_TIMES_FROM_SIX, { figure: count(n, locale) });
+  return sentence(language, entry, {
+    favourites: count(favourites, locale),
+    f: favourites,
+    pdfOpens: count(pdfOpens, locale),
+    p: pdfOpens,
+    favWord: times(favourites),
+    planWord: times(pdfOpens),
   });
 }
 
@@ -1601,7 +1700,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
      * breakdown; the headline keeps what nothing else on the screen says.
      */
     headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} steps.`,
-    unitsViewed: unitsViewedOf(session.units, catalogue, language),
+    unitsViewed: unitsViewedOf(session.units, catalogue, language, locale),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
@@ -1767,6 +1866,8 @@ export function buildUnitAttention(
         statement: sentence(language, PROJECT_UNIT_OPENED_SENTENCE, {
           unit: selected.unitCode,
           count: count(selected.meetings, locale),
+          meetingsWord: count(selected.meetings, locale),
+          meetings: count(selected.meetings, locale),
           n: selected.meetings,
           look: duration(selected.medianDwellSeconds, language),
         }),
@@ -1790,12 +1891,7 @@ export function buildUnitAttention(
     if (selected.favourites > 0 || selected.pdfOpens > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-intent`,
-        statement: sentence(language, PROJECT_INTENT_SENTENCE, {
-          favourites: count(selected.favourites, locale),
-          f: selected.favourites,
-          pdfOpens: count(selected.pdfOpens, locale),
-          p: selected.pdfOpens,
-        }),
+        statement: unitIntentSentence(language, locale, selected.favourites, selected.pdfOpens),
         baseline: null,
         soWhat:
           "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",
