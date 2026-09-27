@@ -302,7 +302,7 @@ export const PROJECT_UNIT_NONE_SHORTLISTED_SENTENCE: Sentence = {
 
 /** No unit opened: the whole answer. */
 export const PROJECT_UNITS_NONE_OPENED_SENTENCE: Sentence = {
-  en: { text: "No unit was opened." },
+  en: { text: "No apartment was opened." },
   sk: { text: "Neotvorili ani jeden byt." },
   hu: { text: "Egyetlen lakást sem nyitottak meg." },
 };
@@ -384,7 +384,7 @@ export const PROJECT_INTENT_SENTENCE: Sentence = {
 /** Added to favourites, the plan never opened. */
 export const PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE: Sentence = {
   en: {
-    text: "Shortlisted {favourites} {times|f}, floor plan opened not once.",
+    text: "Shortlisted {favourites} {times|f}, floor plan never opened.",
     words: { times: TIMES.en },
   },
   sk: {
@@ -400,7 +400,7 @@ export const PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE: Sentence = {
 /** The plan opened, never added to favourites. */
 export const PROJECT_INTENT_PLAN_ONLY_SENTENCE: Sentence = {
   en: {
-    text: "Shortlisted not once, floor plan opened {pdfOpens} {times|p}.",
+    text: "Never shortlisted, floor plan opened {pdfOpens} {times|p}.",
     words: { times: TIMES.en },
   },
   sk: {

@@ -154,7 +154,7 @@ describe("the replay's units, joined in the read model", () => {
 
     expect(replay.unitsViewed.opened).toBe(0);
     expect(replay.unitsViewed.byRooms).toEqual([]);
-    expect(replay.unitsViewed.sentence).toBe("No unit was opened.");
+    expect(replay.unitsViewed.sentence).toBe("No apartment was opened.");
   });
 
   it("a code the catalogue does not hold stays in `opened` and is named, never banded", () => {
