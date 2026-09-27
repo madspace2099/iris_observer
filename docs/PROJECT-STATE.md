@@ -3,8 +3,11 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-18 · **Branch:** `feature/observer-reference-parity`, **pushed to
-`origin` through `cc26720` on 2026-09-18** · **PR #1 open. Not merged.** Latest: **phase 7 is built** (2026-09-18): a project created in MADSPACE administration
+**Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
+`origin`; the last code commit is `3ca59cd`** · Latest: **P2-17 — the report prints in Slovak, English
+and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
+the date forms await a decision (the last section of this file). Earlier, on 2026-09-18, on
+`feature/observer-reference-parity` (PR #1, not merged): **phase 7 is built**: a project created in MADSPACE administration
 becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
 delivered, and names the presenter of every meeting, whom a showroom can now report itself
 (`PD-30`). Before it, the 2026-09-17 afternoon run made ingested UE5 events reach the customer's
@@ -5002,3 +5005,64 @@ The journal is `_review/r05b-journal.md`, with photographs in `_review/r05b/`. N
 - the `service_role` rotation.
 
 The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-27 — P2-17: the report prints in Slovak, English and Hungarian
+
+**Máté's decisions this rests on.** 2026-09-26: P2-17 is three languages, not four — Slovak, English
+and Hungarian; German is not needed for now. The "SK/EN/DE/HU" in the older entries above is history,
+not the scope. The report's language is a closed union on the read-model request
+(`OverviewQuery.language`), separate from `context.project.locale`, which still formats every figure,
+date and currency.
+
+**What was built, commit by commit** (all on `feature/observer-ux-overhaul-phase2`, pushed):
+
+1. `ac928b9` — the export dialog's sections and language reach the page: `?lang=` and `?omit=` on
+   the report's address, the page reads both, the cover lists what the reader left out.
+2. `0e620f8` — every read model the project report and the meeting summary print takes the
+   language: periods, flow verdict and findings, outcome names, room-count segments, the deal
+   ladder, section names, suppression notes, the manifest, the meeting replay.
+3. `a47d9dc` — the report page and the components it mounts (finding list, tier and source chips,
+   evidence, flow ladder, demonstration marker, breadcrumb, print control) take the page's language.
+   `WRITTEN_IN` moved to `apps/web/src/lib/language.ts`, and the page reads it too: a language typed
+   onto the address by hand gets the dialog's answer, never a half-translated document.
+4. `b6339d5` — a source-reading test followed the agents-table header into the words table.
+5. `5cb3691` — the Slovak "z" or "zo" before a count is read from `slovakZForm`, not written as "z".
+6. `6512885`, `3ca59cd` — the agent summary: `buildAgentDetail`, the register rows (the visitor
+   label stays a pure function of closed values; the language is one more closed union), the
+   manifest, and the page with `Figure`, `ShareFigure`, `StageFunnel`, the agent's register and the
+   head's answer. All three scopes are now written whole in all three languages.
+
+**Proof.**
+
+- **English is unchanged:** a render capture of all eleven report pages (Northgate under three
+  periods, Riverside, ISTER TOWER, as a developer and as an agency manager, the agent and meeting
+  scopes) is byte-identical to the baseline taken before the work — 11 of 11.
+- **Same input, same figures:** `packages/synthetic/test/report-language.test.ts` holds every scope
+  to the same sections, states and samples, the same replay steps, codes, clocks and evidence, and
+  the same agent figures, stages, rows and findings in every language — and to no English word left
+  standing in Slovak or Hungarian.
+- **Leaks, measured by rendering:** the Slovak and Hungarian captures carry no English word of the
+  product's own. What the leak analyser still finds is data (names, the organisation, unit codes),
+  words that are also Slovak or Hungarian ("trend", "register", "penthouse", "segment", "minimum"),
+  and the dates, which follow the project's `en-GB` locale ("24 Aug").
+- **Screens:** `_review/p217/` holds the dialog in Slovak, the Slovak report, the Slovak agent
+  summary (top, running order, register), the Hungarian meeting summary, and the Hungarian agent
+  summary on a 390 px phone with no horizontal overflow. Not committed.
+- **On the clean tree at `3ca59cd`:** `pnpm test` 208 files, 4,309 passed, 1 skipped; `pnpm typecheck`,
+  `pnpm format:check` and `pnpm build` exit 0; `audit:frozen` 0 changed; `audit:secrets` clean.
+  `pnpm lint` fails only on `_review/_runner/round-runner.mjs`, an untracked file this round did not
+  create; with it excluded, `eslint .` exits 0. Logs: `_review/p217/`.
+
+**Not ticked, and why.** The plan's definition of done for P2-17 asks for Slovak, English, German and
+Hungarian labels **and date and number forms**, and the same figures from the same input. The labels
+(three languages, by Máté's decision) and the same figures are done and proven. Two things are not
+this round's to close:
+
+- **The Slovak and Hungarian text is a draft.** `_review/p217/review-sheet.md` sets every line the
+  eleven pages print side by side in the three languages, 401 entries, for approval.
+- **Dates and numbers follow the project's locale, not the report's language.** A Hungarian report
+  on Northgate prints "24 Aug" and "45%". Whether the month's name follows the report's language is
+  a decision — see the round report's questions.
+
+**Next recommended action.** Máté's two decisions above; then an approval round that replaces the
+drafts with the approved text, as the L-rounds did for the sentence entries.
