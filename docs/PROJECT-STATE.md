@@ -4,7 +4,7 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `43affea`** · Latest: **P2-17 — the report prints in Slovak, English
+`origin`; the last code commit is `0c45214`** · Latest: **P2-17 — the report prints in Slovak, English
 and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
 the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
 (`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
@@ -5108,8 +5108,11 @@ Closed after the first measurement, pushed:
   still running was marked "±9 against the week before".
 - `43affea` — a flagged agent's finding is set against the team's figure for the same thing: "against
   0% for the team" beside "10 of 10 with no outcome recorded" on the projects with no outcomes was false.
+- `ec24669` — the Briefing's door to Sales Flow says "no outcome recorded" instead of "0% progressing"
+  on the projects that record none (R02, as a proven bug).
+- `0c45214` — an empty period's two Sales Flow sections say what they cannot draw.
 
-**Verification at `43affea`:** `pnpm test` 218 files, 4,345 passed, 1 skipped.
+**Verification at `0c45214`:** `pnpm test` 219 files, 4,347 passed, 1 skipped.
 
 **Next recommended action.** Máté's decisions, in the order the document lists them: the index's
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
