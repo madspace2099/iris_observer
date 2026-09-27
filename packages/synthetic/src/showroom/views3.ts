@@ -54,6 +54,7 @@ import {
   sectionWord,
   sentence,
   slovakRoomAdjective,
+  slovakZForm,
   type Language,
   type Sentence,
 } from "@observer/readmodels";
@@ -133,7 +134,7 @@ export function suppressionNoteFor(
   const short = count(AGENT_MIN_SAMPLE - held, locale);
   if (language === "sk") {
     return form === "short"
-      ? `${count(held, locale)} z ${minimum} stretnutí`
+      ? `${count(held, locale)} ${slovakZForm(AGENT_MIN_SAMPLE)} ${minimum} stretnutí`
       : `${meetings(held, locale, language)} v tomto období; na hodnotenie treba ${minimum}, chýba ${short}. Čísla sú zobrazené, poradie ani trend sa neurčuje.`;
   }
   if (language === "hu") {
@@ -485,7 +486,7 @@ function outcomeFlag(
       severity: "watch",
       text:
         language === "sk"
-          ? `${unrecorded} z ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku, takže väčšinu z nich nemožno vôbec vyhodnotiť.`
+          ? `${unrecorded} ${slovakZForm(sessions.length)} ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku, takže väčšinu z nich nemožno vôbec vyhodnotiť.`
           : language === "hu"
             ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult, így ezek többsége egyáltalán nem értékelhető.`
             : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
@@ -500,7 +501,7 @@ function outcomeFlag(
       severity: "concern",
       text:
         language === "sk"
-          ? `${notInterested} z ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“ — oplatí sa sledovať samotnú prezentáciu, nielen obchodný lievik.`
+          ? `${notInterested} ${slovakZForm(decided.length)} ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“ — oplatí sa sledovať samotnú prezentáciu, nielen obchodný lievik.`
           : language === "hu"
             ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult — érdemes magát a bemutatót is figyelni, nem csak az értékesítési folyamatot.`
             : `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
@@ -687,9 +688,9 @@ export const FLOW_UNRECORDED_SENTENCE: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "{count} z {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
-        few: "{count} z {total} stretnutí sa skončili bez zaznamenaného výsledku.",
-        other: "{count} z {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+        one: "{count} {from} {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+        few: "{count} {from} {total} stretnutí sa skončili bez zaznamenaného výsledku.",
+        other: "{count} {from} {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
       },
     },
   },
@@ -829,6 +830,7 @@ export function buildSalesFlow(
       statement: sentence(language, FLOW_UNRECORDED_SENTENCE, {
         count: count(unrecorded, locale),
         total: count(sessions.length, locale),
+        from: slovakZForm(sessions.length),
         n: unrecorded,
       }),
       baseline: flowWords.periodBaseline(percent(share(unrecorded, sessions.length), locale)),

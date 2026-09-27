@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { MeetingId } from "@observer/contracts";
-import { LANGUAGES, type Language } from "@observer/readmodels";
+import { LANGUAGES, sentence, slovakZForm, type Language } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
+import { FLOW_UNRECORDED_SENTENCE } from "../src/showroom/views3";
 
 /**
  * A REPORT IN ANOTHER LANGUAGE IS THE SAME REPORT (P2-17).
@@ -93,5 +94,20 @@ describe("a meeting summary in each language", () => {
     }
     expect((await replay("sk")).headline).toMatch(/ (krok|kroky|krokov)\.$/);
     expect((await replay("hu")).headline).toMatch(/ lépés\.$/);
+  });
+});
+
+describe("the Slovak 'z' or 'zo' before a count", () => {
+  it("is read from the number it stands before, not written as 'z'", () => {
+    const at = (total: number) =>
+      sentence("sk", FLOW_UNRECORDED_SENTENCE, {
+        count: "1",
+        total: String(total),
+        from: slovakZForm(total),
+        n: 1,
+      });
+    expect(at(7)).toBe("1 zo 7 stretnutí sa skončilo bez zaznamenaného výsledku.");
+    expect(at(8)).toBe("1 z 8 stretnutí sa skončilo bez zaznamenaného výsledku.");
+    expect(at(40)).toBe("1 zo 40 stretnutí sa skončilo bez zaznamenaného výsledku.");
   });
 });

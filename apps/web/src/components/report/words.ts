@@ -243,9 +243,9 @@ export const REPORT_BLANK_SECTIONS: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "{count} z {total} sekcií by bola prázdna a každá uvádza prečo.",
-        few: "{count} z {total} sekcií by boli prázdne a každá uvádza prečo.",
-        other: "{count} z {total} sekcií by bolo prázdnych a každá uvádza prečo.",
+        one: "{count} {from} {total} sekcií by bola prázdna a každá uvádza prečo.",
+        few: "{count} {from} {total} sekcií by boli prázdne a každá uvádza prečo.",
+        other: "{count} {from} {total} sekcií by bolo prázdnych a každá uvádza prečo.",
       },
     },
   },
@@ -259,9 +259,9 @@ export const REPORT_LEFT_OUT_SECTIONS: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "{count} z {total} bola vynechaná na žiadosť čitateľa.",
-        few: "{count} z {total} boli vynechané na žiadosť čitateľa.",
-        other: "{count} z {total} bolo vynechaných na žiadosť čitateľa.",
+        one: "{count} {from} {total} bola vynechaná na žiadosť čitateľa.",
+        few: "{count} {from} {total} boli vynechané na žiadosť čitateľa.",
+        other: "{count} {from} {total} bolo vynechaných na žiadosť čitateľa.",
       },
     },
   },
@@ -274,7 +274,7 @@ export const REPORT_COVERAGE_CAPTION: Sentence = {
     text: "Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: {timed} of {total} meetings, every step timed.",
   },
   sk: {
-    text: "Kam ide čas prezentácií tímu, sekcia po sekcii, s mediánom času tímu. Podiely sú z času, ktorý zdroj dokázal zmerať: {timed} z {total} stretnutí, každý krok zmeraný.",
+    text: "Kam ide čas prezentácií tímu, sekcia po sekcii, s mediánom času tímu. Podiely sú z času, ktorý zdroj dokázal zmerať: {timed} {from} {total} stretnutí, každý krok zmeraný.",
   },
   hu: {
     text: "Hová megy a csapat bemutatóideje, szakaszonként, a csapat medián idejével. Az arányok abból az időből számolódnak, amelyet a forrás mérni tudott: {total} találkozóból {timed}, minden lépés mérve.",

@@ -8,6 +8,7 @@ import {
   NotFoundError,
   NotPermittedError,
   sentence,
+  slovakZForm,
   type OverviewQuery,
   type ReportSection,
 } from "@observer/readmodels";
@@ -176,6 +177,7 @@ export default async function ReportPage({
           caption={sentence(language, REPORT_COVERAGE_CAPTION, {
             timed: String(agents.timedMeetingCount),
             total: String(agents.meetingCount),
+            from: slovakZForm(agents.meetingCount),
           })}
           columns={[
             { key: "section", label: words.coverageColumns[0] },
@@ -381,6 +383,7 @@ export default async function ReportPage({
                 : sentence(language, REPORT_BLANK_SECTIONS, {
                     count: String(report.unavailableCount),
                     total: String(report.sections.length),
+                    from: slovakZForm(report.sections.length),
                     n: report.unavailableCount,
                   })}
               {leftOut.length === 0
@@ -388,6 +391,7 @@ export default async function ReportPage({
                 : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
                     count: String(leftOut.length),
                     total: String(report.sections.length),
+                    from: slovakZForm(report.sections.length),
                     n: leftOut.length,
                   })}`}
             </p>
