@@ -4,10 +4,12 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `ab981c9`** · Latest: **P2-17 — the report prints in Slovak, English
-and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
-the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
-(`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
+`origin`; the last code commit is `876e986`** · Latest: **Máté's fifteen decisions of 2026-09-27,
+built** — one attention index over the unsold stock on every surface (the gate's failing clause now
+holds), R04's two outcome checks, R12's unknown visitors, the Briefing's one window and no verdict
+below the sample, the report formatted by its language. **Phase 2 is still not accepted**
+(`docs/23-phase2-acceptance.md`; the last section of this file). Before it the same day: **P2-17 —
+the report prints in Slovak, English and Hungarian**; its text awaits approval. Earlier, on 2026-09-18, on
 `feature/observer-reference-parity` (PR #1, not merged): **phase 7 is built**: a project created in MADSPACE administration
 becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
 delivered, and names the presenter of every meeting, whom a showroom can now report itself
@@ -5133,3 +5135,54 @@ Added by the 2026-09-27 morning block, whose report is `_review/blokk-0927/repor
 header (three options), a register filter for R04's shortlisted follow-up state (a new R08
 control), whether P2-17 stays ticked while its text and date forms are open, and the L5d brief
 waiting in `_review/_inbox/` since 09:17, which runs on "következő".
+
+## 2026-09-27 (day) — Máté's fifteen decisions, built
+
+Máté answered the morning block's fifteen questions at 10:31. What they changed, each its own commit
+with a test and a mutation check, all pushed:
+
+- `d37c01e` — **one attention index** (decision 1): one population on both sides, the stock the
+  period ends with unsold (available, reserved, pre-reserved), one implementation in the registry
+  (`packages/metrics/src/attention-index.ts`), read by `/project`, `/units`, the Ask pulse, the
+  Briefing's door and `/overview`. Northgate's two-room units read 1.39× everywhere for the quarter;
+  the overview's hard-coded 2.1, +34% and Riverside's 1.7 are computed, and Riverside's briefing
+  says it has no south-facing unit at all (its catalogue faces east and north). The gate's failing
+  clause holds. The old Ask index was 1.30× in every period alike: it never read the period.
+- `d89dcf3` — R07's "Verified outcome" row goes; Status says it (11).
+- `0ae773f` — R08: no sticky header where a register scrolls sideways, option (c) (9).
+- `31d85a8` — R04: the recorded outcome and its CRM verification are two checks with two counters;
+  lateness is asked and answered Not evaluated (7b). The Briefing's lead state is unchanged on all
+  four projects.
+- `c31290c` — the printed report is formatted by its language, screens by the project's locale, the
+  currency always the project's: Kingsford's Slovak report prints "210 000 £" (3).
+- `7daa911` — R12: a visitor Observer does not know is not a first meeting; Northgate's quarter
+  reads first meeting 10 (14%), not linked to a contact 50 (68%), and "81% were a buyer's first"
+  no longer fires (7a).
+- `94cee08`, `876e986` — the Briefing reads one window in its sentence and its Progressing figure,
+  and gives no verdict below 20 recorded outcomes a side or with nothing earlier (6). Northgate's
+  last quarter and year to date and ISTER TOWER's year to date lose "on course"; ISTER TOWER's
+  quarter reads "needs a look" (its month at 43% against 49%).
+- `63123c0` — Sales Flow's verdict gets the same floor, and no "0% before" where the baseline
+  recorded no outcome. All 48 synthetic verdicts are byte-identical before and after.
+- `e9b44c3` — the parity-row e2e guard reads "of the unsold stock".
+
+The plan document: P2-17's tick was already off (rev 238); P2-17 and P2-21 annotated; P2-19 and
+P2-20 marked "after the Phase 2 gate"; the interface language and R04's filtered list added to the
+Phase 3 list as their own items (decisions 5, 8, 10). Decisions 4, 12, 13 and 15 needed no work;
+the stash stays, its patch is in the block report (14).
+
+**Verification.** `pnpm test` 226 files, 4,378 passed, 1 skipped at `94cee08`; all four e2e projects
+at `876e986`: 1,144 passed, 405 skipped, 3 failed on the one stale guard, corrected in `e9b44c3` and
+15 of 15 on its three projects. Screenshots looked at: `/project` (R06), `/overview` for Northgate
+and Riverside, `/showroom` (R02) for the quarter and the year, `/attention` (R04) for Northgate and
+Riverside, `/agents` (R12), a unit page (R07).
+
+**Found and not changed** (in `docs/23`): Northgate's overview says two-room units "convert at half
+the project average" while `/project` computes 41% against 40% for the same quarter; the P1-04
+"1.51×" is reproduced by none of the removed computations; R04's shortlisted follow-up state counts
+"Presentation only" and "Not interested" as missed follow-ups (41 on Northgate's quarter, 7 without
+them).
+
+**Next recommended action.** The block report `_review/blokk-0927b/report.md` and its questions;
+then the measurement again before P2-21 is ticked. The L5d brief still waits in `_review/_inbox/`
+for "következő".
