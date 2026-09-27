@@ -9,7 +9,13 @@
  * a zero, a dash or the string "null".
  */
 
-import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "./language";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  pluralCategory,
+  type Language,
+  type PluralForms,
+} from "./language";
 
 export const NOT_STATED = "Not stated";
 
@@ -53,6 +59,74 @@ export const TIMES: PluralForms = {
 export function roomsWord(rooms: number | null, language: Language = DEFAULT_LANGUAGE): string {
   if (rooms === null) return "Rooms not stated";
   return `${String(rooms)} ${plural(language, rooms, ROOMS_WORD)}`;
+}
+
+/*
+ * THE ADJECTIVE A ROOM COUNT MAKES.
+ *
+ * Slovak and Hungarian name a flat by its rooms in one word, "dvojizbový" and
+ * "kétszobás", and the Slovak word carries two numbers: the rooms build its
+ * stem and the count of flats it describes chooses its ending — "1 je
+ * dvojizbový", "2 sú dvojizbové", "5 je dvojizbových". A numeral table holds
+ * one word per count and cannot hold two, so the word is made here and a
+ * sentence takes it as a value, as it takes `slovakZForm`.
+ *
+ * One function per language, as `slovakZForm` and `hungarianNumberSuffix` are:
+ * the Slovak word turns on two numbers, the Hungarian on one. English has none;
+ * it counts the rooms through `roomsWord`.
+ *
+ * Neither guesses. A room count or a count of flats that is not a whole number
+ * above nought is refused: a wrong word in a sentence reads as a fact.
+ */
+
+/** The Slovak stem for one to six rooms. From seven, the figure: "7-izbový". */
+const SLOVAK_ROOM_STEMS: Readonly<Record<number, string>> = {
+  1: "jedno",
+  2: "dvoj",
+  3: "troj",
+  4: "štvor",
+  5: "päť",
+  6: "šesť",
+};
+
+/** The Slovak ending, by the category the count of flats takes. */
+const SLOVAK_ROOM_ENDINGS: Readonly<Record<string, string>> = {
+  one: "izbový",
+  few: "izbové",
+  other: "izbových",
+};
+
+/** The Hungarian adjective for one to six rooms. From seven, the figure: "7 szobás". */
+const HUNGARIAN_ROOM_ADJECTIVES: Readonly<Record<number, string>> = {
+  1: "egyszobás",
+  2: "kétszobás",
+  3: "háromszobás",
+  4: "négyszobás",
+  5: "ötszobás",
+  6: "hatszobás",
+};
+
+function wholeAboveNought(value: number, what: string): void {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new RangeError(`${what} must be a whole number above nought, not ${value}.`);
+  }
+}
+
+/** "dvojizbový" for one two-room flat, "dvojizbové" for two, "dvojizbových" for five. */
+export function slovakRoomAdjective(rooms: number, unitCount: number): string {
+  wholeAboveNought(rooms, "A room count");
+  wholeAboveNought(unitCount, "A count of flats");
+  const ending = SLOVAK_ROOM_ENDINGS[pluralCategory("sk", unitCount)];
+  if (ending === undefined) {
+    throw new RangeError(`No Slovak room ending agrees with ${unitCount} flats.`);
+  }
+  return `${SLOVAK_ROOM_STEMS[rooms] ?? `${rooms}-`}${ending}`;
+}
+
+/** "kétszobás", whatever the count of flats: the Hungarian adjective turns on the rooms alone. */
+export function hungarianRoomAdjective(rooms: number): string {
+  wholeAboveNought(rooms, "A room count");
+  return HUNGARIAN_ROOM_ADJECTIVES[rooms] ?? `${rooms} szobás`;
 }
 
 /** "63 m²", or the word for an area the catalogue did not state. */
