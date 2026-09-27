@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MeetingId } from "@observer/contracts";
 import {
   LANGUAGES,
+  duration,
   hungarianArticle,
   roomsWord,
   sentence,
@@ -38,7 +39,9 @@ import {
 import {
   PROJECT_INTENT_SENTENCE,
   PROJECT_NO_OUTCOME_SENTENCE,
+  PROJECT_TIMES_FROM_SIX,
   PROJECT_UNIT_OPENED_SENTENCE,
+  unitIntentSentence,
   unitsViewedSentence,
 } from "../src/showroom/project";
 import {
@@ -326,66 +329,81 @@ const CASES: readonly Case[] = [
   {
     name: "project.ts: meetings in neither cohort",
     entry: PROJECT_NO_OUTCOME_SENTENCE,
-    values: (n) => counted(n),
+    values: (n) => ({
+      ...counted(n),
+      meetingsWord: count(n, "en-GB"),
+      meetings: count(n, "en-GB"),
+    }),
     en: [
       "1 meeting in the period has no recorded outcome and stands in neither cohort.",
       "3 meetings in the period have no recorded outcome and stand in neither cohort.",
       "5 meetings in the period have no recorded outcome and stand in neither cohort.",
     ],
     sk: [
-      "1 stretnutie v tomto období nemá zaznamenaný výsledok a nepatrí do žiadnej kohorty.",
-      "3 stretnutia v tomto období nemajú zaznamenaný výsledok a nepatria do žiadnej kohorty.",
-      "5 stretnutí v tomto období nemá zaznamenaný výsledok a nepatrí do žiadnej kohorty.",
+      "Pri jednom stretnutí v tomto období nie je zaznamenaný výsledok, preto ho nemožno zaradiť ani do jednej z dvoch skupín.",
+      "Pri troch stretnutiach v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
+      "Pri piatich stretnutiach v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
     ],
     hu: [
-      "1 találkozónak ebben az időszakban nincs rögzített kimenetele, és nem tartozik egyik csoportba sem.",
-      "3 találkozónak ebben az időszakban nincs rögzített kimenetele, és nem tartozik egyik csoportba sem.",
-      "5 találkozónak ebben az időszakban nincs rögzített kimenetele, és nem tartozik egyik csoportba sem.",
+      "Ebben az időszakban egy találkozó eredményét nem rögzítették, így a két csoport egyikébe sem sorolható.",
+      "Ebben az időszakban három találkozó eredményét nem rögzítették, így ezek a két csoport egyikébe sem sorolhatók.",
+      "Ebben az időszakban öt találkozó eredményét nem rögzítették, így ezek a két csoport egyikébe sem sorolhatók.",
     ],
   },
   {
     name: "project.ts: a unit opened in meetings",
     entry: PROJECT_UNIT_OPENED_SENTENCE,
-    values: (n) => ({ ...counted(n), unit: "A-101", look: "1m 45s" }),
+    values: (n, language) => ({
+      ...counted(n),
+      meetingsWord: count(n, "en-GB"),
+      meetings: count(n, "en-GB"),
+      unit: "A-101",
+      look: duration(105, language),
+    }),
     en: [
       "A-101 was opened in 1 meeting, with a median look of 1m 45s.",
       "A-101 was opened in 3 meetings, with a median look of 1m 45s.",
       "A-101 was opened in 5 meetings, with a median look of 1m 45s.",
     ],
     sk: [
-      "Jednotka A-101 bola otvorená v 1 stretnutí, medián dĺžky pohľadu bol 1m 45s.",
-      "Jednotka A-101 bola otvorená v 3 stretnutiach, medián dĺžky pohľadu bol 1m 45s.",
-      "Jednotka A-101 bola otvorená v 5 stretnutiach, medián dĺžky pohľadu bol 1m 45s.",
+      "Byt A-101 otvorili počas jedného stretnutia. Medián času prezerania bol 1 minúta 45 sekúnd.",
+      "Byt A-101 otvorili počas troch stretnutí. Medián času prezerania bol 1 minúta 45 sekúnd.",
+      "Byt A-101 otvorili počas piatich stretnutí. Medián času prezerania bol 1 minúta 45 sekúnd.",
     ],
     hu: [
-      "Az A-101 egységet 1 találkozón nyitották meg, a megtekintés hosszának mediánja 1m 45s volt.",
-      "Az A-101 egységet 3 találkozón nyitották meg, a megtekintés hosszának mediánja 1m 45s volt.",
-      "Az A-101 egységet 5 találkozón nyitották meg, a megtekintés hosszának mediánja 1m 45s volt.",
+      "Az A-101-es lakást egy találkozón nyitották meg. A megtekintési idő mediánja 1 perc 45 másodperc volt.",
+      "Az A-101-es lakást három találkozón nyitották meg. A megtekintési idő mediánja 1 perc 45 másodperc volt.",
+      "Az A-101-es lakást öt találkozón nyitották meg. A megtekintési idő mediánja 1 perc 45 másodperc volt.",
     ],
   },
   {
     name: "project.ts: shortlisted, and the floor plan taken",
     entry: PROJECT_INTENT_SENTENCE,
-    values: (n) => ({
-      favourites: count(n, "en-GB"),
-      f: n,
-      pdfOpens: count(n, "en-GB"),
-      p: n,
-    }),
+    values: (n, language) => {
+      const times = sentence(language, PROJECT_TIMES_FROM_SIX, { figure: count(n, "en-GB") });
+      return {
+        favourites: count(n, "en-GB"),
+        f: n,
+        pdfOpens: count(n, "en-GB"),
+        p: n,
+        favWord: times,
+        planWord: times,
+      };
+    },
     en: [
       "Shortlisted 1 time, floor plan opened 1 time.",
       "Shortlisted 3 times, floor plan opened 3 times.",
       "Shortlisted 5 times, floor plan opened 5 times.",
     ],
     sk: [
-      "Zaradená do výberu 1 raz, pôdorys otvorený 1 raz.",
-      "Zaradená do výberu 3 razy, pôdorys otvorený 3 razy.",
-      "Zaradená do výberu 5 ráz, pôdorys otvorený 5 ráz.",
+      "Byt pridali do zoznamu obľúbených raz a jeho pôdorys otvorili raz.",
+      "Byt pridali do zoznamu obľúbených trikrát a jeho pôdorys otvorili trikrát.",
+      "Byt pridali do zoznamu obľúbených päťkrát a jeho pôdorys otvorili päťkrát.",
     ],
     hu: [
-      "1 alkalommal került a kiválasztottak közé, az alaprajzot 1 alkalommal nyitották meg.",
-      "3 alkalommal került a kiválasztottak közé, az alaprajzot 3 alkalommal nyitották meg.",
-      "5 alkalommal került a kiválasztottak közé, az alaprajzot 5 alkalommal nyitották meg.",
+      "A lakást egyszer felvették a Kedvencek listára, az alaprajzát pedig egyszer megnyitották.",
+      "A lakást háromszor felvették a Kedvencek listára, az alaprajzát pedig háromszor megnyitották.",
+      "A lakást ötször felvették a Kedvencek listára, az alaprajzát pedig ötször megnyitották.",
     ],
   },
   {
@@ -645,59 +663,270 @@ describe("ask-computed.ts: the apartment opened most", () => {
 
 /*
  * The one sentence built from parts. Its parts are templates of their own, so
- * it is stated whole through the function that joins them — once with every
- * part a band of rooms and a shortlist, once with the parts that say what the
- * catalogue does not know.
+ * it is stated whole through the function that chooses and joins them. Every
+ * case is a state a meeting can be in: a unit is out of the catalogue, or in
+ * it with no room count, or in a band of rooms, so the bands add up to the
+ * units opened — and each case says so before it says anything else.
  */
 describe("project.ts: the units a replay opened, stated whole", () => {
-  const rooms = (n: number, language: Language) =>
-    unitsViewedSentence(n, [{ rooms: 2, count: n }], 0, 0, n, language);
-  const unknown = (n: number, language: Language) => unitsViewedSentence(n, [], n, n, 0, language);
+  interface Opened {
+    readonly name: string;
+    readonly opened: number;
+    readonly byRooms: readonly { readonly rooms: number; readonly count: number }[];
+    readonly unstated: number;
+    readonly unlisted: number;
+    readonly shortlisted: number;
+    readonly en: string;
+    readonly sk: string;
+    readonly hu: string;
+  }
 
-  it("with a band of rooms and a shortlist", () => {
-    const expected: Readonly<Record<Language, Three>> = {
-      en: [
-        "1 unit opened: 1 with 2 rooms; 1 shortlisted.",
-        "3 units opened: 3 with 2 rooms; 3 shortlisted.",
-        "5 units opened: 5 with 2 rooms; 5 shortlisted.",
+  const OPENED: readonly Opened[] = [
+    {
+      name: "two units, one band of rooms, one added to favourites",
+      opened: 2,
+      byRooms: [{ rooms: 2, count: 2 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 1,
+      en: "2 units opened: 2 with 2 rooms; 1 shortlisted.",
+      sk: "Otvorili 2 byty: 2 sú dvojizbové. Jeden z nich bol pridaný do zoznamu obľúbených.",
+      hu: "2 lakást nyitottak meg: 2 kétszobás. Közülük 1 felkerült a Kedvencek listára.",
+    },
+    {
+      name: "five units, one band of rooms, three added to favourites",
+      opened: 5,
+      byRooms: [{ rooms: 2, count: 5 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 3,
+      en: "5 units opened: 5 with 2 rooms; 3 shortlisted.",
+      sk: "Otvorili 5 bytov: 5 je dvojizbových. Tri z nich boli pridané do zoznamu obľúbených.",
+      hu: "5 lakást nyitottak meg: 5 kétszobás. Közülük 3 felkerült a Kedvencek listára.",
+    },
+    {
+      name: "three units, a band of rooms and one not in the catalogue",
+      opened: 3,
+      byRooms: [{ rooms: 2, count: 2 }],
+      unstated: 0,
+      unlisted: 1,
+      shortlisted: 1,
+      en: "3 units opened: 2 with 2 rooms, 1 not in the catalogue; 1 shortlisted.",
+      sk: "Otvorili 3 byty: 2 sú dvojizbové, 1 nie je v katalógu. Jeden z nich bol pridaný do zoznamu obľúbených.",
+      hu: "3 lakást nyitottak meg: 2 kétszobás, 1 nem szerepel a katalógusban. Közülük 1 felkerült a Kedvencek listára.",
+    },
+    {
+      name: "five units in every kind of band, none added to favourites",
+      opened: 5,
+      byRooms: [
+        { rooms: 2, count: 2 },
+        { rooms: 3, count: 1 },
       ],
-      sk: [
-        "1 jednotka otvorená: 1 × 2-izbová; 1 vybraná.",
-        "3 jednotky otvorené: 3 × 2-izbová; 3 vybrané.",
-        "5 jednotiek otvorených: 5 × 2-izbová; 5 vybraných.",
+      unstated: 1,
+      unlisted: 1,
+      shortlisted: 0,
+      en: "5 units opened: 2 with 2 rooms, 1 with 3 rooms, 1 with rooms not stated, 1 not in the catalogue; nothing was shortlisted.",
+      sk: "Otvorili 5 bytov: 2 sú dvojizbové, 1 je trojizbový, pri jednom byte nie je uvedený počet izieb, 1 nie je v katalógu. Ani jeden nebol pridaný do zoznamu obľúbených.",
+      hu: "5 lakást nyitottak meg: 2 kétszobás, 1 háromszobás, 1 lakásnál nincs megadva a szobaszám, 1 nem szerepel a katalógusban. Egyetlen lakás sem került fel a Kedvencek listára.",
+    },
+    {
+      name: "seven units in every kind of band, three added to favourites",
+      opened: 7,
+      byRooms: [
+        { rooms: 2, count: 3 },
+        { rooms: 3, count: 2 },
       ],
-      hu: [
-        "1 egység megnyitva: 1 db 2 szobás; 1 kiválasztva.",
-        "3 egység megnyitva: 3 db 2 szobás; 3 kiválasztva.",
-        "5 egység megnyitva: 5 db 2 szobás; 5 kiválasztva.",
-      ],
-    };
-    for (const language of LANGUAGES) {
-      COUNTS.forEach((n, i) => expect(rooms(n, language)).toBe(expected[language][i]));
-    }
+      unstated: 1,
+      unlisted: 1,
+      shortlisted: 3,
+      en: "7 units opened: 3 with 2 rooms, 2 with 3 rooms, 1 with rooms not stated, 1 not in the catalogue; 3 shortlisted.",
+      sk: "Otvorili 7 bytov: 3 sú dvojizbové, 2 sú trojizbové, pri jednom byte nie je uvedený počet izieb, 1 nie je v katalógu. Tri z nich boli pridané do zoznamu obľúbených.",
+      hu: "7 lakást nyitottak meg: 3 kétszobás, 2 háromszobás, 1 lakásnál nincs megadva a szobaszám, 1 nem szerepel a katalógusban. Közülük 3 felkerült a Kedvencek listára.",
+    },
+    {
+      name: "four units, three with no room count and one not in the catalogue",
+      opened: 4,
+      byRooms: [],
+      unstated: 3,
+      unlisted: 1,
+      shortlisted: 0,
+      en: "4 units opened: 3 with rooms not stated, 1 not in the catalogue; nothing was shortlisted.",
+      sk: "Otvorili 4 byty: pri troch bytoch nie je uvedený počet izieb, 1 nie je v katalógu. Ani jeden nebol pridaný do zoznamu obľúbených.",
+      hu: "4 lakást nyitottak meg: 3 lakásnál nincs megadva a szobaszám, 1 nem szerepel a katalógusban. Egyetlen lakás sem került fel a Kedvencek listára.",
+    },
+    {
+      name: "twelve units, eight added to favourites",
+      opened: 12,
+      byRooms: [{ rooms: 2, count: 10 }],
+      unstated: 1,
+      unlisted: 1,
+      shortlisted: 8,
+      en: "12 units opened: 10 with 2 rooms, 1 with rooms not stated, 1 not in the catalogue; 8 shortlisted.",
+      sk: "Otvorili 12 bytov: 10 je dvojizbových, pri jednom byte nie je uvedený počet izieb, 1 nie je v katalógu. 8 z nich bolo pridaných do zoznamu obľúbených.",
+      hu: "12 lakást nyitottak meg: 10 kétszobás, 1 lakásnál nincs megadva a szobaszám, 1 nem szerepel a katalógusban. Közülük 8 felkerült a Kedvencek listára.",
+    },
+    {
+      name: "one unit with a room count, not added to favourites",
+      opened: 1,
+      byRooms: [{ rooms: 3, count: 1 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "1 unit opened: 1 with 3 rooms; nothing was shortlisted.",
+      sk: "Otvorili jeden trojizbový byt. Nebol pridaný do zoznamu obľúbených.",
+      hu: "Egy háromszobás lakást nyitottak meg. Nem került fel a Kedvencek listára.",
+    },
+    {
+      name: "one unit with a room count, added to favourites",
+      opened: 1,
+      byRooms: [{ rooms: 2, count: 1 }],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 1,
+      en: "1 unit opened: 1 with 2 rooms; 1 shortlisted.",
+      sk: "Otvorili jeden dvojizbový byt. Bol pridaný do zoznamu obľúbených.",
+      hu: "Egy kétszobás lakást nyitottak meg. Felkerült a Kedvencek listára.",
+    },
+    {
+      name: "one unit with no room count stated, not added to favourites",
+      opened: 1,
+      byRooms: [],
+      unstated: 1,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "1 unit opened: 1 with rooms not stated; nothing was shortlisted.",
+      sk: "Otvorili jeden byt. Nie je uvedené, koľko má izieb. Nebol pridaný do zoznamu obľúbených.",
+      hu: "Egy lakást nyitottak meg. Nincs megadva, hány szobás. Nem került fel a Kedvencek listára.",
+    },
+    {
+      name: "one unit with no room count stated, added to favourites",
+      opened: 1,
+      byRooms: [],
+      unstated: 1,
+      unlisted: 0,
+      shortlisted: 1,
+      en: "1 unit opened: 1 with rooms not stated; 1 shortlisted.",
+      sk: "Otvorili jeden byt. Nie je uvedené, koľko má izieb. Bol pridaný do zoznamu obľúbených.",
+      hu: "Egy lakást nyitottak meg. Nincs megadva, hány szobás. Felkerült a Kedvencek listára.",
+    },
+    {
+      name: "one unit not in the catalogue, not added to favourites",
+      opened: 1,
+      byRooms: [],
+      unstated: 0,
+      unlisted: 1,
+      shortlisted: 0,
+      en: "1 unit opened: 1 not in the catalogue; nothing was shortlisted.",
+      sk: "Otvorili jeden byt, ktorý nie je v katalógu. Nebol pridaný do zoznamu obľúbených.",
+      hu: "Egy olyan lakást nyitottak meg, amely nem szerepel a katalógusban. Nem került fel a Kedvencek listára.",
+    },
+    {
+      name: "one unit not in the catalogue, added to favourites",
+      opened: 1,
+      byRooms: [],
+      unstated: 0,
+      unlisted: 1,
+      shortlisted: 1,
+      en: "1 unit opened: 1 not in the catalogue; 1 shortlisted.",
+      sk: "Otvorili jeden byt, ktorý nie je v katalógu. Bol pridaný do zoznamu obľúbených.",
+      hu: "Egy olyan lakást nyitottak meg, amely nem szerepel a katalógusban. Felkerült a Kedvencek listára.",
+    },
+    {
+      name: "no unit",
+      opened: 0,
+      byRooms: [],
+      unstated: 0,
+      unlisted: 0,
+      shortlisted: 0,
+      en: "No unit was opened.",
+      sk: "Neotvorili ani jeden byt.",
+      hu: "Egyetlen lakást sem nyitottak meg.",
+    },
+  ];
+
+  it.each(OPENED)("$name", (c) => {
+    const banded = c.byRooms.reduce((sum, band) => sum + band.count, 0);
+    expect(banded + c.unstated + c.unlisted).toBe(c.opened);
+    expect(c.shortlisted).toBeLessThanOrEqual(c.opened);
+    const said = (language: Language) =>
+      unitsViewedSentence(
+        c.opened,
+        c.byRooms,
+        c.unstated,
+        c.unlisted,
+        c.shortlisted,
+        language,
+        "en-GB",
+      );
+    expect([said("en"), said("sk"), said("hu")]).toEqual([c.en, c.sk, c.hu]);
+  });
+});
+
+/*
+ * The intent finding's three branches, stated whole through the function that
+ * chooses them: both figures above nought, the favourites alone and the plan
+ * alone, each from one to five in words and from six as the figure.
+ */
+describe("project.ts: the intent finding, by which figure is above nought", () => {
+  const PAIRS = [
+    [3, 1],
+    [1, 1],
+    [5, 5],
+    [6, 40],
+    [1, 0],
+    [3, 0],
+    [6, 0],
+    [0, 1],
+    [0, 3],
+    [0, 6],
+  ] as const;
+  const expected: Readonly<Record<Language, readonly string[]>> = {
+    en: [
+      "Shortlisted 3 times, floor plan opened 1 time.",
+      "Shortlisted 1 time, floor plan opened 1 time.",
+      "Shortlisted 5 times, floor plan opened 5 times.",
+      "Shortlisted 6 times, floor plan opened 40 times.",
+      "Shortlisted 1 time, floor plan opened not once.",
+      "Shortlisted 3 times, floor plan opened not once.",
+      "Shortlisted 6 times, floor plan opened not once.",
+      "Shortlisted not once, floor plan opened 1 time.",
+      "Shortlisted not once, floor plan opened 3 times.",
+      "Shortlisted not once, floor plan opened 6 times.",
+    ],
+    sk: [
+      "Byt pridali do zoznamu obľúbených trikrát a jeho pôdorys otvorili raz.",
+      "Byt pridali do zoznamu obľúbených raz a jeho pôdorys otvorili raz.",
+      "Byt pridali do zoznamu obľúbených päťkrát a jeho pôdorys otvorili päťkrát.",
+      "Byt pridali do zoznamu obľúbených 6-krát a jeho pôdorys otvorili 40-krát.",
+      "Byt pridali do zoznamu obľúbených raz, ale jeho pôdorys neotvorili ani raz.",
+      "Byt pridali do zoznamu obľúbených trikrát, ale jeho pôdorys neotvorili ani raz.",
+      "Byt pridali do zoznamu obľúbených 6-krát, ale jeho pôdorys neotvorili ani raz.",
+      "Pôdorys bytu otvorili raz, ale byt do zoznamu obľúbených nepridali ani raz.",
+      "Pôdorys bytu otvorili trikrát, ale byt do zoznamu obľúbených nepridali ani raz.",
+      "Pôdorys bytu otvorili 6-krát, ale byt do zoznamu obľúbených nepridali ani raz.",
+    ],
+    hu: [
+      "A lakást háromszor felvették a Kedvencek listára, az alaprajzát pedig egyszer megnyitották.",
+      "A lakást egyszer felvették a Kedvencek listára, az alaprajzát pedig egyszer megnyitották.",
+      "A lakást ötször felvették a Kedvencek listára, az alaprajzát pedig ötször megnyitották.",
+      "A lakást 6 alkalommal felvették a Kedvencek listára, az alaprajzát pedig 40 alkalommal megnyitották.",
+      "A lakást egyszer felvették a Kedvencek listára, az alaprajzát viszont egyszer sem nyitották meg.",
+      "A lakást háromszor felvették a Kedvencek listára, az alaprajzát viszont egyszer sem nyitották meg.",
+      "A lakást 6 alkalommal felvették a Kedvencek listára, az alaprajzát viszont egyszer sem nyitották meg.",
+      "A lakás alaprajzát egyszer megnyitották, de a lakást egyszer sem vették fel a Kedvencek listára.",
+      "A lakás alaprajzát háromszor megnyitották, de a lakást egyszer sem vették fel a Kedvencek listára.",
+      "A lakás alaprajzát 6 alkalommal megnyitották, de a lakást egyszer sem vették fel a Kedvencek listára.",
+    ],
+  };
+
+  it.each([...LANGUAGES])("%s: both, favourites only, plan only", (language) => {
+    expect(PAIRS.map(([f, p]) => unitIntentSentence(language, "en-GB", f, p))).toEqual(
+      expected[language],
+    );
   });
 
-  it("with rooms not stated, units not in the catalogue, and nothing shortlisted", () => {
-    const expected: Readonly<Record<Language, Three>> = {
-      en: [
-        "1 unit opened: 1 with rooms not stated, 1 not in the catalogue; nothing was shortlisted.",
-        "3 units opened: 3 with rooms not stated, 3 not in the catalogue; nothing was shortlisted.",
-        "5 units opened: 5 with rooms not stated, 5 not in the catalogue; nothing was shortlisted.",
-      ],
-      sk: [
-        "1 jednotka otvorená: 1 bez uvedeného počtu izieb, 1 mimo katalógu; nič nebolo vybrané.",
-        "3 jednotky otvorené: 3 bez uvedeného počtu izieb, 3 mimo katalógu; nič nebolo vybrané.",
-        "5 jednotiek otvorených: 5 bez uvedeného počtu izieb, 5 mimo katalógu; nič nebolo vybrané.",
-      ],
-      hu: [
-        "1 egység megnyitva: 1 db szobaszám nélkül, 1 db nem szerepel a katalógusban; semmi sem került kiválasztásra.",
-        "3 egység megnyitva: 3 db szobaszám nélkül, 3 db nem szerepel a katalógusban; semmi sem került kiválasztásra.",
-        "5 egység megnyitva: 5 db szobaszám nélkül, 5 db nem szerepel a katalógusban; semmi sem került kiválasztásra.",
-      ],
-    };
-    for (const language of LANGUAGES) {
-      COUNTS.forEach((n, i) => expect(unknown(n, language)).toBe(expected[language][i]));
-    }
+  it("refuses both at nought, which the finding never raises", () => {
+    expect(() => unitIntentSentence("en", "en-GB", 0, 0)).toThrow(RangeError);
   });
 });
 
@@ -741,10 +970,8 @@ describe("the sites write through their sentences", () => {
         })
       ).unitsViewed.sentence;
     expect(await said("en")).toMatch(/^\d+ units? opened: /);
-    expect(await said("sk")).toMatch(
-      /^\d+ (jednotka otvorená|jednotky otvorené|jednotiek otvorených): /,
-    );
-    expect(await said("hu")).toMatch(/^\d+ egység megnyitva: /);
+    expect(await said("sk")).toMatch(/^Otvorili \d+ (byty|bytov): /);
+    expect(await said("hu")).toMatch(/^\d+ lakást nyitottak meg: /);
   });
 });
 
