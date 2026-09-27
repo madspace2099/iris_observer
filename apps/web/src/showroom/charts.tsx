@@ -187,6 +187,8 @@ export function OutcomeKey({ slices }: { slices: readonly OutcomeSlice[] }) {
 interface Bucket {
   readonly id: string;
   readonly label: string;
+  /** False where the selected period does not hold the bucket: it has no count to draw. */
+  readonly inPeriod: boolean;
   readonly meetings: number;
   readonly medianDurationDisplay: string;
   readonly progressed: number;
@@ -221,7 +223,9 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
               <div className="iris-step" key={p.id}>
                 <span
                   className="iris-step-bar"
-                  title={`${p.meetings} meetings · ${p.progressed} progressed`}
+                  {...(p.inPeriod
+                    ? { title: `${p.meetings} meetings · ${p.progressed} progressed` }
+                    : {})}
                 >
                   {/*
                     `--w` alongside `height`: the desktop column reads its
@@ -250,9 +254,12 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                     }
                   />
                 </span>
-                <span className="iris-step-figure">{p.meetings}</span>
+                {/* Outside the period: a dash and the reason, never a zero. */}
+                <span className="iris-step-figure">{p.inPeriod ? p.meetings : "—"}</span>
                 <span className="iris-step-label">{p.label}</span>
-                <span className="iris-step-meta">{p.medianDurationDisplay}</span>
+                <span className="iris-step-meta">
+                  {p.inPeriod ? p.medianDurationDisplay : "Not in this period"}
+                </span>
               </div>
             ))}
           </div>

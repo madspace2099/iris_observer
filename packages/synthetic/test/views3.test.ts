@@ -48,17 +48,24 @@ function session(startedAt: Date, outcome: ShowroomSession["outcome"]): Showroom
   };
 }
 
-// `tenant.slug`, `project.slug`, `project.locale` and `period.to` are the
-// fields `buildSalesFlow` reads; everything else here is a type-satisfying
-// stand-in. `period.to` is year 9999 on purpose: every test below places
-// sessions around its own `today` and exercises the week/month recency
-// path (`stillRunning`), so the period must outlast any `today` used here
-// without needing a per-test value. The closed-period path (`period.to` in
-// the past) has its own describe block further down, with its own context.
+// `tenant.slug`, `project.slug`, `project.locale`, `period.from` and
+// `period.to` are the fields `buildSalesFlow` reads; everything else here is a
+// type-satisfying stand-in. `period.to` is year 9999 on purpose: every test
+// below places sessions around its own `today` and exercises the week/month
+// recency path (`stillRunning`), so the period must outlast any `today` used
+// here without needing a per-test value — and `period.from` is 1970 for the
+// same reason, so the period holds every bucket those tests compare. The
+// closed-period path (`period.to` in the past) has its own describe block
+// further down, with its own context.
 const CONTEXT = {
   tenant: { slug: "test-tenant" },
   project: { slug: "test-project", locale: "en-GB" },
-  period: { to: utc(9999, 0, 1).toISOString(), label: "the period", baselineLabel: "before" },
+  period: {
+    from: utc(1970, 0, 1).toISOString(),
+    to: utc(9999, 0, 1).toISOString(),
+    label: "the period",
+    baselineLabel: "before",
+  },
 } as unknown as ViewContext;
 
 describe("trend — classification immediately below, at, and above every cutoff", () => {

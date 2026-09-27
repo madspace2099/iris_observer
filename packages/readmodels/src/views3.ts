@@ -102,6 +102,13 @@ export interface ShowroomHome {
 export interface FlowPeriod {
   readonly id: "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month";
   readonly label: string;
+  /**
+   * Whether the selected period holds the whole bucket. The buckets count back
+   * from today, so a period can leave one out — last month, before the last 28
+   * days began; every bucket, after a completed quarter ended. A bucket outside
+   * the period has no count, and its zero below is never drawn as one.
+   */
+  readonly inPeriod: boolean;
   readonly meetings: number;
   /** Median, not mean. One long meeting must not move it. */
   readonly medianDurationSeconds: number | null;

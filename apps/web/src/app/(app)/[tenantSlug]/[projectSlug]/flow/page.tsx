@@ -316,12 +316,24 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
             </h2>
-            <PeriodSteps periods={view.periods} />
-            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-              The lighter column is every meeting; the solid part is those that reached a follow-up
-              or better. Beneath each is the median length — a part-week is compared against the
-              same days of the week before, never against a whole one.
-            </p>
+            {view.periods.some((p) => p.inPeriod) ? (
+              <>
+                <PeriodSteps periods={view.periods} />
+                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                  The lighter column is every meeting; the solid part is those that reached a
+                  follow-up or better. Beneath each is the median length — a part-week is compared
+                  against the same days of the week before, never against a whole one.
+                </p>
+              </>
+            ) : (
+              /* Six columns of "not in this period" would be a chart with nothing on it. */
+              <p className="iris-meta iris-meta-measured">
+                Today, this week and this month count back from today, and{" "}
+                {view.context.period.label.toLowerCase()} holds none of them. Its{" "}
+                {view.meetingCount} {view.meetingCount === 1 ? "meeting is" : "meetings are"}{" "}
+                counted by outcome beside this.
+              </p>
+            )}
           </div>
 
           <div className="iris-band-side">

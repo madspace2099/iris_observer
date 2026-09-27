@@ -407,16 +407,45 @@ export function bucketBounds(today: Date, timeZone = "UTC", language: Language =
   ];
 }
 
+/**
+ * The instants the period's meetings were sliced from, both ends included.
+ *
+ * The repository's `slices()` decides this; it is mirrored here the way
+ * `stillRunning` in `buildSalesFlow` already mirrors it: a period still running
+ * reaches the end of today, a closed one stops at its own end.
+ */
+function sliceSpan(
+  context: ViewContext,
+  today: Date,
+): { readonly from: number; readonly to: number } {
+  const endOfToday = new Date(today);
+  endOfToday.setUTCHours(23, 59, 59, 999);
+  const stillRunning =
+    new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
+  return {
+    from: Date.parse(context.period.from),
+    to: stillRunning ? endOfToday.getTime() : Date.parse(context.period.to),
+  };
+}
+
 function buildPeriods(
   sessions: readonly ShowroomSession[],
   today: Date,
   timeZone: string,
   language: Language,
+  span: { readonly from: number; readonly to: number },
 ): FlowPeriod[] {
   return bucketBounds(today, timeZone, language).map((b) => {
+    /*
+     * Only a bucket the slice holds whole is counted. `sessions` is already the
+     * period's, so a bucket before it began counted nothing and printed "0" —
+     * "Last month: 0" inside the last 28 days, six zeros inside a completed
+     * quarter — and one the period cuts across would count part of itself.
+     */
+    const inPeriod = b.from >= span.from && b.to - 1 <= span.to;
     const inside = sessions.filter((s) => {
       const at = Date.parse(s.startedAt);
-      return at >= b.from && at < b.to;
+      return inPeriod && at >= b.from && at < b.to;
     });
     const timed = inside.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
     const med = timed.length === 0 ? null : Math.round(median(timed));
@@ -424,6 +453,7 @@ function buildPeriods(
     return {
       id: b.id,
       label: b.label,
+      inPeriod,
       meetings: inside.length,
       medianDurationSeconds: med,
       // Never "0m 00s" for a period with no meetings: there is no duration to
@@ -770,7 +800,13 @@ export function buildSalesFlow(
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const periods = buildPeriods(sessions, today, context.project.timeZone, context.language);
+  const periods = buildPeriods(
+    sessions,
+    today,
+    context.project.timeZone,
+    context.language,
+    sliceSpan(context, today),
+  );
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const teamProgressed = share(
     decided.filter((s) => hasProgressed(s.outcome)).length,
@@ -904,12 +940,23 @@ export function buildSalesFlow(
       });
     } else {
       const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
-      verdict = verdictFrom(
-        weekIsReadable ? week : month,
-        weekIsReadable ? lastWeek : lastMonth,
-        locale,
-        context.language,
-      );
+      const [now, before] = weekIsReadable ? [week, lastWeek] : [month, lastMonth];
+      /*
+       * A pair the period does not hold whole is not a comparison. Last month
+       * lies before the last 28 days began, and read from this slice it was
+       * empty: "there's no earlier comparable period yet", printed above a
+       * baseline of 28 recorded days. The period against its own baseline, as
+       * a closed period is read below, is the comparison it does hold.
+       */
+      verdict =
+        now.inPeriod && before.inPeriod
+          ? verdictFrom(now, before, locale, context.language)
+          : verdictFrom(
+              summarizePeriod(sessions, context.period.label),
+              summarizePeriod(previous, context.period.baselineLabel),
+              locale,
+              context.language,
+            );
     }
   } else {
     verdict = verdictFrom(
@@ -1898,9 +1945,16 @@ export function buildHome(
     previousDecided.length,
   );
 
-  const periods = buildPeriods(sessions, today, context.project.timeZone, context.language);
-  const week = periods.find((p) => p.id === "this_week")?.meetings ?? 0;
-  const lastWeek = periods.find((p) => p.id === "last_week")?.meetings ?? 0;
+  const periods = buildPeriods(
+    sessions,
+    today,
+    context.project.timeZone,
+    context.language,
+    sliceSpan(context, today),
+  );
+  const bucket = (id: FlowPeriod["id"]) => periods.find((p) => p.id === id);
+  const week = bucket("this_week")?.meetings ?? 0;
+  const lastWeek = bucket("last_week")?.meetings ?? 0;
 
   /*
    * The signal.
@@ -1913,9 +1967,43 @@ export function buildHome(
    * meeting against two is a difference of one meeting, and calling that a
    * downturn on the opening screen would train the reader to ignore the signal.
    */
-  const month = periods.find((p) => p.id === "this_month")?.meetings ?? 0;
-  const lastMonth = periods.find((p) => p.id === "last_month")?.meetings ?? 0;
+  const month = bucket("this_month")?.meetings ?? 0;
+  const lastMonth = bucket("last_month")?.meetings ?? 0;
   const weekIsReadable = week + lastWeek >= 8;
+  /*
+   * A pair the period does not hold whole is not compared. Last month lies
+   * before the last 28 days began, so this read "32 meetings this month
+   * against 0 last month" and called the showroom on course on the strength
+   * of it; a completed quarter holds neither month, and read "0 meetings this
+   * month". The period against its own baseline is what those periods hold.
+   */
+  const pair = weekIsReadable
+    ? [bucket("this_week"), bucket("last_week")]
+    : [bucket("this_month"), bucket("last_month")];
+  const spanned = !pair.every((p) => p?.inPeriod === true);
+  const volume = spanned
+    ? {
+        now: sessions.length,
+        before: previous.length,
+        nowWords: `in ${context.period.label.toLowerCase()}`,
+        beforeWords: `in ${context.period.baselineLabel}`,
+        label: `Meetings in ${context.period.label.toLowerCase()}`,
+      }
+    : weekIsReadable
+      ? {
+          now: week,
+          before: lastWeek,
+          nowWords: "this week",
+          beforeWords: "last week",
+          label: "Meetings this week",
+        }
+      : {
+          now: month,
+          before: lastMonth,
+          nowWords: "this month",
+          beforeWords: "last month",
+          label: "Meetings this month",
+        };
   /*
    * Three states, not two: better, worse, and *unknowable*.
    *
@@ -1937,13 +2025,8 @@ export function buildHome(
    * only ever produce `"attention"` below, never tip the signal to `"good"`
    * or `"poor"` on its own.
    */
-  const volumeTrend: Trend = weekIsReadable
-    ? trend(week / lastWeek, 0.8)
-    : lastMonth === 0
-      ? month > 0
-        ? "up"
-        : "flat"
-      : trend(month / lastMonth, 0.8);
+  const volumeTrend: Trend =
+    volume.before === 0 ? (volume.now > 0 ? "up" : "flat") : trend(volume.now / volume.before, 0.8);
   const progressTrend: Trend =
     previousProgressed === 0
       ? progressed > 0.3
@@ -2007,41 +2090,33 @@ export function buildHome(
    * it was still making the claim.
    */
   const volumeClause = hasBaseline
-    ? weekIsReadable
-      ? `${meetings(week, locale, context.language)} this week against ${count(lastWeek, locale)} last week`
-      : `${meetings(month, locale, context.language)} this month against ${count(lastMonth, locale)} last month`
-    : `${meetings(weekIsReadable ? week : month, locale, context.language)} ${weekIsReadable ? "this week" : "this month"}`;
+    ? `${meetings(volume.now, locale, context.language)} ${volume.nowWords} against ${count(volume.before, locale)} ${volume.beforeWords}`
+    : `${meetings(volume.now, locale, context.language)} ${volume.nowWords}`;
 
-  const because = weekIsReadable
-    ? `${volumeClause}${progressClause}`
-    : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
+  // Why the week was not read; a period read whole needs no such note.
+  const because =
+    weekIsReadable || spanned
+      ? `${volumeClause}${progressClause}`
+      : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
 
   const figures: HomeFigure[] = [
     {
       id: "meetings",
-      label: weekIsReadable ? "Meetings this week" : "Meetings this month",
-      value: count(weekIsReadable ? week : month, locale),
+      label: volume.label,
+      value: count(volume.now, locale),
       // Same rule as the sentence above: no baseline, no comparison, and no
       // arrow — an arrow is a claim about a direction there is nothing to move
       // from.
       against: !hasBaseline
         ? "no earlier period to compare"
-        : weekIsReadable
-          ? `${count(lastWeek, locale)} last week`
-          : `${count(lastMonth, locale)} last month`,
+        : `${count(volume.before, locale)} ${volume.beforeWords}`,
       direction: !hasBaseline
         ? "flat"
-        : weekIsReadable
-          ? week > lastWeek
-            ? "up"
-            : week < lastWeek
-              ? "down"
-              : "flat"
-          : month > lastMonth
-            ? "up"
-            : month < lastMonth
-              ? "down"
-              : "flat",
+        : volume.now > volume.before
+          ? "up"
+          : volume.now < volume.before
+            ? "down"
+            : "flat",
       better: !hasBaseline ? "neither" : "up",
       measurementId: "showroom.presentations",
     },

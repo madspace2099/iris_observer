@@ -170,6 +170,11 @@
      */
     "apps/web/test/report-address.test.ts",
     "apps/web/test/report-words.test.ts",
-    "apps/web/test/presentation-scope.test.ts"
+    "apps/web/test/presentation-scope.test.ts",
+
+    /* A window the selected period does not hold is drawn as outside it (P2-21, R05). */
+    "packages/synthetic/test/period-buckets.test.ts",
+    "packages/synthetic/test/views3.test.ts",
+    "apps/web/test/period-steps.test.ts"
   ]
 }

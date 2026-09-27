@@ -159,14 +159,18 @@ export default async function ReportPage({
       <>
         <Tally>
           <TallyItem label={words.meetingsInPeriod} value={String(flow.meetingCount)} />
-          {flow.periods.slice(0, 2).map((window) => (
-            <TallyItem
-              key={window.id}
-              label={words.windowMeetings(window.label)}
-              value={String(window.meetings)}
-              delta={words.median(window.medianDurationDisplay)}
-            />
-          ))}
+          {/* Today and yesterday, where the period holds them: outside it they have no count. */}
+          {flow.periods
+            .slice(0, 2)
+            .filter((window) => window.inPeriod)
+            .map((window) => (
+              <TallyItem
+                key={window.id}
+                label={words.windowMeetings(window.label)}
+                value={String(window.meetings)}
+                delta={words.median(window.medianDurationDisplay)}
+              />
+            ))}
         </Tally>
         <FindingList findings={flow.findings} period={period} language={language} />
       </>
