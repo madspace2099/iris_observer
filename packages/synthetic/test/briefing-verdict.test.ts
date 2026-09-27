@@ -96,3 +96,25 @@ describe("the Briefing's verdict", () => {
     );
   });
 });
+
+describe("the Briefing's door to Sales Agents", () => {
+  /* Found on ISTER TOWER's live twin, one presenter: "1 agents · outcome mix side by side". */
+  it("names one presenter in the singular, with no one to stand beside", async () => {
+    const home = await syntheticRepository.getHome(query("quarter_to_date"));
+    const { context } = home;
+    const first = AUGUST[0];
+    expect(first).toBeDefined();
+    const one = AUGUST.filter((s) => s.agentId === first?.agentId);
+    const view = buildHome(
+      context,
+      one,
+      JULY_FIRST_24_DAYS,
+      new Date(context.generatedAt),
+      buildAttention(context, one, JULY_FIRST_24_DAYS),
+    );
+    expect(view.doors.find((d) => d.id === "agents")?.headline).toBe("1 agent · outcome mix");
+    expect(home.doors.find((d) => d.id === "agents")?.headline).toMatch(
+      /^\d+ agents · outcome mix side by side$/,
+    );
+  });
+});

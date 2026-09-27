@@ -2393,7 +2393,11 @@ export function buildHome(
         id: "agents",
         label: "Sales Agents",
         question: "How does each person present, and how do their meetings end?",
-        headline: `${count(agents, locale)} agents · outcome mix side by side`,
+        // One presenter has no one to stand beside: "1 agents · … side by side" read on a live project.
+        headline:
+          agents === 1
+            ? "1 agent · outcome mix"
+            : `${count(agents, locale)} agents · outcome mix side by side`,
         href: `${base}/agents`,
       },
     ],
