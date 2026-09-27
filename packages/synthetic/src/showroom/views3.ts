@@ -632,6 +632,21 @@ interface VerdictWords {
   readonly nothingRecorded: (current: string) => string;
   readonly noOutcomes: string;
   readonly tooEarly: (volume: string, now: string, current: string) => string;
+  /** A baseline with meetings and no recorded outcome: the rate has nothing to stand against. */
+  readonly nothingToCompare: (
+    volume: string,
+    now: string,
+    current: string,
+    prior: string,
+  ) => string;
+  /** Both sides recorded, one of them short of the floor: the figures, and no verdict. */
+  readonly belowSample: (
+    volume: string,
+    now: string,
+    before: string,
+    short: { readonly count: string; readonly label: string },
+    needed: string,
+  ) => string;
   readonly signal: (
     signal: "good" | "poor" | "attention",
     volume: string,
@@ -648,6 +663,10 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
     noOutcomes: "The showroom is running; no outcomes are being recorded.",
     tooEarly: (volume, now, current) =>
       `Too early to call: ${volume}, and ${now} of recorded meetings progressed ${current}. There's no earlier comparable period yet.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Too early to call: ${volume}, and ${now} of recorded meetings progressed ${current}. No meeting ${prior} has a recorded outcome to compare against.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Too few to call: ${volume}, and ${now} of recorded meetings progressed, against ${before} before. Recorded outcomes ${short.label}: ${short.count}; ${needed} are needed for a verdict.`,
     signal: (signal, volume, now, before) =>
       `${signal === "good" ? "Meetings are holding up and progressing well" : signal === "poor" ? "Worth a look" : "A mixed signal"}: ${volume}, and ${now} of recorded meetings progressed, against ${before} before.`,
   },
@@ -660,6 +679,10 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
     noOutcomes: "Showroom funguje, ale výsledky stretnutí sa nezaznamenávajú.",
     tooEarly: (volume, now, current) =>
       `Na hodnotenie je priskoro: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej (${current}). Porovnateľné skoršie obdobie zatiaľ nie je.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Na hodnotenie je priskoro: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej (${current}). Obdobie ${prior} nemá zaznamenaný výsledok na porovnanie.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Na hodnotenie je málo údajov: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým. Zaznamenané výsledky (${short.label}): ${short.count}; na hodnotenie treba ${needed}.`,
     signal: (signal, volume, now, before) =>
       `${signal === "good" ? "Stretnutia sa držia a dobre napredujú" : signal === "poor" ? "Stojí za pozornosť" : "Nejednoznačný signál"}: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým.`,
   },
@@ -672,6 +695,10 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
     noOutcomes: "A showroom működik, de az eredményeket nem rögzítik.",
     tooEarly: (volume, now, current) =>
       `Még korai megítélni: ${volume}, és a rögzített találkozók ${now}-a lépett tovább (${current}). Korábbi összehasonlítható időszak még nincs.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Még korai megítélni: ${volume}, és a rögzített találkozók ${now}-a lépett tovább (${current}). A korábbi időszakban (${prior}) nincs rögzített eredmény az összevetéshez.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Kevés az adat az ítélethez: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal. Rögzített eredmények (${short.label}): ${short.count}; az ítélethez ${needed} kell.`,
     signal: (signal, volume, now, before) =>
       `${signal === "good" ? "A találkozók száma tartja magát, és jól haladnak" : signal === "poor" ? "Érdemes megnézni" : "Vegyes jelzés"}: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal.`,
   },
@@ -765,12 +792,39 @@ function verdictFrom(
   }
 
   const currentProgressed = share(current.progressed, current.outcomeRecorded);
-  const priorProgressed =
-    prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
+  /*
+   * NO CALL BELOW THE FLOOR (decided 2026-09-27 for the Briefing; the same rule
+   * here). A baseline with meetings and no recorded outcome printed "against 0%
+   * before", a rate nothing measured; and four recorded meetings against five
+   * could read "holding up and progressing well". Short of `AGENT_MIN_SAMPLE`
+   * recorded outcomes on either side, the figures are stated and not called.
+   */
+  if (prior.outcomeRecorded === 0) {
+    return words.nothingToCompare(
+      volumeClause,
+      percent(currentProgressed, locale),
+      currentLabel,
+      prior.label.toLowerCase(),
+    );
+  }
+  const priorProgressed = share(prior.progressed, prior.outcomeRecorded);
+  if (current.outcomeRecorded < AGENT_MIN_SAMPLE || prior.outcomeRecorded < AGENT_MIN_SAMPLE) {
+    const short =
+      current.outcomeRecorded < AGENT_MIN_SAMPLE
+        ? { count: count(current.outcomeRecorded, locale), label: currentLabel }
+        : { count: count(prior.outcomeRecorded, locale), label: prior.label.toLowerCase() };
+    return words.belowSample(
+      volumeClause,
+      percent(currentProgressed, locale),
+      percent(priorProgressed, locale),
+      short,
+      count(AGENT_MIN_SAMPLE, locale),
+    );
+  }
   const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
   const progressTrend: Trend =
-    prior.outcomeRecorded === 0
-      ? currentProgressed > 0.3
+    priorProgressed === 0
+      ? currentProgressed > 0
         ? "up"
         : "flat"
       : trend(currentProgressed / priorProgressed, 0.9);
