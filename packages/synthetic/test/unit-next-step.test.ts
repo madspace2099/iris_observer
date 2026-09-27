@@ -31,6 +31,8 @@ describe("a unit's shortlist finding", () => {
       expect(finding.nextStep?.href, unit.code).toBe(
         `/alpha/northgate/units/${encodeURIComponent(unit.code)}#meetings-that-opened-it`,
       );
+      // Its evidence opens the same table, not the whole register.
+      expect(finding.evidence.href, unit.code).toBe(finding.nextStep?.href);
     }
     expect(raised, "never raised, so nothing was measured").toBeGreaterThan(0);
   });

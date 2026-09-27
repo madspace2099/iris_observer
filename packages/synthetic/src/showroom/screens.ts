@@ -1087,10 +1087,11 @@ export function buildUnitDetail(
         label: "See the meetings that opened it",
         href: `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
       },
+      // The same table as the step: "N records" opened the whole register too.
       evidence: evidenceRef(
         `unit-${unitCode}-follow-up`,
         "observed_sequence",
-        `${root}/meetings`,
+        `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
         row.favourites,
       ),
       sampleSize: row.meetings,
