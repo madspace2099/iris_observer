@@ -329,9 +329,10 @@ export default async function FlowPage({
               /* Six columns of "not in this period" would be a chart with nothing on it. */
               <p className="iris-meta iris-meta-measured">
                 Today, this week and this month count back from today, and{" "}
-                {view.context.period.label.toLowerCase()} holds none of them. Its{" "}
-                {view.meetingCount} {view.meetingCount === 1 ? "meeting is" : "meetings are"}{" "}
-                counted by outcome beside this.
+                {view.context.period.label.toLowerCase()} holds none of them.
+                {view.meetingCount === 0
+                  ? null
+                  : ` Its ${view.meetingCount} ${view.meetingCount === 1 ? "meeting is" : "meetings are"} counted by outcome beside this.`}
               </p>
             )}
           </div>
@@ -442,6 +443,10 @@ export default async function FlowPage({
               {charts.trend.annotation === null
                 ? null
                 : "The marked week is the largest single change in the series. What moved it is not in this data. "}
+              {/* The line needs two points; below that the heading stood over a caption alone. */}
+              {charts.trend.points.length < 2
+                ? "Too few whole weeks with meetings in this period to draw a line. "
+                : null}
               Only the weeks the period holds whole are drawn: a week still running, or one the
               period cuts, is not set against a full one.
             </p>
