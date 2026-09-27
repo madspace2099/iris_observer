@@ -5074,7 +5074,8 @@ drafts with the approved text, as the L-rounds did for the sentence entries.
 drawn from has its route, an after screenshot at 1920 and end-to-end specs that ran green today
 (`wide` 101 passed, 35 skipped by design, 0 failed; `desktop` product package 34 passed, 1 skipped,
 0 failed, the link crawl included). The 88 Phase 1 and Phase 2 items of the route checklists:
-**28 verified, 1 implemented but untested, 36 partial, 12 not done, 11 blocked** on a named input.
+**31 verified, 1 implemented but untested, 33 partial, 12 not done, 11 blocked** on a named input
+(28 and 36 at the first measurement; three items closed after it, below).
 
 **The gate's clause that fails:** the sales formulas are not shared. "Attention for its share of
 stock" is three computations — `/project` 1.41×, `/units` 1.39× for the same Northgate segment, and
@@ -5092,7 +5093,14 @@ population is a decision (see the document's last section); then one implementat
 - `24e573e` — "Meetings ending without a recorded outcome" opened the whole register; it now opens
   `?outcome=skipped`, and the count matches.
 
-**Verification at `24e573e`:** `pnpm test` 212 files, 4,319 passed, 1 skipped.
+Closed after the first measurement, pushed:
+
+- `b226f15` — the DNA's chosen pair survives a mode switch, and its lede no longer calls the
+  team's lane one presenter's sequence.
+- `c10616f` — a comparison's evidence opens the comparison it rests on, the pair included.
+- `aeb1946` — the agents roster no longer credits a CRM it did not read.
+
+**Verification at `aeb1946`:** `pnpm test` 213 files, 4,323 passed, 1 skipped.
 
 **Next recommended action.** Máté's decisions, in the order the document lists them: the index's
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
