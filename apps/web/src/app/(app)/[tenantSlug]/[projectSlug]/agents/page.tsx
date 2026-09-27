@@ -267,17 +267,13 @@ export default async function AgentsPage({
         </div>
 
         {/*
-            Named where it contributed. A project with no CRM connected has no
-            CRM outcome under these figures, and a chip saying otherwise is the
-            same lie in miniature as a zero standing in for something unmeasured.
+            Named where it contributed, and the CRM contributes nothing here. The
+            rings, the flags and the findings are the outcomes agents recorded in
+            the room, the showroom's own record (docs/06; the sweep that took the
+            same chip off the agent's page, 83d3e72). A CRM chip on a connected
+            project credited it with figures it never touched.
           */}
-        <SourceChips
-          sources={
-            view.context.project.connectedSources.includes("crm")
-              ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-              : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
-          }
-        />
+        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
 
         {view.findings.map((finding, index) => (
           <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />

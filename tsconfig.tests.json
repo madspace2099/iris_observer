@@ -169,6 +169,7 @@
      * address, and these helpers are the only two ends of that road.
      */
     "apps/web/test/report-address.test.ts",
-    "apps/web/test/report-words.test.ts"
+    "apps/web/test/report-words.test.ts",
+    "apps/web/test/presentation-scope.test.ts"
   ]
 }
