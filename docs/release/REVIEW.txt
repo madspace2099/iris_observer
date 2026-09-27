@@ -154,8 +154,10 @@ led to it. Neither result is retracted by the repair.
   it had to be: an earlier edition said "replaced by one" while three commits
   were already there, because the repair needed a second for the evidence and a
   third for the hash accounting and neither the sentence nor the constant beside
-  it moved. Old range {{HISTORY_OLD_RANGE}} at tree {{HISTORY_OLD_TREE}};
-  new range {{HISTORY_NEW_RANGE}} at tree {{HISTORY_NEW_TREE}}.
+  it moved. Old range {{HISTORY_OLD_RANGE}}, whose tree is deliberately not
+  published: it exists only in the operator's local repository, and publishing
+  it would undo the repair. New range {{HISTORY_NEW_RANGE}} at tree
+  {{HISTORY_NEW_TREE}}.
   Nothing at or before that commit was touched. Every commit replaced was local-only and unreachable from any
   remote-tracking ref, which was proved before anything was rewritten. The
   superseded commits are no longer reachable from this branch or from any ref;
