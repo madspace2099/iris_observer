@@ -40,6 +40,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Before the tests: the secret audit scans the browser bundle and refuses
+      # without one (scripts/secret-audit.mjs), and no-secret-recipes.test.ts runs it.
+      - name: Build
+        run: pnpm build
+
       # _sql-to-paste/ is generated and never tracked; the paste-wrapper tests read it.
       - name: Release wrappers
         run: pnpm release:wrappers
@@ -47,6 +52,3 @@ jobs:
       # Data tests run against PGlite, so no database service is needed. See ADR-0008.
       - name: Tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
