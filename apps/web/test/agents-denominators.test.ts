@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { REPORT_WORDS } from "@/components/report/words";
+
 /**
  * Every share on the agent surfaces says what it is a share of.
  *
@@ -57,9 +59,17 @@ describe("the agent page", () => {
 });
 
 describe("the report's agents table", () => {
-  it("names the rate's denominator in the header", () => {
-    expect(REPORT, "the rate stands under a header that names no denominator").toContain(
-      'label: "Progressed, of meetings with an outcome"',
+  /* The header's words live in the report's own table, one per language; the page reads them. */
+  it("names the rate's denominator in the header, in every language", () => {
+    expect(REPORT, "the rate is not drawn under the table's fourth header").toContain(
+      '{ key: "progressed", label: words.agentsColumns[3], numeric: true }',
+    );
+    expect(REPORT_WORDS.en.agentsColumns[3], "the English header names no denominator").toBe(
+      "Progressed, of meetings with an outcome",
+    );
+    expect(REPORT_WORDS.sk.agentsColumns[3]).toBe("Pokročilo, zo stretnutí s výsledkom");
+    expect(REPORT_WORDS.hu.agentsColumns[3]).toBe(
+      "Továbblépett, az eredménnyel zárult találkozókból",
     );
   });
 });
