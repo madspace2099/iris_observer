@@ -1,11 +1,8 @@
-import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { join, relative, sep } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import { scanText, inScope, EXEMPT, EXEMPT_SUFFIX } from "../../scripts/release/secret-recipes";
-import { build } from "../../scripts/release/build-package";
-import { openPackageOperation, type TestPackageOperation } from "./support/package-operation";
 
 /**
  * No operator-facing artefact may hand somebody a command that makes a secret
@@ -36,12 +33,6 @@ import { openPackageOperation, type TestPackageOperation } from "./support/packa
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const FIXTURES = join(import.meta.dirname, "fixtures");
-
-const walk = (dir: string): readonly string[] =>
-  readdirSync(dir).flatMap((e) => {
-    const p = join(dir, e);
-    return statSync(p).isDirectory() ? walk(p) : [p];
-  });
 
 /** Every tracked file, from git rather than from a directory walk. */
 function trackedFiles(): readonly string[] {
@@ -144,63 +135,7 @@ describe("no tracked operator file carries a runnable secret recipe", () => {
   });
 });
 
-describe("the generated package carries no runnable secret recipe", () => {
-  /*
-   * BUILT HERE, not found here.
-   *
-   * This used to scan `_review/<head>` and skip when that directory did not
-   * exist — which is to say it skipped on every machine that had not already
-   * packaged this exact commit, including the release gate that runs BEFORE
-   * packaging. The one run where the check mattered was the one where it never
-   * executed. The suite now generates its own package, into its own temporary
-   * directory, from its own synthetic gate evidence, and scans that.
-   *
-   * The packager runs this same check internally and refuses on a finding; this
-   * asserts it independently, so a regression in the packager's own check is
-   * still visible.
-   */
-  const scratch = mkdtempSync(join(tmpdir(), "observer-secret-pkg-"));
-  afterAll(() => {
-    rmSync(scratch, { recursive: true, force: true });
-  });
-
-  const fullHead = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: ROOT,
-    encoding: "utf8",
-  }).trim();
-  const short = fullHead.slice(0, 7);
-  let staged = "";
-
-  let owned: TestPackageOperation | undefined;
-
-  beforeAll(() => {
-    owned = openPackageOperation(scratch, fullHead);
-    build(join(scratch, "out"), { gateRecordRoot: owned.root, operation: owned.operation });
-    staged = join(scratch, "out", short);
-  }, 240_000);
-
-  afterAll(() => {
-    owned?.close();
-  });
-
-  it("stages files to check in the first place", () => {
-    expect(
-      walk(staged).filter((p) => inScope(relative(staged, p).split(sep).join("/"))).length,
-    ).toBeGreaterThan(10);
-  });
-
-  it("finds no runnable recipe anywhere in the freshly generated package", () => {
-    const offences: string[] = [];
-    for (const path of walk(staged)) {
-      const name = relative(staged, path).split(sep).join("/");
-      if (!inScope(name)) continue;
-      for (const o of scanText(readFileSync(path, "utf8"))) {
-        offences.push(`${name}:${String(o.line)} (${o.kind})`);
-      }
-    }
-    expect(offences).toEqual([]);
-  });
-});
+/* The generated-package scan moved to `release/no-secret-recipes-package.test.ts` (2026-09-27). */
 
 describe("the artefacts still say where a pepper does come from", () => {
   it("names the password manager and Vercel, so nobody invents their own", () => {
