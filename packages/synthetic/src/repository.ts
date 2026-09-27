@@ -18,6 +18,7 @@ import type {
 } from "@observer/readmodels";
 import {
   DEFAULT_LANGUAGE,
+  formattingLocale,
   NotFoundError,
   NotPermittedError,
   type Language,
@@ -352,7 +353,11 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return {
       viewer: query.viewer,
       tenant,
-      project,
+      /*
+       * The figures' locale: the project's on a screen, the language's on the
+       * printed report (decided 2026-09-27). Currency is left as it is.
+       */
+      project: { ...project, locale: formattingLocale(query.language, project.locale) },
       period,
       generatedAt: now === null ? TODAY : now.toISOString(),
       language: query.language,

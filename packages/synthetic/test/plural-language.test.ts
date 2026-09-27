@@ -338,12 +338,36 @@ describe("the request carries the language to the words", () => {
   const northgate = { viewer: VIEWERS.developer, tenantSlug: "alpha", projectSlug: "northgate" };
   const meeting = sessionsForProject("prj_northgate01").find((s) => s.units.length > 0);
 
-  it("puts the language asked for on the view's context, whatever the locale", async () => {
+  /*
+   * Decided 2026-09-27: the printed report is formatted by its language, the
+   * screens by the project's locale. Only the report asks in Slovak or
+   * Hungarian; English is how every screen asks, so it keeps the project's.
+   */
+  it("puts the language asked for on the view's context, and formats by it off English", async () => {
+    const formats = { sk: "sk-SK", hu: "hu-HU", en: "en-GB" } as const;
     for (const language of ["sk", "hu", "en"] satisfies Language[]) {
       const flow = await repo.getSalesFlow({ ...northgate, period: "quarter_to_date", language });
       expect(flow.context.language).toBe(language);
-      expect(flow.context.project.locale).toBe("en-GB");
+      expect(flow.context.project.locale).toBe(formats[language]);
     }
+  });
+
+  it("keeps the project's currency in every language: a Slovak report of a pound project", async () => {
+    const kingsford = {
+      viewer: VIEWERS.agencyManager,
+      tenantSlug: "beta",
+      projectSlug: "kingsford",
+      period: "quarter_to_date",
+    } as const;
+    const slovak = await repo.getUnitAttention({ ...kingsford, language: "sk" }, null);
+    const english = await repo.getUnitAttention({ ...kingsford, language: "en" }, null);
+    const priced = slovak.rows.find((r) => /\d/.test(r.priceDisplay));
+    expect(priced, "Kingsford states a price").toBeDefined();
+    /* Slovak grouping with no-break spaces, and the pound after the figure: "210 000 £". */
+    expect(priced?.priceDisplay).toMatch(/^\d{1,3}(\u00a0\d{3})+\u00a0£$/);
+    expect(english.rows.find((r) => r.unitCode === priced?.unitCode)?.priceDisplay).toMatch(
+      /^£\d{1,3}(,\d{3})+$/,
+    );
   });
 
   it("chooses a replay's words by it, and English by default", async () => {

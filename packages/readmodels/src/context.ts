@@ -142,8 +142,9 @@ export interface ViewContext {
   readonly generatedAt: string;
   /**
    * The language the view's words are chosen in, as the request asked for it.
-   * It chooses words only; `project.locale` formats the figures, and neither is
-   * read from the other.
+   * `project.locale` formats the figures: the project's own on every screen, and
+   * on a request in Slovak or Hungarian — the printed report — that language's
+   * (`formattingLocale`). `project.currency` is the project's in every language.
    */
   readonly language: Language;
   /**

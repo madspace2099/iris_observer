@@ -3,9 +3,9 @@
  *
  * Three languages: Slovak, English and Hungarian. The language chooses the
  * words a view is written in; the locale (`ProjectSummary.locale`) formats its
- * numbers, money and dates. They are two facts, and neither is derived from the
- * other: a Hungarian reader of a Slovak project reads Hungarian words and the
- * figures as that project formats them.
+ * numbers, money and dates. They are two facts. On a screen neither is derived
+ * from the other; the printed report is the one place the language also picks
+ * the format — see `formattingLocale`.
  *
  * It lives here, beside the read models, rather than in the synthetic generator,
  * because the repository that replaces the generator takes the same request and
@@ -16,6 +16,29 @@ export type Language = (typeof LANGUAGES)[number];
 
 /** Every caller passes this until the reader can choose. */
 export const DEFAULT_LANGUAGE: Language = "en";
+
+/**
+ * THE LOCALE A REQUEST'S FIGURES ARE FORMATTED IN (decided 2026-09-27).
+ *
+ * Screens are formatted by the project's locale; the printed report by its own
+ * language. Today only the report asks in a language other than English, so a
+ * Slovak or Hungarian request is formatted as that language writes figures and
+ * dates, and an English one as the project does — which is also how every
+ * screen asks. When the interface gains a language of its own (decided after
+ * the Phase 2 gate), the request will have to say which of the two it is.
+ *
+ * Currency is never the language's. A Slovak report of a project that sells in
+ * pounds prints "210 000 £": the grouping is Slovak, the money is the project's.
+ */
+const REPORT_LOCALES: Readonly<Record<Language, string | null>> = {
+  sk: "sk-SK",
+  hu: "hu-HU",
+  en: null,
+};
+
+export function formattingLocale(language: Language, projectLocale: string): string {
+  return REPORT_LOCALES[language] ?? projectLocale;
+}
 
 /**
  * A word or a phrase as each language writes it after a count, beside the
