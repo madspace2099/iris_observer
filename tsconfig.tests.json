@@ -161,6 +161,13 @@
      */
     "supabase/test/owner-role-window.test.ts",
     "supabase/test/support/pglite.ts",
-    "supabase/test/support/cron-stand-in.ts"
+    "supabase/test/support/cron-stand-in.ts",
+
+    /*
+     * THE REPORT'S ADDRESS (P2-17). What the export dialog composes — the
+     * sections kept and the language chosen — travels to the report page on its
+     * address, and these helpers are the only two ends of that road.
+     */
+    "apps/web/test/report-address.test.ts"
   ]
 }

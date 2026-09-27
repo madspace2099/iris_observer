@@ -8,10 +8,11 @@ import {
   NotFoundError,
   NotPermittedError,
   type OverviewQuery,
-  DEFAULT_LANGUAGE,
+  type ReportSection,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
+import { languageFrom } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
@@ -28,6 +29,7 @@ import {
   TallyItem,
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
+import { omittedFrom, printedSections } from "@/components/report/omit";
 import { AgentReport } from "./AgentReport";
 import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
 
@@ -81,7 +83,13 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string; meeting?: string; agent?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    meeting?: string;
+    agent?: string;
+    lang?: string;
+    omit?: string;
+  }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -90,7 +98,14 @@ export default async function ReportPage({
   const search = await searchParams;
 
   const period = presetFrom(search.period);
-  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
+  /*
+   * The words' language, as the export dialog asked for it: it travels on the
+   * read-model request with the period, so every sentence a read model writes
+   * arrives in it. The project's locale still formats every figure and date.
+   */
+  const language = languageFrom(search.lang);
+  const omitted = omittedFrom(search.omit);
+  const query = { viewer, tenantSlug, projectSlug, period, language };
   const meetingId =
     typeof search.meeting === "string" && search.meeting.length > 0 ? search.meeting : null;
   /*
@@ -100,13 +115,13 @@ export default async function ReportPage({
    */
   if (meetingId !== null) {
     requireSurface(viewer, "[meetingId]", `/${tenantSlug}/${projectSlug}`);
-    return <MeetingReport query={query} meetingId={meetingId} />;
+    return <MeetingReport query={query} meetingId={meetingId} omitted={omitted} />;
   }
   /* One agent's summary is the agent route's own material: the same roles, enforced on the same list. */
   const agentId = typeof search.agent === "string" && search.agent.length > 0 ? search.agent : null;
   if (agentId !== null) {
     requireSurface(viewer, "[agentId]", `/${tenantSlug}/${projectSlug}`);
-    return <AgentReport query={query} agentId={agentId} />;
+    return <AgentReport query={query} agentId={agentId} omitted={omitted} />;
   }
 
   const [report, flow, project, agents, meetings] = await Promise.all([
@@ -118,6 +133,8 @@ export default async function ReportPage({
   ]);
 
   const root = `/${tenantSlug}/${projectSlug}`;
+  const printed = printedSections(report.sections, omitted);
+  const leftOut = report.sections.filter((section) => !printed.includes(section));
   const locale = report.context.project.locale;
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
   const pct = (share: number) => percent.format(share);
@@ -288,7 +305,7 @@ export default async function ReportPage({
           { key: "sample", label: "Sample", numeric: true },
           { key: "evidence", label: "Evidence" },
         ]}
-        rows={report.sections.map((section) => ({
+        rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
@@ -304,7 +321,7 @@ export default async function ReportPage({
   };
 
   return (
-    <div className="ox-page ox-report">
+    <div className="ox-page ox-report" lang={language}>
       <PageHead
         kicker={`${report.context.project.name} · Report · ${report.periodLabel}`}
         title="Internal sales-intelligence report"
@@ -336,20 +353,30 @@ export default async function ReportPage({
               {report.unavailableCount === 0
                 ? "Every section can be written from what this project has."
                 : `${report.unavailableCount} of ${report.sections.length} sections would be blank, and each says why.`}
+              {leftOut.length === 0
+                ? ""
+                : ` ${leftOut.length} of ${report.sections.length} left out at the reader's request.`}
             </p>
           </div>
           <ol className="ox-report-contents">
-            {report.sections.map((section) => (
-              <li key={section.id}>
-                <a href={`#${section.id}`}>{section.label}</a>
-                <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
-              </li>
-            ))}
+            {report.sections.map((section) =>
+              leftOut.includes(section) ? (
+                <li key={section.id}>
+                  {section.label}
+                  <span className="ox-n"> · Left out at the reader&rsquo;s request</span>
+                </li>
+              ) : (
+                <li key={section.id}>
+                  <a href={`#${section.id}`}>{section.label}</a>
+                  <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
+                </li>
+              ),
+            )}
           </ol>
         </section>
 
         {/* --- the sections, in the read model's order ---------------------- */}
-        {report.sections.map((section) => (
+        {printed.map((section) => (
           <ReportPlane key={section.id} section={section} period={period}>
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
@@ -367,9 +394,11 @@ export default async function ReportPage({
 async function MeetingReport({
   query,
   meetingId,
+  omitted,
 }: {
   readonly query: OverviewQuery;
   readonly meetingId: string;
+  readonly omitted: ReadonlySet<string>;
 }) {
   /*
    * `?meeting=` is a URL parameter, so it is whatever the address bar says:
@@ -395,6 +424,7 @@ async function MeetingReport({
   }
   const root = `/${query.tenantSlug}/${query.projectSlug}`;
   const period = query.period;
+  const printed: readonly ReportSection[] = printedSections(report.sections, omitted);
   const content: Readonly<Record<string, ReactNode>> = {
     "meeting-summary": (
       <>
@@ -429,7 +459,7 @@ async function MeetingReport({
           { key: "state", label: "State" },
           { key: "evidence", label: "Evidence" },
         ]}
-        rows={report.sections.map((section) => ({
+        rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
@@ -442,7 +472,7 @@ async function MeetingReport({
     ),
   };
   return (
-    <div className="ox-page ox-report">
+    <div className="ox-page ox-report" lang={query.language}>
       <PageHead
         kicker={`${report.context.project.name} · Meeting summary · ${report.scope.label}`}
         title="Meeting summary"
@@ -463,7 +493,7 @@ async function MeetingReport({
         period={period}
       />
       <div className="ox-body">
-        {report.sections.map((section) => (
+        {printed.map((section) => (
           <ReportPlane key={section.id} section={section} period={period}>
             {content[section.id]}
           </ReportPlane>

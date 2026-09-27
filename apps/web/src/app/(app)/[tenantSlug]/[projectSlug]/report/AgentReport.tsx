@@ -32,6 +32,7 @@ import {
   type DataRow,
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
+import { printedSections } from "@/components/report/omit";
 import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
 
 /**
@@ -64,9 +65,12 @@ import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
 export async function AgentReport({
   query,
   agentId,
+  omitted,
 }: {
   readonly query: OverviewQuery;
   readonly agentId: string;
+  /** Sections the reader took out in the export dialog; a blank one is printed whatever this says. */
+  readonly omitted: ReadonlySet<string>;
 }) {
   /*
    * `?agent=` is whatever the address bar says. An agent who did not present
@@ -103,6 +107,8 @@ export async function AgentReport({
   const short = `${view.minimumSampleSize - view.sampleSize} short of ${view.minimumSampleSize}`;
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
   const partialCount = report.sections.filter((s) => s.availability === "partial").length;
+  const printed = printedSections(report.sections, omitted);
+  const leftOut = report.sections.filter((section) => !printed.includes(section));
 
   /* A count of their own meetings, with the count it is a fraction of. */
   const ofTheirs = (n: number) => (
@@ -395,7 +401,7 @@ export async function AgentReport({
           { key: "sample", label: "Sample", numeric: true },
           { key: "evidence", label: "Evidence" },
         ]}
-        rows={report.sections.map((section) => ({
+        rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
@@ -411,7 +417,7 @@ export async function AgentReport({
   };
 
   return (
-    <div className="ox-page ox-report">
+    <div className="ox-page ox-report" lang={query.language}>
       <PageHead
         kicker={`${report.context.project.name} · Agent summary · ${report.scope.label}`}
         title={view.name}
@@ -447,19 +453,29 @@ export async function AgentReport({
               {partialCount === 0
                 ? ""
                 : ` ${partialCount} of ${report.sections.length} carry a stated gap, and each says what it is.`}
+              {leftOut.length === 0
+                ? ""
+                : ` ${leftOut.length} of ${report.sections.length} left out at the reader's request.`}
             </p>
           </div>
           <ol className="ox-report-contents">
-            {report.sections.map((section) => (
-              <li key={section.id}>
-                <a href={`#${section.id}`}>{section.label}</a>
-                <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
-              </li>
-            ))}
+            {report.sections.map((section) =>
+              leftOut.includes(section) ? (
+                <li key={section.id}>
+                  {section.label}
+                  <span className="ox-n"> · Left out at the reader&rsquo;s request</span>
+                </li>
+              ) : (
+                <li key={section.id}>
+                  <a href={`#${section.id}`}>{section.label}</a>
+                  <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
+                </li>
+              ),
+            )}
           </ol>
         </section>
 
-        {report.sections.map((section) => (
+        {printed.map((section) => (
           <ReportPlane key={section.id} section={section} period={period}>
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
