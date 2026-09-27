@@ -356,7 +356,13 @@ export function buildAttention(
         belowMinimum: shortlisted.length < UNIT_MIN_SAMPLE,
         tier: "observed_sequence",
         sources: WITH_OUTCOME,
-        actionLabel: "Open those meetings",
+        /*
+         * What the link opens, said plainly. It read "Open those meetings" and
+         * opened the whole register: the register has no filter for "shortlisted,
+         * and no outcome that asks for a follow-up", so the five named above are
+         * the ones a reader can reach from here.
+         */
+        actionLabel: "Open the meeting register",
         actionHref: `${root}/meetings`,
         observationCount: stranded.length,
       });
