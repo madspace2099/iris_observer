@@ -2293,7 +2293,13 @@ export function buildStorytelling(
   }
 
   const topPair = pairings[0];
-  if (topPair !== undefined && topPair.lift > 1.15) {
+  /*
+   * The floor the screen holds its pair table to (`features/page.tsx`, `ranked`).
+   * Without it, a project under twenty meetings stated this association under
+   * "What stands out" while the table beneath said it is not reported at this
+   * sample: one screen, two answers to one question.
+   */
+  if (topPair !== undefined && topPair.lift > 1.15 && n >= AGENT_MIN_SAMPLE) {
     findings.push({
       id: "pairing",
       statement: `${sectionLabel(topPair.a)} and ${sectionLabel(topPair.b)} appear together in ${count(topPair.together, locale)} meetings — ${topPair.lift.toFixed(2)}× what independent use would produce.`,
