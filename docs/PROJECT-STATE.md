@@ -5129,3 +5129,7 @@ Closed after the first measurement, pushed:
 population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
 course", R06's quadrant labels, R12's automatic flag), whether R12 counts unknown visitors apart from
 first meetings and R04 splits its two outcome checks, and whether P2-19 and P2-20 are built now.
+Added by the 2026-09-27 morning block, whose report is `_review/blokk-0927/report.md`: R08's sticky
+header (three options), a register filter for R04's shortlisted follow-up state (a new R08
+control), whether P2-17 stays ticked while its text and date forms are open, and the L5d brief
+waiting in `_review/_inbox/` since 09:17, which runs on "következő".
