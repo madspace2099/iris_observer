@@ -84,6 +84,71 @@ const TIER_MEANINGS: Readonly<Record<ProducibleEvidenceTier, string>> = {
   statistical_association: "Two things co-occur more often than chance at the stated sample size.",
 };
 
+/*
+ * THE SAME WORDS IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English stays exactly as above, and the source words stay the contract's
+ * own `INSIGHT_SOURCE_LABELS`: that map is frozen, and it keeps the one English
+ * spelling of a source. The Slovak and Hungarian are drafts for review (P2-17).
+ */
+const TIER_WORDS: Readonly<Record<Language, Readonly<Record<ProducibleEvidenceTier, string>>>> = {
+  en: TIER_LABELS,
+  sk: {
+    observed_sequence: "Pozorované",
+    attributed_conversion: "Priradené",
+    statistical_association: "Súvislosť",
+  },
+  hu: {
+    observed_sequence: "Megfigyelt",
+    attributed_conversion: "Hozzárendelt",
+    statistical_association: "Összefüggés",
+  },
+};
+
+const TIER_MEANING_WORDS: Readonly<
+  Record<Language, Readonly<Record<ProducibleEvidenceTier, string>>>
+> = {
+  en: TIER_MEANINGS,
+  sk: {
+    observed_sequence:
+      "Tieto fakty boli zaznamenané v tomto poradí. Nič nad rámec záznamu sa netvrdí.",
+    attributed_conversion: "Konverzia priradená podľa uvedeného pravidla atribúcie.",
+    statistical_association:
+      "Dve veci sa pri uvedenej veľkosti vzorky vyskytujú spolu častejšie, než by zodpovedalo náhode.",
+  },
+  hu: {
+    observed_sequence:
+      "Ezeket a tényeket ebben a sorrendben rögzítették. A rögzítetten túl semmit sem állítunk.",
+    attributed_conversion: "Megnevezett hozzárendelési szabály szerint hozzárendelt konverzió.",
+    statistical_association:
+      "Két dolog az adott mintanagyságnál gyakrabban fordul elő együtt, mint amit a véletlen indokolna.",
+  },
+};
+
+const SOURCE_WORDS: Readonly<Record<Language, Readonly<Record<InsightSource, string>>>> = {
+  en: INSIGHT_SOURCE_LABELS,
+  sk: {
+    IRIS_SHOWROOM_OBSERVED: "IRIS – pozorované",
+    IRIS_SHOWROOM_DERIVED: "IRIS – vypočítané",
+    CRM_OUTCOME_CONTEXT: "Výsledok z CRM",
+    WEBIRIS_CONTEXT: "WEBIRIS",
+    AI_INTERPRETATION: "Interpretácia AI",
+  },
+  hu: {
+    IRIS_SHOWROOM_OBSERVED: "IRIS – megfigyelt",
+    IRIS_SHOWROOM_DERIVED: "IRIS – számított",
+    CRM_OUTCOME_CONTEXT: "CRM-eredmény",
+    WEBIRIS_CONTEXT: "WEBIRIS",
+    AI_INTERPRETATION: "MI-értelmezés",
+  },
+};
+
+const NO_EVIDENCE: Readonly<Record<Language, string>> = {
+  en: "No evidence",
+  sk: "Bez podkladov",
+  hu: "Nincs alátámasztás",
+};
+
 /**
  * The stylesheet's spelling of a source, which is not the contract's spelling.
  *
@@ -114,11 +179,17 @@ const SOURCE_TOKENS: Readonly<Record<InsightSource, string>> = {
  * Returns nothing for `causal_claim`; see the file docblock for why that is a
  * silence rather than a throw.
  */
-export function Tier({ tier }: { readonly tier: EvidenceTier }) {
+export function Tier({
+  tier,
+  language = DEFAULT_LANGUAGE,
+}: {
+  readonly tier: EvidenceTier;
+  readonly language?: Language;
+}) {
   if (!isProducibleTier(tier)) return null;
   return (
-    <span className="ox-tier" data-tier={tier} title={TIER_MEANINGS[tier]}>
-      {TIER_LABELS[tier]}
+    <span className="ox-tier" data-tier={tier} title={TIER_MEANING_WORDS[language][tier]}>
+      {TIER_WORDS[language][tier]}
     </span>
   );
 }
@@ -131,13 +202,19 @@ export function Tier({ tier }: { readonly tier: EvidenceTier }) {
  * CRM-flavoured second is a different claim from one built the other way round,
  * and re-sorting these alphabetically would erase that.
  */
-export function Sources({ sources }: { readonly sources: readonly InsightSource[] }) {
+export function Sources({
+  sources,
+  language = DEFAULT_LANGUAGE,
+}: {
+  readonly sources: readonly InsightSource[];
+  readonly language?: Language;
+}) {
   if (sources.length === 0) return null;
   return (
     <ul className="ox-prov">
       {sources.map((source) => (
         <li className="ox-src" key={source} data-source={SOURCE_TOKENS[source]}>
-          {INSIGHT_SOURCE_LABELS[source]}
+          {SOURCE_WORDS[language][source]}
         </li>
       ))}
     </ul>
@@ -181,10 +258,10 @@ export function Evidence({
   readonly language?: Language;
 }) {
   if (evidence === null) {
-    return <span className="ox-n">No evidence</span>;
+    return <span className="ox-n">{NO_EVIDENCE[language]}</span>;
   }
 
-  const tier = isProducibleTier(evidence.tier) ? TIER_LABELS[evidence.tier] : null;
+  const tier = isProducibleTier(evidence.tier) ? TIER_WORDS[language][evidence.tier] : null;
   const noun = plural(language, evidence.observationCount, PROVENANCE_RECORDS);
   const words =
     tier === null

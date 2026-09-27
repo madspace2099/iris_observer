@@ -46,6 +46,54 @@
  * hook, so the proportion has nowhere else to arrive; that gap is reported.
  */
 
+import { DEFAULT_LANGUAGE, type Language } from "@observer/readmodels";
+
+/*
+ * THE LADDER'S OWN WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what this file always printed, with the noun the caller names.
+ * The ladder counts deals and nothing else — the CRM's stages, on Sales Flow
+ * and in the report — so Slovak and Hungarian carry the deal's own forms, in
+ * the case each phrase puts it in; a caller that named another noun there would
+ * get a refusal, not an English word. The Slovak and Hungarian are drafts for
+ * review (P2-17).
+ */
+interface LadderWords {
+  readonly summary: (noun: string, stages: string) => string;
+  readonly of: (top: number, noun: string) => string;
+  readonly alone: (rate: string) => string;
+  readonly elsewhere: (rate: string) => string;
+  readonly noneLeft: (label: string) => string;
+  readonly lost: (lost: number, label: string) => string;
+}
+
+const LADDER_WORDS: Readonly<Record<Language, LadderWords>> = {
+  en: {
+    summary: (noun, stages) => `${noun} at each step, in order. ${stages}.`,
+    of: (top, noun) => `of ${top} ${noun}`,
+    alone: (rate) => `${rate} on its own`,
+    elsewhere: (rate) => ` · ${rate} elsewhere`,
+    noneLeft: (label) => `none left after ${label}`,
+    lost: (lost, label) => `−${lost} after ${label}`,
+  },
+  sk: {
+    summary: (_noun, stages) => `Obchody v jednotlivých krokoch, v poradí. ${stages}.`,
+    of: (top) => `z ${top} ${top === 1 ? "obchodu" : "obchodov"}`,
+    alone: (rate) => `${rate} samostatne`,
+    elsewhere: (rate) => ` · ${rate} inde`,
+    noneLeft: (label) => `bez úbytku po kroku ${label}`,
+    lost: (lost, label) => `−${lost} po kroku ${label}`,
+  },
+  hu: {
+    summary: (_noun, stages) => `Ügyletek lépésenként, sorrendben. ${stages}.`,
+    of: (top) => `${top} ügyletből`,
+    alone: (rate) => `${rate} önmagában`,
+    elsewhere: (rate) => ` · ${rate} máshol`,
+    noneLeft: (label) => `${label} után nincs lemorzsolódás`,
+    lost: (lost, label) => `−${lost} ${label} után`,
+  },
+};
+
 export interface LadderStage {
   readonly id: string;
   readonly label: string;
@@ -72,6 +120,7 @@ export function FlowLadder({
   stages,
   noun,
   comparisonLabel = null,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly stages: readonly LadderStage[];
   /** What the counts count — "meetings", "units". Never guessed. */
@@ -84,9 +133,15 @@ export function FlowLadder({
    * stating a baseline once instead of beside twelve figures.
    */
   readonly comparisonLabel?: string | null;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
   const top = stages[0];
   if (top === undefined) return null;
+  if (language !== DEFAULT_LANGUAGE && noun !== "deals") {
+    throw new Error(`The ladder is written in ${language} for deals only, not for "${noun}".`);
+  }
+  const words = LADDER_WORDS[language];
 
   /*
    * The denominator, and the guard on it.
@@ -106,9 +161,7 @@ export function FlowLadder({
        * the bars. Six bars walked one at a time teach a screen-reader user the
        * shape of nothing; the counts in order are the finding.
        */}
-      <p className="ox-sr">
-        {noun} at each step, in order. {summary}.
-      </p>
+      <p className="ox-sr">{words.summary(noun, summary)}</p>
 
       {stages.map((stage, index) => {
         const previous = stages[index - 1];
@@ -131,24 +184,20 @@ export function FlowLadder({
 
             <span className="ox-stage-figures">
               <span className="ox-figure">{stage.count}</span>
-              <span className="ox-of">
-                of {top.count} {noun}
-              </span>
+              <span className="ox-of">{words.of(top.count, noun)}</span>
 
               {stage.rate === null ? null : (
                 <span className="ox-stage-drop">
-                  {stage.rate} on its own
+                  {words.alone(stage.rate)}
                   {stage.comparisonRate === null || comparisonLabel === null
                     ? null
-                    : ` · ${stage.comparisonRate} elsewhere`}
+                    : words.elsewhere(stage.comparisonRate)}
                 </span>
               )}
 
               {previous === undefined || lost === null ? null : (
                 <span className="ox-stage-drop">
-                  {lost === 0
-                    ? `none left after ${previous.label}`
-                    : `−${lost} after ${previous.label}`}
+                  {lost === 0 ? words.noneLeft(previous.label) : words.lost(lost, previous.label)}
                 </span>
               )}
 

@@ -1,5 +1,12 @@
 import Link from "next/link";
-import type { PeriodPreset, ShowroomFinding } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  MEETINGS,
+  plural,
+  type Language,
+  type PeriodPreset,
+  type ShowroomFinding,
+} from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -47,11 +54,37 @@ import { Evidence, Sample, Sources } from "./Provenance";
  * a solid panel making a statement. "No finding was produced for this period"
  * is a statement. It gets the panel.
  */
+/*
+ * The list's own words in each language a report can be printed in. English is
+ * the words this file always printed; Slovak and Hungarian are drafts for
+ * review (P2-17).
+ */
+const FINDING_WORDS: Readonly<
+  Record<Language, { readonly against: string; readonly empty: string }>
+> = {
+  en: {
+    against: "against",
+    empty:
+      "No finding was produced for this period. That is the read model's answer, not a gap in it.",
+  },
+  sk: {
+    against: "porovnanie:",
+    empty:
+      "Pre toto obdobie nevzniklo žiadne zistenie. To je odpoveď dátového modelu, nie medzera v ňom.",
+  },
+  hu: {
+    against: "összevetés:",
+    empty:
+      "Erre az időszakra nem született megállapítás. Ez az adatmodell válasza, nem hiány benne.",
+  },
+};
+
 export function FindingList({
   findings,
   period,
-  sampleNoun = "meetings",
-  emptyNote = "No finding was produced for this period. That is the read model's answer, not a gap in it.",
+  sampleNoun,
+  emptyNote,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly findings: readonly ShowroomFinding[];
   readonly period: PeriodPreset;
@@ -63,9 +96,15 @@ export function FindingList({
    */
   readonly sampleNoun?: string;
   readonly emptyNote?: string;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
+  const words = FINDING_WORDS[language];
+  /* English has always printed "meetings" whatever the count; the others agree with it. */
+  const noun = (n: number) =>
+    sampleNoun ?? (language === "en" ? "meetings" : plural(language, n, MEETINGS));
   if (findings.length === 0) {
-    return <p className="ox-result">{emptyNote}</p>;
+    return <p className="ox-result">{emptyNote ?? words.empty}</p>;
   }
 
   return (
@@ -75,7 +114,9 @@ export function FindingList({
           <p className="ox-finding-statement">{finding.statement}</p>
 
           {finding.baseline === null ? null : (
-            <p className="ox-finding-baseline">against {finding.baseline}</p>
+            <p className="ox-finding-baseline">
+              {words.against} {finding.baseline}
+            </p>
           )}
 
           <p className="ox-finding-so-what">{finding.soWhat}</p>
@@ -83,9 +124,9 @@ export function FindingList({
           {finding.caveat === null ? null : <p className="ox-finding-caveat">{finding.caveat}</p>}
 
           <div className="ox-finding-foot">
-            <Sources sources={finding.sources} />
-            <Evidence evidence={finding.evidence} period={period} />
-            <Sample n={finding.sampleSize} noun={sampleNoun} />
+            <Sources sources={finding.sources} language={language} />
+            <Evidence evidence={finding.evidence} period={period} language={language} />
+            <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
             {finding.nextStep === null ? null : (
               <Link
                 className="ox-btn"

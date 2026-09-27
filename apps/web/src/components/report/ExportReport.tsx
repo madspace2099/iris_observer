@@ -22,23 +22,8 @@ const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
   agent: "Export agent summary",
 };
 
-/**
- * THE LANGUAGES EACH DOCUMENT IS WRITTEN IN, WHOLE.
- *
- * A report half in Slovak is not half done, it is wrong: a reader cannot tell
- * which of its sentences were translated and which were left standing. So a
- * language is offered for a scope only once every word that scope's page
- * prints is written in it — the page's own, its components', and every read
- * model's it draws — and the list grows scope by scope as that becomes true.
- */
-export const WRITTEN_IN: Readonly<Record<ReportScope["kind"], readonly Language[]>> = {
-  project: ["en"],
-  meeting: ["en"],
-  agent: ["en"],
-};
-
 import { Dialog } from "@/components/product/Dialog";
-import { LANGUAGE_NAMES, withLanguage } from "@/lib/language";
+import { LANGUAGE_NAMES, WRITTEN_IN, withLanguage } from "@/lib/language";
 import { ReportSections } from "./ReportSections";
 import { withOmitted } from "./omit";
 

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { omittedFrom, printedSections, withOmitted } from "@/components/report/omit";
-import { LANGUAGE_NAMES, languageFrom, withLanguage } from "@/lib/language";
+import {
+  LANGUAGE_NAMES,
+  WRITTEN_IN,
+  languageFrom,
+  withLanguage,
+  writtenLanguage,
+} from "@/lib/language";
 
 /**
  * WHAT A PRINTED REPORT IS ASKED FOR, ON ITS ADDRESS.
@@ -36,6 +42,19 @@ describe("the language on a report's address", () => {
 
   it("names each language in itself", () => {
     expect(LANGUAGE_NAMES).toEqual({ en: "English", sk: "Slovenčina", hu: "Magyar" });
+  });
+
+  it("gives a scope only a language it is written in whole, and English otherwise", () => {
+    expect(WRITTEN_IN).toEqual({
+      project: ["en", "sk", "hu"],
+      meeting: ["en", "sk", "hu"],
+      agent: ["en"],
+    });
+    expect(writtenLanguage("project", "sk")).toBe("sk");
+    expect(writtenLanguage("meeting", "hu")).toBe("hu");
+    /* An agent summary asked for in Slovak by a hand-typed address: English, whole, not a mixture. */
+    expect(writtenLanguage("agent", "sk")).toBe("en");
+    expect(writtenLanguage("agent", "en")).toBe("en");
   });
 });
 

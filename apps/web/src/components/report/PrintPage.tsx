@@ -10,7 +10,12 @@
  * generated a document, it does not name a file, and when there is no window
  * to print from it renders nothing rather than a control that does nothing.
  */
-export function PrintPage() {
+export function PrintPage({
+  label = "Print or save as PDF",
+}: {
+  /** The words on the button: the report passes its own language's. */
+  readonly label?: string;
+} = {}) {
   return (
     <button
       type="button"
@@ -20,7 +25,7 @@ export function PrintPage() {
         if (typeof window !== "undefined") window.print();
       }}
     >
-      Print or save as PDF
+      {label}
     </button>
   );
 }

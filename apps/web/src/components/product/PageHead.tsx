@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import type { PeriodPreset } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, type Language, type PeriodPreset } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -62,6 +62,13 @@ export interface Crumb {
  * right-aligned above 64rem and left-aligned below it, which is the sheet's
  * decision and not this component's.
  */
+/** The trail's name to a screen reader, in each language a report can be printed in. */
+const BREADCRUMB: Readonly<Record<Language, string>> = {
+  en: "Breadcrumb",
+  sk: "Navigačná cesta",
+  hu: "Morzsamenü",
+};
+
 export function PageHead({
   kicker,
   title,
@@ -70,6 +77,7 @@ export function PageHead({
   crumbs = [],
   aside = null,
   period,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly kicker: string;
   readonly title: ReactNode;
@@ -80,12 +88,14 @@ export function PageHead({
   /** Actions and statements belonging to the whole screen. */
   readonly aside?: ReactNode;
   readonly period: PeriodPreset;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
   return (
     <header className="ox-head">
       <div className="ox-head-text">
         {crumbs.length === 0 ? null : (
-          <nav aria-label="Breadcrumb">
+          <nav aria-label={BREADCRUMB[language]}>
             <ol className="ox-crumbs">
               {crumbs.map((crumb) => (
                 <li key={`${crumb.label}:${crumb.href ?? ""}`}>

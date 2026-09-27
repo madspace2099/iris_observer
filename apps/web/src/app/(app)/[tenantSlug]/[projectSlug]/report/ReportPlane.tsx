@@ -1,7 +1,14 @@
 import type { ReactNode } from "react";
 
-import type { PeriodPreset, ReportSection, ReportSectionAvailability } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  type Language,
+  type PeriodPreset,
+  type ReportSection,
+  type ReportSectionAvailability,
+} from "@observer/readmodels";
 import { Evidence, Sample, Sources } from "@/components/product";
+import { REPORT_WORDS } from "@/components/report/words";
 
 /**
  * ONE SECTION OF A PRINTED REPORT: THE MANIFEST'S FRAME AROUND THE PAGE'S BODY.
@@ -20,11 +27,9 @@ import { Evidence, Sample, Sources } from "@/components/product";
  * the one where the difference is the finding.
  */
 
-export const AVAILABILITY_WORDS: Readonly<Record<ReportSectionAvailability, string>> = {
-  ready: "Ready",
-  partial: "Partial",
-  unavailable: "Blank",
-};
+/** The state words, in English; `REPORT_WORDS` holds them in every language a report is printed in. */
+export const AVAILABILITY_WORDS: Readonly<Record<ReportSectionAvailability, string>> =
+  REPORT_WORDS.en.availability;
 
 export const AVAILABILITY_TONES: Readonly<Record<ReportSectionAvailability, string>> = {
   ready: "good",
@@ -36,10 +41,13 @@ export function ReportPlane({
   section,
   period,
   children,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly section: ReportSection;
   readonly period: PeriodPreset;
   readonly children: ReactNode;
+  /** The report's language, as the export dialog chose it. */
+  readonly language?: Language;
 }) {
   const headingId = `${section.id}-heading`;
   return (
@@ -50,18 +58,18 @@ export function ReportPlane({
         </h2>
         <span className="ox-chip" data-tone={AVAILABILITY_TONES[section.availability]}>
           <span className="ox-chip-mark" aria-hidden="true" />
-          {AVAILABILITY_WORDS[section.availability]}
+          {REPORT_WORDS[language].availability[section.availability]}
         </span>
       </div>
       <p className="ox-section-note">{section.summary}</p>
       {section.reason === null ? null : <p className="ox-section-note">{section.reason}</p>}
       {children}
       <div className="ox-alert-foot">
-        <Sources sources={section.sources} />
+        <Sources sources={section.sources} language={language} />
         {section.sampleSize === null ? null : (
           <Sample n={section.sampleSize} noun={section.sampleNoun} />
         )}
-        <Evidence evidence={section.evidence} period={period} />
+        <Evidence evidence={section.evidence} period={period} language={language} />
       </div>
     </section>
   );

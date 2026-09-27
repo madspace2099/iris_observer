@@ -7,12 +7,13 @@ import type { MeetingId } from "@observer/contracts";
 import {
   NotFoundError,
   NotPermittedError,
+  sentence,
   type OverviewQuery,
   type ReportSection,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
-import { languageFrom } from "@/lib/language";
+import { languageFrom, writtenLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
@@ -30,8 +31,15 @@ import {
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
 import { omittedFrom, printedSections } from "@/components/report/omit";
+import {
+  REPORT_BLANK_SECTIONS,
+  REPORT_COVERAGE_CAPTION,
+  REPORT_LEFT_OUT_SECTIONS,
+  REPORT_MEETINGS_NEEDED,
+  REPORT_WORDS,
+} from "@/components/report/words";
 import { AgentReport } from "./AgentReport";
-import { AVAILABILITY_WORDS, ReportPlane } from "./ReportPlane";
+import { ReportPlane } from "./ReportPlane";
 
 export const metadata: Metadata = { title: "Report" };
 
@@ -103,11 +111,16 @@ export default async function ReportPage({
    * read-model request with the period, so every sentence a read model writes
    * arrives in it. The project's locale still formats every figure and date.
    */
-  const language = languageFrom(search.lang);
-  const omitted = omittedFrom(search.omit);
-  const query = { viewer, tenantSlug, projectSlug, period, language };
   const meetingId =
     typeof search.meeting === "string" && search.meeting.length > 0 ? search.meeting : null;
+  const agentId = typeof search.agent === "string" && search.agent.length > 0 ? search.agent : null;
+  /* Only a language the scope is written in whole; see `WRITTEN_IN`. */
+  const language = writtenLanguage(
+    meetingId !== null ? "meeting" : agentId !== null ? "agent" : "project",
+    languageFrom(search.lang),
+  );
+  const omitted = omittedFrom(search.omit);
+  const query = { viewer, tenantSlug, projectSlug, period, language };
   /*
    * A meeting summary is the meeting route's own material, and that route
    * excludes the developer (ADR-0018 keeps everything about one buyer on
@@ -118,7 +131,6 @@ export default async function ReportPage({
     return <MeetingReport query={query} meetingId={meetingId} omitted={omitted} />;
   }
   /* One agent's summary is the agent route's own material: the same roles, enforced on the same list. */
-  const agentId = typeof search.agent === "string" && search.agent.length > 0 ? search.agent : null;
   if (agentId !== null) {
     requireSurface(viewer, "[agentId]", `/${tenantSlug}/${projectSlug}`);
     return <AgentReport query={query} agentId={agentId} omitted={omitted} />;
@@ -139,32 +151,36 @@ export default async function ReportPage({
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
   const pct = (share: number) => percent.format(share);
   const link = (href: string) => dynamicRoute(withPeriod(href, period));
+  const words = REPORT_WORDS[language];
 
   const content: Readonly<Record<string, ReactNode>> = {
     "period-summary": (
       <>
         <Tally>
-          <TallyItem label="Meetings in the period" value={String(flow.meetingCount)} />
+          <TallyItem label={words.meetingsInPeriod} value={String(flow.meetingCount)} />
           {flow.periods.slice(0, 2).map((window) => (
             <TallyItem
               key={window.id}
-              label={`${window.label} · meetings`}
+              label={words.windowMeetings(window.label)}
               value={String(window.meetings)}
-              delta={`median ${window.medianDurationDisplay}`}
+              delta={words.median(window.medianDurationDisplay)}
             />
           ))}
         </Tally>
-        <FindingList findings={flow.findings} period={period} />
+        <FindingList findings={flow.findings} period={period} language={language} />
       </>
     ),
     "presentation-coverage":
       agents.teamSections.length === 0 ? null : (
         <DataTable
-          caption={`Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: ${agents.timedMeetingCount} of ${agents.meetingCount} meetings, every step timed.`}
+          caption={sentence(language, REPORT_COVERAGE_CAPTION, {
+            timed: String(agents.timedMeetingCount),
+            total: String(agents.meetingCount),
+          })}
           columns={[
-            { key: "section", label: "Section" },
-            { key: "share", label: "Share of time", numeric: true },
-            { key: "dwell", label: "Median dwell", numeric: true },
+            { key: "section", label: words.coverageColumns[0] },
+            { key: "share", label: words.coverageColumns[1], numeric: true },
+            { key: "dwell", label: words.coverageColumns[2], numeric: true },
           ]}
           rows={agents.teamSections.map((section) => ({
             key: section.sectionId,
@@ -179,14 +195,14 @@ export default async function ReportPage({
       ),
     "unit-demand": (
       <DataTable
-        caption="Each room-count segment against its share of the stock: attention, favourites and comparisons."
+        caption={words.unitDemandCaption}
         columns={[
-          { key: "segment", label: "Segment" },
-          { key: "units", label: "Available units", numeric: true },
-          { key: "stock", label: "Share of stock", numeric: true },
-          { key: "attention", label: "Share of attention", numeric: true },
-          { key: "favourites", label: "Share of favourites", numeric: true },
-          { key: "compares", label: "Share of comparisons", numeric: true },
+          { key: "segment", label: words.unitDemandColumns[0] },
+          { key: "units", label: words.unitDemandColumns[1], numeric: true },
+          { key: "stock", label: words.unitDemandColumns[2], numeric: true },
+          { key: "attention", label: words.unitDemandColumns[3], numeric: true },
+          { key: "favourites", label: words.unitDemandColumns[4], numeric: true },
+          { key: "compares", label: words.unitDemandColumns[5], numeric: true },
         ]}
         rows={project.segments.map((segment) => ({
           key: segment.id,
@@ -204,12 +220,12 @@ export default async function ReportPage({
     ),
     "sales-agents": (
       <DataTable
-        caption="Every presenter on the project in the period, in roster order. A roster, never a ranking."
+        caption={words.agentsCaption}
         columns={[
-          { key: "agent", label: "Agent" },
-          { key: "meetings", label: "Meetings", numeric: true },
-          { key: "duration", label: "Median duration", numeric: true },
-          { key: "progressed", label: "Progressed, of meetings with an outcome", numeric: true },
+          { key: "agent", label: words.agentsColumns[0] },
+          { key: "meetings", label: words.agentsColumns[1], numeric: true },
+          { key: "duration", label: words.agentsColumns[2], numeric: true },
+          { key: "progressed", label: words.agentsColumns[3], numeric: true },
         ]}
         rows={agents.agents.map((agent) => ({
           key: agent.agentId,
@@ -224,14 +240,19 @@ export default async function ReportPage({
              * prints, and the read model's suppression sentence.
              */
             duration: agent.belowMinimum ? (
-              <Missing what={`${agent.meetings} of ${AGENT_MIN_SAMPLE} meetings needed`} />
+              <Missing
+                what={sentence(language, REPORT_MEETINGS_NEEDED, {
+                  count: String(agent.meetings),
+                  minimum: String(AGENT_MIN_SAMPLE),
+                })}
+              />
             ) : (
               agent.medianDurationDisplay
             ),
             progressed: agent.belowMinimum ? (
-              <Missing what={agent.suppressionNote ?? "Below the reporting sample"} />
+              <Missing what={agent.suppressionNote ?? words.belowSample} />
             ) : agent.ring.decidedMeetings === 0 ? (
-              <Missing what="No outcome recorded" />
+              <Missing what={words.noOutcome} />
             ) : (
               pct(agent.ring.progressedShare)
             ),
@@ -243,11 +264,11 @@ export default async function ReportPage({
     outcomes: (
       <>
         <DataTable
-          caption="How the period's meetings ended, as the agents recorded them."
+          caption={words.outcomesCaption}
           columns={[
-            { key: "outcome", label: "Outcome" },
-            { key: "count", label: "Meetings", numeric: true },
-            { key: "share", label: "Share", numeric: true },
+            { key: "outcome", label: words.outcomesColumns[0] },
+            { key: "count", label: words.outcomesColumns[1], numeric: true },
+            { key: "share", label: words.outcomesColumns[2], numeric: true },
           ]}
           rows={flow.outcomes.map((slice) => ({
             key: slice.outcome,
@@ -257,8 +278,8 @@ export default async function ReportPage({
         />
         {flow.ladder.source === "crm" ? (
           <div className="ox-report-ladder">
-            <p className="ox-section-note">The deal ladder, as the CRM states it.</p>
-            <FlowLadder stages={flow.ladder.stages} noun="deals" />
+            <p className="ox-section-note">{words.ladderIntro}</p>
+            <FlowLadder stages={flow.ladder.stages} noun="deals" language={language} />
             <p className="ox-section-note">{flow.ladder.note}</p>
           </div>
         ) : (
@@ -268,21 +289,22 @@ export default async function ReportPage({
     ),
     "channel-split": (
       <p className="ox-section-note">
-        The register carries the split:{" "}
-        <Link href={link(`${root}/meetings?channel=showroom`)}>showroom meetings</Link> and{" "}
-        <Link href={link(`${root}/meetings?channel=webiris`)}>WEB IRIS meetings</Link>, each with
-        its own total.
+        {words.channelSplit[0]}{" "}
+        <Link href={link(`${root}/meetings?channel=showroom`)}>{words.channelSplit[1]}</Link>
+        {words.channelSplit[2]}
+        <Link href={link(`${root}/meetings?channel=webiris`)}>{words.channelSplit[3]}</Link>
+        {words.channelSplit[4]}
       </p>
     ),
     "meeting-summary":
       meetings.rows.length === 0 ? null : (
         <DataTable
-          caption="The most recent meetings in the period. Each opens as a replay, or as a brief if it has not run."
+          caption={words.meetingsCaption}
           columns={[
-            { key: "meeting", label: "Meeting" },
-            { key: "agent", label: "Agent" },
-            { key: "started", label: "Started" },
-            { key: "outcome", label: "Outcome" },
+            { key: "meeting", label: words.meetingsColumns[0] },
+            { key: "agent", label: words.meetingsColumns[1] },
+            { key: "started", label: words.meetingsColumns[2] },
+            { key: "outcome", label: words.meetingsColumns[3] },
           ]}
           rows={meetings.rows.slice(0, 5).map((row) => ({
             key: row.meetingId,
@@ -298,21 +320,21 @@ export default async function ReportPage({
       ),
     "evidence-appendix": (
       <DataTable
-        caption="Every section of this report with the evidence reference it rests on."
+        caption={words.appendixCaption}
         columns={[
-          { key: "section", label: "Section" },
-          { key: "state", label: "State" },
-          { key: "sample", label: "Sample", numeric: true },
-          { key: "evidence", label: "Evidence" },
+          { key: "section", label: words.appendixColumns[0] },
+          { key: "state", label: words.appendixColumns[1] },
+          { key: "sample", label: words.appendixColumns[2], numeric: true },
+          { key: "evidence", label: words.appendixColumns[3] },
         ]}
         rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
-            state: AVAILABILITY_WORDS[section.availability],
+            state: words.availability[section.availability],
             sample:
               section.sampleSize === null ? "—" : `${section.sampleSize} ${section.sampleNoun}`,
-            evidence: <Evidence evidence={section.evidence} period={period} />,
+            evidence: <Evidence evidence={section.evidence} period={period} language={language} />,
           },
         }))}
         period={period}
@@ -323,21 +345,22 @@ export default async function ReportPage({
   return (
     <div className="ox-page ox-report" lang={language}>
       <PageHead
-        kicker={`${report.context.project.name} · Report · ${report.periodLabel}`}
-        title="Internal sales-intelligence report"
+        kicker={`${report.context.project.name} · ${words.report} · ${report.periodLabel}`}
+        title={words.title}
         answer={flow.verdict}
-        lede="The internal report, drawn on a page: every section the export dialog describes, from the same read models the screens use, in the same order. Print it through the browser; no generator writes a file yet. The audience is internal, and a buyer-facing document is a separate contract that is not assembled here."
+        lede={words.lede}
         crumbs={[
           { label: report.context.project.name, href: `${root}/project` },
-          { label: "Report" },
+          { label: words.report },
         ]}
         aside={
           <>
-            <Synthetic />
-            <PrintPage />
+            <Synthetic language={language} />
+            <PrintPage label={words.print} />
           </>
         }
         period={period}
+        language={language}
       />
 
       <div className="ox-body">
@@ -348,14 +371,25 @@ export default async function ReportPage({
               {report.scope.label}
             </h2>
             <p className="ox-section-note">
-              Audience: internal. Attribution policy {report.context.attribution.version}, effective{" "}
-              {report.context.attribution.effectiveFrom.slice(0, 10)}.{" "}
+              {words.audience}{" "}
+              {words.attribution(
+                report.context.attribution.version,
+                report.context.attribution.effectiveFrom.slice(0, 10),
+              )}{" "}
               {report.unavailableCount === 0
-                ? "Every section can be written from what this project has."
-                : `${report.unavailableCount} of ${report.sections.length} sections would be blank, and each says why.`}
+                ? words.everyWritable
+                : sentence(language, REPORT_BLANK_SECTIONS, {
+                    count: String(report.unavailableCount),
+                    total: String(report.sections.length),
+                    n: report.unavailableCount,
+                  })}
               {leftOut.length === 0
                 ? ""
-                : ` ${leftOut.length} of ${report.sections.length} left out at the reader's request.`}
+                : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+                    count: String(leftOut.length),
+                    total: String(report.sections.length),
+                    n: leftOut.length,
+                  })}`}
             </p>
           </div>
           <ol className="ox-report-contents">
@@ -363,12 +397,12 @@ export default async function ReportPage({
               leftOut.includes(section) ? (
                 <li key={section.id}>
                   {section.label}
-                  <span className="ox-n"> · Left out at the reader&rsquo;s request</span>
+                  <span className="ox-n"> · {words.leftOut}</span>
                 </li>
               ) : (
                 <li key={section.id}>
                   <a href={`#${section.id}`}>{section.label}</a>
-                  <span className="ox-n"> · {AVAILABILITY_WORDS[section.availability]}</span>
+                  <span className="ox-n"> · {words.availability[section.availability]}</span>
                 </li>
               ),
             )}
@@ -377,7 +411,7 @@ export default async function ReportPage({
 
         {/* --- the sections, in the read model's order ---------------------- */}
         {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period}>
+          <ReportPlane key={section.id} section={section} period={period} language={language}>
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
         ))}
@@ -425,14 +459,16 @@ async function MeetingReport({
   const root = `/${query.tenantSlug}/${query.projectSlug}`;
   const period = query.period;
   const printed: readonly ReportSection[] = printedSections(report.sections, omitted);
+  const language = query.language;
+  const words = REPORT_WORDS[language];
   const content: Readonly<Record<string, ReactNode>> = {
     "meeting-summary": (
       <>
         <Tally>
-          <TallyItem label="Started" value={replay.startedDisplay} />
-          <TallyItem label="Length" value={replay.durationDisplay} />
-          <TallyItem label="Presented by" value={replay.agentName} />
-          <TallyItem label="Recorded outcome" value={replay.outcomeLabel} />
+          <TallyItem label={words.started} value={replay.startedDisplay} />
+          <TallyItem label={words.length} value={replay.durationDisplay} />
+          <TallyItem label={words.presentedBy} value={replay.agentName} />
+          <TallyItem label={words.recordedOutcome} value={replay.outcomeLabel} />
         </Tally>
         <ol className="ox-report-contents">
           {replay.steps.map((step) => (
@@ -453,18 +489,18 @@ async function MeetingReport({
     ),
     "evidence-appendix": (
       <DataTable
-        caption="The session record behind this summary."
+        caption={words.sessionCaption}
         columns={[
-          { key: "section", label: "Section" },
-          { key: "state", label: "State" },
-          { key: "evidence", label: "Evidence" },
+          { key: "section", label: words.appendixColumns[0] },
+          { key: "state", label: words.appendixColumns[1] },
+          { key: "evidence", label: words.appendixColumns[3] },
         ]}
         rows={printed.map((section) => ({
           key: section.id,
           cells: {
             section: <a href={`#${section.id}`}>{section.label}</a>,
-            state: AVAILABILITY_WORDS[section.availability],
-            evidence: <Evidence evidence={section.evidence} period={period} />,
+            state: words.availability[section.availability],
+            evidence: <Evidence evidence={section.evidence} period={period} language={language} />,
           },
         }))}
         period={period}
@@ -474,27 +510,28 @@ async function MeetingReport({
   return (
     <div className="ox-page ox-report" lang={query.language}>
       <PageHead
-        kicker={`${report.context.project.name} · Meeting summary · ${report.scope.label}`}
-        title="Meeting summary"
+        kicker={`${report.context.project.name} · ${words.meetingSummary} · ${report.scope.label}`}
+        title={words.meetingSummary}
         answer={replay.headline}
-        lede="One presentation, reconstructed from the session record and printed as a sequence. The audience is internal: the buyer-facing meeting report is a separate, sanitised contract and is not assembled here."
+        lede={words.meetingLede}
         crumbs={[
           { label: report.context.project.name, href: `${root}/project` },
-          { label: "Meetings", href: `${root}/meetings` },
+          { label: words.meetings, href: `${root}/meetings` },
           { label: replay.startedDisplay, href: `${root}/meetings/${meetingId}` },
-          { label: "Summary" },
+          { label: words.summary },
         ]}
         aside={
           <>
-            <Synthetic />
-            <PrintPage />
+            <Synthetic language={language} />
+            <PrintPage label={words.print} />
           </>
         }
         period={period}
+        language={language}
       />
       <div className="ox-body">
         {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period}>
+          <ReportPlane key={section.id} section={section} period={period} language={language}>
             {content[section.id]}
           </ReportPlane>
         ))}
