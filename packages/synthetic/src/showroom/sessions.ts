@@ -18,6 +18,7 @@ import {
   type WeatherPreset,
 } from "@observer/contracts";
 import { DEFAULT_LANGUAGE, presenterWord, type Language } from "@observer/readmodels";
+import { money } from "../format";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 import { zoneParts, zonedInstant } from "../time";
 import { PROJECTS } from "../world";
@@ -879,6 +880,12 @@ function buildFilters(
   r: () => number,
   profile: InterestProfile,
   catalogue: readonly RawUnit[],
+  /*
+   * The project's money, as its catalogue prices it. The value read "under €…"
+   * on every project, the one priced in pounds included — a currency written
+   * into the generator, which the project's configuration owns.
+   */
+  price: { readonly currency: string; readonly locale: string },
 ): ShowroomFilterApplication[] {
   if (r() < 0.28) return [];
 
@@ -895,7 +902,7 @@ function buildFilters(
     const cap = 200_000 + Math.round(r() * 9) * 10_000;
     out.push({
       field: "price",
-      value: `under €${cap.toLocaleString("en-GB")}`,
+      value: `under ${money(cap, price.currency, price.locale)}`,
       matches: catalogue.filter(
         (c) => c.price !== null && c.price <= cap && c.status === "available",
       ).length,
@@ -1076,7 +1083,11 @@ function sessionAt(
    * declared in the wrong place.
    */
   const environment = buildEnvironment(r, order);
-  const filters = buildFilters(r, profile, catalogue);
+  const project = PROJECTS.find((p) => p.id === dataset.projectId);
+  const filters = buildFilters(r, profile, catalogue, {
+    currency: project?.currency ?? "EUR",
+    locale: project?.locale ?? "en-GB",
+  });
   const places = buildPlaces(r, profile, order);
 
   /*
