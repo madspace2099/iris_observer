@@ -40,7 +40,7 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
+import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
@@ -789,6 +789,8 @@ export function buildComposition(
   sessions: readonly ShowroomSession[],
   locale: string,
   timeZone: string,
+  /** The period's slice (`sliceSpan`); without one, every month is taken as whole. */
+  span: { readonly from: number; readonly to: number } = { from: -Infinity, to: Infinity },
 ): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
@@ -810,11 +812,30 @@ export function buildComposition(
   return {
     columns: [...months.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, xs]) => ({
-        label: monthLabel(xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`, locale, timeZone),
-        total: xs.length,
-        parts: Object.fromEntries(order.map((o) => [o, xs.filter((s) => s.outcome === o).length])),
-      })),
+      .map(([key, xs]) => {
+        const at = xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`;
+        /*
+         * A month the period cuts says which of its days it holds. August on
+         * the 24th stood beside a whole July as "Aug", and its shorter column
+         * read as a falling month: a part against a whole, the comparison the
+         * weekly line below no longer draws either.
+         */
+        const start = startOfMonthIn(Date.parse(at), timeZone).getTime();
+        const end = startOfMonthIn(Date.parse(at), timeZone, 1).getTime() - 1;
+        const first = Math.max(start, span.from);
+        const last = Math.min(end, span.to);
+        const month = monthLabel(at, locale, timeZone);
+        return {
+          label:
+            first === start && last === end
+              ? month
+              : `${month} ${String(zoneParts(first, timeZone).day)}–${String(zoneParts(last, timeZone).day)}`,
+          total: xs.length,
+          parts: Object.fromEntries(
+            order.map((o) => [o, xs.filter((s) => s.outcome === o).length]),
+          ),
+        };
+      }),
     keys: order.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_COLOURS[o] })),
   };
 }
@@ -1017,13 +1038,23 @@ export function buildFlowCharts(
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const charts = buildAgentCharts(sessions, base, locale, context.language);
+  const span = sliceSpan(context, today);
+  /*
+   * A running slice ends at the end of today in UTC, which in Bratislava is
+   * two hours into tomorrow; a month's label names the project's own days, so
+   * it stops at the end of the project's today.
+   */
+  const monthSpan = {
+    from: span.from,
+    to: Math.min(span.to, endOfDayIn(today, timeZone).getTime()),
+  };
 
   return {
     context,
     kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
     activity: buildActivity(sessions, timeZone),
-    composition: buildComposition(sessions, locale, timeZone),
-    trend: buildTrend(sessions, locale, timeZone, sliceSpan(context, today)),
+    composition: buildComposition(sessions, locale, timeZone, monthSpan),
+    trend: buildTrend(sessions, locale, timeZone, span),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
     longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),

@@ -156,6 +156,30 @@ describe("the weekly series inside a period", () => {
 });
 
 /*
+ * And for "What those meetings became": a month the period cuts names the days
+ * it holds. August on the 24th stood beside a whole July as "Aug", and its
+ * shorter column read as a falling month.
+ */
+describe("the monthly composition inside a period", () => {
+  const labels = async (period: Parameters<typeof query>[0]) =>
+    (await syntheticRepository.getFlowCharts(query(period), "month")).composition.columns.map(
+      (c) => c.label,
+    );
+
+  it("names the days of the month still running", async () => {
+    expect(await labels("quarter_to_date")).toEqual(["Jul", "Aug 1–24"]);
+  });
+
+  it("names the days of both months the last 28 days cut", async () => {
+    expect(await labels("last_28_days")).toEqual(["Jul 27–31", "Aug 1–24"]);
+  });
+
+  it("leaves the whole months of a completed quarter as they are", async () => {
+    expect(await labels("last_quarter")).toEqual(["Apr", "May", "Jun"]);
+  });
+});
+
+/*
  * A period that cuts a window in two. Friday 13 March 2026 in Bratislava
  * (UTC+1), a period that began on the Wednesday: this week ran from Monday, so
  * the period holds three of its days. Counting those three as "this week"
