@@ -162,6 +162,12 @@ export interface AgentOutcomeRing {
     readonly severity: "watch" | "concern";
     readonly text: string;
     readonly sampleSize: number;
+    /**
+     * What `text` counts, so a finding sets it against the team's figure for
+     * the same thing: meetings with no outcome recorded, "not interested"
+     * among the decided ones, or progression among the decided ones.
+     */
+    readonly measure: "unrecorded" | "not_interested" | "progressed";
   } | null;
   readonly href: string;
 }

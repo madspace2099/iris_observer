@@ -521,6 +521,7 @@ function outcomeFlag(
             ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult, így ezek többsége egyáltalán nem értékelhető.`
             : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
       sampleSize: sessions.length,
+      measure: "unrecorded",
     };
   }
   const notInterested = decided.filter((s) => s.outcome === "not_interested").length;
@@ -536,6 +537,7 @@ function outcomeFlag(
             ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult — érdemes magát a bemutatót is figyelni, nem csak az értékesítési folyamatot.`
             : `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
       sampleSize: decided.length,
+      measure: "not_interested",
     };
   }
   if (progressed < teamProgressed * 0.75) {
@@ -548,6 +550,7 @@ function outcomeFlag(
             ? `${decided.length} rögzített találkozóból ${percent(progressed, locale)} lépett tovább, szemben a csapat ${percent(teamProgressed, locale)}-os arányával.`
             : `${percent(progressed, locale)} progressed against ${percent(teamProgressed, locale)} for the team, over ${decided.length} recorded meetings.`,
       sampleSize: decided.length,
+      measure: "progressed",
     };
   }
   return null;
@@ -834,6 +837,22 @@ export function buildSalesFlow(
   const flowWords = FLOW_WORDS[language];
 
   const flagged = rings.filter((r) => r.flag !== null);
+  /*
+   * The team's figure for what the flag counts. It was always the team's
+   * progression, so "10 of 10 meetings ended with no outcome recorded" stood
+   * "against 0% for the team" on a project that records no outcome at all —
+   * a rate with no denominator printed as a zero, beside a figure of a
+   * different kind. On that project the team's own share is 100%, which is
+   * the fact the reader needs: it is the project, not the person.
+   */
+  const teamFigure = {
+    unrecorded: share(unrecorded, sessions.length),
+    not_interested: share(
+      decided.filter((s) => s.outcome === "not_interested").length,
+      decided.length,
+    ),
+    progressed: teamProgressed,
+  };
   if (flagged[0]?.flag != null) {
     // The evidence below cites `flag.sampleSize`, not `flagged[0].meetings` --
     // the flag's own text is stated over the population that number names
@@ -842,7 +861,7 @@ export function buildSalesFlow(
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: flowWords.teamBaseline(percent(teamProgressed, locale)),
+      baseline: flowWords.teamBaseline(percent(teamFigure[flagged[0].flag.measure], locale)),
       soWhat: flowWords.flagSoWhat,
       nextStep: {
         label: flowWords.open(flagged[0].name.split(" ")[0] ?? ""),
