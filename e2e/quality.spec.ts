@@ -220,7 +220,10 @@ test.describe("the chart vocabulary", () => {
 
     // A control that does not move the number it labels is decoration.
     expect(year).not.toBe(today);
-    await expect(page.locator(".iris-kpi")).toHaveCount(4);
+    // Four figures. Since the approved regrouping (12a586f) the two groups
+    // nothing measures stand in `.iris-kpi` boxes too, saying what is missing.
+    await expect(page.locator(".iris-kpi-value")).toHaveCount(4);
+    await expect(page.locator(".iris-kpi-missing")).toHaveCount(2);
   });
 
   test("a window too small to read says so instead of asserting a trend", async ({ page }) => {

@@ -289,7 +289,14 @@ export function AiSummary({ briefing }: { briefing: AiBriefing }) {
       <div className="obs-briefing-foot">
         <span>{briefing.generatorVersion}</span>
         <span>·</span>
-        <span>Every sentence links to the records behind it.</span>
+        {/*
+         * Not "links to": a sentence whose records no page lists names them in
+         * text (`EvidenceLink`, empty route), and the follow-up sentence has read
+         * that way since its person link was removed (bd8e59a).
+         */}
+        <span>
+          Every sentence names the records behind it, with a link where a page lists them.
+        </span>
         {briefing.caveat === null ? null : (
           <>
             <span>·</span>
