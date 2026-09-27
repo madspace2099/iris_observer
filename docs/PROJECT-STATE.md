@@ -4,9 +4,10 @@
 whatever it points at. Update this file at the end of every meaningful session.
 
 **Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `3ca59cd`** · Latest: **P2-17 — the report prints in Slovak, English
+`origin`; the last code commit is `24e573e`** · Latest: **P2-17 — the report prints in Slovak, English
 and Hungarian**, functionally complete and proven; the Slovak and Hungarian text awaits approval and
-the date forms await a decision (the last section of this file). Earlier, on 2026-09-18, on
+the date forms await a decision. **P2-21 measured the same day: Phase 2 is not accepted**
+(`docs/23-phase2-acceptance.md`; the last section of this file). Earlier, on 2026-09-18, on
 `feature/observer-reference-parity` (PR #1, not merged): **phase 7 is built**: a project created in MADSPACE administration
 becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
 delivered, and names the presenter of every meeting, whom a showroom can now report itself
@@ -5066,3 +5067,34 @@ this round's to close:
 
 **Next recommended action.** Máté's two decisions above; then an approval round that replaces the
 drafts with the approved text, as the L-rounds did for the sentence entries.
+
+## 2026-09-27 — P2-21: Phase 2 acceptance, measured — not accepted
+
+**The result is `docs/23-phase2-acceptance.md`.** Every one of the thirteen screens the plan was
+drawn from has its route, an after screenshot at 1920 and end-to-end specs that ran green today
+(`wide` 101 passed, 35 skipped by design, 0 failed; `desktop` product package 34 passed, 1 skipped,
+0 failed, the link crawl included). The 88 Phase 1 and Phase 2 items of the route checklists:
+**28 verified, 1 implemented but untested, 36 partial, 12 not done, 11 blocked** on a named input.
+
+**The gate's clause that fails:** the sales formulas are not shared. "Attention for its share of
+stock" is three computations — `/project` 1.41×, `/units` 1.39× for the same Northgate segment, and
+the Ask pulse on a third population — and `/overview` prints a hard-coded 2.1. Choosing the
+population is a decision (see the document's last section); then one implementation in the registry.
+
+**Corrected on the way**, each its own commit with a test, all pushed:
+
+- `c9d89e5` — Kingsford Yard, priced in pounds, printed its price filters in euros.
+- `1b5f0e4` — Kingsford's Presentation DNA named two of Alpha Estates' agents ("presented no
+  meeting"): the default pair came from the whole roster. Now only the project's own roster and its
+  presenters may be named, for a requested id too.
+- `7ffbfb2` — Features stated a feature pairing under "What stands out" below the floor its own table
+  holds to.
+- `24e573e` — "Meetings ending without a recorded outcome" opened the whole register; it now opens
+  `?outcome=skipped`, and the count matches.
+
+**Verification at `24e573e`:** `pnpm test` 212 files, 4,319 passed, 1 skipped.
+
+**Next recommended action.** Máté's decisions, in the order the document lists them: the index's
+population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
+course", R06's quadrant labels, R12's automatic flag), whether R12 counts unknown visitors apart from
+first meetings and R04 splits its two outcome checks, and whether P2-19 and P2-20 are built now.
