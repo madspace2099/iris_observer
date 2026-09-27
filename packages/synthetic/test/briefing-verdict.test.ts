@@ -54,6 +54,14 @@ describe("the Briefing's sentence", () => {
       )} last month`,
     );
   });
+
+  it("puts the figure beside it on the same window, and names it", async () => {
+    const home = await syntheticRepository.getHome(query("quarter_to_date"));
+    const figure = home.figures.find((f) => f.id === "progressed");
+    expect(figure?.label).toBe("Progressing this month");
+    expect(figure?.value).toBe(pct(rateOf(AUGUST)));
+    expect(figure?.against).toBe(`${pct(rateOf(JULY_FIRST_24_DAYS))} last month`);
+  });
 });
 
 describe("the Briefing's verdict", () => {

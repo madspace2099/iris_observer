@@ -1999,10 +1999,6 @@ export function buildHome(
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const progressed = share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length);
   const previousDecided = previous.filter((s) => !outcomeIsUnknown(s.outcome));
-  const previousProgressed = share(
-    previousDecided.filter((s) => hasProgressed(s.outcome)).length,
-    previousDecided.length,
-  );
 
   const periods = buildPeriods(
     sessions,
@@ -2222,24 +2218,32 @@ export function buildHome(
     },
     {
       id: "progressed",
-      label: "Progressing",
+      /*
+       * The sentence's window, named: beside "Meetings this month" a bare
+       * "Progressing" read as the month's while it held the whole period's.
+       */
+      label: `Progressing ${volume.nowWords}`,
       // An em dash, not a zero. The figure is unavailable, not nil.
-      value: outcomesRecorded ? percent(progressed, locale) : "—",
+      value: windowDecided > 0 ? percent(rate, locale) : "—",
       against: !outcomesRecorded
         ? "no outcome recorded on this project"
-        : hasBaseline
-          ? `${percent(previousProgressed, locale)} in the previous period`
-          : "no earlier period to compare",
+        : windowDecided === 0
+          ? `no outcome recorded ${volume.nowWords}`
+          : !hasBaseline
+            ? "no earlier period to compare"
+            : beforeDecided === 0
+              ? `no outcome recorded ${volume.beforeWords}`
+              : `${percent(beforeRate, locale)} ${volume.beforeWords}`,
       direction:
-        !outcomesRecorded || !hasBaseline
+        windowDecided === 0 || beforeDecided === 0
           ? "flat"
-          : progressed > previousProgressed
+          : rate > beforeRate
             ? "up"
-            : progressed < previousProgressed
+            : rate < beforeRate
               ? "down"
               : "flat",
       // Nothing to grade when nothing was measured.
-      better: outcomesRecorded && hasBaseline ? "up" : "neither",
+      better: windowDecided > 0 && beforeDecided > 0 ? "up" : "neither",
       measurementId: null,
     },
     {
