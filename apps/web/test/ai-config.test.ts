@@ -530,6 +530,30 @@ describe("an unreachable shared ceiling", () => {
     expect(verdict.allowed).toBe(true);
   });
 
+  it("refuses in a production build with no ceiling configured", async () => {
+    /*
+     * The other branch of the same condition. A production build that cannot
+     * count a question does not answer it: it was allowed, and a deployment
+     * without SUPABASE_SECRET_KEY ran with no AI quota at all.
+     */
+    globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
+    const node = process.env["NODE_ENV"];
+    process.env["NODE_ENV"] = "production";
+    const error = console.error;
+    const logged: string[] = [];
+    console.error = (...args: unknown[]) => void logged.push(args.join(" "));
+    try {
+      const verdict = await admitAiRequest(admission);
+      expect(verdict.allowed).toBe(false);
+      if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
+      expect(logged.join("\n")).toMatch(/no shared ceiling configured/);
+    } finally {
+      console.error = error;
+      if (node === undefined) delete process.env["NODE_ENV"];
+      else process.env["NODE_ENV"] = node;
+    }
+  });
+
   it("tells the reader the figures are unaffected, and names no internals", () => {
     const said = SHARED_REFUSAL_TEXT.ceiling_unavailable;
     expect(said).toMatch(/unaffected/i);

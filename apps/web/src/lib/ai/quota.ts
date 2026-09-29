@@ -297,7 +297,22 @@ export interface Admission {
  */
 export async function admitAiRequest(admission: Admission): Promise<SharedVerdict> {
   const config = configured();
-  if (config === null) return { allowed: true };
+  if (config === null) {
+    /*
+     * NO CEILING CONFIGURED: open in development, closed in production.
+     *
+     * It was open everywhere, and a production deployment without
+     * SUPABASE_SECRET_KEY had no AI quota at all (measured 2026-09-29) — safe
+     * only because nobody could sign in. The same test the local control plane
+     * uses decides it (`localControlPlaneEnabled`): the build, not a switch a
+     * deployment could turn off.
+     */
+    if (process.env.NODE_ENV !== "production") return { allowed: true };
+    console.error(
+      "[observer.quota] refusing every question — this production build has no shared ceiling configured (SUPABASE_URL and SUPABASE_SECRET_KEY), and a model call nothing counts is an unmetered one",
+    );
+    return unavailable();
+  }
 
   try {
     const response = await fetch(`${config.url}/rest/v1/rpc/admit_ai_request`, {
