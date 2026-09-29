@@ -71,6 +71,7 @@ const REFERENCE_ROUTES: readonly string[] = [
   "/lab/sign-in",
   "/lab/overview-a",
   "/lab/overview-b",
+  "/lab/[...rest]",
   "/[tenantSlug]/[projectSlug]/showroom",
   "/[tenantSlug]/[projectSlug]/flow",
   "/[tenantSlug]/[projectSlug]/project",
