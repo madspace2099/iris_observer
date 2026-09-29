@@ -87,7 +87,12 @@ function numeric(props: Readonly<Record<string, unknown>>, key: string): number 
 }
 
 function unitOf(row: Ue5EventRow): string | null {
-  return text(row.properties, "unit_id") ?? (row.entity_type === "unit" ? row.entity_id : null);
+  return (
+    text(row.properties, "unit_id") ??
+    /* A capture or a walk names the unit in view as its context, not as its subject. */
+    text(row.properties, "context_unit_id") ??
+    (row.entity_type === "unit" ? row.entity_id : null)
+  );
 }
 
 /** `"Main|Residences|Floor 3"` → `["residences", "Floor 3"]`; the leading `Main` is the plugin's root. */
@@ -120,6 +125,7 @@ interface MutableUnit {
   pdfOpened: boolean;
   balconyViews: number;
   floorCutViews: number;
+  screenshots: number;
 }
 
 interface MutableStep {
@@ -169,6 +175,7 @@ function foldOne(
         pdfOpened: false,
         balconyViews: 0,
         floorCutViews: 0,
+        screenshots: 0,
       };
       units.set(code, u);
     }
@@ -222,6 +229,12 @@ function foldOne(
       else if (BALCONY.has(name)) unit(code).balconyViews += 1;
       else if (FLOOR_CUT.has(name)) unit(code).floorCutViews += 1;
     }
+    /*
+     * A capture taken with a unit in view counts against that unit too. Only a
+     * unit the session already opened: a capture alone does not make a unit
+     * "opened", and counting it as one would lift every opened-units figure.
+     */
+    if (code !== null && SCREENSHOT.has(name) && units.has(code)) unit(code).screenshots += 1;
 
     if (STEP_OPENED.has(name)) {
       const path = featurePath(row);
@@ -297,7 +310,7 @@ function foldOne(
     pdfOpened: u.pdfOpened,
     balconyViews: u.balconyViews,
     floorCutViews: u.floorCutViews,
-    screenshots: 0,
+    screenshots: u.screenshots,
     comparedWith: [],
     keptFromComparison: null,
     shared: false,

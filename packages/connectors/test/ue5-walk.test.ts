@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CLOCK_POLICY, HARNESS_LIMITS, validateEvent } from "@observer/contracts/ue5";
 
-import { walkScopes, type Ue5EventRow } from "../src/ue5-events";
+import { foldUe5Sessions, walkScopes, type Ue5EventRow } from "../src/ue5-events";
 
 /**
  * THE WALK EVENTS, AND THE CAPTURE THAT NAMES A UNIT.
@@ -146,5 +146,35 @@ describe("walks fold into scopes by the showroom's own rule", () => {
       [SESSION, "walk.exited", 30000],
       [OTHER, "walk.exited", 35000],
     ]);
+  });
+});
+
+describe("a capture with a unit in view counts against that unit", () => {
+  it("per unit where the unit was opened, and for the session always", () => {
+    sequence = 0;
+    const [session] = foldUe5Sessions(
+      [
+        at("10:00:00", "session.started"),
+        at("10:01:00", "unit.view.started", { unit_id: "A-204" }),
+        at("10:01:30", "screenshot.created", {
+          screenshot_type: "standard",
+          context_unit_id: "A-204",
+        }),
+        at("10:01:40", "screenshot.created", {
+          screenshot_type: "standard",
+          context_unit_id: "A-204",
+        }),
+        /* A unit never opened in this session: the session counts it, no unit is made up for it. */
+        at("10:02:00", "screenshot.created", {
+          screenshot_type: "standard",
+          context_unit_id: "C-303",
+        }),
+        at("10:02:10", "screenshot.created", { screenshot_type: "standard" }),
+        at("10:03:00", "session.ended"),
+      ],
+      "prj_realproject1",
+    );
+    expect(session?.screenshots).toBe(4);
+    expect(session?.units.map((u) => [u.unitCode, u.screenshots])).toEqual([["A-204", 2]]);
   });
 });
