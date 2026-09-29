@@ -451,8 +451,8 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
       `${slovakZForm(n)} ${String(n)} ${n === 1 ? "stretnutia s meraným časom" : "stretnutí s meraným časom"}`,
     buyersCaption: (name, below, n, minimum) =>
       below
-        ? `Stretnutia – ${name}, na ktorých sa otvoril aspoň jeden byt danej veľkosti. Stretnutie, ktoré ukázalo jednoizbový byt aj štvorizbový penthouse, sa počíta v oboch, takže súčet nedáva počet stretnutí. Miera celého projektu sa vedľa neuvádza: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by také porovnanie bolo úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky.`
-        : `Každý riadok je jedna veľkosť bytu: podiel stretnutí – ${name}, na ktorých sa otvoril aspoň jeden byt tej veľkosti, a rovnaká miera za všetky stretnutia na projekte v období. Riadky nedávajú súčet jedna a nejde o skladbu — stretnutie, ktoré ukázalo jednoizbový byt aj štvorizbový penthouse, sa počíta v oboch.`,
+        ? `Stretnutia – ${name}, na ktorých sa otvoril aspoň 1 byt danej veľkosti. Stretnutie, ktoré ukázalo 1-izbový byt aj 4-izbový penthouse, sa počíta v oboch, takže súčet nedáva počet stretnutí. Miera celého projektu sa vedľa neuvádza: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by také porovnanie bolo úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky.`
+        : `Každý riadok je 1 veľkosť bytu: podiel stretnutí – ${name}, na ktorých sa otvoril aspoň 1 byt tej veľkosti, a rovnaká miera za všetky stretnutia na projekte v období. Riadky nedávajú súčet 1 a nejde o skladbu — stretnutie, ktoré ukázalo 1-izbový byt aj 4-izbový penthouse, sa počíta v oboch.`,
     buyersColumns: ["Byty", "Stretnutia, ktoré nejaký otvorili", "Podiel stretnutí", "Projekt"],
     noneOpened: "Žiadny otvorený",
     ofEveryMeeting: "zo všetkých stretnutí na projekte",
@@ -460,7 +460,7 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
       `Ako sa skončili stretnutia – ${name}: časti jedného celku, všetky stretnutia v období podľa výsledku zaznamenaného na ich konci. Menovateľ: ${meetingsIn("sk", n)}. Stretnutia bez zaznamenaného výsledku majú vlastný riadok, namiesto toho, aby sa zlúčili s riadkom, ktorý tvrdí, že sa niečo stalo.${below ? ` Vedľa počtov sa netlačí podiel: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, miera nad stretnutiami tohto človeka nie je číslo, podľa ktorého konať, a každý počet už nesie menovateľa, ktorého je podielom.` : ""}`,
     outcomeColumns: ["Výsledok", "Stretnutia", "Podiel"],
     unitsCaption: (name, period) =>
-      `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac šesť. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
+      `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac 6. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
     noOtherProject:
       "V tomto období nie je na žiadnom inom projekte tohto konta žiadna ďalšia prezentácia.",
     projectMeetings: (n, period) => `${meetingsIn("sk", n)} (${period.toLowerCase()})`,
