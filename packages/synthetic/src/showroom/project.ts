@@ -1670,13 +1670,13 @@ const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
     gapLegacy:
       "Toto stretnutie pochádza zo staršej analytiky, ktorá zaznamenáva poradie sekcií, ale nie čas vstupu do každej z nich. Poradie je skutočné; tempo nie je známe.",
     gapInteractions:
-      "Interakcie v rámci sekcie — pridanie do obľúbených, otvorenie pôdorysu, výhľad z balkóna — sú zaznamenané ako súčasť danej sekcie, nie však okamih, keď nastali. Čas nesú iba vstupy do sekcií.",
+      "Pri úkonoch v rámci sekcie — pridaní bytu do obľúbených, otvorení pôdorysu či zobrazení pohľadu z balkóna — je zaznamenané, v ktorej sekcii nastali, no nie presný okamih. Čas je uvedený len pri vstupe do sekcie.",
     gapFiltersNotEmitted:
       "Súčasná verzia showroomu neposiela stav filtrov, preto nie je známe, čo kupujúci hľadal.",
     gapNoFilter:
-      "Na tomto stretnutí sa nepoužil žiadny filter, takže nie je čo čítať z vyhľadávania.",
+      "Na tomto stretnutí nepoužili žiadny filter, takže niet vyhľadávania, ktoré by sa dalo vyhodnotiť.",
     gapNoComparison:
-      "Nezaznamenalo sa žiadne porovnanie. Režim porovnania sa meria, len keď ho maklér otvorí.",
+      "Žiadne porovnanie sa nezaznamenalo. Použitie režimu porovnania sa meria iba vtedy, keď ho maklér otvorí.",
   },
   hu: {
     steps: REPLAY_STEPS,
@@ -1705,12 +1705,12 @@ const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
     gapLegacy:
       "Ez a találkozó a korábbi analitikából származik, amely a szakaszok sorrendjét rögzíti, azt viszont nem, hogy mikor léptek be az egyes szakaszokba. A sorrend valós, a tempó ismeretlen.",
     gapInteractions:
-      "Egy szakaszon belüli interakciók — kedvencekhez adás, alaprajz megnyitása, kilátás az erkélyről — a szakasz részeként rögzülnek, a pillanatuk viszont nem. Időpontja csak a szakaszba lépésnek van.",
+      "A szakaszon belüli műveletekről — például ha egy lakást a Kedvencek listára tesznek, megnyitják az alaprajzot, vagy megnézik az erkélyről nyíló kilátást — csak az rögzül, melyik szakaszban történtek, a pontos időpontjuk nem. Időadat csak a szakaszba belépéshez tartozik.",
     gapFiltersNotEmitted:
       "A showroom jelenlegi változata nem küldi el a szűrők állapotát, ezért nem tudni, mit keresett a vevő.",
-    gapNoFilter: "Ezen a találkozón nem használtak szűrőt, így nincs mit kiolvasni a keresésből.",
+    gapNoFilter: "Ezen a találkozón nem használtak szűrőt, ezért nincs értelmezhető keresés.",
     gapNoComparison:
-      "Összehasonlítás nem rögzült. Az összehasonlító mód csak akkor mérhető, ha az értékesítő megnyitja.",
+      "Összehasonlítást nem rögzítettek. Az összehasonlító mód használatát csak akkor mérik, ha az értékesítő megnyitja.",
   },
 };
 

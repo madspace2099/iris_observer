@@ -107,7 +107,11 @@ const CASES: readonly Case[] = [
   {
     name: "deals.ts: the deals a connector stated",
     entry: DEAL_STATED_SENTENCE,
-    values: (n) => ({ count: n, connector: "the demonstration CRM" }),
+    values: (n) => ({
+      count: n,
+      connector: "the demonstration CRM",
+      Connector: "The demonstration CRM",
+    }),
     en: [
       "Stated by the demonstration CRM: 1 deal as it stands now.",
       "Stated by the demonstration CRM: 3 deals as they stand now.",
@@ -119,9 +123,9 @@ const CASES: readonly Case[] = [
       "Aktuálne je evidovaných 5 obchodov. Zdroj: the demonstration CRM.",
     ],
     hu: [
-      "Jelenleg 1 ügylet szerepel. Forrás: the demonstration CRM.",
-      "Jelenleg 3 ügylet szerepel. Forrás: the demonstration CRM.",
-      "Jelenleg 5 ügylet szerepel. Forrás: the demonstration CRM.",
+      "The demonstration CRM szerint jelenleg 1 ügylet van nyilvántartva.",
+      "The demonstration CRM szerint jelenleg 3 ügylet van nyilvántartva.",
+      "The demonstration CRM szerint jelenleg 5 ügylet van nyilvántartva.",
     ],
   },
   {

@@ -334,9 +334,9 @@ export const REPORT_BELOW_MINIMUM: Sentence = {
     words: {
       frame: {
         one: "{names} nedosahuje minimum {minimum} stretnutí, preto by sa čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
-        few: "{names} nedosahujú minimum {minimum} stretnutí, preto by sa ich čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+        few: "{names} zatiaľ nedosiahli minimum {minimum} stretnutí. Ich údaje sa preto zobrazia len ako počty, bez hodnotenia, poradia alebo trendu.",
         other:
-          "{names} nedosahujú minimum {minimum} stretnutí, preto by sa ich čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+          "{names} zatiaľ nedosiahli minimum {minimum} stretnutí. Ich údaje sa preto zobrazia len ako počty, bez hodnotenia, poradia alebo trendu.",
       },
     },
   },
@@ -346,7 +346,7 @@ export const REPORT_BELOW_MINIMUM: Sentence = {
       frame: {
         one: "{names} nem éri el {az:minimum} találkozós minimumot, ezért az adatai csak nyers számként jelennének meg, értékelés, rangsor és trend nélkül.",
         other:
-          "{names} nem érik el {az:minimum} találkozós minimumot, ezért az adataik csak nyers számként jelennének meg, értékelés, rangsor és trend nélkül.",
+          "{names} még nem érték el a legalább {minimum} találkozót. Az adataik ezért csak darabszámként jelennek meg, értékelés, rangsor és trend nélkül.",
       },
     },
   },
@@ -375,14 +375,21 @@ export const REPORT_LEGACY_SUMMARY: Sentence = {
     words: {
       frame: {
         one: "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemá časovanie a zobrazilo by sa ako postupnosť, nie ako časová os.",
-        few: "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemajú časovanie a zobrazili by sa ako postupnosť, nie ako časová os.",
+        few: "V tomto období možno pripraviť zhrnutie ku každému stretnutiu, no pri {count} z nich chýbajú časové údaje. Preto by sa zobrazili ako sled krokov, nie na časovej osi.",
         other:
-          "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemá časovanie a zobrazilo by sa ako postupnosť, nie ako časová os.",
+          "V tomto období možno pripraviť zhrnutie ku každému stretnutiu, no pri {count} z nich chýbajú časové údaje. Preto by sa zobrazili ako sled krokov, nie na časovej osi.",
       },
     },
   },
   hu: {
-    text: "Az időszak bármely találkozójáról írható összefoglaló, de közülük {count} nem hordoz időzítést, ezért lépéssorként jelenne meg, nem idővonalként.",
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Az időszak bármely találkozójáról írható összefoglaló, de közülük {count} nem hordoz időzítést, ezért lépéssorként jelenne meg, nem idővonalként.",
+        other:
+          "Az időszak bármely találkozójáról készülhet összefoglaló, de {count} találkozóhoz nincsenek időadatok. Ezeket ezért a lépések sorrendjében lehetne bemutatni, idővonal nélkül.",
+      },
+    },
   },
 };
 
@@ -494,7 +501,12 @@ export function buildReportScope(
           ? words.nobodyPresented
           : thin.length > 0
             ? sentence(language, REPORT_BELOW_MINIMUM, {
-                names: thin.map((a) => a.name).join(", "),
+                names:
+                  language === "en"
+                    ? thin.map((a) => a.name).join(", ")
+                    : new Intl.ListFormat(language, { type: "conjunction" }).format(
+                        thin.map((a) => a.name),
+                      ),
                 n: thin.length,
                 minimum: String(AGENT_MIN_SAMPLE),
               })
@@ -769,27 +781,27 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
     activity: {
       label: "Aktivita v tomto období",
       summary:
-        "Prezentácie, medián dĺžky, otvorené byty na stretnutie a dosiahnuté základné sekcie; ďalšie kontakty zaznamenané ako potrebné a polovica, ktorú žiadny zdroj nezaznamenáva; a zaznamenané výsledky, každý s počtom, z ktorého je podielom.",
+        "Prezentácie, medián ich dĺžky, počet bytov otvorených na stretnutie a základné sekcie, ku ktorým sa dostali. Ďalej to, či bol ďalší kontakt označený za potrebný; o tom, či sa skutočne uskutočnil, však nemá záznam žiadny zdroj. Napokon zaznamenané výsledky stretnutí, pri každom aj počet, z ktorého sa počíta jeho podiel.",
     },
     funnel: {
       label: "Kam sa stretnutia dostali",
       summary:
-        "Päť pozorovaných stavov, každý ako počet stretnutí, ktoré ho dosiahli, oproti počtu, z ktorého sú podielom. Nič tu netvrdí, že jedna fáza spôsobila ďalšiu.",
+        "5 pozorovaných stavov. Pri každom je uvedené, koľko stretnutí sa doň dostalo, aj celkový počet stretnutí, z ktorého sa podiel počíta. To neznamená, že jeden stav spôsobil ďalší.",
     },
     presentation: {
       label: "Ako prezentuje",
       summary:
-        "Poradie sekcií s mediánom času v každej z nich. Nad hranicou aj podiel na meranom čase prezentácie, ktorý každá sekcia zaberá, a vedľa neho medián tímu; pod hranicou ani jedno.",
+        "Poradie sekcií na stretnutiach makléra a medián času stráveného v každej z nich. Nad hranicou sa pri každej sekcii uvádza aj jej podiel na meranom čase maklérovej prezentácie a vedľa neho medián tímu. Pod hranicou sa neuvádza ani podiel, ani medián tímu.",
     },
     buyers: {
       label: "Kupujúci a výsledky",
       summary:
-        "Čo kupujúci otvárali podľa veľkosti bytu a ako sa stretnutia skončili: počty vlastných stretnutí, nad hranicou s podielom a vedľa neho s mierou celého projektu.",
+        "Ktoré veľkosti bytov kupujúci otvárali a ako sa končili stretnutia tohto makléra: údaje sa uvádzajú ako počty jeho vlastných stretnutí. Nad hranicou je pri nich aj podiel a vedľa neho rovnaká miera za celý projekt.",
     },
     units: {
       label: "Byty, ku ktorým sa opakovane vracia",
       summary:
-        "Byty otvorené v najväčšom podiele stretnutí, najviac šesť, s tým, ako často bol každý pridaný do obľúbených. Súvislosť so zvykom, nič viac.",
+        "Najviac 6 bytov, ktoré otvorili na najväčšom podiele maklérových stretnutí. Pri každom vidno, koľkokrát ho pridali do obľúbených. Ide len o súvislosť s tým, ako maklér zvykne prezentovať, o nič viac.",
     },
     projects: {
       label: "Kde ešte prezentuje",
@@ -799,7 +811,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
     meetings: {
       label: "Posledné stretnutia",
       summary:
-        "Najviac osem, od najnovšieho, každé s dĺžkou, sekciami, otvorenými bytmi, obľúbenými, zaznamenaným výsledkom a stavom ďalšieho kontaktu. Stĺpec návštevníka uvádza meno kupujúceho tam, kde kontakt súhlasil s uvedením mena, vedľa označenia bezpečného pre súkromie; inak iba označenie.",
+        "Najviac 8 stretnutí, od najnovšieho. Pri každom je uvedená dĺžka, sekcie, otvorené byty, byty pridané do obľúbených, zaznamenaný výsledok a stav ďalšieho kontaktu. V stĺpci Návštevník je meno kupujúceho vedľa označenia, ktoré chráni jeho súkromie, iba ak kontakt súhlasil s uvedením mena. Inak sa zobrazí len toto označenie.",
     },
     findings: {
       label: "Zistenia za obdobie",
@@ -811,7 +823,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
         "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na záznamy pod ňou.",
     },
     notCarried:
-      "V tomto dokumente nie je: týždenný priebeh prezentácií, pretože čiara sa číta ako smer, nech je pod ňou napísané čokoľvek, a papier to nevie povedať inak; prstenec výsledkov ako tvar, ktorého výseky sú vytlačené ako tabuľka v sekcii Kupujúci a výsledky; a návod na čítanie z obrazovky. Všetko ostatné z obrazovky je tu, z toho istého dátového modelu.",
+      "V tomto dokumente chýba týždenný priebeh prezentácií: čiaru čitateľ vníma ako smer vývoja bez ohľadu na text pod ňou a na papieri sa to nedá vysvetliť inak. Chýba aj grafický prstenec výsledkov, hoci jeho výseky sú vytlačené v tabuľke pod nadpisom Kupujúci a výsledky, a návod na čítanie obrazovky. Všetko ostatné z maklérovej obrazovky tu je, z rovnakého dátového modelu.",
     noUnits: "Žiadne stretnutie v tomto období neotvorilo byt z katalógu.",
     registerKept:
       "Vyhradené pre obchodný tím: riadky tohto registra patria k detailu stretnutia, ktorý toto konto neotvára. Každé z týchto stretnutí je započítané v sekciách vyššie.",
@@ -835,27 +847,27 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
     activity: {
       label: "Aktivitás ebben az időszakban",
       summary:
-        "Bemutatók, a medián hossz, a találkozónként megnyitott lakások és az elért alapszakaszok; a szükségesként rögzített utánkövetések, és a fele, amit egyetlen forrás sem rögzít; és a rögzített eredményei, mindegyik azzal a számmal, amelynek a része.",
+        "A bemutatók száma és medián hossza, a találkozónként megnyitott lakások, valamint az elért alapvető szakaszok. Az is látszik, hogy jelöltek-e szükséges utánkövetést; arról viszont egyik forrás sem vezet nyilvántartást, hogy az valóban megtörtént-e. Végül a rögzített találkozóeredmények szerepelnek, mindegyiknél azzal a darabszámmal, amelyből az arányát számolják.",
     },
     funnel: {
       label: "Meddig jutottak a találkozói",
       summary:
-        "Öt megfigyelt állapot, mindegyik azoknak a találkozóknak a száma, amelyek elérték, szemben azzal a számmal, amelynek a részei. Semmi sem állítja itt, hogy egyik szakasz hozta létre a következőt.",
+        "5 megfigyelt állapot. Mindegyiknél látszik, hány találkozó jutott el odáig, és hány találkozóból számolják az arányt. Ebből nem következik, hogy az egyik szakasz okozta a következőt.",
     },
     presentation: {
       label: "Hogyan mutat be",
       summary:
-        "A sorrendje, az egyes szakaszokban töltött medián idővel. A küszöb felett az is, mekkora részt visz el egy-egy szakasz a mért bemutatási idejéből, mellette a csapat mediánjával; a küszöb alatt egyik sem.",
+        "Az értékesítő bemutatóin követett szakaszsorrend és az egyes szakaszokban töltött idő mediánja. A küszöb felett szakaszonként az is látszik, mekkora részt tesz ki a mért bemutatási időből, mellette pedig a csapat medián ideje. A küszöb alatt ez a 2 adat nem jelenik meg.",
     },
     buyers: {
       label: "Vevők és eredmények",
       summary:
-        "Mit nyitottak meg a vevői lakásméret szerint, és hogyan zárultak a találkozói: a saját találkozóinak száma, a küszöb felett a részaránnyal, mellette a projekt saját arányával.",
+        "A vevők által megnyitott lakások mérete és a találkozók kimenetele az értékesítő saját találkozóinak darabszámai szerint látható. A küszöb felett megjelenik az ezekből számolt arány és mellette a projekt megfelelő aránya is.",
     },
     units: {
       label: "A lakások, amelyeket újra meg újra megnyit",
       summary:
-        "A találkozói legnagyobb részében megnyitott lakások, legfeljebb hat, azzal, hogy melyiket hányszor adták a kedvencekhez. Összefüggés a szokásával, semmi több.",
+        "Legfeljebb 6 lakás, amelyeket az értékesítő találkozóinak legnagyobb hányadában nyitottak meg. Mindegyiknél látszik, hányszor került a Kedvencek listára. Ez csak az értékesítő bemutatási szokásaival mutat összefüggést, ennél többet nem állít.",
     },
     projects: {
       label: "Hol mutat még be",
@@ -865,7 +877,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
     meetings: {
       label: "A legutóbbi találkozói",
       summary:
-        "Legfeljebb nyolc, a legújabbal kezdve, mindegyik a hosszával, a szakaszokkal, a megnyitott lakásokkal, a kedvencekkel, a rögzített eredménnyel és az utánkövetés állapotával. A látogató oszlopa megnevezi a vevőt, ahol a kapcsolat hozzájárult a nevéhez, egy adatvédelmileg biztonságos címke mellett; egyébként csak a címkét.",
+        "Legfeljebb 8 találkozó, a legújabbal kezdve. Mindegyiknél szerepel az időtartam, a szakaszok, a megnyitott lakások, a Kedvencek listára tett lakások, a rögzített eredmény és az utánkövetés állapota. A Látogató oszlopban a vevő neve csak akkor jelenik meg a személyes adatokat védő megjelölés mellett, ha az érintett hozzájárult a nevének feltüntetéséhez. Egyébként csak a megjelölés látható.",
     },
     findings: {
       label: "Az időszak megállapításai",
@@ -878,7 +890,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
         "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a hivatkozással az alatta lévő rekordokra.",
     },
     notCarried:
-      "Ebben a dokumentumban nem szerepel: a bemutatók hétről hétre futó sora, mert egy vonalat iránynak olvasnak, bármi áll is alatta, és a papír ezt nem tudja másként mondani; az eredménygyűrű mint alakzat, amelynek szeletei táblázatként szerepelnek a Vevők és eredmények alatt; és a képernyő olvasási útmutatója. Minden más, ami a képernyőjén van, itt van, ugyanabból az adatmodellből.",
+      "Ebben a dokumentumban nincs benne a bemutatók heti idősora: a vonalat az ember akkor is irányként értelmezi, ha más magyarázat áll alatta, és ezt nyomtatásban nem lehet felülírni. Az eredménygyűrű ábrája sem szerepel, de a szeletei táblázatban láthatók a Vevők és eredmények szakaszban; a képernyő értelmezési útmutatója is kimarad. A képernyő összes többi adata ugyanabból az adatmodellből szerepel itt.",
     noUnits: "Egyetlen találkozója sem nyitott meg katalógusbeli lakást az időszakban.",
     registerKept:
       "Az értékesítői csapatnak fenntartva: a lista sorai a találkozó részletnézetéhez tartoznak, amelyet ez a fiók nem nyit meg. Mindegyik találkozó szerepel a fenti szakaszok számaiban.",

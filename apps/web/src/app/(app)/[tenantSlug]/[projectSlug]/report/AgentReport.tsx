@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import {
   MEETINGS,
+  hungarianAdessive,
   NotFoundError,
   NotPermittedError,
   plural,
@@ -484,6 +485,7 @@ export async function AgentReport({
                 ? ""
                 : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
                     count: String(partialCount),
+                    countAt: hungarianAdessive(String(partialCount)),
                     total: String(total),
                     from: slovakZForm(total),
                     n: partialCount,

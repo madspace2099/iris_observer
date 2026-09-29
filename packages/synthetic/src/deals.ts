@@ -8,6 +8,7 @@ import type { IrisAssistPolicy } from "@observer/metrics";
 import {
   DAYS,
   DEFAULT_LANGUAGE,
+  hungarianArticle,
   plural,
   pluralCategory,
   sentence,
@@ -204,7 +205,7 @@ export const DEAL_STATED_SENTENCE: Sentence = {
       },
     },
   },
-  hu: { text: "Jelenleg {count} ügylet szerepel. Forrás: {connector}." },
+  hu: { text: "{Connector} szerint jelenleg {count} ügylet van nyilvántartva." },
 };
 
 /** "2 deals carry a stage word not mapped yet and sit on no rung." */
@@ -500,6 +501,9 @@ const STAGE_WORDS: Readonly<Record<Language, Readonly<Record<DealStage, string>>
   },
 };
 
+/** A phrase that opens a sentence: "a bemutató CRM" → "A bemutató CRM". */
+const capitalised = (phrase: string) => `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}`;
+
 const CONNECTOR_PHRASES: Readonly<
   Record<Language, Readonly<Record<DeliveredDeals["connector"], string>>>
 > = {
@@ -535,21 +539,22 @@ const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
   sk: {
     notConnected:
       "CRM nie je pripojené. Rebrík obchodov patrí CRM a žiadny údaj o obchode sa do tohto produktu nedostane, kým ho nedodá konektor.",
-    rung: "Stupeň počíta obchody v danej fáze alebo ďalej; ukazuje, kde každý obchod stojí, nie cestu, ktorou prešiel.",
+    rung: "Každý stupeň zahŕňa obchody v danej fáze aj tie, ktoré sa dostali ďalej. Ukazuje ich súčasný stav, nie cestu, ktorou prešli.",
     lost: (n) => {
       const category = pluralCategory("sk", n);
       return category === "one"
         ? `${String(n)} stratený obchod, počítaný mimo rebríka.`
         : category === "few"
           ? `${String(n)} stratené obchody, počítané mimo rebríka.`
-          : `${String(n)} stratených obchodov, počítaných mimo rebríka.`;
+          : `${String(n)} stratených obchodov sa počíta osobitne vedľa rebríka.`;
     },
   },
   hu: {
     notConnected:
       "A CRM nincs csatlakoztatva. Az ügyletek lépcsője a CRM-é, és egyetlen ügyleti adat sem jut el ebbe a termékbe, amíg egy csatlakozó nem szállítja.",
-    rung: "Egy lépcsőfok azokat az ügyleteket számolja, amelyek abban a szakaszban vagy azon túl tartanak; azt mutatja, hol áll most az egyes ügylet, nem azt, milyen úton jutott oda.",
-    lost: (n) => `${String(n)} elveszett ügylet, a lépcsőn kívül számolva.`,
+    rung: "A lépcső egy-egy foka az adott szakaszban vagy annál tovább tartó ügyleteket számolja. Az ügyletek jelenlegi állapotát mutatja, nem az odáig vezető útjukat.",
+    lost: (n) =>
+      `${hungarianArticle(String(n), true)} ${String(n)} elveszett ügylet külön, a lépcső mellett szerepel.`,
   },
 };
 
@@ -648,6 +653,8 @@ export function buildDealLadder(
   const words = [
     sentence(language, DEAL_STATED_SENTENCE, {
       connector: CONNECTOR_PHRASES[language][deals.connector],
+      /* The same phrase opening a sentence: "A bemutató CRM szerint…". */
+      Connector: capitalised(CONNECTOR_PHRASES[language][deals.connector]),
       count: deals.deals.length,
     }),
     noteWords.rung,

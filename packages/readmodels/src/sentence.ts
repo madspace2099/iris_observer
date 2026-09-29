@@ -243,6 +243,17 @@ const HUNGARIAN_NUMBER_SUFFIX: Readonly<Record<string, string>> = {
   "100": "-as",
 };
 
+/**
+ * "1-nél", "3-nál": a number with the Hungarian "-nál/-nél" after it.
+ *
+ * The vowel is the one the "-s" suffix above already takes for that number
+ * ("-es", "-ös" front; "-as", "-os", "-ás" back), so no second table is kept:
+ * a number whose "-s" suffix is corrected here is corrected there too.
+ */
+export function hungarianAdessive(value: string): string {
+  return `${value}${/[aáo]/.test(hungarianNumberSuffix(value)) ? "-nál" : "-nél"}`;
+}
+
 /** "-as" for "A-103": the suffix the number at the end of `value` takes. */
 export function hungarianNumberSuffix(value: string): string {
   const digits = /\d+$/.exec(value)?.[0] ?? "";

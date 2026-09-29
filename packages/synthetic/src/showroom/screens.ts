@@ -1327,7 +1327,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     completedWhy:
       "Žiadny zdroj nezaznamenáva, či sa ďalší kontakt uskutočnil. Observer má stretnutie; činnosť po ňom patrí CRM.",
     followUpNote:
-      "Zaznamenané ako potrebné a skutočne vykonané sú dve otázky. Observer vie odpovedať iba na prvú; druhá je uvedená ako nedostupná, nie domyslená.",
+      "To, či bol ďalší kontakt označený za potrebný, a to, či sa naozaj uskutočnil, sú 2 rozdielne otázky. Observer vie odpovedať len na prvú. Pri druhej uvádza, že údaj nie je k dispozícii, namiesto toho, aby si ho domýšľal.",
     noOutcome: (outcome) =>
       `Žiadne stretnutie v tomto období nemá zaznamenaný výsledok „${outcome}“.`,
     funnel: [
@@ -1341,10 +1341,10 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     funnelOf: (display, n) => `${slovakZForm(n)} ${display}`,
     shortOfSample: `Menej ako ${String(AGENT_MIN_SAMPLE)} stretnutí — zobrazené ako surové číslo, nie ako hodnotenie.`,
     belowStatement: (name, meetings, period, short, minimum) =>
-      `${name}: ${meetings} (${period.toLowerCase()}), o ${short} menej ako ${minimum}, ktoré produkt vyžaduje, kým prečíta číslo ako hodnotenie.`,
+      `${name}: tento maklér viedol ${meetings} (${period.toLowerCase()}). Do ${minimum} stretnutí, ktoré produkt vyžaduje predtým, než bude z čísel vyvodzovať hodnotenie, mu chýba ešte ${short}.`,
     projectMeetings: (display, n) => `${display} ${plural("sk", n, MEETINGS)} na projekte`,
     belowSoWhat:
-      "Počty na tejto stránke sú skutočné a miery sú uvedené ako surové čísla. Pri tejto veľkosti vzorky sa z nich neodvodzuje poradie, hodnotenie ani trend.",
+      "Počty na tejto stránke sú skutočné a miery sú uvedené len ako čísla. Pri takejto veľkosti vzorky sa z nich neurčuje poradie, hodnotenie ani trend.",
     seeMeetings: "Zobraziť stretnutia",
     belowCaveat: "Malá vzorka je malá vzorka. Nie je to výrok o človeku.",
     signatureStatement: (name, index, section) =>
@@ -1359,7 +1359,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
       `Bez zaznamenaného výsledku: ${unrecorded} ${slovakZForm(totalN)} ${total} stretnutí.`,
     unrecordedBaseline: (share) => `${share} stretnutí`,
     unrecordedSoWhat:
-      "Každá miera na tejto stránke, ktorá používa výsledok, tieto stretnutia potichu vynecháva. Náprava je zvyk na konci stretnutia, nie zmena údajov.",
+      "Každá miera na tejto stránke, ktorá vychádza zo zaznamenaného výsledku stretnutia, tieto stretnutia bez upozornenia vynechá. Pomôže, ak sa výsledok bude pravidelne zaznamenávať na konci stretnutia; údaje netreba meniť.",
   },
   hu: {
     presentations: "Bemutatók",
@@ -1379,7 +1379,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     completedWhy:
       "Egyetlen forrás sem rögzíti, megtörtént-e az utánkövetés. Az Observer a találkozót látja; ami utána történik, az a CRM-hez tartozik.",
     followUpNote:
-      "A szükségesként rögzített és a ténylegesen elvégzett két külön kérdés. Az Observer csak az elsőre tud felelni; a második nem elérhetőként szerepel, nem feltételezve.",
+      "Az, hogy szükségesnek jelölték-e az utánkövetést, és az, hogy valóban megtörtént-e, 2 külön kérdés. Az Observer csak az elsőre tud választ adni. A másodiknál azt jelzi, hogy nincs adat, ahelyett hogy feltételezné az eredményt.",
     noOutcome: (outcome) =>
       `Az időszakban egyetlen találkozóját sem rögzítették „${outcome}” eredménnyel.`,
     funnel: [
@@ -1393,10 +1393,10 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     funnelOf: (display) => `${display} közül`,
     shortOfSample: `Kevesebb mint ${String(AGENT_MIN_SAMPLE)} találkozó — nyers számként látható, nem értékelésként.`,
     belowStatement: (name, meetings, period, short, minimum) =>
-      `${name}: ${meetings} (${period.toLowerCase()}); a termék ${minimum} találkozót kér, mielőtt egy számot értékelésként olvasna, ebből ${short} hiányzik.`,
+      `${name}: az értékesítő ${meetings}n tartott bemutatót (${period.toLowerCase()}). Az értékeléshez a termék ${minimum} találkozót követel meg, tehát még ${short} hiányzik.`,
     projectMeetings: (display) => `${display} találkozó a projekten`,
     belowSoWhat:
-      "Az oldalon szereplő darabszámok valósak, az arányok nyers számként szerepelnek. Ekkora mintából nem készül rangsor, értékelés vagy trend.",
+      "Az oldalon szereplő darabszámok valósak, az arányok nyers értékként láthatók. Ekkora mintából nem állapítanak meg rangsort, értékelést vagy trendet.",
     seeMeetings: "Találkozók megtekintése",
     belowCaveat: "A kis minta kis minta. Nem állítás az emberről.",
     signatureStatement: (name, index, section) =>
@@ -1411,7 +1411,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
       `Rögzített eredmény nélkül zárult: ${total} találkozóból ${unrecorded}.`,
     unrecordedBaseline: (share) => `${share} a találkozói közül`,
     unrecordedSoWhat:
-      "Az oldal minden aránya, amely eredményt használ, csendben kihagyja ezeket a találkozókat. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
+      "Az oldalon minden aránymutató, amely a találkozó rögzített eredményére épül, észrevétlenül kihagyja ezeket a találkozókat. Az segít, ha a találkozók végén rendszeresen rögzítik az eredményt; az adatokat nem kell módosítani.",
   },
 };
 

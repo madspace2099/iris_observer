@@ -140,7 +140,7 @@ export function suppressionNoteFor(
   if (language === "sk") {
     return form === "short"
       ? `${count(held, locale)} ${slovakZForm(AGENT_MIN_SAMPLE)} ${minimum} stretnutí`
-      : `${meetings(held, locale, language)} v tomto období; na hodnotenie treba ${minimum}, chýba ${short}. Čísla sú zobrazené, poradie ani trend sa neurčuje.`;
+      : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
   }
   if (language === "hu") {
     return form === "short"
@@ -689,7 +689,7 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
     belowSample: (volume, now, before, short, needed) =>
       `Na hodnotenie je málo údajov: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým. Zaznamenané výsledky (${short.label}): ${short.count}; na hodnotenie treba ${needed}.`,
     signal: (signal, volume, now, before) =>
-      `${signal === "good" ? "Stretnutia sa držia a dobre napredujú" : signal === "poor" ? "Stojí za pozornosť" : "Nejednoznačný signál"}: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým.`,
+      `${signal === "good" ? "Počet stretnutí sa drží a stretnutia napredujú dobre" : signal === "poor" ? "Stojí za pozornosť" : "Nejednoznačný signál"}: ${volume}. Zo zaznamenaných stretnutí postúpilo ďalej ${now} oproti predchádzajúcim ${before}.`,
   },
   hu: {
     volume: (m, current, prior) =>
@@ -705,7 +705,7 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
     belowSample: (volume, now, before, short, needed) =>
       `Kevés az adat az ítélethez: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal. Rögzített eredmények (${short.label}): ${short.count}; az ítélethez ${needed} kell.`,
     signal: (signal, volume, now, before) =>
-      `${signal === "good" ? "A találkozók száma tartja magát, és jól haladnak" : signal === "poor" ? "Érdemes megnézni" : "Vegyes jelzés"}: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal.`,
+      `${signal === "good" ? "A találkozók száma stabil, és az eredményük is kedvezően alakul" : signal === "poor" ? "Érdemes megnézni" : "Vegyes jelzés"}: ${volume}. A rögzített találkozók ${now}-a lépett tovább a korábbi ${before}-hoz képest.`,
   },
 };
 
@@ -733,7 +733,7 @@ const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
     teamBaseline: (share) => `${share} v tíme`,
     periodBaseline: (share) => `${share} obdobia`,
     flagSoWhat:
-      "Vzorec v tom, ako sa stretnutia končia, je podnetom pozrieť sa, ako prebiehajú — na prezentáciu, tempo a to, čo sa ukazuje. Nie je to hodnotenie človeka.",
+      "Ak sa ukáže vzorec v tom, ako sa stretnutia končia, je to dôvod pozrieť sa na ich priebeh: na prezentáciu, tempo aj to, čo sa ukazuje. Nie je to hodnotenie človeka.",
     unrecordedSoWhat:
       "Každé porovnanie, ktoré pracuje s výsledkom, ich potichu vynecháva. Riešením je návyk na konci stretnutia, nie zmena údajov.",
     open: (firstName) => `Otvoriť: ${firstName}`,
@@ -743,7 +743,7 @@ const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
     teamBaseline: (share) => `a csapatban ${share}`,
     periodBaseline: (share) => `az időszak ${share}-a`,
     flagSoWhat:
-      "Az, ahogyan a találkozók végződnek, arra ösztönöz, hogy megnézzük, hogyan zajlanak — a bemutatót, a tempót, azt, hogy mi kerül elő. Ez nem ítélet a személyről.",
+      "Ha kirajzolódik egy minta abban, hogyan végződnek a találkozók, érdemes megnézni a menetüket: a bemutatót, a tempót és azt, mit mutatnak meg. Ez nem az értékesítő személyének megítélése.",
     unrecordedSoWhat:
       "Minden eredményalapú összevetés szó nélkül kihagyja ezeket. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
     open: (firstName) => `${firstName} megnyitása`,
