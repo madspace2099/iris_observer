@@ -51,6 +51,7 @@ meeting duration silently includes the waiting time. Every duration-based metric
 | 11  | Floor Cut               | `unit.floor_cut.shown {unit_id, floor}` / `.ended {duration_ms}`                                            |                                                                                   |
 | 12  | Balcony / View          | `unit.balcony.entered {unit_id}` / `.exited {duration_ms}`                                                  | The signature IRIS moment.                                                        |
 | 13  | Interior tour           | `unit.interior.opened {unit_id, mode, ref}` / `.closed {duration_ms}`                                       | `mode`: `guided` \| `free` \| `external`. See §6.                                 |
+| 13a | Walk through the twin   | `walk.entered {context_unit_id?}` / `walk.exited {duration_ms}`                                             | **Live** (2026-09-30). The D4 "Walking" axis. See below.                          |
 | 14  | Daytime / weather       | `scene.changed {time_of_day, clock, weather}`                                                               | Scene control — explicitly **not** Photo Mode.                                    |
 | 15  | **Compare Mode**        | `compare.opened {unit_ids[]}`, `compare.changed {unit_ids[]}`, `compare.closed {unit_ids[], kept_unit_id?}` | **New.** See §4.                                                                  |
 | 16  | Favorites               | `unit.favourited {unit_id, origin}` / `unit.unfavourited`                                                   | `origin`: which screen it was added from.                                         |
@@ -70,6 +71,17 @@ Two rules that keep this honest in a live room:
   closes every open scope. A Blueprint author cannot leak a dangling `started` with no `ended`.
 - **Every `*.ended` event carries `duration_ms`**, measured with `FPlatformTime::Seconds()`. The server
   never subtracts timestamps to get a duration.
+
+**Walks (13a), as the showroom sends them.** A second `walk.entered` closes the walk before it, and
+`session.ended` closes any walk still open — the first rule above, applied to walks. In Observer that
+is `walkScopes` (`packages/connectors/src/ue5-events.ts`): each scope records what closed it, and only a
+walk closed by `walk.exited` carries a duration, the device's own. A walk another event cut short has
+no duration rather than the gap to that event. No read model draws walks yet.
+
+**Names the live plugin sends beside the ones above.** `unit.favourite_added` / `unit.favourite_removed`
+(16), `unit.document_opened {document_type: "floorplan_pdf"}` (10), `unit.floor_cut_viewed` (11),
+`screenshot.created {screenshot_type}` (18) and `agent.rating {rating_score}` (1–5, entity `agent`) are
+live (2026-09-30), and the mapper reads each. There is no `session.agent_rated` event.
 
 ---
 
