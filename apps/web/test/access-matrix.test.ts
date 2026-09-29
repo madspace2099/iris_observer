@@ -211,14 +211,14 @@ describe("the gates compose, and the middle one actually removes data", () => {
     const open = await repo().getExecutiveOverview(query);
     const gated = await entitled(repo(), FIXTURE_REGISTRY).getExecutiveOverview(query);
 
-    const exec = (v: unknown): { metricId: string; display: unknown }[] => {
-      const out: { metricId: string; display: unknown }[] = [];
+    const exec = (v: unknown): { metricId: string; display: unknown; state: unknown }[] => {
+      const out: { metricId: string; display: unknown; state: unknown }[] = [];
       const walk = (x: unknown, seen = new Set<unknown>()) => {
         if (typeof x !== "object" || x === null || seen.has(x)) return;
         seen.add(x);
         const r = x as Record<string, unknown>;
         if (typeof r["metricId"] === "string" && r["metricId"].startsWith("exec.")) {
-          out.push({ metricId: r["metricId"], display: r["display"] });
+          out.push({ metricId: r["metricId"], display: r["display"], state: r["state"] });
         }
         for (const child of Object.values(r)) walk(child, seen);
       };
@@ -234,12 +234,23 @@ describe("the gates compose, and the middle one actually removes data", () => {
     ).toBeGreaterThan(0);
     /*
      * Two rules, not one rule with an exemption: an available figure must come
-     * out changed, and an unavailable one (null) must be null on BOTH sides, so
-     * a figure that is null for no reason is still caught rather than skipped.
+     * out changed, and a null one must be null on BOTH sides AND declared
+     * unavailable, so a figure that is null for no stated reason still fails.
      */
-    for (const m of exec(gated)) {
-      const was = before.find((b) => b.metricId === m.metricId)?.display;
+    /*
+     * Paired by position, not by the first figure with the same id: the verdict
+     * component and the headline tile share one metricId, and a lookup by id
+     * compared every tile with its component and never looked at the tile.
+     */
+    const after = exec(gated);
+    expect(after.map((m) => m.metricId)).toEqual(before.map((m) => m.metricId));
+    for (const [i, m] of after.entries()) {
+      const pair = before[i];
+      const was = pair?.display;
       if (was === null) {
+        expect(pair?.state, `${m.metricId} is null without being declared unavailable`).toBe(
+          "unavailable",
+        );
         expect(
           m.display,
           `${m.metricId} had no value, and the gate must not give it one`,
