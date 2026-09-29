@@ -282,7 +282,7 @@ export const REPORT_COVERAGE_CAPTION: Sentence = {
     text: "Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: {timed} of {total} meetings, every step timed.",
   },
   sk: {
-    text: "Kam ide čas prezentácií tímu, sekcia po sekcii, s mediánom času tímu. Podiely sú z času, ktorý zdroj dokázal zmerať: {timed} {from} {total} stretnutí, každý krok zmeraný.",
+    text: "Prehľad ukazuje, ako sa čas tímových prezentácií rozdeľuje medzi jednotlivé sekcie, a medián času, ktorý v nich tím strávi. Podiely sa počítajú iba z merateľného času: meranie zachytáva {timed} {from} {total} stretnutí a každý krok.",
   },
   hu: {
     text: "Hová megy a csapat bemutatóideje, szakaszonként, a csapat medián idejével. Az arányok abból az időből számolódnak, amelyet a forrás mérni tudott: {total} találkozóból {timed}, minden lépés mérve.",
