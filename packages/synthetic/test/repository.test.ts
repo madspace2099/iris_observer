@@ -542,7 +542,19 @@ describe("the verdict is explainable, not an opinion", () => {
       ...NORTHGATE,
       period: "quarter_to_date",
     });
-    expect(overview.verdict.state).toBe("attention_needed");
+    /*
+     * The state follows the components, not the scenario: it was a fixed
+     * attention_needed over typed figures. Any fail needs attention; all
+     * passing is positive; anything else is not enough to say.
+     */
+    const outcomes = overview.verdict.components.map((c) => c.outcome);
+    expect(overview.verdict.state).toBe(
+      outcomes.includes("fail")
+        ? "attention_needed"
+        : outcomes.every((o) => o === "pass")
+          ? "positive"
+          : "insufficient_data",
+    );
     expect(overview.verdict.components.length).toBeGreaterThan(2);
     for (const component of overview.verdict.components) {
       // A component without a rule or a value is decoration; the point of

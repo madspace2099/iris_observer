@@ -28,9 +28,10 @@ import { unitsForProject } from "./world";
  * This is an honest extension of the documented synthetic model, not data
  * invented to make a picture work. Every figure is derived from the unit's own
  * attributes by a stated rule, the five hand-written units keep their exact
- * values, and the aggregate reproduces the story the Overview already tells —
- * two-room units drawing about twice their share of attention while converting
- * at half the project average.
+ * values, and the aggregate gives two-room units more than their share of
+ * attention. What they convert at is measured on `/project`, not stated here:
+ * this comment once said "half the project average", and the figures said the
+ * opposite (41% against 40%, measured 2026-09-29).
  */
 
 /**

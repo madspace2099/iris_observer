@@ -228,10 +228,25 @@ describe("the gates compose, and the middle one actually removes data", () => {
 
     const before = exec(open);
     expect(before.length, "the fixture must carry executive figures to refuse").toBeGreaterThan(0);
+    expect(
+      before.filter((b) => b.display !== null).length,
+      "the fixture must carry available executive figures to refuse",
+    ).toBeGreaterThan(0);
+    /*
+     * Two rules, not one rule with an exemption: an available figure must come
+     * out changed, and an unavailable one (null) must be null on BOTH sides, so
+     * a figure that is null for no reason is still caught rather than skipped.
+     */
     for (const m of exec(gated)) {
-      expect(m.display, m.metricId).not.toBe(
-        before.find((b) => b.metricId === m.metricId)?.display,
-      );
+      const was = before.find((b) => b.metricId === m.metricId)?.display;
+      if (was === null) {
+        expect(
+          m.display,
+          `${m.metricId} had no value, and the gate must not give it one`,
+        ).toBeNull();
+      } else {
+        expect(m.display, m.metricId).not.toBe(was);
+      }
     }
   });
 
