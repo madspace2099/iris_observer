@@ -23,6 +23,13 @@ export default tseslint.config(
       "**/_ask-reference/**",
       "artifacts/**",
       /*
+       * The same for a collaborator's delivered analytics panel, read as a
+       * specification of the live data and never changed: browser code this
+       * repository must not lint into a failing gate. Only that folder — the
+       * rest of `_review/` stays linted, so a script left there still fails.
+       */
+      "_review/ad-panel/**",
+      /*
        * Agent tooling beside the code, not the code: the Impeccable skill's
        * scripts ship minified browser bundles, and its live mode writes state
        * directories. Neither is this repository's to lint.
