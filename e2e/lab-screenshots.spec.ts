@@ -1,5 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { signIn } from "./sign-in";
+
+/* `/lab` is MADSPACE-only, behind the design lab's gate. */
+test.beforeEach(async ({ page }) => {
+  await signIn(page, "MADSPACE Operations");
+});
+
 test.skip(
   ({ isMobile }) => isMobile === true,
   "the concepts are desktop compositions; a phone layout follows the choice",

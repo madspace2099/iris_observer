@@ -168,7 +168,11 @@ const HARNESS_ENV = {
 };
 
 /* The three design-lab specs run on the lab project alone; see LAB_PORT. */
-const LAB_SPECS = /design-lab/;
+/*
+ * `/lab` sits behind the same gate as `/design-lab` since 2026-09-29, so its
+ * specs run on the lab's server too: under `next start` both are a 404.
+ */
+const LAB_SPECS = /(^|[\\/])(design-)?lab[.-]/;
 
 export default defineConfig({
   testDir: "./e2e",
